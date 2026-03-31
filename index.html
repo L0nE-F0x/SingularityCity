@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Singularity City</title>
+<meta name="description" content="A globally synced, real-time simulation tracking the AI frontier. Discover models, track benchmarks, and watch the race to AGI unfold.">
+
+<meta property="og:title" content="Singularity City">
+<meta property="og:description" content="A real-time, globally synced simulation of the AI industry. 730+ AI citizens, 5 data pipelines, live rocket launches, CEO helicopters. Every discovery expands the city for everyone.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://singularitycity.netlify.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://singularitycity.netlify.app">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Singularity City">
+<meta name="twitter:description" content="A real-time simulation of the AI industry. AI models are citizens. Labs are districts. CEOs fly helicopters. Rockets launch from the desert.">
+<meta name="twitter:image" content="https://singularitycity.netlify.app/og-image.png">
+
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#060610">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="landing">
+  <div class="land-bg"><div class="land-glow g1"></div><div class="land-glow g2"></div><div class="land-glow g3"></div><div id="landStars"></div><div class="land-skyline" id="landSkyline"></div></div>
+  <div class="land-content">
+    <div class="land-emoji">🏙️</div>
+    <h1 class="land-title">SINGULARITY CITY</h1>
+    <p class="land-sub">A globally synced, real-time pixel-art simulation of the <span>race to AGI</span>.<br>
+    AI models are citizens. Labs are districts. CEOs drive luxury cars. Rockets launch from the desert.<br>
+    Every discovery by every player expands the city for everyone.</p>
+    <div class="land-features">
+      <div class="land-feat"><span>🏢</span><b>Dynamic City</b><br>HQs grow as labs release models. New labs get auto-zoned.</div>
+      <div class="land-feat"><span>🚀</span><b>Space Zone</b><br>Desert biome with launch pads. Real-time rocket launches.</div>
+      <div class="land-feat"><span>🧑‍💼</span><b>CEO Estates</b><br>Billionaire's Row mansions. Helicopter flights to retreats.</div>
+      <div class="land-feat"><span>📡</span><b>Track Anyone</b><br>Lock camera on any AI model or CEO. Follow them everywhere.</div>
+    </div>
+    <div class="land-btns">
+      <button class="land-enter" onclick="enterCity()">▶ Enter Singularity City</button>
+      <button class="land-how" onclick="document.getElementById('instrOv').classList.add('open')">❓ How It Works</button>
+    </div>
+    <div class="land-footer"><span>🌍 Global Sync</span><span>🏙️ 7 Biomes</span><span>🧠 Agentic AI</span><span>📈 Live Data</span><span>🚀 Space Launches</span></div>
+    <div id="mobileWarning" style="display:none;margin-top:16px;padding:10px 16px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:6px;font-size:10px;color:#fbbf24;line-height:1.5">
+      📱 <b>Mobile detected.</b> Best experienced on desktop for full detail. Touch controls enabled: swipe to pan, pinch to zoom, tap characters for profiles.
+    </div>
+  </div>
+</div>
+
+<div id="instrOv" class="ov" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="instr-pan">
+    <button class="instr-close" onclick="document.getElementById('instrOv').classList.remove('open')">✕</button>
+    <div class="instr-title">HOW IT WORKS</div>
+    
+    <div class="instr-section"><div class="instr-h">🏙️ The City</div><div class="instr-p">A <b>GPU-accelerated real-time simulation</b> of the AI industry. Buildings grow taller as labs release more models. New labs get dynamically zoned with HQs. The lab with the highest ELO gets a <b>golden Apex Beacon</b>. The cheapest API provider gets a green <b>SALE</b> sign. A <b>Leaderboard Monument</b> in the park tracks the #1 model.</div></div>
+    
+    <div class="instr-section"><div class="instr-h">🚀 Space Zone</div><div class="instr-p">Scroll left past the residential area to find the <b>desert biome</b> with 7 launch pads (SpaceX, Blue Origin, NASA, CNSA, ESA, ULA, Rocket Lab), a Vehicle Assembly Building, Mission Control, and an Orbital Tracking Station. Rockets launch based on <b>real-time launch data</b> from the Launch Library 2 API. Click any facility to enter its interior.</div></div>
+    
+    <div class="instr-section"><div class="instr-h">🧑‍💼 CEOs & Billionaire's Row</div><div class="instr-p">Each AI lab's CEO drives a <b>luxury car</b> between their HQ and private estate. On weekends, CEOs take <b>helicopters</b> to Silicon Woods — a luxury retreat with a whiskey bar, infinity hot tub, putting green, and glamping domes. New CEOs are auto-discovered via scan and get a mansion built on Billionaire's Row.</div></div>
+    
+    <div class="instr-section"><div class="instr-h">📡 Camera Tracking</div><div class="instr-p">Click any AI model or CEO and press <b>📡 Track</b> to lock the camera on them. Watch them commute via metro, enter buildings, work at desks, go camping, or fly helicopters — the camera <b>automatically enters and exits interiors</b> to follow them. Drag to cancel.</div></div>
+    
+    <div class="instr-section"><div class="instr-h">🌲 Forests & Interiors</div><div class="instr-p"><b>Pine Reserve</b> (near residential) — AI models go camping, fishing, and picnicking on weekends. <b>Silicon Woods</b> (between tech and estates) — A billionaire CEO retreat with fire pits, zen gardens, and fairy-lit redwoods. <b>Frontier Pines</b> — separates the space zone from the city. All feature outdoor sky rendering matching the time of day.</div></div>
+    
+    <div class="instr-section"><div class="instr-h">🛰️ Scanning & Discovery</div><div class="instr-p">The AI-powered scanner finds <b>4 real models per scan</b> using your API key. It uses <b>weighted category selection</b> (Big Tech 40%, Asian 15%, Open Source 15%) and <b>gap analysis</b> to prioritize underrepresented labs. It also discovers <b>CEOs/founders</b> for labs that don't have one yet, automatically creating their car, helicopter, and estate.</div></div>
+    
+    <div class="instr-section">
+      <div class="instr-h">🔑 API Keys</div>
+      <div class="instr-p">
+        Provide your own API keys in Settings (⚙️) to power scanning, the AI analyst, and live market data.<br><br>
+        <b style="color:var(--ac)">AI Model Key (for Scan & Analyst)</b><br>
+        • <b>Google Gemini:</b> <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--cy)">aistudio.google.com</a> (recommended — free tier)<br>
+        • <b>xAI Grok:</b> <a href="https://console.x.ai/" target="_blank" style="color:var(--cy)">console.x.ai</a><br>
+        • <b>OpenAI:</b> <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--cy)">platform.openai.com</a><br>
+        • <b>Anthropic:</b> <a href="https://console.anthropic.com/" target="_blank" style="color:var(--cy)">console.anthropic.com</a><br><br>
+        <b style="color:var(--ac)">Market Telemetry Key (for Stock Tickers)</b><br>
+        • <b>Finnhub:</b> <a href="https://finnhub.io/" target="_blank" style="color:var(--cy)">finnhub.io</a> — free API key for live stock prices on HQ rooftops.
+      </div>
+    </div>
+    
+    <div class="instr-section"><div class="instr-h">🗺️ Controls</div><div class="instr-p"><b>Desktop:</b> Drag to pan. Scroll wheel to move. Click characters/buildings for details. <b>📡 Track</b> to follow anyone.<br><b>Mobile:</b> Swipe to pan. Pinch to zoom. Tap characters for profiles. Tap buildings to enter.</div></div>
+    
+    <div class="instr-section"><div class="instr-h">🌍 Map Layout (left → right)</div><div class="instr-p">🏜️ Space Zone → 🌲 Frontier Pines → 🏠 Residential → 🌲 Pine Reserve → 🏢 Tech District → 🚇 Metro East → 🌲 Silicon Woods → 🏡 Billionaire's Row</div></div>
+    
+    <button class="instr-got" onclick="document.getElementById('instrOv').classList.remove('open')">Got it — Let me in!</button>
+  </div>
+</div>
+
+<script>
+// ─── MOBILE DETECTION ───
+const _isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth < 768);
+if (_isMobile) {
+    document.body.classList.add('is-mobile');
+    const warn = document.getElementById('mobileWarning');
+    if (warn) warn.style.display = 'block';
+}
+window.isMobile = _isMobile;
+</script>
+
+<div id="gameWrap">
+  <div class="top">
+    <div class="top-row top-main">
+      <div class="logo"><span class="logo-i">🏙️</span><h1>SINGULARITY CITY</h1></div>
+      <div class="nfo" id="nfo"></div>
+    </div>
+    <div class="top-row">
+      <div class="ctrls"><div class="ctrls-scroll" id="ctrlBar">
+        <button class="btn" id="btnScan" onclick="UI.uiClick();API.doScan()" title="Discover new AI models">🛰️ Scan</button>
+        <button class="btn" id="btnMacro" onclick="UI.uiClick();G.toggleMacro()" title="Macro-layer view">🌍 Holomap</button>
+        <button class="btn" id="btnLog" onclick="UI.uiClick();UI.toggleLog()" title="Scan history">📋 Log</button>
+        <button class="btn" onclick="UI.uiClick();UI.showBenchmarks()" title="Full leaderboard">📊 Bench</button>
+        <button class="btn" onclick="UI.uiClick();UI.showCensus()" title="All citizens">👥 Census</button>
+        <button class="btn" onclick="UI.uiClick();UI.showLaunches()" title="Upcoming rocket launches">🚀 Launches</button>
+        <button class="btn" onclick="UI.uiClick();UI.showFamilyTree()" title="Family trees">🧬 Lineage</button>
+        <button class="btn" onclick="UI.uiClick();UI.showNewsPanel()" title="AI headlines">📰 News</button>
+        <button class="btn" onclick="UI.uiClick();UI.showCalendar()" title="AI events calendar">📅 Cal</button>
+        <button class="btn" onclick="UI.uiClick();UI.showCompute()" title="Global Supply Chain & Clusters">🏭 Hardware</button>
+        <button class="btn" onclick="UI.uiClick();UI.showCostDashboard()" title="Pricing comparison & ROI">💰 Costs</button>
+        <button class="btn" onclick="UI.uiClick();UI.showAnalyst()" title="Ask AI questions">🤖 Analyst</button>
+        <button class="btn" onclick="UI.uiClick();UI.showAchievements()" title="Achievements">🏆 Trophies</button>
+        <button class="btn" onclick="UI.uiClick();UI.showSettings()" title="Settings">⚙️</button>
+        <button class="btn" id="btnSound" onclick="UI.uiClick();UI.toggleSound()" title="Sound on/off">🔊</button>
+      </div></div>
+    </div>
+  </div>
+  
+  <div class="toasts" id="toasts"></div>
+  <div class="vp" id="viewport"></div>
+
+  <div id="macroUI">
+    <div class="m-title">GLOBAL NETWORK</div>
+    <div class="m-stat"><span>ACTIVE GPUS:</span> <span style="color:#4ade80">~3,540,000</span></div>
+    <div class="m-stat"><span>POWER DRAW:</span> <span style="color:#facc15">15.2 GW</span></div>
+    <div class="m-stat"><span>DATA THROUGHPUT:</span> <span style="color:#a78bfa">842 PB/s</span></div>
+    <div class="m-stat"><span>AGI PROBABILITY:</span> <span style="color:#22d3ee" id="agiProb">14.7%</span></div>
+    <div class="m-desc">Hover over a lab node to view connected hardware clusters. Click a node to forcefully allocate burst compute to the Singularity core.</div>
+  </div>
+
+  <div id="gameTooltip" class="game-tt" style="display:none"></div>
+  <div class="tick"><span class="tick-lbl">▶ NEWS</span><span class="tick-txt" id="tickerText"></span></div>
+  <div class="ipanel" id="infoPanel"></div>
+  <div class="slog" id="scanLog"><div class="slog-t">📋 SCAN LOG</div><div id="logEntries"></div></div>
+  
+  <!-- MINIMAP -->
+  <div id="minimap">
+    <div class="mm-header"><span class="mm-title">🗺️ MAP</span><button class="mm-toggle" onclick="document.getElementById('minimap').classList.toggle('collapsed')">—</button></div>
+    <canvas id="mmCanvas" width="240" height="40"></canvas>
+    <div class="mm-zones" id="mmZones"></div>
+  </div>
+  
+  <div class="ov" id="censusOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:850px; max-width:95vw;" id="censusPan"></div></div>
+  <div class="ov" id="settingsOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:460px; max-height:90vh; overflow-y:auto;" id="settingsPan"></div></div>
+  <div class="ov" id="benchOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:800px;max-width:95vw" id="benchPan"></div></div>
+  <div class="ov" id="compareOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:700px;max-width:95vw" id="comparePan"></div></div>
+  <div class="ov" id="launchOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:550px;max-width:95vw" id="launchPan"></div></div>
+  <div class="ov" id="familyOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:600px" id="familyPan"></div></div>
+  <div class="ov" id="calendarOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:500px" id="calendarPan"></div></div>
+  <div class="ov" id="computeOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:600px" id="computePan"></div></div>
+  <div class="ov" id="costOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:700px;max-width:95vw" id="costPan"></div></div>
+  <div class="ov" id="achieveOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:520px" id="achievePan"></div></div>
+  <div class="ov" id="newsOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:520px" id="newsPan"></div></div>
+  <div class="ov" id="analystOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:520px" id="analystPan"></div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.3.0/dist/pixi-filters.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="js/data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/snd.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/environment.js"></script>
+
+<script src="js/entities_gfx.js"></script>
+
+<script src="js/entities.js"></script>
+
+<script src="js/interior_city_props.js"></script>
+<script src="js/interior_city_ai.js"></script>
+<script src="js/interior_city_core.js"></script>
+
+<script src="js/interior_res_props.js"></script>
+<script src="js/interior_res_ai.js"></script>
+<script src="js/interior_res_core.js"></script>
+
+<script src="js/interior_manager.js"></script>
+
+<script src="js/burn_tracker.js"></script>
+<script src="js/space_data.js"></script>
+<script src="js/space_environment.js"></script>
+<script src="js/space_entities.js"></script>
+<script src="js/space_interior.js"></script>
+<script src="js/engine.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,978 @@
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════
+   INTERIOR RESIDENTIAL CORE (v15.2.0 - Billionaire's Row Estates Update)
+   ════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+const InteriorRes = {
+    ...InteriorResProps,
+    ...InteriorResAI,
+    
+    layer: null,
+    scene: null,
+    skyContainer: null,
+    celestialGfx: null,
+    starsLayer: null,
+    bld: null,
+    indoorLights: [],
+    
+    avatars: [],
+    bubbles: [],
+    floors: {},
+    elevators: [],
+    
+    bldW: 0,
+    startX: 0,
+    usableW: 0,
+    
+    isDragging: false,
+    startY: 0,
+    startSceneY: 0,
+    minY: 0,
+    maxY: 0,
+    totalH: 0,
+
+    build(bld, layer) {
+        this.bld = bld;
+        this.layer = layer;
+        this.layer.removeChildren();
+        this.avatars = [];
+        this.bubbles = [];
+        this.floors = {};
+        this.elevators = [];
+        this.indoorLights = [];
+        this.ceoCarGfx = null;
+        
+        const isEstate = bld.id.startsWith('house_');
+        const resRegion = bld.id.split('_')[1] || 'eu';
+        const lab = LABS[bld.lab] || LABS.other || { color: '#64748b' };
+        const colHex = parseInt(lab.color.slice(1), 16); 
+        
+        this.skyContainer = new PIXI.Container();
+        this.layer.addChild(this.skyContainer);
+        
+        this.starsLayer = new PIXI.Container();
+        for (let i = 0; i < 100; i++) { 
+            const s = new PIXI.Graphics();
+            s.beginFill(0xffffff); 
+            s.drawCircle(0, 0, .5 + Math.random() * 1.5); 
+            s.endFill(); 
+            s.x = Math.random() * G.vpW; 
+            s.y = Math.random() * G.vpH * .5; 
+            s._phase = Math.random() * Math.PI * 2; 
+            this.starsLayer.addChild(s); 
+        }
+        this.celestialGfx = new PIXI.Graphics();
+        this.skyContainer.addChild(this.starsLayer, this.celestialGfx);
+        
+        this.scene = new PIXI.Container();
+        this.layer.addChild(this.scene);
+        
+        const activeModels = G.models.filter(m => (!m.ret || new Date(m.ret) > new Date()) && ((LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region === resRegion : resRegion === 'eu'));
+        
+        const requiredAptFloors = Math.ceil(activeModels.length / 4);
+        const numFloors = isEstate ? (bld.fl || 2) : Math.max(2, 1 + requiredAptFloors); 
+
+        const floorH = 80; 
+        const roofH = 80; 
+        this.totalH = roofH + (numFloors + 1) * floorH; 
+        
+        const voidMask = new PIXI.Graphics();
+        voidMask.beginFill(0x05050a);
+        voidMask.drawRect(0, this.totalH, G.vpW, 2000); 
+        voidMask.endFill();
+        this.scene.addChild(voidMask);
+
+        this.bldW = isEstate ? Math.min(G.vpW, 800) : G.vpW; 
+        this.startX = isEstate ? (G.vpW - this.bldW) / 2 : 0;
+        
+        const shaftW = 60;
+        const shaftX = this.startX + this.bldW - shaftW - 20;
+        this.usableW = this.bldW - shaftW - 20;
+        
+        const windowX = this.startX + 60; 
+        const windowW = this.usableW - 120;
+
+        const bldBg = new PIXI.Graphics();
+        bldBg.beginFill(isEstate ? 0x151520 : 0x1e1e2f);
+        bldBg.drawRect(this.startX, roofH - 4, this.bldW, 4);
+        bldBg.endFill();
+        
+        for (let f = -1; f < numFloors; f++) {
+            const fy = roofH + (numFloors - 1 - f) * floorH;
+            
+            if (f === -1) {
+                bldBg.beginFill(0x0a0a10);
+                bldBg.drawRect(0, fy, G.vpW, floorH);
+                bldBg.endFill();
+                bldBg.beginFill(0x121220);
+                bldBg.drawRect(this.startX, fy, this.bldW, floorH);
+                bldBg.endFill();
+            } else {
+                this.drawNegativeSpaceWall(bldBg, isEstate ? 0x151520 : 0x1e1e2f, this.startX, fy, this.bldW, floorH, false, windowX, windowW, isEstate ? 'estate' : 'residential');
+            }
+        }
+        this.scene.addChild(bldBg);
+        
+        const groundLine = new PIXI.Graphics();
+        groundLine.beginFill(0x11111a);
+        groundLine.drawRect(0, this.totalH - floorH, G.vpW, 4);
+        groundLine.endFill();
+        this.scene.addChild(groundLine);
+
+        this.drawRoof(roofH, this.startX, this.usableW, colHex, lab, bld);
+        
+        for (let f = -1; f < numFloors; f++) {
+            const fy = roofH + (numFloors - 1 - f) * floorH; 
+            const isBasement = f === -1;
+            
+            this.floors[f] = { y: fy + floorH - 4, elevatorX: shaftX + 15, breakSpots: [] };
+            
+            const roomGfx = new PIXI.Graphics();
+            if (isBasement) {
+                this.drawBasementInterior(roomGfx, this.startX, fy, this.bldW, floorH);
+            } else {
+                this.drawRoomInterior(roomGfx, this.startX, fy, this.usableW, floorH, colHex, false, windowX, windowW, isEstate ? 'estate' : 'residential');
+            }
+            this.scene.addChild(roomGfx);
+            
+            const floorLine = new PIXI.Graphics();
+            floorLine.beginFill(isEstate ? 0x151520 : 0x1e1e2f); 
+            floorLine.drawRect(this.startX, fy + floorH - 4, this.bldW, 4); 
+            floorLine.endFill();
+            this.scene.addChild(floorLine);
+            
+            if (isBasement) {
+                const door = new PIXI.Graphics();
+                door.beginFill(0x33334a); 
+                door.lineStyle(1, 0x1e1e32);
+                door.drawRect(shaftX + 15, fy + floorH - 44, 30, 40);
+                door.moveTo(shaftX + 30, fy + floorH - 44); 
+                door.lineTo(shaftX + 30, fy + floorH - 4); 
+                door.endFill();
+                door.beginFill(0x1e1e32); 
+                door.drawRect(shaftX + 5, fy + floorH - 25, 4, 8);
+                if (Math.random() > 0.5) { 
+                    door.beginFill(0x4ade80); 
+                    door.drawCircle(shaftX + 7, fy + floorH - 23, 1); 
+                }
+                door.endFill();
+                this.scene.addChild(door);
+            }
+            
+            const floorCont = new PIXI.Container();
+            floorCont.sortableChildren = true;
+            this.scene.addChild(floorCont);
+            
+            if (f >= 0) {
+                const winFrame = new PIXI.Graphics();
+                winFrame.beginFill(0xffffff, 0.03); 
+                winFrame.lineStyle(4, 0x33334a); 
+                if (isEstate) {
+                    winFrame.drawRect(windowX, fy + 15, windowW, floorH - 35);
+                } else {
+                    let currX = windowX;
+                    while (currX + 40 <= windowX + windowW) {
+                        winFrame.drawRect(currX, fy + 25, 40, 30);
+                        currX += 60;
+                    }
+                }
+                winFrame.lineStyle(0); 
+                winFrame.endFill();
+                floorCont.addChild(winFrame);
+            }
+            
+            if (isBasement) {
+                const cables = new PIXI.Graphics();
+                cables.lineStyle(3, 0x222233);
+                cables.moveTo(this.startX, fy + 6); 
+                cables.lineTo(this.startX + this.usableW, fy + 6);
+                cables.lineStyle(2, colHex || 0x0ea5e9, 0.6);
+                cables.moveTo(this.startX, fy + 12); 
+                cables.lineTo(this.startX + this.usableW, fy + 12);
+                floorCont.addChild(cables);
+
+                if (isEstate) {
+                    const parkingLines = new PIXI.Graphics();
+                    parkingLines.lineStyle(2, 0xffffff, 0.4);
+                    parkingLines.moveTo(this.startX + 150, fy + floorH - 4); 
+                    parkingLines.lineTo(this.startX + 120, fy + floorH - 14);
+                    parkingLines.moveTo(this.startX + 250, fy + floorH - 4); 
+                    parkingLines.lineTo(this.startX + 220, fy + floorH - 14);
+                    floorCont.addChild(parkingLines);
+                    
+                    if (G.ceoRefs && G.ceoRefs[bld.lab]) {
+                        const ceoRef = G.ceoRefs[bld.lab];
+                        this.ceoCarGfx = new PIXI.Graphics();
+                        this.ceoCarGfx.beginFill(colHex); this.ceoCarGfx.drawRoundedRect(-22, -18, 44, 18, 4); this.ceoCarGfx.endFill();
+                        this.ceoCarGfx.beginFill(colHex, 0.8); this.ceoCarGfx.drawRoundedRect(-12, -28, 24, 12, 4); this.ceoCarGfx.endFill();
+                        this.ceoCarGfx.beginFill(0x333333); this.ceoCarGfx.drawCircle(-12, -1, 4); this.ceoCarGfx.drawCircle(12, -1, 4); this.ceoCarGfx.endFill();
+                        this.ceoCarGfx.beginFill(0xffffff, 1.0); this.ceoCarGfx.drawRect(20, -8, 4, 6); this.ceoCarGfx.endFill();
+                        this.ceoCarGfx.beginFill(0xff3333, 1.0); this.ceoCarGfx.drawRect(-26, -10, 4, 4); this.ceoCarGfx.endFill();
+                        
+                        this.ceoCarGfx.x = this.startX + 180;
+                        this.ceoCarGfx.y = fy + floorH - 4;
+                        floorCont.addChild(this.ceoCarGfx);
+                        this.ceoCarGfx.visible = (ceoRef.bld === bld.id);
+                    }
+                } else {
+                    let currX = this.startX + 80;
+                    while (currX < this.startX + this.usableW - 100) {
+                        if (Math.random() > 0.4) {
+                            this.drawServerRack(floorCont, currX, fy + floorH - 4, colHex || 0x0ea5e9);
+                        } else {
+                            this.drawLiquidCooledServer(floorCont, currX, fy + floorH - 4);
+                        }
+                        currX += 50 + Math.random() * 30;
+                    }
+                }
+            } 
+            else if (isEstate) {
+                if (f === 0) {
+                    this.drawLivingArea(floorCont, this.startX + 150, fy + floorH - 4, 2);
+                    this.drawKitchen(floorCont, this.startX + 350, fy + floorH - 4, 'eu', 2);
+                    if (bld.lab === 'openai' || bld.lab === 'anthropic') {
+                        this.drawGrandPiano(floorCont, this.startX + 500, fy + floorH - 4);
+                    } else if (bld.lab === 'meta') {
+                        this.drawRing(floorCont, this.startX + 500, fy + floorH - 4);
+                    } else {
+                        this.drawArcadeCabinet(floorCont, this.startX + 500, fy + floorH - 4);
+                    }
+                } else if (f === 1) {
+                    this.drawLuxuryBed(floorCont, this.startX + 180, fy + floorH - 4, colHex);
+                    this.drawBossDesk(floorCont, this.startX + 350, fy + floorH - 4, colHex);
+                    this.drawChair(floorCont, this.startX + 315, fy + floorH - 4);
+                    this.drawGeckoTerrarium(floorCont, this.startX + 500, fy + floorH - 4);
+                }
+
+                if (f === 1 && G.ceoRefs && G.ceoRefs[bld.lab]) {
+                    const ceoRef = G.ceoRefs[bld.lab];
+                    if (ceoRef.bld === bld.id) {
+                        const ceoModel = { id: 'ceo_'+bld.lab, name: ceoRef.f.name, lab: bld.lab, phase: 'released', isCeo: true, founderData: ceoRef.f };
+                        
+                        let startState = 'ceo_working';
+                        let spawnX = this.startX + 315;
+                        let spawnY = this.floors[1] ? this.floors[1].y : fy + floorH - 4;
+                        let floorI = 1;
+
+                        if (ceoRef.wantsToEnter) {
+                            startState = 'ceo_entering';
+                            spawnX = this.startX + 180;
+                            spawnY = this.totalH - 80 - 4;
+                            floorI = -1;
+                        } else if (ceoRef.wantsToLeave) {
+                            startState = 'ceo_leaving';
+                            spawnX = this.startX + 315;
+                            spawnY = this.floors[1] ? this.floors[1].y : fy + floorH - 4;
+                            floorI = 1;
+                        }
+
+                        let av = this.drawAvatar(ceoModel, spawnX, spawnY, floorCont, floorI, false, true);
+                        av.cont.zIndex = 100;
+                        av.state = startState;
+                        av.deskX = this.startX + 315;
+                        av.bedX = this.startX + 180;
+                        av.bedY = this.floors[1] ? this.floors[1].y - 12 : fy + floorH - 16;
+                        av.targetX = shaftX + 15;
+                    }
+                }
+            } 
+            else if (f === 0) {
+                this.drawCouches(floorCont, this.startX + 120, fy + floorH - 4, colHex);
+                this.drawPottedPlant(floorCont, this.startX + 180, fy + floorH - 4, 1);
+                this.drawWaterCooler(floorCont, this.startX + 220, fy + floorH - 4);
+                this.drawReceptionDesk(floorCont, this.startX + 300, fy + floorH - 4, colHex);
+                
+                G.models.forEach((m) => {
+                    const refs = G.charRefs[m.id];
+                    if (refs && refs.bld === bld.id) {
+                        if (!activeModels.find(am => am.id === m.id)) {
+                            const rx = this.startX + 80 + Math.random() * (this.usableW - 160);
+                            let av = this.drawAvatar(m, rx, fy + floorH - 4, floorCont, f, false);
+                            av.cont.zIndex = 100;
+                            av.jobTheme = 'residential'; 
+                            av.deskX = rx; 
+                            av.floorY = fy + floorH - 4; 
+                            
+                            if (refs.wantsToEnter) { 
+                                av.state = 'entering_lobby'; 
+                                av.cont.x = this.startX + this.usableW / 2; 
+                                av.cont.y = this.totalH - 80 - 4; 
+                            } else if (refs.wantsToLeave) { 
+                                av.state = 'walking_out'; 
+                                av.targetX = this.startX + this.usableW / 2; 
+                            } else {
+                                av.state = 'working';
+                            }
+                        }
+                    }
+                });
+            } else {
+                const aptFloorIdx = f - 1;
+                const startIndex = aptFloorIdx * 4;
+                const floorModelsQueue = activeModels.slice(startIndex, startIndex + 4);
+                
+                const totalAptAreaW = this.usableW - 60; 
+                const aptWidth = totalAptAreaW / 4; 
+                
+                floorModelsQueue.forEach((m, idx) => {
+                    const aptStartX = this.startX + 60 + (idx * aptWidth);
+                    
+                    if (idx > 0) {
+                        const wall = new PIXI.Graphics();
+                        wall.beginFill(0x121220); 
+                        wall.drawRect(aptStartX - 2, fy + 20, 4, floorH - 20);
+                        wall.endFill();
+                        floorCont.addChild(wall);
+                    }
+
+                    const bathW = Math.min(60, aptWidth * 0.2); 
+                    const bedW = Math.min(130, aptWidth * 0.35); 
+                    const livingW = aptWidth - bathW - bedW;
+
+                    const bathWall = new PIXI.Graphics();
+                    bathWall.beginFill(0x2a2a42, 0.6); 
+                    bathWall.drawRect(aptStartX + bathW, fy + 35, 2, floorH - 35);
+                    bathWall.endFill();
+                    floorCont.addChild(bathWall);
+
+                    const bedWall = new PIXI.Graphics();
+                    bedWall.beginFill(0x2a2a42, 0.6);
+                    bedWall.drawRect(aptStartX + bathW + livingW, fy + 35, 2, floorH - 35);
+                    bedWall.endFill();
+                    floorCont.addChild(bedWall);
+                    
+                    const showerStyle = Math.floor(Math.random() * 4) + 1;
+                    const kitchenStyle = Math.floor(Math.random() * 4) + 1;
+                    const bedStyle = Math.floor(Math.random() * 4) + 1;
+                    const livingStyle = Math.floor(Math.random() * 4) + 1;
+                    const plantStyle = Math.floor(Math.random() * 4) + 1;
+                    const nightstandStyle = Math.floor(Math.random() * 4) + 1;
+
+                    const showerX = aptStartX + (bathW / 2);
+                    const plantX = aptStartX + bathW + 15;
+                    const kitchenX = aptStartX + bathW + (livingW * 0.35);
+                    const livingX = aptStartX + bathW + (livingW * 0.75);
+                    const nightstandX = aptStartX + aptWidth - bedW + 15;
+                    const bedX = aptStartX + aptWidth - (bedW / 2) + 10;
+
+                    this.drawShower(floorCont, showerX, fy + floorH - 4, showerStyle);
+                    
+                    if (Math.random() < 0.15) {
+                        this.drawGeckoTerrarium(floorCont, plantX, fy + floorH - 4);
+                    } else {
+                        this.drawPottedPlant(floorCont, plantX, fy + floorH - 4, plantStyle);
+                    }
+                    
+                    this.drawKitchen(floorCont, kitchenX, fy + floorH - 4, resRegion, kitchenStyle);
+                    this.drawLivingArea(floorCont, livingX, fy + floorH - 4, livingStyle);
+                    this.drawNightstand(floorCont, nightstandX, fy + floorH - 4, nightstandStyle);
+                    this.drawBed(floorCont, bedX, fy + floorH - 4, resRegion, bedStyle);
+                    
+                    const refs = G.charRefs[m.id];
+                    if (refs && refs.bld === bld.id) {
+                        let av = this.drawAvatar(m, livingX - 10, fy + floorH - 4, floorCont, f, false);
+                        av.cont.zIndex = 100;
+                        av.jobTheme = 'residential';
+                        av.region = resRegion;
+                        av.deskX = livingX - 10; 
+                        av.floorY = fy + floorH - 4;
+                        
+                        let bedYOffset = 16;
+                        if (resRegion === 'cn') bedYOffset = 10;
+                        if (resRegion === 'eu') bedYOffset = 12;
+                        
+                        av.bedX = bedX;
+                        av.bedY = fy + floorH - 4 - bedYOffset;
+
+                        if (refs.wantsToEnter) { 
+                            av.state = 'entering_lobby'; 
+                            av.cont.x = this.startX + this.usableW / 2; 
+                            av.cont.y = this.totalH - 80 - 4; 
+                        } else if (refs.wantsToLeave) { 
+                            av.state = 'walking_to_elevator_down'; 
+                            av.targetX = this.floors[f].elevatorX; 
+                        } else {
+                            av.state = 'working';
+                        }
+                    }
+                });
+            }
+        }
+        
+        const elevatorContainer = new PIXI.Container();
+        elevatorContainer.y = roofH + (numFloors - 1) * floorH + floorH;
+        this.scene.addChild(elevatorContainer);
+        this.initLift(elevatorContainer, bld.id, numFloors, floorH, shaftX + 15);
+
+        const bottomPadding = 56;
+        this.scene.y = G.vpH - bottomPadding - this.totalH + floorH; 
+        this.minY = Math.min(50, G.vpH - bottomPadding - this.totalH); 
+        this.maxY = 50; 
+
+        this.layer.eventMode = 'static'; 
+        this.layer.cursor = 'grab';
+        window.removeEventListener('pointermove', this.onMove); 
+        window.removeEventListener('pointerup', this.onUp);
+        
+        this.layer.on('pointerdown', (e) => { 
+            this.isDragging = true; 
+            this.startY = e.clientY; 
+            this.startSceneY = this.scene.y; 
+            this.layer.cursor = 'grabbing'; 
+        });
+        window.addEventListener('pointermove', this.onMove); 
+        window.addEventListener('pointerup', this.onUp);
+    },
+
+    onMove: (e) => {
+        if (!InteriorRes.isDragging) return;
+        let newY = InteriorRes.startSceneY + (e.clientY - InteriorRes.startY);
+        if (newY < InteriorRes.minY) newY = InteriorRes.minY;
+        if (newY > InteriorRes.maxY) newY = InteriorRes.maxY;
+        InteriorRes.scene.y = newY;
+    },
+    
+    onUp: () => { 
+        InteriorRes.isDragging = false; 
+        if (InteriorRes.layer) InteriorRes.layer.cursor = 'grab'; 
+    },
+
+    update() {
+        if (!this.layer || !this.layer.visible) return;
+        
+        this.updateLifts();
+        
+        const dp = G.getDayPhase();
+        const night = dp > .83 || dp < .25;
+        const vp = document.getElementById('viewport'); 
+        
+        let sky;
+        if (dp < .22) {
+            sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
+        } else if (dp < .30) { 
+            const t = (dp - .22) / .08; 
+            sky = `linear-gradient(180deg,rgb(${8 + t * 40 | 0},${10 + t * 30 | 0},${30 + t * 40 | 0}),rgb(${15 + t * 80 | 0},${15 + t * 50 | 0},${40 + t * 50 | 0}) 50%,rgb(${20 + t * 120 | 0},${20 + t * 80 | 0},${40 + t * 30 | 0}))`; 
+        } else if (dp < .72) {
+            sky = 'linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)';
+        } else if (dp < .84) { 
+            const t = (dp - .72) / .12; 
+            sky = `linear-gradient(180deg,rgb(${45 + t * 30 | 0},${74 - t * 40 | 0},${122 - t * 60 | 0}),rgb(${90 + t * 80 | 0},${143 - t * 80 | 0},${187 - t * 100 | 0}) 50%,rgb(${135 + t * 60 | 0},${100 - t * 50 | 0},${50 - t * 10 | 0}))`; 
+        } else {
+            sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
+        }
+        
+        if (typeof Environment !== 'undefined' && Environment.weather === 'rain' && !night && dp > .3 && dp < .72) {
+            sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
+        }
+        if (typeof Environment !== 'undefined' && Environment.weather === 'snow') {
+            sky = 'linear-gradient(180deg,#1a1a2e,#2d3748 50%,#4a5568)';
+        }
+        if (vp) vp.style.background = sky;
+
+        if (this.celestialGfx) {
+            this.celestialGfx.clear();
+            if (night) { 
+                let np = dp > 0.83 ? (dp - 0.83) / 0.42 : (dp + 0.17) / 0.42; 
+                this.celestialGfx.beginFill(0xe8e8d0); 
+                this.celestialGfx.drawCircle(G.vpW * np, 40 + Math.sin(np * Math.PI) * 120, 12); 
+                this.celestialGfx.endFill(); 
+            } else { 
+                let dayP = (dp - 0.25) / (0.83 - 0.25); 
+                this.celestialGfx.beginFill(0xffe066); 
+                this.celestialGfx.drawCircle(G.vpW * dayP, 40 + Math.sin(dayP * Math.PI) * 120, 15); 
+                this.celestialGfx.endFill(); 
+            }
+        }
+        
+        if (this.starsLayer) { 
+            this.starsLayer.visible = night; 
+            if (night) { 
+                this.starsLayer.children.forEach(s => { 
+                    s.alpha = .15 + Math.abs(Math.sin(G.tick * .03 + s._phase)) * .5; 
+                }); 
+            } 
+        }
+
+        if (this.indoorLights) {
+            const isWorkingHours = dp >= 0.35 && dp <= 0.80;
+            const nightMode = night || !isWorkingHours;
+            
+            this.indoorLights.forEach((l, idx) => {
+                let targetAlpha = 0;
+                
+                if (l.type === 'ceiling') {
+                    targetAlpha = nightMode ? l.maxA * 0.2 : l.maxA;
+                } else if (l.type === 'server') {
+                    targetAlpha = l.maxA * (0.6 + Math.random() * 0.4); 
+                } else if (l.type === 'screen') {
+                    const base = nightMode ? l.maxA : l.maxA * 0.3;
+                    targetAlpha = base * (0.9 + Math.sin(G.tick * 0.05 + idx) * 0.1);
+                }
+                
+                l.g.alpha += (targetAlpha - l.g.alpha) * 0.1;
+            });
+        }
+        
+        if (this.ceoCarGfx && G.ceoRefs && G.ceoRefs[this.bld.lab]) {
+            this.ceoCarGfx.visible = (G.ceoRefs[this.bld.lab].bld === this.bld.id);
+        }
+
+        this.avatars.forEach((av, i) => {
+            const refs = G.charRefs[av.m.id];
+
+            if ((av.state === 'walking_to_prop' || av.state === 'returning') && av.timer <= 0 && !av.m.isCeo) {
+                let partner = this.avatars.find(other => 
+                    other !== av && 
+                    !other.m.isCeo &&
+                    (other.state === 'walking_to_prop' || other.state === 'returning') && 
+                    other.floorIdx === av.floorIdx && 
+                    Math.abs(other.cont.x - av.cont.x) < 25 && 
+                    other.timer <= 0
+                );
+
+                if (partner && Math.random() < 0.1) {
+                    av.resumeState = av.state;
+                    partner.resumeState = partner.state;
+                    av.state = 'chatting';
+                    partner.state = 'chatting';
+                    
+                    av.timer = 180 + Math.random() * 120;
+                    partner.timer = av.timer; 
+                    
+                    av.cont.scale.x = Math.sign(partner.cont.x - av.cont.x) || 1;
+                    partner.cont.scale.x = Math.sign(av.cont.x - partner.cont.x) || -1;
+
+                    const topics = ["AGI timelines?", "Need more H100s.", "My loss curve...", "Open weights?", "Synthetic data is key.", "RLHF is tedious."];
+                    this.spawnBubble(av, topics[Math.floor(Math.random() * topics.length)]);
+                    
+                    setTimeout(() => { 
+                        if (!this.layer || !this.layer.visible || G.activeInterior !== this.bld.id) return;
+                        if (partner.state === 'chatting') {
+                            const replies = ["Agreed.", "Not scalable.", "Pfft, closed source.", "Compute is king.", "Data wall approaching."];
+                            this.spawnBubble(partner, replies[Math.floor(Math.random() * replies.length)]);
+                        }
+                    }, 1500);
+                }
+            }
+
+            switch (av.state) {
+                case 'ceo_entering': {
+                    this.animateWalk(av);
+                    const dxEnter = this.floors[-1].elevatorX - av.cont.x;
+                    if (Math.abs(dxEnter) < av.speed) {
+                        av.cont.x = this.floors[-1].elevatorX;
+                        av.state = 'ceo_calling_up';
+                    } else {
+                        av.cont.x += Math.sign(dxEnter) * av.speed;
+                        av.cont.scale.x = Math.sign(dxEnter);
+                    }
+                    break;
+                }
+                case 'ceo_calling_up': {
+                    const cLiftUp = this.getLift(this.bld.id);
+                    if (cLiftUp) { cLiftUp.call(-1); av.state = 'ceo_waiting_up'; }
+                    break;
+                }
+                case 'ceo_waiting_up': {
+                    const wLiftUp = this.getLift(this.bld.id);
+                    if (wLiftUp && wLiftUp.currentFloor === -1 && wLiftUp.state === 'open') {
+                        av.timer = 20; av.state = 'ceo_delay_up';
+                    }
+                    break;
+                }
+                case 'ceo_delay_up': {
+                    av.timer--; if (av.timer <= 0) av.state = 'ceo_riding_up';
+                    break;
+                }
+                case 'ceo_riding_up': {
+                    const rLiftUp = this.getLift(this.bld.id);
+                    if (rLiftUp) {
+                        av.cont.visible = false;
+                        const topFl = (this.bld.fl || 2) - 1;
+                        rLiftUp.call(topFl);
+                        av.cont.y = (this.totalH - 80 - 4) + rLiftUp.car.y;
+                        if (rLiftUp.currentFloor === topFl && rLiftUp.state === 'open') {
+                            av.cont.y = this.floors[topFl].y;
+                            av.cont.visible = true;
+                            av.state = 'ceo_walking_to_desk'; 
+                            av.floorIdx = topFl;
+                        }
+                    }
+                    break;
+                }
+                case 'ceo_walking_to_desk': {
+                    av.cont.rotation = 0;
+                    this.animateWalk(av);
+                    const dx = av.deskX - av.cont.x;
+                    if (Math.abs(dx) < av.speed) {
+                        av.cont.x = av.deskX;
+                        av.state = 'ceo_working';
+                    } else {
+                        av.cont.x += Math.sign(dx) * av.speed;
+                        av.cont.scale.x = Math.sign(dx);
+                    }
+                    break;
+                }
+                case 'ceo_working': {
+                    if (night && av.bedX) {
+                        av.state = 'ceo_walking_to_bed';
+                        av.targetX = av.bedX;
+                    } else {
+                        av.cont.rotation = 0;
+                        av.cont.x = av.deskX; 
+                        av.cont.y = av.floorY; 
+                        av.head.y = -32 + 4 + Math.sin(G.tick * 0.1) * 1.5; 
+                        av.body.y = -32 + 12 + 4;
+                        if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                        if (Math.random() < 0.002 && this.bubbles.length < 5) {
+                            this.spawnBubble(av, ["Reviewing the benchmarks.", "Check the stock price.", "We need more compute."][Math.floor(Math.random()*3)]);
+                        }
+                    }
+                    break;
+                }
+                case 'ceo_walking_to_bed': {
+                    this.animateWalk(av);
+                    const dx = av.targetX - av.cont.x;
+                    if (Math.abs(dx) < av.speed) {
+                        av.cont.x = av.targetX;
+                        av.state = 'ceo_sleeping';
+                    } else {
+                        av.cont.x += Math.sign(dx) * av.speed;
+                        av.cont.scale.x = Math.sign(dx);
+                    }
+                    break;
+                }
+                case 'ceo_sleeping': {
+                    if (!night) {
+                        av.state = 'ceo_walking_to_desk';
+                        av.targetX = av.deskX;
+                    } else {
+                        av.cont.x = av.bedX - 10; 
+                        av.cont.y = av.bedY; 
+                        av.cont.rotation = Math.PI / 2; 
+                        av.head.y = -32 + 4; 
+                        av.body.y = -32 + 12 + 4;
+                        if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                        if (Math.random() < 0.002 && this.bubbles.length < 5) {
+                            this.spawnBubble(av, ["Zzz...", "Dreaming of AGI...", "Stock go up..."][Math.floor(Math.random()*3)]);
+                        }
+                    }
+                    break;
+                }
+                case 'ceo_leaving': {
+                    this.animateWalk(av);
+                    const topFl = (this.bld.fl || 2) - 1;
+                    const dxLeave = this.floors[topFl].elevatorX - av.cont.x;
+                    if (Math.abs(dxLeave) < av.speed) {
+                        av.cont.x = this.floors[topFl].elevatorX;
+                        av.state = 'ceo_calling_down';
+                    } else {
+                        av.cont.x += Math.sign(dxLeave) * av.speed;
+                        av.cont.scale.x = Math.sign(dxLeave);
+                    }
+                    break;
+                }
+                case 'ceo_calling_down': {
+                    const topFl = (this.bld.fl || 2) - 1;
+                    const cLiftDn = this.getLift(this.bld.id);
+                    if (cLiftDn) { cLiftDn.call(topFl); av.state = 'ceo_waiting_down'; }
+                    break;
+                }
+                case 'ceo_waiting_down': {
+                    const topFl = (this.bld.fl || 2) - 1;
+                    const wLiftDn = this.getLift(this.bld.id);
+                    if (wLiftDn && wLiftDn.currentFloor === topFl && wLiftDn.state === 'open') {
+                        av.timer = 20; av.state = 'ceo_delay_down';
+                    }
+                    break;
+                }
+                case 'ceo_delay_down': {
+                    av.timer--; if (av.timer <= 0) av.state = 'ceo_riding_down';
+                    break;
+                }
+                case 'ceo_riding_down': {
+                    const rLiftDn = this.getLift(this.bld.id);
+                    if (rLiftDn) {
+                        av.cont.visible = false;
+                        rLiftDn.call(-1);
+                        av.cont.y = (this.totalH - 80 - 4) + rLiftDn.car.y; 
+                        if (rLiftDn.currentFloor === -1 && rLiftDn.state === 'open') {
+                            av.cont.y = this.totalH - 80 - 4; 
+                            av.cont.visible = true;
+                            av.state = 'ceo_walking_to_car';
+                            av.floorIdx = -1;
+                        }
+                    }
+                    break;
+                }
+                case 'ceo_walking_to_car': {
+                    this.animateWalk(av);
+                    const dxCar = (this.startX + 180) - av.cont.x;
+                    if (Math.abs(dxCar) < av.speed) {
+                        av.state = 'gone';
+                        av.cont.visible = false;
+                        const ceoRef = G.ceoRefs[av.m.lab];
+                        if (ceoRef) {
+                            ceoRef.bld = null;
+                            ceoRef.wantsToLeave = false;
+                        }
+                    } else {
+                        av.cont.x += Math.sign(dxCar) * av.speed;
+                        av.cont.scale.x = Math.sign(dxCar);
+                    }
+                    break;
+                }
+
+                case 'entering_lobby': {
+                    if (av.floorIdx === 0) {
+                        this.animateWalk(av); 
+                        const dx = av.deskX - av.cont.x;
+                        if (Math.abs(dx) < av.speed) { 
+                            av.cont.x = av.deskX; 
+                            if (refs) refs.wantsToEnter = false; 
+                            av.state = 'working'; 
+                        } else { 
+                            av.cont.x += Math.sign(dx) * av.speed; 
+                            av.cont.scale.x = Math.sign(dx); 
+                        }
+                    } else {
+                        av.targetX = this.floors[0].elevatorX; 
+                        this.animateWalk(av); 
+                        const dx = av.targetX - av.cont.x;
+                        if (Math.abs(dx) < av.speed) { 
+                            av.cont.x = av.targetX; 
+                            av.state = 'calling_lift_up'; 
+                        } else { 
+                            av.cont.x += Math.sign(dx) * av.speed; 
+                            av.cont.scale.x = Math.sign(dx); 
+                        }
+                    }
+                    break;
+                }
+                case 'calling_lift_up': { 
+                    const lift = this.getLift(this.bld.id); 
+                    if (lift) { 
+                        lift.call(0); 
+                        av.state = 'waiting_lift_up'; 
+                    } 
+                    break; 
+                }
+                case 'waiting_lift_up': { 
+                    const lift = this.getLift(this.bld.id); 
+                    if (lift && lift.currentFloor === 0 && lift.state === 'open') { 
+                        av.timer = 20 + Math.random() * 20; 
+                        av.state = 'delay_enter_lift_up'; 
+                    } 
+                    break; 
+                }
+                case 'delay_enter_lift_up': { 
+                    av.timer--; 
+                    if (av.timer <= 0) av.state = 'riding_lift_up'; 
+                    break; 
+                }
+                case 'riding_lift_up': {
+                    const lift = this.getLift(this.bld.id);
+                    if (lift) {
+                        av.cont.visible = false; 
+                        lift.call(av.floorIdx);
+                        av.cont.y = (this.totalH - 80 - 4) + lift.car.y; 
+                        if (lift.currentFloor === av.floorIdx && lift.state === 'open') { 
+                            av.cont.y = av.floorY; 
+                            av.cont.visible = true; 
+                            av.state = 'walking_to_desk'; 
+                        }
+                    }
+                    break;
+                }
+                case 'walking_to_desk': {
+                    this.animateWalk(av); 
+                    const dx = av.deskX - av.cont.x;
+                    if (Math.abs(dx) < av.speed) { 
+                        av.cont.x = av.deskX; 
+                        if (refs) refs.wantsToEnter = false; 
+                        av.state = 'working'; 
+                    } else { 
+                        av.cont.x += Math.sign(dx) * av.speed; 
+                        av.cont.scale.x = Math.sign(dx); 
+                    }
+                    break;
+                }
+
+                case 'working': {
+                    if (av.m.isCeo) break; 
+                    
+                    const actData = getAct(getStage(av.m.rel, av.m.ret, av.m.phase), dp, G.models.indexOf(av.m), av.m);
+                    if (actData.act === 'sleep') {
+                        av.cont.x = av.bedX - 10; 
+                        av.cont.y = av.bedY; 
+                        av.cont.rotation = Math.PI / 2; 
+                        av.head.y = -32 + 4; 
+                        av.body.y = -32 + 12 + 4;
+                        if (av.legL && av.legR) { 
+                            av.legL.y = 0; 
+                            av.legR.y = 0; 
+                        }
+                        if (Math.random() < 0.002 && this.bubbles.length < 5) {
+                            this.spawnBubble(av, ["Zzz...", "Dreaming of tokens.", "Defragmenting..."][Math.floor(Math.random()*3)]);
+                        }
+                    } else {
+                        av.cont.rotation = 0; 
+                        av.cont.x = av.deskX - 30 + Math.sin(G.tick * 0.02 + i) * 20; 
+                        av.cont.y = av.floorY; 
+                        av.cont.scale.x = Math.sign(Math.cos(G.tick * 0.02 + i)) || 1;
+                        av.head.y = -32 + 4 + Math.sin(G.tick * 0.15) * 1.5; 
+                        av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.15)) * 1.5;
+                        if (av.legL && av.legR) { 
+                            av.legL.y = Math.sin(G.tick * 0.15) * 2; 
+                            av.legR.y = -Math.sin(G.tick * 0.15) * 2; 
+                        }
+                        if (Math.random() < 0.002 && this.bubbles.length < 15) {
+                            this.spawnBubble(av, ["Making coffee.", "Watching the gecko.", "Reading papers."][Math.floor(Math.random()*3)]);
+                        }
+                    }
+                    break;
+                }
+
+                case 'chatting': {
+                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.1 + i) * 1.5;
+                    av.body.y = -32 + 12 + 4 + (Math.sin(G.tick * 0.1 + i) * 1.5 * 0.5);
+                    if (av.legL && av.legR) { 
+                        av.legL.y = 0; 
+                        av.legR.y = 0; 
+                    }
+                    
+                    if (Math.random() < 0.01 && this.bubbles.length < 15) {
+                        const chats = ["Interesting.", "Hmm...", "Parameter count?", "Check my benchmarks."];
+                        this.spawnBubble(av, chats[Math.floor(Math.random() * chats.length)]);
+                    }
+
+                    av.timer--;
+                    if (av.timer <= 0) {
+                        av.state = av.resumeState || 'returning';
+                        av.timer = 60; 
+                    }
+                    break;
+                }
+
+                case 'walking_to_elevator_down': {
+                    if (av.floorIdx === 0) {
+                        av.state = 'walking_out'; 
+                        av.targetX = this.startX + this.usableW / 2;
+                    } else {
+                        av.cont.rotation = 0; 
+                        this.animateWalk(av);
+                        const distDown = av.targetX - av.cont.x;
+                        if (Math.abs(distDown) < av.speed) {
+                            av.cont.x = av.targetX;
+                            av.state = 'calling_lift';
+                            if (av.legL && av.legR) { 
+                                av.legL.y = 0; 
+                                av.legR.y = 0; 
+                            }
+                        } else {
+                            av.cont.x += Math.sign(distDown) * av.speed;
+                            av.cont.scale.x = Math.sign(distDown); 
+                        }
+                    }
+                    break;
+                }
+
+                case 'calling_lift': {
+                    const cLift = this.getLift(this.bld.id);
+                    if (cLift) {
+                        cLift.call(av.floorIdx);
+                        av.state = 'waiting_lift';
+                    }
+                    break;
+                }
+
+                case 'waiting_lift': {
+                    const wLift = this.getLift(this.bld.id);
+                    if (wLift && wLift.currentFloor === av.floorIdx && wLift.state === 'open') {
+                        av.timer = 20 + Math.random() * 20;
+                        av.state = 'delay_enter_lift';
+                    }
+                    break;
+                }
+
+                case 'delay_enter_lift': {
+                    av.timer--;
+                    if (av.timer <= 0) {
+                        av.state = 'entering_lift';
+                    }
+                    break;
+                }
+
+                case 'entering_lift': {
+                    const eLift = this.getLift(this.bld.id);
+                    if (eLift) {
+                        av.cont.visible = false;
+                        eLift.call(0);
+                        av.state = 'riding_lift';
+                    }
+                    break;
+                }
+
+                case 'riding_lift': {
+                    const rLift = this.getLift(this.bld.id);
+                    if (rLift) {
+                        const groundFloorY = this.totalH - 80 - 4; 
+                        av.cont.y = groundFloorY + rLift.car.y; 
+                        
+                        if (rLift.currentFloor === 0 && rLift.state === 'open') {
+                            av.state = 'walking_out';
+                            av.cont.y = groundFloorY; 
+                            av.cont.visible = true; 
+                            av.targetX = this.startX + this.usableW / 2; 
+                        }
+                    }
+                    break;
+                }
+                    
+                case 'walking_out': {
+                    this.animateWalk(av);
+                    const outDist = av.targetX - av.cont.x;
+                    if (Math.abs(outDist) < av.speed) {
+                        av.state = 'gone';
+                        av.cont.visible = false;
+                        
+                        if (refs) {
+                            refs.bld = null; 
+                            refs.wantsToLeave = false; 
+                            refs.c.x = G.bldById[this.bld.id].x + (G.bldById[this.bld.id].w / 2);
+                            refs.c.visible = true;
+                        }
+                    } else {
+                        av.cont.x += Math.sign(outDist) * av.speed;
+                        av.cont.scale.x = Math.sign(outDist); 
+                    }
+                    break;
+                }
+            }
+        });
+        
+        for (let i = this.elevators.length - 1; i >= 0; i--) {
+            let e = this.elevators[i];
+            e.y += e.speed;
+            e.car.y = e.y;
+            
+            if ((e.speed > 0 && e.y >= e.endY) || (e.speed < 0 && e.y <= e.endY)) {
+                if (e.callback) e.callback();
+                e.car.destroy();
+                this.elevators.splice(i, 1);
+            }
+        }
+        
+        for (let i = this.bubbles.length - 1; i >= 0; i--) {
+            const b = this.bubbles[i];
+            b.life--;
+            b.cont.y -= 0.15;
+            b.cont.alpha = Math.min(1, b.life / 20);
+            
+            if (b.life <= 0) {
+                b.cont.destroy();
+                this.bubbles.splice(i, 1);
+            }
+        }
+    }
+};
+

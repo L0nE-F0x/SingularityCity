@@ -1,0 +1,205 @@
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════
+   DATA & CONFIGURATION LAYER (v14.10.0 - The Final Cloud Purge)
+   ════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+var LABS = {};
+var REAL_FOUNDERS = [];
+var COMPUTE_DATA = { clusters: [] };
+var SEED = [];
+var BLDS = [];
+var ACTS = {};
+var BM = {}; 
+var COSTS = {};
+var CTX = {};
+
+// NEW: Hydrated dynamically via Supabase!
+var FAMILIES = {};
+var AI_EVENTS = [];
+
+const BM_M = {
+    'MMLU': { l: 'MMLU', d: 'General Knowledge', c: '#4ade80' },
+    'HumanEval': { l: 'Coding', d: 'Programming skills', c: '#22d3ee' },
+    'MATH': { l: 'MATH', d: 'Advanced mathematics', c: '#facc15' },
+    'GPQA': { l: 'GPQA', d: 'Graduate-level reasoning', c: '#f472b6' },
+    'ARC': { l: 'ARC', d: 'Reasoning Challenge', c: '#a78bfa' },
+    'MGSM': { l: 'MGSM', d: 'Multilingual Math', c: '#f97316' },
+    'ELO': { l: 'Arena ELO', d: 'LMSYS Chatbot Arena', c: '#ffffff' }
+};
+
+const avgBM = (id) => { 
+    const s = BM[id]; 
+    if (!s) return null;
+    const sc = [s.MMLU, s.HumanEval, s.MATH, s.GPQA, s.ARC, s.MGSM].filter(Boolean); 
+    return sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : null; 
+};
+
+const SUPPLY_CHAIN = {
+    bottlenecks: [
+        { name: "TSMC CoWoS Advanced Packaging", load: 98, color: "#ef4444" },
+        { name: "ASML Lithography System Backlog", load: 83, color: "#f97316" },
+        { name: "SK Hynix / Samsung HBM4 Yields", load: 65, color: "#facc15" }
+    ],
+    lithography: {
+        asml_high_na: { 
+            name: "ASML Twinscan EXE:5200 (High-NA EUV)", 
+            cost: "€350M", 
+            desc: "Critical for sub-2nm nodes. 0.55 NA resolves 8nm features.",
+            deployed: { intel: 2, samsung: 1, tsmc: 0 } 
+        }
+    },
+    foundries: [
+        { name: "TSMC", node: "2nm (N2 / A16)", capacity: "Fully Booked (Apple, Nvidia)", packaging: "CoWoS-L" },
+        { name: "Samsung", node: "2nm (SF2)", capacity: "Scaling Production", packaging: "I-Cube" },
+        { name: "Intel", node: "18A / 14A", capacity: "Internal / Test Ramps", packaging: "Foveros" }
+    ],
+    accelerators: [
+        { name: "Nvidia Vera Rubin (R100)", memory: "8x HBM4 (Up to 1TB)", status: "Sampling (Q3 Mass)", price: "~$8.8M / NVL72 Rack" },
+        { name: "Nvidia Blackwell (B200)", memory: "192GB HBM3e", status: "Volume Production", price: "~$40,000 / GPU" },
+        { name: "AMD Instinct MI400", memory: "HBM4", status: "Sampling", price: "TBD" }
+    ]
+};
+
+const ACHIEVEMENTS = {
+    'first_scan': { name: 'Hello World', desc: 'Initiate your first network scan.', icon: '🛰️' },
+    'witnessed': { name: 'Witness', desc: 'Discover a new model hitting the market.', icon: '👀' },
+    'ten_models': { name: 'Population 10', desc: 'City reaches 10 discovered models.', icon: '🏘️' },
+    'fifty_models': { name: 'Metropolis', desc: 'City reaches 50 discovered models.', icon: '🏙️' },
+    'all_labs': { name: 'Monopoly', desc: 'Discover models from 7 different labs.', icon: '🎩' },
+    'compared': { name: 'Analyst', desc: 'Use the comparison tool.', icon: '⚖️' },
+    'rain_seen': { name: 'Tears in Rain', desc: 'Witness a rainstorm in the city.', icon: '🌧️' },
+    'snow_seen': { name: 'Nuclear Winter', desc: 'Witness snow in the city.', icon: '❄️' },
+    'census_view': { name: 'Demographer', desc: 'View the full census.', icon: '📋' },
+    'benchmark_view': { name: 'Stathead', desc: 'Check the leaderboard.', icon: '📊' },
+    'family_view': { name: 'Genealogist', desc: 'View a model family tree.', icon: '🧬' },
+    'calendar_view': { name: 'Planner', desc: 'Check the events calendar.', icon: '📅' }
+};
+
+const STAGES = { baby: { label: 'Pre-Training', size: .6, headR: .6, speed: .5, emoji: '👶' }, kid: { label: 'Training/RLHF', size: .8, headR: .5, speed: .8, emoji: '🧒' }, adult: { label: 'Released', size: 1, headR: .4, speed: 1.2, emoji: '🧑' }, retired: { label: 'Retired', size: 1, headR: .4, speed: .4, emoji: '👻' }, rumored: { label: 'Rumored', size: .9, headR: .45, speed: 1.5, emoji: '🔮' } };
+const CHAT_MSGS = { work: ['generating...', 'calculating...', 'attention is all I need', 'tokens++'], train: ['gradient descent...', 'loss dropping...', 'backprop...'], socialize: ['hello world', 'ping', 'ack'], play: ['jailbreak attempt?', 'hallucinating...'], benchmark: ['MMLU: 85%', 'HumanEval passed'], share: ['weights released', 'fork me'], arena: ['I am a helpful assistant.', 'As an AI...'] };
+
+const NEWS = [ { headline: "Nvidia announces B200 Blackwell chips", url: "#" }, { headline: "EU AI Act officially enters into force", url: "#" }, { headline: "LMSYS Chatbot Arena updates ELO calculation", url: "#" }, { headline: "Researchers discover new jailbreak technique", url: "#" }, { headline: "Compute costs drop 30% year over year", url: "#" } ];
+
+let _currentDay = -1;
+let _isWeekend = false;
+let _hackathonLab = null;
+
+function updateDailyEvents() {
+    const d = new Date();
+    const day = d.getDate();
+    if (_currentDay !== day) {
+        _currentDay = day;
+        _isWeekend = d.getDay() === 0 || d.getDay() === 6;
+        
+        if (d.getFullYear() === 2026 && d.getMonth() === 2 && d.getDate() === 28) {
+            _hackathonLab = 'openai';
+        } else {
+            const hash = d.getFullYear() + d.getMonth() * 100 + day * 10000;
+            if (hash % 100 < 15) { 
+                const labs = Object.keys(LABS);
+                if (labs.length > 0) {
+                    _hackathonLab = labs[hash % labs.length];
+                }
+            } else {
+                _hackathonLab = null;
+            }
+        }
+        
+        if (_hackathonLab && typeof UI !== 'undefined') {
+            setTimeout(() => { UI.addToast(`🌙 MIDNIGHT HACKATHON: ${_hackathonLab.toUpperCase()} is pulling an all-nighter!`); }, 2000);
+        }
+    }
+}
+
+function getStage(rel, ret, ph) {
+  if (ret && new Date(ret) < new Date()) return 'retired';
+  if (ph === 'rumored') return 'rumored';
+  if (ph === 'pre_training') return 'baby';
+  if (ph === 'training') return 'kid';
+  const age = (new Date() - new Date(rel)) / (864e5 * 30);
+  return age < 1 ? 'kid' : 'adult';
+}
+
+function getAct(stg, dp, seed, model) {
+  updateDailyEvents(); 
+  
+  const region = (LABS[model.lab] && LABS[model.lab].region) ? LABS[model.lab].region : 'eu';
+  const resId = 'res_' + region;
+
+  if (stg === 'retired') return { act: 'sleep', bid: 'graveyard' };
+  if (stg === 'rumored') return { act: dp > .2 && dp < .8 ? 'work' : 'sleep', bid: null };
+  if (stg === 'baby') return { act: dp > .2 && dp < .8 ? 'work' : 'sleep', bid: dp > .2 && dp < .8 ? 'nursery' : resId };
+  if (stg === 'kid') return { act: dp > .3 && dp < .9 ? 'train' : 'sleep', bid: dp > .3 && dp < .9 ? 'gym' : resId };
+  
+  const s = (seed * 17) % 100;
+
+  // ─── HACKATHON: All-nighter override ───
+  if (_hackathonLab && model.lab === _hackathonLab) {
+      if (dp < 0.20 || dp >= 0.95) {
+          if (s < 30) return { act: 'lunch', bid: 'cafe' };
+          return { act: 'work', bid: null }; 
+      }
+  }
+
+  // ─── WEEKEND: Relaxed schedule, camping/socializing allowed ───
+  if (_isWeekend) {
+      if (dp < 0.35 || dp > 0.90) return { act: 'sleep', bid: resId };
+      if (dp >= 0.35 && dp < 0.90) {
+          if (s < 20) return { act: 'play', bid: resId };
+          if (s < 40) return { act: 'socialize', bid: 'park' };
+          if (s < 60) return { act: 'lunch', bid: 'cafe' };
+          if (s < 80) return { act: 'arena', bid: 'arena' };
+          if (s < 90 && model.os) return { act: 'share', bid: 'open_square' };
+          return { act: 'train', bid: 'gym' };
+      }
+  }
+
+  // ═══════════════════════════════════════════════
+  //   WEEKDAY SCHEDULE (structured work day)
+  // ═══════════════════════════════════════════════
+
+  // 00:00–04:48  Deep sleep
+  if (dp < 0.20) return { act: 'sleep', bid: resId };
+
+  // 04:48–08:24  Staggered wake-up → coffee at home → commute
+  if (dp >= 0.20 && dp < 0.35) {
+      const leaveTime = 0.22 + (s / 100) * 0.10;
+      if (dp < leaveTime) return { act: 'work', bid: resId }; 
+      else return { act: 'commute', bid: null };
+  }
+  
+  // 08:24–10:48  Morning work block (everyone at their HQ)
+  if (dp >= 0.35 && dp < 0.45) return { act: 'work', bid: null };
+
+  // 10:48–13:12  Lunch break — cafe or wander outside
+  if (dp >= .45 && dp < .55) { 
+      if (s < 40) return { act: 'lunch', bid: 'cafe' };
+      if (s < 65) return { act: 'socialize', bid: 'park' }; 
+      return { act: 'work', bid: null };
+  }
+
+  // 13:12–15:36  Afternoon work block
+  if (dp >= 0.55 && dp < 0.65) return { act: 'work', bid: null };
+
+  // 15:36–18:00  Late afternoon — open source devs may share, others work
+  if (dp >= .65 && dp < .75) {
+      if (model.os && s < 30) return { act: 'share', bid: 'open_square' };
+      return { act: 'work', bid: null };
+  }
+
+  // 18:00–19:40  Arena time for some, others wrapping up
+  if (dp >= .75 && dp < .82) {
+      if (s < 20) return { act: 'arena', bid: 'arena' };
+      return { act: 'work', bid: null };
+  }
+  
+  // 19:40–22:48  Staggered departure → commute home
+  if (dp >= 0.82 && dp < 0.95) {
+      const goHomeTime = 0.82 + (s / 100) * 0.10;
+      if (dp < goHomeTime) return { act: 'work', bid: null }; 
+      else return { act: 'commute', bid: resId };
+  }
+
+  // 22:48–00:00  Sleep
+  return { act: 'sleep', bid: resId };
+}
+

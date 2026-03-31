@@ -1,0 +1,38 @@
+[build]
+  publish = "."
+
+# ─── CORS PROXY: Route API calls through Netlify to bypass CORS ───
+[[redirects]]
+  from = "/api/hf/*"
+  to = "https://huggingface.co/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/zeroeval/*"
+  to = "https://api.zeroeval.com/:splat"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://api.rss2json.com https://finnhub.io https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://api.x.ai https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ll.thespacedevs.com https://huggingface.co https://api.zeroeval.com; img-src 'self' data:; worker-src 'self'"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Content-Type = "text/css; charset=utf-8"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Content-Type = "text/html; charset=utf-8"
