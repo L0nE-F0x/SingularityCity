@@ -614,8 +614,8 @@ const Entities = {
                     }
                 }
 
-                const platformMaxSpread = 160;
-                const stationSpread = Math.max(-platformMaxSpread, Math.min(platformMaxSpread, pseudoRandomOffset * 1.5)); 
+                const platformMaxSpread = 120;
+                const stationSpread = Math.max(-platformMaxSpread, Math.min(platformMaxSpread, pseudoRandomOffset * 1.2)); 
                 const platformY = G.groundY + 112; 
 
                 if (refs._metroLegs && refs._metroLegs.length > 0) {
@@ -640,18 +640,25 @@ const Entities = {
                         finalTargetX = s1 + stationSpread;
                         finalTargetY = platformY;
                         
+                        // If train is here, push non-boarding characters to back of platform
+                        // so they don't overlap the train body visually
                         if (activeTrain && activeTrain.state === 'waiting' && activeTrain.x === s1) {
-                            if (activeTrain.passengers < 15) {
+                            if (activeTrain.passengers < 30) {
                                 activeTrain.passengers++;
                                 refs._metroState = 'riding';
                                 refs._ridingTrain = activeTrain;
+                            } else {
+                                // Train is full — stand at back of platform (above train body)
+                                finalTargetY = platformY - 35;
                             }
                         }
                     } else if (refs._metroState === 'riding') {
                         freezeX = true;
                         let t = refs._ridingTrain;
                         if (t) {
-                            refs.c.x = t.x + (pseudoRandomOffset * 1.5);
+                            // Clamp offset to stay inside the train body (±150px)
+                            var rideOffset = Math.max(-150, Math.min(150, pseudoRandomOffset * 1.2));
+                            refs.c.x = t.x + rideOffset;
                             if (t.state === 'waiting' && t.x === s2) {
                                 t.passengers = Math.max(0, t.passengers - 1);
                                 refs.c.x = s2;
