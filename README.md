@@ -22,29 +22,53 @@ The city grows automatically through 5 data pipelines that discover new models, 
 
 ## Features
 
-**🏢 Dynamic City**
+### 🌌 3D Holomap — *NEW*
+
+Click **🌍 Holomap** to leave the city and enter a full **Three.js 3D galaxy visualization** of the entire AI industry. A black hole labeled **ASI** (Artificial Superintelligence) sits at the center, surrounded by orbiting barrier labels — *Compute Costs*, *Alignment Problem*, *Data Scarcity*. Every AI lab is a **glowing nebula** positioned by its proximity to ASI: the biggest labs (OpenAI, Google, Anthropic) orbit closest to the singularity, while smaller labs drift in the outer reaches. Every one of 730+ AI models is rendered as an **individual star** orbiting its lab's nebula, sized by benchmark scores. The frontier model per lab sits at the center of its cluster with a labeled badge.
+
+- Full 3D orbit controls — rotate, pan, zoom
+- Hover any star for a tooltip with ELO, benchmarks, and description
+- Click to open an info panel with benchmark bars and pricing
+- 🔭 Focus button zooms the camera to any model
+- 6-layer cosmic background: multi-color starfield, nebula clouds, galactic dust plane, core glow
+- Procedural deep-space ambient audio with distant pulsar pings
+- Sound effects on every interaction — warp in/out, hover blips, panel chimes, zoom sweeps
+
+Click **🏙️ Street View** to warp back to the city.
+
+---
+
+### 🏢 Dynamic City
+
 HQ buildings grow taller as labs release more models. New labs get auto-zoned with buildings, parking, and signage. 42+ buildings across 7 biomes.
 
-**🚗 CEO Ecosystem**
+### 🚗 CEO Ecosystem
+
 Each lab's founder drives a luxury car between their HQ and private estate on Billionaire's Row. On weekends, CEOs take helicopters to Silicon Woods — a retreat with a whiskey bar, infinity hot tub, and putting green.
 
-**🚇 Metro System**
+### 🚇 Metro System
+
 Three stations (Residential, Tech District, Eastern Hub) connected by two train lines. Citizens ride the metro between zones with full enter/wait/ride/exit animations.
 
-**🏜️ Space Zone**
+### 🏜️ Space Zone
+
 A desert biome with 7 launch pads, Mission Control, Vehicle Assembly, and a Tracking Station. Rockets trigger from real Launch Library 2 API data. Sandstorm weather system independent from the city.
 
-**🌲 Forests & Interiors**
+### 🌲 Forests & Interiors
+
 Pine Reserve (weekend camping), Silicon Woods (CEO retreat), Frontier Pines (launch viewing area). Every building has a fully rendered interior you can enter — server rooms, cafeterias, research labs, CEO offices.
 
-**📡 AI-Powered Scanning**
+### 📡 AI-Powered Scanning
+
 Plug in any API key (OpenAI, Anthropic, Google, xAI) and the city scans for new models using the AI itself. Flagship gap analysis tells the scanner exactly which cutting-edge models are missing.
 
-**🌦️ Environment**
+### 🌦️ Environment
+
 Real-time day/night cycle, seasonal weather (rain, snow, cherry blossoms), procedural audio, and a full star field with constellations.
 
-**📊 Analytics**
-ELO rankings, benchmark tracking (GPQA, MMLU, MATH, HumanEval), cost analysis, burn rate calculator, and a macro-layer "Holomap" showing the global AI compute network.
+### 📊 Analytics
+
+ELO rankings, benchmark tracking (GPQA, MMLU, MATH, HumanEval), cost analysis, burn rate calculator, family lineage trees, AI events calendar, and compute hardware tracker.
 
 ---
 
@@ -70,8 +94,9 @@ ELO rankings, benchmark tracking (GPQA, MMLU, MATH, HumanEval), cost analysis, b
 
 ## Tech Stack
 
-- **Rendering:** PixiJS 7 (GPU-accelerated 2D WebGL)
-- **Language:** Vanilla JavaScript (~15,000 lines, zero frameworks)
+- **2D Rendering:** PixiJS 7 (GPU-accelerated WebGL)
+- **3D Rendering:** Three.js r128 (Holomap galaxy visualization)
+- **Language:** Vanilla JavaScript (~16,000 lines, zero frameworks)
 - **Backend:** Supabase (Postgres + real-time subscriptions)
 - **Hosting:** Netlify (static deploy + proxy redirects for CORS)
 - **Audio:** Web Audio API (procedural ambient + SFX)
@@ -86,6 +111,7 @@ ELO rankings, benchmark tracking (GPQA, MMLU, MATH, HumanEval), cost analysis, b
 ├── css/styles.css          All styling
 ├── js/
 │   ├── engine.js           Game loop, init, zoning, minimap
+│   ├── holomap.js          3D galaxy visualization (Three.js)
 │   ├── entities.js         Character AI, movement, metro routing
 │   ├── entities_gfx.js     Character/car/train sprite creation
 │   ├── environment.js      Ground, buildings, weather, sky
@@ -138,7 +164,7 @@ Note: HuggingFace API works locally (has CORS headers). ZeroEval requires the Ne
 
 This entire project was built through **vibe coding** — collaborative development with AI models:
 
-- **Claude** (Anthropic) — Deep codebase audits, architecture decisions, performance optimization, multi-file refactors
+- **Claude** (Anthropic) — Deep codebase audits, architecture decisions, performance optimization, multi-file refactors, 3D Holomap galaxy visualization
 - **Gemini** (Google) — Feature implementation, UI polish, interior generation
 - **Grok** (xAI) — Model discovery scanning, creative feature ideas
 
