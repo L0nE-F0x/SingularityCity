@@ -92,6 +92,7 @@ const Holomap = {
             setTimeout(function() { SND.playTone(400, 'triangle', 0.4, 0.04, 1200); }, 150);
             setTimeout(function() { SND.setAmbient('holomap'); }, 300);
         }
+        if (typeof G !== 'undefined') G.unlockAchieve('galactic_tourist');
     },
 
     hide() {

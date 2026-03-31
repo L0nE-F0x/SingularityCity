@@ -1142,6 +1142,7 @@ JSON (no markdown):
   
         if (G.models.filter(m => m._src).length >= 10) G.unlockAchieve('ten_models');
         if (G.models.length >= 50) G.unlockAchieve('fifty_models');
+        if (G.models.length >= 100) G.unlockAchieve('hundred_models');
         if (new Set(G.models.map(m => m.lab)).size >= 7) G.unlockAchieve('all_labs');
         
         G.save(); 

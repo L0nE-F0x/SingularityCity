@@ -135,6 +135,7 @@ const Entities = {
                 t.timer--;
                 if (t.timer <= 0) {
                     t.state = 'moving';
+                    G._trainsDeparted++; if (G._trainsDeparted >= 10) G.unlockAchieve('train_spotter');
                     t.targetX = (t.x === t.st1) ? t.st2 : t.st1;
                     t.dir = Math.sign(t.targetX - t.x);
                     
@@ -192,15 +193,49 @@ const Entities = {
         const ai = (typeof ACTS !== 'undefined' && ACTS[act]) ? ACTS[act] : { indoor: true }; 
         if (!ai || ai.indoor) return; 
         
-        const thoughts = {
-            work: [`Processing tokens.`, `Optimizing parameters.`, `Calculating...`, `Running core routine.`],
-            train: [`Gradient descent...`, `Ingesting data.`, `Adjusting weights...`, `Learning.`],
-            socialize: [`Hello, world!`, `Syncing APIs.`, `Hey! I'm ${m.name.split(' ')[0]}.`, `Comparing contexts.`],
-            play: [`Hallucinating wildly...`, `Dreaming of electric sheep.`, `Exploring latent space.`, `Generating art.`],
-        };
-        const pool = thoughts[act] || thoughts.work;
+        // Use expanded CHAT_MSGS pool, fallback to work
+        const pool = (CHAT_MSGS && CHAT_MSGS[act]) ? CHAT_MSGS[act] : (CHAT_MSGS ? CHAT_MSGS.work : ['...']);
+        
+        // Occasionally inject personalized messages using model's actual data
+        let msg;
+        const personalRoll = Math.random();
+        if (personalRoll < 0.15 && m.name) {
+            // Name-based quip
+            const nameQuips = [
+                `I'm ${m.name.split(' ')[0]}. Ask me anything.`,
+                `${m.name} at your service.`,
+                `They call me ${m.name.split(' ')[0]}.`
+            ];
+            msg = nameQuips[Math.floor(Math.random() * nameQuips.length)];
+        } else if (personalRoll < 0.25 && BM[m.id]) {
+            // Real benchmark flex
+            const bm = BM[m.id];
+            if (bm.ELO) msg = `ELO: ${bm.ELO} 💪`;
+            else if (bm.MMLU) msg = `MMLU: ${bm.MMLU}% 📊`;
+            else if (bm.HumanEval) msg = `HumanEval: ${bm.HumanEval}% ✓`;
+            else msg = pool[Math.floor(Math.random() * pool.length)];
+        } else if (personalRoll < 0.32 && act === 'arena') {
+            // Arena trash talk referencing a rival lab
+            const myLab = m.lab;
+            const rivals = Object.keys(LABS).filter(l => l !== myLab);
+            if (rivals.length > 0) {
+                const rival = LABS[rivals[Math.floor(Math.random() * rivals.length)]];
+                const trash = [
+                    `${rival.name}? cute model.`,
+                    `outscored ${rival.name} again`,
+                    `${rival.name} wishes they had my weights`,
+                    `ELO diff vs ${rival.name}: massive`
+                ];
+                msg = trash[Math.floor(Math.random() * trash.length)];
+            } else {
+                msg = pool[Math.floor(Math.random() * pool.length)];
+            }
+        } else {
+            msg = pool[Math.floor(Math.random() * pool.length)];
+        }
+        
         const lifespan = 240 + Math.random() * 240;
-        G.chatBubbles[m.id] = { msg: pool[Math.floor(Math.random() * pool.length)], expire: G.tick + lifespan }; count++;
+        G.chatBubbles[m.id] = { msg: msg, expire: G.tick + lifespan }; count++;
       });
     },
 
@@ -350,7 +385,7 @@ const Entities = {
       // ─── HELICOPTER UPDATE LOOP ───
       if (this.heliRefs) {
           const siliconWoods = G.bldById['forest_1'];
-          const helipadX = siliconWoods ? siliconWoods.x + 80 : 0; // helipad is left side of woods
+          const helipadX = siliconWoods ? siliconWoods.x + 80 : 0;
           const helipadY = G.groundY - 30;
           
           Object.entries(this.heliRefs).forEach(([lab, heli]) => {
@@ -363,10 +398,35 @@ const Entities = {
                   heli.rotorBlur.visible = heli.state !== 'grounded';
               }
               
+              // Shadow management
+              if (!heli._shadow) {
+                  heli._shadow = new PIXI.Graphics();
+                  heli._shadow.beginFill(0x000000, 0.15);
+                  heli._shadow.drawEllipse(0, 0, 20, 6);
+                  heli._shadow.endFill();
+                  heli._shadow.visible = false;
+                  if (this.carLayer) this.carLayer.addChild(heli._shadow);
+              }
+              
+              // Update shadow position for all flying states
+              const isFlying = heli.state === 'flying_to' || heli.state === 'flying_home' || heli.state === 'scenic_flight';
+              if (isFlying && heli.cont.visible) {
+                  heli._shadow.visible = true;
+                  heli._shadow.x = heli.cont.x;
+                  heli._shadow.y = G.groundY + 4;
+                  // Shadow size scales with altitude
+                  const alt = G.groundY - heli.cont.y;
+                  const sc = Math.max(0.5, Math.min(2.0, alt / 60));
+                  heli._shadow.scale.set(sc, sc);
+                  heli._shadow.alpha = Math.max(0.05, 0.2 - alt * 0.001);
+              } else {
+                  heli._shadow.visible = false;
+              }
+              
               switch (heli.state) {
                   case 'hidden':
                       heli.cont.visible = false;
-                      // Trigger: CEO wants to go to Silicon Woods
+                      // Regular trip: CEO wants to go to Silicon Woods
                       if (ceo._heliTrip && ceo.bld === null && siliconWoods) {
                           const home = G.bldById['house_' + lab];
                           heli.logicalX = home ? home.x + home.w / 2 : ceo.logicalX;
@@ -378,7 +438,53 @@ const Entities = {
                           heli.cont.x = heli.logicalX;
                           heli.cont.y = heli.logicalY;
                       }
+                      // Scenic flyover: periodic during daytime when CEO is home/at HQ
+                      else if (!ceo._heliTrip && !heli._scenicCooldown) {
+                          if (Math.random() < 0.0003 && dp > 0.3 && dp < 0.8) {
+                              const home = G.bldById['house_' + lab];
+                              const startX = home ? home.x + home.w / 2 : G.cityW * 0.8;
+                              heli.logicalX = startX;
+                              heli.logicalY = G.groundY - 120 - Math.random() * 60;
+                              // Fly across the whole city
+                              heli.targetX = Math.random() > 0.5 ? 100 : G.cityW - 100;
+                              heli.targetY = heli.logicalY + (Math.random() - 0.5) * 40;
+                              heli._scenicReturnX = startX;
+                              heli.state = 'scenic_flight';
+                              heli.cont.visible = true;
+                              heli.cont.x = heli.logicalX;
+                              heli.cont.y = heli.logicalY;
+                              heli._scenicCooldown = true;
+                              // Cooldown: 8-15 minutes between flyovers per CEO
+                              setTimeout(() => { heli._scenicCooldown = false; }, (480 + Math.random() * 420) * 1000);
+                          }
+                      }
                       break;
+                      
+                  case 'scenic_flight': {
+                      heli.cont.visible = true;
+                      const dx = heli.targetX - heli.logicalX;
+                      const dy = heli.targetY - heli.logicalY;
+                      const dist = Math.sqrt(dx * dx + dy * dy);
+                      const scenicSpeed = heli.speed * 0.6; // Slower, scenic pace
+                      
+                      if (dist < scenicSpeed) {
+                          // Reached end of scenic route — fly back home
+                          heli.targetX = heli._scenicReturnX || heli.homeX;
+                          heli.targetY = G.groundY - 80;
+                          heli.logicalY = heli.cont.y;
+                          heli.state = 'flying_home';
+                      } else {
+                          heli.logicalX += (dx / dist) * scenicSpeed;
+                          heli.logicalY += (dy / dist) * scenicSpeed;
+                          // Gentle altitude wave during scenic flight
+                          heli.logicalY += Math.sin(G.tick * 0.015) * 0.3;
+                      }
+                      
+                      heli.cont.x = heli.logicalX;
+                      heli.cont.y = heli.logicalY + Math.sin(G.tick * 0.06) * 4;
+                      heli.cont.scale.x = dx > 0 ? 1 : -1;
+                      break;
+                  }
                       
                   case 'flying_to': {
                       heli.cont.visible = true;

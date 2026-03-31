@@ -5,11 +5,11 @@
 const InteriorResProps = {
     lifts: {},
 
-    initLift(layer, bldId, numFloors, floorHeight, shaftX) {
+    initLift(layer, bldId, numFloors, floorHeight, shaftX, minFloor) {
         if (this.lifts[bldId]) {
             this.lifts[bldId].destroy();
         }
-        const lift = new ResElevator(layer, numFloors, floorHeight, shaftX);
+        const lift = new ResElevator(layer, numFloors, floorHeight, shaftX, minFloor);
         this.lifts[bldId] = lift;
         return lift;
     },
@@ -519,15 +519,147 @@ const InteriorResProps = {
         g.beginFill(0xef4444); g.drawRect(x-40, y-25, 80, 2); g.endFill(); 
         g.beginFill(0xffffff); g.drawRect(x-40, y-15, 80, 2); g.endFill(); 
         c.addChild(g);
+    },
+
+    // ─── NEW LUXURY ESTATE PROPS ───
+
+    drawWineRack(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Wooden rack frame
+        g.beginFill(0x78350f); g.drawRect(x-20, y-45, 40, 45); g.endFill();
+        g.beginFill(0x92400e); g.drawRect(x-18, y-43, 36, 41); g.endFill();
+        // Wine bottles (rows)
+        for(let wy=y-40; wy<y-5; wy+=8) {
+            for(let wx=x-14; wx<x+14; wx+=8) {
+                g.beginFill(0x4c1d20); g.drawRect(wx, wy, 6, 5); g.endFill();
+                g.beginFill(0x7f1d1d, 0.8); g.drawCircle(wx+3, wy+2, 2); g.endFill();
+            }
+        }
+        c.addChild(g);
+    },
+
+    drawTrophyCase(c, x, y, col) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Glass case
+        g.beginFill(0x1e293b); g.drawRect(x-22, y-40, 44, 40); g.endFill();
+        g.beginFill(0x0f172a); g.drawRect(x-20, y-38, 40, 36); g.endFill();
+        g.lineStyle(1, 0x38bdf8, 0.3); g.drawRect(x-20, y-38, 40, 36); g.lineStyle(0);
+        // Trophies
+        g.beginFill(0xfbbf24); g.drawRect(x-8, y-28, 4, 14); g.drawRect(x-12, y-28, 12, 4); g.endFill();
+        g.beginFill(col || 0xfbbf24); g.drawRect(x+6, y-22, 4, 10); g.drawRect(x+2, y-22, 12, 3); g.endFill();
+        g.beginFill(0xc0c0c0); g.drawRect(x-4, y-18, 3, 8); g.endFill();
+        // Glass reflection
+        const glow = new PIXI.Graphics(); glow.eventMode = 'none';
+        glow.beginFill(0x38bdf8, 0.06); glow.drawRect(x-20, y-38, 40, 36); glow.endFill();
+        c.addChild(g, glow);
+    },
+
+    drawFireplace(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Mantle
+        g.beginFill(0x44403c); g.drawRect(x-30, y-40, 60, 40); g.endFill();
+        g.beginFill(0x57534e); g.drawRect(x-32, y-42, 64, 6); g.endFill();
+        // Firebox
+        g.beginFill(0x1c1917); g.drawRect(x-18, y-30, 36, 26); g.endFill();
+        // Flames
+        g.beginFill(0xf97316, 0.8); 
+        g.drawPolygon([x-10, y-4, x-5, y-20, x, y-8]); 
+        g.drawPolygon([x-2, y-4, x+4, y-24, x+10, y-4]); 
+        g.endFill();
+        g.beginFill(0xfbbf24, 0.6); 
+        g.drawPolygon([x-6, y-4, x-2, y-16, x+2, y-4]); 
+        g.endFill();
+        // Glow
+        const glow = new PIXI.Graphics(); glow.eventMode = 'none';
+        glow.beginFill(0xf97316, 0.08); glow.drawCircle(x, y-15, 40); glow.endFill();
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.12, type: 'fire' });
+    },
+
+    drawBonsaiTree(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Pot
+        g.beginFill(0x78350f); g.drawRect(x-8, y-8, 16, 8); g.endFill();
+        g.beginFill(0x92400e); g.drawRect(x-10, y-10, 20, 4); g.endFill();
+        // Trunk
+        g.beginFill(0x5c4033); g.drawRect(x-2, y-22, 4, 14); g.endFill();
+        g.beginFill(0x5c4033); g.drawRect(x, y-24, 8, 3); g.endFill();
+        // Canopy
+        g.beginFill(0x166534); g.drawCircle(x-4, y-26, 8); g.drawCircle(x+6, y-24, 6); g.drawCircle(x, y-30, 7); g.endFill();
+        c.addChild(g);
+    },
+
+    drawScrollArt(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Hanging scroll
+        g.beginFill(0x78350f); g.drawRect(x-12, y-50, 24, 3); g.endFill();
+        g.beginFill(0xfef3c7); g.drawRect(x-10, y-47, 20, 35); g.endFill();
+        // Ink brush strokes (abstract)
+        g.beginFill(0x1c1917, 0.7);
+        g.drawRect(x-6, y-42, 2, 20);
+        g.drawRect(x-2, y-38, 2, 16);
+        g.drawRect(x+3, y-40, 2, 22);
+        g.endFill();
+        g.beginFill(0xdc2626, 0.8); g.drawRect(x+2, y-18, 5, 5); g.endFill();
+        // Bottom rod
+        g.beginFill(0x78350f); g.drawRect(x-12, y-12, 24, 3); g.endFill();
+        c.addChild(g);
+    },
+
+    drawSiloInterior(c, x, y, w, floorH, col) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Reinforced concrete walls
+        g.beginFill(0x0a0a0f); g.drawRect(x, y, w, floorH); g.endFill();
+        g.beginFill(0x111118); g.drawRect(x+8, y+8, w-16, floorH-16); g.endFill();
+        // Hazard tape top
+        g.beginFill(0xfbbf24);
+        for(var hx=x; hx<x+w; hx+=16) {
+            g.drawPolygon([hx, y, hx+8, y, hx+2, y+6, hx-6, y+6]);
+        }
+        g.endFill();
+        g.beginFill(0x000000);
+        for(var hx2=x+8; hx2<x+w; hx2+=16) {
+            g.drawPolygon([hx2, y, hx2+8, y, hx2+2, y+6, hx2-6, y+6]);
+        }
+        g.endFill();
+        // Server racks
+        for(var rx=x+30; rx<x+w-60; rx+=55) {
+            // Rack body
+            g.beginFill(0x1e293b); g.drawRect(rx, y+14, 28, floorH-22); g.endFill();
+            g.beginFill(0x0f172a); g.drawRect(rx+3, y+18, 22, floorH-30); g.endFill();
+            // Drive bays
+            for(var dy=y+22; dy<y+floorH-14; dy+=7) {
+                g.beginFill(0x334155); g.drawRect(rx+5, dy, 18, 5); g.endFill();
+                // Status LEDs
+                g.beginFill(Math.random()>0.3 ? 0x4ade80 : 0xef4444); g.drawCircle(rx+8, dy+2, 1); g.endFill();
+                g.beginFill(0x06b6d4, 0.6); g.drawCircle(rx+12, dy+2, 1); g.endFill();
+            }
+        }
+        // Central data core column
+        var coreX = x + w/2;
+        g.beginFill(0x0f172a); g.drawRect(coreX-12, y+10, 24, floorH-18); g.endFill();
+        g.beginFill(col || 0x06b6d4, 0.4); g.drawRect(coreX-8, y+14, 16, floorH-26); g.endFill();
+        // Pulsing core glow
+        var glow = new PIXI.Graphics(); glow.eventMode = 'none';
+        glow.beginFill(col || 0x06b6d4, 0.06); glow.drawRect(coreX-30, y+10, 60, floorH-18); glow.endFill();
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.1, type: 'screen' });
+        // SILO label
+        var siloTxt = new PIXI.Text('SECURE SILO', { fontFamily: 'Silkscreen', fontSize: 7, fill: 0xef4444, letterSpacing: 2 });
+        siloTxt.anchor.set(0.5, 0); siloTxt.x = x + w/2; siloTxt.y = y + 4;
+        c.addChild(siloTxt);
     }
 };
 
 class ResElevator {
-    constructor(layer, numFloors, floorHeight, shaftX) {
+    constructor(layer, numFloors, floorHeight, shaftX, minFloor) {
         this.layer = layer;
         this.numFloors = numFloors;
         this.floorHeight = floorHeight;
         this.x = shaftX;
+        this.minFloor = (minFloor !== undefined) ? minFloor : -1;
         
         this.state = 'idle'; 
         this.currentFloor = 0;
@@ -539,13 +671,16 @@ class ResElevator {
         this.callQueue = [];
         this.doors = [];
         
+        const totalFloors = numFloors - this.minFloor;
+        const shaftHeight = (numFloors - 1 - this.minFloor) * this.floorHeight;
+        
         this.shaft = new PIXI.Graphics();
         this.shaft.beginFill(0x1a1a24);
         this.shaft.drawRect(
             this.x - this.doorWidth, 
             -((this.numFloors - 1) * this.floorHeight), 
             this.doorWidth * 2, 
-            (this.numFloors + 1) * this.floorHeight
+            shaftHeight
         );
         this.shaft.endFill();
         this.layer.addChild(this.shaft);
@@ -558,9 +693,7 @@ class ResElevator {
         this.car.y = 0;
         this.layer.addChild(this.car);
 
-        const totalFloors = numFloors + 1;
-
-        for(let i = -1; i < numFloors; i++) {
+        for(let i = this.minFloor; i < numFloors; i++) {
             let fy = -i * this.floorHeight;
             
             let leftDoor = new PIXI.Graphics();
@@ -577,12 +710,12 @@ class ResElevator {
             lightContainer.y = fy - this.floorHeight + 12;
             
             let floorLights = [];
-            for(let j = -1; j < numFloors; j++) {
+            for(let j = this.minFloor; j < numFloors; j++) {
                 let l = new PIXI.Graphics();
                 l.beginFill(0x222222); 
                 const maxW = 36;
                 const spacing = Math.min(6, maxW / totalFloors);
-                const lightIdx = j + 1;
+                const lightIdx = j - this.minFloor;
                 l.drawCircle((lightIdx - totalFloors/2) * spacing + (spacing/2), 0, Math.min(1.5, spacing/3)); 
                 l.endFill();
                 floorLights.push(l);
@@ -620,13 +753,13 @@ class ResElevator {
 
     update() {
         let currentPassingFloor = -Math.round(this.car.y / this.floorHeight);
-        const totalFloors = this.numFloors + 1;
+        const totalFloors = this.numFloors - this.minFloor;
         const maxW = 36; 
         const spacing = Math.min(6, maxW / totalFloors);
 
         this.doors.forEach((doorObj) => {
             doorObj.lights.forEach((light, lightIdx) => {
-                const representedFloor = lightIdx - 1; 
+                const representedFloor = lightIdx + this.minFloor; 
                 light.clear();
                 if (representedFloor === currentPassingFloor) {
                     light.beginFill(0x4ade80); 
@@ -660,7 +793,8 @@ class ResElevator {
             }
         } 
         else if (this.state === 'opening') {
-            let door = this.doors[this.currentFloor + 1];
+            let door = this.doors[this.currentFloor - this.minFloor];
+            if (!door) { this.state = 'idle'; return; }
             door.openAmt += 0.05;
             if (door.openAmt >= 1) {
                 door.openAmt = 1;
@@ -676,7 +810,8 @@ class ResElevator {
             }
         } 
         else if (this.state === 'closing') {
-            let door = this.doors[this.currentFloor + 1];
+            let door = this.doors[this.currentFloor - this.minFloor];
+            if (!door) { this.state = 'idle'; return; }
             door.openAmt -= 0.05;
             if (door.openAmt <= 0) {
                 door.openAmt = 0;

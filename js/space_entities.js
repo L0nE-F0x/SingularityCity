@@ -313,6 +313,7 @@ const SpaceEntities = {
                         r.state = 'liftoff';
                         r.timer = 0;
                         r.ascentSpeed = 0.3;
+                        if (typeof G !== 'undefined') G.unlockAchieve('rocket_scientist');
                     }
                     break;
                     

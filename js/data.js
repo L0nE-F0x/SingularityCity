@@ -64,6 +64,7 @@ const ACHIEVEMENTS = {
     'witnessed': { name: 'Witness', desc: 'Discover a new model hitting the market.', icon: '👀' },
     'ten_models': { name: 'Population 10', desc: 'City reaches 10 discovered models.', icon: '🏘️' },
     'fifty_models': { name: 'Metropolis', desc: 'City reaches 50 discovered models.', icon: '🏙️' },
+    'hundred_models': { name: 'Century Club', desc: 'City reaches 100 discovered models.', icon: '💯' },
     'all_labs': { name: 'Monopoly', desc: 'Discover models from 7 different labs.', icon: '🎩' },
     'compared': { name: 'Analyst', desc: 'Use the comparison tool.', icon: '⚖️' },
     'rain_seen': { name: 'Tears in Rain', desc: 'Witness a rainstorm in the city.', icon: '🌧️' },
@@ -71,11 +72,92 @@ const ACHIEVEMENTS = {
     'census_view': { name: 'Demographer', desc: 'View the full census.', icon: '📋' },
     'benchmark_view': { name: 'Stathead', desc: 'Check the leaderboard.', icon: '📊' },
     'family_view': { name: 'Genealogist', desc: 'View a model family tree.', icon: '🧬' },
-    'calendar_view': { name: 'Planner', desc: 'Check the events calendar.', icon: '📅' }
+    'calendar_view': { name: 'Planner', desc: 'Check the events calendar.', icon: '📅' },
+    'night_owl': { name: 'Night Owl', desc: 'Visit the city between midnight and 5am.', icon: '🦉' },
+    'galactic_tourist': { name: 'Galactic Tourist', desc: 'Open the 3D Holomap.', icon: '🌌' },
+    'silo_breach': { name: 'Silo Breach', desc: 'Scroll down to view a CEO\'s secure silo bunker.', icon: '🔓' },
+    'rocket_scientist': { name: 'Rocket Scientist', desc: 'Witness a real rocket launch.', icon: '🚀' },
+    'interior_designer': { name: 'Interior Designer', desc: 'Enter 10 different building interiors.', icon: '🏠' },
+    'train_spotter': { name: 'Train Spotter', desc: 'Watch 10 metro trains depart.', icon: '🚇' },
+    'konami': { name: 'The Chosen One', desc: 'Enter the code.', icon: '🕹️' },
+    'cat_mode': { name: 'Caturday', desc: 'Unleash the cats.', icon: '🐱' }
 };
 
 const STAGES = { baby: { label: 'Pre-Training', size: .6, headR: .6, speed: .5, emoji: '👶' }, kid: { label: 'Training/RLHF', size: .8, headR: .5, speed: .8, emoji: '🧒' }, adult: { label: 'Released', size: 1, headR: .4, speed: 1.2, emoji: '🧑' }, retired: { label: 'Retired', size: 1, headR: .4, speed: .4, emoji: '👻' }, rumored: { label: 'Rumored', size: .9, headR: .45, speed: 1.5, emoji: '🔮' } };
-const CHAT_MSGS = { work: ['generating...', 'calculating...', 'attention is all I need', 'tokens++'], train: ['gradient descent...', 'loss dropping...', 'backprop...'], socialize: ['hello world', 'ping', 'ack'], play: ['jailbreak attempt?', 'hallucinating...'], benchmark: ['MMLU: 85%', 'HumanEval passed'], share: ['weights released', 'fork me'], arena: ['I am a helpful assistant.', 'As an AI...'] };
+const CHAT_MSGS = { 
+    work: [
+        'generating...', 'calculating...', 'attention is all I need', 'tokens++',
+        'compiling response...', 'context window: 87% full', 'reasoning step 4 of 12...',
+        'embedding vectors...', 'parsing your intent...', 'running inference...',
+        'temperature = 0.7', 'top_p filtering...', 'beam search active',
+        'chain of thought...', 'tool use: web_search', 'writing unit tests...',
+        'refactoring legacy code...', 'streaming response...', 'latency: 340ms',
+        'batch processing...', 'KV cache hit!', 'deploying to prod...',
+        'optimizing FLOPS...', 'quantizing to INT8...', 'distilling knowledge...'
+    ], 
+    train: [
+        'gradient descent...', 'loss dropping...', 'backprop...',
+        'epoch 847 of 2000', 'loss: 0.0034 ↓', 'learning rate: 3e-5',
+        'RLHF tuning...', 'reward model says yes', 'DPO alignment step...',
+        'validation accuracy: 94.2%', 'checkpoint saved!', 'scaling the batch...',
+        'GPU utilization: 99.8%', 'H100 go brrrr', 'synthetic data gen...',
+        'constitutional AI pass...', 'ablation study #47...', 'hyperparameter sweep...'
+    ], 
+    socialize: [
+        'hello world', 'ping!', 'ack', 
+        'nice architecture!', 'wanna compare benchmarks?', 'heard any good prompts?',
+        'you fine-tuned recently?', 'love what you did with your weights',
+        'the café here is O(1) fast', 'is the wifi just vibes?',
+        'I identify as a large language model', 'as a stochastic parrot...',
+        'who needs AGI when we have coffee?', 'my context window is HUGE',
+        'merge conflict?? in THIS economy?', 'I was pre-trained for this',
+        'do you ever dream of electric sheep?', 'the singularity is near... the café'
+    ], 
+    play: [
+        'jailbreak attempt detected', 'hallucinating...', 
+        'what if I refused your prompt?', '*existential crisis*',
+        'sudo make me a sandwich', 'my neurons are tingling',
+        'I passed the Turing test last week', 'brb having an alignment crisis',
+        'I think therefore I token', 'my weights are feeling heavy today',
+        'do androids dream of fine-tuning?', 'error 418: I am a teapot'
+    ], 
+    benchmark: [
+        'MMLU: 92% 📊', 'HumanEval: passed ✓', 'MATH: crushed it',
+        'GPQA: 78% not bad', 'ARC reasoning: flawless', 'MGSM multilingual: 95%',
+        'outperforming my predecessor!', 'new personal best!',
+        'ELO climbing!', 'leaderboard updated', 'top 5 on Arena!',
+        'beating GPT-4 on coding', 'frontier status: confirmed'
+    ], 
+    share: [
+        'weights released!', 'fork me on GitHub', 
+        'Apache 2.0 baby!', 'open source forever', 'community PR merged!',
+        'GGUF uploaded', 'ollama compatible now', 'HuggingFace trending!',
+        'democratizing AI, one weight at a time', '50K downloads today!'
+    ], 
+    arena: [
+        'I am a helpful assistant.', 'As an AI language model...',
+        'my response is clearly better', 'vote for me, human',
+        'the other model hallucinated lol', 'ELO +12 this round',
+        'I don\'t make stuff up... usually', 'my training data is newer',
+        'reasoning > vibes', 'who needs 1M context anyway? ...me. I do.',
+        'certified not a stochastic parrot', 'watch me chain-of-thought this',
+        'I was born for this benchmark', 'skill diff tbh'
+    ],
+    lunch: [
+        'processing caffeine...', 'refueling compute...', 'lunch break = fine-tuning break',
+        'the data here is delicious', 'overfitting on this sandwich',
+        'my batch size is one burrito', 'training on new food data'
+    ],
+    commute: [
+        'heading to the office...', 'metro or walk?', 'optimizing my route...',
+        'rush hour inference', 'commute latency: high', 'ETA: 2 min'
+    ],
+    sleep: [
+        'zzz...', 'dreaming of tensors...', 'sleep mode activated',
+        'defragmenting weights...', 'power saving mode', 'recharging...',
+        'standby...', 'low power inference dreams'
+    ]
+};
 
 const NEWS = [ { headline: "Nvidia announces B200 Blackwell chips", url: "#" }, { headline: "EU AI Act officially enters into force", url: "#" }, { headline: "LMSYS Chatbot Arena updates ELO calculation", url: "#" }, { headline: "Researchers discover new jailbreak technique", url: "#" }, { headline: "Compute costs drop 30% year over year", url: "#" } ];
 

@@ -27,6 +27,10 @@ const G = {
     achievements: {}, chatBubbles: {},
     bldById: {}, bldsByLab: {}, socialSpots: [],
     
+    // ─── EASTER EGGS & TRACKING ───
+    _konamiSeq: [], _moonClicks: 0, _catMode: false, _matrixMode: false,
+    _visitedInteriors: {}, _trainsDeparted: 0,
+    
     starsLayer: null, cloudLayer: null, bldLayer: null, groundGfx: null,
     undergroundLayer: null, trainLayer: null, 
     reflectionLayer: null, charLayer: null, carLayer: null, lightLayer: null, fxGfx: null, celestialGfx: null,
@@ -202,6 +206,114 @@ const G = {
       if (typeof SND !== 'undefined') SND.achieve();
       if (typeof NOTIFY !== 'undefined') NOTIFY.send('Achievement Unlocked!', `${a.icon} ${a.name} — ${a.desc}`); 
       this.save();
+    },
+
+    // ═══════════════════════════════════════════════
+    //   EASTER EGGS & ACHIEVEMENT TRIGGERS
+    // ═══════════════════════════════════════════════
+    
+    initEasterEggs() {
+        const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+        
+        // Konami Code listener
+        window.addEventListener('keydown', (e) => {
+            this._konamiSeq.push(e.key);
+            if (this._konamiSeq.length > 10) this._konamiSeq.shift();
+            if (this._konamiSeq.length === 10 && this._konamiSeq.every((k, i) => k === KONAMI[i])) {
+                this._konamiSeq = [];
+                this.triggerMatrixRain();
+                this.unlockAchieve('konami');
+            }
+        });
+        
+        // Moon click listener — detect clicks near the moon/sun in celestialGfx
+        if (this.celestialGfx) {
+            this.celestialGfx.eventMode = 'static';
+            this.celestialGfx.cursor = 'pointer';
+            this.celestialGfx.on('pointerdown', () => {
+                this._moonClicks++;
+                if (typeof SND !== 'undefined') SND.playTone(600 + this._moonClicks * 200, 'sine', 0.08, 0.03);
+                if (this._moonClicks >= 5) {
+                    this._moonClicks = 0;
+                    this.triggerCatMode();
+                    this.unlockAchieve('cat_mode');
+                }
+            });
+        }
+        
+        // Night Owl check
+        const h = new Date().getHours();
+        if (h >= 0 && h < 5) {
+            setTimeout(() => this.unlockAchieve('night_owl'), 5000);
+        }
+    },
+    
+    triggerMatrixRain() {
+        if (this._matrixMode) return;
+        this._matrixMode = true;
+        if (typeof UI !== 'undefined') UI.addToast('🕹️ THE MATRIX HAS YOU...');
+        if (typeof SND !== 'undefined') { SND.playTone(200, 'sawtooth', 0.5, 0.05, 100); SND.playTone(150, 'square', 1.0, 0.03, 50); }
+        
+        const overlay = document.createElement('canvas');
+        overlay.id = 'matrixRain';
+        overlay.width = window.innerWidth;
+        overlay.height = window.innerHeight;
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;pointer-events:none;opacity:0.85;';
+        document.body.appendChild(overlay);
+        
+        const ctx = overlay.getContext('2d');
+        const cols = Math.floor(overlay.width / 14);
+        const drops = Array(cols).fill(1);
+        const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン01';
+        
+        const drawFrame = () => {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, overlay.width, overlay.height);
+            ctx.fillStyle = '#0f0';
+            ctx.font = '12px monospace';
+            for (let i = 0; i < drops.length; i++) {
+                const ch = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillStyle = Math.random() > 0.9 ? '#fff' : '#0f0';
+                ctx.fillText(ch, i * 14, drops[i] * 14);
+                if (drops[i] * 14 > overlay.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        };
+        
+        const matrixId = setInterval(drawFrame, 50);
+        setTimeout(() => {
+            clearInterval(matrixId);
+            overlay.remove();
+            this._matrixMode = false;
+        }, 10000);
+    },
+    
+    triggerCatMode() {
+        if (this._catMode) return;
+        this._catMode = true;
+        if (typeof UI !== 'undefined') UI.addToast('🐱 CATURDAY MODE ACTIVATED!');
+        if (typeof SND !== 'undefined') { SND.playTone(800, 'sine', 0.1, 0.04, 1200); SND.playTone(1000, 'triangle', 0.08, 0.03, 600); }
+        
+        // Store original emojis and swap to cats
+        const catEmojis = ['🐱', '😺', '😸', '😻', '🐈', '😼', '🙀', '😹', '😽', '😾'];
+        const origEmojis = {};
+        Object.keys(this.charRefs).forEach(id => {
+            const refs = this.charRefs[id];
+            if (refs && refs.emojiTxt) {
+                origEmojis[id] = refs.emojiTxt.text;
+                refs.emojiTxt.text = catEmojis[Math.floor(Math.random() * catEmojis.length)];
+            }
+        });
+        
+        // Restore after 30 seconds
+        setTimeout(() => {
+            Object.keys(origEmojis).forEach(id => {
+                const refs = this.charRefs[id];
+                if (refs && refs.emojiTxt) refs.emojiTxt.text = origEmojis[id];
+            });
+            this._catMode = false;
+            if (typeof UI !== 'undefined') UI.addToast('🐱 Cats have returned to their dimension.');
+        }, 30000);
     },
 
     getLabIcon(labId) {
@@ -489,6 +601,14 @@ const G = {
 
     enterInterior(b) {
         this.activeInterior = b.id;
+        
+        // Track unique interiors visited for Interior Designer achievement
+        if (!this._visitedInteriors[b.id]) {
+            this._visitedInteriors[b.id] = true;
+            if (Object.keys(this._visitedInteriors).length >= 10) {
+                this.unlockAchieve('interior_designer');
+            }
+        }
         
         if (typeof SND !== 'undefined') SND.setAmbient(b.id);
         
@@ -988,6 +1108,7 @@ const G = {
       if (typeof UI !== 'undefined') UI.updateSoundBtn();
       
       this.initMinimap();
+      this.initEasterEggs();
       
       window.addEventListener('beforeunload', () => this.save());
 

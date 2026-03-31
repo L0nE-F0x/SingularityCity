@@ -46,6 +46,18 @@ const InteriorRes = {
         const lab = LABS[bld.lab] || LABS.other || { color: '#64748b' };
         const colHex = parseInt(lab.color.slice(1), 16); 
         
+        // Determine estate style for prop variety
+        let estateStyle = 'modern';
+        if (isEstate) {
+            const labRegion = (lab.region) ? lab.region : 'eu';
+            if (bld.lab === 'xai') estateStyle = 'brutalist';
+            else if (bld.lab === 'openai' || bld.lab === 'anthropic') estateStyle = 'penthouse';
+            else if (bld.lab === 'google' || bld.lab === 'meta') estateStyle = 'villa';
+            else if (bld.lab === 'microsoft' || bld.lab === 'amazon' || bld.lab === 'apple' || bld.lab === 'nvidia' || bld.lab === 'ibm') estateStyle = 'colonial';
+            else if (labRegion === 'eu') estateStyle = 'chateau';
+            else if (labRegion === 'cn') estateStyle = 'pagoda';
+        } 
+        
         this.skyContainer = new PIXI.Container();
         this.layer.addChild(this.skyContainer);
         
@@ -70,10 +82,11 @@ const InteriorRes = {
         
         const requiredAptFloors = Math.ceil(activeModels.length / 4);
         const numFloors = isEstate ? (bld.fl || 2) : Math.max(2, 1 + requiredAptFloors); 
+        const minFloor = isEstate ? -2 : -1;
 
         const floorH = 80; 
         const roofH = 80; 
-        this.totalH = roofH + (numFloors + 1) * floorH; 
+        this.totalH = roofH + (numFloors - minFloor) * floorH; 
         
         const voidMask = new PIXI.Graphics();
         voidMask.beginFill(0x05050a);
@@ -96,7 +109,7 @@ const InteriorRes = {
         bldBg.drawRect(this.startX, roofH - 4, this.bldW, 4);
         bldBg.endFill();
         
-        for (let f = -1; f < numFloors; f++) {
+        for (let f = minFloor; f < numFloors; f++) {
             const fy = roofH + (numFloors - 1 - f) * floorH;
             
             if (f === -1) {
@@ -104,6 +117,13 @@ const InteriorRes = {
                 bldBg.drawRect(0, fy, G.vpW, floorH);
                 bldBg.endFill();
                 bldBg.beginFill(0x121220);
+                bldBg.drawRect(this.startX, fy, this.bldW, floorH);
+                bldBg.endFill();
+            } else if (f === -2) {
+                bldBg.beginFill(0x050508);
+                bldBg.drawRect(0, fy, G.vpW, floorH);
+                bldBg.endFill();
+                bldBg.beginFill(0x0a0a10);
                 bldBg.drawRect(this.startX, fy, this.bldW, floorH);
                 bldBg.endFill();
             } else {
@@ -120,14 +140,17 @@ const InteriorRes = {
 
         this.drawRoof(roofH, this.startX, this.usableW, colHex, lab, bld);
         
-        for (let f = -1; f < numFloors; f++) {
+        for (let f = minFloor; f < numFloors; f++) {
             const fy = roofH + (numFloors - 1 - f) * floorH; 
             const isBasement = f === -1;
+            const isSilo = f === -2;
             
             this.floors[f] = { y: fy + floorH - 4, elevatorX: shaftX + 15, breakSpots: [] };
             
             const roomGfx = new PIXI.Graphics();
-            if (isBasement) {
+            if (isSilo) {
+                // Silo floor has no room interior — drawSiloInterior handles everything
+            } else if (isBasement) {
                 this.drawBasementInterior(roomGfx, this.startX, fy, this.bldW, floorH);
             } else {
                 this.drawRoomInterior(roomGfx, this.startX, fy, this.usableW, floorH, colHex, false, windowX, windowW, isEstate ? 'estate' : 'residential');
@@ -135,7 +158,7 @@ const InteriorRes = {
             this.scene.addChild(roomGfx);
             
             const floorLine = new PIXI.Graphics();
-            floorLine.beginFill(isEstate ? 0x151520 : 0x1e1e2f); 
+            floorLine.beginFill(isSilo ? 0x0a0a0f : (isEstate ? 0x151520 : 0x1e1e2f)); 
             floorLine.drawRect(this.startX, fy + floorH - 4, this.bldW, 4); 
             floorLine.endFill();
             this.scene.addChild(floorLine);
@@ -180,7 +203,19 @@ const InteriorRes = {
                 floorCont.addChild(winFrame);
             }
             
-            if (isBasement) {
+            // ─── SILO FLOOR (f === -2) — only for estates ───
+            if (isSilo && isEstate) {
+                this.drawSiloInterior(floorCont, this.startX + 10, fy, this.bldW - 70, floorH, colHex);
+                
+                // Biometric scanner near elevator
+                const scanGfx = new PIXI.Graphics();
+                scanGfx.beginFill(0x1e293b); scanGfx.drawRect(shaftX - 10, fy + floorH - 40, 20, 36); scanGfx.endFill();
+                scanGfx.beginFill(0x0f172a); scanGfx.drawRect(shaftX - 6, fy + floorH - 36, 12, 18); scanGfx.endFill();
+                scanGfx.beginFill(0xef4444, 0.5); scanGfx.drawCircle(shaftX, fy + floorH - 22, 3); scanGfx.endFill();
+                floorCont.addChild(scanGfx);
+            }
+            // ─── BASEMENT FLOOR (f === -1) ───
+            else if (isBasement) {
                 const cables = new PIXI.Graphics();
                 cables.lineStyle(3, 0x222233);
                 cables.moveTo(this.startX, fy + 6); 
@@ -225,22 +260,60 @@ const InteriorRes = {
                     }
                 }
             } 
+            // ─── ESTATE LIVING & OFFICE FLOORS (varied by style) ───
             else if (isEstate) {
                 if (f === 0) {
-                    this.drawLivingArea(floorCont, this.startX + 150, fy + floorH - 4, 2);
-                    this.drawKitchen(floorCont, this.startX + 350, fy + floorH - 4, 'eu', 2);
-                    if (bld.lab === 'openai' || bld.lab === 'anthropic') {
-                        this.drawGrandPiano(floorCont, this.startX + 500, fy + floorH - 4);
-                    } else if (bld.lab === 'meta') {
+                    // Ground floor — Living area + style-specific features
+                    this.drawLivingArea(floorCont, this.startX + 130, fy + floorH - 4, 2);
+                    
+                    if (estateStyle === 'brutalist') {
+                        this.drawKitchen(floorCont, this.startX + 320, fy + floorH - 4, 'us', 2);
                         this.drawRing(floorCont, this.startX + 500, fy + floorH - 4);
+                        this.drawTrophyCase(floorCont, this.startX + 600, fy + floorH - 4, colHex);
+                    } else if (estateStyle === 'penthouse') {
+                        this.drawGrandPiano(floorCont, this.startX + 330, fy + floorH - 4);
+                        this.drawWineRack(floorCont, this.startX + 500, fy + floorH - 4);
+                        this.drawPottedPlant(floorCont, this.startX + 560, fy + floorH - 4, 2);
+                    } else if (estateStyle === 'villa') {
+                        this.drawKitchen(floorCont, this.startX + 330, fy + floorH - 4, 'us', 2);
+                        this.drawArcadeCabinet(floorCont, this.startX + 490, fy + floorH - 4);
+                        this.drawPottedPlant(floorCont, this.startX + 560, fy + floorH - 4, 3);
+                    } else if (estateStyle === 'colonial') {
+                        this.drawFireplace(floorCont, this.startX + 330, fy + floorH - 4);
+                        this.drawKitchen(floorCont, this.startX + 490, fy + floorH - 4, 'us', 1);
+                        this.drawPottedPlant(floorCont, this.startX + 600, fy + floorH - 4, 1);
+                    } else if (estateStyle === 'chateau') {
+                        this.drawKitchen(floorCont, this.startX + 330, fy + floorH - 4, 'eu', 2);
+                        this.drawWineRack(floorCont, this.startX + 500, fy + floorH - 4);
+                        this.drawPottedPlant(floorCont, this.startX + 560, fy + floorH - 4, 2);
+                    } else if (estateStyle === 'pagoda') {
+                        this.drawKitchen(floorCont, this.startX + 330, fy + floorH - 4, 'cn', 2);
+                        this.drawBonsaiTree(floorCont, this.startX + 500, fy + floorH - 4);
+                        this.drawScrollArt(floorCont, this.startX + 560, fy + floorH - 4);
                     } else {
+                        this.drawKitchen(floorCont, this.startX + 330, fy + floorH - 4, 'eu', 2);
                         this.drawArcadeCabinet(floorCont, this.startX + 500, fy + floorH - 4);
                     }
                 } else if (f === 1) {
-                    this.drawLuxuryBed(floorCont, this.startX + 180, fy + floorH - 4, colHex);
-                    this.drawBossDesk(floorCont, this.startX + 350, fy + floorH - 4, colHex);
-                    this.drawChair(floorCont, this.startX + 315, fy + floorH - 4);
-                    this.drawGeckoTerrarium(floorCont, this.startX + 500, fy + floorH - 4);
+                    // Upper floor — Bedroom + office + style-specific accent
+                    this.drawLuxuryBed(floorCont, this.startX + 160, fy + floorH - 4, colHex);
+                    this.drawBossDesk(floorCont, this.startX + 340, fy + floorH - 4, colHex);
+                    this.drawChair(floorCont, this.startX + 305, fy + floorH - 4);
+
+                    if (estateStyle === 'brutalist') {
+                        this.drawTrophyCase(floorCont, this.startX + 500, fy + floorH - 4, colHex);
+                    } else if (estateStyle === 'penthouse') {
+                        this.drawWineRack(floorCont, this.startX + 500, fy + floorH - 4);
+                    } else if (estateStyle === 'colonial') {
+                        this.drawFireplace(floorCont, this.startX + 500, fy + floorH - 4);
+                    } else if (estateStyle === 'chateau') {
+                        this.drawWineRack(floorCont, this.startX + 500, fy + floorH - 4);
+                    } else if (estateStyle === 'pagoda') {
+                        this.drawBonsaiTree(floorCont, this.startX + 480, fy + floorH - 4);
+                        this.drawScrollArt(floorCont, this.startX + 550, fy + floorH - 4);
+                    } else {
+                        this.drawGeckoTerrarium(floorCont, this.startX + 500, fy + floorH - 4);
+                    }
                 }
 
                 if (f === 1 && G.ceoRefs && G.ceoRefs[bld.lab]) {
@@ -249,7 +322,7 @@ const InteriorRes = {
                         const ceoModel = { id: 'ceo_'+bld.lab, name: ceoRef.f.name, lab: bld.lab, phase: 'released', isCeo: true, founderData: ceoRef.f };
                         
                         let startState = 'ceo_working';
-                        let spawnX = this.startX + 315;
+                        let spawnX = this.startX + 305;
                         let spawnY = this.floors[1] ? this.floors[1].y : fy + floorH - 4;
                         let floorI = 1;
 
@@ -260,7 +333,7 @@ const InteriorRes = {
                             floorI = -1;
                         } else if (ceoRef.wantsToLeave) {
                             startState = 'ceo_leaving';
-                            spawnX = this.startX + 315;
+                            spawnX = this.startX + 305;
                             spawnY = this.floors[1] ? this.floors[1].y : fy + floorH - 4;
                             floorI = 1;
                         }
@@ -268,8 +341,8 @@ const InteriorRes = {
                         let av = this.drawAvatar(ceoModel, spawnX, spawnY, floorCont, floorI, false, true);
                         av.cont.zIndex = 100;
                         av.state = startState;
-                        av.deskX = this.startX + 315;
-                        av.bedX = this.startX + 180;
+                        av.deskX = this.startX + 305;
+                        av.bedX = this.startX + 160;
                         av.bedY = this.floors[1] ? this.floors[1].y - 12 : fy + floorH - 16;
                         av.targetX = shaftX + 15;
                     }
@@ -401,12 +474,14 @@ const InteriorRes = {
         const elevatorContainer = new PIXI.Container();
         elevatorContainer.y = roofH + (numFloors - 1) * floorH + floorH;
         this.scene.addChild(elevatorContainer);
-        this.initLift(elevatorContainer, bld.id, numFloors, floorH, shaftX + 15);
+        this.initLift(elevatorContainer, bld.id, numFloors, floorH, shaftX + 15, minFloor);
 
         const bottomPadding = 56;
-        this.scene.y = G.vpH - bottomPadding - this.totalH + floorH; 
-        this.minY = Math.min(50, G.vpH - bottomPadding - this.totalH); 
-        this.maxY = 50; 
+        const initY = G.vpH - bottomPadding - this.totalH + floorH;
+        this.scene.y = initY; 
+        // Allow scrolling down to see silo, up to see roof
+        this.minY = Math.min(initY - floorH * 2, G.vpH - bottomPadding - this.totalH); 
+        this.maxY = Math.max(50, initY + floorH * 2); 
 
         this.layer.eventMode = 'static'; 
         this.layer.cursor = 'grab';
@@ -429,6 +504,10 @@ const InteriorRes = {
         if (newY < InteriorRes.minY) newY = InteriorRes.minY;
         if (newY > InteriorRes.maxY) newY = InteriorRes.maxY;
         InteriorRes.scene.y = newY;
+        // Silo Breach: scrolled down far enough to see the silo in an estate
+        if (InteriorRes.bld && InteriorRes.bld.id.startsWith('house_') && InteriorRes.floors[-2] && newY <= InteriorRes.minY + 30) {
+            if (typeof G !== 'undefined') G.unlockAchieve('silo_breach');
+        }
     },
     
     onUp: () => { 

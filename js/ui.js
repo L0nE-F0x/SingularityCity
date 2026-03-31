@@ -34,24 +34,103 @@ const UI = {
     roiChart: null, 
   
     updateTicker() {
-      const src = API.liveNews.length > 0 ? API.liveNews : NEWS;
-      const item = src[API.newsIdx % src.length] || { headline: 'Welcome to Singularity City!', url: '#' };
       const el = document.getElementById('tickerText');
       if (!el) return;
       el.style.animation = 'none';
       el.offsetHeight; 
       el.style.animation = 'ts .4s ease';
       
-      const safeHeadline = escapeHTML(item.headline);
+      // Mix real news with dynamic city events (70% news, 30% city events)
+      let item = null;
+      const useCityEvent = Math.random() < 0.3 && G.models.length > 10;
+      
+      if (useCityEvent) {
+          item = this.generateCityTickerEvent();
+      }
+      
+      if (!item) {
+          const src = (typeof API !== 'undefined' && API.liveNews && API.liveNews.length > 0) ? API.liveNews : NEWS;
+          const rawItem = src[(typeof API !== 'undefined' ? API.newsIdx : 0) % src.length] || { headline: 'Welcome to Singularity City!', url: '#' };
+          item = rawItem;
+      }
+      
+      const safeHeadline = escapeHTML(item.headline || item.text || '');
       
       if (item.url && item.url !== '#') {
-        const safeSource = escapeHTML(item.source);
+        const safeSource = escapeHTML(item.source || '');
         const safeUrl = encodeURI(item.url);
         const sb = item.source ? `<span style="color:var(--cy);font-size:8px;margin-right:6px">[${safeSource}]</span>` : '';
         el.innerHTML = `📰 ${sb}<a href="${safeUrl}" target="_blank" rel="noopener" style="color:var(--t1);text-decoration:none">${safeHeadline}</a>`;
       } else {
-        el.innerHTML = `<span>${safeHeadline}</span>`;
+        const icon = item.icon || '📰';
+        const color = item.color || 'var(--t1)';
+        el.innerHTML = `<span style="color:${color}">${icon} ${safeHeadline}</span>`;
       }
+    },
+    
+    generateCityTickerEvent() {
+        if (!G.models || G.models.length === 0) return null;
+        const roll = Math.random();
+        
+        // Benchmark milestone — find current top model
+        if (roll < 0.2) {
+            const withElo = G.models.filter(m => BM[m.id] && BM[m.id].ELO).sort((a, b) => (BM[b.id].ELO || 0) - (BM[a.id].ELO || 0));
+            if (withElo.length >= 2) {
+                const top = withElo[0];
+                const lab = LABS[top.lab] || { name: top.lab };
+                return { headline: `${top.name} holds the #1 ELO ranking at ${BM[top.id].ELO} — ${lab.name} leads the frontier`, icon: '👑', color: '#fbbf24' };
+            }
+        }
+        
+        // Model population milestone
+        if (roll < 0.35) {
+            const count = G.models.length;
+            const labs = new Set(G.models.map(m => m.lab)).size;
+            return { headline: `Singularity City population: ${count} AI models across ${labs} labs`, icon: '🏙️', color: '#4ade80' };
+        }
+        
+        // Lab rivalry — compare two random labs
+        if (roll < 0.5) {
+            const labKeys = Object.keys(LABS).filter(k => G.models.some(m => m.lab === k));
+            if (labKeys.length >= 2) {
+                const a = labKeys[Math.floor(Math.random() * labKeys.length)];
+                let b = labKeys[Math.floor(Math.random() * labKeys.length)];
+                while (b === a && labKeys.length > 1) b = labKeys[Math.floor(Math.random() * labKeys.length)];
+                const countA = G.models.filter(m => m.lab === a).length;
+                const countB = G.models.filter(m => m.lab === b).length;
+                return { headline: `${LABS[a].name} (${countA} models) vs ${LABS[b].name} (${countB} models) — the race continues`, icon: '⚔️', color: '#a78bfa' };
+            }
+        }
+        
+        // Cheapest API callout
+        if (roll < 0.65) {
+            const withCost = G.models.filter(m => COSTS[m.id] && COSTS[m.id].input && COSTS[m.id].input > 0);
+            if (withCost.length > 0) {
+                const cheapest = withCost.sort((a, b) => COSTS[a.id].input - COSTS[b.id].input)[0];
+                return { headline: `Budget pick: ${cheapest.name} at $${COSTS[cheapest.id].input}/1M input tokens`, icon: '💰', color: '#4ade80' };
+            }
+        }
+
+        // Random model spotlight
+        if (roll < 0.8) {
+            const active = G.models.filter(m => !m.retired && !m.ret);
+            if (active.length > 0) {
+                const m = active[Math.floor(Math.random() * active.length)];
+                const lab = LABS[m.lab] || { name: m.lab };
+                const avg = avgBM(m.id);
+                const stat = avg ? ` — avg benchmark: ${avg}%` : '';
+                return { headline: `Spotlight: ${m.name} by ${lab.name}${stat}`, icon: '✦', color: lab.color || '#22d3ee' };
+            }
+        }
+        
+        // Time of day flavor
+        const dp = G.getDayPhase();
+        if (dp < 0.25) return { headline: 'Night shift: AI models are sleeping in the residential zone', icon: '🌙', color: '#94a3b8' };
+        if (dp < 0.35) return { headline: 'Dawn commute: models heading to their HQs via metro', icon: '🌅', color: '#fb923c' };
+        if (dp > 0.45 && dp < 0.55) return { headline: 'Lunch rush at the café — models socializing in the park', icon: '☕', color: '#fbbf24' };
+        if (dp > 0.82) return { headline: 'Evening commute: models heading home to the residential zone', icon: '🌆', color: '#f97316' };
+        
+        return { headline: `${G.models.length} AI citizens going about their day in Singularity City`, icon: '🏙️', color: '#22d3ee' };
     },
   
     uiClick() {
@@ -550,14 +629,49 @@ const UI = {
       G.unlockAchieve('benchmark_view');
       document.getElementById('benchOv').classList.add('open');
       const models = G.models.filter(m => BM[m.id] && typeof avgBM === 'function' && avgBM(m.id)).sort((a, b) => (avgBM(b.id) || 0) - (avgBM(a.id) || 0));
-      let h = `<button class="ipanel-x" onclick="document.getElementById('benchOv').classList.remove('open')">✕</button><div class="ov-title">📊 BENCHMARK OBSERVATORY</div><div style="overflow-x:auto;overflow-y:auto;max-height:65vh"><table class="bench-table"><thead><tr><th style="text-align:left;position:sticky;left:0;background:var(--sf);z-index:2">Model</th><th>Avg</th>`;
+      
+      // Find biggest mover / top model callout
+      let topCallout = '';
+      if (models.length > 0) {
+          const top = models[0];
+          const topLab = LABS[top.lab] || { name: top.lab, color: '#64748b' };
+          const topAvg = avgBM(top.id);
+          const eloTop = models.filter(m => BM[m.id] && BM[m.id].ELO).sort((a, b) => BM[b.id].ELO - BM[a.id].ELO)[0];
+          
+          topCallout = `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">`;
+          topCallout += `<div style="flex:1;min-width:180px;padding:10px 14px;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:8px"><div style="font-size:8px;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">👑 #1 Overall</div><div style="font-size:12px;font-weight:700;color:#fff">${escapeHTML(top.name)}</div><div style="font-size:9px;color:${topLab.color}">${topLab.name} · avg ${topAvg}%</div></div>`;
+          if (eloTop && eloTop.id !== top.id) {
+              const eloLab = LABS[eloTop.lab] || { name: eloTop.lab, color: '#64748b' };
+              topCallout += `<div style="flex:1;min-width:180px;padding:10px 14px;background:rgba(250,204,21,0.06);border:1px solid rgba(250,204,21,0.2);border-radius:8px"><div style="font-size:8px;color:#facc15;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚔️ Arena King</div><div style="font-size:12px;font-weight:700;color:#fff">${escapeHTML(eloTop.name)}</div><div style="font-size:9px;color:${eloLab.color}">${eloLab.name} · ELO ${BM[eloTop.id].ELO}</div></div>`;
+          }
+          // Cheapest frontier model
+          const frontier = models.slice(0, 10);
+          const cheapFrontier = frontier.filter(m => COSTS[m.id] && COSTS[m.id].input > 0).sort((a, b) => COSTS[a.id].input - COSTS[b.id].input)[0];
+          if (cheapFrontier) {
+              const cfLab = LABS[cheapFrontier.lab] || { name: cheapFrontier.lab, color: '#64748b' };
+              topCallout += `<div style="flex:1;min-width:180px;padding:10px 14px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.2);border-radius:8px"><div style="font-size:8px;color:#22d3ee;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💰 Best Value Frontier</div><div style="font-size:12px;font-weight:700;color:#fff">${escapeHTML(cheapFrontier.name)}</div><div style="font-size:9px;color:${cfLab.color}">${cfLab.name} · $${COSTS[cheapFrontier.id].input}/1M in</div></div>`;
+          }
+          topCallout += `</div>`;
+      }
+      
+      let h = `<button class="ipanel-x" onclick="document.getElementById('benchOv').classList.remove('open')">✕</button><div class="ov-title">📊 BENCHMARK OBSERVATORY</div>`;
+      h += `<div style="font-size:9px;color:var(--t3);text-align:center;margin-bottom:10px">${models.length} ranked models · sorted by average benchmark score</div>`;
+      h += topCallout;
+      h += `<div style="overflow-x:auto;overflow-y:auto;max-height:55vh"><table class="bench-table"><thead><tr><th style="text-align:left;position:sticky;left:0;background:var(--sf);z-index:2">Model</th><th>Avg</th>`;
       Object.entries(BM_M).forEach(([k, bm]) => { h += `<th style="color:${bm.c}">${bm.l}</th>`; }); 
       h += `<th>$/1M out</th><th>Context</th></tr></thead><tbody>`;
       
       models.forEach((m, rank) => {
         const avg = avgBM(m.id); 
         const sc = BM[m.id] || {};
-        h += `<tr onclick="document.getElementById('benchOv').classList.remove('open');UI.selectModel(G.models.find(x=>x.id==='${m.id}'))" style="cursor:pointer"><td style="position:sticky;left:0;background:var(--cd);z-index:2"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:8px;color:var(--t3)">${rank + 1}</span><span style="font-size:9px;font-weight:700">${escapeHTML(m.name)}</span></div></td><td><span style="font-weight:700;color:${avg > 85 ? '#4ade80' : avg > 70 ? '#facc15' : '#ef4444'}">${avg}%</span></td>`;
+        const lab = LABS[m.lab] || { color: '#64748b' };
+        const medal = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `<span style="font-size:8px;color:var(--t3)">${rank + 1}</span>`;
+        const rowBorder = rank < 3 ? `border-left:2px solid ${lab.color}` : '';
+        
+        h += `<tr onclick="document.getElementById('benchOv').classList.remove('open');UI.selectModel(G.models.find(x=>x.id==='${m.id}'))" style="cursor:pointer;${rowBorder}"><td style="position:sticky;left:0;background:var(--cd);z-index:2"><div style="display:flex;align-items:center;gap:6px">${medal}<div><span style="font-size:9px;font-weight:700">${escapeHTML(m.name)}</span><div style="font-size:7px;color:${lab.color}">${lab.name || m.lab}</div></div></div></td>`;
+        
+        // Avg with visual bar
+        h += `<td><div style="display:flex;align-items:center;gap:4px"><div style="width:30px;height:4px;background:var(--bd);border-radius:2px;overflow:hidden"><div style="width:${avg}%;height:100%;background:${avg > 85 ? '#4ade80' : avg > 70 ? '#facc15' : '#ef4444'};border-radius:2px"></div></div><span style="font-weight:700;font-size:9px;color:${avg > 85 ? '#4ade80' : avg > 70 ? '#facc15' : '#ef4444'}">${avg}%</span></div></td>`;
         
         Object.keys(BM_M).forEach(k => {
           const v = sc[k] !== undefined ? sc[k] : sc[k.toUpperCase()]; 
@@ -780,18 +894,75 @@ const UI = {
     showCostDashboard() {
       document.getElementById('costOv').classList.add('open');
       const pan = document.getElementById('costPan');
-      const models = G.models.filter(m => COSTS[m.id]).sort((a, b) => (COSTS[a.id]?.output || 999) - (COSTS[b.id]?.output || 999));
-      const mx = Math.max(...models.map(m => COSTS[m.id]?.output || 0));
-      let h = `<button class="ipanel-x" onclick="document.getElementById('costOv').classList.remove('open')">✕</button><div class="ov-title">💰 COST DASHBOARD</div><div style="max-height:65vh;overflow-y:auto"><div style="font-size:9px;color:var(--ac);margin-bottom:8px;font-weight:700">CHEAPEST FIRST</div>`;
+      const models = G.models.filter(m => COSTS[m.id] && COSTS[m.id].input > 0).sort((a, b) => (COSTS[a.id]?.input || 999) - (COSTS[b.id]?.input || 999));
+      if (!models.length) { pan.innerHTML = `<button class="ipanel-x" onclick="document.getElementById('costOv').classList.remove('open')">✕</button><div class="ov-title">💰 PRICE WAR TRACKER</div><div style="text-align:center;padding:40px;color:var(--t3)">No pricing data yet.</div>`; return; }
+      
+      // Find cheapest frontier (top 15 by benchmark)
+      const ranked = G.models.filter(m => BM[m.id] && avgBM(m.id)).sort((a, b) => avgBM(b.id) - avgBM(a.id));
+      const frontier = ranked.slice(0, 15);
+      const cheapFrontier = frontier.filter(m => COSTS[m.id] && COSTS[m.id].input > 0).sort((a, b) => COSTS[a.id].input - COSTS[b.id].input);
+      
+      // Group by lab
+      const labGroups = {};
       models.forEach(m => {
-        const c = COSTS[m.id]; 
-        const lab = LABS[m.lab] || LABS.other || {color: '#64748b'}; 
-        const avg = typeof avgBM === 'function' ? avgBM(m.id) : 0; 
-        const bang = avg && c.output ? (avg / c.output).toFixed(1) : '—'; 
-        const bw = mx > 0 ? (c.output / mx) * 100 : 0;
-        h += `<div style="padding:8px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;margin-bottom:4px;cursor:pointer" onclick="document.getElementById('costOv').classList.remove('open');UI.selectModel(G.models.find(x=>x.id==='${m.id}'))"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:9px;font-weight:700;flex:1">${escapeHTML(m.name)}</span><span style="font-size:8px;color:#4ade80">$${c.input} in</span><span style="font-size:8px;color:#facc15">$${c.output} out</span></div><div style="display:flex;gap:8px;align-items:center"><div style="flex:1;height:4px;background:var(--bd);border-radius:2px;overflow:hidden"><div style="width:${bw}%;height:100%;background:${lab.color}"></div></div><span style="font-size:7px;color:var(--t3)">B4B: ${bang}</span>${avg ? `<span style="font-size:8px;font-weight:700;color:${avg > 80 ? '#4ade80' : '#facc15'}">${avg}%</span>` : ''}</div></div>`;
+          if (!labGroups[m.lab]) labGroups[m.lab] = [];
+          labGroups[m.lab].push(m);
       });
-      h += '</div>'; pan.innerHTML = h;
+      // Sort labs by cheapest model
+      const sortedLabs = Object.keys(labGroups).sort((a, b) => {
+          const cheapA = Math.min(...labGroups[a].map(m => COSTS[m.id].input));
+          const cheapB = Math.min(...labGroups[b].map(m => COSTS[m.id].input));
+          return cheapA - cheapB;
+      });
+      
+      let h = `<button class="ipanel-x" onclick="document.getElementById('costOv').classList.remove('open')">✕</button><div class="ov-title">💰 PRICE WAR TRACKER</div>`;
+      h += `<div style="font-size:9px;color:var(--t3);text-align:center;margin-bottom:10px">${models.length} models with pricing · per 1M tokens</div>`;
+      
+      // Callout cards
+      h += `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">`;
+      if (models[0]) {
+          const ch = models[0]; const chLab = LABS[ch.lab] || { name: ch.lab, color: '#64748b' };
+          h += `<div style="flex:1;min-width:150px;padding:10px 14px;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:8px"><div style="font-size:8px;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💚 Cheapest Overall</div><div style="font-size:11px;font-weight:700;color:#fff">${escapeHTML(ch.name)}</div><div style="font-size:9px;color:${chLab.color}">${chLab.name} · $${COSTS[ch.id].input} in / $${COSTS[ch.id].output} out</div></div>`;
+      }
+      if (cheapFrontier[0]) {
+          const cf = cheapFrontier[0]; const cfLab = LABS[cf.lab] || { name: cf.lab, color: '#64748b' }; const cfAvg = avgBM(cf.id);
+          h += `<div style="flex:1;min-width:150px;padding:10px 14px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.2);border-radius:8px"><div style="font-size:8px;color:#22d3ee;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚡ Cheapest Frontier</div><div style="font-size:11px;font-weight:700;color:#fff">${escapeHTML(cf.name)}</div><div style="font-size:9px;color:${cfLab.color}">${cfLab.name} · $${COSTS[cf.id].input} in · ${cfAvg}% avg</div></div>`;
+      }
+      // Best bang-for-buck
+      const withBang = models.filter(m => avgBM(m.id) && COSTS[m.id].output > 0).map(m => ({ m, bang: avgBM(m.id) / COSTS[m.id].output })).sort((a, b) => b.bang - a.bang);
+      if (withBang[0]) {
+          const bb = withBang[0].m; const bbLab = LABS[bb.lab] || { name: bb.lab, color: '#64748b' };
+          h += `<div style="flex:1;min-width:150px;padding:10px 14px;background:rgba(250,204,21,0.06);border:1px solid rgba(250,204,21,0.2);border-radius:8px"><div style="font-size:8px;color:#facc15;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🏆 Best Bang-for-Buck</div><div style="font-size:11px;font-weight:700;color:#fff">${escapeHTML(bb.name)}</div><div style="font-size:9px;color:${bbLab.color}">${bbLab.name} · ${withBang[0].bang.toFixed(1)} quality/$</div></div>`;
+      }
+      h += `</div>`;
+      
+      // Lab-grouped price comparison
+      h += `<div style="max-height:50vh;overflow-y:auto">`;
+      const mxIn = Math.max(...models.map(m => COSTS[m.id]?.input || 0));
+      
+      sortedLabs.forEach(labKey => {
+          const lab = LABS[labKey] || { name: labKey, color: '#64748b' };
+          const labModels = labGroups[labKey].sort((a, b) => COSTS[a.id].input - COSTS[b.id].input);
+          
+          h += `<div style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid ${lab.color}33"><span style="font-size:10px;font-weight:700;color:${lab.color}">${lab.name || labKey}</span><span style="font-size:8px;color:var(--t3)">${labModels.length} model${labModels.length > 1 ? 's' : ''}</span></div>`;
+          
+          labModels.forEach(m => {
+              const c = COSTS[m.id];
+              const avg = typeof avgBM === 'function' ? avgBM(m.id) : 0;
+              const bwIn = mxIn > 0 ? Math.max(2, (c.input / mxIn) * 100) : 2;
+              
+              h += `<div style="padding:5px 8px;background:var(--cd);border-radius:4px;margin-bottom:2px;cursor:pointer;display:flex;align-items:center;gap:8px" onclick="document.getElementById('costOv').classList.remove('open');UI.selectModel(G.models.find(x=>x.id==='${m.id}'))">`;
+              h += `<span style="font-size:9px;font-weight:700;width:120px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(m.name)}</span>`;
+              h += `<div style="flex:1;height:4px;background:var(--bd);border-radius:2px;overflow:hidden"><div style="width:${bwIn}%;height:100%;background:${lab.color};border-radius:2px"></div></div>`;
+              h += `<span style="font-size:8px;color:#4ade80;width:50px;text-align:right">$${c.input}</span>`;
+              h += `<span style="font-size:8px;color:#facc15;width:50px;text-align:right">$${c.output}</span>`;
+              h += avg ? `<span style="font-size:8px;color:${avg > 80 ? '#4ade80' : '#facc15'};width:30px;text-align:right">${avg}%</span>` : `<span style="width:30px"></span>`;
+              h += `</div>`;
+          });
+          h += `</div>`;
+      });
+      h += `</div>`; 
+      pan.innerHTML = h;
     },
   
     showAchievements() {

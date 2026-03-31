@@ -395,101 +395,252 @@ const Environment = {
             }
         } 
         else if (b.id.startsWith('house_')) {
-            // ─── RESTORED ORIGINAL ESTATE SHAPES WITH NEW PREMIUM POLISH ───
-            const isBrutalist = b.lab === 'xai';
-            const isChateau = b.lab === 'mistral';
-            const isModern = !isBrutalist && !isChateau;
+            // ─── CEO ESTATES: 7 Architectural Styles by Lab Identity ───
+            const labRegion = (LABS[b.lab] && LABS[b.lab].region) ? LABS[b.lab].region : 'eu';
+            let estateStyle = 'modern';
+            if (b.lab === 'xai') estateStyle = 'brutalist';
+            else if (b.lab === 'openai' || b.lab === 'anthropic') estateStyle = 'penthouse';
+            else if (b.lab === 'google' || b.lab === 'meta') estateStyle = 'villa';
+            else if (b.lab === 'microsoft' || b.lab === 'amazon' || b.lab === 'apple' || b.lab === 'nvidia' || b.lab === 'ibm') estateStyle = 'colonial';
+            else if (labRegion === 'eu') estateStyle = 'chateau';
+            else if (labRegion === 'cn') estateStyle = 'pagoda';
 
-            const wallCol = isBrutalist ? 0x475569 : isChateau ? 0xd4d4d8 : 0xf8fafc;
-            const roofCol = isBrutalist ? 0x0f172a : isChateau ? 0x1e293b : 0x0f172a;
-            const glassCol = isBrutalist ? 0xf87171 : 0x38bdf8;
-
+            // Lawn
             gfx.beginFill(0x1b4332); gfx.drawRect(0, h - 6, b.w, 6); gfx.endFill();
+            gfx.beginFill(0x2d6a4f); gfx.drawRect(0, h - 4, b.w, 2); gfx.endFill();
 
-            if (isModern) {
-                // Base
-                gfx.beginFill(wallCol); gfx.drawRect(20, h-60, b.w-40, 60); gfx.endFill();
-                // Shadow underneath roof
-                gfx.beginFill(0xcbd5e1); gfx.drawRect(20, h-60, b.w-40, 4); gfx.drawRect(20, h-60, 4, 60); gfx.endFill();
-                // Top Roof
-                gfx.beginFill(roofCol); gfx.drawRect(15, h-65, b.w-30, 5); gfx.endFill();
-                
-                // Front structural blocks
-                gfx.beginFill(wallCol); gfx.drawRect(10, h-35, 40, 35); gfx.drawRect(b.w-50, h-45, 40, 45); gfx.endFill();
-                // Shadows for blocks
-                gfx.beginFill(0xcbd5e1); gfx.drawRect(10, h-35, 4, 35); gfx.drawRect(b.w-50, h-45, 4, 45); gfx.endFill();
-                // Block Roofs
-                gfx.beginFill(roofCol); gfx.drawRect(5, h-40, 50, 5); gfx.drawRect(b.w-55, h-50, 50, 5); gfx.endFill();
-                
+            if (estateStyle === 'brutalist') {
+                // ── xAI: Brutalist Fortress — raw concrete, laser slits, radar dish ──
+                gfx.beginFill(0x475569); gfx.drawRect(30, h-80, b.w-60, 80); gfx.endFill();
+                gfx.beginFill(0x334155); gfx.drawRect(10, h-55, 50, 55); gfx.endFill();
+                gfx.beginFill(0x1e293b); gfx.drawRect(b.w/2-20, h-80, 40, 80); gfx.endFill();
+                // Cantilevered overhang
+                gfx.beginFill(0x3f4f63); gfx.drawRect(5, h-58, b.w-10, 4); gfx.endFill();
+                // Radar dish
+                gfx.beginFill(0x0f172a); gfx.drawEllipse(35, h-86, 22, 5); gfx.endFill();
+                gfx.lineStyle(2, colHex); gfx.drawCircle(35, h-86, 8); gfx.lineStyle(0);
                 // Accent stripe
-                gfx.beginFill(colHex); gfx.drawRect(20, h-65, b.w-40, 2); gfx.endFill();
-                
-                // Premium glowing windows
-                gfx.beginFill(glassCol, 0.5); gfx.lineStyle(1, 0x7dd3fc, 0.8);
-                gfx.drawRect(30, h-50, b.w-80, 20); 
-                gfx.drawRect(b.w-45, h-40, 30, 30);
-                gfx.lineStyle(0); gfx.endFill();
-                
-                // Hedges
-                gfx.beginFill(0x1b4332); gfx.drawRoundedRect(0, h-12, 30, 12, 4); gfx.drawRoundedRect(b.w-40, h-15, 40, 15, 4); gfx.endFill();
-                gfx.beginFill(0x2d6a4f); gfx.drawRoundedRect(2, h-10, 26, 8, 2); gfx.drawRoundedRect(b.w-38, h-13, 36, 11, 2); gfx.endFill();
-                
-            } else if (isBrutalist) {
-                // Monolithic base
-                gfx.beginFill(wallCol); 
-                gfx.drawRect(30, h-80, b.w-60, 80); 
-                gfx.drawRect(10, h-50, 50, 50);
+                gfx.beginFill(colHex); gfx.drawRect(30, h-80, b.w-60, 2); gfx.endFill();
+                // Laser slit windows
+                for(var sy=h-70; sy<h-10; sy+=14) {
+                    gfx.beginFill(0xf87171, 0.3); gfx.drawRect(40, sy, b.w-80, 5); gfx.endFill();
+                    gfx.beginFill(0xfca5a5, 0.7); gfx.drawRect(42, sy+1, b.w-84, 2); gfx.endFill();
+                }
+                // Security bollards
+                gfx.beginFill(0x334155);
+                for(var boll=0; boll<b.w; boll+=20) { gfx.drawRect(boll, h-8, 4, 8); }
                 gfx.endFill();
-                // Heavy concrete shadows
-                gfx.beginFill(0x1e293b); 
-                gfx.drawRect(b.w/2 - 20, h-80, 40, 80); 
-                gfx.drawRect(10, h-50, 5, 50); 
-                gfx.endFill(); 
-                
-                // Roof dish / emitter
-                gfx.beginFill(0x0f172a); gfx.drawEllipse(35, h-85, 25, 5); gfx.endFill();
-                gfx.lineStyle(2, colHex); gfx.drawCircle(35, h-85, 10); gfx.lineStyle(0);
-                
-                // Intense red glowing laser slits
-                gfx.beginFill(glassCol, 0.4); 
-                for(let y=h-70; y<h-10; y+=15) { 
-                    gfx.drawRect(40, y, b.w-80, 5); 
-                    // Inner bright core of the laser
-                    gfx.beginFill(0xfca5a5, 0.8); gfx.drawRect(42, y+1, b.w-84, 2); gfx.beginFill(glassCol, 0.4);
+
+            } else if (estateStyle === 'penthouse') {
+                // ── OpenAI/Anthropic: Glass Penthouse Tower — vertical, premium, illuminated ──
+                var pw = b.w - 30;
+                gfx.beginFill(0x0f172a); gfx.drawRect(15, h-90, pw, 90); gfx.endFill();
+                // Glass curtain wall
+                gfx.beginFill(0x1e293b); gfx.drawRect(18, h-86, pw-6, 82); gfx.endFill();
+                // Floor-to-ceiling windows (3 floors)
+                for(var pf=0; pf<3; pf++) {
+                    var wy = h - 82 + pf * 28;
+                    gfx.beginFill(0x38bdf8, 0.25); gfx.drawRect(22, wy, pw-14, 22); gfx.endFill();
+                    gfx.beginFill(0x7dd3fc, 0.15); gfx.drawRect(22, wy, pw-14, 8); gfx.endFill();
+                    // Floor dividers
+                    gfx.beginFill(0x334155); gfx.drawRect(18, wy+24, pw-6, 3); gfx.endFill();
+                }
+                // Rooftop terrace railing
+                gfx.beginFill(0xcbd5e1); gfx.drawRect(10, h-92, pw+10, 2); gfx.endFill();
+                gfx.lineStyle(1, 0x94a3b8, 0.5);
+                for(var rx=14; rx<pw+20; rx+=8) { gfx.moveTo(rx, h-92); gfx.lineTo(rx, h-98); }
+                gfx.lineStyle(0);
+                // Accent crown
+                gfx.beginFill(colHex); gfx.drawRect(15, h-90, pw, 2); gfx.endFill();
+                // Rooftop glow
+                gfx.beginFill(colHex, 0.15); gfx.drawRect(10, h-98, pw+10, 6); gfx.endFill();
+                // Entrance portico
+                gfx.beginFill(0x1e293b); gfx.drawRect(b.w/2-20, h-10, 40, 10); gfx.endFill();
+                gfx.beginFill(0x38bdf8, 0.3); gfx.drawRect(b.w/2-15, h-8, 30, 6); gfx.endFill();
+
+            } else if (estateStyle === 'villa') {
+                // ── Google/Meta: California Villa — warm, open, terracotta, pool accent ──
+                // Main body
+                gfx.beginFill(0xfef3c7); gfx.drawRect(15, h-55, b.w-30, 55); gfx.endFill();
+                gfx.beginFill(0xfde68a); gfx.drawRect(15, h-55, b.w-30, 3); gfx.endFill();
+                // Terracotta roof
+                gfx.beginFill(0x92400e); gfx.drawRect(10, h-60, b.w-20, 8); gfx.endFill();
+                gfx.beginFill(0x78350f); gfx.drawRect(10, h-60, b.w-20, 2); gfx.endFill();
+                // Side wing
+                gfx.beginFill(0xfef3c7); gfx.drawRect(b.w-45, h-45, 40, 45); gfx.endFill();
+                gfx.beginFill(0x92400e); gfx.drawRect(b.w-50, h-50, 48, 7); gfx.endFill();
+                // Arched windows
+                gfx.beginFill(0x7dd3fc, 0.4);
+                for(var vx=28; vx<b.w-50; vx+=24) {
+                    gfx.drawRect(vx, h-42, 14, 18);
+                    gfx.drawCircle(vx+7, h-42, 7);
                 }
                 gfx.endFill();
-                
-            } else {
-                // Chateau base
-                gfx.beginFill(wallCol); gfx.drawRect(10, h-50, b.w-20, 50); gfx.endFill();
-                // Plaster shadow depth
-                gfx.beginFill(0x94a3b8); gfx.drawRect(10, h-50, b.w-20, 4); gfx.drawRect(10, h-50, 4, 50); gfx.endFill();
-                
-                // Mansard Roof
-                gfx.beginFill(roofCol); 
-                gfx.drawPolygon([5, h-50, b.w/2, h-80, b.w-5, h-50]);
+                // Pool accent (small blue rectangle in yard)
+                gfx.beginFill(0x22d3ee, 0.4); gfx.drawRoundedRect(5, h-12, 30, 8, 2); gfx.endFill();
+                gfx.beginFill(0x67e8f9, 0.3); gfx.drawRect(7, h-11, 26, 3); gfx.endFill();
+                // Palm tree silhouette
+                gfx.beginFill(0x5c4033); gfx.drawRect(b.w-15, h-30, 3, 24); gfx.endFill();
+                gfx.beginFill(0x166534); gfx.drawEllipse(b.w-13, h-32, 12, 6); gfx.endFill();
+                // Accent
+                gfx.beginFill(colHex); gfx.drawRect(10, h-60, b.w-20, 2); gfx.endFill();
+
+            } else if (estateStyle === 'colonial') {
+                // ── Microsoft/Amazon/Apple/Nvidia: Colonial Estate — symmetrical, columned, dignified ──
+                // Foundation
+                gfx.beginFill(0x94a3b8); gfx.drawRect(10, h-8, b.w-20, 8); gfx.endFill();
+                // Main body
+                gfx.beginFill(0xf1f5f9); gfx.drawRect(15, h-58, b.w-30, 50); gfx.endFill();
+                // Shadow depth
+                gfx.beginFill(0xcbd5e1); gfx.drawRect(15, h-58, 3, 50); gfx.endFill();
+                // Triangular pediment
+                gfx.beginFill(0xe2e8f0);
+                gfx.drawPolygon([12, h-58, b.w/2, h-78, b.w-12, h-58]);
                 gfx.endFill();
-                // Roof shingle lines
-                gfx.lineStyle(1, 0x0f172a, 0.3);
-                for(let y=h-50; y>h-80; y-=6) { 
-                    let xOffset = h-50-y;
-                    gfx.moveTo(5 + xOffset, y); gfx.lineTo(b.w-5 - xOffset, y); 
+                gfx.beginFill(0x94a3b8);
+                gfx.drawPolygon([16, h-58, b.w/2, h-74, b.w-16, h-58]);
+                gfx.endFill();
+                gfx.beginFill(0xe2e8f0);
+                gfx.drawPolygon([20, h-58, b.w/2, h-72, b.w-20, h-58]);
+                gfx.endFill();
+                // Columns
+                gfx.beginFill(0xffffff, 0.7);
+                for(var cx=25; cx<b.w-20; cx+=Math.floor((b.w-50)/4)) {
+                    gfx.drawRect(cx, h-56, 5, 48);
+                    gfx.drawRect(cx-2, h-56, 9, 3);
+                    gfx.drawRect(cx-2, h-10, 9, 3);
+                }
+                gfx.endFill();
+                // Symmetrical windows
+                gfx.beginFill(0x1e293b, 0.7);
+                for(var wx2=35; wx2<b.w-30; wx2+=Math.floor((b.w-70)/3)) {
+                    gfx.drawRect(wx2, h-46, 12, 16);
+                    gfx.drawRect(wx2, h-26, 12, 12);
+                }
+                gfx.endFill();
+                gfx.beginFill(0xfde68a, 0.4);
+                for(var wx3=35; wx3<b.w-30; wx3+=Math.floor((b.w-70)/3)) {
+                    gfx.drawRect(wx3+1, h-44, 10, 12);
+                }
+                gfx.endFill();
+                // Grand door
+                gfx.beginFill(0x78350f); gfx.drawRect(b.w/2-8, h-22, 16, 14); gfx.endFill();
+                gfx.beginFill(0xfbbf24); gfx.drawCircle(b.w/2+4, h-15, 1.5); gfx.endFill();
+                // Accent
+                gfx.beginFill(colHex); gfx.drawRect(12, h-58, b.w-24, 2); gfx.endFill();
+
+            } else if (estateStyle === 'chateau') {
+                // ── EU Labs: French Château — mansard roof, dormer windows, stone pillars ──
+                // Stone base
+                gfx.beginFill(0xe2e8f0); gfx.drawRect(10, h-52, b.w-20, 52); gfx.endFill();
+                gfx.beginFill(0xcbd5e1); gfx.drawRect(10, h-52, b.w-20, 3); gfx.drawRect(10, h-52, 3, 52); gfx.endFill();
+                // Mansard roof
+                gfx.beginFill(0x1e293b);
+                gfx.drawPolygon([5, h-52, b.w/2, h-82, b.w-5, h-52]);
+                gfx.endFill();
+                // Roof shingle texture
+                gfx.lineStyle(1, 0x334155, 0.4);
+                for(var ry=h-52; ry>h-80; ry-=5) {
+                    var xOff = (h-52-ry) * 0.6;
+                    gfx.moveTo(7+xOff, ry); gfx.lineTo(b.w-7-xOff, ry);
                 }
                 gfx.lineStyle(0);
-                
-                // Structural pillars
-                gfx.beginFill(0xffffff, 0.4);
-                for(let x=20; x<b.w-20; x+=30) { gfx.drawRect(x, h-50, 6, 50); }
-                gfx.endFill();
-                
-                // Warm glowing arched windows
-                gfx.beginFill(0xfde047, 0.6);
-                gfx.lineStyle(1, 0x000000, 0.5);
-                for(let x=30; x<b.w-20; x+=30) { 
-                    gfx.drawRect(x, h-35, 12, 20); 
-                    gfx.drawCircle(x+6, h-35, 6);
+                // Dormer windows (small gabled projections)
+                var dw = 16;
+                for(var dx=b.w*0.25; dx<b.w*0.8; dx+=b.w*0.25) {
+                    gfx.beginFill(0x334155);
+                    gfx.drawPolygon([dx-dw/2, h-60, dx, h-70, dx+dw/2, h-60]);
+                    gfx.endFill();
+                    gfx.beginFill(0xfde68a, 0.6); gfx.drawRect(dx-4, h-60, 8, 8); gfx.endFill();
                 }
-                gfx.lineStyle(0); gfx.endFill();
+                // Stone pillars
+                gfx.beginFill(0xffffff, 0.3);
+                for(var px2=18; px2<b.w-15; px2+=28) { gfx.drawRect(px2, h-52, 5, 52); }
+                gfx.endFill();
+                // Arched windows with warm glow
+                gfx.beginFill(0xfde047, 0.5);
+                for(var ax=28; ax<b.w-20; ax+=28) {
+                    gfx.drawRect(ax, h-38, 10, 18);
+                    gfx.drawCircle(ax+5, h-38, 5);
+                }
+                gfx.endFill();
+                // Accent
+                gfx.beginFill(colHex); gfx.drawRect(5, h-52, b.w-10, 2); gfx.endFill();
+                // Topiary hedges
+                gfx.beginFill(0x166534);
+                gfx.drawCircle(8, h-10, 8); gfx.drawCircle(b.w-8, h-10, 8);
+                gfx.endFill();
+                gfx.beginFill(0x1b4332);
+                gfx.drawCircle(8, h-10, 6); gfx.drawCircle(b.w-8, h-10, 6);
+                gfx.endFill();
+
+            } else if (estateStyle === 'pagoda') {
+                // ── Chinese Labs: Pagoda Mansion — tiered roofs, red/gold, lanterns ──
+                // Main body (dark wood)
+                gfx.beginFill(0x44403c); gfx.drawRect(15, h-55, b.w-30, 55); gfx.endFill();
+                // Inner wall (warm)
+                gfx.beginFill(0x7c2d12, 0.6); gfx.drawRect(18, h-52, b.w-36, 48); gfx.endFill();
+                // Tiered roof layers
+                for(var tier=0; tier<3; tier++) {
+                    var ty = h - 55 - tier * 14;
+                    var tw = (b.w - 10) - tier * 20;
+                    var tx = (b.w - tw) / 2;
+                    // Curved eaves
+                    gfx.beginFill(0x1c1917);
+                    gfx.drawRect(tx, ty, tw, 6);
+                    gfx.endFill();
+                    // Upturned tips
+                    gfx.beginFill(0x1c1917);
+                    gfx.drawPolygon([tx-4, ty+6, tx+6, ty, tx+6, ty+6]);
+                    gfx.drawPolygon([tx+tw+4, ty+6, tx+tw-6, ty, tx+tw-6, ty+6]);
+                    gfx.endFill();
+                    // Gold trim
+                    gfx.beginFill(0xfbbf24, 0.7); gfx.drawRect(tx+2, ty+5, tw-4, 1); gfx.endFill();
+                }
+                // Lattice windows
+                gfx.beginFill(0xfde68a, 0.4);
+                for(var lx=25; lx<b.w-25; lx+=22) { gfx.drawRect(lx, h-40, 14, 20); }
+                gfx.endFill();
+                // Window lattice cross-hatching
+                gfx.lineStyle(1, 0x44403c, 0.6);
+                for(var lx2=25; lx2<b.w-25; lx2+=22) {
+                    gfx.moveTo(lx2+7, h-40); gfx.lineTo(lx2+7, h-20);
+                    gfx.moveTo(lx2, h-30); gfx.lineTo(lx2+14, h-30);
+                }
+                gfx.lineStyle(0);
+                // Red lanterns
+                gfx.beginFill(0xdc2626);
+                gfx.drawCircle(20, h-58, 4); gfx.drawCircle(b.w-20, h-58, 4);
+                gfx.endFill();
+                gfx.beginFill(0xfbbf24, 0.8);
+                gfx.drawCircle(20, h-58, 2); gfx.drawCircle(b.w-20, h-58, 2);
+                gfx.endFill();
+                // Grand red door
+                gfx.beginFill(0xb91c1c); gfx.drawRect(b.w/2-10, h-18, 20, 12); gfx.endFill();
+                gfx.beginFill(0xfbbf24); gfx.drawCircle(b.w/2, h-12, 2); gfx.endFill();
+                // Accent
+                gfx.beginFill(colHex); gfx.drawRect(15, h-55, b.w-30, 2); gfx.endFill();
+
+            } else {
+                // ── Fallback: Minimalist Modern — clean lines, flat roof, subtle glass ──
+                gfx.beginFill(0xf8fafc); gfx.drawRect(20, h-55, b.w-40, 55); gfx.endFill();
+                gfx.beginFill(0xe2e8f0); gfx.drawRect(20, h-55, b.w-40, 3); gfx.drawRect(20, h-55, 3, 55); gfx.endFill();
+                // Flat roof with parapet
+                gfx.beginFill(0x0f172a); gfx.drawRect(15, h-58, b.w-30, 5); gfx.endFill();
+                // Feature wall (darker accent block)
+                gfx.beginFill(0x334155); gfx.drawRect(b.w-50, h-48, 30, 42); gfx.endFill();
+                // Panoramic window
+                gfx.beginFill(0x38bdf8, 0.35); gfx.drawRect(28, h-44, b.w-80, 22); gfx.endFill();
+                gfx.beginFill(0x7dd3fc, 0.15); gfx.drawRect(28, h-44, b.w-80, 8); gfx.endFill();
+                // Window mullion
+                gfx.beginFill(0xcbd5e1); gfx.drawRect(b.w/2-1, h-44, 2, 22); gfx.endFill();
+                // Entrance
+                gfx.beginFill(0x1e293b); gfx.drawRect(b.w/2-12, h-14, 24, 8); gfx.endFill();
+                gfx.beginFill(0x38bdf8, 0.2); gfx.drawRect(b.w/2-10, h-13, 20, 6); gfx.endFill();
+                // Hedges
+                gfx.beginFill(0x166534); gfx.drawRoundedRect(2, h-10, 24, 8, 3); gfx.drawRoundedRect(b.w-26, h-12, 24, 10, 3); gfx.endFill();
+                // Accent
+                gfx.beginFill(colHex); gfx.drawRect(15, h-58, b.w-30, 2); gfx.endFill();
             }
             
             const signBg = new PIXI.Graphics();

@@ -199,50 +199,116 @@ const SND = {
 
         // 3. Build the soundscape based on location
         if (env === 'outside') {
-            // Low, distant city rumble
-            createDrone(55, 'sine', 0.15, 0.1);
+            // Warm city evening — soft low pad, occasional distant life
+            createDrone(55, 'sine', 0.06, 0.05);        // gentle city hum
+            createDrone(82.5, 'sine', 0.025, 0.03);     // fifth harmonic warmth
+            
+            // Occasional soft wind gust + distant chime
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                const r = Math.random();
+                if (r < 0.08) {
+                    // Distant wind chime — pentatonic note
+                    const notes = [523, 587, 659, 784, 880];
+                    this.playTone(notes[Math.floor(Math.random()*5)], 'sine', 0.3, 0.006, null);
+                } else if (r < 0.12) {
+                    // Soft distant horn/hum
+                    this.playTone(220 + Math.random()*40, 'triangle', 0.4, 0.004);
+                }
+            }, 3000);
         } 
         else if (env === 'estate') {
-            // Warm, rich, acoustic chords (Billionaire luxury)
-            createDrone(130.81, 'triangle', 0.10, 0.05); // C3
-            createDrone(164.81, 'sine', 0.08, 0.03);     // E3
-            createDrone(196.00, 'sine', 0.08, 0.04);     // G3
+            // Luxury lounge — warm evolving pad, soft arpeggiated notes
+            createDrone(65.41, 'sine', 0.04, 0.02);     // C2 — barely audible foundation
+            createDrone(98.00, 'sine', 0.025, 0.015);    // G2 — perfect fifth warmth
+            
+            // Slow gentle arpeggio cycling through Cmaj7 (like a music box)
+            let noteIdx = 0;
+            const chordNotes = [261.6, 329.6, 392.0, 493.9, 523.3, 493.9, 392.0, 329.6]; // C4 E4 G4 B4 C5 (up and back)
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                const freq = chordNotes[noteIdx % chordNotes.length];
+                this.playTone(freq, 'sine', 0.25, 0.008);
+                // Soft octave echo
+                setTimeout(() => this.playTone(freq * 2, 'sine', 0.15, 0.004), 150);
+                noteIdx++;
+            }, 2800);
         } 
         else if (env === 'ai_housing') {
-            // Sterile, highly precise digital tones
-            createDrone(120, 'square', 0.015, 0.5);
-            createDrone(240, 'sine', 0.03, 0.2);
+            // Cozy apartment — quiet warmth, soft ticking presence
+            createDrone(55, 'sine', 0.03, 0.02);         // room tone
+            createDrone(110, 'triangle', 0.01, 0.01);     // subtle harmonic
+            
+            // Gentle clock tick + occasional settling creak
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.4) {
+                    // Soft clock tick
+                    this.playTone(2200, 'sine', 0.015, 0.004);
+                } else if (Math.random() < 0.08) {
+                    // House settle — low creak
+                    this.playTone(80 + Math.random()*40, 'triangle', 0.2, 0.006);
+                }
+            }, 1200);
         } 
         else if (env === 'hq') {
-            // Commercial Server farm hum
-            createDrone(60, 'sawtooth', 0.03, 0); 
-            createDrone(120, 'sine', 0.06, 0);
+            // Data center — clean low hum, rhythmic soft keypresses, gentle notification pings
+            createDrone(60, 'sine', 0.04, 0);             // steady 60Hz hum
+            createDrone(120, 'sine', 0.015, 0);            // second harmonic
             
-            // Inject random background server "chirps"
+            // Soft rhythmic typing + occasional pleasant ping
+            let typeBeat = 0;
             this.ambientInterval = setInterval(() => {
-                if (this._sfxEnabled && Math.random() < 0.3) {
-                    this.playTone(1500 + Math.random()*1500, 'square', 0.05, 0.005);
+                if (!this._sfxEnabled) return;
+                typeBeat++;
+                if (typeBeat % 3 === 0 && Math.random() < 0.3) {
+                    // Soft keyboard click (high-pass filtered tick)
+                    this.playTone(4000 + Math.random()*2000, 'sine', 0.008, 0.003);
                 }
-            }, 800);
+                if (typeBeat % 12 === 0 && Math.random() < 0.2) {
+                    // Pleasant notification — major third interval
+                    this.playTone(880, 'sine', 0.08, 0.006);
+                    setTimeout(() => this.playTone(1109, 'sine', 0.06, 0.005), 80);
+                }
+                if (typeBeat % 20 === 0 && Math.random() < 0.15) {
+                    // Soft data chirp — descending
+                    this.playTone(1200, 'sine', 0.06, 0.004, 800);
+                }
+            }, 400);
         } 
         else if (env === 'metro') {
-            // Deep, oppressive subterranean rumble
-            createDrone(40, 'sine', 0.25, 2.0);
-            createDrone(80, 'triangle', 0.08, 0.5);
+            // Underground station — deep rumble, periodic distant train
+            createDrone(40, 'sine', 0.08, 0.03);           // tunnel resonance
+            createDrone(60, 'triangle', 0.03, 0.02);        // structural hum
+            
+            // Periodic distant train + PA chime
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.1) {
+                    // Distant train pass — rising then falling
+                    this.playTone(80, 'sawtooth', 0.5, 0.008, 120);
+                    setTimeout(() => this.playTone(120, 'sawtooth', 0.4, 0.006, 60), 300);
+                } else if (Math.random() < 0.06) {
+                    // PA system chime — two-tone
+                    this.playTone(659, 'sine', 0.12, 0.008);
+                    setTimeout(() => this.playTone(523, 'sine', 0.12, 0.008), 200);
+                }
+            }, 2500);
         }
         else if (env === 'holomap') {
-            // Deep-space ambient: low ethereal drone + slow shimmer
-            createDrone(45, 'sine', 0.12, 0.03);       // subspace rumble
-            createDrone(90, 'triangle', 0.04, 0.07);    // harmonic shimmer
-            createDrone(135, 'sine', 0.025, 0.02);      // distant chord
+            // Deep-space ambient — ethereal drone + cosmic pings
+            createDrone(45, 'sine', 0.08, 0.03);          // subspace rumble
+            createDrone(90, 'triangle', 0.03, 0.05);       // harmonic shimmer
+            createDrone(135, 'sine', 0.02, 0.02);          // distant chord
 
-            // Random cosmic pings (like distant pulsars)
+            // Cosmic pings — pentatonic, gentle
             this.ambientInterval = setInterval(() => {
                 if (this._sfxEnabled && Math.random() < 0.2) {
-                    var f = 800 + Math.random() * 2000;
-                    this.playTone(f, 'sine', 0.15, 0.008, f * 0.5);
+                    const cosmicNotes = [440, 523, 659, 784, 880, 1047, 1319];
+                    var f = cosmicNotes[Math.floor(Math.random() * cosmicNotes.length)];
+                    this.playTone(f, 'sine', 0.2, 0.006, f * 0.5);
                 }
-            }, 1500);
+            }, 2000);
         }
     }
 };

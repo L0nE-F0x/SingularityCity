@@ -64,26 +64,34 @@ h1, h2, h3, p { margin: 0; }
 .land-skyline { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; align-items: flex-end; opacity: 0.4; }
 .land-bld { background: linear-gradient(to top, var(--bd), transparent); margin-right: 2px; }
 
-.land-content { position: relative; z-index: 2; text-align: center; max-width: 700px; padding: 30px; }
-.land-emoji { font-size: 50px; margin-bottom: 20px; animation: float 4s ease-in-out infinite; }
-@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.land-content { position: relative; z-index: 2; text-align: center; max-width: 680px; width: 90vw; padding: clamp(16px, 3vh, 30px) clamp(16px, 3vw, 30px); }
+.land-emoji { font-size: clamp(28px, 5vh, 50px); margin-bottom: clamp(8px, 1.5vh, 16px); animation: float 4s ease-in-out infinite; }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 
-.land-title { font-family: 'Silkscreen', sans-serif; font-size: 42px; margin-bottom: 20px; color: #fff; text-shadow: 0 0 20px rgba(34,211,238,0.4); letter-spacing: 2px; }
-.land-sub { font-size: 14px; color: var(--t2); line-height: 1.8; margin-bottom: 40px; }
+.land-title { font-family: 'Silkscreen', sans-serif; font-size: clamp(22px, 4.5vw, 42px); margin-bottom: clamp(8px, 1.5vh, 16px); color: #fff; text-shadow: 0 0 20px rgba(34,211,238,0.4); letter-spacing: 2px; }
+.land-sub { font-size: clamp(11px, 1.4vw, 14px); color: var(--t2); line-height: 1.7; margin-bottom: clamp(16px, 3vh, 28px); }
 .land-sub span { color: var(--ac); font-weight: bold; }
 
-.land-btns { display: flex; gap: 16px; justify-content: center; margin-bottom: 40px; }
-.land-enter { background: var(--ac); color: #000; border: none; padding: 14px 28px; font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 15px rgba(74,222,128,0.3); }
+.land-features { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(6px, 1vw, 10px); margin-bottom: clamp(16px, 3vh, 28px); }
+.land-feat {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px; padding: 6px 14px 6px 10px;
+    font-size: clamp(9px, 1.1vw, 11px); color: var(--t2); line-height: 1.3;
+    white-space: nowrap; transition: border-color 0.2s, background 0.2s;
+}
+.land-feat:hover { border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); }
+.land-feat span { font-size: clamp(14px, 1.8vw, 18px); flex-shrink: 0; }
+.land-feat div { display: flex; flex-direction: column; text-align: left; }
+.land-feat b { color: var(--t1); font-size: clamp(9px, 1.1vw, 11px); margin-bottom: 0; display: block; }
+
+.land-btns { display: flex; gap: 12px; justify-content: center; margin-bottom: clamp(16px, 2.5vh, 32px); }
+.land-enter { background: var(--ac); color: #000; border: none; padding: clamp(10px, 1.5vh, 14px) clamp(18px, 3vw, 28px); font-family: 'JetBrains Mono', monospace; font-size: clamp(11px, 1.3vw, 14px); font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 15px rgba(74,222,128,0.3); }
 .land-enter:hover { transform: translateY(-2px); box-shadow: 0 0 25px rgba(74,222,128,0.5); }
-.land-how { background: transparent; color: var(--t1); border: 1px solid var(--bd); padding: 14px 28px; font-family: 'JetBrains Mono', monospace; font-size: 14px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+.land-how { background: transparent; color: var(--t1); border: 1px solid var(--bd); padding: clamp(10px, 1.5vh, 14px) clamp(18px, 3vw, 28px); font-family: 'JetBrains Mono', monospace; font-size: clamp(11px, 1.3vw, 14px); border-radius: 4px; cursor: pointer; transition: all 0.2s; }
 .land-how:hover { border-color: var(--t2); background: rgba(255,255,255,0.05); }
 
-.land-footer { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; font-size: 10px; color: var(--t3); }
-
-.land-features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; text-align: left; }
-.land-feat { background: rgba(255,255,255,0.03); border: 1px solid var(--bd); border-radius: 6px; padding: 12px; font-size: 10px; color: var(--t2); line-height: 1.5; }
-.land-feat span { font-size: 18px; display: block; margin-bottom: 4px; }
-.land-feat b { color: var(--t1); display: block; margin-bottom: 2px; font-size: 11px; }
+.land-footer { display: flex; gap: clamp(10px, 1.5vw, 20px); justify-content: center; flex-wrap: wrap; font-size: clamp(8px, 1vw, 10px); color: var(--t3); }
 
 /* ─── GAME WRAPPER & TRANSITIONS ─── */
 #gameWrap { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity 0.5s ease, background-color 0.8s ease; }
@@ -222,15 +230,9 @@ h1, h2, h3, p { margin: 0; }
 
 /* ─── MOBILE RESPONSIVENESS & BOTTOM SHEETS ─── */
 @media (max-width: 768px) {
-  .land-title { font-size: 24px; letter-spacing: 1px; }
-  .land-sub { font-size: 11px; line-height: 1.6; }
-  .land-btns { flex-direction: column; width: 100%; }
-  .land-features { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .land-feat { padding: 10px; font-size: 9px; }
-  .land-feat b { font-size: 10px; }
-  .land-footer { gap: 10px; font-size: 9px; }
-  .land-content { padding: 20px 16px; }
-  .land-emoji { font-size: 36px; margin-bottom: 12px; }
+  .land-btns { gap: 10px; }
+  .land-feat { padding: 5px 10px 5px 8px; }
+  .land-footer { gap: 8px; }
 
   .logo h1 { display: none; } 
   .nfo { flex-wrap: wrap; justify-content: center; font-size: 9px; padding: 4px 8px; }
@@ -281,11 +283,7 @@ h1, h2, h3, p { margin: 0; }
 }
 
 @media (max-width: 480px) {
-  .land-title { font-size: 20px; }
-  .land-features { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .land-feat span { font-size: 14px; }
-  .land-footer { flex-wrap: wrap; gap: 8px; }
-  .land-enter, .land-how { padding: 12px 20px; font-size: 12px; }
+  .land-feat { padding: 4px 8px 4px 6px; white-space: normal; }
   .nfo { font-size: 8px; gap: 6px; }
   .btn { padding: 4px 6px; font-size: 8px; gap: 4px; }
 }

@@ -148,9 +148,9 @@ const EntitiesGfx = {
         let mHqX = hqStation ? hqStation.x + hqStation.w / 2 : 4700;
         let mEastX = eastStation ? eastStation.x + eastStation.w / 2 : 7000; 
 
-        // 1. Draw Massive Tunnel (extends to full city width)
+        // 1. Draw Massive Tunnel (oversized to survive any city expansion)
         const gfx = new PIXI.Graphics();
-        const tunnelW = G.cityW + 4000;
+        const tunnelW = 30000;
         gfx.beginFill(0x050508);
         gfx.drawRect(-2000, tunnelY - 50, tunnelW, 100);
         gfx.endFill();
@@ -164,7 +164,7 @@ const EntitiesGfx = {
         gfx.drawRect(-2000, tunnelY + 42, tunnelW, 3);
         gfx.endFill();
         
-        for (let x = -1000; x < G.cityW + 2000; x += 150) {
+        for (let x = -1000; x < 28000; x += 150) {
             gfx.beginFill(0x111115);
             gfx.drawRect(x, tunnelY - 50, 20, 100);
             gfx.endFill();
