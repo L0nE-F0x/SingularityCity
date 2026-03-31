@@ -144,6 +144,13 @@ window.isMobile = _isMobile;
     <div class="m-desc">Hover over a lab node to view connected hardware clusters. Click a node to forcefully allocate burst compute to the Singularity core.</div>
   </div>
 
+  <!-- HOLOMAP: Three.js 3D Galaxy View -->
+  <canvas id="holomapCv" style="display:none"></canvas>
+  <div id="holomap-labels" style="display:none"></div>
+  <div id="holomapTooltip" style="display:none"></div>
+  <div id="holomapInfoPanel"></div>
+  <div id="holoHud"><div id="holoHudInfo"></div></div>
+
   <div id="gameTooltip" class="game-tt" style="display:none"></div>
   <div class="tick"><span class="tick-lbl">▶ NEWS</span><span class="tick-txt" id="tickerText"></span></div>
   <div class="ipanel" id="infoPanel"></div>
@@ -174,6 +181,8 @@ window.isMobile = _isMobile;
 <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.3.0/dist/pixi-filters.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script src="js/data.js"></script>
 <script src="js/api.js"></script>
@@ -201,7 +210,7 @@ window.isMobile = _isMobile;
 <script src="js/space_environment.js"></script>
 <script src="js/space_entities.js"></script>
 <script src="js/space_interior.js"></script>
+<script src="js/holomap.js"></script>
 <script src="js/engine.js"></script>
 </body>
 </html>
-

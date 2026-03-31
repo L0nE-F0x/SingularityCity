@@ -1167,4 +1167,3 @@ JSON (no markdown):
       this._scanning = false;
     }
 };
-

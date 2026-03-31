@@ -445,4 +445,3 @@ const InteriorCityAI = {
         this.bubbles.push({ cont: bCont, life: 120 });
     }
 };
-

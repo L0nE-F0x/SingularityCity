@@ -926,4 +926,3 @@ const UI = {
 };
 
 document.addEventListener('DOMContentLoaded', () => UI.setupMobileGestures());
-

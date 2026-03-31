@@ -202,4 +202,3 @@ function getAct(stg, dp, seed, model) {
   // 22:48–00:00  Sleep
   return { act: 'sleep', bid: resId };
 }
-

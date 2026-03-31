@@ -88,7 +88,7 @@ h1, h2, h3, p { margin: 0; }
 /* ─── GAME WRAPPER & TRANSITIONS ─── */
 #gameWrap { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity 0.5s ease, background-color 0.8s ease; }
 #gameWrap.active { opacity: 1; pointer-events: all; }
-#gameWrap.macro-mode { background-color: #020205 !important; }
+#gameWrap.macro-mode { background-color: #04040e !important; }
 
 /* ─── TOP HUD ─── */
 .top { position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: linear-gradient(180deg, rgba(6,6,16,0.95), transparent); padding: 10px; pointer-events: none; }
@@ -188,7 +188,7 @@ h1, h2, h3, p { margin: 0; }
 
 /* ─── HOLOMAP HUD ─── */
 #macroUI { position: absolute; top: 80px; left: -320px; width: 260px; padding: 20px; background: rgba(10,10,25,0.85); border: 1px solid #33334a; border-radius: 8px; transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; z-index: 10; font-family: 'JetBrains Mono', monospace; color: #fff; box-shadow: 5px 5px 25px rgba(0,0,0,0.5); }
-#gameWrap.macro-mode #macroUI { left: 20px; pointer-events: all; }
+#gameWrap.macro-mode #macroUI { display: none; }
 .m-title { font-family: 'Silkscreen', sans-serif; color: #8b5cf6; margin-bottom: 15px; font-size: 16px; border-bottom: 1px solid #33334a; padding-bottom: 10px; letter-spacing: 1px;}
 .m-stat { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px; border-bottom: 1px dashed #ffffff22; padding-bottom: 4px; }
 .m-desc { margin-top: 15px; font-size: 9px; color: #888; line-height: 1.5; }
@@ -268,7 +268,7 @@ h1, h2, h3, p { margin: 0; }
   @keyframes slideUpSheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
   #macroUI { width: 90vw; left: -100vw; top: 100px; padding: 15px; }
-  #gameWrap.macro-mode #macroUI { left: 5vw; }
+  #gameWrap.macro-mode #macroUI { display: none; }
   .toasts { top: auto; bottom: 100px; right: 10px; left: 10px; }
   
   .tick { font-size: 9px; padding: 6px 10px; }
@@ -290,3 +290,288 @@ h1, h2, h3, p { margin: 0; }
   .btn { padding: 4px 6px; font-size: 8px; gap: 4px; }
 }
 
+/* ════════════════════════════════════════════════════════════════
+   HOLOMAP — 3D Galaxy View Styles
+   ════════════════════════════════════════════════════════════════ */
+
+#holomapCv {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 5;
+    background: #04040e;
+}
+
+#holomap-labels {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 6;
+    overflow: hidden;
+}
+
+/* ─── ASI Label ─── */
+.holo-asi-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 7;
+}
+.holo-asi-label > div:first-child {
+    font-weight: 700;
+    font-size: 18px;
+    color: #fff;
+    text-shadow: 0 0 15px #a78bfa, 0 0 30px #8b5cf6;
+    letter-spacing: 3px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.holo-asi-sub {
+    font-size: 9px;
+    color: rgba(167,139,250,0.6);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 4px;
+    letter-spacing: 1px;
+}
+
+/* ─── Barrier Labels ─── */
+.holo-barrier-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(248,250,252,0.5);
+    pointer-events: none;
+    white-space: nowrap;
+    text-shadow: 0 0 8px rgba(255,255,255,0.2);
+}
+
+/* ─── Nebula Labels ─── */
+.holo-neb-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    pointer-events: none;
+    text-shadow: 0 0 10px rgba(0,0,0,0.8);
+    white-space: nowrap;
+    letter-spacing: 1px;
+}
+
+/* ─── Star Labels ─── */
+.holo-star-label {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    text-align: center;
+    white-space: nowrap;
+    transition: opacity 0.3s;
+}
+.holo-star-name {
+    font-family: 'JetBrains Mono', 'Inter', sans-serif;
+    text-shadow: 0 0 6px rgba(0,0,0,0.9);
+}
+.holo-frontier-badge {
+    font-size: 7px;
+    color: #a78bfa;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(0,0,0,0.6);
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-top: 2px;
+    display: inline-block;
+    letter-spacing: 1px;
+}
+
+/* ─── Tooltip ─── */
+#holomapTooltip {
+    position: fixed;
+    z-index: 50;
+    background: rgba(10,10,25,0.92);
+    border: 1px solid #33334a;
+    border-radius: 8px;
+    padding: 12px 16px;
+    min-width: 180px;
+    max-width: 280px;
+    pointer-events: none;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    opacity: 0;
+    transition: opacity 0.15s;
+    font-family: 'JetBrains Mono', monospace;
+}
+#holomapTooltip.on {
+    opacity: 1;
+}
+.htt-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.htt-lab { font-size: 10px; margin-bottom: 6px; }
+.htt-stat { font-size: 10px; color: #94a3b8; }
+.htt-desc { font-size: 10px; color: #64748b; margin-top: 4px; font-style: italic; }
+
+/* ─── Info Panel ─── */
+#holomapInfoPanel {
+    position: fixed;
+    top: 80px;
+    right: -380px;
+    width: 340px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    background: rgba(10,10,25,0.92);
+    border: 1px solid #33334a;
+    border-radius: 10px;
+    padding: 20px;
+    z-index: 20;
+    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(12px);
+    box-shadow: -5px 5px 30px rgba(0,0,0,0.5);
+    font-family: 'JetBrains Mono', monospace;
+    color: #e2e8f0;
+}
+#holomapInfoPanel.on {
+    right: 20px;
+}
+
+.holo-panel-x {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: 1px solid #33334a;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.holo-panel-x:hover { color: #fff; border-color: #fff; }
+
+.holo-panel-top { margin-bottom: 14px; }
+.holo-panel-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.holo-panel-lab { font-size: 11px; margin-bottom: 6px; }
+.holo-panel-badge {
+    display: inline-block;
+    font-size: 9px;
+    background: rgba(167,139,250,0.15);
+    color: #a78bfa;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(167,139,250,0.3);
+    letter-spacing: 1px;
+}
+
+.holo-panel-desc {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.6;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #1e293b;
+}
+
+.holo-panel-stats { margin-bottom: 16px; }
+.holo-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(30,41,59,0.5);
+    font-size: 11px;
+}
+.holo-stat-lbl { color: #64748b; }
+.holo-stat-val { color: #e2e8f0; font-weight: 500; }
+
+.holo-bm-section { margin-bottom: 16px; }
+.holo-bm-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 10px;
+}
+.holo-bm-lbl { width: 65px; color: #64748b; text-align: right; flex-shrink: 0; }
+.holo-bm-bar {
+    flex: 1;
+    height: 6px;
+    background: #1e293b;
+    border-radius: 3px;
+    overflow: hidden;
+}
+.holo-bm-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.holo-bm-val { width: 28px; color: #94a3b8; text-align: right; flex-shrink: 0; }
+
+.holo-panel-cost {
+    display: flex;
+    gap: 16px;
+    font-size: 10px;
+    color: #facc15;
+    padding: 8px 0;
+    border-top: 1px solid #1e293b;
+    margin-bottom: 12px;
+}
+
+.holo-panel-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+.holo-action-btn {
+    flex: 1;
+    padding: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #33334a;
+    color: #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    transition: all 0.2s;
+}
+.holo-action-btn:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: #a78bfa;
+    color: #fff;
+}
+
+/* ─── HUD Info ─── */
+#holoHud {
+    position: fixed;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: none;
+    pointer-events: none;
+}
+#gameWrap.macro-mode #holoHud { display: block; }
+
+#holoHudInfo {
+    display: flex;
+    gap: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #94a3b8;
+    background: rgba(10,10,25,0.7);
+    border: 1px solid #33334a;
+    border-radius: 20px;
+    padding: 6px 20px;
+    backdrop-filter: blur(8px);
+}
+
+/* Hide city elements when in holomap mode */
+#gameWrap.macro-mode .vp { opacity: 0; pointer-events: none; }
+#gameWrap.macro-mode #minimap { display: none; }
+#gameWrap.macro-mode .tick { z-index: 15; }
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+    #holomapInfoPanel { width: 90vw; right: -95vw; top: auto; bottom: 0; max-height: 50vh; border-radius: 10px 10px 0 0; }
+    #holomapInfoPanel.on { right: 5vw; }
+    .holo-neb-label { font-size: 11px; }
+    #holoHudInfo { font-size: 8px; gap: 12px; padding: 4px 12px; }
+}

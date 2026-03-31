@@ -975,4 +975,3 @@ const InteriorRes = {
         }
     }
 };
-

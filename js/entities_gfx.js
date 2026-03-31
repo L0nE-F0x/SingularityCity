@@ -618,4 +618,3 @@ const EntitiesGfx = {
         refs.chat.x = 0;
     }
 };
-

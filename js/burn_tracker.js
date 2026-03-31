@@ -141,4 +141,3 @@ window.addEventListener('DOMContentLoaded', () => {
         BurnTracker.init();
     }, 1000);
 });
-

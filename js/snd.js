@@ -157,7 +157,8 @@ const SND = {
 
         // 2. Identify the new environment type
         let env = 'outside';
-        if (bldId && bldId.startsWith('house_')) env = 'estate';
+        if (bldId === 'holomap') env = 'holomap';
+        else if (bldId && bldId.startsWith('house_')) env = 'estate';
         else if (bldId && bldId.startsWith('res_')) env = 'ai_housing';
         else if (bldId && bldId.startsWith('metro_')) env = 'metro';
         else if (bldId && bldId !== 'outside') env = 'hq';
@@ -229,6 +230,19 @@ const SND = {
             createDrone(40, 'sine', 0.25, 2.0);
             createDrone(80, 'triangle', 0.08, 0.5);
         }
+        else if (env === 'holomap') {
+            // Deep-space ambient: low ethereal drone + slow shimmer
+            createDrone(45, 'sine', 0.12, 0.03);       // subspace rumble
+            createDrone(90, 'triangle', 0.04, 0.07);    // harmonic shimmer
+            createDrone(135, 'sine', 0.025, 0.02);      // distant chord
+
+            // Random cosmic pings (like distant pulsars)
+            this.ambientInterval = setInterval(() => {
+                if (this._sfxEnabled && Math.random() < 0.2) {
+                    var f = 800 + Math.random() * 2000;
+                    this.playTone(f, 'sine', 0.15, 0.008, f * 0.5);
+                }
+            }, 1500);
+        }
     }
 };
-

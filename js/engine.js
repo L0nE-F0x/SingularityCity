@@ -641,9 +641,9 @@ const G = {
         wrap.classList.add('macro-mode'); 
         btn.innerHTML = '🏙️ Street View';
         this.world.visible = false; 
-        this.macroLayer.visible = true; 
-        this.macroLayer.alpha = 0; 
-        this.buildMacroLayer();
+        this.macroLayer.visible = false;
+        // Launch 3D Holomap
+        if (typeof Holomap !== 'undefined') Holomap.show();
       } else {
         this.viewMode = 'micro'; 
         btn.classList.remove('macro-active'); 
@@ -651,6 +651,8 @@ const G = {
         btn.innerHTML = '🌍 Holomap';
         this.world.visible = true; 
         this.macroLayer.visible = false;
+        // Hide 3D Holomap
+        if (typeof Holomap !== 'undefined') Holomap.hide();
       }
     },
 
@@ -1221,6 +1223,9 @@ async function enterCity() {
 
   G.init();
 
+  // Initialize 3D Holomap (Three.js galaxy view)
+  if (typeof Holomap !== 'undefined') Holomap.init();
+
   if (typeof API !== 'undefined') {
       await API.fetchCloudModels();
   }
@@ -1238,4 +1243,3 @@ async function enterCity() {
       SND.setAmbient('outside');
   }
 }
-
