@@ -103,13 +103,6 @@ js/
   minimap.js            — Minimap widget
   notify.js             — Browser notification system
 ```
-
-## Deploy
-
-1. Download the latest zip from releases
-2. Upload to [Netlify](https://app.netlify.com/drop) via drag-and-drop
-3. Done — no build step required
-
 ## License
 
 MIT
