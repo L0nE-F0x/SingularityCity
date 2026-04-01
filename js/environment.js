@@ -309,15 +309,23 @@ const Environment = {
 
     buildClouds() {
       this.cloudLayer.removeChildren();
-      for (let i = 0; i < Math.ceil(G.cityW / 200); i++) {
+      const numClouds = Math.ceil(G.cityW / 150) + 5;
+      for (let i = 0; i < numClouds; i++) {
         const c = new PIXI.Graphics();
-        const w = 30 + i % 5 * 8;
+        const w = 40 + (i % 7) * 12;
+        const h = 8 + (i % 4) * 3;
         c.beginFill(0xffffff);
-        c.drawEllipse(0, 0, w / 2, 6 + i % 3 * 2);
-        c.drawEllipse(-w / 4, -3, w / 3, 5 + i % 2 * 2);
-        c.drawEllipse(w / 4, -2, w / 3, 4 + i % 3); c.endFill();
-        c._bx = i * 200 + Math.random() * 80; c.y = 90 + i % 6 * 10;
-        c.alpha = .1; c._i = i;
+        c.drawEllipse(0, 0, w / 2, h);
+        c.drawEllipse(-w / 3, -h * 0.4, w / 3, h * 0.7);
+        c.drawEllipse(w / 3, -h * 0.3, w / 3.5, h * 0.6);
+        if (w > 55) c.drawEllipse(w / 6, -h * 0.5, w / 4, h * 0.5);
+        c.endFill();
+        c._bx = i * 150 + Math.random() * 100 - 50;
+        // Spread clouds between just above buildings and mid-sky (visible range)
+        c.y = G.groundY - 100 - (i % 6) * 22 - Math.random() * 50;
+        c.alpha = 0.10 + Math.random() * 0.06;
+        c._i = i;
+        c._drift = 0.002 + Math.random() * 0.003;
         this.cloudLayer.addChild(c);
       }
     },
@@ -580,17 +588,21 @@ const Environment = {
                 gfx.beginFill(0x44403c); gfx.drawRect(15, h-55, b.w-30, 55); gfx.endFill();
                 // Inner wall (warm)
                 gfx.beginFill(0x7c2d12, 0.6); gfx.drawRect(18, h-52, b.w-36, 48); gfx.endFill();
+                // Solid roof body (dark fill behind all tiers so no sky bleeds through)
+                gfx.beginFill(0x1c1917);
+                gfx.drawPolygon([10, h-55, b.w/2, h-55-42, b.w-10, h-55]);
+                gfx.endFill();
                 // Tiered roof layers
                 for(var tier=0; tier<3; tier++) {
                     var ty = h - 55 - tier * 14;
                     var tw = (b.w - 10) - tier * 20;
                     var tx = (b.w - tw) / 2;
                     // Curved eaves
-                    gfx.beginFill(0x1c1917);
+                    gfx.beginFill(0x292524);
                     gfx.drawRect(tx, ty, tw, 6);
                     gfx.endFill();
                     // Upturned tips
-                    gfx.beginFill(0x1c1917);
+                    gfx.beginFill(0x292524);
                     gfx.drawPolygon([tx-4, ty+6, tx+6, ty, tx+6, ty+6]);
                     gfx.drawPolygon([tx+tw+4, ty+6, tx+tw-6, ty, tx+tw-6, ty+6]);
                     gfx.endFill();
@@ -643,6 +655,7 @@ const Environment = {
                 gfx.beginFill(colHex); gfx.drawRect(15, h-58, b.w-30, 2); gfx.endFill();
             }
             
+            gfx.lineStyle(0); // Safety reset before sign
             const signBg = new PIXI.Graphics();
             signBg.beginFill(0x0a0a1a, 0.8); signBg.lineStyle(1, colHex, 0.5);
             signBg.drawRoundedRect(b.w/2 - 40, h - 10, 80, 8, 2); signBg.endFill();
@@ -651,6 +664,139 @@ const Environment = {
             const signTxt = new PIXI.Text(b.name.toUpperCase(), { fontFamily: 'JetBrains Mono', fontSize: 6, fill: colHex, fontWeight: 'bold' });
             signTxt.anchor.set(0.5, 0.5); signTxt.x = b.w/2; signTxt.y = h - 6;
             container.addChild(signTxt);
+        }
+        // ─── DATA CENTER BUILDINGS ───
+        else if (b.id.startsWith('dc_')) {
+            const dc = b.dcData || {};
+            const isConstruction = dc.status === 'construction';
+            const opCol = colHex || 0x64748b;
+            
+            if (isConstruction) {
+                // ── CONSTRUCTION SITE ──
+                // Dirt/foundation
+                gfx.beginFill(0x78582e); gfx.drawRect(0, h-8, b.w, 8); gfx.endFill();
+                gfx.beginFill(0x92703a); gfx.drawRect(0, h-6, b.w, 2); gfx.endFill();
+                // Partial structure (steel frame)
+                gfx.beginFill(0x475569, 0.6); gfx.drawRect(10, h-50, b.w-20, 42); gfx.endFill();
+                // Steel beams
+                gfx.beginFill(0x64748b);
+                for (var cx2=15; cx2<b.w-15; cx2+=25) { gfx.drawRect(cx2, h-50, 4, 42); }
+                for (var cy=h-48; cy<h-10; cy+=14) { gfx.drawRect(10, cy, b.w-20, 2); }
+                gfx.endFill();
+                // Crane
+                gfx.beginFill(0xfbbf24); gfx.drawRect(b.w*0.7, h-95, 4, 87); gfx.endFill();
+                gfx.beginFill(0xfbbf24); gfx.drawRect(b.w*0.5, h-95, b.w*0.3, 3); gfx.endFill();
+                // Crane cable
+                gfx.lineStyle(1, 0x94a3b8); gfx.moveTo(b.w*0.55, h-92); gfx.lineTo(b.w*0.55, h-60); gfx.lineStyle(0);
+                // Dangling steel beam
+                gfx.beginFill(0x64748b); gfx.drawRect(b.w*0.52, h-62, 8, 3); gfx.endFill();
+                // Safety barriers
+                gfx.beginFill(0xef4444);
+                for (var bx2=0; bx2<b.w; bx2+=20) { gfx.drawRect(bx2, h-10, 8, 2); }
+                gfx.endFill();
+                // Completion label
+                if (dc.completion) {
+                    gfx.beginFill(0x000000, 0.7); gfx.drawRect(b.w/2-30, h-30, 60, 12); gfx.endFill();
+                }
+                // Accent
+                gfx.beginFill(opCol); gfx.drawRect(10, h-50, b.w-20, 2); gfx.endFill();
+            } else {
+                // ── OPERATIONAL DATA CENTER ──
+                // Main structure — industrial, heavy
+                gfx.beginFill(0x334155); gfx.drawRect(5, h-65, b.w-10, 65); gfx.endFill();
+                gfx.beginFill(0x1e293b); gfx.drawRect(8, h-62, b.w-16, 56); gfx.endFill();
+                // Roof equipment
+                gfx.beginFill(0x475569); gfx.drawRect(5, h-68, b.w-10, 5); gfx.endFill();
+                // HVAC units on roof
+                gfx.beginFill(0x64748b);
+                for (var hvx=15; hvx<b.w-30; hvx+=30) { gfx.drawRect(hvx, h-75, 16, 8); gfx.drawRect(hvx+4, h-78, 8, 4); }
+                gfx.endFill();
+                // Server room windows (blue glow strips)
+                for (var wy2=h-58; wy2<h-12; wy2+=14) {
+                    gfx.beginFill(0x06b6d4, 0.3); gfx.drawRect(12, wy2, b.w-24, 8); gfx.endFill();
+                    gfx.beginFill(0x22d3ee, 0.15); gfx.drawRect(12, wy2, b.w-24, 3); gfx.endFill();
+                }
+                // Loading dock
+                gfx.beginFill(0x1e293b); gfx.drawRect(b.w/2-15, h-12, 30, 6); gfx.endFill();
+                gfx.beginFill(0x475569); gfx.drawRect(b.w/2-12, h-11, 24, 4); gfx.endFill();
+                // Security fence posts
+                gfx.beginFill(0x475569);
+                gfx.drawRect(0, h-8, 3, 8); gfx.drawRect(b.w-3, h-8, 3, 8);
+                gfx.endFill();
+                // Accent stripe
+                gfx.beginFill(opCol); gfx.drawRect(5, h-65, b.w-10, 2); gfx.endFill();
+                // Power indicator LEDs
+                gfx.beginFill(0x4ade80);
+                for (var ledx=20; ledx<b.w-20; ledx+=18) { gfx.drawCircle(ledx, h-64, 1.5); }
+                gfx.endFill();
+            }
+            
+            // Name sign
+            // Name sign — positioned just above roof vents
+            var dcSignW = Math.min(b.w - 10, 100);
+            var dcSign = new PIXI.Graphics();
+            dcSign.beginFill(0x0a0a1a, 0.85); dcSign.lineStyle(1, opCol, 0.5);
+            dcSign.drawRoundedRect(b.w/2 - dcSignW/2, -6, dcSignW, 10, 2); dcSign.endFill();
+            container.addChild(dcSign);
+            var dcTxt = new PIXI.Text(b.name.toUpperCase(), { fontFamily: 'JetBrains Mono', fontSize: 6, fill: opCol, fontWeight: 'bold' });
+            dcTxt.anchor.set(0.5, 0.5); dcTxt.x = b.w/2; dcTxt.y = -1;
+            container.addChild(dcTxt);
+            if (isConstruction && dc.completion) {
+                var compTxt = new PIXI.Text(`EST. ${dc.completion}`, { fontFamily: 'JetBrains Mono', fontSize: 5, fill: 0xfbbf24 });
+                compTxt.anchor.set(0.5, 0.5); compTxt.x = b.w/2; compTxt.y = h-24;
+                container.addChild(compTxt);
+            }
+        }
+        // ─── CHIP FAB BUILDINGS ───
+        else if (b.id.startsWith('fab_')) {
+            const dc = b.dcData || {};
+            const isConstruction = dc.status === 'construction';
+            const opCol = colHex || 0x64748b;
+            
+            if (isConstruction) {
+                // Construction site (same as DC construction)
+                gfx.beginFill(0x78582e); gfx.drawRect(0, h-8, b.w, 8); gfx.endFill();
+                gfx.beginFill(0x475569, 0.6); gfx.drawRect(10, h-50, b.w-20, 42); gfx.endFill();
+                gfx.beginFill(0x64748b);
+                for (var fx=15; fx<b.w-15; fx+=25) { gfx.drawRect(fx, h-50, 4, 42); }
+                gfx.endFill();
+                gfx.beginFill(0xfbbf24); gfx.drawRect(b.w*0.6, h-85, 4, 77); gfx.drawRect(b.w*0.4, h-85, b.w*0.3, 3); gfx.endFill();
+                gfx.beginFill(opCol); gfx.drawRect(10, h-50, b.w-20, 2); gfx.endFill();
+            } else {
+                // ── OPERATIONAL CHIP FAB — cleanroom white, precise, sterile ──
+                gfx.beginFill(0xe2e8f0); gfx.drawRect(5, h-60, b.w-10, 60); gfx.endFill();
+                gfx.beginFill(0xf8fafc); gfx.drawRect(8, h-57, b.w-16, 51); gfx.endFill();
+                // Cleanroom yellow lighting strips
+                for (var fy2=h-52; fy2<h-10; fy2+=12) {
+                    gfx.beginFill(0xfbbf24, 0.2); gfx.drawRect(12, fy2, b.w-24, 6); gfx.endFill();
+                    gfx.beginFill(0xfbbf24, 0.1); gfx.drawRect(12, fy2, b.w-24, 2); gfx.endFill();
+                }
+                // Filtered air intakes on roof
+                gfx.beginFill(0xcbd5e1); gfx.drawRect(5, h-63, b.w-10, 5); gfx.endFill();
+                gfx.beginFill(0x94a3b8);
+                for (var ax=12; ax<b.w-20; ax+=20) { gfx.drawRect(ax, h-68, 12, 6); }
+                gfx.endFill();
+                // Hazmat markings
+                gfx.beginFill(0xfbbf24); gfx.drawRect(b.w/2-15, h-8, 30, 2); gfx.endFill();
+                // Accent
+                gfx.beginFill(opCol); gfx.drawRect(5, h-60, b.w-10, 2); gfx.endFill();
+            }
+            
+            // Name sign
+            // Name sign
+            var fabSignW = Math.min(b.w - 10, 100);
+            var fabSign = new PIXI.Graphics();
+            fabSign.beginFill(0x0a0a1a, 0.85); fabSign.lineStyle(1, opCol, 0.5);
+            fabSign.drawRoundedRect(b.w/2 - fabSignW/2, -6, fabSignW, 10, 2); fabSign.endFill();
+            container.addChild(fabSign);
+            var fabTxt = new PIXI.Text(b.name.toUpperCase(), { fontFamily: 'JetBrains Mono', fontSize: 6, fill: opCol, fontWeight: 'bold' });
+            fabTxt.anchor.set(0.5, 0.5); fabTxt.x = b.w/2; fabTxt.y = -1;
+            container.addChild(fabTxt);
+            if (isConstruction && dc.completion) {
+                var fabCompTxt = new PIXI.Text(`EST. ${dc.completion}`, { fontFamily: 'JetBrains Mono', fontSize: 5, fill: 0xfbbf24 });
+                fabCompTxt.anchor.set(0.5, 0.5); fabCompTxt.x = b.w/2; fabCompTxt.y = h-24;
+                container.addChild(fabCompTxt);
+            }
         }
         else if (b.id === 'park') {
           gfx.beginFill(0x2d6a4f); gfx.drawRect(0, h - 12, b.w, 12); gfx.endFill();
@@ -846,7 +992,31 @@ const Environment = {
         
         container.addChild(gfx);
         
-        if (b.isTopLab && !b.id.startsWith('house_') && !b.id.startsWith('forest_')) {
+        // ─── ROOFTOP HELIPAD for HQ buildings with founders ───
+        if (!b.id.startsWith('house_') && !b.id.startsWith('res_') && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'park' && b.id !== 'graveyard') {
+            const hasFounder = G.ceoRefs && G.ceoRefs[b.lab];
+            if (hasFounder) {
+                const hpGfx = new PIXI.Graphics();
+                const hpX = b.w - 35;
+                const hpY = 2; // Just above the roof line
+                // Pad surface
+                hpGfx.beginFill(0x334155, 0.8); hpGfx.drawEllipse(hpX, hpY, 16, 5); hpGfx.endFill();
+                // H marking
+                hpGfx.beginFill(0xffffff, 0.5);
+                hpGfx.drawRect(hpX - 5, hpY - 3, 2, 6);
+                hpGfx.drawRect(hpX + 3, hpY - 3, 2, 6);
+                hpGfx.drawRect(hpX - 5, hpY - 0.5, 10, 1);
+                hpGfx.endFill();
+                // Corner lights
+                hpGfx.beginFill(0xfbbf24, 0.7);
+                hpGfx.drawCircle(hpX - 14, hpY, 1.5);
+                hpGfx.drawCircle(hpX + 14, hpY, 1.5);
+                hpGfx.endFill();
+                container.addChild(hpGfx);
+            }
+        }
+        
+        if (b.isTopLab && !b.id.startsWith('house_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_')) {
             const beaconCont = new PIXI.Container();
             beaconCont.y = -22; 
             const beam = new PIXI.Graphics();
@@ -865,7 +1035,7 @@ const Environment = {
             container.addChild(beaconCont); b._beacon = { beam, emitter, crown };
         }
 
-        if (lab && lab.ticker && !b.id.startsWith('house_') && !b.id.startsWith('forest_')) {
+        if (lab && lab.ticker && !b.id.startsWith('house_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_')) {
             const tickCont = new PIXI.Container();
             tickCont.y = 0; 
             const tickBg = new PIXI.Graphics();
@@ -888,7 +1058,7 @@ const Environment = {
         if (b._wins) { b._wins.forEach(win => { const t = new PIXI.Text('', { fontSize: 8, fill: 0xffffff }); t.anchor.set(0.5, 0.5); t.x = win.wx + 6; t.y = win.wy + 5; t.visible = false; container.addChild(t); b._winTexts.push(t); });
         }
   
-        if (b.id !== 'park' && b.id !== 'graveyard' && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_')) {
+        if (b.id !== 'park' && b.id !== 'graveyard' && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_')) {
             const sign = new PIXI.Text(b.name, { fontFamily: 'Silkscreen', fontSize: 7, fill: 0x9898c0, align: 'center' });
             sign.anchor.set(0.5, 0); sign.x = b.w / 2; sign.y = h + 4;
             if (sign.width > b.w - 4) sign.scale.set((b.w - 4) / sign.width);
@@ -915,7 +1085,7 @@ const Environment = {
   
         container.eventMode = 'static';
         container.cursor = 'pointer';
-        container.hitArea = new PIXI.Rectangle(0, 0, b.w, h + 20);
+        container.hitArea = new PIXI.Rectangle(0, 0, b.w, h + 10);
         container.on('pointertap', () => {
             if (typeof UI !== 'undefined') UI.selectBld(b);
         });
@@ -983,6 +1153,7 @@ const Environment = {
 
     drawWeather() {
       const g = this.fxGfx; g.clear(); const vw = G.vpW, vh = G.vpH, wx = -G.world.x;
+      const wy = -(G.world.y || 0); // vertical camera offset in world coords
       const desert = this._getDesertRange();
       
       // ─── CITY WEATHER (skip desert zone) ───
@@ -1019,9 +1190,9 @@ const Environment = {
         while (this.sandParticles.length < 200) {
             this.sandParticles.push({ 
                 x: desert.start + Math.random() * (desert.end - desert.start), 
-                y: Math.random() * vh, 
-                s: 3 + Math.random() * 5,    // horizontal speed (fast!)
-                vy: (Math.random() - 0.3) * 2, // slight vertical drift
+                y: wy + Math.random() * vh, 
+                s: 3 + Math.random() * 5,
+                vy: (Math.random() - 0.3) * 2,
                 size: 1 + Math.random() * 3,
                 alpha: 0.1 + Math.random() * 0.4
             });
@@ -1030,17 +1201,17 @@ const Environment = {
             d.x += d.s; 
             d.y += d.vy + Math.sin(G.tick * 0.03 + d.x * 0.01) * 0.5;
             // Wrap within desert zone
-            if (d.x > desert.end) { d.x = desert.start; d.y = Math.random() * vh; }
-            if (d.y > vh) d.y = -5;
-            if (d.y < -10) d.y = vh;
+            if (d.x > desert.end) { d.x = desert.start; d.y = wy + Math.random() * vh; }
+            if (d.y > wy + vh) d.y = wy - 5;
+            if (d.y < wy - 10) d.y = wy + vh;
             g.beginFill(0xd4a574, d.alpha); 
             g.drawEllipse(d.x, d.y, d.size * 2, d.size * 0.6); 
             g.endFill(); 
         });
         
-        // Sandstorm haze overlay (darkens the desert)
+        // Sandstorm haze overlay (darkens the desert) — covers full visible area
         g.beginFill(0xc2956a, 0.06 + Math.sin(G.tick * 0.01) * 0.02);
-        g.drawRect(desert.start, 0, desert.end - desert.start, vh);
+        g.drawRect(desert.start, wy - 200, desert.end - desert.start, vh + 400);
         g.endFill();
       }
     },
@@ -1075,7 +1246,7 @@ const Environment = {
           cel.drawCircle(G.vpW * dayP, 40 + Math.sin(dayP * Math.PI) * 120, 15); cel.endFill();
         }
         
-        this.cloudLayer.children.forEach(c => { c.x = c._bx + Math.sin(G.tick * .003 + c._i) * 30; c.alpha = (this.weather === 'rain' || this.weather === 'snow') ? .35 : .12; });
+        this.cloudLayer.children.forEach(c => { c.x = c._bx + Math.sin(G.tick * (c._drift || .003) + c._i) * 40; c.alpha = (this.weather === 'rain' || this.weather === 'snow') ? .30 : .10 + Math.sin(G.tick * 0.001 + c._i) * 0.03; });
         if (G.viewMode === 'micro') { this.updateWeather(); this.updateDesertWeather(); } this.drawWeather(); let targetRefAlpha = 0;
         if (night) { if (this.weather === 'rain') targetRefAlpha = 0.95; else if (this.weather === 'snow') targetRefAlpha = 0.5;
         else targetRefAlpha = 0.35; } else { if (this.weather === 'rain') targetRefAlpha = 0.4;

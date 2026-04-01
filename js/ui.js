@@ -467,8 +467,16 @@ const UI = {
     selectBld(b) {
       this.selBld = b;
       this.selModel = null; 
-      const lab = b.lab ? LABS[b.lab] : null; 
-      const col = lab ? lab.color : b.color || '#6b7280';
+      const lab = b.lab ? LABS[b.lab] : null;
+      const isDcFab = b.id.startsWith('dc_') || b.id.startsWith('fab_');
+      
+      // Color: use DC operator color if lab not found
+      let col;
+      if (isDcFab) {
+          col = (lab && lab.color) || (typeof DC_OPERATORS !== 'undefined' && DC_OPERATORS[b.lab] && DC_OPERATORS[b.lab].color) || (b.dcData && b.dcData.color) || '#06b6d4';
+      } else {
+          col = lab ? lab.color : b.color || '#6b7280';
+      }
       
       const p = document.getElementById('infoPanel'); 
       p.className = 'ipanel open'; p.style.animation = 'none'; p.offsetHeight; p.style.animation = 'pi .25s ease';
@@ -476,16 +484,81 @@ const UI = {
       const safeDesc = escapeHTML(b.desc || 'An unassigned architectural structure.');
       const safeName = escapeHTML(b.name || 'Unknown Building');
 
+      // Determine icon and subtitle based on building type
+      let icon, subtitle;
+      if (isDcFab) {
+          const isDc = b.id.startsWith('dc_');
+          icon = isDc ? '🖥️' : '🔧';
+          const opName = (lab && lab.name) || (typeof DC_OPERATORS !== 'undefined' && DC_OPERATORS[b.lab] && DC_OPERATORS[b.lab].name) || b.lab || '';
+          subtitle = (isDc ? 'Data Center' : 'Chip Fabrication') + (opName ? ` · ${escapeHTML(opName)}` : '');
+      } else if (b.type && ['launchpad','mission_control','assembly','tracking'].includes(b.type)) {
+          const org = b.org && typeof SPACE_ORGS !== 'undefined' ? SPACE_ORGS[b.org] : null;
+          icon = org ? org.icon : '🚀';
+          subtitle = org ? org.name : 'Space Zone';
+      } else if (lab) {
+          icon = lab.icon;
+          subtitle = lab.name;
+      } else {
+          icon = b.emoji || '🏢';
+          subtitle = '';
+      }
+
       let html = `<button class="ipanel-x" onclick="UI.closePanel()">✕</button>
         <div class="ipanel-top" style="background:linear-gradient(135deg,${col}22,transparent);border-bottom:2px solid ${col}33">
-          ${lab ? `<div class="ipanel-av" style="background:${col};color:#fff;font-size:24px">${lab.icon}</div>` : `<div class="ipanel-av" style="background:${col};color:#fff;font-size:20px">${b.emoji || '🏢'}</div>`}
-          <div><div class="ipanel-name">${safeName}</div>${lab ? `<div class="ipanel-sub" style="color:${col}">${lab.name}</div>` : ''}</div>
+          <div class="ipanel-av" style="background:${col};color:#fff;font-size:24px">${icon}</div>
+          <div><div class="ipanel-name">${safeName}</div>${subtitle ? `<div class="ipanel-sub" style="color:${col}">${subtitle}</div>` : ''}</div>
         </div>`;
         
       html += `<div style="max-height: calc(100vh - 130px); overflow-y: auto; overflow-x: hidden; padding-right: 4px;">`;
       html += `<p class="ipanel-desc" style="margin-top:0">${safeDesc}</p>`;
-        
-      if (b.lab && !b.id.startsWith('house_')) {
+      
+      // ─── DC/FAB-specific info panel ───
+      if (b.id.startsWith('dc_') || b.id.startsWith('fab_')) {
+        const dc = b.dcData || {};
+        const opName = (LABS[b.lab] && LABS[b.lab].name) || (typeof DC_OPERATORS !== 'undefined' && DC_OPERATORS[b.lab] && DC_OPERATORS[b.lab].name) || b.lab || 'Unknown';
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">⚡ FACILITY SPECS</div>`;
+        if (dc.location) html += `<div>📍 <b>Location:</b> ${escapeHTML(dc.location)}</div>`;
+        html += `<div>🏭 <b>Operator:</b> ${escapeHTML(opName)}</div>`;
+        html += `<div>${dc.status === 'construction' ? '🚧' : '✅'} <b>Status:</b> ${dc.status === 'construction' ? 'Under Construction' : 'Operational'}</div>`;
+        if (dc.gpus) html += `<div>🖥️ <b>Compute:</b> ${escapeHTML(dc.gpus)}</div>`;
+        if (dc.power_mw) html += `<div>🔌 <b>Power:</b> ${dc.power_mw} MW</div>`;
+        if (dc.cooling) html += `<div>❄️ <b>Cooling:</b> ${escapeHTML(dc.cooling)}</div>`;
+        if (dc.process) html += `<div>🔬 <b>Process:</b> ${escapeHTML(dc.process)}</div>`;
+        if (dc.products) html += `<div>📦 <b>Products:</b> ${escapeHTML(dc.products)}</div>`;
+        if (dc.investment) html += `<div>💰 <b>Investment:</b> ${escapeHTML(dc.investment)}</div>`;
+        if (dc.completion) html += `<div>📅 <b>Est. Completion:</b> ${dc.completion}</div>`;
+        html += `</div>`;
+      }
+      // ─── SPACE ZONE building info ───
+      else if (b.type && ['launchpad','mission_control','assembly','tracking'].includes(b.type)) {
+        const org = b.org && typeof SPACE_ORGS !== 'undefined' ? SPACE_ORGS[b.org] : null;
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🚀 SPACE FACILITY</div>`;
+        html += `<div>🏗️ <b>Type:</b> ${escapeHTML(b.type.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()))}</div>`;
+        if (org) {
+            html += `<div>${org.icon} <b>Organization:</b> ${escapeHTML(org.name)}</div>`;
+            if (org.ceo) html += `<div>👤 <b>Director:</b> ${escapeHTML(org.ceo)}</div>`;
+            html += `<div>🌍 <b>Region:</b> ${org.region ? org.region.toUpperCase() : 'N/A'}</div>`;
+        }
+        // Show next launch if available
+        if (b.org && typeof SpaceData !== 'undefined' && SpaceData.launches) {
+            const nextLaunch = SpaceData.launches.find(l => {
+                const provider = SpaceData.getOrgForProvider(l.provider);
+                return provider === b.org && new Date(l.net) > new Date();
+            });
+            if (nextLaunch) {
+                const cd = SpaceData.getCountdown(nextLaunch);
+                html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)">`;
+                html += `<div>🚀 <b>Next Launch:</b> ${escapeHTML(nextLaunch.name)}</div>`;
+                html += `<div>⏱️ <b>Countdown:</b> <span style="color:${col}">${cd || 'TBD'}</span></div>`;
+                html += `</div>`;
+            }
+        }
+        html += `</div>`;
+      }
+      // ─── HQ model list (exclude DC/fab and space) ───
+      else if (b.lab && !b.id.startsWith('house_')) {
         const res = G.models.filter(m => m.lab === b.lab);
         if (res.length > 0) {
           html += `<div style="margin:0 16px 16px"><span class="ipanel-lbl" style="margin-bottom:6px;display:block">All Models (${res.length})</span>`;
@@ -625,15 +698,42 @@ const UI = {
       document.getElementById('censusPan').innerHTML = h;
     },
   
-    showBenchmarks() {
+    _benchSort: 'avg',
+    _benchSortDir: -1,
+    
+    showBenchmarks(sortKey) {
       G.unlockAchieve('benchmark_view');
       document.getElementById('benchOv').classList.add('open');
-      const models = G.models.filter(m => BM[m.id] && typeof avgBM === 'function' && avgBM(m.id)).sort((a, b) => (avgBM(b.id) || 0) - (avgBM(a.id) || 0));
       
-      // Find biggest mover / top model callout
+      // Update sort state
+      if (sortKey) {
+          if (this._benchSort === sortKey) { this._benchSortDir *= -1; }
+          else { this._benchSort = sortKey; this._benchSortDir = -1; }
+      }
+      const sk = this._benchSort;
+      const sd = this._benchSortDir;
+      
+      // Sort models by chosen metric
+      const getSortVal = (m) => {
+          if (sk === 'avg') return avgBM(m.id) || 0;
+          if (sk === 'cost') return COSTS[m.id] ? COSTS[m.id].output : 9999;
+          if (sk === 'ctx') return CTX[m.id] || 0;
+          const sc = BM[m.id] || {};
+          return sc[sk] !== undefined ? sc[sk] : (sc[sk.toUpperCase()] || 0);
+      };
+      
+      const models = G.models.filter(m => BM[m.id] && typeof avgBM === 'function' && avgBM(m.id));
+      if (sk === 'cost') {
+          models.sort((a, b) => sd * ((getSortVal(a) || 9999) - (getSortVal(b) || 9999)));
+      } else {
+          models.sort((a, b) => sd * (getSortVal(b) - getSortVal(a)));
+      }
+      
+      // Callout cards
       let topCallout = '';
       if (models.length > 0) {
-          const top = models[0];
+          const avgSorted = [...models].sort((a, b) => (avgBM(b.id) || 0) - (avgBM(a.id) || 0));
+          const top = avgSorted[0];
           const topLab = LABS[top.lab] || { name: top.lab, color: '#64748b' };
           const topAvg = avgBM(top.id);
           const eloTop = models.filter(m => BM[m.id] && BM[m.id].ELO).sort((a, b) => BM[b.id].ELO - BM[a.id].ELO)[0];
@@ -644,8 +744,7 @@ const UI = {
               const eloLab = LABS[eloTop.lab] || { name: eloTop.lab, color: '#64748b' };
               topCallout += `<div style="flex:1;min-width:180px;padding:10px 14px;background:rgba(250,204,21,0.06);border:1px solid rgba(250,204,21,0.2);border-radius:8px"><div style="font-size:8px;color:#facc15;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚔️ Arena King</div><div style="font-size:12px;font-weight:700;color:#fff">${escapeHTML(eloTop.name)}</div><div style="font-size:9px;color:${eloLab.color}">${eloLab.name} · ELO ${BM[eloTop.id].ELO}</div></div>`;
           }
-          // Cheapest frontier model
-          const frontier = models.slice(0, 10);
+          const frontier = avgSorted.slice(0, 10);
           const cheapFrontier = frontier.filter(m => COSTS[m.id] && COSTS[m.id].input > 0).sort((a, b) => COSTS[a.id].input - COSTS[b.id].input)[0];
           if (cheapFrontier) {
               const cfLab = LABS[cheapFrontier.lab] || { name: cheapFrontier.lab, color: '#64748b' };
@@ -654,12 +753,25 @@ const UI = {
           topCallout += `</div>`;
       }
       
+      const sortLabel = sk === 'avg' ? 'average score' : sk === 'cost' ? 'output cost' : sk === 'ctx' ? 'context window' : sk;
+      const sortArrow = sd === -1 ? '▼' : '▲';
+      
       let h = `<button class="ipanel-x" onclick="document.getElementById('benchOv').classList.remove('open')">✕</button><div class="ov-title">📊 BENCHMARK OBSERVATORY</div>`;
-      h += `<div style="font-size:9px;color:var(--t3);text-align:center;margin-bottom:10px">${models.length} ranked models · sorted by average benchmark score</div>`;
+      h += `<div style="font-size:9px;color:var(--t3);text-align:center;margin-bottom:10px">${models.length} ranked models · sorted by ${sortLabel} ${sortArrow} · click any column to re-sort</div>`;
       h += topCallout;
-      h += `<div style="overflow-x:auto;overflow-y:auto;max-height:55vh"><table class="bench-table"><thead><tr><th style="text-align:left;position:sticky;left:0;background:var(--sf);z-index:2">Model</th><th>Avg</th>`;
-      Object.entries(BM_M).forEach(([k, bm]) => { h += `<th style="color:${bm.c}">${bm.l}</th>`; }); 
-      h += `<th>$/1M out</th><th>Context</th></tr></thead><tbody>`;
+      
+      // Build sortable header
+      const thStyle = 'cursor:pointer;user-select:none;transition:color 0.2s';
+      const activeCol = (key) => sk === key ? 'color:#4ade80;' : '';
+      h += `<div style="overflow-x:auto;overflow-y:auto;max-height:55vh"><table class="bench-table"><thead><tr>`;
+      h += `<th style="text-align:left;position:sticky;left:0;background:var(--sf);z-index:2">Model</th>`;
+      h += `<th style="${thStyle};${activeCol('avg')}" onclick="UI.showBenchmarks('avg')">Avg${sk === 'avg' ? ' ' + sortArrow : ''}</th>`;
+      Object.entries(BM_M).forEach(([k, bm]) => { 
+          h += `<th style="${thStyle};${activeCol(k)}color:${sk === k ? '#4ade80' : bm.c}" onclick="UI.showBenchmarks('${k}')">${bm.l}${sk === k ? ' ' + sortArrow : ''}</th>`; 
+      }); 
+      h += `<th style="${thStyle};${activeCol('cost')}" onclick="UI.showBenchmarks('cost')">$/1M out${sk === 'cost' ? ' ' + sortArrow : ''}</th>`;
+      h += `<th style="${thStyle};${activeCol('ctx')}" onclick="UI.showBenchmarks('ctx')">Context${sk === 'ctx' ? ' ' + sortArrow : ''}</th>`;
+      h += `</tr></thead><tbody>`;
       
       models.forEach((m, rank) => {
         const avg = avgBM(m.id); 
@@ -670,20 +782,20 @@ const UI = {
         
         h += `<tr onclick="document.getElementById('benchOv').classList.remove('open');UI.selectModel(G.models.find(x=>x.id==='${m.id}'))" style="cursor:pointer;${rowBorder}"><td style="position:sticky;left:0;background:var(--cd);z-index:2"><div style="display:flex;align-items:center;gap:6px">${medal}<div><span style="font-size:9px;font-weight:700">${escapeHTML(m.name)}</span><div style="font-size:7px;color:${lab.color}">${lab.name || m.lab}</div></div></div></td>`;
         
-        // Avg with visual bar
-        h += `<td><div style="display:flex;align-items:center;gap:4px"><div style="width:30px;height:4px;background:var(--bd);border-radius:2px;overflow:hidden"><div style="width:${avg}%;height:100%;background:${avg > 85 ? '#4ade80' : avg > 70 ? '#facc15' : '#ef4444'};border-radius:2px"></div></div><span style="font-weight:700;font-size:9px;color:${avg > 85 ? '#4ade80' : avg > 70 ? '#facc15' : '#ef4444'}">${avg}%</span></div></td>`;
+        h += `<td style="${sk === 'avg' ? 'background:rgba(74,222,128,0.05);' : ''}"><div style="display:flex;align-items:center;gap:4px"><div style="width:30px;height:4px;background:var(--bd);border-radius:2px;overflow:hidden"><div style="width:${avg}%;height:100%;background:${avg > 85 ? '#4ade80' : avg > 70 ? '#facc15' : '#ef4444'};border-radius:2px"></div></div><span style="font-weight:700;font-size:9px;color:${avg > 85 ? '#4ade80' : avg > 70 ? '#facc15' : '#ef4444'}">${avg}%</span></div></td>`;
         
         Object.keys(BM_M).forEach(k => {
           const v = sc[k] !== undefined ? sc[k] : sc[k.toUpperCase()]; 
           const col = k === 'ELO' ? (v > 1350 ? '#4ade80' : v > 1250 ? '#facc15' : '#ef4444') : (v > 90 ? '#4ade80' : v > 70 ? '#facc15' : v > 0 ? '#ef4444' : 'var(--t3)');
-          h += `<td style="color:${col}">${k === 'ELO' ? (v || '—') : (v ? v + '%' : '—')}</td>`;
+          const highlight = sk === k ? 'background:rgba(74,222,128,0.05);' : '';
+          h += `<td style="color:${col};${highlight}">${k === 'ELO' ? (v || '—') : (v ? v + '%' : '—')}</td>`;
         });
         
         const cost = COSTS[m.id]; 
-        h += `<td style="color:#facc15">${cost && cost.output !== undefined ? '$' + cost.output : '—'}</td>`;
+        h += `<td style="color:#facc15;${sk === 'cost' ? 'background:rgba(250,204,21,0.05);' : ''}">${cost && cost.output !== undefined ? '$' + cost.output : '—'}</td>`;
         
         const ctx_val = CTX[m.id];
-        h += `<td style="color:var(--t2)">${ctx_val !== undefined ? (ctx_val >= 1e6 ? (ctx_val / 1e6).toFixed(1).replace('.0','') + 'M' : (ctx_val / 1e3).toFixed(0) + 'K') : '—'}</td></tr>`;
+        h += `<td style="color:var(--t2);${sk === 'ctx' ? 'background:rgba(34,211,238,0.05);' : ''}">${ctx_val !== undefined ? (ctx_val >= 1e6 ? (ctx_val / 1e6).toFixed(1).replace('.0','') + 'M' : (ctx_val / 1e3).toFixed(0) + 'K') : '—'}</td></tr>`;
       });
       h += '</tbody></table></div>'; 
       document.getElementById('benchPan').innerHTML = h;

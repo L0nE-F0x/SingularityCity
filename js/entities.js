@@ -5,7 +5,7 @@
 const Entities = {
     charLayer: null, carLayer: null, reflectionLayer: null, lightLayer: null,
     undergroundLayer: null, trainLayer: null,
-    trainWest: null, trainEast: null,
+    trainWest: null, trainEast: null, trainDC: null,
     dataCubes: [],
     heliRefs: {},
 
@@ -21,6 +21,7 @@ const Entities = {
             const trains = EntitiesGfx.initMetro(this.undergroundLayer, this.charLayer, this.carLayer, this.trainLayer);
             this.trainWest = trains.trainWest;
             this.trainEast = trains.trainEast;
+            this.trainDC = trains.trainDC;
             this.stationVisuals = trains.stationVisuals;
             this.bunkerGfx = trains.bunkerGfx;
             this.bunkerTxts = trains.bunkerTxts;
@@ -66,7 +67,7 @@ const Entities = {
                     const home = G.bldById['house_' + f.lab];
                     if (home) {
                         heli.homeX = home.x + home.w / 2;
-                        heli.homeY = G.groundY - 80;
+                        heli.homeY = G.groundY - 220;
                     }
                     this.heliRefs[f.lab] = heli;
                 });
@@ -78,24 +79,22 @@ const Entities = {
         const mResX = G.bldById['metro_res'] ? G.bldById['metro_res'].x + (G.bldById['metro_res'].w / 2) : 1350;
         const mHqX = G.bldById['metro_hq'] ? G.bldById['metro_hq'].x + (G.bldById['metro_hq'].w / 2) : 4700;
         const mEastX = G.bldById['metro_east'] ? G.bldById['metro_east'].x + (G.bldById['metro_east'].w / 2) : 7000;
+        const mDcX = G.bldById['metro_dc'] ? G.bldById['metro_dc'].x + (G.bldById['metro_dc'].w / 2) : null;
+        const mMidX = G.bldById['metro_mid'] ? G.bldById['metro_mid'].x + (G.bldById['metro_mid'].w / 2) : null;
 
-        // 1. Shift the station graphics to follow the dynamically moving buildings
+        // 1. Shift all station graphics to follow dynamically moving buildings
         if (this.stationVisuals) {
-            if (this.stationVisuals[0]) {
-                this.stationVisuals[0].statCont.x = mResX;
-                this.stationVisuals[0].backCutout.x = mResX;
-                this.stationVisuals[0].glassFront.x = mResX;
-            }
-            if (this.stationVisuals[1]) {
-                this.stationVisuals[1].statCont.x = mHqX;
-                this.stationVisuals[1].backCutout.x = mHqX;
-                this.stationVisuals[1].glassFront.x = mHqX;
-            }
-            if (this.stationVisuals[2]) {
-                this.stationVisuals[2].statCont.x = mEastX;
-                this.stationVisuals[2].backCutout.x = mEastX;
-                this.stationVisuals[2].glassFront.x = mEastX;
-            }
+            this.stationVisuals.forEach(sv => {
+                if (sv && sv.statCont && sv._bldId) {
+                    const bld = G.bldById[sv._bldId];
+                    if (bld) {
+                        const cx = bld.x + bld.w / 2;
+                        sv.statCont.x = cx;
+                        sv.backCutout.x = cx;
+                        sv.glassFront.x = cx;
+                    }
+                }
+            });
         }
 
         // 2. Redraw silos if the city width updates (HQs expanding/pushing houses)
@@ -110,7 +109,6 @@ const Entities = {
         if (this.trainWest) {
             this.trainWest.st1 = mResX;
             this.trainWest.st2 = mHqX;
-            // Instantly update targetX if a train was waiting at a station that just shifted
             if (this.trainWest.state === 'waiting') {
                 if (Math.abs(this.trainWest.x - this.trainWest.st1) < 100) this.trainWest.x = this.trainWest.st1;
                 else if (Math.abs(this.trainWest.x - this.trainWest.st2) < 100) this.trainWest.x = this.trainWest.st2;
@@ -119,7 +117,7 @@ const Entities = {
         }
 
         if (this.trainEast) {
-            this.trainEast.st1 = mHqX;
+            this.trainEast.st1 = mMidX || mHqX;
             this.trainEast.st2 = mEastX;
             if (this.trainEast.state === 'waiting') {
                 if (Math.abs(this.trainEast.x - this.trainEast.st1) < 100) this.trainEast.x = this.trainEast.st1;
@@ -128,8 +126,18 @@ const Entities = {
             }
         }
 
+        if (this.trainDC && mDcX) {
+            this.trainDC.st1 = mDcX;
+            this.trainDC.st2 = mResX;
+            if (this.trainDC.state === 'waiting') {
+                if (Math.abs(this.trainDC.x - this.trainDC.st1) < 100) this.trainDC.x = this.trainDC.st1;
+                else if (Math.abs(this.trainDC.x - this.trainDC.st2) < 100) this.trainDC.x = this.trainDC.st2;
+                this.trainDC.c.x = this.trainDC.x;
+            }
+        }
+
         // 4. Standard Train Logic Loop
-        [this.trainWest, this.trainEast].forEach(t => {
+        [this.trainWest, this.trainEast, this.trainDC].forEach(t => {
             if (!t) return;
             if (t.state === 'waiting') {
                 t.timer--;
@@ -261,6 +269,13 @@ const Entities = {
               const home = G.bldById['house_' + ceo.f.lab]; 
               
               if (!hq) return;
+
+              // ─── If CEO is in a helicopter, freeze all ground-level decisions ───
+              if (ceo._inHeli) {
+                  ceo.carCont.visible = false;
+                  ceo.refCont.visible = false;
+                  return; // Helicopter loop handles everything
+              }
 
               // Per-CEO deterministic seed so they don't all move in lockstep
               const ceoSeed = Array.from(ceo.f.lab).reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -409,7 +424,7 @@ const Entities = {
               }
               
               // Update shadow position for all flying states
-              const isFlying = heli.state === 'flying_to' || heli.state === 'flying_home' || heli.state === 'scenic_flight';
+              const isFlying = heli.state === 'flying_to' || heli.state === 'flying_home' || heli.state === 'scenic_flight' || heli.state === 'flying_to_hq';
               if (isFlying && heli.cont.visible) {
                   heli._shadow.visible = true;
                   heli._shadow.x = heli.cont.x;
@@ -430,32 +445,96 @@ const Entities = {
                       if (ceo._heliTrip && ceo.bld === null && siliconWoods) {
                           const home = G.bldById['house_' + lab];
                           heli.logicalX = home ? home.x + home.w / 2 : ceo.logicalX;
-                          heli.logicalY = G.groundY - 80;
+                          heli.logicalY = G.groundY - 220;
                           heli.targetX = helipadX;
                           heli.targetY = helipadY;
                           heli.state = 'flying_to';
                           heli.cont.visible = true;
                           heli.cont.x = heli.logicalX;
                           heli.cont.y = heli.logicalY;
+                          ceo._inHeli = true;
+                          ceo.carCont.visible = false;
+                          ceo.refCont.visible = false;
                       }
-                      // Scenic flyover: periodic during daytime when CEO is home/at HQ
-                      else if (!ceo._heliTrip && !heli._scenicCooldown) {
-                          if (Math.random() < 0.0003 && dp > 0.3 && dp < 0.8) {
-                              const home = G.bldById['house_' + lab];
-                              const startX = home ? home.x + home.w / 2 : G.cityW * 0.8;
+                      // Scenic flyover OR heli-to-HQ OR space visit: only when CEO is inside a building
+                      else if (!ceo._heliTrip && !heli._scenicCooldown && ceo.bld !== null) {
+                          // ─── SPACE VISIT: CEO flies to space zone for imminent launches ───
+                          const CEO_SPACE_MAP = { xai: 'spacex', amazon: 'blue_origin' };
+                          const spaceOrg = CEO_SPACE_MAP[lab];
+                          let spaceTrip = false;
+                          
+                          if (spaceOrg && !heli._spaceVisitDone && typeof SpaceData !== 'undefined' && SpaceData.launches) {
+                              const now = Date.now();
+                              const imminent = SpaceData.launches.find(l => {
+                                  const org = SpaceData.getOrgForProvider(l.provider);
+                                  return org === spaceOrg && new Date(l.net).getTime() - now < 7200000 && new Date(l.net).getTime() - now > 0;
+                              });
+                              if (imminent) {
+                                  // Fly to mission control in the space zone
+                                  const mcBld = G.bldById['mission_control'];
+                                  if (mcBld) {
+                                      const oldBld = G.bldById[ceo.bld];
+                                      const startX = oldBld ? oldBld.x + oldBld.w / 2 : ceo.logicalX;
+                                      ceo.bld = null;
+                                      ceo.wantsToLeave = false;
+                                      ceo.wantsToEnter = false;
+                                      ceo._inHeli = true;
+                                      ceo.carCont.visible = false;
+                                      ceo.refCont.visible = false;
+                                      
+                                      heli.logicalX = startX;
+                                      heli.logicalY = G.groundY - 240;
+                                      heli.targetX = mcBld.x + mcBld.w / 2;
+                                      heli.targetY = G.groundY - 24 - (mcBld.h || 80) - 10;
+                                      heli._landingBld = mcBld;
+                                      heli.state = 'flying_to_hq';
+                                      heli.cont.visible = true;
+                                      heli.cont.x = heli.logicalX;
+                                      heli.cont.y = heli.logicalY;
+                                      heli._spaceVisitDone = true;
+                                      spaceTrip = true;
+                                      
+                                      if (typeof UI !== 'undefined') UI.addToast(`🚁 ${ceo.f.name} is heading to Mission Control for an upcoming ${SPACE_ORGS[spaceOrg].name} launch!`);
+                                  }
+                              }
+                          }
+                          
+                          // ─── SCENIC FLYOVER / HQ COMMUTE (rare, only if no space trip) ───
+                          if (!spaceTrip && Math.random() < 0.00005 && dp > 0.3 && dp < 0.8) {
+                              // Pull CEO out of current building
+                              const oldBld = G.bldById[ceo.bld];
+                              const startX = oldBld ? oldBld.x + oldBld.w / 2 : ceo.logicalX;
+                              ceo.bld = null;
+                              ceo.wantsToLeave = false;
+                              ceo.wantsToEnter = false;
+                              ceo._inHeli = true;
+                              ceo.carCont.visible = false;
+                              ceo.refCont.visible = false;
+                              
                               heli.logicalX = startX;
-                              heli.logicalY = G.groundY - 120 - Math.random() * 60;
-                              // Fly across the whole city
-                              heli.targetX = Math.random() > 0.5 ? 100 : G.cityW - 100;
-                              heli.targetY = heli.logicalY + (Math.random() - 0.5) * 40;
-                              heli._scenicReturnX = startX;
-                              heli.state = 'scenic_flight';
+                              heli.logicalY = G.groundY - 240;
                               heli.cont.visible = true;
                               heli.cont.x = heli.logicalX;
                               heli.cont.y = heli.logicalY;
+                              
+                              // 30% chance: fly to HQ rooftop, 70%: scenic tour
+                              const hqBld = (G.bldsByLab[lab] || []).find(b2 => !b2.id.startsWith('house_'));
+                              if (Math.random() < 0.3 && hqBld && oldBld && oldBld.id !== hqBld.id) {
+                                  // Helicopter commute to HQ rooftop
+                                  heli.targetX = hqBld.x + hqBld.w / 2;
+                                  heli.targetY = G.groundY - 24 - (hqBld.h || 80) - 10;
+                                  heli._landingBld = hqBld;
+                                  heli.state = 'flying_to_hq';
+                              } else {
+                                  // Scenic flyover
+                                  heli.targetX = Math.random() > 0.5 ? 100 : G.cityW - 100;
+                                  heli.targetY = heli.logicalY + (Math.random() - 0.5) * 40;
+                                  heli._scenicReturnX = startX;
+                                  heli.state = 'scenic_flight';
+                              }
+                              
                               heli._scenicCooldown = true;
-                              // Cooldown: 8-15 minutes between flyovers per CEO
-                              setTimeout(() => { heli._scenicCooldown = false; }, (480 + Math.random() * 420) * 1000);
+                              setTimeout(() => { heli._scenicCooldown = false; }, (600 + Math.random() * 600) * 1000);
                           }
                       }
                       break;
@@ -465,18 +544,16 @@ const Entities = {
                       const dx = heli.targetX - heli.logicalX;
                       const dy = heli.targetY - heli.logicalY;
                       const dist = Math.sqrt(dx * dx + dy * dy);
-                      const scenicSpeed = heli.speed * 0.6; // Slower, scenic pace
+                      const scenicSpeed = heli.speed * 0.6;
                       
                       if (dist < scenicSpeed) {
-                          // Reached end of scenic route — fly back home
                           heli.targetX = heli._scenicReturnX || heli.homeX;
-                          heli.targetY = G.groundY - 80;
+                          heli.targetY = G.groundY - 220;
                           heli.logicalY = heli.cont.y;
                           heli.state = 'flying_home';
                       } else {
                           heli.logicalX += (dx / dist) * scenicSpeed;
                           heli.logicalY += (dy / dist) * scenicSpeed;
-                          // Gentle altitude wave during scenic flight
                           heli.logicalY += Math.sin(G.tick * 0.015) * 0.3;
                       }
                       
@@ -485,6 +562,57 @@ const Entities = {
                       heli.cont.scale.x = dx > 0 ? 1 : -1;
                       break;
                   }
+                  
+                  case 'flying_to_hq': {
+                      // Flying to HQ rooftop helipad
+                      heli.cont.visible = true;
+                      const dx = heli.targetX - heli.logicalX;
+                      const dy = heli.targetY - heli.logicalY;
+                      const dist = Math.sqrt(dx * dx + dy * dy);
+                      
+                      if (dist < heli.speed) {
+                          heli.logicalX = heli.targetX;
+                          heli.logicalY = heli.targetY;
+                          heli.state = 'landing_hq';
+                          heli.timer = 60;
+                      } else {
+                          heli.logicalX += (dx / dist) * heli.speed;
+                          heli.logicalY += (dy / dist) * heli.speed;
+                      }
+                      
+                      heli.cont.x = heli.logicalX;
+                      heli.cont.y = heli.logicalY + Math.sin(G.tick * 0.08) * 3;
+                      heli.cont.scale.x = dx > 0 ? 1 : -1;
+                      break;
+                  }
+                  
+                  case 'landing_hq':
+                      heli.timer--;
+                      heli.cont.y = heli.logicalY + (60 - heli.timer) * 0.15;
+                      if (heli.timer <= 0) {
+                          // CEO enters HQ from rooftop
+                          const hqBld = heli._landingBld;
+                          if (hqBld && ceo) {
+                              ceo._inHeli = false;
+                              ceo.bld = hqBld.id;
+                              ceo.wantsToEnter = true;
+                              ceo.logicalX = hqBld.x + hqBld.w / 2;
+                          }
+                          heli.state = 'parked_hq';
+                          heli.timer = 300 + Math.random() * 600; // Park 5-15 seconds
+                      }
+                      break;
+                      
+                  case 'parked_hq':
+                      heli.timer--;
+                      if (heli.timer <= 0) {
+                          // Take off and fly home empty
+                          heli.state = 'takeoff';
+                          heli.timer = 60;
+                          heli.logicalX = heli.cont.x;
+                          heli.logicalY = heli.cont.y;
+                      }
+                      break;
                       
                   case 'flying_to': {
                       heli.cont.visible = true;
@@ -515,6 +643,8 @@ const Entities = {
                       if (heli.timer <= 0) {
                           heli.state = 'grounded';
                           heli.cont.y = helipadY + 18;
+                          // Clear _inHeli so CEO schedule can enter Silicon Woods
+                          if (ceo) ceo._inHeli = false;
                       }
                       break;
                       
@@ -537,7 +667,7 @@ const Entities = {
                       if (heli.timer <= 0) {
                           const home = G.bldById['house_' + lab];
                           heli.targetX = home ? home.x + home.w / 2 : heli.homeX;
-                          heli.targetY = G.groundY - 80;
+                          heli.targetY = G.groundY - 220;
                           heli.logicalY = heli.cont.y;
                           heli.state = 'flying_home';
                       }
@@ -552,6 +682,16 @@ const Entities = {
                       if (dist < heli.speed) {
                           heli.state = 'hidden';
                           heli.cont.visible = false;
+                          // Return CEO to ground — place them at home if they were on a scenic/heli trip
+                          if (ceo && ceo._inHeli) {
+                              ceo._inHeli = false;
+                              const home = G.bldById['house_' + lab];
+                              if (home) {
+                                  ceo.logicalX = home.x + home.w / 2;
+                                  ceo.bld = home.id;
+                                  ceo.wantsToEnter = true;
+                              }
+                          }
                       } else {
                           heli.logicalX += (dx / dist) * heli.speed;
                           heli.logicalY += (dy / dist) * heli.speed;
@@ -698,24 +838,51 @@ const Entities = {
                 const mResX = G.bldById['metro_res'] ? G.bldById['metro_res'].x + (G.bldById['metro_res'].w / 2) : 1350;
                 const mHqX = G.bldById['metro_hq'] ? G.bldById['metro_hq'].x + (G.bldById['metro_hq'].w / 2) : 4700;
                 const mEastX = G.bldById['metro_east'] ? G.bldById['metro_east'].x + (G.bldById['metro_east'].w / 2) : 7000;
+                const mDcX = G.bldById['metro_dc'] ? G.bldById['metro_dc'].x + (G.bldById['metro_dc'].w / 2) : null;
+                const mMidX = G.bldById['metro_mid'] ? G.bldById['metro_mid'].x + (G.bldById['metro_mid'].w / 2) : null;
                 
-                const getRegion = (x) => x < (mResX + mHqX)/2 ? 1 : x < (mHqX + mEastX)/2 ? 2 : 3;
+                // 4 regions: 0=DC/Space (left of res), 1=Residential, 2=Tech, 3=East
+                const getRegion = (x) => {
+                    if (mDcX && x < (mDcX + mResX) / 2) return 0;
+                    if (x < (mResX + mHqX) / 2) return 1;
+                    if (mMidX && x < (mMidX + mEastX) / 2) return 2;
+                    if (x < (mHqX + mEastX) / 2) return 2;
+                    return 3;
+                };
 
                 if (refs._metroState === 'none' && !refs._metroLegs) {
                     let myReg = getRegion(refs.c.x);
                     let dstReg = getRegion(buildingTargetX);
                     
                     if (myReg !== dstReg) {
-                        if (myReg === 1 && dstReg === 2) refs._metroLegs = [mResX, mHqX];
-                        else if (myReg === 2 && dstReg === 1) refs._metroLegs = [mHqX, mResX];
-                        else if (myReg === 2 && dstReg === 3) refs._metroLegs = [mHqX, mEastX];
-                        else if (myReg === 3 && dstReg === 2) refs._metroLegs = [mEastX, mHqX];
-                        else if (myReg === 1 && dstReg === 3) refs._metroLegs = [mResX, mHqX, mEastX];
-                        else if (myReg === 3 && dstReg === 1) refs._metroLegs = [mEastX, mHqX, mResX];
+                        // Build route through stations
+                        // Station order: metro_dc (0) → metro_res (1) → metro_hq (2) → metro_mid/metro_east (3)
+                        const stations = [];
+                        if (mDcX) stations.push({ reg: 0, x: mDcX });
+                        stations.push({ reg: 1, x: mResX });
+                        stations.push({ reg: 2, x: mHqX });
+                        if (mMidX) stations.push({ reg: 2.5, x: mMidX }); // mid-tech
+                        stations.push({ reg: 3, x: mEastX });
                         
-                        if (refs._metroLegs) {
-                            refs._currentLeg = 0;
-                            refs._metroState = 'entering';
+                        // Find nearest station to current position and destination
+                        const nearestStation = (x) => stations.reduce((best, s) => Math.abs(s.x - x) < Math.abs(best.x - x) ? s : best);
+                        const startSt = nearestStation(refs.c.x);
+                        const endSt = nearestStation(buildingTargetX);
+                        
+                        if (startSt.x !== endSt.x) {
+                            const startIdx = stations.indexOf(startSt);
+                            const endIdx = stations.indexOf(endSt);
+                            const legs = [];
+                            if (startIdx < endIdx) {
+                                for (let si = startIdx; si <= endIdx; si++) legs.push(stations[si].x);
+                            } else {
+                                for (let si = startIdx; si >= endIdx; si--) legs.push(stations[si].x);
+                            }
+                            if (legs.length >= 2) {
+                                refs._metroLegs = legs;
+                                refs._currentLeg = 0;
+                                refs._metroState = 'entering';
+                            }
                         }
                     }
                 }

@@ -144,11 +144,32 @@ const InteriorResAI = {
     spawnBubble(av, msgOverride = null) {
         if (!this.layer || !this.layer.visible) return;
 
-        const msgs = [
-            "Calculating...", "Optimizing...", "Compiling...", 
-            "Data incoming.", "Adjusting weights.", "Processing."
-        ];
-        const msg = msgOverride || msgs[Math.floor(Math.random() * msgs.length)];
+        let msg;
+        if (msgOverride) {
+            msg = msgOverride;
+        } else {
+            // Pick from expanded CHAT_MSGS based on avatar state
+            const actMap = { working: 'work', ceo_working: 'work', sleeping: 'sleep', ceo_sleeping: 'sleep', socializing: 'socialize', relaxing: 'play' };
+            const act = actMap[av.state] || 'work';
+            const pool = (typeof CHAT_MSGS !== 'undefined' && CHAT_MSGS[act]) ? CHAT_MSGS[act] : ['...'];
+            
+            // 20% chance of personal quip using model name
+            if (Math.random() < 0.2 && av.m && av.m.name) {
+                const nameQuips = [
+                    `I'm ${av.m.name.split(' ')[0]}.`,
+                    `${av.m.name.split(' ')[0]} here.`,
+                    `They call me ${av.m.name.split(' ')[0]}.`
+                ];
+                msg = nameQuips[Math.floor(Math.random() * nameQuips.length)];
+            } else if (Math.random() < 0.15 && av.m && typeof BM !== 'undefined' && BM[av.m.id]) {
+                const bm = BM[av.m.id];
+                if (bm.ELO) msg = `ELO: ${bm.ELO} 💪`;
+                else if (bm.MMLU) msg = `MMLU: ${bm.MMLU}%`;
+                else msg = pool[Math.floor(Math.random() * pool.length)];
+            } else {
+                msg = pool[Math.floor(Math.random() * pool.length)];
+            }
+        }
         
         const bCont = new PIXI.Container();
         const bg = new PIXI.Graphics();

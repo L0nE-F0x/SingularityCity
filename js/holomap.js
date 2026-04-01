@@ -39,6 +39,16 @@ const Holomap = {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color('#04040e');
         this.scene.fog = new THREE.FogExp2('#04040e', 0.00010);
+        
+        // Lighting for star depth
+        var ambLight = new THREE.AmbientLight(0x222244, 0.6);
+        this.scene.add(ambLight);
+        var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(500, 1000, 800);
+        this.scene.add(dirLight);
+        var rimLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+        rimLight.position.set(-300, -500, -400);
+        this.scene.add(rimLight);
 
         this.camera = new THREE.PerspectiveCamera(45, this.W / this.H, 1, 20000);
         this.camera.position.set(0, 2000, 3500);
@@ -461,8 +471,8 @@ const Holomap = {
             labFrontiers[n.key] = frontier;
         });
 
-        // Shared geometry (low-poly for perf with 700+ models)
-        var geo = new THREE.SphereGeometry(1, 8, 8);
+        // Shared geometry
+        var geo = new THREE.SphereGeometry(1, 16, 16);
         var glowTex = this.getGlowTex();
         var labPlaceIdx = {};
 
@@ -490,27 +500,39 @@ const Holomap = {
             }
             var orbitSpeed = retired ? 0 : (isFrontier ? 0 : (0.0008 + (m.id.length % 5) * 0.0003));
             var cHex = self.cleanHex((LABS[m.lab] || { color: '#888888' }).color);
+            var cInt = parseInt(cHex.replace('#',''), 16);
 
             // Star group
             var starGroup = new THREE.Group();
             starGroup.userData = { isStar: true };
 
-            // Core sphere
-            var core = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-                color: retired ? 0x666666 : 0xffffff,
-                transparent: true, opacity: retired ? 0.4 : 1.0
-            }));
+            // Core sphere — Phong material with emissive glow for depth
+            var coreMat;
+            if (retired) {
+                coreMat = new THREE.MeshPhongMaterial({ color: 0x888899, emissive: 0x333344, emissiveIntensity: 0.3, shininess: 10, transparent: true, opacity: 0.4 });
+            } else {
+                coreMat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: cInt, emissiveIntensity: isFrontier ? 0.7 : 0.4, shininess: isFrontier ? 80 : 40, specular: 0x888888, transparent: true, opacity: 1.0 });
+            }
+            var core = new THREE.Mesh(geo, coreMat);
             core.scale.set(mag, mag, mag);
             starGroup.add(core);
+
+            // Inner colored core (adds depth/volume)
+            if (!retired) {
+                var innerMat = new THREE.MeshPhongMaterial({ color: cInt, emissive: cInt, emissiveIntensity: 0.6, shininess: 20, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+                var inner = new THREE.Mesh(geo, innerMat);
+                inner.scale.set(mag * 0.7, mag * 0.7, mag * 0.7);
+                starGroup.add(inner);
+            }
 
             // Glow aura
             if (!retired) {
                 var aura = new THREE.Sprite(new THREE.SpriteMaterial({
                     map: glowTex, color: cHex,
-                    transparent: true, opacity: isFrontier ? 0.9 : 0.55,
+                    transparent: true, opacity: isFrontier ? 0.85 : 0.45,
                     blending: THREE.AdditiveBlending
                 }));
-                var auraSize = mag * (isFrontier ? 16 : 10);
+                var auraSize = mag * (isFrontier ? 18 : 11);
                 aura.scale.set(auraSize, auraSize, 1);
                 starGroup.add(aura);
             }
@@ -530,7 +552,6 @@ const Holomap = {
                 labelDiv = document.createElement('div');
                 labelDiv.className = 'holo-star-label';
                 var lblHtml = '<div class="holo-star-name" style="font-size:13px;font-weight:600;color:' + cHex + ';">' + (m.name || m.id) + '</div>';
-                if (!retired) lblHtml += '<div class="holo-frontier-badge">FRONTIER</div>';
                 labelDiv.innerHTML = lblHtml;
                 self.labelsContainer.appendChild(labelDiv);
             }

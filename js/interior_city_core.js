@@ -506,11 +506,14 @@ const InteriorCity = {
                         // NPC: Park Ranger
                         this.drawAvatar({ id: 'ranger', name: 'Park Ranger', isNPC: true, role: 'Ranger', phase: 'released', lab: 'other', desc: 'Ensuring safe viewing distances.' }, this.startX + 140, fy + floorH - 4, floorCont, f, true);
                     } else if (floorTheme === 'gym_cardio') {
+                        if (this.drawMirrorWall) this.drawMirrorWall(floorCont, this.startX + this.usableW / 2, fy + floorH - 4, this.usableW - 100);
                         while(currX < this.startX + this.usableW - 120) {
                             if (this.drawTreadmill) this.drawTreadmill(floorCont, currX, fy + floorH - 4);
                             currX += 80;
                         }
+                        if (this.drawWaterCooler) this.drawWaterCooler(floorCont, this.startX + this.usableW - 60, fy + floorH - 4);
                     } else if (floorTheme === 'gym_weights') {
+                        if (this.drawMirrorWall) this.drawMirrorWall(floorCont, this.startX + this.usableW / 2, fy + floorH - 4, this.usableW - 100);
                         while(currX < this.startX + this.usableW - 120) {
                             if (Math.random() > 0.5) {
                                 if (this.drawServerWeights) this.drawServerWeights(floorCont, currX, fy + floorH - 4);
@@ -519,27 +522,45 @@ const InteriorCity = {
                             }
                             currX += 90;
                         }
+                        if (this.drawVendingMachine) this.drawVendingMachine(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
                     } else if (floorTheme === 'gym_combat') {
-                        while(currX < this.startX + this.usableW - 150) {
+                        if (this.drawRing) this.drawRing(floorCont, this.startX + this.usableW / 2, fy + floorH - 4);
+                        while(currX < this.startX + this.usableW * 0.3) {
                             if (this.drawPunchingBag) this.drawPunchingBag(floorCont, currX, fy + floorH - 4);
                             currX += 100;
                         }
-                        this.drawAvatar({ id: 'trainer', name: 'Spotter', isNPC: true, role: 'Trainer', phase: 'released', lab: 'other', desc: 'Heavy lifting.' }, this.startX + this.usableW - 60, fy + floorH - 4, floorCont, f, true);
+                        if (this.drawVendingMachine) this.drawVendingMachine(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
+                        this.drawAvatar({ id: 'trainer', name: 'Spotter', isNPC: true, role: 'Trainer', phase: 'released', lab: 'other', desc: 'Heavy lifting.' }, this.startX + this.usableW - 80, fy + floorH - 4, floorCont, f, true);
                     } else if (floorTheme === 'arena_lobby') {
                         this.drawReceptionDesk(floorCont, this.startX + 120, fy + floorH - 4, 0xef4444);
                         this.drawCouches(floorCont, this.startX + 250, fy + floorH - 4, 0xef4444);
+                        if (this.drawScoreboard) this.drawScoreboard(floorCont, this.startX + 400, fy + floorH - 4);
+                        if (this.drawVendingMachine) this.drawVendingMachine(floorCont, this.startX + this.usableW - 60, fy + floorH - 4);
+                        if (this.drawPlant) this.drawPlant(floorCont, this.startX + 180, fy + floorH - 4);
                     } else if (floorTheme === 'arena_training') {
+                        if (this.drawMirrorWall) this.drawMirrorWall(floorCont, this.startX + this.usableW / 2, fy + floorH - 4, this.usableW - 100);
                         while(currX < this.startX + this.usableW - 120) {
                             if (this.drawPunchingBag) this.drawPunchingBag(floorCont, currX, fy + floorH - 4);
                             currX += 80;
                         }
+                        if (this.drawWaterCooler) this.drawWaterCooler(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
                     } else if (floorTheme === 'arena_main') {
+                        if (this.drawSpotlight) {
+                            this.drawSpotlight(floorCont, this.startX + this.usableW * 0.35, fy + floorH - 4, 0xef4444);
+                            this.drawSpotlight(floorCont, this.startX + this.usableW * 0.65, fy + floorH - 4, 0x38bdf8);
+                        }
                         if (this.drawRing) this.drawRing(floorCont, this.startX + this.usableW / 2, fy + floorH - 4);
-                        this.drawAvatar({ id: 'ref', name: 'Referee', isNPC: true, role: 'Referee', phase: 'released', lab: 'other', desc: 'Fair fights.' }, this.startX + this.usableW - 60, fy + floorH - 4, floorCont, f, true);
+                        if (this.drawScoreboard) this.drawScoreboard(floorCont, this.startX + this.usableW - 80, fy + floorH - 4);
+                        this.drawAvatar({ id: 'ref', name: 'Referee', isNPC: true, role: 'Referee', phase: 'released', lab: 'other', desc: 'Fair fights.' }, this.startX + this.usableW - 120, fy + floorH - 4, floorCont, f, true);
                     } else if (floorTheme === 'cafe') {
+                        if (this.drawMenuBoard) this.drawMenuBoard(floorCont, this.startX + 60, fy + floorH - 4);
                         this.drawBaristaCounter(floorCont, this.startX + this.usableW - 100, fy + floorH - 4);
-                        this.drawCafeTable(floorCont, this.startX + 100, fy + floorH - 4);
-                        this.drawCafeTable(floorCont, this.startX + 220, fy + floorH - 4);
+                        if (this.drawCoffeeMachine) this.drawCoffeeMachine(floorCont, this.startX + this.usableW - 150, fy + floorH - 4);
+                        this.drawCafeTable(floorCont, this.startX + 140, fy + floorH - 4);
+                        this.drawCafeTable(floorCont, this.startX + 250, fy + floorH - 4);
+                        this.drawCafeTable(floorCont, this.startX + 360, fy + floorH - 4);
+                        if (this.drawBarStool) { this.drawBarStool(floorCont, this.startX + this.usableW - 130, fy + floorH - 4); this.drawBarStool(floorCont, this.startX + this.usableW - 110, fy + floorH - 4); }
+                        if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 100, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 310, fy + floorH - 4); }
                         this.drawAvatar({ id: 'barista', name: 'BaristaBot', isNPC: true, role: 'Barista', phase: 'released', lab: 'other', desc: 'Brewing Java.' }, this.startX + this.usableW - 90, fy + floorH - 4, floorCont, f, true);
                     } else if (bld.id === 'nursery') {
                         this.drawDataVat(floorCont, this.startX + this.usableW / 2, fy + floorH - 4);

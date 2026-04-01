@@ -47,14 +47,15 @@ const API = {
         }
         
         try {
-            const [labsRes, foundersRes, computeRes, bldsRes, actsRes, famRes, evRes] = await Promise.all([
+            const [labsRes, foundersRes, computeRes, bldsRes, actsRes, famRes, evRes, dcRes] = await Promise.all([
                 this.supabase.from('labs').select('*'),
                 this.supabase.from('founders').select('*'),
                 this.supabase.from('compute_clusters').select('*'),
                 this.supabase.from('blds').select('*').order('x', { ascending: true }),
                 this.supabase.from('acts').select('*'),
                 this.supabase.from('families').select('*'),
-                this.supabase.from('ai_events').select('*')
+                this.supabase.from('ai_events').select('*'),
+                this.supabase.from('dc_facilities').select('*').then(r => r).catch(() => ({ data: null, error: null }))
             ]);
 
             if (labsRes.error) throw labsRes.error;
@@ -96,6 +97,37 @@ const API = {
                 type: c.type,
                 location: c.location
             }));
+
+            // Merge cloud DC facilities with hardcoded fallback
+            if (dcRes && dcRes.data && dcRes.data.length > 0) {
+                dcRes.data.forEach(row => {
+                    const existing = DC_FACILITIES.find(dc => dc.id === row.id);
+                    if (existing) {
+                        // Update from cloud (cloud is source of truth for mutable fields)
+                        if (row.status) existing.status = row.status;
+                        if (row.gpus) existing.gpus = row.gpus;
+                        if (row.power_mw) existing.power_mw = row.power_mw;
+                        if (row.cooling) existing.cooling = row.cooling;
+                        if (row.process) existing.process = row.process;
+                        if (row.products) existing.products = row.products;
+                        if (row.investment) existing.investment = row.investment;
+                        if (row.completion) existing.completion = row.completion;
+                        if (row.description) existing.desc = row.description;
+                    } else {
+                        // New facility discovered from cloud — add to local array
+                        DC_FACILITIES.push({
+                            id: row.id, name: row.name, operator: row.operator,
+                            location: row.location, type: row.type || 'datacenter',
+                            status: row.status || 'operational',
+                            gpus: row.gpus, power_mw: row.power_mw, cooling: row.cooling,
+                            process: row.process, products: row.products,
+                            investment: row.investment, completion: row.completion,
+                            desc: row.description || '', w: row.width || 160, color: row.color || '#64748b'
+                        });
+                    }
+                });
+                console.log(`🖥️ Synced ${dcRes.data.length} DC facilities from cloud`);
+            }
 
             window.BLDS = bldsRes.data.map(b => ({
                 id: b.id,

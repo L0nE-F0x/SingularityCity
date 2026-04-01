@@ -96,8 +96,81 @@ const G = {
             spaceX = fSpace.x + fSpace.w + 150;
         }
         
-        // Place residential buildings sequentially after the space zone
-        let resX = spaceX + 100;
+        // ─── DATA CENTER & CHIP FAB ZONE (between space zone and residential) ───
+        const isDcBld = (b) => b.id.startsWith('dc_') || b.id.startsWith('fab_') || b.id === 'metro_dc';
+        
+        // Ensure DC facilities exist as BLDS entries
+        if (typeof DC_FACILITIES !== 'undefined') {
+            DC_FACILITIES.forEach(dc => {
+                const statusIcon = dc.status === 'construction' ? '🚧' : '✅';
+                const typeIcon = dc.type === 'chipfab' ? '🔧' : '🖥️';
+                
+                let existing = BLDS.find(b => b.id === dc.id);
+                if (!existing) {
+                    existing = {
+                        id: dc.id, name: dc.name, w: dc.w || 160, x: 0,
+                        fl: dc.status === 'construction' ? 4 : 3,
+                        emoji: typeIcon,
+                        lab: dc.operator
+                    };
+                    BLDS.push(existing);
+                    this.bldById[dc.id] = existing;
+                }
+                
+                // Always refresh DC-specific data (survives Supabase reloads)
+                existing.dcData = dc;
+                existing.type = dc.type;
+                existing.desc = dc.desc;
+                existing.fl = dc.status === 'construction' ? 4 : 3;
+                
+                // Build rich tooltip
+                let tipParts = [dc.desc];
+                tipParts.push('<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">');
+                tipParts.push(`${statusIcon} STATUS: ${dc.status === 'construction' ? 'Under Construction' : 'Operational'}<br>`);
+                tipParts.push(`📍 ${dc.location}<br>`);
+                if (dc.gpus) tipParts.push(`⚡ GPUs: ${dc.gpus}<br>`);
+                if (dc.power_mw) tipParts.push(`🔌 Power: ${dc.power_mw} MW<br>`);
+                if (dc.cooling) tipParts.push(`❄️ Cooling: ${dc.cooling}<br>`);
+                if (dc.process) tipParts.push(`🔬 Process: ${dc.process}<br>`);
+                if (dc.products) tipParts.push(`📦 Products: ${dc.products}<br>`);
+                if (dc.investment) tipParts.push(`💰 Investment: ${dc.investment}<br>`);
+                if (dc.completion) tipParts.push(`📅 Est. Completion: ${dc.completion}<br>`);
+                tipParts.push('</span>');
+                existing.tip = tipParts.join('');
+            });
+        }
+        
+        // Metro station for data center zone
+        if (!BLDS.find(b => b.id === 'metro_dc')) {
+            const mDc = { id: 'metro_dc', name: 'Compute District', w: 120, x: 0, fl: 1, emoji: '🚇', lab: null, desc: 'Data center district transit hub.' };
+            BLDS.push(mDc);
+            this.bldById['metro_dc'] = mDc;
+        }
+        
+        // Place DC zone after space separator — metro station first (leftmost)
+        let dcX = spaceX + 100;
+        
+        const mDc = BLDS.find(b => b.id === 'metro_dc');
+        if (mDc) { mDc.x = dcX; dcX += mDc.w + 60; }
+        
+        // Then operational DCs, construction sites, chip fabs
+        const dcOrder = { datacenter: 0, chipfab: 1 };
+        const statusOrder = { operational: 0, construction: 1 };
+        BLDS.filter(b => b.id.startsWith('dc_') || b.id.startsWith('fab_'))
+            .sort((a, b) => {
+                const ad = a.dcData || {}; const bd = b.dcData || {};
+                const typeA = dcOrder[ad.type] || 0; const typeB = dcOrder[bd.type] || 0;
+                if (typeA !== typeB) return typeA - typeB;
+                const statA = statusOrder[ad.status] || 0; const statB = statusOrder[bd.status] || 0;
+                return statA - statB;
+            })
+            .forEach(b => {
+                b.x = dcX;
+                dcX += b.w + 50;
+            });
+
+        // Place residential buildings after the DC zone
+        let resX = dcX + 80;
         BLDS.filter(b => b.id.startsWith('res_') || b.id === 'metro_res')
             .sort((a, b) => (a.x || 0) - (b.x || 0))
             .forEach(b => {
@@ -107,41 +180,40 @@ const G = {
 
         BLDS.sort((a, b) => a.x - b.x);
 
-        let maxResX = 0;
+        let maxResOrDcX = 0;
         BLDS.forEach(b => {
-            if (b.id.startsWith('res_') || b.id === 'metro_res') {
-                if (b.x + b.w > maxResX) maxResX = b.x + b.w;
+            if (b.id.startsWith('res_') || b.id === 'metro_res' || isDcBld(b)) {
+                if (b.x + b.w > maxResOrDcX) maxResOrDcX = b.x + b.w;
             }
         });
 
         let minTechX = Infinity;
         BLDS.forEach(b => {
-            if (!b.id.startsWith('res_') && b.id !== 'metro_res' && b.id !== 'forest_0' && b.id !== 'forest_1' && !b.id.startsWith('house_') && b.id !== 'metro_east' && !isSpaceOrForestSep(b)) {
+            if (!b.id.startsWith('res_') && b.id !== 'metro_res' && b.id !== 'forest_0' && b.id !== 'forest_1' && !b.id.startsWith('house_') && b.id !== 'metro_east' && b.id !== 'metro_dc' && b.id !== 'metro_mid' && !isDcBld(b) && !isSpaceOrForestSep(b)) {
                 if (b.x < minTechX) minTechX = b.x;
             }
         });
 
-        if (maxResX > 0 && minTechX !== Infinity && fCamp) {
-            let currentGap = minTechX - maxResX;
+        if (maxResOrDcX > 0 && minTechX !== Infinity && fCamp) {
+            let currentGap = minTechX - maxResOrDcX;
             let desiredGap = fCamp.w + 600; 
             
             if (currentGap < desiredGap) {
                 let shiftAmount = desiredGap - currentGap;
                 BLDS.forEach(b => {
-                    // Only shift tech district buildings — NOT residential, forests, houses, or space
-                    if (b.x >= minTechX && !b.id.startsWith('res_') && b.id !== 'metro_res' && b.id !== 'forest_0' && !isSpaceOrForestSep(b)) {
+                    if (b.x >= minTechX && !b.id.startsWith('res_') && b.id !== 'metro_res' && b.id !== 'forest_0' && !isDcBld(b) && !isSpaceOrForestSep(b)) {
                         b.x += shiftAmount;
                     }
                 });
                 minTechX += shiftAmount; 
             }
             
-            fCamp.x = maxResX + ((minTechX - maxResX) / 2) - (fCamp.w / 2);
+            fCamp.x = maxResOrDcX + ((minTechX - maxResOrDcX) / 2) - (fCamp.w / 2);
         }
         
         let rightMostTechX = 0;
         BLDS.forEach(b => {
-            if (!b.id.startsWith('res_') && b.id !== 'metro_res' && b.id !== 'forest_1' && b.id !== 'forest_0' && !b.id.startsWith('house_') && b.id !== 'metro_east' && !isSpaceOrForestSep(b)) {
+            if (!b.id.startsWith('res_') && b.id !== 'metro_res' && b.id !== 'forest_1' && b.id !== 'forest_0' && !b.id.startsWith('house_') && b.id !== 'metro_east' && b.id !== 'metro_dc' && b.id !== 'metro_mid' && !isDcBld(b) && !isSpaceOrForestSep(b)) {
                 if (b.x + b.w > rightMostTechX) rightMostTechX = b.x + b.w;
             }
         });
@@ -152,6 +224,52 @@ const G = {
         if (mEast) {
             mEast.x = currentX;
             currentX += mEast.w;
+        }
+
+        // Mid-tech metro station — placed after the median tech building
+        if (!BLDS.find(b => b.id === 'metro_mid')) {
+            const mMid2 = { id: 'metro_mid', name: 'Central Line', w: 120, x: 0, fl: 1, emoji: '🚇', lab: null, desc: 'Central tech district transit hub.' };
+            BLDS.push(mMid2);
+            this.bldById['metro_mid'] = mMid2;
+        }
+        const mMid = BLDS.find(b => b.id === 'metro_mid');
+        if (mMid && mEast) {
+            const techBlds = BLDS.filter(b => 
+                b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && 
+                b.id !== 'metro_res' && b.id !== 'metro_dc' && b.id !== 'metro_mid' && b.id !== 'metro_east' &&
+                !b.id.startsWith('forest_') && !isDcBld(b) && !isSpaceOrForestSep(b)
+            ).sort((a, b) => a.x - b.x);
+            
+            if (techBlds.length >= 4) {
+                const medianIdx = Math.floor(techBlds.length / 2);
+                const leftBld = techBlds[medianIdx];
+                mMid.x = leftBld.x + leftBld.w + 20;
+                
+                // Idempotent: ensure no building overlaps the station
+                // Sort right-side buildings and cascade-push any that overlap
+                const stationRight = mMid.x + mMid.w + 20;
+                const rightBlds = techBlds.filter(b => b.x > leftBld.x).sort((a, b) => a.x - b.x);
+                let pushBoundary = stationRight;
+                rightBlds.forEach(b => {
+                    if (b.x < pushBoundary) {
+                        b.x = pushBoundary;
+                    }
+                    pushBoundary = b.x + b.w + 50; // maintain natural gap for subsequent buildings
+                });
+                
+                // Also push metro_east if it got overlapped
+                if (mEast.x < pushBoundary - 50 + 100) {
+                    // Only push if it's actually overlapping with the last tech building
+                    const lastTech = rightBlds[rightBlds.length - 1];
+                    if (lastTech && mEast.x < lastTech.x + lastTech.w + 100) {
+                        mEast.x = lastTech.x + lastTech.w + 100;
+                    }
+                }
+            } else {
+                mMid.x = mEast.x / 2;
+            }
+            
+            currentX = mEast.x + mEast.w;
         }
 
         currentX += 500; 
@@ -559,6 +677,9 @@ const G = {
             return;
         }
 
+        // DC/fab buildings have their own fixed height — skip HQ scaling
+        if (b.id.startsWith('dc_') || b.id.startsWith('fab_')) return;
+
         const activeModels = this.models.filter(m => m.lab === b.lab && (!m.ret || new Date(m.ret) > new Date()));
         
         b.dynamicFl = Math.max(b.fl || 3, Math.floor(activeModels.length / 2) + 2);
@@ -784,8 +905,10 @@ const G = {
         { id: 'space',    emoji: '🏜️', label: 'Space Zone',    match: b => b.type === 'launchpad' },
         { id: 'frontier', emoji: '🌲', label: 'Frontier Pines', match: b => b.id === 'forest_space' },
         { id: 'res',      emoji: '🏠', label: 'Residential',    match: b => b.id.startsWith('res_') || b.id === 'metro_res' },
+        { id: 'dc',       emoji: '🖥️', label: 'Compute District', match: b => b.id.startsWith('dc_') || b.id.startsWith('fab_') || b.id === 'metro_dc' },
         { id: 'pine',     emoji: '🌲', label: 'Pine Reserve',   match: b => b.id === 'forest_0' },
-        { id: 'tech',     emoji: '🏢', label: 'Tech District',  match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' },
+        { id: 'tech',     emoji: '🏢', label: 'Tech District',  match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'metro_dc' },
+        { id: 'midline',  emoji: '🚇', label: 'Central Line',   match: b => b.id === 'metro_mid' },
         { id: 'metro',    emoji: '🚇', label: 'Metro East',     match: b => b.id === 'metro_east' },
         { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
         { id: 'estates',  emoji: '🏡', label: "Billionaire's Row", match: b => b.id.startsWith('house_') }
@@ -975,9 +1098,27 @@ const G = {
       // ─── SPACE ZONE: Inject space buildings before zoning ───
       if (typeof SpaceData !== 'undefined') SpaceData.init();
       
+      // ─── COMPUTE DISTRICT: Check construction completions ───
+      if (typeof DCManager !== 'undefined') DCManager.checkCompletions();
+      
       this.recalculateZoning(); 
       
       this.socialSpots = BLDS.filter(b => ['cafe', 'open_square', 'gym', 'arena', 'forest_0'].includes(b.id));
+      
+      // Add Frontier Pines as a social destination when a launch is within 2 hours
+      if (typeof SpaceData !== 'undefined' && SpaceData.launches && SpaceData.launches.length > 0) {
+          const now = Date.now();
+          const imminentLaunch = SpaceData.launches.find(l => {
+              const diff = new Date(l.net).getTime() - now;
+              return diff > -300000 && diff < 7200000; // within 2 hours or just happened
+          });
+          if (imminentLaunch) {
+              const fp = BLDS.find(b => b.id === 'forest_space');
+              if (fp && !this.socialSpots.includes(fp)) {
+                  this.socialSpots.push(fp);
+              }
+          }
+      }
   
       const vp = document.getElementById('viewport'); 
       this.vpW = window.innerWidth; 
@@ -1282,7 +1423,9 @@ const G = {
         
         const nfoEl = document.getElementById('nfo');
         if (nfoEl) {
-            nfoEl.innerHTML = `<span>🕒 <span class="st">${ts}</span></span><span style="font-size:7px;color:var(--ac)">● LIVE</span><span>👥 <span class="st">${alive}</span></span>${preT > 0 ? `<span>🔬 <span class="st" style="color:var(--pk)">${preT}</span></span>` : ''}<span>👻 <span class="st">${dead}</span></span>${disc > 0 ? `<span>🛰️ <span class="st" style="color:var(--cy)">${disc}</span></span>` : ''}${wI ? `<span>${wI}</span>` : ''}${this.autoScanMin > 0 ? `<span style="font-size:7px;color:var(--cy)">🔄 ${this.autoScanMin}m</span>` : ''}`;
+            const labCount = new Set(this.models.map(m => m.lab)).size;
+            const estateCount = typeof BLDS !== 'undefined' ? BLDS.filter(b => b.id.startsWith('house_')).length : 0;
+            nfoEl.innerHTML = `<span title="Current time of day in Singularity City — ${lbl}">🕒 <span class="st">${ts}</span></span><span style="font-size:7px;color:var(--ac)" title="City is running live — all data updates in real time">● LIVE</span><span title="Active AI model citizens currently in the city">👥 <span class="st">${alive}</span></span><span title="${labCount} AI labs with districts in the city">🏢 <span class="st">${labCount}</span></span><span title="${estateCount} CEO/Founder estates on Billionaire's Row">🏛️ <span class="st">${estateCount}</span></span>${preT > 0 ? `<span title="Models currently in pre-training, training, or rumored phase">🔬 <span class="st" style="color:var(--pk)">${preT}</span></span>` : ''}<span title="${dead} retired or deprecated models (visible as ghosts)">👻 <span class="st">${dead}</span></span>${disc > 0 ? `<span title="${disc} models discovered via network scans by all players globally">🛰️ <span class="st" style="color:var(--cy)">${disc}</span></span>` : ''}${wI ? `<span title="Current weather: ${Environment.weather || 'clear'}">${wI}</span>` : ''}${this.autoScanMin > 0 ? `<span style="font-size:7px;color:var(--cy)" title="Auto-scan interval — scanning for new models every ${this.autoScanMin} minutes">🔄 ${this.autoScanMin}m</span>` : ''}`;
         }
       }
     },

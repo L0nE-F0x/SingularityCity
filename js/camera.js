@@ -98,8 +98,20 @@ const Camera = {
             } else if (G.tracking.type === 'ceo') {
                 const ceo = G.ceoRefs ? G.ceoRefs[G.tracking.lab] : null;
                 if (ceo) {
-                    entityX = ceo.logicalX;
-                    entityY = G.groundY + 20; // CEOs drive at road level
+                    // Check if CEO is in a helicopter — follow the heli instead
+                    if (ceo._inHeli && typeof Entities !== 'undefined' && Entities.heliRefs) {
+                        const heli = Entities.heliRefs[G.tracking.lab];
+                        if (heli && heli.cont && heli.cont.visible) {
+                            entityX = heli.cont.x;
+                            entityY = heli.cont.y;
+                        } else {
+                            entityX = ceo.logicalX;
+                            entityY = G.groundY - 220; // approximate heli altitude
+                        }
+                    } else {
+                        entityX = ceo.logicalX;
+                        entityY = G.groundY + 20; // driving at road level
+                    }
                 }
             }
             

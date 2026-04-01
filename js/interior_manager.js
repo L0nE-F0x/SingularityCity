@@ -15,6 +15,8 @@ const Interior = {
             this.activeModule = InteriorRes;
         } else if (bld.type && ['launchpad', 'mission_control', 'assembly', 'tracking'].includes(bld.type) && typeof SpaceInterior !== 'undefined') {
             this.activeModule = SpaceInterior;
+        } else if ((bld.id.startsWith('dc_') || bld.id.startsWith('fab_')) && typeof InteriorDC !== 'undefined') {
+            this.activeModule = InteriorDC;
         } else {
             this.activeModule = InteriorCity;
         }

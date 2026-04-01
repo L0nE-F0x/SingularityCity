@@ -78,43 +78,102 @@ const EntitiesGfx = {
         cont.visible = false;
         
         const body = new PIXI.Graphics();
-        // Fuselage — sleek oval
-        body.beginFill(colHex); body.drawRoundedRect(-20, -10, 40, 16, 6); body.endFill();
-        // Cockpit glass
-        body.beginFill(0x38bdf8, 0.5); body.drawRoundedRect(14, -8, 10, 10, 3); body.endFill();
-        // Tail boom
-        body.beginFill(colHex, 0.8); body.drawRect(-38, -4, 20, 6); body.endFill();
-        // Tail rotor housing
-        body.beginFill(0x222222); body.drawRect(-42, -10, 6, 16); body.endFill();
-        // Skids (landing gear)
-        body.beginFill(0x64748b);
-        body.drawRect(-14, 6, 4, 6); body.drawRect(10, 6, 4, 6);
-        body.drawRect(-18, 11, 36, 2);
+        
+        // Tail boom — long tapered bar
+        body.beginFill(colHex, 0.7); body.drawRect(-44, -3, 26, 5); body.endFill();
+        // Tail boom stripe
+        body.beginFill(0x000000, 0.15); body.drawRect(-44, -1, 26, 2); body.endFill();
+        // Tail fin (vertical stabilizer)
+        body.beginFill(colHex, 0.9);
+        body.drawPolygon([-44, -3, -50, -14, -42, -3]);
         body.endFill();
+        body.beginFill(0xffffff, 0.15);
+        body.drawPolygon([-44, -3, -48, -10, -44, -5]);
+        body.endFill();
+        // Tail rotor housing
+        body.beginFill(0x1e293b); body.drawRect(-50, -12, 5, 14); body.endFill();
+        // Tail rotor disc
+        body.beginFill(0x94a3b8, 0.4); body.drawEllipse(-48, -5, 2, 8); body.endFill();
+        
+        // Main fuselage — rounded, premium shape
+        body.beginFill(colHex); body.drawRoundedRect(-20, -12, 44, 18, 7); body.endFill();
+        // Fuselage belly highlight
+        body.beginFill(0xffffff, 0.08); body.drawRoundedRect(-18, 0, 40, 5, 3); body.endFill();
+        // Fuselage top shadow
+        body.beginFill(0x000000, 0.12); body.drawRoundedRect(-18, -12, 40, 5, 3); body.endFill();
+        
+        // Engine housing (top bulge behind rotor mast)
+        body.beginFill(colHex, 0.85); body.drawRoundedRect(-8, -16, 20, 6, 3); body.endFill();
+        body.beginFill(0x000000, 0.1); body.drawRect(-6, -16, 16, 2); body.endFill();
+        // Engine exhaust vent
+        body.beginFill(0x334155); body.drawRect(-10, -14, 4, 4); body.endFill();
+        
+        // Rotor mast
+        body.beginFill(0x64748b); body.drawRect(-1, -18, 3, 6); body.endFill();
+        
+        // Cockpit windshield — larger, angled, glassy
+        body.beginFill(0x0f172a, 0.8); body.drawRoundedRect(14, -10, 14, 14, 4); body.endFill();
+        body.beginFill(0x38bdf8, 0.35); body.drawRoundedRect(15, -9, 12, 12, 3); body.endFill();
+        // Windshield frame divider
+        body.beginFill(colHex, 0.6); body.drawRect(20, -9, 1, 12); body.endFill();
+        // Windshield reflection
+        body.beginFill(0xffffff, 0.12);
+        body.drawPolygon([16, -8, 22, -8, 16, -2]);
+        body.endFill();
+        
+        // Door line
+        body.beginFill(0x000000, 0.15); body.drawRect(2, -10, 1, 14); body.endFill();
+        
+        // Skids (landing gear) — more detailed
+        body.beginFill(0x475569);
+        body.drawRect(-14, 6, 3, 7); body.drawRect(12, 6, 3, 7); // Struts
+        body.endFill();
+        body.beginFill(0x64748b);
+        body.drawRoundedRect(-20, 12, 40, 2, 1); // Cross bar
+        body.endFill();
+        
+        // Navigation lights
+        body.beginFill(0xef4444); body.drawCircle(-44, -1, 2); body.endFill(); // Tail red
+        body.beginFill(0x4ade80); body.drawCircle(26, -2, 2); body.endFill(); // Nose green
+        // Anti-collision beacon on top
+        body.beginFill(0xffffff, 0.6); body.drawCircle(2, -16, 1.5); body.endFill();
+        
+        // Lab color accent stripe along fuselage
+        body.beginFill(0xffffff, 0.2); body.drawRect(-18, -4, 42, 2); body.endFill();
+        
         cont.addChild(body);
         
-        // Main rotor — spins when flying
+        // CEO/Founder face in cockpit
+        const face = new PIXI.Graphics();
+        face.beginFill(0xfdd8b5); face.drawCircle(0, 0, 3.5); face.endFill(); // Head
+        face.beginFill(0x2c1810); face.drawCircle(-1.2, -0.5, 0.7); face.drawCircle(1.2, -0.5, 0.7); face.endFill(); // Eyes
+        face.beginFill(0x2c1810, 0.4); face.drawRect(-2.5, -3.5, 5, 2); face.endFill(); // Hair
+        face.x = 21; face.y = -3;
+        cont.addChild(face);
+        
+        // Main rotor — 4 blades
         const rotor = new PIXI.Graphics();
-        rotor.beginFill(0x94a3b8, 0.7); rotor.drawRect(-28, -1, 56, 2); rotor.endFill();
-        rotor.beginFill(0x94a3b8, 0.5); rotor.drawRect(-1, -28, 2, 56); rotor.endFill();
-        rotor.y = -12;
+        rotor.beginFill(0x94a3b8, 0.7); rotor.drawRect(-30, -1.5, 60, 3); rotor.endFill();
+        rotor.beginFill(0x94a3b8, 0.5); rotor.drawRect(-1.5, -30, 3, 60); rotor.endFill();
+        // Blade tips
+        rotor.beginFill(0xef4444, 0.6);
+        rotor.drawRect(-30, -1.5, 4, 3); rotor.drawRect(26, -1.5, 4, 3);
+        rotor.drawRect(-1.5, -30, 3, 4); rotor.drawRect(-1.5, 26, 3, 4);
+        rotor.endFill();
+        rotor.y = -18;
         cont.addChild(rotor);
         
         // Rotor disc blur (visible when spinning fast)
         const rotorBlur = new PIXI.Graphics();
-        rotorBlur.beginFill(0x94a3b8, 0.08); rotorBlur.drawCircle(0, -12, 30); rotorBlur.endFill();
+        rotorBlur.beginFill(0x94a3b8, 0.06); rotorBlur.drawCircle(0, -18, 32); rotorBlur.endFill();
         rotorBlur.blendMode = PIXI.BLEND_MODES.ADD;
         cont.addChild(rotorBlur);
         
-        // Navigation lights
-        body.beginFill(0xef4444); body.drawCircle(-38, -2, 2); body.endFill();
-        body.beginFill(0x4ade80); body.drawCircle(22, -2, 2); body.endFill();
-        
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
-        cont.hitArea = new PIXI.Rectangle(-45, -35, 70, 50);
+        cont.hitArea = new PIXI.Rectangle(-52, -35, 82, 52);
         cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.showFounder(f); });
-        cont.on('pointerover', e => { if (typeof UI !== 'undefined') UI.showTooltip(e, `${f.name}'s Helicopter`, 'Weekend retreat flight'); });
+        cont.on('pointerover', e => { if (typeof UI !== 'undefined') UI.showTooltip(e, `${f.name}'s Helicopter`, 'CEO scenic flyover'); });
         cont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
         
         carLayer.addChild(cont);
@@ -125,7 +184,7 @@ const EntitiesGfx = {
             body: body,
             rotor: rotor,
             rotorBlur: rotorBlur,
-            state: 'hidden',  // hidden | flying_to | landing | grounded | takeoff | flying_home
+            state: 'hidden',
             logicalX: 0,
             logicalY: 0,
             targetX: 0,
@@ -143,14 +202,18 @@ const EntitiesGfx = {
         let resStation = G.bldById ? G.bldById['metro_res'] : null;
         let hqStation = G.bldById ? G.bldById['metro_hq'] : null;
         let eastStation = G.bldById ? G.bldById['metro_east'] : null;
+        let dcStation = G.bldById ? G.bldById['metro_dc'] : null;
+        let midStation = G.bldById ? G.bldById['metro_mid'] : null;
 
         let mResX = resStation ? resStation.x + resStation.w / 2 : 1350;
         let mHqX = hqStation ? hqStation.x + hqStation.w / 2 : 4700;
-        let mEastX = eastStation ? eastStation.x + eastStation.w / 2 : 7000; 
+        let mEastX = eastStation ? eastStation.x + eastStation.w / 2 : 7000;
+        let mDcX = dcStation ? dcStation.x + dcStation.w / 2 : null;
+        let mMidX = midStation ? midStation.x + midStation.w / 2 : null; 
 
         // 1. Draw Massive Tunnel (oversized to survive any city expansion)
         const gfx = new PIXI.Graphics();
-        const tunnelW = 30000;
+        const tunnelW = 50000;
         gfx.beginFill(0x050508);
         gfx.drawRect(-2000, tunnelY - 50, tunnelW, 100);
         gfx.endFill();
@@ -164,7 +227,7 @@ const EntitiesGfx = {
         gfx.drawRect(-2000, tunnelY + 42, tunnelW, 3);
         gfx.endFill();
         
-        for (let x = -1000; x < 28000; x += 150) {
+        for (let x = -1000; x < 48000; x += 150) {
             gfx.beginFill(0x111115);
             gfx.drawRect(x, tunnelY - 50, 20, 100);
             gfx.endFill();
@@ -176,10 +239,17 @@ const EntitiesGfx = {
 
         // 2. Dynamic Station Visuals
         const stationVisuals = [];
-        const labels = ["RESIDENTIAL SECTOR", "TECH DISTRICT", "EASTERN HUB"];
-        const cols = [0x38bdf8, 0xfacc15, 0xa855f7];
+        const stationDefs = [
+            { x: mResX, label: "RESIDENTIAL SECTOR", col: 0x38bdf8, bldId: 'metro_res' },
+            { x: mHqX, label: "TECH DISTRICT", col: 0xfacc15, bldId: 'metro_hq' },
+            { x: mEastX, label: "EASTERN HUB", col: 0xa855f7, bldId: 'metro_east' }
+        ];
+        if (mDcX) stationDefs.splice(0, 0, { x: mDcX, label: "COMPUTE DISTRICT", col: 0x06b6d4, bldId: 'metro_dc' });
+        if (mMidX) stationDefs.splice(stationDefs.findIndex(s => s.label === "EASTERN HUB"), 0, { x: mMidX, label: "CENTRAL LINE", col: 0xf97316, bldId: 'metro_mid' });
         
-        [mResX, mHqX, mEastX].forEach((sx, idx) => {
+        stationDefs.forEach((sd, idx) => {
+            const sx = sd.x;
+            const col = sd.col;
             const pWidth = 360;
             const pLeft = -pWidth / 2;
 
@@ -218,7 +288,7 @@ const EntitiesGfx = {
             pGfx.endFill();
             statCont.addChild(pGfx);
 
-            const signCol = cols[idx];
+            const signCol = col;
             const signX = -90;
 
             const signBg = new PIXI.Graphics();
@@ -228,7 +298,7 @@ const EntitiesGfx = {
             signBg.endFill();
             statCont.addChild(signBg);
 
-            const neonSign = new PIXI.Text(labels[idx], { 
+            const neonSign = new PIXI.Text(sd.label, { 
                 fontFamily: 'Silkscreen', fontSize: 8, fill: signCol, 
                 dropShadow: true, dropShadowColor: signCol, dropShadowBlur: 5, dropShadowDistance: 0 
             });
@@ -255,7 +325,7 @@ const EntitiesGfx = {
             glassFront.x = sx;
             carLayer.addChild(glassFront);
 
-            stationVisuals.push({ statCont, backCutout, glassFront });
+            stationVisuals.push({ statCont, backCutout, glassFront, _bldId: sd.bldId });
         });
 
         const bunkerGfx = new PIXI.Graphics();
@@ -267,6 +337,7 @@ const EntitiesGfx = {
         return {
             trainWest: this.createTrainObj(trainLayer, carLayer, mResX, mHqX, 180, tunnelY),
             trainEast: this.createTrainObj(trainLayer, carLayer, mHqX, mEastX, 90, tunnelY),
+            trainDC: mDcX ? this.createTrainObj(trainLayer, carLayer, mDcX, mResX, 120, tunnelY) : null,
             stationVisuals: stationVisuals,
             bunkerGfx: bunkerGfx,
             bunkerTxts: bunkerTxts

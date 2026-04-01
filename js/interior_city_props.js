@@ -1076,6 +1076,118 @@ const InteriorCityProps = {
         g.drawPolygon([x, y - 42, x - 8, y - 32, x + 8, y - 32]);
         g.endFill();
         c.addChild(g);
+    },
+
+    // ─── NEW SOCIAL BUILDING PROPS ───
+
+    drawCoffeeMachine(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        g.beginFill(0x1e293b); g.drawRect(x-12, y-30, 24, 30); g.endFill();
+        g.beginFill(0x334155); g.drawRect(x-14, y-32, 28, 4); g.endFill();
+        // Steam vent
+        g.beginFill(0x94a3b8, 0.3); g.drawRect(x-2, y-38, 4, 6); g.endFill();
+        // Buttons
+        g.beginFill(0x4ade80); g.drawCircle(x-5, y-20, 2); g.endFill();
+        g.beginFill(0xef4444); g.drawCircle(x+5, y-20, 2); g.endFill();
+        // Cup slot
+        g.beginFill(0x0f172a); g.drawRect(x-6, y-12, 12, 10); g.endFill();
+        // Cup
+        g.beginFill(0xf8fafc); g.drawRect(x-4, y-10, 8, 8); g.endFill();
+        g.beginFill(0x78350f); g.drawRect(x-3, y-9, 6, 5); g.endFill();
+        c.addChild(g);
+    },
+
+    drawMenuBoard(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Board
+        g.beginFill(0x1c1917); g.drawRect(x-25, y-45, 50, 35); g.endFill();
+        g.beginFill(0x78350f); g.lineStyle(2, 0x78350f); g.drawRect(x-27, y-47, 54, 39); g.endFill(); g.lineStyle(0);
+        // Menu lines (chalk style)
+        g.beginFill(0xf8fafc, 0.7);
+        g.drawRect(x-18, y-40, 30, 2);
+        g.drawRect(x-18, y-34, 22, 1.5);
+        g.drawRect(x-18, y-29, 26, 1.5);
+        g.drawRect(x-18, y-24, 18, 1.5);
+        g.drawRect(x-18, y-19, 24, 1.5);
+        g.endFill();
+        // Price column
+        g.beginFill(0xfbbf24, 0.6);
+        g.drawRect(x+10, y-34, 10, 1.5);
+        g.drawRect(x+10, y-29, 10, 1.5);
+        g.drawRect(x+10, y-24, 10, 1.5);
+        g.endFill();
+        c.addChild(g);
+    },
+
+    drawScoreboard(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Screen frame
+        g.beginFill(0x0f172a); g.drawRect(x-40, y-40, 80, 30); g.endFill();
+        g.beginFill(0x1e293b); g.drawRect(x-38, y-38, 76, 26); g.endFill();
+        // Score bars
+        g.beginFill(0xef4444, 0.6); g.drawRect(x-34, y-34, 30, 8); g.endFill();
+        g.beginFill(0x38bdf8, 0.6); g.drawRect(x-34, y-22, 22, 8); g.endFill();
+        // VS text area
+        g.beginFill(0xfbbf24, 0.8); g.drawRect(x+5, y-30, 12, 12); g.endFill();
+        // Mount
+        g.beginFill(0x334155); g.drawRect(x-2, y-10, 4, 10); g.endFill();
+        // Glow
+        const glow = new PIXI.Graphics(); glow.eventMode = 'none';
+        glow.beginFill(0xef4444, 0.04); glow.drawRect(x-50, y-45, 100, 40); glow.endFill();
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.08, type: 'screen' });
+    },
+
+    drawVendingMachine(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        g.beginFill(0x1e293b); g.drawRect(x-14, y-40, 28, 40); g.endFill();
+        g.beginFill(0x334155); g.drawRect(x-12, y-38, 24, 28); g.endFill();
+        // Product display
+        for (var vy=y-35; vy<y-12; vy+=8) {
+            for (var vx2=x-9; vx2<x+9; vx2+=7) {
+                g.beginFill(Math.random() > 0.5 ? 0x22d3ee : 0x4ade80, 0.6);
+                g.drawRect(vx2, vy, 5, 5); g.endFill();
+            }
+        }
+        // Coin slot
+        g.beginFill(0x0f172a); g.drawRect(x-4, y-8, 8, 4); g.endFill();
+        // Brand light
+        g.beginFill(0x38bdf8, 0.3); g.drawRect(x-10, y-38, 20, 3); g.endFill();
+        c.addChild(g);
+    },
+
+    drawMirrorWall(c, x, y, w) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        const mw = w || 80;
+        g.beginFill(0x94a3b8, 0.15); g.drawRect(x - mw/2, y-50, mw, 46); g.endFill();
+        g.lineStyle(1, 0xffffff, 0.2); g.drawRect(x - mw/2, y-50, mw, 46); g.lineStyle(0);
+        // Reflection streaks
+        g.beginFill(0xffffff, 0.08);
+        g.drawRect(x - mw/2 + 5, y-48, 3, 42);
+        g.drawRect(x - mw/2 + 15, y-46, 2, 38);
+        g.drawRect(x + mw/4, y-48, 3, 42);
+        g.endFill();
+        c.addChild(g);
+    },
+
+    drawSpotlight(c, x, y, col) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Fixture
+        g.beginFill(0x1e293b); g.drawRect(x-6, y-55, 12, 6); g.endFill();
+        // Beam
+        g.beginFill(col || 0xfbbf24, 0.06);
+        g.drawPolygon([x-4, y-49, x+4, y-49, x+30, y, x-30, y]);
+        g.endFill();
+        c.addChild(g);
+    },
+
+    drawBarStool(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        g.beginFill(0x334155); g.drawRect(x-1.5, y-18, 3, 18); g.endFill();
+        g.beginFill(0x475569); g.drawRect(x-5, y, 10, 2); g.endFill();
+        g.beginFill(0x78350f); g.drawEllipse(x, y-18, 7, 3); g.endFill();
+        c.addChild(g);
     }
 };
 

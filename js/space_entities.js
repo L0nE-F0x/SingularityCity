@@ -117,21 +117,27 @@ const SpaceEntities = {
         Object.values(this.rockets).forEach(r => {
             if (r.state !== 'idle') return; // don't reassign mid-sequence
             
-            // Find the next upcoming launch for this org
+            // Find the next upcoming launch for this org (or one that just happened within 5 min)
             const orgKey = r.org;
             const match = SpaceData.launches.find(l => {
                 const provider = SpaceData.getOrgForProvider(l.provider);
-                return provider === orgKey && new Date(l.net) > now;
+                const diff = new Date(l.net) - now;
+                return provider === orgKey && diff > -300000; // within 5 minutes past or any future
             });
             
             if (match) {
                 r.launchData = match;
                 const diff = new Date(match.net) - now;
                 
-                // If launch is within 2 minutes, start countdown sequence
-                if (diff < 120000 && diff > 0) {
+                // Launch just passed (within 5 min) — trigger immediately
+                if (diff <= 0 && diff > -300000 && !r._launchTriggered) {
+                    r._launchTriggered = match.id;
+                    this.triggerLaunch(r.padId);
+                }
+                // Launch within 2 minutes — start countdown
+                else if (diff < 120000 && diff > 0) {
                     r.state = 'countdown';
-                    r.timer = Math.floor(diff / 1000);
+                    r.timer = Math.floor(diff / 1000) * 60; // convert seconds to frames (60fps)
                 }
             }
         });
@@ -275,12 +281,13 @@ const SpaceEntities = {
                     
                 case 'countdown':
                     r.timer--;
-                    r.countdownTxt.text = `T-${r.timer}s`;
-                    r.countdownTxt.style.fill = r.timer < 10 ? 0xef4444 : 0xfbbf24;
+                    const secs = Math.ceil(r.timer / 60);
+                    r.countdownTxt.text = `T-${secs}s`;
+                    r.countdownTxt.style.fill = secs < 10 ? 0xef4444 : 0xfbbf24;
                     
                     // Pad shaking increases as countdown nears zero
-                    if (r.timer < 30) {
-                        r.cont.x = r.baseX + (Math.random() - 0.5) * (30 - r.timer) * 0.05;
+                    if (secs < 30) {
+                        r.cont.x = r.baseX + (Math.random() - 0.5) * (30 - secs) * 0.05;
                     }
                     
                     if (r.timer <= 0) {

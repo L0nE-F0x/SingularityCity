@@ -44,7 +44,7 @@ const SpaceInterior = {
         const colHex = org ? parseInt(org.color.slice(1), 16) : 0x0ea5e9;
         
         const floorH = 80;
-        const numFloors = bld.type === 'assembly' ? 4 : bld.type === 'mission_control' ? 3 : 2;
+        const numFloors = bld.type === 'assembly' ? 4 : bld.type === 'mission_control' ? 3 : bld.type === 'launchpad' ? 2 : 2;
         const roofH = 80;
         const totalH = roofH + (numFloors + 1) * floorH;
         this.totalH = totalH;
@@ -103,56 +103,70 @@ const SpaceInterior = {
             
             if (bld.type === 'mission_control') {
                 if (f === numFloors - 1) {
-                    // Top floor: Big screen + operator consoles
                     this.drawBigScreen(floorCont, startX + bldW / 2, fy + 8, bldW - 100, floorH - 20, colHex);
+                    this.drawNPC(floorCont, startX + 120, propY, 'Flight Director', colHex);
+                    this.drawNPC(floorCont, startX + bldW - 120, propY, 'CAPCOM', colHex);
                 } else if (f === 0) {
-                    // Ground: Reception + comms equipment
                     this.drawCommRack(floorCont, startX + 60, propY, colHex);
                     this.drawCommRack(floorCont, startX + 160, propY, colHex);
                     this.drawServerCabinet(floorCont, startX + 280, propY, colHex);
                     this.drawCoffeeMachine(floorCont, startX + bldW - 100, propY);
+                    this.drawNPC(floorCont, startX + 350, propY, 'Network Ops', colHex);
+                    this.drawNPC(floorCont, startX + bldW - 60, propY, 'Intern', 0x94a3b8);
                 } else {
-                    // Middle floors: Operator workstations
                     let currX = startX + 60;
+                    let npcCount = 0;
                     while (currX < startX + bldW - 120) {
                         this.drawOperatorDesk(floorCont, currX, propY, colHex);
-                        currX += 120;
+                        if (npcCount < 3) this.drawNPC(floorCont, currX + 50, propY, ['GNC', 'Telemetry', 'Propulsion'][npcCount], colHex);
+                        currX += 120; npcCount++;
                     }
                 }
             } else if (bld.type === 'assembly') {
                 if (f === numFloors - 1) {
-                    // Top floor: Crane + overhead
                     this.drawOverheadCrane(floorCont, startX + bldW / 2, fy + 10, bldW - 60);
+                    this.drawNPC(floorCont, startX + 100, propY, 'Crane Op', 0xfacc15);
                 } else if (f === 0) {
-                    // Ground: Vehicle bay
                     this.drawRocketBay(floorCont, startX + bldW / 2, propY, colHex);
+                    this.drawNPC(floorCont, startX + bldW / 2 + 100, propY, 'Chief Engineer', colHex);
+                    this.drawNPC(floorCont, startX + bldW / 2 - 100, propY, 'Technician', 0x94a3b8);
                 } else {
-                    // Middle: Clean room / payload integration
                     this.drawCleanRoom(floorCont, startX + 80, fy, bldW - 160, floorH);
                     let currX = startX + 100;
                     while (currX < startX + bldW - 160) {
                         this.drawPayloadRack(floorCont, currX, propY, colHex);
                         currX += 100;
                     }
+                    this.drawNPC(floorCont, startX + bldW / 2, propY, 'Payload Spec', 0xf1f5f9);
                 }
             } else if (bld.type === 'tracking') {
                 if (f === numFloors - 1) {
-                    // Top: Orbital display
                     this.drawOrbitalDisplay(floorCont, startX + bldW / 2, fy + 8, bldW - 80, floorH - 16);
+                    this.drawNPC(floorCont, startX + bldW / 2 - 60, propY, 'Analyst', colHex);
                 } else {
-                    // Satellite tracking consoles
                     let currX = startX + 60;
+                    let npcIdx = 0;
                     while (currX < startX + bldW - 120) {
                         this.drawTrackingConsole(floorCont, currX, propY, colHex);
-                        currX += 140;
+                        if (npcIdx < 2) this.drawNPC(floorCont, currX + 50, propY, ['Signal Proc', 'Orbit Calc'][npcIdx], colHex);
+                        currX += 140; npcIdx++;
                     }
                 }
             } else if (bld.type === 'launchpad') {
-                // Launch pad control room
                 if (f === 0) {
+                    // Ground floor: launch consoles + countdown + fire suppression
                     this.drawLaunchConsole(floorCont, startX + 80, propY, colHex);
                     this.drawLaunchConsole(floorCont, startX + 240, propY, colHex);
+                    this.drawLaunchConsole(floorCont, startX + 400, propY, colHex);
                     this.drawCountdownClock(floorCont, startX + bldW / 2, fy + 10, bld);
+                    this.drawNPC(floorCont, startX + 160, propY, 'Launch Dir', 0xef4444);
+                    this.drawNPC(floorCont, startX + 320, propY, 'Range Safety', 0xfacc15);
+                } else {
+                    // Upper floor: observation + comms
+                    this.drawCommRack(floorCont, startX + 60, propY, colHex);
+                    this.drawServerCabinet(floorCont, startX + 180, propY, colHex);
+                    this.drawCoffeeMachine(floorCont, startX + bldW - 80, propY);
+                    this.drawNPC(floorCont, startX + 300, propY, 'Weather', 0x38bdf8);
                 }
             }
             
@@ -473,21 +487,32 @@ const SpaceInterior = {
     
     drawCountdownClock(c, cx, y, bld) {
         const g = new PIXI.Graphics(); g.eventMode = 'none';
-        // Clock bezel
         g.beginFill(0x0a0a12); g.drawRect(cx - 50, y, 100, 30); g.endFill();
         g.beginFill(0x111120); g.drawRect(cx - 48, y + 2, 96, 26); g.endFill();
-        // Red border
         g.lineStyle(1, 0xef4444, 0.5); g.drawRect(cx - 50, y, 100, 30); g.lineStyle(0);
-        
-        // Countdown text
         const txt = new PIXI.Text('T-00:00:00', {
             fontFamily: '"JetBrains Mono", monospace', fontSize: 14, fill: 0xef4444, fontWeight: 'bold'
         });
         txt.anchor.set(0.5, 0.5);
         txt.x = cx; txt.y = y + 15;
         c.addChild(g, txt);
-        
-        // Store reference for live updates
         bld._countdownClock = txt;
+    },
+    
+    drawNPC(c, x, y, role, col) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Body
+        g.beginFill(col || 0x64748b); g.drawRoundedRect(x-5, y-18, 10, 12, 2); g.endFill();
+        // Head
+        g.beginFill(0xfdd8b5); g.drawRoundedRect(x-4, y-26, 8, 8, 3); g.endFill();
+        // Eyes
+        g.beginFill(0x2c1810); g.drawCircle(x-1.5, y-23, 0.8); g.drawCircle(x+1.5, y-23, 0.8); g.endFill();
+        // Legs
+        g.beginFill(0x1e293b); g.drawRect(x-4, y-6, 3, 6); g.drawRect(x+1, y-6, 3, 6); g.endFill();
+        c.addChild(g);
+        // Role label
+        const txt = new PIXI.Text(role, { fontFamily: 'JetBrains Mono', fontSize: 6, fill: col || 0x94a3b8 });
+        txt.anchor.set(0.5, 1); txt.x = x; txt.y = y - 28;
+        c.addChild(txt);
     }
 };
