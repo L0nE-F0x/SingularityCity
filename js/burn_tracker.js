@@ -122,6 +122,7 @@ const BurnTracker = {
         const deltaSec = (currentTime - this.lastTime) / 1000;
         this.lastTime = currentTime;
 
+        if (this.capexPerSec === 0) this.calculateCapex();
         this.calculateDynamicOpex();
 
         const totalBurnRate = this.capexPerSec + this.opexPerSec;
