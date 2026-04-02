@@ -887,7 +887,7 @@ const UI = {
           });
       }
       
-      h += `<div style="margin-top:10px;text-align:center"><button class="btn" style="width:100%" onclick="if(typeof SpaceData!=='undefined')SpaceData.fetchLaunches();setTimeout(()=>UI.showLaunches(),2000)">🔄 Refresh Launch Data</button></div>`;
+      h += `<div style="margin-top:10px;text-align:center"><button class="btn" style="width:100%" onclick="if(typeof SpaceData!=='undefined')SpaceData.fetchLaunches(true);setTimeout(()=>UI.showLaunches(),2000)">🔄 Refresh Launch Data</button></div>`;
       
       pan.innerHTML = h;
     },

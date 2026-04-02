@@ -59,12 +59,27 @@ const SpaceData = {
         console.log('🚀 Space Zone initialized with', SPACE_BLDS.length, 'facilities');
     },
     
-    async fetchLaunches() {
+    async fetchLaunches(force) {
+        // Cache in localStorage to avoid 429 rate limits (15-min TTL)
+        const CACHE_KEY = 'sc_launches', TTL = 15 * 60 * 1000;
+        if (!force) {
+            try {
+                const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+                if (cached && Date.now() - cached.ts < TTL) {
+                    this.launches = cached.data;
+                    console.log(`🛰️ Using cached ${this.launches.length} launches (${Math.round((TTL - (Date.now() - cached.ts)) / 60000)}min left)`);
+                    return;
+                }
+            } catch(_) {}
+        }
         try {
-            const r = await fetch('https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=10&mode=list', { 
-                signal: AbortSignal.timeout(10000) 
+            const r = await fetch('https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=10&mode=list', {
+                signal: AbortSignal.timeout(10000)
             });
-            if (!r.ok) return;
+            if (!r.ok) {
+                if (r.status === 429) { console.warn('[Space API] Rate limited (429). Using cached data if available.'); return; }
+                return;
+            }
             const d = await r.json();
             if (d.results) {
                 this.launches = d.results.map(l => ({
@@ -78,8 +93,9 @@ const SpaceData = {
                     mission: l.mission?.name || null,
                     image: l.image || null
                 }));
+                try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: this.launches })); } catch(_) {}
                 console.log(`🛰️ Loaded ${this.launches.length} upcoming launches`);
-                
+
                 if (typeof UI !== 'undefined') {
                     UI.addToast(`🚀 ${this.launches.length} upcoming launches tracked`);
                 }
