@@ -720,8 +720,10 @@ const API = {
                 const labsMissingFounder = allLabsWithModels.filter(l => l !== 'other' && !founderLabs.has(l));
                 const founderGap = labsMissingFounder.join(', ');
 
-                // Send ALL existing model names for proper deduplication
-                const allModelNames = G.models.map(m => m.name).join(', ');
+                // Send existing model names for deduplication (compact: id-based for large lists)
+                const allModelNames = G.models.length > 400
+                    ? G.models.map(m => m.id).join(',')
+                    : G.models.map(m => m.name).join(', ');
                 const existingLabs = Object.keys(LABS).join(', ');
                 
                 const prompt = `This is an analytical data request. Find exactly 4 REAL, existing AI models. Focus: ${focusCategory}.
@@ -784,7 +786,7 @@ JSON (no markdown):
                 }
           
                 console.log(`📡 [SCAN] Provider: ${G.apiProvider}, Model: ${G.modelId || 'default'}, Prompt chars: ${prompt.length}, Models in dedup list: ${G.models.length}`);
-                const res = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl), signal: AbortSignal.timeout(45000) });
+                const res = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl), signal: AbortSignal.timeout(120000) });
                 if (!res.ok) {
                     const errText = await res.text();
                     console.error(`⛔ [SCAN] HTTP ${res.status} from ${G.apiProvider}`, errText);
