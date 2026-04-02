@@ -36,9 +36,9 @@ const NPCHousing = {
     ],
 
     buildings: [
-        { id: 'npc_apt_1', name: 'Worker Block A',  w: 120, fl: 4, emoji: '🏬', desc: 'Affordable housing for city facility workers.' },
-        { id: 'npc_apt_2', name: 'Worker Block B',  w: 100, fl: 3, emoji: '🏬', desc: 'Compact apartments for night-shift staff.' },
-        { id: 'npc_apt_3', name: 'Worker Block C',  w: 110, fl: 3, emoji: '🏬', desc: 'Staff quarters for space and tech workers.' }
+        { id: 'npc_apt_1', name: 'Worker Block A',  w: 200, fl: 5, emoji: '🏬', desc: 'Affordable housing for city facility workers.' },
+        { id: 'npc_apt_2', name: 'Worker Block B',  w: 180, fl: 4, emoji: '🏬', desc: 'Compact apartments for night-shift staff.' },
+        { id: 'npc_apt_3', name: 'Worker Block C',  w: 180, fl: 4, emoji: '🏬', desc: 'Staff quarters for space and tech workers.' }
     ],
 
     commuters: [],
@@ -116,7 +116,7 @@ const NPCHousing = {
             this.commuters.push({
                 npc, ...av, homeX,
                 state: initState, targetX: shouldWork ? workX : homeX,
-                speed: 1.2 + Math.random() * 0.5,
+                speed: 1.8 + Math.random() * 0.7,
                 bld: shouldWork ? workBldId : homeBldId,
                 workBldId, homeBldId
             });
@@ -156,34 +156,126 @@ const NPCHousing = {
         return hq ? hq.id : null;
     },
 
+    _animateWalk(cm, ci) {
+        cm.c.scale.x = cm._faceDir || 1;
+        if (cm.legL) cm.legL.y = Math.sin(G.tick * 0.2 + ci) * 3;
+        if (cm.legR) cm.legR.y = -Math.sin(G.tick * 0.2 + ci) * 3;
+        if (cm.head) cm.head.y = -32 + Math.sin(G.tick * 0.15 + ci) * 1.5;
+        if (cm.body) cm.body.y = -32 + 12 + Math.abs(Math.sin(G.tick * 0.15 + ci)) * 1.5;
+    },
+
+    _getMetroStations() {
+        const sx = (id) => { const b = G.bldById[id]; return b ? b.x + b.w / 2 : null; };
+        return [sx('metro_dc'), sx('metro_res'), sx('metro_hq'), sx('metro_mid'), sx('metro_east')].filter(x => x !== null);
+    },
+
+    _nearestStation(x, stations) {
+        if (!stations.length) return null;
+        return stations.reduce((best, sx) => Math.abs(sx - x) < Math.abs(best - x) ? sx : best);
+    },
+
     update(dp) {
         if (!this.commuters.length) return;
+        const stations = this._getMetroStations();
+
         this.commuters.forEach((cm, ci) => {
             const isNight = cm.npc.shift === 'night';
             const wantWork = isNight ? (dp > 0.83 || dp < 0.25) : (dp > 0.33 && dp < 0.75);
-            const workX = this._getWorkX(cm.npc);
 
-            if (wantWork && cm.state === 'home') { cm.state = 'commuting_to_work'; cm.targetX = workX; cm.c.visible = true; cm.bld = null; }
-            else if (!wantWork && cm.state === 'working') { cm.state = 'commuting_home'; cm.targetX = cm.homeX; cm.c.visible = true; cm.bld = null; }
-
-            if (cm.state === 'commuting_to_work' || cm.state === 'commuting_home') {
-                const dx = cm.targetX - cm.c.x;
-                if (Math.abs(dx) < 3) {
-                    cm.state = cm.state === 'commuting_to_work' ? 'working' : 'home';
-                    cm.bld = cm.state === 'working' ? cm.workBldId : cm.homeBldId;
-                    cm.c.visible = cm.state === 'home';
+            // ─── STATE TRANSITIONS ───
+            if (wantWork && cm.state === 'home') {
+                const workX = this._getWorkX(cm.npc);
+                cm.c.x = cm.homeX;
+                cm.c.visible = true;
+                cm.bld = null;
+                const dist = Math.abs(workX - cm.homeX);
+                if (dist > 400 && stations.length >= 2) {
+                    cm._metroEntryX = this._nearestStation(cm.homeX, stations);
+                    cm._metroExitX = this._nearestStation(workX, stations);
+                    cm._finalX = workX;
+                    cm._goingToWork = true;
+                    cm.state = 'walk_to_metro';
                 } else {
-                    cm.c.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
-                    if (cm.legL) cm.legL.y = Math.sin(G.tick * 0.2 + ci) * 3;
-                    if (cm.legR) cm.legR.y = -Math.sin(G.tick * 0.2 + ci) * 3;
-                    if (cm.head) cm.head.y = -32 + Math.sin(G.tick * 0.15 + ci) * 1.5;
-                    if (cm.body) cm.body.y = -32 + 12 + Math.abs(Math.sin(G.tick * 0.15 + ci)) * 1.5;
+                    cm.targetX = workX;
+                    cm.state = 'walking';
+                    cm._goingToWork = true;
                 }
-            } else if (cm.state === 'working') {
-                cm.c.visible = false;
-            } else {
-                // At home — inside the apartment (not visible on street)
-                cm.c.visible = false;
+            } else if (!wantWork && cm.state === 'working') {
+                const workX = this._getWorkX(cm.npc);
+                cm.c.x = workX;
+                cm.c.visible = true;
+                cm.bld = null;
+                const dist = Math.abs(workX - cm.homeX);
+                if (dist > 400 && stations.length >= 2) {
+                    cm._metroEntryX = this._nearestStation(workX, stations);
+                    cm._metroExitX = this._nearestStation(cm.homeX, stations);
+                    cm._finalX = cm.homeX;
+                    cm._goingToWork = false;
+                    cm.state = 'walk_to_metro';
+                } else {
+                    cm.targetX = cm.homeX;
+                    cm.state = 'walking';
+                    cm._goingToWork = false;
+                }
+            }
+
+            // ─── STATE MACHINE ───
+            switch (cm.state) {
+                case 'walk_to_metro': {
+                    const dx = cm._metroEntryX - cm.c.x;
+                    if (Math.abs(dx) < 3) {
+                        cm.state = 'riding_metro';
+                        cm.c.visible = false;
+                        cm._metroTimer = 100 + Math.floor(Math.random() * 80); // ~2-3s underground
+                    } else {
+                        cm._faceDir = Math.sign(dx);
+                        cm.c.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
+                        this._animateWalk(cm, ci);
+                    }
+                    break;
+                }
+                case 'riding_metro': {
+                    cm._metroTimer--;
+                    if (cm._metroTimer <= 0) {
+                        cm.c.x = cm._metroExitX;
+                        cm.c.visible = true;
+                        cm.targetX = cm._finalX;
+                        cm.state = 'walk_from_metro';
+                    }
+                    break;
+                }
+                case 'walk_from_metro': {
+                    const dx = cm.targetX - cm.c.x;
+                    if (Math.abs(dx) < 3) {
+                        cm.state = cm._goingToWork ? 'working' : 'home';
+                        cm.bld = cm._goingToWork ? cm.workBldId : cm.homeBldId;
+                        cm.c.visible = false;
+                    } else {
+                        cm._faceDir = Math.sign(dx);
+                        cm.c.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
+                        this._animateWalk(cm, ci);
+                    }
+                    break;
+                }
+                case 'walking': {
+                    const dx = cm.targetX - cm.c.x;
+                    if (Math.abs(dx) < 3) {
+                        cm.state = cm._goingToWork ? 'working' : 'home';
+                        cm.bld = cm._goingToWork ? cm.workBldId : cm.homeBldId;
+                        cm.c.visible = false;
+                    } else {
+                        cm._faceDir = Math.sign(dx);
+                        cm.c.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
+                        this._animateWalk(cm, ci);
+                    }
+                    break;
+                }
+                case 'working':
+                    cm.c.visible = false;
+                    break;
+                default: // home
+                    cm.c.visible = false;
+                    break;
             }
         });
     }

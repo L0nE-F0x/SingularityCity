@@ -281,27 +281,47 @@ const InteriorNPC = {
                 // Check if sleeping (late night for day shift, midday for night shift)
                 const isSleeping = isNightShift ? (dp > 0.42 && dp < 0.75) : (dp > 0.88 || dp < 0.25);
                 if (isSleeping) {
-                    // Sleeping figure lying on bed — head, body under blanket, pillow
-                    const sleeper = new PIXI.Graphics(); sleeper.eventMode = 'none';
-                    // Pillow
-                    sleeper.beginFill(0xffffff, 0.35); sleeper.drawRoundedRect(ux + 10, pY - 17, 14, 6, 2); sleeper.endFill();
-                    // Head on pillow (skin tone circle)
-                    sleeper.beginFill(0xfdd8b5); sleeper.drawCircle(ux + 17, pY - 13, 5); sleeper.endFill();
-                    // Closed eyes
-                    sleeper.beginFill(0x2c1810, 0.6); sleeper.drawRect(ux + 14, pY - 13, 2, 1); sleeper.drawRect(ux + 19, pY - 13, 2, 1); sleeper.endFill();
-                    // Body under blanket (colored by NPC)
-                    sleeper.beginFill(col, 0.5); sleeper.drawRoundedRect(ux + 22, pY - 17, 22, 10, 3); sleeper.endFill();
-                    // Blanket edge highlight
-                    sleeper.beginFill(col, 0.3); sleeper.drawRect(ux + 22, pY - 17, 22, 2); sleeper.endFill();
-                    unit.addChild(sleeper);
-                    // Animated floating Zzz
-                    const zzzCont = new PIXI.Container(); zzzCont.x = ux + 36; zzzCont.y = pY - 22;
+                    const bedTop = pY - 16; // top surface of bed frame
+                    const sleeper = new PIXI.Graphics();
+                    // Pillow (fluffy, raised above mattress)
+                    sleeper.beginFill(0xddd8c8, 0.7); sleeper.drawRoundedRect(ux + 9, bedTop - 10, 14, 8, 3); sleeper.endFill();
+                    // Head resting on pillow
+                    sleeper.beginFill(0xfdd8b5); sleeper.drawCircle(ux + 16, bedTop - 7, 4); sleeper.endFill();
+                    // Hair
+                    sleeper.beginFill(0x2c1810, 0.7); sleeper.drawEllipse(ux + 16, bedTop - 11, 3.5, 1.5); sleeper.endFill();
+                    // Closed eyes (small lashes)
+                    sleeper.beginFill(0x2c1810, 0.5); sleeper.drawRect(ux + 13.5, bedTop - 7, 1.8, 0.8); sleeper.drawRect(ux + 17, bedTop - 7, 1.8, 0.8); sleeper.endFill();
+                    // Peaceful mouth
+                    sleeper.beginFill(0x2c1810, 0.2); sleeper.drawRect(ux + 15, bedTop - 4.5, 2.5, 0.6); sleeper.endFill();
+                    // Blanket covering body (contour hump)
+                    sleeper.beginFill(col, 0.5);
+                    sleeper.moveTo(ux + 22, bedTop); sleeper.lineTo(ux + 22, bedTop - 3);
+                    sleeper.quadraticCurveTo(ux + 31, bedTop - 13, ux + 46, bedTop - 2);
+                    sleeper.lineTo(ux + 46, bedTop); sleeper.closePath(); sleeper.endFill();
+                    // Blanket top shimmer
+                    sleeper.beginFill(col, 0.25);
+                    sleeper.moveTo(ux + 23, bedTop - 1); sleeper.lineTo(ux + 23, bedTop - 2);
+                    sleeper.quadraticCurveTo(ux + 31, bedTop - 11, ux + 45, bedTop - 1);
+                    sleeper.lineTo(ux + 45, bedTop - 1); sleeper.closePath(); sleeper.endFill();
+                    // Interactive wrapper
+                    const sleeperCont = new PIXI.Container();
+                    sleeperCont.addChild(sleeper);
+                    sleeperCont.eventMode = 'static'; sleeperCont.cursor = 'pointer';
+                    sleeperCont.hitArea = new PIXI.Rectangle(ux + 6, bedTop - 14, 44, 18);
+                    const _nm = resident.name, _rl = resident.role;
+                    const _nid = 'npc_' + _nm.toLowerCase().replace(/\s/g, '_');
+                    sleeperCont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel({ id: _nid, name: _nm, isNPC: true, _trackType: 'npc', role: _rl, lab: 'other', desc: _rl + '. Currently sleeping.' }); });
+                    sleeperCont.on('pointerover', (e) => { if (typeof UI !== 'undefined') UI.showTooltip(e, _nm, _rl + ' (sleeping)'); });
+                    sleeperCont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+                    unit.addChild(sleeperCont);
+                    // Animated Zzz
+                    const zzzCont = new PIXI.Container(); zzzCont.x = ux + 24; zzzCont.y = bedTop - 14;
                     const z1 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 7, fill: col, fontWeight: 'bold' });
                     z1.anchor.set(0.5); z1.x = 0; z1.y = 0; z1.alpha = 0.7;
                     const z2 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 9, fill: col, fontWeight: 'bold' });
-                    z2.anchor.set(0.5); z2.x = 6; z2.y = -8; z2.alpha = 0.5;
+                    z2.anchor.set(0.5); z2.x = 5; z2.y = -8; z2.alpha = 0.5;
                     const z3 = new PIXI.Text('Z', { fontFamily: 'JetBrains Mono', fontSize: 11, fill: col, fontWeight: 'bold' });
-                    z3.anchor.set(0.5); z3.x = 12; z3.y = -18; z3.alpha = 0.3;
+                    z3.anchor.set(0.5); z3.x = 10; z3.y = -18; z3.alpha = 0.3;
                     zzzCont.addChild(z1, z2, z3);
                     unit.addChild(zzzCont);
                     this.avatars.push({ cont: zzzCont, _isZzz: true, _z1: z1, _z2: z2, _z3: z3, _phase: Math.random() * Math.PI * 2 });
