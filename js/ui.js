@@ -19,7 +19,7 @@ const NOTIFY = {
     },
     send(t, b) {
       if (this.permission === 'granted') {
-        try { new Notification(t, { body: b, icon: '/og-image.png' });
+        try { new Notification(t, { body: b, icon: '/icon-192.png', badge: '/favicon-32.png' });
         } catch(e) {}
       }
     }
