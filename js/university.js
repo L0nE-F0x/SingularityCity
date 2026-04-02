@@ -664,7 +664,7 @@ const UniversityInterior = {
         cont.on('pointerover',(e)=>{ if(typeof UI!=='undefined') UI.showTooltip(e,name,'Facility Staff'); });
         cont.on('pointerout',()=>{ if(typeof UI!=='undefined') UI.hideTooltip(); });
         c.addChild(cont);
-        this.avatars.push({cont,head,body,legL,legR,_minX:x-60,_maxX:x+60,_phase:Math.random()*Math.PI*2,_walkTimer:0,_walkDir:0});
+        this.avatars.push({cont,head,body,legL,legR,_h:h,_minX:x-60,_maxX:x+60,_phase:Math.random()*Math.PI*2,_walkTimer:0,_walkDir:0});
     },
 
     // ── uni_main props ──
@@ -707,7 +707,7 @@ const UniversityInterior = {
     _student(c,x,y,model) {
         const labData = (typeof LABS !== 'undefined' && LABS[model.lab]) || { color: '#64748b' };
         const labCol = parseInt(labData.color.replace('#',''),16);
-        const stg = typeof getStage !== 'undefined' ? getStage(model.rel, model.ret, model.phase) : 'baby';
+        const stg = typeof getStage === 'function' ? getStage(model.rel, model.ret, model.phase) : 'baby';
         const sc = stg === 'baby' ? 0.6 : stg === 'kid' ? 0.8 : 0.9;
         const cont = new PIXI.Container(); cont.x = x; cont.y = y; cont.sortableChildren = true; cont.zIndex = 5;
         const bw = 16*sc, h = 32*sc, headH = Math.round(h*0.35), bodyH = h-headH-4;
@@ -731,7 +731,7 @@ const UniversityInterior = {
         cont.on('pointerover',(e)=>{ if(typeof UI!=='undefined') UI.showTooltip(e,model.name,stg==='baby'?'Pre-Training':stg==='kid'?'Training':'Rumored'); });
         cont.on('pointerout',()=>{ if(typeof UI!=='undefined') UI.hideTooltip(); });
         c.addChild(cont);
-        this.avatars.push({cont,head,body,legL,legR,_minX:x-50,_maxX:x+50,_phase:Math.random()*Math.PI*2,_walkTimer:0,_walkDir:0});
+        this.avatars.push({cont,head,body,legL,legR,_h:h,_minX:x-50,_maxX:x+50,_phase:Math.random()*Math.PI*2,_walkTimer:0,_walkDir:0});
     },
 
     // ═══ UPDATE ═══
@@ -750,9 +750,10 @@ const UniversityInterior = {
         if(this.bld&&this.lifts[this.bld.id])this.lifts[this.bld.id].update();
         // NPC wandering with walk animation
         this.avatars.forEach(av=>{if(!av.cont||av.cont.destroyed)return;av._walkTimer=(av._walkTimer||0)-1;if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;}const nx=av.cont.x+av._walkDir*0.3;if(nx>av._minX&&nx<av._maxX)av.cont.x=nx;
-            // Walk animation — legs swing, head/body bob
-            if(av.head){av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5;}
-            if(av.body){av.body.y=-32+11+Math.abs(Math.sin(G.tick*0.15+av._phase))*1.5;}
+            // Walk animation — legs swing, head/body bob (use _h for scaled students)
+            const ah=av._h||32;
+            if(av.head){av.head.y=-ah+Math.sin(G.tick*0.15+av._phase)*1.5;}
+            if(av.body){av.body.y=-ah+Math.round(ah*0.35)+Math.abs(Math.sin(G.tick*0.15+av._phase))*1.5;}
             if(av.legL){av.legL.y=Math.sin(G.tick*0.2+av._phase)*3;}
             if(av.legR){av.legR.y=-Math.sin(G.tick*0.2+av._phase)*3;}
         });
