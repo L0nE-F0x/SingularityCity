@@ -330,6 +330,8 @@ const CourtInterior = {
             rg.beginFill(0x1a1520); rg.drawRect(startX-8, fy, 8, floorH); rg.endFill();
             // Right wall (before shaft)
             rg.beginFill(0x1a1520); rg.drawRect(shaftX-2, fy, 8, floorH); rg.endFill();
+            // Shaft enclosure (solid wall behind elevator)
+            rg.beginFill(0x1a1520); rg.drawRect(shaftX+6, fy, shaftW-6, floorH); rg.endFill();
 
             if (!isB) {
                 // Above-ground: draw wall with window holes

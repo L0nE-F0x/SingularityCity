@@ -1205,7 +1205,7 @@ JSON (no markdown):
     async syncBuildingPositions() {
         if (!this.supabase) return;
         try {
-            const toSync = BLDS.filter(b => b.lab || ['cafe','gym','arena','open_square','park','graveyard','nursery','neon_bar','visitor_monument'].includes(b.id));
+            const toSync = BLDS.filter(b => b.lab || ['cafe','gym','arena','open_square','park','graveyard','neon_bar','visitor_monument'].includes(b.id));
             const rows = toSync.map(b => ({ id: b.id, name: b.name, w: b.w, x: Math.round(b.x), fl: b.fl || 1, emoji: b.emoji || null, lab: b.lab || null, desc: b.desc || null }));
             if (rows.length > 0) {
                 const { error } = await this.supabase.from('blds').upsert(rows, { onConflict: 'id' });

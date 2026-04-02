@@ -774,7 +774,7 @@ const Entities = {
         const ai = (typeof ACTS !== 'undefined' && ACTS[act]) ? ACTS[act] : ((typeof ACTS !== 'undefined' && ACTS['work']) ? ACTS['work'] : { indoor: true, icon: '💻', label: 'Processing' });
         
         let defaultHq = (G.bldsByLab[m.lab] || []).find(x => !x.id.startsWith('house_')) || (G.bldsByLab[m.lab] || [])[0];
-        let tBld = bid ? G.bldById[bid] : defaultHq || G.bldById['uni_dorm'] || G.bldById['nursery'];
+        let tBld = bid ? G.bldById[bid] : defaultHq || G.bldById['uni_dorm'];
         const isSocial = act === 'lunch' || act === 'socialize' || act === 'play' || act === 'benchmark' || act === 'share' || act === 'train' || act === 'arena'; const block = Math.floor(dp * 24);
   
         if (isSocial && !night) {

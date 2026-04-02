@@ -373,6 +373,7 @@ const UniversityInterior = {
 
         // ─── FLOORS ───
         const windowX = startX + 50, windowW = usableW - 100;
+        const floorConts = {};
         for (let f = -1; f < numFloors; f++) {
             const fy = roofH + (numFloors-1-f)*floorH;
             const isB = f===-1;
@@ -383,6 +384,8 @@ const UniversityInterior = {
             rg.beginFill(0x0a0e14); rg.drawRect(startX-8, fy, 8, floorH); rg.endFill();
             // Right wall (before shaft)
             rg.beginFill(0x0a0e14); rg.drawRect(shaftX-2, fy, 8, floorH); rg.endFill();
+            // Shaft enclosure (solid wall behind elevator — keeps it inside the building)
+            rg.beginFill(0x0a0e14); rg.drawRect(shaftX+6, fy, shaftW-6, floorH); rg.endFill();
 
             if (!isB) {
                 // Above-ground: draw wall with window holes
@@ -447,6 +450,7 @@ const UniversityInterior = {
             // Floor content
             const fc = new PIXI.Container(); fc.sortableChildren = true; this.scene.addChild(fc);
             const pY = fy+floorH-4;
+            if (f >= 0) floorConts[f] = { c: fc, pY };
             if (isB) {
                 this._drawBasement(fc, bld.id, startX, usableW, pY, fy, floorH, accentCol);
             } else {
@@ -472,6 +476,22 @@ const UniversityInterior = {
             const ec = new PIXI.Container(); ec.y = roofH+(numFloors-1)*floorH+floorH; this.scene.addChild(ec);
             if (this.lifts[bld.id]) this.lifts[bld.id].destroy();
             this.lifts[bld.id] = new CityElevator(ec, numFloors, floorH, shaftX+15);
+        }
+
+        // ─── SPAWN AI MODEL STUDENTS ───
+        if (G.models && G.charRefs) {
+            const students = G.models.filter(m => { const refs = G.charRefs[m.id]; return refs && refs.bld === bld.id; });
+            const floors = Object.keys(floorConts).map(Number).sort((a,b)=>b-a);
+            if (floors.length > 0 && students.length > 0) {
+                const perFloor = Math.ceil(students.length / floors.length);
+                students.forEach((m, idx) => {
+                    const fi = floors[Math.min(Math.floor(idx / perFloor), floors.length - 1)];
+                    const fc = floorConts[fi]; if (!fc) return;
+                    const posIdx = idx % perFloor;
+                    const rx = startX + 80 + posIdx * 55;
+                    this._student(fc.c, Math.min(rx, startX + usableW - 40), fc.pY, m);
+                });
+            }
         }
 
         // ─── VOID + DATA CABLES ───
@@ -682,6 +702,37 @@ const UniversityInterior = {
     _washer(c,x,y) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0xb0b8c0);g.drawRect(x,y-40,35,40);g.endFill(); g.beginFill(0xd4d8dd);g.drawRect(x+3,y-37,29,14);g.endFill(); g.beginFill(0x0a0a18);g.drawCircle(x+17,y-12,8);g.endFill(); g.beginFill(0x60a5fa,0.3);g.drawCircle(x+17,y-12,6);g.endFill(); g.beginFill(0x4ade80);g.drawCircle(x+28,y-34,2);g.endFill(); c.addChild(g); },
     _crate(c,x,y) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0x5a4a3a);g.drawRect(x,y-30,35,30);g.endFill(); g.beginFill(0x6a5a4a);g.drawRect(x,y-30,35,3);g.drawRect(x,y-15,35,3);g.endFill(); g.lineStyle(1,0x4a3a2a);g.moveTo(x,y-30);g.lineTo(x+35,y);g.moveTo(x+35,y-30);g.lineTo(x,y);g.lineStyle(0); c.addChild(g); },
     _spareParts(c,x,y) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0x334155);g.drawRect(x,y-24,50,24);g.endFill(); g.beginFill(0x444466);g.drawCircle(x+12,y-12,6);g.endFill(); g.beginFill(0x555577);g.drawCircle(x+12,y-12,3);g.endFill(); g.beginFill(0x666688);g.drawRect(x+28,y-18,14,10);g.endFill(); g.beginFill(0x22d3ee,0.3);g.drawRect(x+30,y-16,10,6);g.endFill(); c.addChild(g); },
+
+    // ═══ STUDENT AVATAR (AI models inside the building) ═══
+    _student(c,x,y,model) {
+        const labData = (typeof LABS !== 'undefined' && LABS[model.lab]) || { color: '#64748b' };
+        const labCol = parseInt(labData.color.replace('#',''),16);
+        const stg = typeof getStage !== 'undefined' ? getStage(model.rel, model.ret, model.phase) : 'baby';
+        const sc = stg === 'baby' ? 0.6 : stg === 'kid' ? 0.8 : 0.9;
+        const cont = new PIXI.Container(); cont.x = x; cont.y = y; cont.sortableChildren = true; cont.zIndex = 5;
+        const bw = 16*sc, h = 32*sc, headH = Math.round(h*0.35), bodyH = h-headH-4;
+        const sh = new PIXI.Graphics(); sh.beginFill(0x000000,0.25); sh.drawEllipse(0,2,bw*0.6,3); sh.endFill(); cont.addChild(sh);
+        const lw = Math.max(2,bw*0.25), lh = 4*sc;
+        const legL = new PIXI.Graphics(); legL.beginFill(0x3d2914); legL.drawRect(-lw/2,0,lw,lh); legL.endFill(); legL.x = -bw*0.15; cont.addChild(legL);
+        const legR = new PIXI.Graphics(); legR.beginFill(0x3d2914); legR.drawRect(-lw/2,0,lw,lh); legR.endFill(); legR.x = bw*0.15; cont.addChild(legR);
+        const body = new PIXI.Graphics(); body.beginFill(labCol); body.drawRoundedRect(-bw/2,0,bw,Math.max(bodyH,4),bw*0.1); body.endFill(); body.y = -h+headH; cont.addChild(body);
+        const head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw*0.4,0,bw*0.8,headH,headH*0.25); head.endFill();
+        const eyeS = Math.max(1,bw*0.08);
+        head.beginFill(0x2c1810); head.drawCircle(-bw*0.1,headH*0.38,eyeS); head.drawCircle(bw*0.1,headH*0.38,eyeS); head.endFill();
+        head.beginFill(0x000000,0.4); head.drawRect(-bw*0.08,headH*0.6,bw*0.16,1.5); head.endFill();
+        head.y = -h; cont.addChild(head);
+        const dotCol = stg === 'baby' ? 0xff69b4 : stg === 'kid' ? 0xfbbf24 : 0xa855f7;
+        const dot = new PIXI.Graphics(); dot.beginFill(dotCol); dot.drawCircle(0,0,2); dot.endFill(); dot.y = -h-6; cont.addChild(dot);
+        const tx = new PIXI.Text(model.name,{fontFamily:'JetBrains Mono',fontSize:6,fill:labCol,fontWeight:'bold'});
+        tx.anchor.set(0.5,1); tx.x = 0; tx.y = -h-10; tx.zIndex = 10; if(tx.width>60) tx.scale.set(60/tx.width); cont.addChild(tx);
+        cont.eventMode='static'; cont.cursor='pointer';
+        cont.hitArea = new PIXI.Rectangle(-bw,-h-10,bw*2,h+14);
+        cont.on('pointertap',()=>{ if(typeof UI!=='undefined') UI.selectModel(model); });
+        cont.on('pointerover',(e)=>{ if(typeof UI!=='undefined') UI.showTooltip(e,model.name,stg==='baby'?'Pre-Training':stg==='kid'?'Training':'Rumored'); });
+        cont.on('pointerout',()=>{ if(typeof UI!=='undefined') UI.hideTooltip(); });
+        c.addChild(cont);
+        this.avatars.push({cont,head,body,legL,legR,_minX:x-50,_maxX:x+50,_phase:Math.random()*Math.PI*2,_walkTimer:0,_walkDir:0});
+    },
 
     // ═══ UPDATE ═══
     update() {

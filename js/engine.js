@@ -1157,8 +1157,12 @@ const G = {
       this.load(); 
       this.pingRings = [];
       
-      BLDS.forEach(b => { 
-          this.bldById[b.id] = b; 
+      // Remove nursery building (replaced by University Campus)
+      const nurseryIdx = BLDS.findIndex(b => b.id === 'nursery');
+      if (nurseryIdx !== -1) BLDS.splice(nurseryIdx, 1);
+
+      BLDS.forEach(b => {
+          this.bldById[b.id] = b;
           if (b.lab) { 
               if (!this.bldsByLab[b.lab]) this.bldsByLab[b.lab] = []; 
               if (!b.id.startsWith('house_')) {

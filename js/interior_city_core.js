@@ -565,9 +565,6 @@ const InteriorCity = {
                         if (this.drawBarStool) { this.drawBarStool(floorCont, this.startX + this.usableW - 130, fy + floorH - 4); this.drawBarStool(floorCont, this.startX + this.usableW - 110, fy + floorH - 4); }
                         if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 100, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 310, fy + floorH - 4); }
                         this.drawAvatar({ id: 'barista', name: 'BaristaBot', isNPC: true, role: 'Barista', phase: 'released', lab: 'other', desc: 'Brewing Java.' }, this.startX + this.usableW - 90, fy + floorH - 4, floorCont, f, true);
-                    } else if (bld.id === 'nursery') {
-                        this.drawDataVat(floorCont, this.startX + this.usableW / 2, fy + floorH - 4);
-                        this.drawAvatar({ id: 'nanny', name: 'NannyBot', isNPC: true, role: 'Supervisor', phase: 'released', lab: 'other', desc: 'Pre-training supervisor.' }, this.startX + this.usableW - 60, fy + floorH - 4, floorCont, f, true);
                     } else if (bld.id === 'graveyard' || bld.id === 'legacy') {
                         this.drawBrokenServer(floorCont, this.startX + 120, fy + floorH - 4);
                         this.drawTombstone(floorCont, this.startX + 200, fy + floorH - 4);
@@ -578,12 +575,11 @@ const InteriorCity = {
                     const floorVisitors = visitingModels.slice(f * visitorsPerFloor, (f + 1) * visitorsPerFloor);
                     floorVisitors.forEach((m) => {
                         const refs = G.charRefs[m.id];
-                        let targetState = (bld.id === 'cafe') ? 'chilling' : 
-                                      (bld.id === 'gym') ? 'working_out' : 
-                                      (bld.id === 'arena') ? 'fighting' : 
-                                      (bld.id === 'nursery') ? 'playing' : 
-                                      (bld.id === 'graveyard' || bld.id === 'legacy') ? 'resting' : 
-                                      (bld.id === 'open_square' || bld.id === 'os_hub') ? 'collaborating' : 
+                        let targetState = (bld.id === 'cafe') ? 'chilling' :
+                                      (bld.id === 'gym') ? 'working_out' :
+                                      (bld.id === 'arena') ? 'fighting' :
+                                      (bld.id === 'graveyard' || bld.id === 'legacy') ? 'resting' :
+                                      (bld.id === 'open_square' || bld.id === 'os_hub') ? 'collaborating' :
                                       'working';
                                       
                         let rx = this.startX + 80 + Math.random() * (this.usableW - 160);
@@ -1556,16 +1552,15 @@ const InteriorCity = {
                         if (av.state === 'walking_to_prop') {
                             av.state = 'at_prop';
                             av.timer = 150 + Math.random() * 200; 
-                            if (Math.random() > 0.5 && this.bld.id !== 'nursery' && this.bld.id !== 'graveyard') {
+                            if (Math.random() > 0.5 && this.bld.id !== 'graveyard') {
                                 this.spawnBubble(av, "☕ Refreshing.");
                             }
                         } else if (av.state === 'returning') {
-                            av.state = this.bld.id === 'cafe' ? 'chilling' : 
-                                       this.bld.id === 'gym' ? 'working_out' : 
-                                       this.bld.id === 'arena' ? 'fighting' : 
-                                       this.bld.id === 'nursery' ? 'playing' : 
-                                       (this.bld.id === 'graveyard' || this.bld.id === 'legacy') ? 'resting' : 
-                                       (this.bld.id === 'open_square' || this.bld.id === 'os_hub') ? 'collaborating' : 
+                            av.state = this.bld.id === 'cafe' ? 'chilling' :
+                                       this.bld.id === 'gym' ? 'working_out' :
+                                       this.bld.id === 'arena' ? 'fighting' :
+                                       (this.bld.id === 'graveyard' || this.bld.id === 'legacy') ? 'resting' :
+                                       (this.bld.id === 'open_square' || this.bld.id === 'os_hub') ? 'collaborating' :
                                        'working';
                         }
                     } else {
