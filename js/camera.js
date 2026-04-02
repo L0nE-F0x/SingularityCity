@@ -8,9 +8,14 @@ const Camera = {
     targetY: 0, 
     zoom: 1, 
     targetZoom: 1,
-    isDragging: false, 
-    lastX: 0, 
+    isDragging: false,
+    lastX: 0,
     lastY: 0,
+    // Inertia/momentum state
+    _velX: 0, _velY: 0, _lastMoveTime: 0,
+    _momentumX: 0, _momentumY: 0, _friction: 0.93,
+    // Double-tap zoom detection
+    _lastTapTime: 0, _lastTapX: 0, _lastTapY: 0,
 
     init() {
         const vp = document.getElementById('viewport');
@@ -44,33 +49,65 @@ const Camera = {
         vp.addEventListener('touchend', () => { this._pinchDist = 0; }, { passive: true });
     },
 
-    onDown(e) { 
+    onDown(e) {
         if (e.target.closest('.ctrls-scroll') || e.target.closest('.ov')) return;
         if (typeof G !== 'undefined' && G.activeInterior) return;
-        this.isDragging = true; 
-        this.lastX = e.clientX; 
-        this.lastY = e.clientY; 
+
+        // Double-tap zoom detection
+        const now = performance.now();
+        if (now - this._lastTapTime < 300 &&
+            Math.abs(e.clientX - this._lastTapX) < 30 &&
+            Math.abs(e.clientY - this._lastTapY) < 30) {
+            this.targetZoom = this.targetZoom < 1.5 ? 2.0 : 1.0;
+            this._lastTapTime = 0;
+            this._momentumX = 0; this._momentumY = 0;
+            return;
+        }
+        this._lastTapTime = now;
+        this._lastTapX = e.clientX;
+        this._lastTapY = e.clientY;
+
+        this.isDragging = true;
+        this.lastX = e.clientX;
+        this.lastY = e.clientY;
+        this._lastMoveTime = now;
+        this._momentumX = 0; this._momentumY = 0;
         // Manual camera drag cancels tracking
         if (typeof G !== 'undefined' && G.tracking) {
             G.stopTracking();
         }
     },
 
-    onMove(e) { 
+    onMove(e) {
         if(!this.isDragging) return;
-        if (typeof G !== 'undefined' && G.activeInterior) return; 
-        
-        const dx = e.clientX - this.lastX; 
+        if (typeof G !== 'undefined' && G.activeInterior) return;
+
+        const now = performance.now();
+        const dx = e.clientX - this.lastX;
         const dy = e.clientY - this.lastY;
-        this.targetX += dx / this.zoom; 
+        this.targetX += dx / this.zoom;
         this.targetY += dy / this.zoom;
-        
-        this.lastX = e.clientX; 
+
+        // Track velocity for inertia on release
+        const dt = now - this._lastMoveTime;
+        if (dt > 0 && dt < 100) {
+            const factor = 16.67 / dt;
+            this._velX = (dx / this.zoom) * factor;
+            this._velY = (dy / this.zoom) * factor;
+        }
+
+        this.lastX = e.clientX;
         this.lastY = e.clientY;
+        this._lastMoveTime = now;
     },
 
-    onUp() { 
+    onUp() {
+        if (this.isDragging && (Math.abs(this._velX) > 0.5 || Math.abs(this._velY) > 0.5)) {
+            this._momentumX = this._velX;
+            this._momentumY = this._velY;
+        }
         this.isDragging = false;
+        this._velX = 0; this._velY = 0;
     },
 
     onWheel(e) { 
@@ -83,7 +120,17 @@ const Camera = {
 
     update() {
         if (typeof G === 'undefined') return;
-        
+
+        // ─── INERTIA: apply momentum from drag release ───
+        if (!this.isDragging && (Math.abs(this._momentumX) > 0.1 || Math.abs(this._momentumY) > 0.1)) {
+            this.targetX += this._momentumX;
+            this.targetY += this._momentumY;
+            this._momentumX *= this._friction;
+            this._momentumY *= this._friction;
+            if (Math.abs(this._momentumX) < 0.1) this._momentumX = 0;
+            if (Math.abs(this._momentumY) < 0.1) this._momentumY = 0;
+        }
+
         // ─── TRACKING MODE: override camera position to follow entity ───
         if (G.tracking && !G.activeInterior) {
             let entityX = null;

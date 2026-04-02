@@ -299,7 +299,12 @@ const G = {
         }
 
         let currentX = rightMostTechX + 60;
-        
+
+        // ─── VENTURE CAPITAL ROW ───
+        if (typeof VCRow !== 'undefined') {
+            currentX = VCRow.positionZone(currentX);
+        }
+
         // Convention Center — active during conference weeks
         const convBld = BLDS.find(b => b.id === 'convention_center');
         if (convBld) {
@@ -370,6 +375,29 @@ const G = {
         if (typeof PowerZone !== 'undefined') {
             currentX = PowerZone.positionZone(currentX);
         }
+
+        // ─── ZONE BOUNDARY REGISTRY (for ambient sound & environment systems) ───
+        this.zoneBounds = [];
+        const addZB = (z, arr) => {
+            const bs = arr.filter(Boolean);
+            if (!bs.length) return;
+            bs.sort((a, b) => a.x - b.x);
+            this.zoneBounds.push({ zone: z, x0: bs[0].x - 60, x1: bs[bs.length - 1].x + bs[bs.length - 1].w + 60 });
+        };
+        addZB('port', BLDS.filter(b => b.id.startsWith('port_')));
+        addZB('desert', BLDS.filter(isSpaceBld));
+        if (fSpace) addZB('forest', [fSpace]);
+        addZB('npc_housing', BLDS.filter(b => b.id.startsWith('npc_apt_')));
+        addZB('compute', BLDS.filter(isDcBld));
+        addZB('residential', BLDS.filter(b => b.id.startsWith('res_') || b.id === 'metro_res'));
+        addZB('university', BLDS.filter(b => b.id.startsWith('uni_')));
+        if (fCamp) addZB('forest', [fCamp]);
+        addZB('court', BLDS.filter(b => b.id.startsWith('court_')));
+        addZB('vcrow', BLDS.filter(b => b.id.startsWith('vcrow_')));
+        if (nBar) addZB('nightlife', [nBar]);
+        if (fSilicon) addZB('forest', [fSilicon]);
+        addZB('estates', BLDS.filter(b => b.id.startsWith('house_')));
+        addZB('power', BLDS.filter(b => b.id.startsWith('power_')));
 
         BLDS.sort((a, b) => a.x - b.x);
         this.cityW = this.getCityWidth();
@@ -1199,6 +1227,7 @@ const G = {
       if (typeof UniversityData !== 'undefined') UniversityData.init();
       if (typeof CourtData !== 'undefined') CourtData.init();
       if (typeof ConferenceData !== 'undefined') ConferenceData.init();
+      if (typeof VCRow !== 'undefined') VCRow.init();
       
       this.recalculateZoning(); 
       
@@ -1307,6 +1336,10 @@ const G = {
       if (typeof NPCHousing !== 'undefined' && this.charLayer) {
           NPCHousing.spawnCommuters(this.charLayer);
       }
+      // ─── STREET VENDORS: Food carts in tech district ───
+      if (typeof StreetVendors !== 'undefined' && this.charLayer) {
+          StreetVendors.init(this.charLayer);
+      }
       
       // ─── PORT ZONE: Ships + Ocean Life ───
       if (typeof PortEnv !== 'undefined') {
@@ -1316,7 +1349,18 @@ const G = {
       if (typeof PowerEnv !== 'undefined') {
           PowerEnv.buildAnimations(this.charLayer);
       }
-      
+      if (typeof VCRowEnv !== 'undefined') {
+          VCRowEnv.buildAnimations(this.charLayer);
+      }
+      if (typeof VCRow !== 'undefined' && this.carLayer) {
+          VCRow.spawnCars(this.carLayer);
+      }
+
+      // ─── MULTIPLAYER PRESENCE: Ghost cursors + reactions ───
+      if (typeof Multiplayer !== 'undefined') {
+          Multiplayer.init(this.charLayer);
+      }
+
       // ─── SPACE ENTITIES: Rockets on launch pads ───
       if (typeof SpaceEntities !== 'undefined') {
           SpaceEntities.init(this.carLayer);
@@ -1369,7 +1413,10 @@ const G = {
       this.initMinimap();
       this.initEasterEggs();
       
-      window.addEventListener('beforeunload', () => this.save());
+      window.addEventListener('beforeunload', () => {
+          this.save();
+          if (typeof Multiplayer !== 'undefined') Multiplayer.destroy();
+      });
 
       this.app.ticker.add(() => this.loop()); 
     },
@@ -1508,6 +1555,18 @@ const G = {
 
       if (typeof Camera !== 'undefined') Camera.update();
 
+      // Zone-based ambient sound (every ~30 frames ≈ 0.5s)
+      if (!this.activeInterior && typeof SND !== 'undefined' && typeof Camera !== 'undefined' && this.tick % 30 === 0) {
+          const wcx = -Camera.x + G.vpW / (2 * Camera.zoom);
+          let zone = 'outside';
+          if (this.zoneBounds) {
+              for (const zb of this.zoneBounds) {
+                  if (wcx >= zb.x0 && wcx <= zb.x1) { zone = 'zone_' + zb.zone; break; }
+              }
+          }
+          SND.setAmbient(zone);
+      }
+
       const dp = this.getDayPhase();
       const night = dp > .83 || dp < .25; 
       const targetLightAlpha = night ? 1 : 0;
@@ -1518,8 +1577,12 @@ const G = {
       if (typeof Environment !== 'undefined') Environment.update(dp, night, occ);
       if (typeof SpaceEntities !== 'undefined') SpaceEntities.update();
       if (typeof NPCHousing !== 'undefined') NPCHousing.update(dp);
+      if (typeof StreetVendors !== 'undefined') StreetVendors.update(dp);
       if (typeof PortEnv !== 'undefined') PortEnv.update();
       if (typeof PowerEnv !== 'undefined') PowerEnv.update();
+      if (typeof VCRowEnv !== 'undefined') VCRowEnv.update();
+      if (typeof VCRow !== 'undefined') { VCRow.update(); VCRow.updateCommuters(dp); }
+      if (typeof Multiplayer !== 'undefined') Multiplayer.update();
       if (typeof SeasonalEnv !== 'undefined') SeasonalEnv.update();
       if (typeof Aurora !== 'undefined') Aurora.draw(night);
       if (typeof UniversityData !== 'undefined') UniversityData.update();

@@ -562,10 +562,49 @@ h1, h2, h3, p { margin: 0; }
     backdrop-filter: blur(8px);
 }
 
+/* ─── MULTIPLAYER PRESENCE ─── */
+.mp-counter {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(10,10,25,0.8); border: 1px solid var(--bd);
+    padding: 4px 10px; border-radius: 16px; font-size: 10px;
+    backdrop-filter: blur(4px); pointer-events: all;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.mp-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ac); box-shadow: 0 0 6px var(--ac);
+    animation: mp-pulse 2s infinite;
+}
+@keyframes mp-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.mp-count { color: #fff; font-weight: 700; }
+.mp-label { color: var(--t2); font-size: 9px; }
+
+.mp-reactions {
+    position: absolute; bottom: 36px; left: 12px;
+    display: flex; gap: 4px; z-index: 100; pointer-events: all;
+}
+.mp-react-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(10,10,25,0.85); border: 1px solid var(--bd);
+    font-size: 16px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
+    backdrop-filter: blur(4px);
+}
+.mp-react-btn:hover {
+    transform: scale(1.2); border-color: var(--ac);
+    box-shadow: 0 0 8px rgba(74,222,128,0.3);
+}
+.mp-react-pop { animation: mp-pop 0.3s ease; }
+@keyframes mp-pop {
+    0% { transform: scale(1); } 50% { transform: scale(1.5); } 100% { transform: scale(1); }
+}
+
 /* Hide city elements when in holomap mode */
 #gameWrap.macro-mode .vp { opacity: 0; pointer-events: none; }
 #gameWrap.macro-mode #minimap { display: none; }
 #gameWrap.macro-mode .tick { z-index: 15; }
+#gameWrap.macro-mode .mp-reactions { display: none; }
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
@@ -573,4 +612,7 @@ h1, h2, h3, p { margin: 0; }
     #holomapInfoPanel.on { right: 5vw; }
     .holo-neb-label { font-size: 11px; }
     #holoHudInfo { font-size: 8px; gap: 12px; padding: 4px 12px; }
+    .mp-counter { font-size: 8px; padding: 3px 8px; }
+    .mp-reactions { bottom: 34px; gap: 3px; }
+    .mp-react-btn { width: 28px; height: 28px; font-size: 14px; }
 }

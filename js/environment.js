@@ -577,6 +577,8 @@ const Environment = {
               b._beacon = null;
               b._stockTicker = null;
               b._tickerW = null;
+              b._vcTicker = null;
+              b._vcTickerW = null;
               b._winFaces = null;
               b._winTexts = null;
               b._sign = null;
@@ -1646,20 +1648,39 @@ const Environment = {
 
         if (lab && lab.ticker && !b.id.startsWith('house_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_')) {
             const tickCont = new PIXI.Container();
-            tickCont.y = 0; 
+            tickCont.y = 0;
             const tickBg = new PIXI.Graphics();
             tickBg.beginFill(0x000000, 0.85); tickBg.drawRect(0, 0, b.w, 14); tickBg.endFill();
             tickCont.addChild(tickBg);
             const mask = new PIXI.Graphics();
             mask.beginFill(0xffffff); mask.drawRect(0, -5, b.w, 24); mask.endFill();
             tickCont.addChild(mask); tickCont.mask = mask;
-            const tickTxt = new PIXI.Text(`${lab.ticker} AWAITING TELEMETRY`, { 
-                fontFamily: 'monospace', fontSize: 10, fontWeight: '900', strokeThickness: 1, 
+            const tickTxt = new PIXI.Text(`${lab.ticker} AWAITING TELEMETRY`, {
+                fontFamily: 'monospace', fontSize: 10, fontWeight: '900', strokeThickness: 1,
                 fill: 0x888888, stroke: 0x888888, dropShadow: true, dropShadowColor: 0x888888, dropShadowBlur: 10, dropShadowDistance: 0, padding: 10
             });
             tickTxt.y = 1; tickTxt.x = b.w; tickTxt.blendMode = PIXI.BLEND_MODES.ADD;
             tickCont.addChild(tickTxt); b._stockTicker = tickTxt; b._tickerW = b.w; b._tickerSym = lab.ticker;
             container.addChild(tickCont);
+        }
+
+        // ─── VC ROW: Deal ticker on rooftop (same pattern as HQ stock tickers above) ───
+        if (b.type === 'vcrow' && typeof VCRow !== 'undefined') {
+            const vTickCont = new PIXI.Container();
+            vTickCont.y = 0;
+            const vTickBg = new PIXI.Graphics();
+            vTickBg.beginFill(0x000000, 0.9); vTickBg.drawRect(0, 0, b.w, 14); vTickBg.endFill();
+            vTickCont.addChild(vTickBg);
+            const vMask = new PIXI.Graphics();
+            vMask.beginFill(0xffffff); vMask.drawRect(0, -5, b.w, 24); vMask.endFill();
+            vTickCont.addChild(vMask); vTickCont.mask = vMask;
+            const vTickTxt = new PIXI.Text(VCRow.getNextTickerItem(), {
+                fontFamily: 'monospace', fontSize: 10, fontWeight: '900', strokeThickness: 1,
+                fill: 0x4ade80, stroke: 0x4ade80, dropShadow: true, dropShadowColor: 0x4ade80, dropShadowBlur: 10, dropShadowDistance: 0, padding: 10
+            });
+            vTickTxt.y = 1; vTickTxt.x = b.w; vTickTxt.blendMode = PIXI.BLEND_MODES.ADD;
+            vTickCont.addChild(vTickTxt); b._vcTicker = vTickTxt; b._vcTickerW = b.w;
+            container.addChild(vTickCont);
         }
 
         const winFaces = new PIXI.Graphics();
@@ -1888,11 +1909,11 @@ const Environment = {
         let sky;
         if (dp < .22) sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
         else if (dp < .30) { const t = (dp - .22) / .08;
-        sky = `linear-gradient(180deg,rgb(${8 + t * 40 | 0},${10 + t * 30 | 0},${30 + t * 40 | 0}),rgb(${15 + t * 80 | 0},${15 + t * 50 | 0},${40 + t * 50 | 0}) 50%,rgb(${20 + t * 120 | 0},${20 + t * 80 | 0},${40 + t * 30 | 0}))`;
+        sky = `linear-gradient(180deg,rgb(${8 + t * 50 | 0},${10 + t * 20 | 0},${30 + t * 50 | 0}),rgb(${15 + t * 130 | 0},${15 + t * 50 | 0},${40 + t * 30 | 0}) 50%,rgb(${30 + t * 160 | 0},${25 + t * 80 | 0},${35 - t * 10 | 0}))`;
         }
         else if (dp < .72) sky = 'linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)';
         else if (dp < .84) { const t = (dp - .72) / .12;
-        sky = `linear-gradient(180deg,rgb(${45 + t * 30 | 0},${74 - t * 40 | 0},${122 - t * 60 | 0}),rgb(${90 + t * 80 | 0},${143 - t * 80 | 0},${187 - t * 100 | 0}) 50%,rgb(${135 + t * 60 | 0},${100 - t * 50 | 0},${50 - t * 10 | 0}))`;
+        sky = `linear-gradient(180deg,rgb(${35 + t * 45 | 0},${25 + t * 10 | 0},${90 - t * 50 | 0}),rgb(${120 + t * 110 | 0},${80 - t * 30 | 0},${60 - t * 30 | 0}) 50%,rgb(${180 + t * 60 | 0},${100 - t * 40 | 0},${30 | 0}))`;
         }
         else sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
         if (this.weather === 'rain' && !night && dp > .3 && dp < .72) sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
@@ -1902,22 +1923,55 @@ const Environment = {
         this.starsLayer.visible = night;
         if (night) this.starsLayer.children.forEach(s => { s.alpha = .15 + Math.abs(Math.sin(G.tick * .03 + s._phase)) * .5; });
         const cel = this.celestialGfx; cel.clear();
-        if (night) { 
+        const isGoldenHour = (dp >= 0.72 && dp < 0.84) || (dp >= 0.22 && dp < 0.30);
+        if (night) {
           let np = dp > 0.83 ?
           (dp - 0.83) / 0.42 : (dp + 0.17) / 0.42;
           cel.beginFill(0xe8e8d0);
           cel.drawCircle(G.vpW * np, 40 + Math.sin(np * Math.PI) * 120, 12); cel.endFill();
-        } else { 
+        } else {
           let dayP = (dp - 0.25) / (0.83 - 0.25);
-          cel.beginFill(0xffe066);
-          cel.drawCircle(G.vpW * dayP, 40 + Math.sin(dayP * Math.PI) * 120, 15); cel.endFill();
+          const sunX = G.vpW * dayP;
+          const sunY = 40 + Math.sin(dayP * Math.PI) * 120;
+
+          // Golden hour glow + god rays
+          if (isGoldenHour) {
+              let ghI = dp >= 0.72 ? 1 - Math.abs((dp - 0.78) / 0.06) : 1 - Math.abs((dp - 0.26) / 0.04);
+              ghI = Math.max(0, Math.min(1, ghI));
+
+              // Layered aura
+              cel.beginFill(0xff6622, 0.02 * ghI); cel.drawCircle(sunX, sunY, 140); cel.endFill();
+              cel.beginFill(0xff8833, 0.04 * ghI); cel.drawCircle(sunX, sunY, 80); cel.endFill();
+              cel.beginFill(0xffaa44, 0.08 * ghI); cel.drawCircle(sunX, sunY, 40); cel.endFill();
+
+              // God rays — fan downward from sun
+              for (let r = 0; r < 7; r++) {
+                  const angle = Math.PI * 0.2 + (r / 6) * Math.PI * 0.6 + Math.sin(G.tick * 0.003 + r * 1.7) * 0.04;
+                  const rayLen = 120 + (r % 3) * 60;
+                  const rayW = 6 + (r % 4) * 3;
+                  const shimmer = 0.5 + 0.5 * Math.sin(G.tick * 0.01 + r * 2.1);
+                  const ex = sunX + Math.cos(angle) * rayLen;
+                  const ey = sunY + Math.sin(angle) * rayLen;
+                  cel.beginFill(0xffbb55, 0.012 * ghI * shimmer);
+                  cel.moveTo(sunX + Math.cos(angle + 0.03) * 18, sunY + Math.sin(angle + 0.03) * 18);
+                  cel.lineTo(ex + Math.cos(angle + Math.PI / 2) * rayW, ey + Math.sin(angle + Math.PI / 2) * rayW);
+                  cel.lineTo(ex - Math.cos(angle + Math.PI / 2) * rayW, ey - Math.sin(angle + Math.PI / 2) * rayW);
+                  cel.closePath();
+                  cel.endFill();
+              }
+          }
+
+          // Main sun disc
+          cel.beginFill(isGoldenHour ? 0xff9944 : 0xffe066);
+          cel.drawCircle(sunX, sunY, isGoldenHour ? 18 : 15); cel.endFill();
         }
         
-        this.cloudLayer.children.forEach(c => { c.x = c._bx + Math.sin(G.tick * (c._drift || .003) + c._i) * 40; c.alpha = (this.weather === 'rain' || this.weather === 'snow') ? .30 : .10 + Math.sin(G.tick * 0.001 + c._i) * 0.03; });
+        this.cloudLayer.children.forEach(c => { c.x = c._bx + Math.sin(G.tick * (c._drift || .003) + c._i) * 40; const ca = (this.weather === 'rain' || this.weather === 'snow') ? .30 : .10 + Math.sin(G.tick * 0.001 + c._i) * 0.03; c.alpha = isGoldenHour ? ca + 0.08 : ca; c.tint = isGoldenHour ? 0xffcc88 : 0xffffff; });
         if (G.viewMode === 'micro') { this.updateWeather(); this.updateDesertWeather(); } this.drawWeather(); let targetRefAlpha = 0;
         if (night) { if (this.weather === 'rain') targetRefAlpha = 0.95; else if (this.weather === 'snow') targetRefAlpha = 0.5;
         else targetRefAlpha = 0.35; } else { if (this.weather === 'rain') targetRefAlpha = 0.4;
-        else if (this.weather === 'snow') targetRefAlpha = 0.2; } this.reflectionLayer.alpha += (targetRefAlpha - this.reflectionLayer.alpha) * 0.05;
+        else if (this.weather === 'snow') targetRefAlpha = 0.2;
+        else if (isGoldenHour) targetRefAlpha = 0.25; } this.reflectionLayer.alpha += (targetRefAlpha - this.reflectionLayer.alpha) * 0.05;
         const targetLightAlpha = night ? 1 : 0; if(this.lightLayer) { this.lightLayer.alpha += (targetLightAlpha - this.lightLayer.alpha) * 0.05;
         } 
         
@@ -2040,14 +2094,21 @@ const Environment = {
                     b._beacon.crown.scale.set(1 + Math.sin(G.tick * 0.05) * 0.1); b._beacon.crown.y = -120 + Math.sin(G.tick * 0.08) * 5; 
                 } 
             } 
-            if (b._stockTicker && b._tickerW) { 
-                b._stockTicker.x -= 0.6; 
-                if (b._stockTicker.x + b._stockTicker.width < 0) { 
-                    b._stockTicker.x = b._tickerW; 
-                } 
-                if (G.tick % 60 === 0 && typeof API !== 'undefined' && API.stockPrices && API.stockPrices[b._tickerSym]) { 
-                    const sd = API.stockPrices[b._tickerSym]; b._stockTicker.text = `${b._tickerSym} $${sd.price} [${sd.change}]`; b._stockTicker.style.fill = sd.color; b._stockTicker.style.stroke = sd.color; b._stockTicker.style.dropShadow = true; b._stockTicker.style.dropShadowColor = sd.color; b._stockTicker.style.dropShadowBlur = 10; 
-                } 
+            if (b._stockTicker && b._tickerW) {
+                b._stockTicker.x -= 0.6;
+                if (b._stockTicker.x + b._stockTicker.width < 0) {
+                    b._stockTicker.x = b._tickerW;
+                }
+                if (G.tick % 60 === 0 && typeof API !== 'undefined' && API.stockPrices && API.stockPrices[b._tickerSym]) {
+                    const sd = API.stockPrices[b._tickerSym]; b._stockTicker.text = `${b._tickerSym} $${sd.price} [${sd.change}]`; b._stockTicker.style.fill = sd.color; b._stockTicker.style.stroke = sd.color; b._stockTicker.style.dropShadow = true; b._stockTicker.style.dropShadowColor = sd.color; b._stockTicker.style.dropShadowBlur = 10;
+                }
+            }
+            if (b._vcTicker && b._vcTickerW) {
+                b._vcTicker.x -= 0.6;
+                if (b._vcTicker.x + b._vcTicker.width < 0) {
+                    b._vcTicker.text = (typeof VCRow !== 'undefined') ? VCRow.getNextTickerItem() : '';
+                    b._vcTicker.x = b._vcTickerW;
+                }
             } 
         });
         

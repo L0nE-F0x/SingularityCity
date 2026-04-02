@@ -128,6 +128,7 @@ const NPCHousing = {
         const map = { cafe:'cafe', gym:'gym', arena:'arena', neon_bar:'neon_bar', graveyard:'graveyard', forest:'forest_0' };
         if (npc.workplace === 'university') { const b = G.bldById['uni_main'] || G.bldById['uni_dorm']; if (b) return b.x + b.w/2; }
         if (npc.workplace === 'court') { const b = G.bldById['court_senate'] || G.bldById['court_hearing']; if (b) return b.x + b.w/2; }
+        if (npc.workplace === 'vcrow') { const b = G.bldById['vcrow_titan'] || G.bldById['vcrow_apex']; if (b) return b.x + b.w/2; }
         if (map[npc.workplace]) { const b = G.bldById[map[npc.workplace]]; if (b) return b.x + b.w/2; }
         const hq = BLDS.find(b => b.lab && !b.id.startsWith('house_')); return hq ? hq.x + hq.w/2 : 3000;
     },

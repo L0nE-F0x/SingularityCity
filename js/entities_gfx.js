@@ -42,7 +42,7 @@ const EntitiesGfx = {
 
         carCont.eventMode = 'static';
         carCont.cursor = 'pointer'; 
-        carCont.hitArea = new PIXI.Rectangle(-25, -35, 50, 40);
+        carCont.hitArea = new PIXI.Rectangle(window.isMobile ? -35 : -25, window.isMobile ? -45 : -35, window.isMobile ? 70 : 50, window.isMobile ? 60 : 40);
         carCont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.showFounder(f); });
         carCont.on('pointerover', e => { if (typeof UI !== 'undefined') UI.showTooltip(e, f.name, f.role); });
         carCont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
@@ -171,7 +171,7 @@ const EntitiesGfx = {
         
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
-        cont.hitArea = new PIXI.Rectangle(-52, -35, 82, 52);
+        cont.hitArea = new PIXI.Rectangle(window.isMobile ? -62 : -52, window.isMobile ? -45 : -35, window.isMobile ? 102 : 82, window.isMobile ? 72 : 52);
         cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.showFounder(f); });
         cont.on('pointerover', e => { if (typeof UI !== 'undefined') UI.showTooltip(e, `${f.name}'s Helicopter`, 'CEO scenic flyover'); });
         cont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
@@ -706,7 +706,8 @@ const EntitiesGfx = {
             refs.briefcase.y = -h / 2;
         }
 
-        refs.c.hitArea = new PIXI.Rectangle(-bw / 2 - 20, -h - 30, bw + 40, h + 50);
+        const _tp = window.isMobile ? 12 : 0;
+        refs.c.hitArea = new PIXI.Rectangle(-bw / 2 - 20 - _tp, -h - 30 - _tp, bw + 40 + _tp * 2, h + 50 + _tp * 2);
         refs.chat.x = 0;
     }
 };

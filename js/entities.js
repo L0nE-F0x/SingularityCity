@@ -256,10 +256,13 @@ const Entities = {
             } else {
                 msg = pool[Math.floor(Math.random() * pool.length)];
             }
+        } else if (typeof Personality !== 'undefined') {
+            // Personality-flavoured chat (30% chance from trait system)
+            msg = Personality.getTraitChat(m) || pool[Math.floor(Math.random() * pool.length)];
         } else {
             msg = pool[Math.floor(Math.random() * pool.length)];
         }
-        
+
         const lifespan = 240 + Math.random() * 240;
         G.chatBubbles[m.id] = { msg: msg, expire: G.tick + lifespan }; count++;
       });
@@ -1046,8 +1049,9 @@ const Entities = {
 
                     let wobble = 0;
                     const weatherSpeedMod = (typeof Environment !== 'undefined' && Environment.weather === 'snow') ? 0.6 : 1;
-                    const pScale = refs.paramScale || 1.0; 
-                    const pSpeedMod = 1.4 - (pScale * 0.3); 
+                    const pScale = refs.paramScale || 1.0;
+                    const personalitySpd = (typeof Personality !== 'undefined') ? Personality.getSpeedMod(m) : 1;
+                    const pSpeedMod = (1.4 - (pScale * 0.3)) * personalitySpd;
 
                     if (refs._metroState === 'none' && !refs._metroLegs) {
                         const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (typeof Environment !== 'undefined' && Environment.weather === 'rain' && act === 'commute' ? 1.5 : 1);

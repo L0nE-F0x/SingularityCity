@@ -158,6 +158,7 @@ const SND = {
         // 2. Identify the new environment type
         let env = 'outside';
         if (bldId === 'holomap') env = 'holomap';
+        else if (bldId && bldId.startsWith('zone_')) env = bldId.slice(5);
         else if (bldId && bldId.startsWith('house_')) env = 'estate';
         else if (bldId && bldId.startsWith('res_')) env = 'ai_housing';
         else if (bldId && bldId.startsWith('metro_')) env = 'metro';
@@ -308,6 +309,138 @@ const SND = {
                     var f = cosmicNotes[Math.floor(Math.random() * cosmicNotes.length)];
                     this.playTone(f, 'sine', 0.2, 0.006, f * 0.5);
                 }
+            }, 2000);
+        }
+
+        // ─── ZONE-BASED OUTDOOR AMBIENTS ───
+        else if (env === 'port') {
+            // Harbor — deep ocean swell, seagull cries, distant foghorn
+            createDrone(42, 'sine', 0.07, 0.08);
+            createDrone(63, 'sine', 0.03, 0.04);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                const r = Math.random();
+                if (r < 0.06) this.playTone(1800 + Math.random() * 400, 'sine', 0.15, 0.005, 1200);
+                else if (r < 0.09) this.playTone(110, 'triangle', 0.8, 0.008);
+            }, 3000);
+        }
+        else if (env === 'desert') {
+            // Arid launch zone — dry wind, distant metallic clanks
+            createDrone(35, 'sine', 0.05, 0.12);
+            createDrone(70, 'triangle', 0.02, 0.06);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.06) this.playTone(3000 + Math.random() * 1500, 'square', 0.02, 0.004);
+                else if (Math.random() < 0.05) this.playTone(6000, 'sine', 0.1, 0.002, 2000);
+            }, 2500);
+        }
+        else if (env === 'forest') {
+            // Nature preserve — warm earth pad, birdsong, leaf rustle
+            createDrone(65, 'sine', 0.04, 0.03);
+            createDrone(130, 'sine', 0.015, 0.02);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                const r = Math.random();
+                if (r < 0.12) {
+                    const bf = 2000 + Math.random() * 1500;
+                    this.playTone(bf, 'sine', 0.08, 0.005, bf * 0.7);
+                } else if (r < 0.16) this.playTone(5000, 'sine', 0.04, 0.002, 3000);
+            }, 2000);
+        }
+        else if (env === 'npc_housing' || env === 'residential') {
+            // Quiet neighborhood — soft hum, distant traffic, door close
+            createDrone(50, 'sine', 0.04, 0.03);
+            createDrone(75, 'sine', 0.02, 0.02);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.06) this.playTone(150 + Math.random() * 50, 'triangle', 0.3, 0.003, 100);
+                else if (Math.random() < 0.04) this.playTone(250, 'sine', 0.03, 0.005);
+            }, 2500);
+        }
+        else if (env === 'compute') {
+            // Data center corridor — heavy server hum, cooling fans, data chirps
+            createDrone(60, 'sine', 0.06, 0);
+            createDrone(120, 'sine', 0.03, 0);
+            createDrone(180, 'sine', 0.015, 0);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.2) this.playTone(800 + Math.random() * 400, 'sine', 0.1, 0.003, 600);
+                if (Math.random() < 0.1) this.playTone(1500, 'sine', 0.04, 0.004, 900);
+            }, 800);
+        }
+        else if (env === 'university') {
+            // Academic campus — soft warmth, page turns, chalk taps
+            createDrone(55, 'sine', 0.03, 0.02);
+            createDrone(110, 'sine', 0.015, 0.015);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.08) this.playTone(4000, 'sine', 0.02, 0.003, 2000);
+                else if (Math.random() < 0.05) this.playTone(3500, 'sine', 0.01, 0.004);
+            }, 1800);
+        }
+        else if (env === 'court') {
+            // Formal judicial — somber drone, occasional gavel
+            createDrone(50, 'sine', 0.03, 0.01);
+            createDrone(100, 'sine', 0.015, 0.01);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.04) {
+                    this.playTone(200, 'sine', 0.05, 0.008);
+                    setTimeout(() => this.playTone(180, 'sine', 0.03, 0.005), 50);
+                }
+            }, 3000);
+        }
+        else if (env === 'vcrow') {
+            // Financial district — sophisticated hum, ticker beeps, deal bells
+            createDrone(55, 'sine', 0.04, 0.02);
+            createDrone(110, 'sine', 0.02, 0.015);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                const r = Math.random();
+                if (r < 0.08) {
+                    // Ticker beep
+                    this.playTone(1200, 'sine', 0.03, 0.005);
+                } else if (r < 0.12) {
+                    // Soft keyboard click
+                    this.playTone(3500 + Math.random() * 1500, 'sine', 0.01, 0.003);
+                } else if (r < 0.14) {
+                    // Deal bell — ascending chime
+                    this.playTone(660, 'sine', 0.08, 0.006);
+                    setTimeout(() => this.playTone(880, 'sine', 0.06, 0.005), 80);
+                }
+            }, 1200);
+        }
+        else if (env === 'nightlife') {
+            // Neon strip — muffled bass, neon buzz, glass clinks
+            createDrone(45, 'sine', 0.08, 0.15);
+            createDrone(90, 'triangle', 0.03, 0.1);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.1) this.playTone(120, 'sawtooth', 0.06, 0.004);
+                else if (Math.random() < 0.06) this.playTone(3000 + Math.random() * 1000, 'sine', 0.02, 0.005);
+            }, 1500);
+        }
+        else if (env === 'estates') {
+            // Billionaire's Row — quiet luxury, birdsong, distant fountain
+            createDrone(55, 'sine', 0.03, 0.02);
+            createDrone(82, 'sine', 0.015, 0.015);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.1) {
+                    const f = 2200 + Math.random() * 1200;
+                    this.playTone(f, 'sine', 0.06, 0.004, f * 0.8);
+                } else if (Math.random() < 0.04) this.playTone(1000, 'sine', 0.15, 0.003, 800);
+            }, 2500);
+        }
+        else if (env === 'power') {
+            // Power grid — transformer hum, electrical crackle
+            createDrone(60, 'sawtooth', 0.04, 0);
+            createDrone(120, 'sawtooth', 0.02, 0);
+            createDrone(50, 'sine', 0.05, 0.04);
+            this.ambientInterval = setInterval(() => {
+                if (!this._sfxEnabled) return;
+                if (Math.random() < 0.08) this.playTone(8000, 'sawtooth', 0.02, 0.005, 2000);
+                else if (Math.random() < 0.05) this.playTone(3000, 'sine', 0.008, 0.006);
             }, 2000);
         }
     }

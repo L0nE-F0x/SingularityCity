@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v146';
+const CACHE_NAME = 'singularity-city-v153';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -15,6 +15,7 @@ const CORE_ASSETS = [
     '/icon-192.png',
     '/icon-512.png',
     '/css/styles.css',
+    '/js/personality.js',
     '/js/data.js',
     '/js/api.js',
     '/js/ui.js',
@@ -37,6 +38,7 @@ const CORE_ASSETS = [
     '/js/interior_dc.js',
     '/js/interior_bar.js',
     '/js/npc_housing.js',
+    '/js/street_vendors.js',
     '/js/interior_npc.js',
     '/js/seasonal.js',
     '/js/seasonal_env.js',
@@ -44,6 +46,10 @@ const CORE_ASSETS = [
     '/js/conference.js',
     '/js/university.js',
     '/js/court.js',
+    '/js/vc_row.js',
+    '/js/vc_row_env.js',
+    '/js/interior_vcrow.js',
+    '/js/multiplayer.js',
     '/js/interior_manager.js',
     '/js/burn_tracker.js',
     '/js/datacenter_data.js',
@@ -73,7 +79,7 @@ self.addEventListener('activate', event => {
                     }
                 })
             );
-        })
+        }).then(() => self.clients.claim()) // immediately take control of all pages
     );
 });
 
@@ -85,6 +91,13 @@ self.addEventListener('fetch', event => {
                     return response;
                 }
                 return fetch(event.request);
+            })
+            .catch(() => {
+                // Network failed and not in cache — return offline fallback
+                if (event.request.mode === 'navigate') {
+                    return caches.match('/index.html');
+                }
+                return new Response('', { status: 503, statusText: 'Offline' });
             })
     );
 });

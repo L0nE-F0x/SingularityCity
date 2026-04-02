@@ -279,10 +279,12 @@ function getAct(stg, dp, seed, model) {
   // 08:24–10:48  Morning work block (everyone at their HQ)
   if (dp >= 0.35 && dp < 0.45) return { act: 'work', bid: null };
 
-  // 10:48–13:12  Lunch break — cafe or wander outside
-  if (dp >= .45 && dp < .55) { 
+  // 10:48–13:12  Lunch break — cafe or wander outside (personality biased)
+  if (dp >= .45 && dp < .55) {
+      const traitBid = (typeof Personality !== 'undefined') ? Personality.getBuildingBias(model, 'lunch', dp) : null;
+      if (traitBid) return { act: 'lunch', bid: traitBid };
       if (s < 40) return { act: 'lunch', bid: 'cafe' };
-      if (s < 65) return { act: 'socialize', bid: 'park' }; 
+      if (s < 65) return { act: 'socialize', bid: 'park' };
       return { act: 'work', bid: null };
   }
 
@@ -295,8 +297,10 @@ function getAct(stg, dp, seed, model) {
       return { act: 'work', bid: null };
   }
 
-  // 18:00–19:40  Arena time for some, others wrapping up
+  // 18:00–19:40  Arena time for some, others wrapping up (personality biased)
   if (dp >= .75 && dp < .82) {
+      const traitBid = (typeof Personality !== 'undefined') ? Personality.getBuildingBias(model, 'play', dp) : null;
+      if (traitBid) return { act: s < 50 ? 'arena' : 'socialize', bid: traitBid };
       if (s < 20) return { act: 'arena', bid: 'arena' };
       return { act: 'work', bid: null };
   }

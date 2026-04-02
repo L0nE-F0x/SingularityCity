@@ -29,6 +29,8 @@ const Interior = {
             this.activeModule = CourtInterior;
         } else if (bld.id === 'convention_center' && typeof ConferenceInterior !== 'undefined') {
             this.activeModule = ConferenceInterior;
+        } else if (bld.type === 'vcrow' && typeof InteriorVCRow !== 'undefined') {
+            this.activeModule = InteriorVCRow;
         } else {
             this.activeModule = InteriorCity;
         }
