@@ -73,18 +73,19 @@ h1, h2, h3, p { margin: 0; }
 .land-sub { font-size: clamp(11px, 1.4vw, 14px); color: var(--t2); line-height: 1.7; margin-bottom: clamp(16px, 3vh, 28px); }
 .land-sub span { color: var(--ac); font-weight: bold; }
 
-.land-features { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(4px, 0.5vw, 6px); margin-bottom: clamp(10px, 1.5vh, 16px); max-width: 780px; margin-left: auto; margin-right: auto; }
+.land-features { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-bottom: clamp(10px, 1.5vh, 16px); max-width: 720px; margin-left: auto; margin-right: auto; }
 .land-feat {
-    display: flex; align-items: center; gap: 5px;
+    display: flex; align-items: center; gap: 5px; min-width: 0;
     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
     border-radius: 10px; padding: 5px 8px;
     font-size: 9px; color: var(--t2); line-height: 1.2;
-    white-space: nowrap; transition: border-color 0.2s, background 0.2s;
+    transition: border-color 0.2s, background 0.2s;
 }
 .land-feat:hover { border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); }
 .land-feat span { font-size: 13px; flex-shrink: 0; }
-.land-feat div { display: flex; flex-direction: column; text-align: left; }
+.land-feat div { display: flex; flex-direction: column; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .land-feat b { color: var(--t1); font-size: 9px; margin-bottom: 0; display: block; }
+.land-feat div:not(b) { overflow: hidden; text-overflow: ellipsis; }
 
 .land-btns { display: flex; gap: 12px; justify-content: center; margin-bottom: clamp(10px, 1.5vh, 18px); }
 .land-enter { background: var(--ac); color: #000; border: none; padding: clamp(10px, 1.5vh, 14px) clamp(18px, 3vw, 28px); font-family: 'JetBrains Mono', monospace; font-size: clamp(11px, 1.3vw, 14px); font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 15px rgba(74,222,128,0.3); }
