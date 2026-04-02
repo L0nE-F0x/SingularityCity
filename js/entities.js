@@ -1116,8 +1116,14 @@ const Entities = {
                     }
                     
                     refs.c.y = refs._logicalY - bobY + depthOffset;
-                    refs.c.scale.x = currentDir; 
+                    refs.c.scale.x = currentDir;
                     refs.c.zIndex = Math.round(refs.c.y);
+                    // Hide charLayer sprite when underground (metro riding/waiting)
+                    if (refs._metroState === 'riding' || refs._metroState === 'waiting_train') {
+                        refs.c.visible = false;
+                    } else if (refs._metroState === 'none' && refs.bld === null) {
+                        refs.c.visible = true;
+                    }
                     
                     if (isSitting) {
                         refs.legL.rotation = -Math.PI / 2;

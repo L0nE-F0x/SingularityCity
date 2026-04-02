@@ -131,6 +131,8 @@ const Aurora = {
                 this._active = false;
             } else {
                 const t = G.tick;
+                // Camera offset so aurora stays fixed on screen
+                const camOff = (typeof Camera !== 'undefined') ? -Camera.x / (Camera.zoom || 1) : 0;
                 this._ribbons.forEach(r => {
                     const g = this._gfx;
                     g.beginFill(r.color, r.alpha * envelope);
@@ -138,11 +140,12 @@ const Aurora = {
                     // Draw ribbon as connected quads — use larger step for performance
                     const step = 16;
                     for (let x = 0; x < G.vpW + step; x += step) {
-                        // World-space x for wave calculation
-                        const wx = x + (typeof Camera !== 'undefined' ? -Camera.x : 0);
+                        // World-space x for wave calculation (smooth continuity)
+                        const wx = x + camOff;
+                        const screenX = x + camOff;
                         const y1 = r.baseY + Math.sin(wx * r.frequency + t * r.speed + r.phase) * r.amplitude;
                         const y2 = y1 + r.width + Math.sin(wx * r.frequency * 1.3 + t * r.speed * 0.7) * (r.width * 0.4);
-                        g.drawRect(x, y1, step + 1, y2 - y1);
+                        g.drawRect(screenX, y1, step + 1, y2 - y1);
                     }
                     g.endFill();
                 });
@@ -159,14 +162,15 @@ const Aurora = {
                 this._comet = null;
             } else {
                 const c = this._comet;
-                const cx = c.startX + (c.endX - c.startX) * progress;
+                const cOff = (typeof Camera !== 'undefined') ? -Camera.x / (Camera.zoom || 1) : 0;
+                const cx = c.startX + (c.endX - c.startX) * progress + cOff;
                 const cy = c.startY + (c.endY - c.startY) * progress;
                 const g = this._gfx;
 
                 // Tail trail (fading circles behind comet)
                 for (let ti = c.tailLen; ti > 0; ti--) {
                     const tp = Math.max(0, progress - ti * 0.008);
-                    const tx = c.startX + (c.endX - c.startX) * tp;
+                    const tx = c.startX + (c.endX - c.startX) * tp + cOff;
                     const ty = c.startY + (c.endY - c.startY) * tp;
                     const ta = (1 - ti / c.tailLen) * 0.4;
                     const ts = c.size * (1 - ti / c.tailLen) * 0.7;

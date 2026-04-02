@@ -224,6 +224,10 @@ const InteriorDC = {
     // ═══ PROPS ═══
     _lbl(c,x,y,t,col) { const tx=new PIXI.Text(t,{fontFamily:'JetBrains Mono',fontSize:7,fill:col||0x94a3b8,letterSpacing:2}); tx.anchor.set(0.5,0); tx.x=x; tx.y=y; tx.zIndex=10; c.addChild(tx); },
     _npc(c,x,y,name,col,bld) {
+        // Night shift: Only essential staff (Security, NOC, SRE, Power Eng, Foreman, Chief Eng)
+        const dp = G.getDayPhase(); const isNight = dp > 0.83 || dp < 0.25;
+        const nightRoles = ['Security','NOC Lead','SRE','Power Eng','Foreman','Chief Eng'];
+        if (isNight && !nightRoles.includes(name)) return;
         const cont=new PIXI.Container(); cont.x=x; cont.y=y; cont.sortableChildren=true; cont.zIndex=5;
         const labCol=col||0x64748b; const bw=16; const h=32; const headH=Math.round(h*0.35); const bodyH=h-headH-4;
         // Shadow

@@ -160,9 +160,13 @@ const InteriorVCRow = {
             else if (theme === 'executive')    this._drawExecutive(fc, startX, bldW, pY, fy, floorH, accent);
             else if (theme === 'broker_floor') this._drawTradingFloor(fc, startX, bldW, pY, fy, floorH, accent);
 
-            // Spawn themed NPCs
+            // Spawn themed NPCs (time-aware: only security at night)
             if (!isBasement && this.NPCS[theme]) {
-                const npcs = this.NPCS[theme];
+                const dp = G.getDayPhase();
+                const isNight = dp > 0.83 || dp < 0.25;
+                const npcs = isNight
+                    ? this.NPCS[theme].filter(n => n.name === 'Security' || n.name === 'Guard')
+                    : this.NPCS[theme];
                 npcs.forEach((npc, ni) => {
                     const nx = startX + 80 + ni * (bldW - 160) / Math.max(1, npcs.length - 1);
                     this._npc(fc, nx, pY, npc.name, npc.color);

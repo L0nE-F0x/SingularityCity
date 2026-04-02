@@ -299,10 +299,12 @@ const InteriorCity = {
             } else if (f >= 0) {
                 let currX = this.startX + 80;
                 
+                const _dpNow = G.getDayPhase();
+                const _isNightShift = _dpNow > 0.83 || _dpNow < 0.25;
                 if (isHQ && f === 0) {
                     this.drawCouches(floorCont, this.startX + this.usableW - 80, fy + floorH - 4, colHex);
                     this.drawChair(floorCont, this.startX + 80, fy + floorH - 4);
-                    this.drawAvatar({ id: 'rec', name: 'Front Desk', isNPC: true, role: 'Receptionist', phase: 'released', lab: bld.lab, desc: 'Directing packets.' }, this.startX + 95, fy + floorH - 4, floorCont, f, true);
+                    if (!_isNightShift) this.drawAvatar({ id: 'rec', name: 'Front Desk', isNPC: true, role: 'Receptionist', phase: 'released', lab: bld.lab, desc: 'Directing packets.' }, this.startX + 95, fy + floorH - 4, floorCont, f, true);
                     this.drawReceptionDesk(floorCont, this.startX + 110, fy + floorH - 4, colHex);
                     this.drawPlant(floorCont, this.startX + 220, fy + floorH - 4);
                 } 
@@ -533,7 +535,7 @@ const InteriorCity = {
                             currX += 100;
                         }
                         if (this.drawVendingMachine) this.drawVendingMachine(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
-                        this.drawAvatar({ id: 'trainer', name: 'Spotter', isNPC: true, role: 'Trainer', phase: 'released', lab: 'other', desc: 'Heavy lifting.' }, this.startX + this.usableW - 80, fy + floorH - 4, floorCont, f, true);
+                        if (!_isNightShift) this.drawAvatar({ id: 'trainer', name: 'Spotter', isNPC: true, role: 'Trainer', phase: 'released', lab: 'other', desc: 'Heavy lifting.' }, this.startX + this.usableW - 80, fy + floorH - 4, floorCont, f, true);
                     } else if (floorTheme === 'arena_lobby') {
                         this.drawReceptionDesk(floorCont, this.startX + 120, fy + floorH - 4, 0xef4444);
                         this.drawCouches(floorCont, this.startX + 250, fy + floorH - 4, 0xef4444);
@@ -554,7 +556,7 @@ const InteriorCity = {
                         }
                         if (this.drawRing) this.drawRing(floorCont, this.startX + this.usableW / 2, fy + floorH - 4);
                         if (this.drawScoreboard) this.drawScoreboard(floorCont, this.startX + this.usableW - 80, fy + floorH - 4);
-                        this.drawAvatar({ id: 'ref', name: 'Referee', isNPC: true, role: 'Referee', phase: 'released', lab: 'other', desc: 'Fair fights.' }, this.startX + this.usableW - 120, fy + floorH - 4, floorCont, f, true);
+                        if (!_isNightShift) this.drawAvatar({ id: 'ref', name: 'Referee', isNPC: true, role: 'Referee', phase: 'released', lab: 'other', desc: 'Fair fights.' }, this.startX + this.usableW - 120, fy + floorH - 4, floorCont, f, true);
                     } else if (floorTheme === 'cafe') {
                         if (this.drawMenuBoard) this.drawMenuBoard(floorCont, this.startX + 60, fy + floorH - 4);
                         this.drawBaristaCounter(floorCont, this.startX + this.usableW - 100, fy + floorH - 4);
@@ -564,7 +566,7 @@ const InteriorCity = {
                         this.drawCafeTable(floorCont, this.startX + 360, fy + floorH - 4);
                         if (this.drawBarStool) { this.drawBarStool(floorCont, this.startX + this.usableW - 130, fy + floorH - 4); this.drawBarStool(floorCont, this.startX + this.usableW - 110, fy + floorH - 4); }
                         if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 100, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 310, fy + floorH - 4); }
-                        this.drawAvatar({ id: 'barista', name: 'BaristaBot', isNPC: true, role: 'Barista', phase: 'released', lab: 'other', desc: 'Brewing Java.' }, this.startX + this.usableW - 90, fy + floorH - 4, floorCont, f, true);
+                        if (!_isNightShift) this.drawAvatar({ id: 'barista', name: 'BaristaBot', isNPC: true, role: 'Barista', phase: 'released', lab: 'other', desc: 'Brewing Java.' }, this.startX + this.usableW - 90, fy + floorH - 4, floorCont, f, true);
                     } else if (bld.id === 'graveyard' || bld.id === 'legacy') {
                         this.drawBrokenServer(floorCont, this.startX + 120, fy + floorH - 4);
                         this.drawTombstone(floorCont, this.startX + 200, fy + floorH - 4);

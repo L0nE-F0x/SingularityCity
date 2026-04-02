@@ -221,8 +221,9 @@ const InteriorNPC = {
         c.addChild(bd);
         const bdt = new PIXI.Text(`${residents.length} RESIDENTS`, { fontFamily:'JetBrains Mono', fontSize:6, fill:'#4ade80' });
         bdt.anchor.set(0.5,0.5); bdt.x = sx+400; bdt.y = pY-30; c.addChild(bdt);
-        // NPC
-        this._npc(c, sx+80, pY, 'Doorman', 0x475569);
+        // NPC (skip at night — doorman goes home)
+        const dp = G.getDayPhase();
+        if (!(dp > 0.83 || dp < 0.25)) this._npc(c, sx+80, pY, 'Doorman', 0x475569);
     },
     
     // ═══ APARTMENTS (Upper Floors) ═══

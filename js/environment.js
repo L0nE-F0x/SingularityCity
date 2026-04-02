@@ -613,15 +613,18 @@ const Environment = {
           this.bldLayer.removeChild(child);
           child.destroy({ children: true, texture: false, baseTexture: false });
       }
-      // reflectionLayer: just removeChildren — DO NOT destroy!
-      // CEO and car reflections live here and must survive rebuilds.
+      // reflectionLayer: removeChildren then re-add surviving refs
       this.reflectionLayer.removeChildren();
-      
+
       const ghostLights = [];
       this.lightLayer.children.forEach(c => { if (c !== this.staticLightsGfx) ghostLights.push(c); });
       ghostLights.forEach(c => { this.lightLayer.removeChild(c); c.destroy(); });
-      
+
       if (this.refMask) this.reflectionLayer.addChild(this.refMask);
+      // Re-attach CEO car reflections that survived the rebuild
+      if (G.ceoRefs) { Object.values(G.ceoRefs).forEach(ceo => { if (ceo && ceo.refCont && !ceo.refCont.destroyed) this.reflectionLayer.addChild(ceo.refCont); }); }
+      // Re-attach truck reflections
+      if (G.cars) { G.cars.forEach(c => { if (c && c.ref && !c.ref.destroyed) this.reflectionLayer.addChild(c.ref); }); }
 
       const emojiFontStack = '"Twemoji Mozilla", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif';
 

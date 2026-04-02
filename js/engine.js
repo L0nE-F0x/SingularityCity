@@ -1561,7 +1561,9 @@ const G = {
       this.trainLayer = new PIXI.Container();
       
       this.charLayer = new PIXI.Container();
+      this.charLayer.sortableChildren = true;
       this.carLayer = new PIXI.Container();
+      this.carLayer.sortableChildren = true;
       this.lightLayer = new PIXI.Container(); 
       this.lightLayer.alpha = 0; 
       this.staticLightsGfx = new PIXI.Graphics();

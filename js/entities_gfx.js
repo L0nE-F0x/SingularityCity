@@ -465,7 +465,7 @@ const EntitiesGfx = {
         t.front.x = t.x; t.front.y = t.y;
 
         trainLayer.addChild(t.c);
-        carLayer.addChild(t.front);
+        trainLayer.addChild(t.front);
         return t;
     },
 

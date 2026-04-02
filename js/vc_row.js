@@ -153,7 +153,7 @@ const VCRow = {
 
             carCont.y = G.groundY - 12; // road level
             carCont.visible = false;
-            carCont.zIndex = 10;
+            carCont.zIndex = Math.round(G.groundY - 12);
             carLayer.addChild(carCont);
 
             // Home and work positions
