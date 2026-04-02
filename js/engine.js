@@ -1285,7 +1285,7 @@ const G = {
       this.macroLayer.visible = false;
       
       if (PIXI.filters && PIXI.filters.AdvancedBloomFilter) {
-          this.bloomFilter = new PIXI.filters.AdvancedBloomFilter({ threshold: 0.6, bloomScale: 1.2, brightness: 1.0, blur: 6, quality: 4 });
+          this.bloomFilter = new PIXI.filters.AdvancedBloomFilter({ threshold: 0.6, bloomScale: 0.6, brightness: 1.0, blur: 4, quality: 2 });
           this.world.filters = [this.bloomFilter];
           this.crtFilter = new PIXI.filters.CRTFilter({ curvature: 2, lineContrast: 0.25, vignetting: 0.3, vignettingAlpha: 0.7, noise: 0.15, seed: Math.random() });
           this.glitchFilter = new PIXI.filters.GlitchFilter({ slices: 6, offset: 4, direction: 0, fillMode: 2, average: false }); 
@@ -1301,10 +1301,8 @@ const G = {
       this.undergroundLayer = new PIXI.Container();
       this.trainLayer = new PIXI.Container();
       
-      this.charLayer = new PIXI.Container(); 
-      this.charLayer.sortableChildren = true;
-      this.carLayer = new PIXI.Container(); 
-      this.carLayer.sortableChildren = true;
+      this.charLayer = new PIXI.Container();
+      this.carLayer = new PIXI.Container();
       this.lightLayer = new PIXI.Container(); 
       this.lightLayer.alpha = 0; 
       this.staticLightsGfx = new PIXI.Graphics();

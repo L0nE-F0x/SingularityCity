@@ -1840,13 +1840,15 @@ const Environment = {
     },
 
     drawWeather() {
+      // Throttle weather particle drawing to every other frame
+      if (G.tick % 2 !== 0) return;
       const g = this.fxGfx; g.clear(); const vw = G.vpW, vh = G.vpH, wx = -G.world.x;
       const wy = -(G.world.y || 0); // vertical camera offset in world coords
       const desert = this._getDesertRange();
       
       // ─── CITY WEATHER (skip desert zone) ───
       if (this.weather === 'rain') {
-        while (this.rainDrops.length < 250) this.rainDrops.push({ x: wx + Math.random() * vw, y: Math.random() * vh, s: 4 + Math.random() * 4 });
+        while (this.rainDrops.length < 150) this.rainDrops.push({ x: wx + Math.random() * vw, y: Math.random() * vh, s: 4 + Math.random() * 4 });
         g.lineStyle(1, 0x88bbdd, 0.3); 
         this.rainDrops.forEach(d => { 
             d.y += d.s; d.x -= 0.8; 
@@ -1875,7 +1877,7 @@ const Environment = {
       
       // ─── DESERT WEATHER (sandstorm — only in desert zone) ───
       if (this.desertWeather === 'sandstorm' && desert) {
-        while (this.sandParticles.length < 200) {
+        while (this.sandParticles.length < 100) {
             this.sandParticles.push({ 
                 x: desert.start + Math.random() * (desert.end - desert.start), 
                 y: wy + Math.random() * vh, 
@@ -1905,7 +1907,8 @@ const Environment = {
     },
 
     update(dp, night, occ) {
-        const vp = document.getElementById('viewport');
+        if (!this._vpEl) this._vpEl = document.getElementById('viewport');
+        const vp = this._vpEl;
         let sky;
         if (dp < .22) sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
         else if (dp < .30) { const t = (dp - .22) / .08;
@@ -1918,12 +1921,17 @@ const Environment = {
         else sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
         if (this.weather === 'rain' && !night && dp > .3 && dp < .72) sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
         if (this.weather === 'snow') sky = 'linear-gradient(180deg,#1a1a2e,#2d3748 50%,#4a5568)';
-        vp.style.background = sky;
+        if (sky !== this._lastSky) { this._lastSky = sky; vp.style.background = sky; }
     
         this.starsLayer.visible = night;
-        if (night) this.starsLayer.children.forEach(s => { s.alpha = .15 + Math.abs(Math.sin(G.tick * .03 + s._phase)) * .5; });
-        const cel = this.celestialGfx; cel.clear();
+        if (night && G.tick % 4 === 0) this.starsLayer.children.forEach(s => { s.alpha = .15 + Math.abs(Math.sin(G.tick * .03 + s._phase)) * .5; });
+        const cel = this.celestialGfx;
         const isGoldenHour = (dp >= 0.72 && dp < 0.84) || (dp >= 0.22 && dp < 0.30);
+        // Throttle celestial redraws to every 3rd frame (sun moves slowly)
+        if (G.tick % 3 !== 0 && !this._celDirty) { /* skip redraw */ }
+        else {
+        this._celDirty = false;
+        cel.clear();
         if (night) {
           let np = dp > 0.83 ?
           (dp - 0.83) / 0.42 : (dp + 0.17) / 0.42;
@@ -1965,8 +1973,9 @@ const Environment = {
           cel.beginFill(isGoldenHour ? 0xff9944 : 0xffe066);
           cel.drawCircle(sunX, sunY, isGoldenHour ? 18 : 15); cel.endFill();
         }
-        
-        this.cloudLayer.children.forEach(c => { c.x = c._bx + Math.sin(G.tick * (c._drift || .003) + c._i) * 40; const ca = (this.weather === 'rain' || this.weather === 'snow') ? .30 : .10 + Math.sin(G.tick * 0.001 + c._i) * 0.03; c.alpha = isGoldenHour ? ca + 0.08 : ca; c.tint = isGoldenHour ? 0xffcc88 : 0xffffff; });
+        } // end celestial throttle
+
+        if (G.tick % 2 === 0) this.cloudLayer.children.forEach(c => { c.x = c._bx + Math.sin(G.tick * (c._drift || .003) + c._i) * 40; const ca = (this.weather === 'rain' || this.weather === 'snow') ? .30 : .10 + Math.sin(G.tick * 0.001 + c._i) * 0.03; c.alpha = isGoldenHour ? ca + 0.08 : ca; c.tint = isGoldenHour ? 0xffcc88 : 0xffffff; });
         if (G.viewMode === 'micro') { this.updateWeather(); this.updateDesertWeather(); } this.drawWeather(); let targetRefAlpha = 0;
         if (night) { if (this.weather === 'rain') targetRefAlpha = 0.95; else if (this.weather === 'snow') targetRefAlpha = 0.5;
         else targetRefAlpha = 0.35; } else { if (this.weather === 'rain') targetRefAlpha = 0.4;
@@ -2013,8 +2022,12 @@ const Environment = {
                 }
             });
         }
-        // Per-frame: only cheap alpha animations
+        // Per-frame: only cheap alpha animations (visibility-culled)
+        const camL = typeof Camera !== 'undefined' ? (-Camera.x / (Camera.zoom || 1)) - 200 : 0;
+        const camR = camL + G.vpW / (Camera.zoom || 1) + 400;
         BLDS.forEach(b => {
+            // Skip buildings that are off-screen
+            if (b.x + b.w < camL || b.x > camR) return;
             // Neon signs: always visible, flicker at night only
             if (b._neonCont) {
                 b._neonCont.visible = true;
@@ -2087,8 +2100,9 @@ const Environment = {
             } 
         } 
         
-        BLDS.forEach(b => { 
-            if (b._beacon) { 
+        BLDS.forEach(b => {
+            if (b.x + b.w < camL || b.x > camR) return;
+            if (b._beacon) {
                 b._beacon.beam.alpha = 0.7 + Math.sin(G.tick * 0.1) * 0.3; 
                 if (b._beacon.crown) { 
                     b._beacon.crown.scale.set(1 + Math.sin(G.tick * 0.05) * 0.1); b._beacon.crown.y = -120 + Math.sin(G.tick * 0.08) * 5; 

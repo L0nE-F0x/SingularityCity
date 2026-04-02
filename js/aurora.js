@@ -105,21 +105,24 @@ const Aurora = {
     /* ─── DRAW AURORA + COMET ─── */
     draw(night) {
         if (!this._gfx) return;
-        this._gfx.clear();
 
-        // Check for new events
+        // Check for new events (throttled internally)
         this.check(night);
 
         if (!night) {
+            if (this._active || this._cometActive) this._gfx.clear();
             this._active = false;
             this._cometActive = false;
             return;
         }
 
+        // Throttle aurora redraw to every 3rd frame
+        if (G.tick % 3 !== 0 && !this._cometActive) return;
+        this._gfx.clear();
+
         /* ── AURORA BOREALIS ── */
         if (this._active) {
-            this._elapsed++;
-            // Fade in/out envelope
+            this._elapsed += 3; // compensate for throttle
             const fadeIn = Math.min(1, this._elapsed / 120);
             const fadeOut = Math.min(1, (this._duration - this._elapsed) / 120);
             const envelope = Math.min(fadeIn, fadeOut);
@@ -132,8 +135,8 @@ const Aurora = {
                     const g = this._gfx;
                     g.beginFill(r.color, r.alpha * envelope);
 
-                    // Draw ribbon as a series of connected quads across the viewport
-                    const step = 8;
+                    // Draw ribbon as connected quads — use larger step for performance
+                    const step = 16;
                     for (let x = 0; x < G.vpW + step; x += step) {
                         // World-space x for wave calculation
                         const wx = x + (typeof Camera !== 'undefined' ? -Camera.x : 0);
