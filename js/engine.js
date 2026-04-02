@@ -1521,7 +1521,7 @@ const G = {
       if (typeof UniversityData !== 'undefined') UniversityData.update();
       if (typeof UniversityEnv !== 'undefined') UniversityEnv.update();
       if (typeof CourtData !== 'undefined') CourtData.update();
-      if (typeof ConferenceData !== 'undefined' && ConferenceData.isActive()) ConferenceData.update();
+      if (typeof ConferenceData !== 'undefined') ConferenceData.update();
   
       if (this.tick % 60 === 0) {
         // NOTE: Building sign/window occupancy updates are handled by Environment.update()

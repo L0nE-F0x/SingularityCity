@@ -119,6 +119,7 @@ const CourtData = {
     },
 
     update() {
+        if (!G.models) return;
         if (G.tick >= this._nextSummon) {
             // Clear previous summons
             this._summonedModels.forEach(id => {

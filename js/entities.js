@@ -488,13 +488,15 @@ const Entities = {
                           const spaceOrg = CEO_SPACE_MAP[lab];
                           let spaceTrip = false;
                           
-                          if (spaceOrg && !heli._spaceVisitDone && typeof SpaceData !== 'undefined' && SpaceData.launches) {
+                          if (spaceOrg && typeof SpaceData !== 'undefined' && SpaceData.launches) {
                               const now = Date.now();
                               const imminent = SpaceData.launches.find(l => {
                                   const org = SpaceData.getOrgForProvider(l.provider);
                                   return org === spaceOrg && new Date(l.net).getTime() - now < 7200000 && new Date(l.net).getTime() - now > 0;
                               });
-                              if (imminent) {
+                              // Reset visit flag when no launch is imminent (so CEO can visit next launch)
+                              if (!imminent && heli._spaceVisitDone) heli._spaceVisitDone = false;
+                              if (imminent && !heli._spaceVisitDone) {
                                   // Fly to mission control in the space zone
                                   const mcBld = G.bldById['mission_control'];
                                   if (mcBld) {

@@ -93,7 +93,7 @@ const NPCHousing = {
 
     spawnCommuters(charLayer) {
         if (!charLayer || this.commuters.length > 0) return;
-        const subset = this.REGISTRY.slice(0, 12);
+        const subset = this.REGISTRY;
         subset.forEach((npc, i) => {
             const av = this._drawAvatar(charLayer, npc);
             const homeBld = BLDS.find(b => b.id === 'npc_apt_' + (1 + (i % 3)));

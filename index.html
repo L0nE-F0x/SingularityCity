@@ -7,7 +7,7 @@
 <meta name="description" content="A globally synced, real-time simulation tracking the AI frontier. Discover models, track benchmarks, and watch the race to AGI unfold.">
 
 <meta property="og:title" content="Singularity City">
-<meta property="og:description" content="A real-time, globally synced simulation of the AI industry. 730+ AI citizens, 5 data pipelines, live rocket launches, CEO helicopters. Every discovery expands the city for everyone.">
+<meta property="og:description" content="A real-time, globally synced simulation of the AI industry. 848+ AI citizens, 5 data pipelines, live rocket launches, CEO helicopters, university campus, AI court, seasonal events. Every discovery expands the city for everyone.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://singularitycity.netlify.app/og-image.png">
 <meta property="og:image:width" content="1200">
@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://singularitycity.netlify.app">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Singularity City">
-<meta name="twitter:description" content="A real-time simulation of the AI industry. AI models are citizens. Labs are districts. CEOs fly helicopters. Rockets launch from the desert.">
+<meta name="twitter:description" content="A real-time simulation of the AI industry. AI models are citizens. Labs are districts. CEOs fly helicopters. Rockets launch from the desert. University campus, AI court, seasonal events &amp; aurora borealis.">
 <meta name="twitter:image" content="https://singularitycity.netlify.app/og-image.png">
 
 <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -48,12 +48,17 @@
       <div class="land-feat"><span>⚡</span><div><b>Power Grid</b>5 power sources with real supply &amp; demand</div></div>
       <div class="land-feat"><span>🏠</span><div><b>NPC Housing</b>24 worker NPCs with commuter routines</div></div>
       <div class="land-feat"><span>🍸</span><div><b>Neon Nightlife</b>Bar interior with karaoke &amp; VIP lounge</div></div>
+      <div class="land-feat"><span>🎓</span><div><b>University Campus</b>Academy, library, dorms &amp; research lab</div></div>
+      <div class="land-feat"><span>🏛️</span><div><b>AI Court</b>Senate hearings &amp; regulation debates</div></div>
+      <div class="land-feat"><span>📝</span><div><b>Conference Center</b>NeurIPS, ICML &amp; live poster sessions</div></div>
+      <div class="land-feat"><span>🎄</span><div><b>Seasonal Events</b>Snow, fireworks, lanterns &amp; pumpkins</div></div>
+      <div class="land-feat"><span>🌌</span><div><b>Aurora &amp; Comets</b>Rare celestial events on clear nights</div></div>
     </div>
     <div class="land-btns">
       <button class="land-enter" onclick="enterCity()">▶ Enter Singularity City</button>
       <button class="land-how" onclick="document.getElementById('instrOv').classList.add('open')">❓ How It Works</button>
     </div>
-    <div class="land-footer"><span>🌍 Global Sync</span><span>🖥️ 17 Data Centers</span><span>🌌 3D Holomap</span><span>🚇 4 Metro Lines</span><span>📈 Live Benchmarks</span><span>🚀 Real Launches</span><span>🚢 Trade Port</span><span>⚡ Power Grid</span><span>🏠 NPC Workers</span><span>🍸 Neon Bar</span></div>
+    <div class="land-footer"><span>🌍 Global Sync</span><span>🖥️ 17 Data Centers</span><span>🌌 3D Holomap</span><span>🚇 4 Metro Lines</span><span>📈 Live Benchmarks</span><span>🚀 Real Launches</span><span>🚢 Trade Port</span><span>⚡ Power Grid</span><span>🏠 NPC Workers</span><span>🍸 Neon Bar</span><span>🎓 University</span><span>🏛️ AI Court</span><span>📝 Conferences</span><span>🎄 Seasons</span><span>☄️ Aurora</span></div>
     <div id="mobileWarning" style="display:none;margin-top:12px;padding:8px 14px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:6px;font-size:10px;color:#fbbf24;line-height:1.5">
       📱 <b>Mobile detected.</b> Best on desktop. Touch controls: swipe to pan, pinch to zoom, tap for profiles.
     </div>
@@ -95,7 +100,7 @@
     
     <div class="instr-section"><div class="instr-h">🗺️ Controls</div><div class="instr-p"><b>Desktop:</b> Drag to pan. Scroll wheel to move. Click characters/buildings for details. <b>📡 Track</b> to follow anyone.<br><b>Mobile:</b> Swipe to pan. Pinch to zoom. Tap characters for profiles. Tap buildings to enter.</div></div>
     
-    <div class="instr-section"><div class="instr-h">🌍 Map Layout (left → right)</div><div class="instr-p">🏜️ Space Zone → 🌲 Frontier Pines → 🏠 Residential → 🌲 Pine Reserve → 🏢 Tech District → 🚇 Metro East → 🌲 Silicon Woods → 🏡 Billionaire's Row</div></div>
+    <div class="instr-section"><div class="instr-h">🌍 Map Layout (left → right)</div><div class="instr-p">🚢 Port District → 🏜️ Space Zone → 🌲 Frontier Pines → 🏠 Worker Housing → 🖥️ Compute District → 🏠 Residential → 🎓 University → 🌲 Pine Reserve → 🏛️ AI Court → 🏢 Tech District → 📝 Conference → 🚇 Metro East → 🍸 Neon Bar → 🌲 Silicon Woods → 🏡 Billionaire's Row → ⚡ Power Grid</div></div>
     
     <button class="instr-got" onclick="document.getElementById('instrOv').classList.remove('open')">Got it — Let me in!</button>
   </div>

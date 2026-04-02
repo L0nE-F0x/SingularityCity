@@ -784,7 +784,7 @@ JSON (no markdown):
                 }
           
                 console.log(`📡 [SCAN] Provider: ${G.apiProvider}, Model: ${G.modelId || 'default'}, Prompt chars: ${prompt.length}, Models in dedup list: ${G.models.length}`);
-                const res = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl) });
+                const res = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl), signal: AbortSignal.timeout(45000) });
                 if (!res.ok) {
                     const errText = await res.text();
                     console.error(`⛔ [SCAN] HTTP ${res.status} from ${G.apiProvider}`, errText);
@@ -991,8 +991,9 @@ JSON (no markdown):
                                 color: labData.color,
                                 fact: newFounder.fact
                             }).then(({error}) => {
-                                if (!error) console.log(`[Founder] Saved ${m.founder_name} to cloud.`);
-                            });
+                                if (error) console.error(`[Founder] Save error for ${m.founder_name}:`, error);
+                                else console.log(`[Founder] Saved ${m.founder_name} to cloud.`);
+                            }).catch(err => console.error(`[Founder] Save failed:`, err));
                         }
                         
                         // ─── CREATE RUNTIME CEO ENTITIES ───
@@ -1068,7 +1069,7 @@ JSON (no markdown):
                 
                 if (this.supabase) {
                     try {
-                        const { error } = await this.supabase.from('models').upsert(nm);
+                        const { error } = await this.supabase.from('models').upsert(this._dbSafeModel(nm));
                         if (error) console.error("Supabase Save Error:", error);
                         else console.log(`Successfully synced ${nm.name} to cloud database.`);
                     } catch (dbErr) {

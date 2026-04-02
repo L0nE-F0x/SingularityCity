@@ -110,6 +110,13 @@ const ConferenceData = {
             if (!was && this._active) {
                 this._injectBuilding();
                 if (typeof UI !== 'undefined') UI.addToast('🎓 ' + this._active.name + ' conference has begun!');
+            } else if (was && !this._active) {
+                // Conference ended — remove building from arrays
+                const idx = BLDS.findIndex(b => b.id === 'convention_center');
+                if (idx !== -1) BLDS.splice(idx, 1);
+                delete G.bldById['convention_center'];
+                this._bld = null;
+                if (typeof Environment !== 'undefined' && Environment.buildBuildings) Environment.buildBuildings();
             }
         }
     }

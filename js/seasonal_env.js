@@ -16,14 +16,21 @@ const SeasonalEnv = {
     init(layers) {
         this.bldLayer = layers.bldLayer;
         this.fxLayer = layers.fxGfx;
+        this._ensureGfx();
+    },
+
+    /* ─── Ensure overlay Graphics exists (it gets destroyed by buildBuildings) ─── */
+    _ensureGfx() {
+        if (this._overlayGfx && !this._overlayGfx.destroyed) return;
         this._overlayGfx = new PIXI.Graphics();
         this._overlayGfx.zIndex = 9999;
-        this.bldLayer.addChild(this._overlayGfx);
+        if (this.bldLayer) this.bldLayer.addChild(this._overlayGfx);
     },
 
     /* ─── BUILD OVERLAYS ON BUILDINGS ─── */
     buildOverlays() {
         if (typeof Seasonal === 'undefined') return;
+        this._ensureGfx();
         const evts = Seasonal.getActiveEvents();
         const evtIds = evts.map(e => e.id).join(',');
         if (evtIds === this._lastEvent) return; // don't rebuild if same events
@@ -131,6 +138,12 @@ const SeasonalEnv = {
         if (typeof Seasonal === 'undefined') return;
         const evts = Seasonal.getActiveEvents();
         if (evts.length === 0) return;
+
+        // Recreate overlay if destroyed by buildBuildings(), and rebuild content
+        if (!this._overlayGfx || this._overlayGfx.destroyed) {
+            this._lastEvent = null;  // force rebuild
+            this.buildOverlays();
+        }
 
         // Rebuild overlays periodically (in case buildings moved or events changed)
         if (G.tick % 300 === 0) this.buildOverlays();

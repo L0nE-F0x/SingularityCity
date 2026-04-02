@@ -72,7 +72,7 @@ h1, h2, h3, p { margin: 0; }
 .land-sub { font-size: clamp(11px, 1.4vw, 14px); color: var(--t2); line-height: 1.7; margin-bottom: clamp(16px, 3vh, 28px); }
 .land-sub span { color: var(--ac); font-weight: bold; }
 
-.land-features { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(5px, 0.8vw, 8px); margin-bottom: clamp(12px, 2vh, 20px); max-width: 700px; margin-left: auto; margin-right: auto; }
+.land-features { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(4px, 0.6vw, 6px); margin-bottom: clamp(12px, 2vh, 20px); max-width: 740px; margin-left: auto; margin-right: auto; }
 .land-feat {
     display: flex; align-items: center; gap: 6px;
     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);

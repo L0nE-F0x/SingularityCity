@@ -144,10 +144,12 @@ const Holomap = {
     },
 
     getStageForModel(m) {
-        if (typeof getStage === 'function' && m.released) {
-            return getStage(m.released, m.retired, m.phase);
+        const rel = m.rel || m.released;
+        const ret = m.ret || m.retired;
+        if (typeof getStage === 'function' && rel) {
+            return getStage(rel, ret, m.phase);
         }
-        if (m.retired && new Date(m.retired) < new Date()) return 'retired';
+        if (ret && new Date(ret) < new Date()) return 'retired';
         if (m.phase === 'rumored') return 'rumored';
         if (m.phase === 'pre_training') return 'baby';
         if (m.phase === 'training') return 'kid';
@@ -162,7 +164,7 @@ const Holomap = {
         if (stg === 'baby') return 4;
         if (stg === 'kid') return 5;
 
-        var rel = m.released ? new Date(m.released).getTime() : Date.now();
+        var rel = (m.rel || m.released) ? new Date(m.rel || m.released).getTime() : Date.now();
         var age = (Date.now() - rel) / (1e3 * 60 * 60 * 24 * 30);
         var recency = Math.max(0, 1 - age / 48);
         var bmScore = (bm || 35) / 100;
@@ -677,7 +679,8 @@ const Holomap = {
         h += '<div class="holo-stat"><span class="holo-stat-lbl">Status</span><span class="holo-stat-val">'+(STAGES[stg]?STAGES[stg].emoji+' '+STAGES[stg].label:stg)+'</span></div>';
         if (bm.ELO) h += '<div class="holo-stat"><span class="holo-stat-lbl">ELO</span><span class="holo-stat-val" style="color:#4ade80">'+bm.ELO+'</span></div>';
         if (avg) h += '<div class="holo-stat"><span class="holo-stat-lbl">Avg Benchmark</span><span class="holo-stat-val" style="color:'+(avg>80?'#4ade80':avg>50?'#facc15':'#f87171')+'">'+avg+'%</span></div>';
-        if (m.released) h += '<div class="holo-stat"><span class="holo-stat-lbl">Released</span><span class="holo-stat-val">'+m.released+'</span></div>';
+        var relDate = m.rel || m.released;
+        if (relDate) h += '<div class="holo-stat"><span class="holo-stat-lbl">Released</span><span class="holo-stat-val">'+relDate+'</span></div>';
 
         var bmKeys = ['MMLU','HumanEval','MATH','GPQA','ARC','MGSM'];
         if (bmKeys.some(function(k){ return bm[k] !== undefined; })) {

@@ -240,14 +240,30 @@ const InteriorNPC = {
                 // Check if sleeping (late night for day shift, midday for night shift)
                 const isSleeping = isNightShift ? (dp > 0.42 && dp < 0.75) : (dp > 0.88 || dp < 0.25);
                 if (isSleeping) {
-                    // Draw sleeping figure on bed
+                    // Sleeping figure lying on bed — head, body under blanket, pillow
                     const sleeper = new PIXI.Graphics(); sleeper.eventMode = 'none';
-                    sleeper.beginFill(0xfdd8b5); sleeper.drawCircle(ux + 16, pY - 14, 4); sleeper.endFill(); // head
-                    sleeper.beginFill(col, 0.6); sleeper.drawRect(ux + 20, pY - 16, 18, 8); sleeper.endFill(); // body under blanket
+                    // Pillow
+                    sleeper.beginFill(0xffffff, 0.35); sleeper.drawRoundedRect(ux + 10, pY - 17, 14, 6, 2); sleeper.endFill();
+                    // Head on pillow (skin tone circle)
+                    sleeper.beginFill(0xfdd8b5); sleeper.drawCircle(ux + 17, pY - 13, 5); sleeper.endFill();
+                    // Closed eyes
+                    sleeper.beginFill(0x2c1810, 0.6); sleeper.drawRect(ux + 14, pY - 13, 2, 1); sleeper.drawRect(ux + 19, pY - 13, 2, 1); sleeper.endFill();
+                    // Body under blanket (colored by NPC)
+                    sleeper.beginFill(col, 0.5); sleeper.drawRoundedRect(ux + 22, pY - 17, 22, 10, 3); sleeper.endFill();
+                    // Blanket edge highlight
+                    sleeper.beginFill(col, 0.3); sleeper.drawRect(ux + 22, pY - 17, 22, 2); sleeper.endFill();
                     unit.addChild(sleeper);
-                    const zzz = new PIXI.Text('💤', { fontFamily: 'JetBrains Mono', fontSize: 8 });
-                    zzz.anchor.set(0.5, 1); zzz.x = ux + 30; zzz.y = pY - 20; zzz.alpha = 0.6;
-                    unit.addChild(zzz);
+                    // Animated floating Zzz
+                    const zzzCont = new PIXI.Container(); zzzCont.x = ux + 36; zzzCont.y = pY - 22;
+                    const z1 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 7, fill: col, fontWeight: 'bold' });
+                    z1.anchor.set(0.5); z1.x = 0; z1.y = 0; z1.alpha = 0.7;
+                    const z2 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 9, fill: col, fontWeight: 'bold' });
+                    z2.anchor.set(0.5); z2.x = 6; z2.y = -8; z2.alpha = 0.5;
+                    const z3 = new PIXI.Text('Z', { fontFamily: 'JetBrains Mono', fontSize: 11, fill: col, fontWeight: 'bold' });
+                    z3.anchor.set(0.5); z3.x = 12; z3.y = -18; z3.alpha = 0.3;
+                    zzzCont.addChild(z1, z2, z3);
+                    unit.addChild(zzzCont);
+                    this.avatars.push({ cont: zzzCont, _isZzz: true, _z1: z1, _z2: z2, _z3: z3, _phase: Math.random() * Math.PI * 2 });
                 } else {
                     this._npc(unit, ux + 72, pY, resident.name, col);
                 }
@@ -322,6 +338,6 @@ const InteriorNPC = {
         if(this.starsLayer){this.starsLayer.visible=night;if(night)this.starsLayer.children.forEach(s=>{s.alpha=.15+Math.abs(Math.sin(G.tick*.03+s._phase))*.5;});}
         this.indoorLights.forEach(l => { if(!l.g||l.g.destroyed) return; l.g.alpha = l.maxA*(0.7+Math.sin(G.tick*0.02)*0.3); });
         if (this.bld && this.lifts[this.bld.id]) this.lifts[this.bld.id].update();
-        this.avatars.forEach((av,ci) => { if(!av.cont||av.cont.destroyed) return; av._walkTimer--; if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;} const nx=av.cont.x+av._walkDir*0.3; if(nx>av._minX&&nx<av._maxX)av.cont.x=nx; if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5; if(av.legL)av.legL.y=Math.sin(G.tick*0.2+ci)*3; if(av.legR)av.legR.y=-Math.sin(G.tick*0.2+ci)*3; });
+        this.avatars.forEach((av,ci) => { if(!av.cont||av.cont.destroyed) return; if(av._isZzz){const t=G.tick*0.04+av._phase;av._z1.y=Math.sin(t)*3;av._z1.alpha=0.5+Math.sin(t)*0.3;av._z2.y=-8+Math.sin(t+1)*3;av._z2.alpha=0.3+Math.sin(t+1)*0.25;av._z3.y=-18+Math.sin(t+2)*3;av._z3.alpha=0.15+Math.sin(t+2)*0.2;return;} av._walkTimer--; if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;} const nx=av.cont.x+av._walkDir*0.3; if(nx>av._minX&&nx<av._maxX)av.cont.x=nx; if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5; if(av.legL)av.legL.y=Math.sin(G.tick*0.2+ci)*3; if(av.legR)av.legR.y=-Math.sin(G.tick*0.2+ci)*3; });
     }
 };
