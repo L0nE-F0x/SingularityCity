@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   ENVIRONMENT LAYER (v16.3.0 - Visibility Culling & Dirty-Flag Rebuild)
+   ENVIRONMENT LAYER (v16.3.1 - Visibility Culling, Dirty-Flag, CacheAsBitmap)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const Environment = {
@@ -1625,7 +1625,9 @@ const Environment = {
         }
         
         container.addChild(gfx);
-        
+        // Cache building body as bitmap — converts all Graphics draw calls into a single batched sprite
+        gfx.cacheAsBitmap = true;
+
         // ─── ROOFTOP HELIPAD for HQ buildings with founders ───
         if (!b.id.startsWith('house_') && !b.id.startsWith('res_') && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'park' && b.id !== 'graveyard') {
             const hasFounder = G.ceoRefs && G.ceoRefs[b.lab];

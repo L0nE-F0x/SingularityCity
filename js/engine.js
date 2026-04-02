@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   SINGULARITY CITY v16.5.0 — HYBRID DYNAMIC ENGINE (Restored Region Mapping)
+   SINGULARITY CITY v16.6.0 — HYBRID DYNAMIC ENGINE (Worker + Single-Pass Optimization)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const CoreLabRegions = {
@@ -716,34 +716,92 @@ const G = {
       }
     },
   
+    // ─── COMPUTE WORKER: Post model data for off-thread aggregation ───
+    _postToWorker() {
+        if (!this._computeWorker) return;
+        try {
+            const models = [];
+            for (let i = 0; i < this.models.length; i++) {
+                const m = this.models[i];
+                models.push({ id: m.id, lab: m.lab, name: m.name, ret: m.ret, os: m.os, phase: m.phase, _src: m._src });
+            }
+            const labRegions = {};
+            for (const k in LABS) if (LABS[k]) labRegions[k] = LABS[k].region || 'eu';
+            this._computeWorker.postMessage({
+                type: 'crunch',
+                payload: { models, benchmarks: (typeof BM !== 'undefined' ? BM : {}), costs: (typeof COSTS !== 'undefined' ? COSTS : {}), labRegions }
+            });
+        } catch(ex) { /* serialization failed — will use inline fallback */ }
+    },
+
     evolveCity() {
       // Time-gate: don't rebuild more than once every 3 seconds
       const now = Date.now();
       if (this._lastEvolve && now - this._lastEvolve < 3000) {
-          // Schedule a deferred evolve so we don't miss the last call
           if (!this._evolveDeferred) {
               this._evolveDeferred = setTimeout(() => { this._evolveDeferred = null; this.evolveCity(); }, 3000);
           }
           return;
       }
       this._lastEvolve = now;
-      
-      let topElo = 0;
-      let topLab = null; 
-      let cheapestLab = null; 
-      let lowestCost = 999;
 
-      this.models.forEach(m => {
-        if (BM[m.id]?.ELO > topElo) { topElo = BM[m.id].ELO; topLab = m.lab; }
-        if (COSTS[m.id]?.output > 0 && COSTS[m.id].output < lowestCost) { lowestCost = COSTS[m.id].output; cheapestLab = m.lab; }
-      });
-      
+      // Post data to worker for NEXT cycle's cache
+      this._postToWorker();
+
+      // ─── AGGREGATION: Use worker cache if available, else single-pass inline ───
+      let topLab = null, cheapestLab = null;
+      let perLab, perRegion;
+
+      const wc = this._workerCache;
+      if (wc) {
+          topLab = wc.topLab;
+          cheapestLab = wc.cheapestLab;
+          perLab = wc.perLab;
+          perRegion = wc.perRegion;
+      } else {
+          // Inline single-pass fallback (replaces 60+ redundant .filter() calls)
+          let topElo = 0, lowestCost = 999;
+          perLab = {};
+          perRegion = {};
+
+          for (let i = 0; i < this.models.length; i++) {
+              const m = this.models[i];
+              const isAlive = !m.ret || new Date(m.ret).getTime() > now;
+
+              if (!perLab[m.lab]) perLab[m.lab] = { active: 0, total: 0, osCount: 0, topScore: 0, topName: '' };
+              const pl = perLab[m.lab];
+              pl.total++;
+              if (isAlive) pl.active++;
+              if (m.os) pl.osCount++;
+
+              // Benchmark scoring
+              let score = 0;
+              if (typeof avgBM === 'function') score = avgBM(m.id) || 0;
+              if (score === 0) score = (typeof BM !== 'undefined' && BM[m.id]?.ELO) || 0;
+              if (score === 0 && typeof BM !== 'undefined') {
+                  const bms = BM[m.id] || {};
+                  const vals = Object.values(bms).filter(v => typeof v === 'number' && v > 0);
+                  if (vals.length > 0) score = vals.reduce((a, b) => a + b, 0) / vals.length;
+              }
+              if (score >= pl.topScore) { pl.topScore = score; pl.topName = m.name; }
+
+              if (typeof BM !== 'undefined' && BM[m.id]?.ELO > topElo) { topElo = BM[m.id].ELO; topLab = m.lab; }
+              if (typeof COSTS !== 'undefined' && COSTS[m.id]?.output > 0 && COSTS[m.id].output < lowestCost) { lowestCost = COSTS[m.id].output; cheapestLab = m.lab; }
+
+              if (isAlive) {
+                  const r = (LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region : 'eu';
+                  perRegion[r] = (perRegion[r] || 0) + 1;
+              }
+          }
+      }
+
+      // ─── Apply aggregated data to buildings ───
       BLDS.forEach(b => {
         if (b.id === 'gym' || b.id === 'arena') {
             b.dynamicFl = 3;
             b.desc = b.id === 'gym' ? 'RLHF Gym for heavy compute training.' : 'LMSYS Chatbot Arena for model battles.';
         }
-        
+
         if (b.id === 'neon_bar') {
             b.dynamicFl = 3;
             b.desc = 'Late-night karaoke bar. Models unwind and sing their training data.';
@@ -751,14 +809,10 @@ const G = {
 
         if (b.id.startsWith('res_')) {
             const resRegion = b.id.split('_')[1] || 'eu';
-            const activeResModels = this.models.filter(m => {
-                if (m.ret && new Date(m.ret) < new Date()) return false;
-                const r = (LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region : 'eu';
-                return r === resRegion;
-            });
-            b.dynamicFl = Math.max(b.fl || 2, Math.floor(activeResModels.length / 4) + 2);
+            const count = perRegion[resRegion] || 0;
+            b.dynamicFl = Math.max(b.fl || 2, Math.floor(count / 4) + 2);
             b.desc = `High-density residential housing block for AI citizens in the ${resRegion.toUpperCase()} region.`;
-            b.tip = `🏢 ${b.name}<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">POPULATION: ${activeResModels.length} Citizens<br>CAPACITY: ${b.dynamicFl * 4} Units</span>`;
+            b.tip = `🏢 ${b.name}<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">POPULATION: ${count} Citizens<br>CAPACITY: ${b.dynamicFl * 4} Units</span>`;
             return;
         }
 
@@ -772,43 +826,23 @@ const G = {
             return;
         }
 
-        // DC/fab buildings have their own fixed height — skip HQ scaling
         if (b.id.startsWith('dc_') || b.id.startsWith('fab_')) return;
 
-        const activeModels = this.models.filter(m => m.lab === b.lab && (!m.ret || new Date(m.ret) > new Date()));
-        
-        b.dynamicFl = Math.max(b.fl || 3, Math.floor(activeModels.length / 2) + 2);
-        if (b.dynamicFl < 3) b.dynamicFl = 3; 
+        const pl = perLab[b.lab] || { active: 0, total: 0, osCount: 0, topScore: 0, topName: '' };
 
-        b.isTopLab = (b.lab === topLab); 
+        b.dynamicFl = Math.max(b.fl || 3, Math.floor(pl.active / 2) + 2);
+        if (b.dynamicFl < 3) b.dynamicFl = 3;
+
+        b.isTopLab = (b.lab === topLab);
         b.isCheapest = (b.lab === cheapestLab);
-        
-        const allLabModels = this.models.filter(m => m.lab === b.lab);
-        let topModel = null; 
-        let highest = 0; 
-        let openSourceCount = 0;
-        
-        allLabModels.forEach(m => { 
-            // Use avgBM if available, fall back to ELO, then individual benchmarks
-            let score = 0;
-            if (typeof avgBM === 'function') score = avgBM(m.id) || 0;
-            if (score === 0) score = BM[m.id]?.ELO || 0;
-            if (score === 0) {
-                const bms = BM[m.id] || {};
-                const vals = Object.values(bms).filter(v => typeof v === 'number' && v > 0);
-                if (vals.length > 0) score = vals.reduce((a, b) => a + b, 0) / vals.length;
-            }
-            if (score >= highest) { highest = score; topModel = m; } 
-            if (m.os) openSourceCount++; 
-        });
+
+        const philosophy = pl.osCount >= (pl.total / 2) ? "🟢 Open-Weights Focus" : "🔒 Closed-Weights Focus";
+        const flagshipText = pl.topName || (pl.total > 0 ? 'Active' : 'Awaiting Data');
+        const modelCount = pl.total;
+        const benchInfo = pl.topScore > 0 ? `⚡ AVG SCORE: ${pl.topScore.toFixed(0)}%` : '';
 
         const baseLore = LABS[b.lab]?.desc || `An emerging AI research facility actively contributing to the global intelligence frontier.`;
-        const philosophy = openSourceCount >= (allLabModels.length / 2) ? "🟢 Open-Weights Focus" : "🔒 Closed-Weights Focus";
-        const flagshipText = topModel ? topModel.name : (allLabModels.length > 0 ? allLabModels[allLabModels.length - 1].name : 'Awaiting Data');
-        const modelCount = allLabModels.length;
-        const benchInfo = highest > 0 ? `⚡ AVG SCORE: ${highest.toFixed(0)}%` : '';
-        
-        b.desc = baseLore; 
+        b.desc = baseLore;
         b.tip = `${baseLore}<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">🏢 STAFF: ${modelCount} AI Citizens<br>🧠 FLAGSHIP: ${flagshipText}<br>${benchInfo ? benchInfo + '<br>' : ''}${philosophy}</span>`;
       });
 
@@ -1363,7 +1397,19 @@ const G = {
       if (typeof SpaceEntities !== 'undefined') {
           SpaceEntities.init(this.carLayer);
       }
-  
+
+      // ─── COMPUTE WORKER: Offload model data crunching to separate thread ───
+      this._workerCache = null;
+      if (typeof Worker !== 'undefined') {
+          try {
+              this._computeWorker = new Worker('js/compute_worker.js');
+              this._computeWorker.onmessage = (e) => {
+                  if (e.data.type === 'crunched') this._workerCache = e.data.payload;
+              };
+              this._computeWorker.onerror = () => { this._computeWorker = null; };
+          } catch(ex) { /* Worker unavailable — will use inline fallback */ }
+      }
+
       this.evolveCity(); 
       if (typeof Entities !== 'undefined') {
           this.models.forEach(m => Entities.createChar(m));
@@ -1602,16 +1648,32 @@ const G = {
         else if (hh < 20) lbl = 'Evening'; 
         else lbl = 'Night';
         
-        const now = Date.now();
-        const alive = this.models.filter(m => !m.ret || new Date(m.ret).getTime() > now).length; 
-        const dead = this.models.length - alive;
-        const disc = this.models.filter(m => m._src).length; 
-        const preT = this.models.filter(m => ['rumored', 'pre_training', 'training'].includes(m.phase)).length;
+        // ─── HUD STATS: Use worker cache or single-pass inline ───
+        let alive, dead, disc, preT, labCount;
+        const wc = this._workerCache;
+        if (wc && wc.stats) {
+            alive = wc.stats.alive; dead = wc.stats.dead;
+            disc = wc.stats.discovered; preT = wc.stats.training;
+            labCount = wc.stats.labCount;
+        } else {
+            alive = 0; disc = 0; preT = 0;
+            const labSet = new Set();
+            const nowMs = Date.now();
+            for (let i = 0; i < this.models.length; i++) {
+                const m = this.models[i];
+                if (!m.ret || new Date(m.ret).getTime() > nowMs) alive++;
+                if (m._src) disc++;
+                const ph = m.phase;
+                if (ph === 'rumored' || ph === 'pre_training' || ph === 'training') preT++;
+                labSet.add(m.lab);
+            }
+            dead = this.models.length - alive;
+            labCount = labSet.size;
+        }
         const wI = (typeof Environment !== 'undefined') ? (Environment.weather === 'rain' ? '🌧️' : Environment.weather === 'snow' ? '❄️' : Environment.weather === 'cherry' ? '🌸' : '') : '';
-        
+
         const nfoEl = document.getElementById('nfo');
         if (nfoEl) {
-            const labCount = new Set(this.models.map(m => m.lab)).size;
             const estateCount = typeof BLDS !== 'undefined' ? BLDS.filter(b => b.id.startsWith('house_')).length : 0;
             nfoEl.innerHTML = `<span title="Current time of day in Singularity City — ${lbl}">🕒 <span class="st">${ts}</span></span><span style="font-size:7px;color:var(--ac)" title="City is running live — all data updates in real time">● LIVE</span><span title="Active AI model citizens currently in the city">👥 <span class="st">${alive}</span></span><span title="${labCount} AI labs with districts in the city">🏢 <span class="st">${labCount}</span></span><span title="${estateCount} CEO/Founder estates on Billionaire's Row">🏛️ <span class="st">${estateCount}</span></span>${preT > 0 ? `<span title="Models currently in pre-training, training, or rumored phase">🔬 <span class="st" style="color:var(--pk)">${preT}</span></span>` : ''}<span title="${dead} retired or deprecated models (visible as ghosts)">👻 <span class="st">${dead}</span></span>${disc > 0 ? `<span title="${disc} models discovered via network scans by all players globally">🛰️ <span class="st" style="color:var(--cy)">${disc}</span></span>` : ''}${wI ? `<span title="Current weather: ${Environment.weather || 'clear'}">${wI}</span>` : ''}${this.autoScanMin > 0 ? `<span style="font-size:7px;color:var(--cy)" title="Auto-scan interval — scanning for new models every ${this.autoScanMin} minutes">🔄 ${this.autoScanMin}m</span>` : ''}`;
         }
