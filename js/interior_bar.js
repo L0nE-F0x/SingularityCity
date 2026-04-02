@@ -384,9 +384,15 @@ const InteriorBar = {
         cont.addChild(sh, legL, legR, body, head, dot, tx);
         cont.eventMode='static'; cont.cursor='pointer';
         cont.hitArea = new PIXI.Rectangle(-bw,-h-10,bw*2,h+14);
-        cont.on('pointertap', () => { if(typeof UI!=='undefined') UI.selectModel({ id:'npc_'+name.toLowerCase().replace(/\s/g,'_'), name, isNPC:true, role:name, lab:'other', desc:'Neon Bar staff. Keeping the party going every night.' }); });
+        const barNpcId = 'npc_'+name.toLowerCase().replace(/\s/g,'_');
+        cont.on('pointertap', () => { if(typeof UI!=='undefined') UI.selectModel({ id:barNpcId, name, isNPC:true, _trackType:'npc', role:name, lab:'other', desc:'Neon Bar staff. Keeping the party going every night.' }); });
         c.addChild(cont);
-        this.avatars.push({ cont, head, body, legL, legR, _minX:x-40, _maxX:x+40, _phase:Math.random()*Math.PI*2, _walkTimer:0, _walkDir:0 });
+        const barAv = { cont, head, body, legL, legR, _minX:x-40, _maxX:x+40, _phase:Math.random()*Math.PI*2, _walkTimer:0, _walkDir:0 };
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(cont, { id: barNpcId }, false);
+            if (hl) { barAv._trackGlow = hl.glow; barAv._trackArrow = hl.arrow; }
+        }
+        this.avatars.push(barAv);
     },
     
     // ═══ UPDATE ═══
@@ -400,6 +406,6 @@ const InteriorBar = {
         // Neon + disco lights
         this.indoorLights.forEach(l => { if(!l.g||l.g.destroyed)return; if(l.type==='neon') l.g.alpha=l.maxA*(0.6+Math.sin(G.tick*0.08)*0.3+((Math.random()<0.05)?-0.3:0)); else if(l.type==='disco') l.g.alpha=l.maxA*(0.4+Math.abs(Math.sin(G.tick*0.12))*0.6); else l.g.alpha=l.maxA*(0.7+Math.sin(G.tick*0.02)*0.3); });
         // NPC wander
-        this.avatars.forEach((av,ci) => { if(!av.cont||av.cont.destroyed)return; av._walkTimer=(av._walkTimer||0)-1; if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;} const nx=av.cont.x+av._walkDir*0.3; if(nx>av._minX&&nx<av._maxX)av.cont.x=nx; if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5; if(av.legL)av.legL.y=Math.sin(G.tick*0.2+ci)*3; if(av.legR)av.legR.y=-Math.sin(G.tick*0.2+ci)*3; });
+        this.avatars.forEach((av,ci) => { if(!av.cont||av.cont.destroyed)return; if(av._trackGlow){av._trackGlow.alpha=0.25+Math.sin(G.tick*0.1)*0.15;if(av._trackArrow)av._trackArrow.y=Math.sin(G.tick*0.15)*3-2;} av._walkTimer=(av._walkTimer||0)-1; if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;} const nx=av.cont.x+av._walkDir*0.3; if(nx>av._minX&&nx<av._maxX)av.cont.x=nx; if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5; if(av.legL)av.legL.y=Math.sin(G.tick*0.2+ci)*3; if(av.legR)av.legR.y=-Math.sin(G.tick*0.2+ci)*3; });
     }
 };

@@ -246,14 +246,20 @@ const InteriorDC = {
         const tx=new PIXI.Text(name,{fontFamily:'JetBrains Mono',fontSize:7,fill:labCol,fontWeight:'bold'});
         tx.anchor.set(0.5,1); tx.x=0; tx.y=-h-10; tx.zIndex=10; cont.addChild(tx);
         // Click → NPC info panel
-        const npcModel = { id:'npc_'+name.toLowerCase().replace(/\s/g,'_'), name:name, isNPC:true, role:name, phase:'released', lab:bld?bld.lab:'other', desc:'Facility staff — keeping systems operational.' };
+        const dcNpcId = 'npc_'+name.toLowerCase().replace(/\s/g,'_');
+        const npcModel = { id:dcNpcId, name:name, isNPC:true, _trackType:'npc', role:name, phase:'released', lab:bld?bld.lab:'other', desc:'Facility staff — keeping systems operational.' };
         cont.eventMode='static'; cont.cursor='pointer';
         cont.hitArea=new PIXI.Rectangle(-bw,-h-10,bw*2,h+14);
         cont.on('pointertap',()=>{ if(typeof UI!=='undefined') UI.selectModel(npcModel); });
         cont.on('pointerover',(e)=>{ if(typeof UI!=='undefined') UI.showTooltip(e,name,'Facility Staff'); });
         cont.on('pointerout',()=>{ if(typeof UI!=='undefined') UI.hideTooltip(); });
         c.addChild(cont);
-        this.avatars.push({cont,head,body,legL,legR,_minX:x-60,_maxX:x+60,_phase:Math.random()*Math.PI*2,_walkTimer:0,_walkDir:0});
+        const dcAv = {cont,head,body,legL,legR,_minX:x-60,_maxX:x+60,_phase:Math.random()*Math.PI*2,_walkTimer:0,_walkDir:0};
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(cont, { id: dcNpcId }, false);
+            if (hl) { dcAv._trackGlow = hl.glow; dcAv._trackArrow = hl.arrow; }
+        }
+        this.avatars.push(dcAv);
     },
     _rack(c,x,y,col) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0x0a0a12);g.drawRect(x,y-50,36,50);g.endFill(); g.beginFill(0x111120);g.drawRect(x+3,y-47,30,44);g.endFill(); for(let s=y-45;s<y-5;s+=8){g.beginFill(0x1a1a30);g.drawRect(x+5,s,26,6);g.endFill();g.beginFill(0x4ade80);g.drawCircle(x+9,s+3,1);g.endFill();g.beginFill(col,0.15);g.drawRect(x+13,s+1,15,4);g.endFill();} const gl=new PIXI.Graphics();gl.beginFill(col,0.04);gl.drawRect(x-2,y-52,40,54);gl.endFill();gl.blendMode=PIXI.BLEND_MODES.ADD; c.addChild(g,gl); this.indoorLights.push({g:gl,maxA:0.06,type:'blink'}); },
     _noc(c,cx,y,w,h,col) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0x050510);g.drawRect(cx-w/2,y,w,h);g.endFill(); g.beginFill(0x0a1020);g.drawRect(cx-w/2+3,y+3,w-6,h-6);g.endFill(); g.lineStyle(1,0x06b6d4,0.08); for(let gx=cx-w/2+20;gx<cx+w/2;gx+=40){g.moveTo(gx,y);g.lineTo(gx,y+h);} for(let gy=y+15;gy<y+h;gy+=15){g.moveTo(cx-w/2,gy);g.lineTo(cx+w/2,gy);} g.lineStyle(0); for(let i=0;i<20;i++){const sx2=cx-w/2+20+(i%10)*(w/11),sy=y+15+Math.floor(i/10)*20;g.beginFill(Math.random()>0.1?0x4ade80:0xef4444,0.7);g.drawRect(sx2,sy,8,8);g.endFill();} const gl=new PIXI.Graphics();gl.beginFill(0x06b6d4,0.03);gl.drawRect(cx-w/2,y,w,h);gl.endFill();gl.blendMode=PIXI.BLEND_MODES.ADD; c.addChild(g,gl); this.indoorLights.push({g:gl,maxA:0.05,type:'screen'}); },
@@ -285,7 +291,7 @@ const InteriorDC = {
         // Elevator
         if(this.bld&&this.lifts[this.bld.id])this.lifts[this.bld.id].update();
         // NPC wandering with walk animation
-        this.avatars.forEach(av=>{if(!av.cont||av.cont.destroyed)return;av._walkTimer=(av._walkTimer||0)-1;if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;}const nx=av.cont.x+av._walkDir*0.3;if(nx>av._minX&&nx<av._maxX)av.cont.x=nx;
+        this.avatars.forEach(av=>{if(!av.cont||av.cont.destroyed)return;if(av._trackGlow){av._trackGlow.alpha=0.25+Math.sin(G.tick*0.1)*0.15;if(av._trackArrow)av._trackArrow.y=Math.sin(G.tick*0.15)*3-2;}av._walkTimer=(av._walkTimer||0)-1;if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;}const nx=av.cont.x+av._walkDir*0.3;if(nx>av._minX&&nx<av._maxX)av.cont.x=nx;
             // Walk animation — legs swing, head/body bob
             if(av.head){av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5;}
             if(av.body){av.body.y=-32+11+Math.abs(Math.sin(G.tick*0.15+av._phase))*1.5;}

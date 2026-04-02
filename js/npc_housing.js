@@ -88,7 +88,7 @@ const NPCHousing = {
         // Click/hover
         c.eventMode = 'static'; c.cursor = 'pointer';
         c.hitArea = new PIXI.Rectangle(-bw, -h - 12, bw * 2, h + 16);
-        c.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel({ id: npc.id, name: npc.name, isNPC: true, role: npc.role, lab: 'other', desc: npc.role + '. Lives in the Worker Housing District.' }); });
+        c.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel({ id: npc.id, name: npc.name, isNPC: true, _trackType: 'npc', role: npc.role, lab: 'other', desc: npc.role + '. Lives in the Worker Housing District.' }); });
         c.on('pointerover', (e) => { if (typeof UI !== 'undefined') UI.showTooltip(e, npc.name, npc.role); });
         c.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
         parent.addChild(c);
@@ -111,10 +111,14 @@ const NPCHousing = {
             const initState = shouldWork ? 'working' : 'home';
             av.c.x = shouldWork ? workX : homeX;
             av.c.visible = !shouldWork;
+            const workBldId = this._getWorkBld(npc);
+            const homeBldId = 'npc_apt_' + (1 + (i % 3));
             this.commuters.push({
                 npc, ...av, homeX,
                 state: initState, targetX: shouldWork ? workX : homeX,
-                speed: 1.2 + Math.random() * 0.5
+                speed: 1.2 + Math.random() * 0.5,
+                bld: shouldWork ? workBldId : homeBldId,
+                workBldId, homeBldId
             });
         });
     },
@@ -133,6 +137,25 @@ const NPCHousing = {
         const hq = BLDS.find(b => b.lab && !b.id.startsWith('house_')); return hq ? hq.x + hq.w/2 : 3000;
     },
 
+    _getWorkBld(npc) {
+        if (npc.workplace === 'dc' || npc.workplace === 'fab') {
+            const b = BLDS.find(b => b.id.startsWith('dc_') || b.id.startsWith('fab_'));
+            return b ? b.id : null;
+        }
+        if (npc.workplace === 'space') {
+            const b = BLDS.find(b => b.id === 'mission_control' || b.id.startsWith('pad_'));
+            return b ? b.id : null;
+        }
+        const map = { cafe:'cafe', gym:'gym', arena:'arena', neon_bar:'neon_bar', graveyard:'graveyard', forest:'forest_0', social:'convention_center', hq:null };
+        if (npc.workplace === 'university') { const b = G.bldById['uni_main'] || G.bldById['uni_dorm']; return b ? b.id : null; }
+        if (npc.workplace === 'court') { const b = G.bldById['court_senate'] || G.bldById['court_hearing']; return b ? b.id : null; }
+        if (npc.workplace === 'vcrow') { const b = G.bldById['vcrow_titan'] || G.bldById['vcrow_apex']; return b ? b.id : null; }
+        if (npc.workplace === 'hq') { const b = BLDS.find(b => b.lab && !b.id.startsWith('house_')); return b ? b.id : null; }
+        if (map[npc.workplace]) { const b = G.bldById[map[npc.workplace]]; return b ? b.id : null; }
+        const hq = BLDS.find(b => b.lab && !b.id.startsWith('house_'));
+        return hq ? hq.id : null;
+    },
+
     update(dp) {
         if (!this.commuters.length) return;
         this.commuters.forEach((cm, ci) => {
@@ -140,13 +163,14 @@ const NPCHousing = {
             const wantWork = isNight ? (dp > 0.83 || dp < 0.25) : (dp > 0.33 && dp < 0.75);
             const workX = this._getWorkX(cm.npc);
 
-            if (wantWork && cm.state === 'home') { cm.state = 'commuting_to_work'; cm.targetX = workX; cm.c.visible = true; }
-            else if (!wantWork && cm.state === 'working') { cm.state = 'commuting_home'; cm.targetX = cm.homeX; cm.c.visible = true; }
+            if (wantWork && cm.state === 'home') { cm.state = 'commuting_to_work'; cm.targetX = workX; cm.c.visible = true; cm.bld = null; }
+            else if (!wantWork && cm.state === 'working') { cm.state = 'commuting_home'; cm.targetX = cm.homeX; cm.c.visible = true; cm.bld = null; }
 
             if (cm.state === 'commuting_to_work' || cm.state === 'commuting_home') {
                 const dx = cm.targetX - cm.c.x;
                 if (Math.abs(dx) < 3) {
                     cm.state = cm.state === 'commuting_to_work' ? 'working' : 'home';
+                    cm.bld = cm.state === 'working' ? cm.workBldId : cm.homeBldId;
                     cm.c.visible = cm.state === 'home';
                 } else {
                     cm.c.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));

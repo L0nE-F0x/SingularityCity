@@ -71,11 +71,14 @@ const StreetVendors = {
             av.c.visible = isVending;
             stall.cont.visible = isVending;
 
+            const homeBldId = 'npc_apt_1';
             this.vendors.push({
                 def: v, ...av, stall, stallX, homeX,
                 state: isVending ? 'vending' : 'home',
                 speed: 1.0 + Math.random() * 0.4,
-                chatTimer: 0
+                chatTimer: 0,
+                bld: isVending ? null : homeBldId,
+                homeBldId
             });
         });
     },
@@ -239,7 +242,7 @@ const StreetVendors = {
         c.hitArea = new PIXI.Rectangle(-bw - hitPad, -h - 16 - hitPad, bw * 2 + hitPad * 2, h + 20 + hitPad * 2);
         c.on('pointertap', () => {
             if (typeof UI !== 'undefined') UI.selectModel({
-                id: v.id, name: v.name, isNPC: true,
+                id: v.id, name: v.name, isNPC: true, _trackType: 'vendor',
                 role: `Street Vendor — ${v.item}`,
                 lab: 'other',
                 desc: `${v.name} sells ${v.item.toLowerCase()} from a mobile cart in the tech district.`
@@ -268,9 +271,11 @@ const StreetVendors = {
             if ((vendTime || goTime) && vm.state === 'home') {
                 vm.state = 'commute_to';
                 vm.c.visible = true;
+                vm.bld = null;
             } else if (!vendTime && !goTime && vm.state === 'vending') {
                 vm.state = 'commute_home';
                 vm.stall.cont.visible = false;
+                vm.bld = null;
             }
 
             // Movement & animation
@@ -292,6 +297,7 @@ const StreetVendors = {
                 if (Math.abs(dx) < 3) {
                     vm.state = 'home';
                     vm.c.visible = false;
+                    vm.bld = vm.homeBldId;
                 } else {
                     vm.c.x += Math.sign(dx) * Math.min(vm.speed, Math.abs(dx));
                     vm.c.scale.x = dx > 0 ? 1 : -1;

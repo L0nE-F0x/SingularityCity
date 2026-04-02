@@ -166,10 +166,30 @@ const VCRow = {
             const dp = G.getDayPhase();
             const shouldWork = dp > 0.33 && dp < 0.75;
 
+            const workBldId = G.bldById['vcrow_titan'] ? 'vcrow_titan' : (G.bldById['vcrow_apex'] ? 'vcrow_apex' : null);
+            const homeBldId = homeBld ? homeBld.id : 'npc_apt_1';
+
+            // Click to select/track VC commuter
+            carCont.eventMode = 'static';
+            carCont.cursor = 'pointer';
+            carCont.hitArea = new PIXI.Rectangle(-28, -34, 56, 40);
+            const _npc = npc;
+            carCont.on('pointertap', () => {
+                if (typeof UI !== 'undefined') UI.selectModel({
+                    id: _npc.id, name: _npc.name, isNPC: true, _trackType: 'vc_commuter',
+                    role: _npc.role, lab: 'other',
+                    desc: `${_npc.name} commutes to VC Row by car. ${_npc.role} in the financial district.`
+                });
+            });
+            carCont.on('pointerover', (e) => { if (typeof UI !== 'undefined') UI.showTooltip(e, _npc.name, _npc.role); });
+            carCont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+
             this.carCommuters.push({
                 npc, carCont, beam, homeX, workX,
                 state: shouldWork ? 'at_work' : 'at_home',
-                speed: 2.5 + Math.random() * 1.0
+                speed: 2.5 + Math.random() * 1.0,
+                bld: shouldWork ? workBldId : homeBldId,
+                workBldId, homeBldId
             });
         });
     },
@@ -184,11 +204,13 @@ const VCRow = {
                 cm.carCont.visible = true;
                 cm.carCont.x = cm.homeX;
                 cm.carCont.scale.x = cm.workX > cm.homeX ? 1 : -1;
+                cm.bld = null;
             } else if (!wantWork && cm.state === 'at_work') {
                 cm.state = 'driving_home';
                 cm.carCont.visible = true;
                 cm.carCont.x = cm.workX;
                 cm.carCont.scale.x = cm.homeX > cm.workX ? 1 : -1;
+                cm.bld = null;
             }
 
             if (cm.state === 'driving_to_work') {
@@ -196,6 +218,7 @@ const VCRow = {
                 if (Math.abs(dx) < 5) {
                     cm.state = 'at_work';
                     cm.carCont.visible = false;
+                    cm.bld = cm.workBldId;
                 } else {
                     cm.carCont.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
                 }
@@ -204,6 +227,7 @@ const VCRow = {
                 if (Math.abs(dx) < 5) {
                     cm.state = 'at_home';
                     cm.carCont.visible = false;
+                    cm.bld = cm.homeBldId;
                 } else {
                     cm.carCont.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
                 }

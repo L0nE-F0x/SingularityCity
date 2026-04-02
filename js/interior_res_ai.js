@@ -130,13 +130,19 @@ const InteriorResAI = {
 
         container.addChild(cont);
 
-        const agent = { 
+        const agent = {
             m, cont, head, body, legL, legR, dot, shadow, ghostL, ghostR, isMoE,
             state: 'working', timer: 0, deskX: x, floorIdx, speed: 1.5,
             isStaticRole: isStatic,
             bedX: 0, bedY: 0
         };
-        
+
+        // Tracking highlight for followed entity
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(cont, m, false);
+            if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
+        }
+
         this.avatars.push(agent);
         return agent;
     },

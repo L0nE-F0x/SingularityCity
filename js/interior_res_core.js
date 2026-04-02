@@ -596,6 +596,12 @@ const InteriorRes = {
         }
 
         this.avatars.forEach((av, i) => {
+            // Tracking highlight pulse
+            if (av._trackGlow) {
+                av._trackGlow.alpha = 0.25 + Math.sin(G.tick * 0.1) * 0.15;
+                if (av._trackArrow) av._trackArrow.y = Math.sin(G.tick * 0.15) * 3 - 2;
+            }
+
             const refs = G.charRefs[av.m.id];
 
             if ((av.state === 'walking_to_prop' || av.state === 'returning') && av.timer <= 0 && !av.m.isCeo) {

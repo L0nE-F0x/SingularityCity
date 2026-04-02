@@ -850,8 +850,13 @@ const G = {
     },
 
     enterInterior(b) {
+        // Manual entry (non-tracking) — direct swap, no fade
+        this._performEnterInterior(b);
+    },
+
+    _performEnterInterior(b) {
         this.activeInterior = b.id;
-        
+
         // Track unique interiors visited for Interior Designer achievement
         if (!this._visitedInteriors[b.id]) {
             this._visitedInteriors[b.id] = true;
@@ -859,22 +864,22 @@ const G = {
                 this.unlockAchieve('interior_designer');
             }
         }
-        
+
         if (typeof SND !== 'undefined') SND.setAmbient(b.id);
-        
+
         this.world.visible = false;
         if(this.macroLayer) this.macroLayer.visible = false;
-        
+
         if (!this.interiorLayer) {
             this.interiorLayer = new PIXI.Container();
             this.app.stage.addChild(this.interiorLayer);
         }
         this.interiorLayer.visible = true;
-        
+
         if (typeof Interior !== 'undefined') {
             Interior.build(b, this.interiorLayer);
         }
-        
+
         let exitBtn = document.getElementById('btnExitInterior');
         if (!exitBtn) {
             exitBtn = document.createElement('button');
@@ -887,7 +892,7 @@ const G = {
             document.body.appendChild(exitBtn);
         }
         exitBtn.style.display = 'block';
-        
+
         const topUI = document.querySelector('.top');
         if (topUI) topUI.style.display = 'none';
         const infoPanel = document.getElementById('infoPanel');
@@ -895,22 +900,27 @@ const G = {
     },
 
     exitInterior() {
+        // Manual exit (non-tracking) — direct swap, no fade
+        this._performExitInterior();
+    },
+
+    _performExitInterior() {
         const prevId = this.activeInterior;
         this.activeInterior = null;
-        
+
         if (typeof SND !== 'undefined') SND.setAmbient('outside');
         if (this.interiorLayer) this.interiorLayer.visible = false;
         this.world.visible = true;
-        
+
         const exitBtn = document.getElementById('btnExitInterior');
         if (exitBtn) exitBtn.style.display = 'none';
-        
+
         const topUI = document.querySelector('.top');
-        if (topUI) topUI.style.display = ''; 
-        
+        if (topUI) topUI.style.display = '';
+
         // NO full rebuild here — just let the normal update loop handle positioning.
         // Full rebuilds were causing tracking mode lag and metro passenger teleportation.
-        
+
         if (typeof Camera !== 'undefined') {
             Camera.targetZoom = this.tracking ? 1.3 : 1;
         }
@@ -922,7 +932,8 @@ const G = {
     
     startTracking(type, id, lab) {
         this.tracking = { type, id, lab, _lastBld: null };
-        
+        this._transitioning = false;
+
         // Show persistent tracking HUD
         let hud = document.getElementById('trackingHud');
         if (!hud) {
@@ -931,33 +942,185 @@ const G = {
             hud.style.cssText = 'position:absolute; bottom:40px; left:50%; transform:translateX(-50%); z-index:150; background:rgba(10,10,25,0.9); border:1px solid #22d3ee; border-radius:20px; padding:6px 16px; display:flex; align-items:center; gap:10px; font-family:"JetBrains Mono",monospace; font-size:10px; color:#22d3ee; pointer-events:all; box-shadow:0 4px 15px rgba(34,211,238,0.3); animation:slideUp 0.3s ease;';
             document.getElementById('gameWrap').appendChild(hud);
         }
-        
-        const name = type === 'ceo' 
-            ? (G.ceoRefs[lab]?.f?.name || lab)
-            : (G.models.find(m => m.id === id)?.name || id);
-        
-        hud.innerHTML = `<span style="animation:pulse 2s infinite">📡</span> <span style="color:#fff;font-weight:bold">${escapeHTML(name)}</span> <span style="color:#a0a0b8">TRACKING</span> <button onclick="G.stopTracking()" style="background:#f43f5e;color:#fff;border:none;border-radius:10px;padding:2px 10px;font-family:inherit;font-size:9px;cursor:pointer;font-weight:bold">STOP</button>`;
+
+        let name = id;
+        if (type === 'ceo') { name = G.ceoRefs[lab]?.f?.name || lab; }
+        else if (type === 'model') { name = G.models.find(m => m.id === id)?.name || id; }
+        else if (type === 'npc') { const cm = typeof NPCHousing !== 'undefined' && NPCHousing.commuters.find(c => c.npc.id === id); name = cm ? cm.npc.name : id; }
+        else if (type === 'vendor') { const vm = typeof StreetVendors !== 'undefined' && StreetVendors.vendors.find(v => v.def.id === id); name = vm ? vm.def.name : id; }
+        else if (type === 'vc_commuter') { const cm = typeof VCRow !== 'undefined' && VCRow.carCommuters.find(c => c.npc.id === id); name = cm ? cm.npc.name : id; }
+
+        const activity = this._getTrackingActivity();
+
+        hud.innerHTML = `<span style="animation:pulse 2s infinite">📡</span> <span style="color:#fff;font-weight:bold">${escapeHTML(name)}</span> <span id="trackActivity" style="color:#94a3b8;font-size:9px">${activity}</span> <button onclick="G.stopTracking()" style="background:#f43f5e;color:#fff;border:none;border-radius:10px;padding:2px 10px;font-family:inherit;font-size:9px;cursor:pointer;font-weight:bold">STOP</button>`;
         hud.style.display = 'flex';
-        
+
         if (typeof UI !== 'undefined') UI.addToast(`📡 Tracking ${name}`);
     },
     
     stopTracking() {
         this.tracking = null;
-        
+        this._transitioning = false;
+
         const hud = document.getElementById('trackingHud');
         if (hud) hud.style.display = 'none';
-        
+
+        // Clear transition overlay
+        const ov = document.getElementById('transitionOverlay');
+        if (ov) ov.style.opacity = '0';
+
         if (typeof Camera !== 'undefined') {
             Camera.targetZoom = 1;
         }
     },
+
+    // Returns raw activity code for tracked entity (used for auto-rebuild detection)
+    _getTrackingActCode() {
+        if (!this.tracking) return null;
+        const t = this.tracking;
+        if (t.type === 'model') {
+            const m = G.models.find(m => m.id === t.id);
+            if (m && typeof getStage === 'function' && typeof getAct === 'function') {
+                const refs = G.charRefs[t.id];
+                if (refs && refs._metroState && refs._metroState !== 'none') return 'metro_' + refs._metroState;
+                const stg = getStage(m.rel, m.ret, m.phase);
+                const idx = G.models.indexOf(m);
+                const dp = G.getDayPhase();
+                const { act, bid } = getAct(stg, dp, idx, m);
+                return act + ':' + (bid || '');
+            }
+        } else if (t.type === 'ceo') {
+            const ceo = G.ceoRefs ? G.ceoRefs[t.lab] : null;
+            if (ceo) {
+                if (ceo._inHeli) return 'heli';
+                if (ceo.bld) return 'bld:' + ceo.bld;
+                return 'driving';
+            }
+        } else if (t.type === 'npc') {
+            const cm = typeof NPCHousing !== 'undefined' && NPCHousing.commuters.find(c => c.npc.id === t.id);
+            if (cm) return cm.state;
+        } else if (t.type === 'vendor') {
+            const vm = typeof StreetVendors !== 'undefined' && StreetVendors.vendors.find(v => v.def.id === t.id);
+            if (vm) return vm.state;
+        } else if (t.type === 'vc_commuter') {
+            const cm = typeof VCRow !== 'undefined' && VCRow.carCommuters.find(c => c.npc.id === t.id);
+            if (cm) return cm.state;
+        }
+        return null;
+    },
+
+    _getTrackingActivity() {
+        if (!this.tracking) return '';
+        const t = this.tracking;
+
+        if (t.type === 'model') {
+            // Metro state detection first
+            const refs = G.charRefs[t.id];
+            if (refs && refs._metroState && refs._metroState !== 'none') {
+                if (refs._metroState === 'entering') return '🚇 Heading to Platform';
+                if (refs._metroState === 'waiting_train') return '🚇 Waiting for Train';
+                if (refs._metroState === 'riding') return '🚇 Riding Metro';
+                if (refs._metroState === 'exiting') return '🚇 Leaving Station';
+            }
+            const m = G.models.find(m => m.id === t.id);
+            if (m && typeof getStage === 'function' && typeof getAct === 'function') {
+                const stg = getStage(m.rel, m.ret, m.phase);
+                const idx = G.models.indexOf(m);
+                const dp = G.getDayPhase();
+                const { act } = getAct(stg, dp, idx, m);
+                const ai = ACTS[act] || { icon: '💻', label: 'Processing' };
+                return ai.icon + ' ' + ai.label;
+            }
+        } else if (t.type === 'ceo') {
+            const ceo = G.ceoRefs ? G.ceoRefs[t.lab] : null;
+            if (ceo) {
+                if (ceo._inHeli) return '🚁 Flying';
+                if (ceo.bld) {
+                    if (ceo.bld.startsWith('house_')) return '🏠 At Home';
+                    if (ceo.bld === 'forest_1') return '🌲 Silicon Woods';
+                    return '💼 At Office';
+                }
+                if (ceo.carCont && ceo.carCont.visible) return '🚗 Driving';
+                return '🏙️ Out & About';
+            }
+        } else if (t.type === 'npc') {
+            const cm = typeof NPCHousing !== 'undefined' && NPCHousing.commuters.find(c => c.npc.id === t.id);
+            if (cm) {
+                if (cm.state === 'working') return '💼 ' + cm.npc.role;
+                if (cm.state === 'commuting_to_work') return '🚶 Commuting to Work';
+                if (cm.state === 'commuting_home') return '🚶 Heading Home';
+                return '🏠 Resting';
+            }
+        } else if (t.type === 'vendor') {
+            const vm = typeof StreetVendors !== 'undefined' && StreetVendors.vendors.find(v => v.def.id === t.id);
+            if (vm) {
+                if (vm.state === 'vending') return vm.def.emoji + ' Selling ' + vm.def.item;
+                if (vm.state === 'commute_to') return '🚶 Setting Up Cart';
+                if (vm.state === 'commute_home') return '🚶 Packing Up';
+                return '🏠 Resting';
+            }
+        } else if (t.type === 'vc_commuter') {
+            const cm = typeof VCRow !== 'undefined' && VCRow.carCommuters.find(c => c.npc.id === t.id);
+            if (cm) {
+                if (cm.state === 'at_work') return '💼 ' + cm.npc.role;
+                if (cm.state === 'driving_to_work') return '🚗 Driving to Work';
+                if (cm.state === 'driving_home') return '🚗 Driving Home';
+                return '🏠 Resting';
+            }
+        }
+        return '📡 Tracking';
+    },
+
+    _getTransitionOverlay() {
+        let ov = document.getElementById('transitionOverlay');
+        if (!ov) {
+            ov = document.createElement('div');
+            ov.id = 'transitionOverlay';
+            ov.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:#000;opacity:0;pointer-events:none;transition:opacity 0.2s ease;z-index:200;';
+            document.getElementById('gameWrap').appendChild(ov);
+        }
+        return ov;
+    },
+
+    _addTrackHighlight(cont, m, isCeo) {
+        if (!G.tracking) return null;
+        let isTracked = false;
+        const t = G.tracking;
+        if (t.type === 'model' && t.id === m.id) isTracked = true;
+        if (t.type === 'ceo' && isCeo && t.lab === m.lab) isTracked = true;
+        if (t.type === 'npc' && t.id === m.id) isTracked = true;
+        if (t.type === 'vendor' && t.id === m.id) isTracked = true;
+        if (t.type === 'vc_commuter' && t.id === m.id) isTracked = true;
+
+        if (!isTracked) return null;
+
+        // Pulsing glow ring beneath the avatar
+        const glow = new PIXI.Graphics();
+        glow.beginFill(0x22d3ee, 0.35);
+        glow.drawEllipse(0, 4, 14, 6);
+        glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        cont.addChildAt(glow, 0);
+
+        // Bouncing arrow above
+        const arrow = new PIXI.Graphics();
+        arrow.beginFill(0x22d3ee);
+        arrow.moveTo(0, -42);
+        arrow.lineTo(-5, -36);
+        arrow.lineTo(5, -36);
+        arrow.closePath();
+        arrow.endFill();
+        arrow.blendMode = PIXI.BLEND_MODES.ADD;
+        cont.addChild(arrow);
+
+        return { glow, arrow };
+    },
     
     updateTracking() {
         if (!this.tracking) return;
-        
+
         let entityBld = null;
-        
+
         if (this.tracking.type === 'model') {
             const refs = G.charRefs[this.tracking.id];
             if (!refs) return;
@@ -966,40 +1129,102 @@ const G = {
             const ceo = G.ceoRefs ? G.ceoRefs[this.tracking.lab] : null;
             if (!ceo) return;
             entityBld = ceo.bld;
+        } else if (this.tracking.type === 'npc') {
+            const cm = typeof NPCHousing !== 'undefined' && NPCHousing.commuters.find(c => c.npc.id === this.tracking.id);
+            if (!cm) return;
+            entityBld = cm.bld;
+        } else if (this.tracking.type === 'vendor') {
+            const vm = typeof StreetVendors !== 'undefined' && StreetVendors.vendors.find(v => v.def.id === this.tracking.id);
+            if (!vm) return;
+            entityBld = vm.bld;
+        } else if (this.tracking.type === 'vc_commuter') {
+            const cm = typeof VCRow !== 'undefined' && VCRow.carCommuters.find(c => c.npc.id === this.tracking.id);
+            if (!cm) return;
+            entityBld = cm.bld;
         }
-        
+
         const wasInside = this.tracking._lastBld;
         const isNowInside = entityBld;
-        
-        // Entity just entered a building — follow them in
-        if (!wasInside && isNowInside) {
+
+        // Entity just entered a building — follow them in (with fade)
+        if (!wasInside && isNowInside && !this._transitioning) {
             const bld = this.bldById[isNowInside];
             if (bld && !this.activeInterior) {
-                this.enterInterior(bld);
+                this._transitionEnter(bld);
             }
         }
-        
-        // Entity just left a building — follow them out
-        if (wasInside && !isNowInside) {
+
+        // Entity just left a building — follow them out (with fade)
+        if (wasInside && !isNowInside && !this._transitioning) {
             if (this.activeInterior) {
-                this.exitInterior();
+                this._transitionExit();
             }
         }
-        
-        // Entity moved to a DIFFERENT building — transition
-        if (wasInside && isNowInside && wasInside !== isNowInside) {
-            if (this.activeInterior) {
-                this.exitInterior();
-            }
+
+        // Entity moved to a DIFFERENT building — transition out then in
+        if (wasInside && isNowInside && wasInside !== isNowInside && !this._transitioning) {
+            this._transitioning = true;
+            const ov = this._getTransitionOverlay();
+            ov.style.transition = 'opacity 0.2s ease-in';
+            ov.style.opacity = '1';
             setTimeout(() => {
-                if (this.tracking) {
-                    const bld = this.bldById[isNowInside];
-                    if (bld) this.enterInterior(bld);
-                }
-            }, 400); // brief pause for visual transition
+                if (this.activeInterior) this._performExitInterior();
+                setTimeout(() => {
+                    if (this.tracking) {
+                        const bld = this.bldById[isNowInside];
+                        if (bld) this._performEnterInterior(bld);
+                    }
+                    ov.style.transition = 'opacity 0.3s ease-out';
+                    ov.style.opacity = '0';
+                    setTimeout(() => { this._transitioning = false; }, 300);
+                }, 100);
+            }, 200);
         }
-        
+
         this.tracking._lastBld = entityBld;
+
+        // Periodic HUD activity refresh (every 30 ticks ≈ 0.5s)
+        if (G.tick % 30 === 0) {
+            const el = document.getElementById('trackActivity');
+            if (el) el.textContent = this._getTrackingActivity();
+        }
+
+        // Auto-rebuild interior when tracked entity's activity changes (every 120 ticks ≈ 2s)
+        if (G.tick % 120 === 0 && entityBld && this.activeInterior && !this._transitioning) {
+            const curAct = this._getTrackingActCode();
+            if (curAct && this.tracking._lastActCode && curAct !== this.tracking._lastActCode) {
+                // Activity changed while in same building — soft rebuild with fade
+                const bld = this.bldById[entityBld];
+                if (bld) this._transitionEnter(bld);
+            }
+            this.tracking._lastActCode = curAct;
+        }
+    },
+
+    _transitionEnter(bld) {
+        this._transitioning = true;
+        const ov = this._getTransitionOverlay();
+        ov.style.transition = 'opacity 0.2s ease-in';
+        ov.style.opacity = '1';
+        setTimeout(() => {
+            this._performEnterInterior(bld);
+            ov.style.transition = 'opacity 0.3s ease-out';
+            ov.style.opacity = '0';
+            setTimeout(() => { this._transitioning = false; }, 300);
+        }, 200);
+    },
+
+    _transitionExit() {
+        this._transitioning = true;
+        const ov = this._getTransitionOverlay();
+        ov.style.transition = 'opacity 0.2s ease-in';
+        ov.style.opacity = '1';
+        setTimeout(() => {
+            this._performExitInterior();
+            ov.style.transition = 'opacity 0.3s ease-out';
+            ov.style.opacity = '0';
+            setTimeout(() => { this._transitioning = false; }, 300);
+        }, 200);
     },
   
     toggleMacro() {

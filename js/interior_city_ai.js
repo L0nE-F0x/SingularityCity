@@ -102,6 +102,13 @@ const InteriorCityAI = {
         wObj.paramScale = Math.max(0.7, Math.min(1.4, 0.6 + (Math.log10(Math.max(paramCount, 1)) * 0.2)));
 
         this.updateWorkerVisuals(wObj);
+
+        // Tracking highlight for followed entity
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(c, m, false);
+            if (hl) { wObj._trackGlow = hl.glow; wObj._trackArrow = hl.arrow; }
+        }
+
         this.layer.addChild(c);
         return wObj;
     },
@@ -254,6 +261,12 @@ const InteriorCityAI = {
                 w.legL.y = 0;
                 w.legR.y = 0;
             }
+
+            // Tracking highlight pulse
+            if (w._trackGlow) {
+                w._trackGlow.alpha = 0.25 + Math.sin(G.tick * 0.1) * 0.15;
+                if (w._trackArrow) w._trackArrow.y = Math.sin(G.tick * 0.15) * 3 - 2;
+            }
         });
     },
 
@@ -395,6 +408,12 @@ const InteriorCityAI = {
             isStaticRole: isStatic, isCeo: isCeo,
             bedX: 0, bedY: 0, resumeState: null
         };
+
+        // Tracking highlight for followed entity
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(cont, m, isCeo);
+            if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
+        }
 
         this.avatars.push(agent);
         return agent;

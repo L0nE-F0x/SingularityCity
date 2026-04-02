@@ -705,9 +705,15 @@ const InteriorVCRow = {
         cont.eventMode = 'static'; cont.cursor = 'pointer';
         cont.hitArea = new PIXI.Rectangle(-bw, -h - 10, bw * 2, h + 14);
         const bldName = this.bld ? this.bld.name : 'VC Row';
-        cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel({ id: 'npc_vc_' + name.toLowerCase().replace(/\s/g, '_'), name, isNPC: true, role: name, lab: 'other', desc: name + ' at ' + bldName + '. Part of the financial district workforce.' }); });
+        const vcNpcId = 'npc_vc_' + name.toLowerCase().replace(/\s/g, '_');
+        cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel({ id: vcNpcId, name, isNPC: true, _trackType: 'vc_commuter', role: name, lab: 'other', desc: name + ' at ' + bldName + '. Part of the financial district workforce.' }); });
         c.addChild(cont);
-        this.avatars.push({ cont, head, body, legL, legR, _minX: x - 30, _maxX: x + 30, _phase: Math.random() * Math.PI * 2, _walkTimer: 0, _walkDir: 0 });
+        const vcAv = { cont, head, body, legL, legR, _minX: x - 30, _maxX: x + 30, _phase: Math.random() * Math.PI * 2, _walkTimer: 0, _walkDir: 0 };
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(cont, { id: vcNpcId }, false);
+            if (hl) { vcAv._trackGlow = hl.glow; vcAv._trackArrow = hl.arrow; }
+        }
+        this.avatars.push(vcAv);
     },
 
     _monitor(c, x, y, accent) {
@@ -803,6 +809,7 @@ const InteriorVCRow = {
         // NPC wander
         this.avatars.forEach((av, ci) => {
             if (!av.cont || av.cont.destroyed) return;
+            if (av._trackGlow) { av._trackGlow.alpha = 0.25 + Math.sin(G.tick * 0.1) * 0.15; if (av._trackArrow) av._trackArrow.y = Math.sin(G.tick * 0.15) * 3 - 2; }
             av._walkTimer = (av._walkTimer || 0) - 1;
             if (av._walkTimer <= 0) { av._walkDir = (Math.random() > 0.5) ? 1 : -1; av._walkTimer = 60 + Math.random() * 120; }
             const nx = av.cont.x + av._walkDir * 0.3;

@@ -133,6 +133,46 @@ const InteriorNPC = {
         for (let lx = 90; lx < G.vpW; lx += 150) { vm.beginFill(0xef4444); vm.drawCircle(lx, vmY+25, 2); vm.endFill(); }
         this.scene.addChild(vm);
         
+        // ─── TRACKED NPC WALK-IN ANIMATION ───
+        if (typeof G !== 'undefined' && G.tracking && G.tracking.type === 'npc') {
+            const trackedId = G.tracking.id;
+            const cm = typeof NPCHousing !== 'undefined' && NPCHousing.commuters.find(c => c.npc.id === trackedId);
+            if (cm && cm.bld === bld.id) {
+                // Find the resident data to get their color
+                const trackedRes = residents.find(r => 'npc_' + r.name.toLowerCase().replace(/\s/g, '_') === trackedId);
+                const col = trackedRes ? parseInt(trackedRes.color.replace('#', ''), 16) : 0x475569;
+                const name = trackedRes ? trackedRes.name : 'Worker';
+                // Build a walk-in avatar at the foyer entrance (left side, ground floor)
+                const foyer = this.scene.children[this.scene.children.length - 4]; // floor container near bottom
+                const groundFY = roofH + (numFloors - 1) * floorH;
+                const walkY = groundFY + floorH - 6;
+                const fc = new PIXI.Container(); fc.sortableChildren = true; this.scene.addChild(fc);
+                // Create the walking-in NPC at far left
+                const wc = new PIXI.Container(); wc.x = startX - 10; wc.y = walkY; wc.zIndex = 20;
+                const bw = 16, h = 32, headH = 12;
+                const sh = new PIXI.Graphics(); sh.beginFill(0x000000, 0.25); sh.drawEllipse(0, 2, bw * 0.6, 3); sh.endFill();
+                const lw = Math.max(2, bw * 0.25);
+                const legL = new PIXI.Graphics(); legL.beginFill(0x3d2914); legL.drawRect(-lw/2, 0, lw, 4); legL.endFill(); legL.x = -bw * 0.15;
+                const legR = new PIXI.Graphics(); legR.beginFill(0x3d2914); legR.drawRect(-lw/2, 0, lw, 4); legR.endFill(); legR.x = bw * 0.15;
+                const body = new PIXI.Graphics(); body.beginFill(col); body.drawRoundedRect(-bw/2, 0, bw, 14, bw * 0.1); body.endFill(); body.y = -h + headH;
+                const head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25); head.endFill();
+                head.beginFill(0x2c1810); head.drawCircle(-bw * 0.1, headH * 0.38, 1); head.drawCircle(bw * 0.1, headH * 0.38, 1); head.endFill(); head.y = -h;
+                const dot = new PIXI.Graphics(); dot.beginFill(col); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 6;
+                const tx = new PIXI.Text(name, { fontFamily: 'JetBrains Mono', fontSize: 7, fill: col, fontWeight: 'bold' });
+                tx.anchor.set(0.5, 1); tx.y = -h - 10;
+                wc.addChild(sh, legL, legR, body, head, dot, tx);
+                fc.addChild(wc);
+                const walkTarget = startX + usableW / 2;
+                const avObj = { cont: wc, head, body, legL, legR, _isWalkIn: true, _walkTarget: walkTarget, _walkSpeed: 1.2, _phase: 0 };
+                // Tracking highlight
+                if (G._addTrackHighlight) {
+                    const hl = G._addTrackHighlight(wc, { id: trackedId }, false);
+                    if (hl) { avObj._trackGlow = hl.glow; avObj._trackArrow = hl.arrow; }
+                }
+                this.avatars.push(avObj);
+            }
+        }
+
         // Position & scroll
         const bp = 56; const initY = G.vpH-bp-this.totalH+floorH;
         this.scene.y = initY; this.minY = initY - floorH*3; this.maxY = initY + floorH*3;
@@ -323,9 +363,16 @@ const InteriorNPC = {
         tx.anchor.set(0.5,1); tx.y=-h-10;
         cont.addChild(sh,legL,legR,body,head,dot,tx);
         cont.eventMode='static'; cont.cursor='pointer'; cont.hitArea=new PIXI.Rectangle(-bw,-h-12,bw*2,h+16);
-        cont.on('pointertap', () => { if(typeof UI!=='undefined') UI.selectModel({ id:'npc_'+name.toLowerCase().replace(/\s/g,'_'), name, isNPC:true, role:name, lab:'other', desc:'Building staff.' }); });
+        const npcId = 'npc_'+name.toLowerCase().replace(/\s/g,'_');
+        cont.on('pointertap', () => { if(typeof UI!=='undefined') UI.selectModel({ id:npcId, name, isNPC:true, _trackType:'npc', role:name, lab:'other', desc:'Building staff.' }); });
         c.addChild(cont);
-        this.avatars.push({ cont, head, body, legL, legR, _minX:x-50, _maxX:x+50, _phase:Math.random()*Math.PI*2, _walkTimer:0, _walkDir:0 });
+        const avObj = { cont, head, body, legL, legR, _minX:x-50, _maxX:x+50, _phase:Math.random()*Math.PI*2, _walkTimer:0, _walkDir:0 };
+        // Tracking highlight
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(cont, { id: npcId }, false);
+            if (hl) { avObj._trackGlow = hl.glow; avObj._trackArrow = hl.arrow; }
+        }
+        this.avatars.push(avObj);
     },
     
     // ═══ UPDATE ═══
@@ -338,6 +385,6 @@ const InteriorNPC = {
         if(this.starsLayer){this.starsLayer.visible=night;if(night)this.starsLayer.children.forEach(s=>{s.alpha=.15+Math.abs(Math.sin(G.tick*.03+s._phase))*.5;});}
         this.indoorLights.forEach(l => { if(!l.g||l.g.destroyed) return; l.g.alpha = l.maxA*(0.7+Math.sin(G.tick*0.02)*0.3); });
         if (this.bld && this.lifts[this.bld.id]) this.lifts[this.bld.id].update();
-        this.avatars.forEach((av,ci) => { if(!av.cont||av.cont.destroyed) return; if(av._isZzz){const t=G.tick*0.04+av._phase;av._z1.y=Math.sin(t)*3;av._z1.alpha=0.5+Math.sin(t)*0.3;av._z2.y=-8+Math.sin(t+1)*3;av._z2.alpha=0.3+Math.sin(t+1)*0.25;av._z3.y=-18+Math.sin(t+2)*3;av._z3.alpha=0.15+Math.sin(t+2)*0.2;return;} av._walkTimer--; if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;} const nx=av.cont.x+av._walkDir*0.3; if(nx>av._minX&&nx<av._maxX)av.cont.x=nx; if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5; if(av.legL)av.legL.y=Math.sin(G.tick*0.2+ci)*3; if(av.legR)av.legR.y=-Math.sin(G.tick*0.2+ci)*3; });
+        this.avatars.forEach((av,ci) => { if(!av.cont||av.cont.destroyed) return; if(av._trackGlow){av._trackGlow.alpha=0.25+Math.sin(G.tick*0.1)*0.15;if(av._trackArrow)av._trackArrow.y=Math.sin(G.tick*0.15)*3-2;} if(av._isWalkIn){const dx=av._walkTarget-av.cont.x;if(Math.abs(dx)<av._walkSpeed){av.cont.x=av._walkTarget;av._isWalkIn=false;av._walkDir=0;av._walkTimer=60+Math.random()*120;av._minX=av._walkTarget-50;av._maxX=av._walkTarget+50;}else{av.cont.x+=Math.sign(dx)*av._walkSpeed;av.cont.scale.x=Math.sign(dx);if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5;if(av.legL)av.legL.y=Math.sin(G.tick*0.25+ci)*4;if(av.legR)av.legR.y=-Math.sin(G.tick*0.25+ci)*4;}return;} if(av._isZzz){const t=G.tick*0.04+av._phase;av._z1.y=Math.sin(t)*3;av._z1.alpha=0.5+Math.sin(t)*0.3;av._z2.y=-8+Math.sin(t+1)*3;av._z2.alpha=0.3+Math.sin(t+1)*0.25;av._z3.y=-18+Math.sin(t+2)*3;av._z3.alpha=0.15+Math.sin(t+2)*0.2;return;} av._walkTimer--; if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;} const nx=av.cont.x+av._walkDir*0.3; if(nx>av._minX&&nx<av._maxX)av.cont.x=nx; if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5; if(av.legL)av.legL.y=Math.sin(G.tick*0.2+ci)*3; if(av.legR)av.legR.y=-Math.sin(G.tick*0.2+ci)*3; });
     }
 };

@@ -298,6 +298,7 @@ const UI = {
                 <div class="ipanel-stat"><span class="ipanel-lbl">Sentience</span><span class="ipanel-val" style="color:var(--t3)">Restricted</span></div>
                 <div class="ipanel-stat"><span class="ipanel-lbl">Network</span><span class="ipanel-val" style="color:var(--t3)">Local Intranet</span></div>
               </div>
+              ${m._trackType ? `<div style="padding:8px 0"><button class="btn" style="width:100%;text-align:center;${G.tracking && G.tracking.id === m.id ? 'background:var(--ac);color:#000;border-color:var(--ac)' : ''}" onclick="G.tracking && G.tracking.id==='${m.id}' ? G.stopTracking() : G.startTracking('${m._trackType}','${m.id}','other')">${G.tracking && G.tracking.id === m.id ? '📡 Tracking' : '📡 Track'}</button></div>` : ''}
           </div>`;
     },
   

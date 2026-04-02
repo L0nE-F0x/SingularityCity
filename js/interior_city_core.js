@@ -818,6 +818,12 @@ const InteriorCity = {
         let numFloors = this.bld.dynamicFl ? Math.max(3, this.bld.dynamicFl) : (this.bld.fl || 1);
 
         this.avatars.forEach((av, i) => {
+            // Tracking highlight pulse
+            if (av._trackGlow) {
+                av._trackGlow.alpha = 0.25 + Math.sin(G.tick * 0.1) * 0.15;
+                if (av._trackArrow) av._trackArrow.y = Math.sin(G.tick * 0.15) * 3 - 2;
+            }
+
             if (av.isStaticRole) {
                 const bob = Math.sin(G.tick * 0.15 + i) * 1.5;
                 av.head.y = -32 + 4 + bob; 
@@ -1030,16 +1036,40 @@ const InteriorCity = {
                     this.animateWalk(av);
                     const dxCar = (this.startX + 180) - av.cont.x;
                     if (Math.abs(dxCar) < av.speed) {
-                        av.state = 'gone';
+                        // CEO reached car — start driving out animation
                         av.cont.visible = false;
+                        av.state = 'ceo_driving_out';
+                        av._driveOutTick = 0;
+                        if (this.ceoCarGfx) {
+                            this.ceoCarGfx._origX = this.ceoCarGfx.x;
+                            this.ceoCarGfx._origAlpha = this.ceoCarGfx.alpha;
+                        }
+                    } else {
+                        av.cont.x += Math.sign(dxCar) * av.speed;
+                        av.cont.scale.x = Math.sign(dxCar);
+                    }
+                    break;
+                }
+                case 'ceo_driving_out': {
+                    av._driveOutTick++;
+                    if (this.ceoCarGfx) {
+                        // Car accelerates right and fades over 90 ticks (~1.5s)
+                        const t = av._driveOutTick / 90;
+                        this.ceoCarGfx.x = this.ceoCarGfx._origX + (t * t * 300); // ease-in acceleration
+                        this.ceoCarGfx.alpha = Math.max(0, 1 - t * 1.2);
+                    }
+                    if (av._driveOutTick >= 90) {
+                        av.state = 'gone';
+                        if (this.ceoCarGfx) {
+                            this.ceoCarGfx.visible = false;
+                            this.ceoCarGfx.x = this.ceoCarGfx._origX;
+                            this.ceoCarGfx.alpha = this.ceoCarGfx._origAlpha || 1;
+                        }
                         const ceoRef = G.ceoRefs[av.m.lab];
                         if (ceoRef) {
                             ceoRef.bld = null;
                             ceoRef.wantsToLeave = false;
                         }
-                    } else {
-                        av.cont.x += Math.sign(dxCar) * av.speed;
-                        av.cont.scale.x = Math.sign(dxCar);
                     }
                     break;
                 }

@@ -164,6 +164,39 @@ const Camera = {
                         entityY = G.groundY + 20; // driving at road level
                     }
                 }
+            } else if (G.tracking.type === 'npc') {
+                const cm = typeof NPCHousing !== 'undefined' && NPCHousing.commuters.find(c => c.npc.id === G.tracking.id);
+                if (cm) {
+                    if (cm.c.visible) {
+                        entityX = cm.c.x;
+                        entityY = cm.c.y;
+                    } else if (cm.bld) {
+                        const bld = G.bldById[cm.bld];
+                        if (bld) { entityX = bld.x + bld.w / 2; entityY = G.groundY; }
+                    }
+                }
+            } else if (G.tracking.type === 'vendor') {
+                const vm = typeof StreetVendors !== 'undefined' && StreetVendors.vendors.find(v => v.def.id === G.tracking.id);
+                if (vm) {
+                    if (vm.c.visible) {
+                        entityX = vm.c.x;
+                        entityY = vm.c.y;
+                    } else if (vm.bld) {
+                        const bld = G.bldById[vm.bld];
+                        if (bld) { entityX = bld.x + bld.w / 2; entityY = G.groundY; }
+                    }
+                }
+            } else if (G.tracking.type === 'vc_commuter') {
+                const cm = typeof VCRow !== 'undefined' && VCRow.carCommuters.find(c => c.npc.id === G.tracking.id);
+                if (cm) {
+                    if (cm.carCont.visible) {
+                        entityX = cm.carCont.x;
+                        entityY = cm.carCont.y;
+                    } else if (cm.bld) {
+                        const bld = G.bldById[cm.bld];
+                        if (bld) { entityX = bld.x + bld.w / 2; entityY = G.groundY; }
+                    }
+                }
             }
             
             if (entityX !== null) {
