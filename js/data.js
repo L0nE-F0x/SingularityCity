@@ -80,7 +80,11 @@ const ACHIEVEMENTS = {
     'interior_designer': { name: 'Interior Designer', desc: 'Enter 10 different building interiors.', icon: '🏠' },
     'train_spotter': { name: 'Train Spotter', desc: 'Watch 10 metro trains depart.', icon: '🚇' },
     'konami': { name: 'The Chosen One', desc: 'Enter the code.', icon: '🕹️' },
-    'cat_mode': { name: 'Caturday', desc: 'Unleash the cats.', icon: '🐱' }
+    'cat_mode': { name: 'Caturday', desc: 'Unleash the cats.', icon: '🐱' },
+    'stargazer': { name: 'Stargazer', desc: 'Witness an aurora borealis or comet.', icon: '✨' },
+    'holiday_spirit': { name: 'Holiday Spirit', desc: 'Visit during 3+ seasonal events.', icon: '🎄' },
+    'peer_reviewed': { name: 'Peer Reviewed', desc: 'Visit a conference during session week.', icon: '🎓' },
+    'graduation_day': { name: 'Graduation Day', desc: 'Witness a model graduate from AI Academy.', icon: '🎓' }
 };
 
 const STAGES = { baby: { label: 'Pre-Training', size: .6, headR: .6, speed: .5, emoji: '👶' }, kid: { label: 'Training/RLHF', size: .8, headR: .5, speed: .8, emoji: '🧒' }, adult: { label: 'Released', size: 1, headR: .4, speed: 1.2, emoji: '🧑' }, retired: { label: 'Retired', size: 1, headR: .4, speed: .4, emoji: '👻' }, rumored: { label: 'Rumored', size: .9, headR: .45, speed: 1.5, emoji: '🔮' } };
@@ -220,9 +224,20 @@ function getAct(stg, dp, seed, model) {
   const resId = 'res_' + region;
 
   if (stg === 'retired') return { act: 'sleep', bid: 'graveyard' };
-  if (stg === 'rumored') return { act: dp > .2 && dp < .8 ? 'work' : 'sleep', bid: null };
-  if (stg === 'baby') return { act: dp > .2 && dp < .8 ? 'work' : 'sleep', bid: dp > .2 && dp < .8 ? 'nursery' : resId };
-  if (stg === 'kid') return { act: dp > .3 && dp < .9 ? 'train' : 'sleep', bid: dp > .3 && dp < .9 ? 'gym' : resId };
+  // University campus: rumored/baby/kid route to campus during daytime
+  const hasUni = typeof UniversityData !== 'undefined' && G.bldById['uni_main'];
+  if (stg === 'rumored') return { act: dp > .2 && dp < .8 ? 'work' : 'sleep', bid: dp > .2 && dp < .8 ? (hasUni ? 'uni_lab' : null) : null };
+  if (stg === 'baby') return { act: dp > .2 && dp < .8 ? 'work' : 'sleep', bid: dp > .2 && dp < .8 ? (hasUni ? 'uni_dorm' : 'nursery') : resId };
+  if (stg === 'kid') return { act: dp > .3 && dp < .9 ? 'train' : 'sleep', bid: dp > .3 && dp < .9 ? (hasUni ? 'uni_main' : 'gym') : resId };
+
+  // AI Court: summoned models go to hearing during work hours
+  if (typeof CourtData !== 'undefined' && CourtData.isModelSummoned(model.id) && dp > .35 && dp < .65) {
+      return { act: 'work', bid: 'court_hearing' };
+  }
+  // Conference: during active conference, 15% of adults attend during work hours
+  if (typeof ConferenceData !== 'undefined' && ConferenceData.isActive() && dp > .35 && dp < .75 && ((seed * 7) % 100) < 15) {
+      return { act: 'work', bid: 'convention_center' };
+  }
   
   const s = (seed * 17) % 100;
 

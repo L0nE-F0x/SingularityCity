@@ -214,11 +214,18 @@ const Entities = {
         
         // Use expanded CHAT_MSGS pool, fallback to work
         const pool = (CHAT_MSGS && CHAT_MSGS[act]) ? CHAT_MSGS[act] : (CHAT_MSGS ? CHAT_MSGS.work : ['...']);
-        
+
         // Occasionally inject personalized messages using model's actual data
         let msg;
+        // Seasonal/conference chat override (20% chance)
+        if (Math.random() < 0.20) {
+            if (typeof Seasonal !== 'undefined') { const sc = Seasonal.getSeasonalChat(); if (sc) { msg = sc; } }
+            if (!msg && typeof ConferenceData !== 'undefined' && ConferenceData.isActive()) { msg = ConferenceData.getConferenceChat(); }
+            if (!msg && typeof CourtData !== 'undefined' && CourtData.isModelSummoned(m.id)) { msg = CourtData.CHAT_MSGS[Math.floor(Math.random() * CourtData.CHAT_MSGS.length)]; }
+        }
         const personalRoll = Math.random();
-        if (personalRoll < 0.15 && m.name) {
+        if (msg) { /* seasonal/conference override already set */ }
+        else if (personalRoll < 0.15 && m.name) {
             // Name-based quip
             const nameQuips = [
                 `I'm ${m.name.split(' ')[0]}. Ask me anything.`,

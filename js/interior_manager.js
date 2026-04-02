@@ -23,6 +23,12 @@ const Interior = {
             this.activeModule = InteriorPower;
         } else if (bld.id.startsWith('npc_apt_') && typeof InteriorNPC !== 'undefined') {
             this.activeModule = InteriorNPC;
+        } else if (bld.type === 'university' && typeof UniversityInterior !== 'undefined') {
+            this.activeModule = UniversityInterior;
+        } else if (bld.type === 'court' && typeof CourtInterior !== 'undefined') {
+            this.activeModule = CourtInterior;
+        } else if (bld.id === 'convention_center' && typeof ConferenceInterior !== 'undefined') {
+            this.activeModule = ConferenceInterior;
         } else {
             this.activeModule = InteriorCity;
         }

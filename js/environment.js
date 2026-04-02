@@ -1339,6 +1339,18 @@ const Environment = {
           gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, 4, 5, h - 4); gfx.endFill();
           gfx.beginFill(0x000000, 0.15); gfx.drawRect(0, h - 2, b.w, 4); gfx.endFill();
           
+        } else if (b.type === 'university' && typeof UniversityEnv !== 'undefined') {
+          // University buildings rendered by dedicated module (uses local coords: 0=top, h=ground)
+          UniversityEnv.buildBuilding(gfx, b, h);
+
+        } else if (b.type === 'court' && typeof CourtEnv !== 'undefined') {
+          // Court buildings rendered by dedicated module
+          CourtEnv.buildBuilding(gfx, b, h);
+
+        } else if (b.id === 'convention_center' && typeof ConferenceEnv !== 'undefined') {
+          // Conference center rendered by dedicated module
+          ConferenceEnv.buildBuilding(gfx, b, h);
+
         } else if (b.id.startsWith('res_')) {
           gfx.beginFill(0x1e1e2f); gfx.drawRect(0, 0, b.w, h); gfx.endFill(); 
           

@@ -235,20 +235,32 @@ const G = {
 
         // ─── TECH DISTRICT COMPACTION ───
         // Collect all tech buildings (lab HQs + social), sort by current x, reposition tightly
-        const isSpecialId = (id) => id.startsWith('res_') || id === 'metro_res' || id.startsWith('house_') || 
+        const isSpecialId = (id) => id.startsWith('res_') || id === 'metro_res' || id.startsWith('house_') ||
             id === 'metro_east' || id === 'metro_dc' || id === 'metro_mid' || id.startsWith('npc_apt_') ||
-            id === 'neon_bar' || id === 'visitor_monument' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_');
-        
-        const techBldsList = BLDS.filter(b => 
+            id === 'neon_bar' || id === 'visitor_monument' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
+            id.startsWith('uni_') || id.startsWith('court_') || id === 'convention_center';
+
+        const techBldsList = BLDS.filter(b =>
             !isSpecialId(b.id) && !isDcBld(b) && !isSpaceOrForestSep(b)
         ).sort((a, b) => a.x - b.x);
         
+        // ─── UNIVERSITY CAMPUS: Place after residential, before Pine Reserve ───
+        let afterResX = maxResOrDcX;
+        if (typeof UniversityData !== 'undefined' && UniversityData.BLDS.length > 0) {
+            afterResX = UniversityData.positionZone(maxResOrDcX);
+        }
+
         // Place Pine Reserve, then start tech district after it
         const pineGap = 100; // gap on each side of forest
-        let techStartX = maxResOrDcX + pineGap;
+        let techStartX = afterResX + pineGap;
         if (fCamp) {
             fCamp.x = techStartX;
             techStartX = fCamp.x + fCamp.w + pineGap;
+        }
+
+        // ─── AI COURT: Place after Pine Reserve, before tech district ───
+        if (typeof CourtData !== 'undefined' && CourtData.BLDS.length > 0) {
+            techStartX = CourtData.positionZone(techStartX);
         }
         
         // Compact tech buildings with consistent 50px gaps
@@ -288,6 +300,13 @@ const G = {
 
         let currentX = rightMostTechX + 60;
         
+        // Convention Center — active during conference weeks
+        const convBld = BLDS.find(b => b.id === 'convention_center');
+        if (convBld) {
+            convBld.x = currentX;
+            currentX += convBld.w + 50;
+        }
+
         // Visitor Monument — public obelisk
         const vMon = BLDS.find(b => b.id === 'visitor_monument');
         if (vMon) {
@@ -613,7 +632,8 @@ const G = {
               discovered: disc, 
               sound: typeof SND !== 'undefined' ? SND.enabled : true, 
               achievements: this.achievements,
-              camX: currentCamX 
+              camX: currentCamX,
+              seasonalVisited: typeof Seasonal !== 'undefined' ? Seasonal._eventsVisited : {}
           }));
       } catch(e) {}
     },
@@ -631,6 +651,7 @@ const G = {
         if (d.autoScanMin) this.autoScanMin = d.autoScanMin;
         if (d.achievements) this.achievements = d.achievements;
         if (d.camX !== undefined) this.savedCamX = d.camX;
+        if (d.seasonalVisited && typeof Seasonal !== 'undefined') Seasonal._eventsVisited = d.seasonalVisited;
         
         if (d.discovered && d.discovered.length) {
           const ids = new Set(this.models.map(m => m.id));
@@ -954,9 +975,12 @@ const G = {
         { id: 'npc_housing', emoji: '🏬', label: 'Worker Housing', match: b => b.id.startsWith('npc_apt_') },
         { id: 'dc',       emoji: '🖥️', label: 'Compute Dist.',  match: b => b.id.startsWith('dc_') || b.id.startsWith('fab_') || b.id === 'metro_dc' },
         { id: 'res',      emoji: '🏠', label: 'Residential',    match: b => b.id.startsWith('res_') || b.id === 'metro_res' },
+        { id: 'university', emoji: '🎓', label: 'AI Academy',   match: b => b.type === 'university' },
         { id: 'pine',     emoji: '🌲', label: 'Pine Reserve',   match: b => b.id === 'forest_0' },
-        { id: 'tech',     emoji: '🏢', label: 'Tech District',  match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'metro_dc', wide: true },
+        { id: 'court',    emoji: '🏛️', label: 'AI Court',       match: b => b.type === 'court' },
+        { id: 'tech',     emoji: '🏢', label: 'Tech District',  match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'metro_dc' && b.type !== 'university' && b.type !== 'court' && b.type !== 'convention_center', wide: true },
         { id: 'midline',  emoji: '🚇', label: 'Central Line',   match: b => b.id === 'metro_mid' },
+        { id: 'conference', emoji: '🎓', label: 'Conference',   match: b => b.id === 'convention_center' },
         { id: 'metro',    emoji: '🚇', label: 'Metro East',     match: b => b.id === 'metro_east' },
         { id: 'nightlife', emoji: '🍸', label: 'Nightlife',     match: b => b.id === 'neon_bar' },
         { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
@@ -1165,6 +1189,12 @@ const G = {
       // ─── NPC HOUSING: Initialize buildings ───
       if (typeof NPCHousing !== 'undefined') NPCHousing.init();
       if (typeof PowerZone !== 'undefined') PowerZone.init();
+
+      // ─── NEW ZONES: University, Court, Conference, Seasonal ───
+      if (typeof Seasonal !== 'undefined') Seasonal.init();
+      if (typeof UniversityData !== 'undefined') UniversityData.init();
+      if (typeof CourtData !== 'undefined') CourtData.init();
+      if (typeof ConferenceData !== 'undefined') ConferenceData.init();
       
       this.recalculateZoning(); 
       
@@ -1253,7 +1283,11 @@ const G = {
       if (typeof Environment !== 'undefined') {
           Environment.init({ starsLayer: this.starsLayer, celestialGfx: this.celestialGfx, cloudLayer: this.cloudLayer, bldLayer: this.bldLayer, groundGfx: this.groundGfx, reflectionLayer: this.reflectionLayer, staticLightsGfx: this.staticLightsGfx, lightLayer: this.lightLayer, fxGfx: this.fxGfx });
       }
-      
+
+      // ─── SEASONAL & AURORA: Initialize visual overlay systems ───
+      if (typeof SeasonalEnv !== 'undefined') SeasonalEnv.init({ bldLayer: this.bldLayer, fxGfx: this.fxGfx });
+      if (typeof Aurora !== 'undefined') Aurora.init();
+
       if (typeof Entities !== 'undefined') {
           Entities.init({ 
               charLayer: this.charLayer, 
@@ -1482,6 +1516,12 @@ const G = {
       if (typeof NPCHousing !== 'undefined') NPCHousing.update(dp);
       if (typeof PortEnv !== 'undefined') PortEnv.update();
       if (typeof PowerEnv !== 'undefined') PowerEnv.update();
+      if (typeof SeasonalEnv !== 'undefined') SeasonalEnv.update();
+      if (typeof Aurora !== 'undefined') Aurora.draw(night);
+      if (typeof UniversityData !== 'undefined') UniversityData.update();
+      if (typeof UniversityEnv !== 'undefined') UniversityEnv.update();
+      if (typeof CourtData !== 'undefined') CourtData.update();
+      if (typeof ConferenceData !== 'undefined' && ConferenceData.isActive()) ConferenceData.update();
   
       if (this.tick % 60 === 0) {
         // NOTE: Building sign/window occupancy updates are handled by Environment.update()
