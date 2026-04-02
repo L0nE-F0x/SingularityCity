@@ -123,7 +123,7 @@ h1, h2, h3, p { margin: 0; }
 .btn.macro-active { background: #8b5cf6 !important; color: #fff !important; border-color: #a78bfa !important; box-shadow: 0 0 10px #8b5cf6 !important; }
 
 /* ─── PIXI VIEWPORT ─── */
-.vp { flex: 1; width: 100%; position: relative; z-index: 1; }
+.vp { flex: 1; width: 100%; position: relative; z-index: 1; cursor: grab; }
 .vp.dragging { cursor: grabbing !important; }
 
 /* ─── BOTTOM NEWS TICKER ─── */

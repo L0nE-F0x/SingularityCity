@@ -13,7 +13,7 @@ const Camera = {
     lastY: 0,
     // Inertia/momentum state
     _velX: 0, _velY: 0, _lastMoveTime: 0,
-    _momentumX: 0, _momentumY: 0, _friction: 0.93,
+    _momentumX: 0, _momentumY: 0, _friction: 0.90,
     // Double-tap zoom detection
     _lastTapTime: 0, _lastTapX: 0, _lastTapY: 0,
 
@@ -72,6 +72,8 @@ const Camera = {
         this.lastY = e.clientY;
         this._lastMoveTime = now;
         this._momentumX = 0; this._momentumY = 0;
+        const vpEl = document.getElementById('viewport');
+        if (vpEl) vpEl.classList.add('dragging');
         // Manual camera drag cancels tracking
         if (typeof G !== 'undefined' && G.tracking) {
             G.stopTracking();
@@ -91,7 +93,7 @@ const Camera = {
         // Track velocity for inertia on release
         const dt = now - this._lastMoveTime;
         if (dt > 0 && dt < 100) {
-            const factor = 16.67 / dt;
+            const factor = (16.67 / dt) * 0.6;
             this._velX = (dx / this.zoom) * factor;
             this._velY = (dy / this.zoom) * factor;
         }
@@ -108,6 +110,8 @@ const Camera = {
         }
         this.isDragging = false;
         this._velX = 0; this._velY = 0;
+        const vpEl = document.getElementById('viewport');
+        if (vpEl) vpEl.classList.remove('dragging');
     },
 
     onWheel(e) { 
