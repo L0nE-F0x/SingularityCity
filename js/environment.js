@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   ENVIRONMENT LAYER (v16.2.1 - Remastered Classic Estates)
+   ENVIRONMENT LAYER (v16.3.0 - Visibility Culling & Dirty-Flag Rebuild)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const Environment = {
@@ -569,7 +569,30 @@ const Environment = {
       }
     },
 
+    /* Compute a visual fingerprint for the current building state.
+       If nothing visual changed, buildBuildings() can skip the full rebuild. */
+    _buildFingerprint() {
+        if (!window.BLDS) return '';
+        let fp = BLDS.length + ':' + (G.models ? G.models.length : 0) + ':';
+        for (let i = 0; i < BLDS.length; i++) {
+            const b = BLDS[i];
+            fp += (b.dynamicFl || b.fl || 0);
+            if (b.isTopLab) fp += 'T';
+            if (b.isCheapest) fp += 'C';
+            if (b.dcData) fp += (b.dcData.status || '').charAt(0);
+            fp += ',';
+        }
+        return fp;
+    },
+
     buildBuildings() {
+      // ─── DIRTY CHECK: skip entire rebuild if no visual state changed ───
+      if (window.BLDS && this.bldLayer.children.length > 0) {
+          const fp = this._buildFingerprint();
+          if (fp && this._lastBuildFP === fp) return;
+          this._lastBuildFP = fp;
+      }
+
       // Clear building references before destroying PIXI objects
       if (window.BLDS) {
           BLDS.forEach(b => {
@@ -1782,6 +1805,9 @@ const Environment = {
   
         this.bldLayer.addChild(container); b._container = container;
       });
+
+      // Store fingerprint after build so subsequent calls can compare
+      this._lastBuildFP = this._buildFingerprint();
     },
 
     updateWeather() {
@@ -2025,6 +2051,14 @@ const Environment = {
         // Per-frame: only cheap alpha animations (visibility-culled)
         const camL = typeof Camera !== 'undefined' ? (-Camera.x / (Camera.zoom || 1)) - 200 : 0;
         const camR = camL + G.vpW / (Camera.zoom || 1) + 400;
+
+        // ─── CONTAINER VISIBILITY CULLING — tell PixiJS to skip rendering off-screen buildings ───
+        BLDS.forEach(b => {
+            if (!b._container) return;
+            const vis = !(b.x + b.w < camL || b.x > camR);
+            if (b._container.visible !== vis) b._container.visible = vis;
+        });
+
         BLDS.forEach(b => {
             // Skip buildings that are off-screen
             if (b.x + b.w < camL || b.x > camR) return;
