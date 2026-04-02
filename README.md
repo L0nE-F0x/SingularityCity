@@ -54,6 +54,43 @@ A globally synced, real-time pixel-art simulation where every AI model is a citi
 2. Set env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `FINNHUB_KEY`
 3. Done — no build step
 
+| Rendering | PixiJS 7 (2D city) + Three.js r128 (3D Holomap) |
+| Audio | Web Audio API (procedural oscillator synthesis) |
+| Data | 5 live API pipelines (HuggingFace, Google AI, ZeroEval, Launch Library 2, news RSS) |
+| Backend | Supabase (cross-player cloud sync) |
+| Hosting | Netlify (static deploy via zip upload) |
+| Code | ~17K lines vanilla JavaScript, 27 files, zero frameworks |
+
+## File Structure
+
+```
+index.html              — Landing page + game shell + all overlay panels
+sw.js                   — Service worker (offline caching)
+css/styles.css          — All styles including holomap + responsive breakpoints
+js/
+  engine.js             — Game loop, init, camera, easter eggs, achievements
+  environment.js        — Building rendering, weather, day/night, skybox
+  entities.js           — Character AI, trains, cars, helicopters, chat bubbles
+  entities_gfx.js       — Metro tunnels, stations, bunkers, car/helicopter sprites
+  interior_res_core.js  — Residential/estate interior system + silo
+  interior_res_props.js — Interior furniture, elevator, new luxury props
+  interior_res_ai.js    — Interior character AI behaviors
+  interior_city_core.js — HQ building interior system
+  interior_city_props.js— HQ interior furniture
+  holomap.js            — Three.js 3D galaxy visualization
+  space_entities.js     — Rocket launch system
+  space_environment.js  — Desert biome rendering
+  space_interior.js     — Mission control interior
+  space_data.js         — Launch Library 2 API integration
+  camera.js             — Viewport, zoom, tracking system
+  ui.js                 — All UI panels, benchmarks, costs, census, ticker
+  api.js                — Model discovery, HuggingFace/Google/ZeroEval pipelines
+  data.js               — Static data: achievements, chat messages, news fallbacks
+  snd.js                — Procedural audio engine
+  burn_tracker.js       — Global API cost burn rate calculator
+  minimap.js            — Minimap widget
+  notify.js             — Browser notification system
+```
 ## License
 
 MIT
