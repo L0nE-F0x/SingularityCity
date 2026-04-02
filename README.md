@@ -11,46 +11,31 @@ A globally synced, real-time pixel-art simulation where every AI model is a citi
 ## Features
 
 ### 🏢 Living City
-- **808+ AI model citizens** with daily routines — commuting, working, socializing, sleeping
+- **848+ AI model citizens** with daily routines — commuting, working, socializing, sleeping
 - **Dynamic zoning** — new labs auto-generate districts as models are discovered
 - **5 real-time data pipelines** — HuggingFace, Google AI Studio, ZeroEval, Launch Library 2, TechCrunch/Ars Technica
 - **Cloud sync via Supabase** — every player's discoveries expand the same city
+- **Neon signs** on all buildings — static during day, flickering glow at night
+- **City-wide power lines** — wooden utility poles with sagging wires connecting buildings across the map
 
 ### 🖥️ Compute District — Data Centers & Chip Fabs
 - **17 real-world facilities** — Google Dalles, AWS Virginia, Meta Prineville, xAI Colossus, TSMC Arizona, Samsung Foundry, Intel Ohio, and more
-- **3 facility states** — Operational (green LEDs, HVAC, blue glow), Under Construction (steel frame, crane, EST year), Chip Fabs (cleanroom white, lithography yellow)
-- **Full interiors** — NOC with monitoring screens, server halls with rack rows, reception & security, power distribution basement (DCs) · Lithography bays with EUV machines, etch chambers, wafer handling & QC, chemical storage (fabs)
-- **Interactive NPCs** — Clickable facility staff with info panels, walking animations, and proper avatar rendering
-- **Supabase integration** — DC facilities sync to cloud, auto-complete when target year is reached
+- **Full interiors** — NOC, server halls, reception, power distribution (DCs) · Lithography bays, etch chambers, wafer handling (fabs)
 
-### 🌌 3D Holomap
-- Full **Three.js r128** galaxy visualization overlaying the PixiJS viewport
-- Central ASI black hole with orbiting barrier labels
-- Lab nebulae at variable orbit radii based on proximity score
-- **Lit star rendering** — MeshPhong materials with emissive lab-color cores, specular highlights, 3-point lighting, inner colored spheres for volumetric depth
-- All 808+ models rendered as stars with raycasting hover/click and info panels
+### 🚢 Port / Trade District
+- **Ocean biome** with coral reef, animated fish schools, swaying algae, air bubbles, light rays
+- **3 cargo ships** with staggered arrivals, animated cargo crane unloading, direction-aware wake
+- **12 tracked commodities** with live pricing via Finnhub API (daily Netlify scheduled function)
+- **Coastline transition** — sandy gradient with palm trees between ocean and desert
 
-### 🚇 Metro System
-- **4 stations** — Compute District, Residential, Central Line (Tech District), Eastern Hub
-- **Dynamic multi-leg routing** — models find nearest station and ride through intermediate stops
-- **4 train services** with animated tunnel transit and platform boarding
+### ⚡ Power Grid Zone
+- **5 power sources** — Solar (200MW variable), Wind (150MW weather-dependent), Nuclear (1,100MW), Coal (600MW), Hydro (400MW)
+- **Live supply/demand** from DC facility power_mw fields + city baseline
+- **Animated** — nuclear steam, coal smoke, spinning turbine blades, solar sun-tracking
+- **Underground** — power/water trunk lines with vertical risers to each source
+- **Full interiors** — Nuclear (4 floors), Coal (4 floors), Hydro/Solar/Wind (2 floors each)
 
-### 🏛️ CEO Estates — Billionaire's Row
-- **7 architectural styles** — Brutalist (xAI), Glass Penthouse (OpenAI/Anthropic), Villa (Google/Meta), Colonial (MS/Amazon/Apple/Nvidia), Château (EU), Pagoda (Chinese), Modern (fallback)
-- **Full interiors** with elevator, secure silo bunker, style-specific props
-- **CEO helicopter flyovers** with ground shadows
-
-### 🚀 Space Zone
-- Desert biome with launch pads and mission control
-- Real-time rocket launches from Launch Library 2 API
-- Full launch sequence: countdown → ignition → liftoff → ascent → orbit
-- **Frontier Pines** — AI models ride the metro to watch imminent launches
-
-### 📊 Live Data Panels
-- Benchmark Observatory, Price War Tracker, AI Analyst, Census, Launch Schedule
-- DC/Fab facility specs panels, Space facility panels with next launch countdown
-
-### 🔊 Audio · 💬 Chat · 📰 News · 🏆 21 Achievements
+### 🌌 3D Holomap · 🚇 Metro (4 lines) · 🏠 NPC Housing (24 NPCs) · 🍸 Neon Bar · 🏛️ Billionaire's Row · 🚀 Space Zone · 👻 AI Graveyard · 📊 12 Data Panels · 🔊 Audio · 🏆 21 Achievements
 
 ---
 
@@ -58,18 +43,16 @@ A globally synced, real-time pixel-art simulation where every AI model is a citi
 
 | Layer | Technology |
 |---|---|
-| Rendering | PixiJS 7 (2D city) + Three.js r128 (3D Holomap) |
-| Audio | Web Audio API (procedural oscillator synthesis) |
-| Data | 5 live API pipelines |
-| Backend | Supabase (cross-player cloud sync) |
-| Hosting | Netlify |
-| Code | ~16.5K lines vanilla JS, 24 files, zero frameworks |
+| Rendering | PixiJS 7 (2D) + Three.js r128 (3D Holomap) |
+| Data | 5 API pipelines + Finnhub commodity pricing |
+| Backend | Supabase + Netlify Functions |
+| Code | ~19,300 lines vanilla JS, 32 files, zero frameworks |
 
 ## Deploy
 
-1. Download the latest zip from releases
-2. Upload to [Netlify](https://app.netlify.com/drop) via drag-and-drop
-3. Done — no build step required
+1. Upload zip to [Netlify](https://app.netlify.com/drop)
+2. Set env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `FINNHUB_KEY`
+3. Done — no build step
 
 ## License
 

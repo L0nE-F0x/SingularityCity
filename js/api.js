@@ -302,6 +302,7 @@ const API = {
             if (added > 0) {
                 console.log(`🤗 [HF] Discovered ${added} trending open-source models`);
                 if (typeof UI !== 'undefined') UI.addToast(`🤗 Hugging Face: ${added} new open-source models!`);
+                if (typeof NOTIFY !== 'undefined') NOTIFY.send('Models Discovered!', `🤗 ${added} new open-source models from Hugging Face`);
                 if (typeof UI !== 'undefined') UI.addLog(`🤗 HF API: ${added} trending models added`);
                 G.evolveCity();
             } else {
@@ -480,7 +481,7 @@ const API = {
             if (added > 0 || benchUpdated > 0) {
                 console.log(`📊 [ZeroEval] +${added} new models, ${benchUpdated} benchmark updates`);
                 if (typeof UI !== 'undefined') {
-                    if (added > 0) UI.addToast(`📊 ZeroEval: ${added} new models with real benchmarks!`);
+                    if (added > 0) { UI.addToast(`📊 ZeroEval: ${added} new models with real benchmarks!`); if (typeof NOTIFY !== 'undefined') NOTIFY.send('Benchmarks Updated!', `📊 ${added} new models with real benchmark scores`); }
                     UI.addLog(`📊 ZeroEval: +${added} models, ${benchUpdated} benchmark backfills`);
                 }
                 G.evolveCity();
@@ -1110,7 +1111,7 @@ JSON (no markdown):
                     }
                 }
             });
-            if (famAdded > 0 && typeof UI !== 'undefined') UI.addToast(`🧬 Mapped ${famAdded} new family tree connections!`);
+            if (famAdded > 0 && typeof UI !== 'undefined') { UI.addToast(`🧬 Mapped ${famAdded} new family tree connections!`); if (typeof NOTIFY !== 'undefined') NOTIFY.send('Lineage Updated!', `🧬 ${famAdded} new model family connections mapped`); }
         }
 
         if (parsedData.events) {
@@ -1126,7 +1127,7 @@ JSON (no markdown):
                     }
                 }
             }
-            if (addedEvents > 0 && typeof UI !== 'undefined') UI.addToast(`📅 Added ${addedEvents} new tech events to Calendar!`);
+            if (addedEvents > 0 && typeof UI !== 'undefined') { UI.addToast(`📅 Added ${addedEvents} new tech events to Calendar!`); if (typeof NOTIFY !== 'undefined') NOTIFY.send('Events Added!', `📅 ${addedEvents} new tech events on the calendar`); }
         }
 
         if (parsedData.retirements) {
@@ -1198,5 +1199,78 @@ JSON (no markdown):
           btn.innerHTML = '🛰️ Scan';
       }
       this._scanning = false;
+    },
+    
+    async syncBuildingPositions() {
+        if (!this.supabase) return;
+        try {
+            const toSync = BLDS.filter(b => b.lab || ['cafe','gym','arena','open_square','park','graveyard','nursery','neon_bar','visitor_monument'].includes(b.id));
+            const rows = toSync.map(b => ({ id: b.id, name: b.name, w: b.w, x: Math.round(b.x), fl: b.fl || 1, emoji: b.emoji || null, lab: b.lab || null, desc: b.desc || null }));
+            if (rows.length > 0) {
+                const { error } = await this.supabase.from('blds').upsert(rows, { onConflict: 'id' });
+                if (!error) console.log(`🏗️ Synced ${rows.length} building positions to cloud`);
+            }
+        } catch (e) { /* silent */ }
+    }
+};
+
+// ─── VISITOR COUNTER ───
+const VisitorTracker = {
+    uniqueVisitors: 0,
+    totalVisits: 0,
+    
+    async init() {
+        if (!API.supabase) { this._fallbackCount(); return; }
+        try {
+            // Get or create visitor ID
+            let vid = localStorage.getItem('sc_visitor_id');
+            if (!vid) {
+                vid = 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+                localStorage.setItem('sc_visitor_id', vid);
+            }
+            // Call RPC to record visit and get counts
+            const { data, error } = await API.supabase.rpc('record_visit', { p_visitor_id: vid });
+            if (data && data.length > 0) {
+                this.uniqueVisitors = data[0].unique_visitors || 0;
+                this.totalVisits = data[0].total_visits || 0;
+            } else {
+                this._fallbackCount();
+            }
+        } catch (e) {
+            this._fallbackCount();
+        }
+        this._updateMonument();
+    },
+    
+    async refresh() {
+        if (!API.supabase) return;
+        try {
+            const { data } = await API.supabase.from('visitor_counter').select('*').eq('id', 'global').single();
+            if (data) {
+                this.uniqueVisitors = data.unique_visitors || 0;
+                this.totalVisits = data.total_visits || 0;
+                this._updateMonument();
+            }
+        } catch (e) { /* silent */ }
+    },
+    
+    _fallbackCount() {
+        // If Supabase not available, use localStorage session count
+        let visits = parseInt(localStorage.getItem('sc_visits') || '0');
+        visits++;
+        localStorage.setItem('sc_visits', visits.toString());
+        this.totalVisits = visits;
+        this.uniqueVisitors = 1;
+    },
+    
+    _updateMonument() {
+        // Update the in-world monument text
+        const mon = G.bldById && G.bldById['visitor_monument'];
+        if (mon && mon._counterTxt) {
+            mon._counterTxt.text = this.uniqueVisitors.toLocaleString();
+        }
+        if (mon && mon._visitsTxt) {
+            mon._visitsTxt.text = this.totalVisits.toLocaleString() + ' visits';
+        }
     }
 };

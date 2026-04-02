@@ -65,6 +65,20 @@ const G = {
             BLDS.push(mEast);
             this.bldById['metro_east'] = mEast;
         }
+        
+        // Neon Bar — nightlife destination
+        if (!BLDS.find(b => b.id === 'neon_bar')) {
+            const bar = { id: 'neon_bar', name: 'Neon Bar', w: 130, x: 0, fl: 3, emoji: '🍸', lab: null, desc: 'Late-night karaoke bar. Models unwind with drinks and sing their training data.' };
+            BLDS.push(bar);
+            this.bldById['neon_bar'] = bar;
+        }
+        
+        // Visitor Monument — public counter
+        if (!BLDS.find(b => b.id === 'visitor_monument')) {
+            const mon = { id: 'visitor_monument', name: 'Visitor Monument', w: 80, x: 0, fl: 1, emoji: '🌐', lab: null, desc: 'A monument tracking every unique visitor to Singularity City. Your presence is recorded.' };
+            BLDS.push(mon);
+            this.bldById['visitor_monument'] = mon;
+        }
 
         let fCamp = BLDS.find(b => b.id === 'forest_0');
         if (!fCamp) {
@@ -77,8 +91,27 @@ const G = {
         const isSpaceBld = (b) => b.id.startsWith('pad_') || b.id === 'mission_control' || b.id === 'space_assembly' || b.id === 'tracking_station';
         const isSpaceOrForestSep = (b) => isSpaceBld(b) || b.id === 'forest_space';
 
+        // ─── PORT / TRADE ZONE: Initialize buildings ───
+        if (typeof PortZone !== 'undefined') PortZone.init();
+        
         // ─── SPACE ZONE: Place all space buildings to the far left ───
-        let spaceX = 100;
+        // ─── PORT / TRADE ZONE: Position at far left, then space after it ───
+        let portEndX = 100;
+        if (typeof PortZone !== 'undefined') {
+            const portBlds = BLDS.filter(b => b.id.startsWith('port_'));
+            let px = 100;
+            portBlds.forEach(b => { b.x = px; px += b.w + 40; });
+            portEndX = px + 60;
+            
+            // Set ocean coordinates (left of port buildings)
+            PortZone.oceanStartX = -400;
+            PortZone.oceanEndX = 80;
+            PortZone.coastlineX = 60;
+            if (!PortZone.ships.length) PortZone._spawnShips();
+        }
+        
+        let spaceX = portEndX;
+        
         const spaceBlds = BLDS.filter(isSpaceBld).sort((a, b) => {
             // Launch pads first, then shared infrastructure
             const typeOrder = { launchpad: 0, mission_control: 1, assembly: 2, tracking: 3 };
@@ -147,8 +180,21 @@ const G = {
             this.bldById['metro_dc'] = mDc;
         }
         
-        // Place DC zone after space separator — metro station first (leftmost)
-        let dcX = spaceX + 100;
+        // ─── NPC HOUSING: Place worker apartments between Frontier Pines and Metro DC ───
+        // (Positioned AFTER fSpace, BEFORE dcX)
+        let npcEndX = spaceX + 100;
+        if (typeof NPCHousing !== 'undefined') {
+            let npcX = fSpace ? fSpace.x + fSpace.w + 80 : spaceX + 100;
+            const npcBlds = BLDS.filter(b => b.id.startsWith('npc_apt_'));
+            npcBlds.forEach(b => {
+                b.x = npcX;
+                npcX += b.w + 40;
+            });
+            npcEndX = npcX;
+        }
+
+        // Place DC zone after NPC housing — metro station first (leftmost)
+        let dcX = npcEndX + 60;
         
         const mDc = BLDS.find(b => b.id === 'metro_dc');
         if (mDc) { mDc.x = dcX; dcX += mDc.w + 60; }
@@ -182,49 +228,37 @@ const G = {
 
         let maxResOrDcX = 0;
         BLDS.forEach(b => {
-            if (b.id.startsWith('res_') || b.id === 'metro_res' || isDcBld(b)) {
+            if (b.id.startsWith('res_') || b.id === 'metro_res' || isDcBld(b) || b.id.startsWith('npc_apt_')) {
                 if (b.x + b.w > maxResOrDcX) maxResOrDcX = b.x + b.w;
             }
         });
 
-        let minTechX = Infinity;
-        BLDS.forEach(b => {
-            if (!b.id.startsWith('res_') && b.id !== 'metro_res' && b.id !== 'forest_0' && b.id !== 'forest_1' && !b.id.startsWith('house_') && b.id !== 'metro_east' && b.id !== 'metro_dc' && b.id !== 'metro_mid' && !isDcBld(b) && !isSpaceOrForestSep(b)) {
-                if (b.x < minTechX) minTechX = b.x;
-            }
-        });
-
-        if (maxResOrDcX > 0 && minTechX !== Infinity && fCamp) {
-            let currentGap = minTechX - maxResOrDcX;
-            let desiredGap = fCamp.w + 600; 
-            
-            if (currentGap < desiredGap) {
-                let shiftAmount = desiredGap - currentGap;
-                BLDS.forEach(b => {
-                    if (b.x >= minTechX && !b.id.startsWith('res_') && b.id !== 'metro_res' && b.id !== 'forest_0' && !isDcBld(b) && !isSpaceOrForestSep(b)) {
-                        b.x += shiftAmount;
-                    }
-                });
-                minTechX += shiftAmount; 
-            }
-            
-            fCamp.x = maxResOrDcX + ((minTechX - maxResOrDcX) / 2) - (fCamp.w / 2);
+        // ─── TECH DISTRICT COMPACTION ───
+        // Collect all tech buildings (lab HQs + social), sort by current x, reposition tightly
+        const isSpecialId = (id) => id.startsWith('res_') || id === 'metro_res' || id.startsWith('house_') || 
+            id === 'metro_east' || id === 'metro_dc' || id === 'metro_mid' || id.startsWith('npc_apt_') ||
+            id === 'neon_bar' || id === 'visitor_monument' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_');
+        
+        const techBldsList = BLDS.filter(b => 
+            !isSpecialId(b.id) && !isDcBld(b) && !isSpaceOrForestSep(b)
+        ).sort((a, b) => a.x - b.x);
+        
+        // Place Pine Reserve, then start tech district after it
+        const pineGap = 100; // gap on each side of forest
+        let techStartX = maxResOrDcX + pineGap;
+        if (fCamp) {
+            fCamp.x = techStartX;
+            techStartX = fCamp.x + fCamp.w + pineGap;
         }
         
-        let rightMostTechX = 0;
-        BLDS.forEach(b => {
-            if (!b.id.startsWith('res_') && b.id !== 'metro_res' && b.id !== 'forest_1' && b.id !== 'forest_0' && !b.id.startsWith('house_') && b.id !== 'metro_east' && b.id !== 'metro_dc' && b.id !== 'metro_mid' && !isDcBld(b) && !isSpaceOrForestSep(b)) {
-                if (b.x + b.w > rightMostTechX) rightMostTechX = b.x + b.w;
-            }
+        // Compact tech buildings with consistent 50px gaps
+        let techX = techStartX;
+        techBldsList.forEach(b => {
+            b.x = techX;
+            techX += b.w + 65;
         });
-
-        let currentX = rightMostTechX + 100; 
         
-        let mEast = BLDS.find(b => b.id === 'metro_east');
-        if (mEast) {
-            mEast.x = currentX;
-            currentX += mEast.w;
-        }
+        let rightMostTechX = techX;
 
         // Mid-tech metro station — placed after the median tech building
         if (!BLDS.find(b => b.id === 'metro_mid')) {
@@ -233,43 +267,45 @@ const G = {
             this.bldById['metro_mid'] = mMid2;
         }
         const mMid = BLDS.find(b => b.id === 'metro_mid');
-        if (mMid && mEast) {
-            const techBlds = BLDS.filter(b => 
-                b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && 
-                b.id !== 'metro_res' && b.id !== 'metro_dc' && b.id !== 'metro_mid' && b.id !== 'metro_east' &&
-                !b.id.startsWith('forest_') && !isDcBld(b) && !isSpaceOrForestSep(b)
-            ).sort((a, b) => a.x - b.x);
+        if (mMid && techBldsList.length >= 4) {
+            const medianIdx = Math.floor(techBldsList.length / 2);
+            const leftBld = techBldsList[medianIdx];
+            mMid.x = leftBld.x + leftBld.w + 15;
             
-            if (techBlds.length >= 4) {
-                const medianIdx = Math.floor(techBlds.length / 2);
-                const leftBld = techBlds[medianIdx];
-                mMid.x = leftBld.x + leftBld.w + 20;
-                
-                // Idempotent: ensure no building overlaps the station
-                // Sort right-side buildings and cascade-push any that overlap
-                const stationRight = mMid.x + mMid.w + 20;
-                const rightBlds = techBlds.filter(b => b.x > leftBld.x).sort((a, b) => a.x - b.x);
-                let pushBoundary = stationRight;
-                rightBlds.forEach(b => {
-                    if (b.x < pushBoundary) {
-                        b.x = pushBoundary;
-                    }
-                    pushBoundary = b.x + b.w + 50; // maintain natural gap for subsequent buildings
-                });
-                
-                // Also push metro_east if it got overlapped
-                if (mEast.x < pushBoundary - 50 + 100) {
-                    // Only push if it's actually overlapping with the last tech building
-                    const lastTech = rightBlds[rightBlds.length - 1];
-                    if (lastTech && mEast.x < lastTech.x + lastTech.w + 100) {
-                        mEast.x = lastTech.x + lastTech.w + 100;
-                    }
-                }
-            } else {
-                mMid.x = mEast.x / 2;
+            // Shift right-side buildings to make room for station
+            const stationRight = mMid.x + mMid.w + 15;
+            const rightBlds = techBldsList.filter(b => b.x > leftBld.x);
+            if (rightBlds.length > 0 && rightBlds[0].x < stationRight) {
+                const shiftNeeded = stationRight - rightBlds[0].x;
+                rightBlds.forEach(b => { b.x += shiftNeeded; });
             }
-            
-            currentX = mEast.x + mEast.w;
+            // Update rightMostTechX after shift
+            const lastTech = rightBlds[rightBlds.length - 1] || leftBld;
+            rightMostTechX = lastTech.x + lastTech.w + 30;
+        } else if (mMid) {
+            mMid.x = techStartX + (rightMostTechX - techStartX) / 2;
+        }
+
+        let currentX = rightMostTechX + 60;
+        
+        // Visitor Monument — public obelisk
+        const vMon = BLDS.find(b => b.id === 'visitor_monument');
+        if (vMon) {
+            vMon.x = currentX;
+            currentX += vMon.w + 40;
+        }
+        
+        // Neon Bar — nightlife strip
+        const nBar = BLDS.find(b => b.id === 'neon_bar');
+        if (nBar) {
+            nBar.x = currentX;
+            currentX += nBar.w + 40;
+        }
+        
+        let mEast = BLDS.find(b => b.id === 'metro_east');
+        if (mEast) {
+            mEast.x = currentX;
+            currentX += mEast.w;
         }
 
         currentX += 500; 
@@ -310,6 +346,11 @@ const G = {
                 currentX += b.w + 100; 
             }
         });
+
+        // ─── POWER GRID ZONE: Far right after estates ───
+        if (typeof PowerZone !== 'undefined') {
+            currentX = PowerZone.positionZone(currentX);
+        }
 
         BLDS.sort((a, b) => a.x - b.x);
         this.cityW = this.getCityWidth();
@@ -653,6 +694,11 @@ const G = {
             b.dynamicFl = 3;
             b.desc = b.id === 'gym' ? 'RLHF Gym for heavy compute training.' : 'LMSYS Chatbot Arena for model battles.';
         }
+        
+        if (b.id === 'neon_bar') {
+            b.dynamicFl = 3;
+            b.desc = 'Late-night karaoke bar. Models unwind and sing their training data.';
+        }
 
         if (b.id.startsWith('res_')) {
             const resRegion = b.id.split('_')[1] || 'eu';
@@ -902,16 +948,20 @@ const G = {
     // ═══════════════════════════════════════════════
     
     _mmZones: [
-        { id: 'space',    emoji: '🏜️', label: 'Space Zone',    match: b => b.type === 'launchpad' },
+        { id: 'port',     emoji: '🚢', label: 'Port District',  match: b => b.id.startsWith('port_') },
+        { id: 'space',    emoji: '🚀', label: 'Space Zone',     match: b => b.type === 'launchpad' },
         { id: 'frontier', emoji: '🌲', label: 'Frontier Pines', match: b => b.id === 'forest_space' },
+        { id: 'npc_housing', emoji: '🏬', label: 'Worker Housing', match: b => b.id.startsWith('npc_apt_') },
+        { id: 'dc',       emoji: '🖥️', label: 'Compute Dist.',  match: b => b.id.startsWith('dc_') || b.id.startsWith('fab_') || b.id === 'metro_dc' },
         { id: 'res',      emoji: '🏠', label: 'Residential',    match: b => b.id.startsWith('res_') || b.id === 'metro_res' },
-        { id: 'dc',       emoji: '🖥️', label: 'Compute District', match: b => b.id.startsWith('dc_') || b.id.startsWith('fab_') || b.id === 'metro_dc' },
         { id: 'pine',     emoji: '🌲', label: 'Pine Reserve',   match: b => b.id === 'forest_0' },
-        { id: 'tech',     emoji: '🏢', label: 'Tech District',  match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'metro_dc' },
+        { id: 'tech',     emoji: '🏢', label: 'Tech District',  match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'metro_dc', wide: true },
         { id: 'midline',  emoji: '🚇', label: 'Central Line',   match: b => b.id === 'metro_mid' },
         { id: 'metro',    emoji: '🚇', label: 'Metro East',     match: b => b.id === 'metro_east' },
+        { id: 'nightlife', emoji: '🍸', label: 'Nightlife',     match: b => b.id === 'neon_bar' },
         { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
-        { id: 'estates',  emoji: '🏡', label: "Billionaire's Row", match: b => b.id.startsWith('house_') }
+        { id: 'estates',  emoji: '🏡', label: "Billionaire's",  match: b => b.id.startsWith('house_') },
+        { id: 'power',   emoji: '⚡', label: 'Power Grid',    match: b => b.id.startsWith('power_') }
     ],
     
     initMinimap() {
@@ -924,7 +974,7 @@ const G = {
         zones.innerHTML = '';
         this._mmZones.forEach(z => {
             const btn = document.createElement('div');
-            btn.className = 'mm-zone';
+            btn.className = 'mm-zone' + (z.wide ? ' wide' : '');
             btn.dataset.zone = z.id;
             btn.textContent = `${z.emoji} ${z.label}`;
             btn.onclick = () => this.jumpToZone(z);
@@ -984,7 +1034,7 @@ const G = {
         const scale = cW / Math.max(this.cityW, 1);
         
         // Draw zone color bands
-        const zoneColors = { space: '#c2956a', frontier: '#1b4332', res: '#334155', pine: '#1b4332', tech: '#2a2a42', metro: '#475569', silicon: '#1b4332', estates: '#3d2514' };
+        const zoneColors = { port: '#0a1628', space: '#c2956a', frontier: '#1b4332', npc_housing: '#1a2030', res: '#334155', pine: '#1b4332', tech: '#2a2a42', metro: '#475569', nightlife: '#1a0a2e', silicon: '#1b4332', estates: '#3d2514', power: '#1a1a10' };
         
         this._mmZones.forEach(z => {
             let minX = Infinity, maxX = 0;
@@ -1059,7 +1109,7 @@ const G = {
               origSelect.call(UI, b);
               setTimeout(() => {
                   const p = document.getElementById('infoPanel');
-                  if (p && b && b.id !== 'park' && b.id !== 'graveyard') {
+                  if (p && b && b.id !== 'park' && b.id !== 'graveyard' && b.id !== 'visitor_monument') {
                       const titleArea = p.querySelector('.ipanel-name') || p.querySelector('.ipanel-title');
                       if (!document.getElementById('btnInside')) {
                           const btn = document.createElement('button');
@@ -1098,10 +1148,26 @@ const G = {
       // ─── SPACE ZONE: Inject space buildings before zoning ───
       if (typeof SpaceData !== 'undefined') SpaceData.init();
       
+      // ─── Register nightlife activity ───
+      if (typeof ACTS !== 'undefined') {
+          if (!ACTS.nightlife) ACTS.nightlife = { label: 'Nightlife', verb: 'partying', icon: '🍸', indoor: true };
+      }
+      
+      // ─── Visitor tracking ───
+      if (typeof VisitorTracker !== 'undefined') {
+          VisitorTracker.init();
+          setInterval(() => VisitorTracker.refresh(), 120000); // refresh every 2 min
+      }
+      
       // ─── COMPUTE DISTRICT: Check construction completions ───
       if (typeof DCManager !== 'undefined') DCManager.checkCompletions();
       
+      // ─── NPC HOUSING: Initialize buildings ───
+      if (typeof NPCHousing !== 'undefined') NPCHousing.init();
+      if (typeof PowerZone !== 'undefined') PowerZone.init();
+      
       this.recalculateZoning(); 
+      
       
       this.socialSpots = BLDS.filter(b => ['cafe', 'open_square', 'gym', 'arena', 'forest_0'].includes(b.id));
       
@@ -1197,6 +1263,20 @@ const G = {
               undergroundLayer: this.undergroundLayer, 
               trainLayer: this.trainLayer              
           });
+      }
+      
+      // ─── NPC HOUSING: Spawn commuter NPCs ───
+      if (typeof NPCHousing !== 'undefined' && this.charLayer) {
+          NPCHousing.spawnCommuters(this.charLayer);
+      }
+      
+      // ─── PORT ZONE: Ships + Ocean Life ───
+      if (typeof PortEnv !== 'undefined') {
+          PortEnv.buildShips(this.charLayer);
+          PortEnv.buildOceanLife(this.charLayer);
+      }
+      if (typeof PowerEnv !== 'undefined') {
+          PowerEnv.buildAnimations(this.charLayer);
       }
       
       // ─── SPACE ENTITIES: Rockets on launch pads ───
@@ -1399,6 +1479,9 @@ const G = {
       if (typeof Entities !== 'undefined') occ = Entities.update(dp, night);
       if (typeof Environment !== 'undefined') Environment.update(dp, night, occ);
       if (typeof SpaceEntities !== 'undefined') SpaceEntities.update();
+      if (typeof NPCHousing !== 'undefined') NPCHousing.update(dp);
+      if (typeof PortEnv !== 'undefined') PortEnv.update();
+      if (typeof PowerEnv !== 'undefined') PowerEnv.update();
   
       if (this.tick % 60 === 0) {
         // NOTE: Building sign/window occupancy updates are handled by Environment.update()

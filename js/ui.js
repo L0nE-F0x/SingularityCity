@@ -19,7 +19,7 @@ const NOTIFY = {
     },
     send(t, b) {
       if (this.permission === 'granted') {
-        try { new Notification(t, { body: b, silent: true, icon: '/icon-192.png' });
+        try { new Notification(t, { body: b, icon: '/og-image.png' });
         } catch(e) {}
       }
     }
@@ -555,6 +555,16 @@ const UI = {
                 html += `</div>`;
             }
         }
+        html += `</div>`;
+      }
+      // ─── VISITOR MONUMENT panel ───
+      else if (b.id === 'visitor_monument') {
+        const vt = typeof VisitorTracker !== 'undefined' ? VisitorTracker : { uniqueVisitors: 0, totalVisits: 0 };
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:6px;color:#22d3ee">🌐 VISITOR STATISTICS</div>`;
+        html += `<div>👤 <b>Unique Visitors:</b> <span style="color:#22d3ee;font-size:14px;font-weight:bold">${vt.uniqueVisitors.toLocaleString()}</span></div>`;
+        html += `<div>📊 <b>Total Visits:</b> ${vt.totalVisits.toLocaleString()}</div>`;
+        html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd);color:var(--t3);font-size:9px">Every visitor to Singularity City is recorded on this monument. Your presence contributes to the city's history.</div>`;
         html += `</div>`;
       }
       // ─── HQ model list (exclude DC/fab and space) ───

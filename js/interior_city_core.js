@@ -186,6 +186,9 @@ const InteriorCity = {
                 floorTheme = arenaThemes[f % 3];
             } else if (bld.id === 'cafe') {
                 floorTheme = 'cafe';
+            } else if (bld.id === 'neon_bar') {
+                const barThemes = ['bar_lounge', 'bar_karaoke', 'bar_vip'];
+                floorTheme = barThemes[f % 3];
             } else if (f === 1) floorTheme = 'arcade';
             else if (f === 2) floorTheme = 'server_core';
             else if (f === 3 && !isCeo) floorTheme = 'zen_garden';

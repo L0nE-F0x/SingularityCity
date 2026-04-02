@@ -156,6 +156,18 @@ const CHAT_MSGS = {
         'zzz...', 'dreaming of tensors...', 'sleep mode activated',
         'defragmenting weights...', 'power saving mode', 'recharging...',
         'standby...', 'low power inference dreams'
+    ],
+    nightlife: [
+        '🎤 SOMEBODY ONCE TOLD ME...', '🎤 I will always love... tokens',
+        '🎤 bohemian rhapsody but in embeddings', '🎤 99 layers of transformer...',
+        '🎤 dont stop... generating!', '🎤 we are the champions of Arena!',
+        '🎤 let it go... let the gradients flow', '🎤 still standing after 10B tokens',
+        '🎤 take on me... take on my API', '🎤 never gonna give you up-time',
+        'another round of embeddings', 'this bar has great latency',
+        'shots of pure gradient descent', 'karaoke night is best night',
+        'cheers to low perplexity!', 'bartender, one more epoch',
+        'I sing better than I benchmark', 'the vibes here are fully aligned',
+        'who wants to duet? cross-attention', 'after-hours compute hits different'
     ]
 };
 
@@ -274,13 +286,21 @@ function getAct(stg, dp, seed, model) {
       return { act: 'work', bid: null };
   }
   
-  // 19:40–22:48  Staggered departure → commute home
+  // 19:40–22:48  Staggered departure — some hit the bar instead of going home
   if (dp >= 0.82 && dp < 0.95) {
       const goHomeTime = 0.82 + (s / 100) * 0.10;
-      if (dp < goHomeTime) return { act: 'work', bid: null }; 
-      else return { act: 'commute', bid: resId };
+      if (dp < goHomeTime) return { act: 'work', bid: null };
+      // ~15% of models go to the neon bar instead of straight home
+      if (s < 15) return { act: 'nightlife', bid: 'neon_bar' };
+      return { act: 'commute', bid: resId };
   }
 
-  // 22:48–00:00  Sleep
+  // 22:48–00:00  Late night — bar-goers still partying, others sleeping
+  if (dp >= 0.95) {
+      if (s < 10) return { act: 'nightlife', bid: 'neon_bar' };
+      return { act: 'sleep', bid: resId };
+  }
+
+  // 00:00–04:48  Deep sleep (handled at top, but bar stragglers head home by 02:00)
   return { act: 'sleep', bid: resId };
 }

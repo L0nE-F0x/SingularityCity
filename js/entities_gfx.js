@@ -336,7 +336,8 @@ const EntitiesGfx = {
 
         return {
             trainWest: this.createTrainObj(trainLayer, carLayer, mResX, mHqX, 180, tunnelY),
-            trainEast: this.createTrainObj(trainLayer, carLayer, mHqX, mEastX, 90, tunnelY),
+            trainEast: mMidX ? this.createTrainObj(trainLayer, carLayer, mHqX, mMidX, 90, tunnelY) : this.createTrainObj(trainLayer, carLayer, mHqX, mEastX, 90, tunnelY),
+            trainMid: mMidX ? this.createTrainObj(trainLayer, carLayer, mMidX, mEastX, 45, tunnelY) : null,
             trainDC: mDcX ? this.createTrainObj(trainLayer, carLayer, mDcX, mResX, 120, tunnelY) : null,
             stationVisuals: stationVisuals,
             bunkerGfx: bunkerGfx,
@@ -520,6 +521,10 @@ const EntitiesGfx = {
         
         const briefcase = new PIXI.Graphics(); briefcase.visible = false;
         
+        // Spectral glow aura (visible on retired/ghost models)
+        const ghostGlow = new PIXI.Graphics(); ghostGlow.visible = false;
+        ghostGlow.blendMode = PIXI.BLEND_MODES.ADD;
+        
         const chat = new PIXI.Container();
         const chatBg = new PIXI.Graphics();
         const chatTxt = new PIXI.Text('', { fontFamily: 'JetBrains Mono', fontSize: 8, fill: 0x000000, fontWeight: 'bold' });
@@ -527,7 +532,7 @@ const EntitiesGfx = {
         chat.addChild(chatBg, chatTxt);
         chat.visible = false;
         
-        c.addChild(shadow, ghostL, ghostR, legL, legR, body, head, dot, umbrella, briefcase, chat); 
+        c.addChild(ghostGlow, shadow, ghostL, ghostR, legL, legR, body, head, dot, umbrella, briefcase, chat); 
         c.eventMode = 'static'; c.cursor = 'pointer';
         c.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
         c.on('pointerover', e => { 
@@ -559,7 +564,7 @@ const EntitiesGfx = {
         let startBld = bid ? G.bldById[bid] : defaultHq || G.bldById['nursery'];
 
         G.charRefs[m.id] = { 
-            c, shadow, head, body, legL, legR, dot, umbrella, ghostL, ghostR, briefcase, chat, chatBg, chatTxt,
+            c, shadow, head, body, legL, legR, dot, umbrella, ghostL, ghostR, ghostGlow, briefcase, chat, chatBg, chatTxt,
             paramScale, isMoE,
             bld: startBld ? startBld.id : null,
             wantsToLeave: false, 
@@ -628,8 +633,8 @@ const EntitiesGfx = {
         refs.head.clear();
         refs.head.beginFill(skinCol, isR ? .3 : isRm ? .5 : 1);
         refs.head.drawRoundedRect(-bw * .4, 0, bw * .8, headH, headH * .25); refs.head.endFill();
-        refs.head.beginFill(isR ? 0x88aaff : isRm ? 0xa78bfa : 0x2c1810); refs.head.drawCircle(-bw * .1, headH * .38, eyeS);
-        refs.head.drawCircle(bw * .1, headH * .38, eyeS); refs.head.endFill(); 
+        refs.head.beginFill(isR ? 0xaaccff : isRm ? 0xa78bfa : 0x2c1810); refs.head.drawCircle(-bw * .1, headH * .38, isR ? eyeS * 1.5 : eyeS);
+        refs.head.drawCircle(bw * .1, headH * .38, isR ? eyeS * 1.5 : eyeS); refs.head.endFill(); 
         refs.head.beginFill(0x000000, 0.4); refs.head.drawRect(-bw * .08, headH * .6, bw * .16, 1.5);
         refs.head.endFill();
         refs.head.y = -h;
@@ -646,6 +651,22 @@ const EntitiesGfx = {
         refs.legR.drawRect(-lw / 2, 0, lw, lh); refs.legR.endFill(); refs.legR.x = bw * .15;
         refs.dot.clear(); const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : 0x4ade80; refs.dot.beginFill(dotCol); refs.dot.drawCircle(0, 0, 2); refs.dot.endFill();
         refs.dot.y = -h - 6;
+
+        // Spectral glow for retired models
+        if (refs.ghostGlow) {
+            refs.ghostGlow.clear();
+            if (isR) {
+                refs.ghostGlow.visible = true;
+                refs.ghostGlow.beginFill(0x6688ff, 0.15);
+                refs.ghostGlow.drawEllipse(0, -h * 0.4, bw * 1.2, h * 0.6);
+                refs.ghostGlow.endFill();
+                refs.ghostGlow.beginFill(0x88aaff, 0.08);
+                refs.ghostGlow.drawEllipse(0, -h * 0.4, bw * 1.8, h * 0.8);
+                refs.ghostGlow.endFill();
+            } else {
+                refs.ghostGlow.visible = false;
+            }
+        }
 
         if (refs.isMoE) {
             refs.ghostL.clear(); refs.ghostR.clear();

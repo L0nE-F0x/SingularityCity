@@ -121,7 +121,7 @@ const SpaceEnvironment = {
         }
         const isClear = (x) => !blocked.some(z => x > z.l - 10 && x < z.r + 10);
         
-        for (let tx = spaceStartX + 30; tx < spaceEndX - 30; tx += 50 + sr() * 40) {
+        for (let tx = spaceStartX + 120; tx < spaceEndX - 30; tx += 50 + sr() * 40) {
             seed = tx * 11 + 7;
             if (!isClear(tx)) continue;
             

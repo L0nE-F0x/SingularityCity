@@ -5,7 +5,7 @@
 const Entities = {
     charLayer: null, carLayer: null, reflectionLayer: null, lightLayer: null,
     undergroundLayer: null, trainLayer: null,
-    trainWest: null, trainEast: null, trainDC: null,
+    trainWest: null, trainEast: null, trainMid: null, trainDC: null,
     dataCubes: [],
     heliRefs: {},
 
@@ -21,6 +21,7 @@ const Entities = {
             const trains = EntitiesGfx.initMetro(this.undergroundLayer, this.charLayer, this.carLayer, this.trainLayer);
             this.trainWest = trains.trainWest;
             this.trainEast = trains.trainEast;
+            this.trainMid = trains.trainMid;
             this.trainDC = trains.trainDC;
             this.stationVisuals = trains.stationVisuals;
             this.bunkerGfx = trains.bunkerGfx;
@@ -117,12 +118,22 @@ const Entities = {
         }
 
         if (this.trainEast) {
-            this.trainEast.st1 = mMidX || mHqX;
-            this.trainEast.st2 = mEastX;
+            this.trainEast.st1 = mHqX;
+            this.trainEast.st2 = mMidX || mEastX;
             if (this.trainEast.state === 'waiting') {
                 if (Math.abs(this.trainEast.x - this.trainEast.st1) < 100) this.trainEast.x = this.trainEast.st1;
                 else if (Math.abs(this.trainEast.x - this.trainEast.st2) < 100) this.trainEast.x = this.trainEast.st2;
                 this.trainEast.c.x = this.trainEast.x;
+            }
+        }
+
+        if (this.trainMid && mMidX) {
+            this.trainMid.st1 = mMidX;
+            this.trainMid.st2 = mEastX;
+            if (this.trainMid.state === 'waiting') {
+                if (Math.abs(this.trainMid.x - this.trainMid.st1) < 100) this.trainMid.x = this.trainMid.st1;
+                else if (Math.abs(this.trainMid.x - this.trainMid.st2) < 100) this.trainMid.x = this.trainMid.st2;
+                this.trainMid.c.x = this.trainMid.x;
             }
         }
 
@@ -137,7 +148,7 @@ const Entities = {
         }
 
         // 4. Standard Train Logic Loop
-        [this.trainWest, this.trainEast, this.trainDC].forEach(t => {
+        [this.trainWest, this.trainEast, this.trainMid, this.trainDC].forEach(t => {
             if (!t) return;
             if (t.state === 'waiting') {
                 t.timer--;
@@ -248,6 +259,10 @@ const Entities = {
     },
 
     update(dp, night) {
+      // Port zone bounds (used to hide vehicles in ocean)
+      const portBlds = BLDS ? BLDS.filter(b => b.id.startsWith('port_')) : [];
+      const portMinX = portBlds.length ? Math.min(...portBlds.map(b => b.x)) - 80 : -9999;
+      const portMaxX = portBlds.length ? Math.max(...portBlds.map(b => b.x + b.w)) + 40 : -9999;
       if (this.updateTrain) this.updateTrain(); 
 
       // Cache weekend check once per update (used by both CEO and model loops)
@@ -380,6 +395,9 @@ const Entities = {
                   }
               }
 
+              // Hide CEO car in port/ocean zone
+              const ceoInPort = ceo.logicalX > portMinX && ceo.logicalX < portMaxX;
+              if (ceoInPort) { ceo.carCont.visible = false; ceo.refCont.visible = false; }
               if (ceo.carCont.visible) {
                   const laneY = ceo.dir > 0 ? 26 : 12;
                   ceo.carCont.x = ceo.logicalX;
@@ -706,12 +724,17 @@ const Entities = {
           });
       }
 
+      // Port zone bounds for skipping vehicles
+
       G.cars = G.cars.filter(c => { 
         c.gfx.x += c.dir * c.speed; 
         if (c.ref) c.ref.x = c.gfx.x; 
         if (c.beam) c.beam.alpha = this.lightLayer.alpha; 
         const laneY = c.dir > 0 ? 26 : 12; c.gfx.y = G.groundY + laneY; 
         if (c.ref) c.ref.y = c.gfx.y;
+        // Hide in port/ocean zone
+        const inPort = c.gfx.x > portMinX && c.gfx.x < portMaxX;
+        c.gfx.visible = !inPort; if (c.ref) c.ref.visible = !inPort;
         if (c.gfx.x < -80 || c.gfx.x > G.cityW + 80) { 
             c.gfx.destroy(); 
             if (c.ref) c.ref.destroy(); 
@@ -850,7 +873,7 @@ const Entities = {
                     return 3;
                 };
 
-                if (refs._metroState === 'none' && !refs._metroLegs) {
+                if (refs._metroState === 'none' && !refs._metroLegs && !isR) {
                     let myReg = getRegion(refs.c.x);
                     let dstReg = getRegion(buildingTargetX);
                     
@@ -897,7 +920,10 @@ const Entities = {
                     
                     let activeTrain = null;
                     if ((s1 === mResX && s2 === mHqX) || (s1 === mHqX && s2 === mResX)) activeTrain = this.trainWest;
+                    else if (mMidX && ((s1 === mHqX && s2 === mMidX) || (s1 === mMidX && s2 === mHqX))) activeTrain = this.trainEast;
+                    else if (mMidX && ((s1 === mMidX && s2 === mEastX) || (s1 === mEastX && s2 === mMidX))) activeTrain = this.trainMid;
                     else if ((s1 === mHqX && s2 === mEastX) || (s1 === mEastX && s2 === mHqX)) activeTrain = this.trainEast;
+                    else if (mDcX && ((s1 === mDcX && s2 === mResX) || (s1 === mResX && s2 === mDcX))) activeTrain = this.trainDC;
 
                     if (refs._metroState === 'entering') {
                         finalTargetX = s1;
@@ -1100,8 +1126,12 @@ const Entities = {
                         refs.head.y = -h;
                     }
                     
-                    refs.c.alpha = isR ? (0.25 + Math.abs(Math.sin(G.tick * 0.03 + i)) * 0.4) : isRm ? .55 : 1;
+                    refs.c.alpha = isR ? (0.35 + Math.abs(Math.sin(G.tick * 0.03 + i)) * 0.45) : isRm ? .55 : 1;
                     refs.c.blendMode = isR ? PIXI.BLEND_MODES.ADD : PIXI.BLEND_MODES.NORMAL;
+                    // Ghost glow pulse
+                    if (isR && refs.ghostGlow && refs.ghostGlow.visible) {
+                        refs.ghostGlow.alpha = 0.08 + Math.abs(Math.sin(G.tick * 0.025 + i * 0.7)) * 0.12;
+                    }
                     
                     if (refs.isMoE && refs.c.visible && refs._metroState === 'none' && !isR) {
                         refs.ghostL.visible = true;

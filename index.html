@@ -126,6 +126,7 @@ window.isMobile = _isMobile;
         <button class="btn" onclick="UI.uiClick();UI.showNewsPanel()" title="AI headlines">📰 News</button>
         <button class="btn" onclick="UI.uiClick();UI.showCalendar()" title="AI events calendar">📅 Cal</button>
         <button class="btn" onclick="UI.uiClick();UI.showCompute()" title="Global Supply Chain & Clusters">🏭 Hardware</button>
+        <button class="btn" onclick="UI.uiClick();if(typeof PowerEnv!=='undefined')PowerEnv.showGridPanel()" title="Power Grid Status">⚡ Grid</button>
         <button class="btn" onclick="UI.uiClick();UI.showCostDashboard()" title="Pricing comparison & ROI">💰 Costs</button>
         <button class="btn" onclick="UI.uiClick();UI.showAnalyst()" title="Ask AI questions">🤖 Analyst</button>
         <button class="btn" onclick="UI.uiClick();UI.showAchievements()" title="Achievements">🏆 Trophies</button>
@@ -160,7 +161,7 @@ window.isMobile = _isMobile;
   <div class="slog" id="scanLog"><div class="slog-t">📋 SCAN LOG</div><div id="logEntries"></div></div>
   
   <!-- MINIMAP -->
-  <div id="minimap">
+  <div id="minimap" class="collapsed">
     <div class="mm-header"><span class="mm-title">🗺️ MAP</span><button class="mm-toggle" onclick="document.getElementById('minimap').classList.toggle('collapsed')">—</button></div>
     <canvas id="mmCanvas" width="240" height="40"></canvas>
     <div class="mm-zones" id="mmZones"></div>
@@ -206,7 +207,15 @@ window.isMobile = _isMobile;
 <script src="js/interior_res_ai.js"></script>
 <script src="js/interior_res_core.js"></script>
 
+<script src="js/power_zone.js"></script>
+<script src="js/power_env.js"></script>
+<script src="js/power_zone_interior.js"></script>
+<script src="js/port_zone.js"></script>
+<script src="js/port_env.js"></script>
 <script src="js/interior_dc.js"></script>
+<script src="js/interior_bar.js"></script>
+<script src="js/npc_housing.js"></script>
+<script src="js/interior_npc.js"></script>
 <script src="js/interior_manager.js"></script>
 
 <script src="js/burn_tracker.js"></script>

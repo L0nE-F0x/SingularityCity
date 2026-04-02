@@ -1,6 +1,9 @@
 [build]
   publish = "."
 
+[functions]
+  directory = "netlify/functions"
+
 # ─── CORS PROXY: Route API calls through Netlify to bypass CORS ───
 [[redirects]]
   from = "/api/hf/*"

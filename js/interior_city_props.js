@@ -162,6 +162,8 @@ const InteriorCityProps = {
             wallCol = 0x111115; floorCol = 0x0a0a0f; 
         } else if (theme === 'cafe') { 
             wallCol = 0x271e1a; floorCol = 0x17120f; 
+        } else if (theme.startsWith('bar_')) {
+            wallCol = 0x12081e; floorCol = 0x0a0512; lightCol = 0xff00ff; beamAlpha = 0.08; ceilingLightA = 0.3;
         }
         
         this.drawNegativeSpaceWall(gfx, wallCol, x, y, w, h, isCeo, windowX, windowW);

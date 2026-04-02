@@ -40,15 +40,9 @@ const Holomap = {
         this.scene.background = new THREE.Color('#04040e');
         this.scene.fog = new THREE.FogExp2('#04040e', 0.00010);
         
-        // Lighting for star depth
-        var ambLight = new THREE.AmbientLight(0x222244, 0.6);
+        // Simple ambient light (BasicMaterial doesn't need directional lights)
+        var ambLight = new THREE.AmbientLight(0x444466, 0.8);
         this.scene.add(ambLight);
-        var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(500, 1000, 800);
-        this.scene.add(dirLight);
-        var rimLight = new THREE.DirectionalLight(0x4488ff, 0.3);
-        rimLight.position.set(-300, -500, -400);
-        this.scene.add(rimLight);
 
         this.camera = new THREE.PerspectiveCamera(45, this.W / this.H, 1, 20000);
         this.camera.position.set(0, 2000, 3500);
@@ -506,33 +500,25 @@ const Holomap = {
             var starGroup = new THREE.Group();
             starGroup.userData = { isStar: true };
 
-            // Core sphere — Phong material with emissive glow for depth
+            // Core sphere — clean solid color
             var coreMat;
             if (retired) {
-                coreMat = new THREE.MeshPhongMaterial({ color: 0x888899, emissive: 0x333344, emissiveIntensity: 0.3, shininess: 10, transparent: true, opacity: 0.4 });
+                coreMat = new THREE.MeshBasicMaterial({ color: 0x667788, transparent: true, opacity: 0.35 });
             } else {
-                coreMat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: cInt, emissiveIntensity: isFrontier ? 0.7 : 0.4, shininess: isFrontier ? 80 : 40, specular: 0x888888, transparent: true, opacity: 1.0 });
+                coreMat = new THREE.MeshBasicMaterial({ color: cInt, transparent: true, opacity: 1.0 });
             }
             var core = new THREE.Mesh(geo, coreMat);
             core.scale.set(mag, mag, mag);
             starGroup.add(core);
 
-            // Inner colored core (adds depth/volume)
-            if (!retired) {
-                var innerMat = new THREE.MeshPhongMaterial({ color: cInt, emissive: cInt, emissiveIntensity: 0.6, shininess: 20, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
-                var inner = new THREE.Mesh(geo, innerMat);
-                inner.scale.set(mag * 0.7, mag * 0.7, mag * 0.7);
-                starGroup.add(inner);
-            }
-
             // Glow aura
             if (!retired) {
                 var aura = new THREE.Sprite(new THREE.SpriteMaterial({
                     map: glowTex, color: cHex,
-                    transparent: true, opacity: isFrontier ? 0.85 : 0.45,
+                    transparent: true, opacity: isFrontier ? 0.6 : 0.3,
                     blending: THREE.AdditiveBlending
                 }));
-                var auraSize = mag * (isFrontier ? 18 : 11);
+                var auraSize = mag * (isFrontier ? 14 : 9);
                 aura.scale.set(auraSize, auraSize, 1);
                 starGroup.add(aura);
             }

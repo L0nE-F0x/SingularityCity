@@ -17,6 +17,12 @@ const Interior = {
             this.activeModule = SpaceInterior;
         } else if ((bld.id.startsWith('dc_') || bld.id.startsWith('fab_')) && typeof InteriorDC !== 'undefined') {
             this.activeModule = InteriorDC;
+        } else if (bld.id === 'neon_bar' && typeof InteriorBar !== 'undefined') {
+            this.activeModule = InteriorBar;
+        } else if (bld.id.startsWith('power_') && typeof InteriorPower !== 'undefined') {
+            this.activeModule = InteriorPower;
+        } else if (bld.id.startsWith('npc_apt_') && typeof InteriorNPC !== 'undefined') {
+            this.activeModule = InteriorNPC;
         } else {
             this.activeModule = InteriorCity;
         }
