@@ -227,8 +227,8 @@ function getAct(stg, dp, seed, model) {
   // University campus: rumored/baby/kid route to campus during daytime
   const hasUni = typeof UniversityData !== 'undefined' && G.bldById['uni_main'];
   if (stg === 'rumored') return { act: dp > .2 && dp < .8 ? 'work' : 'sleep', bid: dp > .2 && dp < .8 ? (hasUni ? 'uni_lab' : null) : (hasUni ? 'uni_dorm' : resId) };
-  if (stg === 'baby') return { act: dp > .2 && dp < .8 ? 'work' : 'sleep', bid: dp > .2 && dp < .8 ? (hasUni ? 'uni_dorm' : 'nursery') : resId };
-  if (stg === 'kid') return { act: dp > .3 && dp < .9 ? 'train' : 'sleep', bid: dp > .3 && dp < .9 ? (hasUni ? 'uni_main' : 'gym') : resId };
+  if (stg === 'baby') return { act: dp > .2 && dp < .8 ? 'work' : 'sleep', bid: dp > .2 && dp < .8 ? 'uni_dorm' : resId };
+  if (stg === 'kid') return { act: dp > .3 && dp < .9 ? 'train' : 'sleep', bid: dp > .3 && dp < .9 ? 'uni_main' : resId };
 
   // AI Court: summoned models go to hearing during work hours
   if (typeof CourtData !== 'undefined' && CourtData.isModelSummoned(model.id) && dp > .35 && dp < .65) {

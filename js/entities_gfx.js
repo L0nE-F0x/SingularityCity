@@ -561,7 +561,7 @@ const EntitiesGfx = {
         const { bid } = getAct(stg, G.getDayPhase(), G.models.indexOf(m), m);
         
         let defaultHq = (G.bldsByLab[m.lab] || []).find(x => !x.id.startsWith('house_')) || (G.bldsByLab[m.lab] || [])[0];
-        let startBld = bid ? G.bldById[bid] : defaultHq || G.bldById['nursery'];
+        let startBld = bid ? G.bldById[bid] : defaultHq || G.bldById['uni_dorm'] || G.bldById['nursery'];
 
         G.charRefs[m.id] = { 
             c, shadow, head, body, legL, legR, dot, umbrella, ghostL, ghostR, ghostGlow, briefcase, chat, chatBg, chatTxt,

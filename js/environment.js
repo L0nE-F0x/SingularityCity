@@ -1696,7 +1696,7 @@ const Environment = {
             'arena': { text: '⚔️ ARENA', col: 0xef4444, speed: 0.06, flicker: 0.25 },
             'open_square': { text: '🏛 SQUARE', col: 0xa855f7, speed: 0.10, flicker: 0.35 },
             'neon_bar': { text: '🍸 NEON BAR', col: 0xff00ff, speed: 0.15, flicker: 0.45 },
-            'nursery': { text: '🧒 PRE-TRAINING', col: 0xff69b4, speed: 0.07, flicker: 0.2 }
+            'uni_dorm': { text: '🎓 DORMITORY', col: 0x60a5fa, speed: 0.07, flicker: 0.2 }
         };
         // Auto-generate neon sign for any non-lab, non-special building
         let nc = neonConfig[b.id];

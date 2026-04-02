@@ -21,14 +21,18 @@ const NPCHousing = {
         { id: 'npc_barista',    name: 'BaristaBot',    role: 'Barista',              workplace: 'cafe',   color: '#f59e0b', shift: 'day' },
         { id: 'npc_spotter',    name: 'Spotter',       role: 'Gym Trainer',          workplace: 'gym',    color: '#22d3ee', shift: 'day' },
         { id: 'npc_referee',    name: 'Referee',       role: 'Arena Referee',        workplace: 'arena',  color: '#ef4444', shift: 'day' },
-        { id: 'npc_nannybot',   name: 'NannyBot',      role: 'Pre-Training Supervisor', workplace: 'nursery', color: '#ff69b4', shift: 'day' },
+        { id: 'npc_nannybot',   name: 'NannyBot',      role: 'Dorm Advisor',         workplace: 'university', color: '#ff69b4', shift: 'day' },
         { id: 'npc_reaper',     name: 'Grim Reaper',   role: 'Sanitation',           workplace: 'graveyard', color: '#666688', shift: 'night' },
         { id: 'npc_flight_dir', name: 'Flight Director', role: 'Mission Commander',  workplace: 'space',  color: '#ff6b00', shift: 'day' },
         { id: 'npc_capcom',     name: 'CAPCOM',        role: 'Communications',       workplace: 'space',  color: '#00b4d8', shift: 'day' },
         { id: 'npc_crane_op',   name: 'Crane Op',      role: 'Crane Operator',       workplace: 'space',  color: '#facc15', shift: 'day' },
         { id: 'npc_bartender',  name: 'Bartender',     role: 'Mixologist',           workplace: 'neon_bar', color: '#ff00ff', shift: 'night' },
         { id: 'npc_dj',         name: 'DJ Dropout',    role: 'Karaoke DJ',           workplace: 'neon_bar', color: '#a855f7', shift: 'night' },
-        { id: 'npc_ranger',     name: 'Park Ranger',   role: 'Pine Reserve Ranger',  workplace: 'forest', color: '#166534', shift: 'day' }
+        { id: 'npc_ranger',     name: 'Park Ranger',   role: 'Pine Reserve Ranger',  workplace: 'forest', color: '#166534', shift: 'day' },
+        { id: 'npc_professor',  name: 'Professor',     role: 'AI Lecturer',          workplace: 'university', color: '#fbbf24', shift: 'day' },
+        { id: 'npc_librarian',  name: 'Librarian',     role: 'Data Librarian',       workplace: 'university', color: '#4ade80', shift: 'day' },
+        { id: 'npc_bailiff',    name: 'Bailiff Unit',  role: 'Court Security',       workplace: 'court',  color: '#a855f7', shift: 'day' },
+        { id: 'npc_clerk',      name: 'Court Clerk',   role: 'Court Administrator',  workplace: 'court',  color: '#fbbf24', shift: 'day' }
     ],
 
     buildings: [
@@ -121,7 +125,9 @@ const NPCHousing = {
         } else if (npc.workplace === 'space') {
             const b = BLDS.find(b => b.id === 'mission_control' || b.id.startsWith('pad_')); return b ? b.x + b.w/2 : 500;
         }
-        const map = { cafe:'cafe', gym:'gym', arena:'arena', neon_bar:'neon_bar', graveyard:'graveyard', forest:'forest_0', nursery:'nursery' };
+        const map = { cafe:'cafe', gym:'gym', arena:'arena', neon_bar:'neon_bar', graveyard:'graveyard', forest:'forest_0', nursery:'uni_dorm' };
+        if (npc.workplace === 'university') { const b = G.bldById['uni_main'] || G.bldById['uni_dorm']; if (b) return b.x + b.w/2; }
+        if (npc.workplace === 'court') { const b = G.bldById['court_senate'] || G.bldById['court_hearing']; if (b) return b.x + b.w/2; }
         if (map[npc.workplace]) { const b = G.bldById[map[npc.workplace]]; if (b) return b.x + b.w/2; }
         const hq = BLDS.find(b => b.lab && !b.id.startsWith('house_')); return hq ? hq.x + hq.w/2 : 3000;
     },

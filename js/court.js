@@ -269,259 +269,422 @@ const CourtEnv = {
 };
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   COURT INTERIOR — Senate Hearing Room with judges, testimony podium, gallery
+   COURT INTERIOR (v2.0.0 — AI Senate & Hearing Chamber Interiors)
+   Self-contained interior module for Court/Regulation Zone buildings.
+   Full building structure: walls, windows, elevator, basement, themed props.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const CourtInterior = {
-
-    isDragging: false,
+    avatars: [], bubbles: [], indoorLights: [], scene: null, layer: null, bld: null,
+    skyContainer: null, starsLayer: null, celestialGfx: null,
+    isDragging: false, _noYScroll: false, elevators: [], lifts: {},
 
     build(bld, layer) {
-        layer.removeChildren();
-        const W = G.vpW, H = G.vpH;
+        this.bld = bld; this.layer = layer; this.layer.removeChildren();
+        this.avatars = []; this.bubbles = []; this.indoorLights = []; this.elevators = [];
 
-        const scene = new PIXI.Container();
-        layer.addChild(scene);
-        const g = new PIXI.Graphics();
-        scene.addChild(g);
+        this.skyContainer = new PIXI.Container(); this.layer.addChild(this.skyContainer);
+        this.starsLayer = new PIXI.Container();
+        for (let i = 0; i < 80; i++) { const s = new PIXI.Graphics(); s.beginFill(0xffffff); s.drawCircle(0,0,.5+Math.random()*1.2); s.endFill(); s.x = Math.random()*G.vpW; s.y = Math.random()*G.vpH*.5; s._phase = Math.random()*Math.PI*2; this.starsLayer.addChild(s); }
+        this.celestialGfx = new PIXI.Graphics();
+        this.skyContainer.addChild(this.starsLayer, this.celestialGfx);
+        this.scene = new PIXI.Container(); this.layer.addChild(this.scene);
 
-        if (bld.id === 'court_senate') this._buildSenate(g, scene, W, H);
-        else this._buildHearing(g, scene, W, H);
+        const isSenate = bld.id === 'court_senate';
+        const accentCol = isSenate ? 0xa855f7 : 0xfbbf24;
+        const colHex = accentCol;
 
-        // Drag scroll
-        const totalH = H * 2;
-        const minY = -(totalH - H);
-        scene.interactive = true;
-        scene.hitArea = new PIXI.Rectangle(0, minY, W, totalH + H);
-        let dragStartY = 0, sceneStartY = 0, dragging = false;
-        scene.on('pointerdown', e => { dragging = true; dragStartY = e.global.y; sceneStartY = scene.y; });
-        scene.on('pointermove', e => { if (!dragging) return; scene.y = Math.max(minY, Math.min(0, sceneStartY + (e.global.y - dragStartY))); });
-        scene.on('pointerup', () => { dragging = false; });
-        scene.on('pointerupoutside', () => { dragging = false; });
-    },
+        const floorH = 80, numFloors = isSenate ? 5 : 3, roofH = 80;
+        const totalFloors = numFloors + 1; // above-ground + basement
+        this.totalH = roofH + totalFloors * floorH;
 
-    _buildSenate(g, scene, W, H) {
-        // Grand senate chamber
-        g.beginFill(0x1a1420);
-        g.drawRect(0, 0, W, H * 2);
-        g.endFill();
+        const startX = 60, shaftW = 60, shaftX = G.vpW - shaftW - 80;
+        const usableW = shaftX - startX - 20;
+        const windowX = startX + 50, windowW = usableW - 100;
 
-        // Ornate ceiling
-        g.beginFill(0x2a2030);
-        g.drawRect(0, 0, W, 40);
-        g.endFill();
-        g.beginFill(0xc8a850, 0.2);
-        g.drawRect(0, 38, W, 2);
-        g.endFill();
+        // ─── ROOF SIGN BOARD ───
+        const rc = new PIXI.Container();
+        const bW = 220, bH = 34, bX = startX + usableW/2 - bW/2 + 10, bY = roofH - bH - 10;
+        const sg = new PIXI.Graphics();
+        sg.beginFill(0x111111); sg.lineStyle(2, colHex, 0.8); sg.drawRect(bX, bY, bW, bH); sg.endFill(); sg.lineStyle(0);
+        sg.beginFill(0x333333); sg.drawRect(bX+15, bY+bH, 6, 10); sg.drawRect(bX+bW-21, bY+bH, 6, 10); sg.endFill();
+        rc.addChild(sg);
+        const lt = new PIXI.Text(bld.name.toUpperCase(), { fontFamily:'JetBrains Mono', fontSize:14, fontWeight:'bold', fill:0xffffff, letterSpacing:2, dropShadow:true, dropShadowColor:colHex, dropShadowBlur:8, dropShadowDistance:0 });
+        lt.anchor.set(0.5,0.5); lt.x = bX+bW/2; lt.y = bY+bH/2; if(lt.width>bW-8) lt.scale.set((bW-8)/lt.width);
+        rc.addChild(lt);
+        const bdg = new PIXI.Text(isSenate?'🏛️ AI SENATE':'⚖️ HEARING CHAMBER', { fontFamily:'JetBrains Mono', fontSize:8, fill:0x94a3b8, letterSpacing:2 });
+        bdg.anchor.set(0.5,0.5); bdg.x = bX+bW/2; bdg.y = bY-8; rc.addChild(bdg);
+        const rl = new PIXI.Graphics();
+        rl.beginFill(colHex, 0.3); rl.drawRect(startX, roofH-4, usableW+shaftW+20, 4); rl.endFill();
+        rl.beginFill(colHex, 0.1); rl.drawRect(startX, roofH-8, usableW+shaftW+20, 4); rl.endFill();
+        rc.addChild(rl); this.scene.addChild(rc);
 
-        const title = new PIXI.Text('🏛️ AI SENATE CHAMBER', {
-            fontFamily: 'Press Start 2P', fontSize: 8, fill: 0xc8a850
-        });
-        title.x = 20; title.y = 12;
-        scene.addChild(title);
+        // ─── FLOORS ───
+        for (let f = -1; f < numFloors; f++) {
+            const fy = roofH + (numFloors-1-f)*floorH;
+            const isB = f===-1;
 
-        // Current hearing theme
-        const theme = (typeof CourtData !== 'undefined') ? CourtData.getHearingTheme() : 'AI Safety Review';
-        if (theme) {
-            const themeTxt = new PIXI.Text('HEARING: ' + theme, {
-                fontFamily: 'JetBrains Mono', fontSize: 7, fill: 0xff6666
-            });
-            themeTxt.x = 20; themeTxt.y = 30;
-            scene.addChild(themeTxt);
-        }
+            // Room walls & background — with real window holes for above-ground floors
+            const rg = new PIXI.Graphics();
+            // Left wall
+            rg.beginFill(0x1a1520); rg.drawRect(startX-8, fy, 8, floorH); rg.endFill();
+            // Right wall (before shaft)
+            rg.beginFill(0x1a1520); rg.drawRect(shaftX-2, fy, 8, floorH); rg.endFill();
 
-        // ── JUDGE BENCH (elevated, top) ──
-        const benchW = W * 0.7, benchH = 45;
-        const benchX = (W - benchW) / 2, benchY = 60;
-        g.beginFill(0x4a2020);
-        g.drawRoundedRect(benchX, benchY, benchW, benchH, 4);
-        g.endFill();
-        // Mahogany texture
-        g.beginFill(0x5a2828, 0.5);
-        g.drawRect(benchX + 2, benchY + 2, benchW - 4, 4);
-        g.endFill();
-
-        // Judges (5 seats)
-        for (let ji = 0; ji < 5; ji++) {
-            const jx = benchX + 20 + ji * (benchW - 40) / 4;
-            const jy = benchY - 10;
-            // Robe
-            g.beginFill(0x1a1a1a);
-            g.drawRect(jx - 5, jy, 10, 14);
-            g.endFill();
-            // Head
-            g.beginFill(0xfdd8b5);
-            g.drawCircle(jx, jy - 4, 4);
-            g.endFill();
-            // Nameplate
-            const names = ['Chief Justice', 'Sen. Chen', 'Sen. Mueller', 'Sen. Okafor', 'Sen. Patel'];
-            const jLabel = new PIXI.Text(names[ji], { fontFamily: 'JetBrains Mono', fontSize: 5, fill: 0xc8a850 });
-            jLabel.anchor.set(0.5, 0); jLabel.x = jx; jLabel.y = benchY + benchH + 4;
-            scene.addChild(jLabel);
-        }
-
-        // National seal / emblem behind bench
-        g.beginFill(0xc8a850, 0.15);
-        g.drawCircle(W / 2, benchY - 30, 25);
-        g.endFill();
-        g.beginFill(0xc8a850, 0.1);
-        g.drawCircle(W / 2, benchY - 30, 18);
-        g.endFill();
-        const seal = new PIXI.Text('⚖️', { fontSize: 16 });
-        seal.anchor.set(0.5, 0.5); seal.x = W / 2; seal.y = benchY - 30;
-        scene.addChild(seal);
-
-        // ── TESTIMONY PODIUM (center) ──
-        const podX = W / 2, podY = benchY + benchH + 60;
-        g.beginFill(0x5a4030);
-        g.drawRect(podX - 15, podY, 30, 35);
-        g.endFill();
-        // Microphone
-        g.beginFill(0x444444);
-        g.drawRect(podX + 10, podY - 8, 2, 12);
-        g.endFill();
-        g.beginFill(0x666666);
-        g.drawCircle(podX + 11, podY - 10, 3);
-        g.endFill();
-
-        // Summoned model at podium (if any)
-        const summoned = (typeof CourtData !== 'undefined') ? CourtData.getSummonedModels() : [];
-        if (summoned.length > 0) {
-            const m = G.models.find(mm => mm.id === summoned[0]);
-            if (m) {
-                const labCol = (LABS[m.lab] && LABS[m.lab].color) ? parseInt(LABS[m.lab].color.replace('#', ''), 16) : 0x888888;
-                // Model at podium
-                g.beginFill(labCol);
-                g.drawRect(podX - 5, podY - 18, 10, 14);
-                g.endFill();
-                g.beginFill(0xfdd8b5);
-                g.drawCircle(podX, podY - 22, 5);
-                g.endFill();
-                // Worried eyes (wider)
-                g.beginFill(0x2c1810);
-                g.drawCircle(podX - 2, podY - 22, 1.5);
-                g.drawCircle(podX + 2, podY - 22, 1.5);
-                g.endFill();
-                // Sweat drop
-                g.beginFill(0x66aaff, 0.7);
-                g.moveTo(podX + 7, podY - 24); g.lineTo(podX + 8, podY - 20); g.lineTo(podX + 6, podY - 20); g.closePath();
-                g.endFill();
-
-                const mLabel = new PIXI.Text(m.name + ' (TESTIFYING)', {
-                    fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0xff6666
-                });
-                mLabel.anchor.set(0.5, 0); mLabel.x = podX; mLabel.y = podY + 38;
-                scene.addChild(mLabel);
-            }
-        } else {
-            const noHearing = new PIXI.Text('No active hearing', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x555555 });
-            noHearing.anchor.set(0.5, 0); noHearing.x = podX; noHearing.y = podY + 38;
-            scene.addChild(noHearing);
-        }
-
-        // ── GALLERY (spectator seating) ──
-        const galY = podY + 80;
-        for (let row = 0; row < 3; row++) {
-            const rw = W * (0.6 + row * 0.1);
-            const rx = (W - rw) / 2;
-            for (let s = 0; s < 8 + row * 2; s++) {
-                const sx = rx + 10 + s * (rw - 20) / (8 + row * 2);
-                g.beginFill(0x333340);
-                g.drawRect(sx, galY + row * 22 + 10, 10, 8);
-                g.endFill();
-                // Random spectator
-                if (Math.random() > 0.35) {
-                    const labKeys = Object.keys(LABS);
-                    const rLab = labKeys[Math.floor(Math.random() * labKeys.length)];
-                    const lc = parseInt((LABS[rLab]?.color || '#888').replace('#', ''), 16);
-                    g.beginFill(lc, 0.7);
-                    g.drawRect(sx + 1, galY + row * 22 + 2, 8, 8);
-                    g.endFill();
-                    g.beginFill(0xfdd8b5);
-                    g.drawCircle(sx + 5, galY + row * 22 - 1, 3);
-                    g.endFill();
+            if (!isB) {
+                // Above-ground: draw wall with window holes
+                // Top strip (above windows)
+                rg.beginFill(0x1a1520); rg.drawRect(startX, fy, usableW, 22); rg.endFill();
+                // Bottom strip (below windows)
+                rg.beginFill(0x1a1520); rg.drawRect(startX, fy+54, usableW, floorH-54); rg.endFill();
+                // Wall segments BETWEEN windows
+                let wx = windowX;
+                rg.beginFill(0x1a1520);
+                rg.drawRect(startX, fy+22, windowX-startX, 32); // left of first window
+                while(wx+40<=windowX+windowW) {
+                    wx += 40; // skip window
+                    if (wx+20<=windowX+windowW) { rg.drawRect(wx, fy+22, 20, 32); }
+                    wx += 20;
                 }
+                rg.drawRect(wx-20, fy+22, startX+usableW-wx+20, 32); // right of last window
+                rg.endFill();
+
+                // Window frames
+                const wfr = new PIXI.Graphics();
+                let cwx = windowX;
+                while(cwx+40<=windowX+windowW) {
+                    wfr.lineStyle(2, 0x2a2030);
+                    wfr.drawRect(cwx, fy+22, 40, 32);
+                    wfr.moveTo(cwx+20, fy+22); wfr.lineTo(cwx+20, fy+54);
+                    wfr.moveTo(cwx, fy+38); wfr.lineTo(cwx+40, fy+38);
+                    wfr.lineStyle(0);
+                    cwx+=60;
+                }
+                this.scene.addChild(wfr);
+            } else {
+                // Basement: solid wall, no windows
+                rg.beginFill(0x1a1520); rg.drawRect(startX, fy, usableW, floorH); rg.endFill();
             }
+
+            // Floor surface
+            rg.beginFill(0x100e18); rg.drawRect(startX, fy+floorH-8, usableW, 8); rg.endFill();
+            // Ceiling trim
+            rg.beginFill(0x201828); rg.drawRect(startX, fy, usableW, 4); rg.endFill();
+            // Floor separator line
+            rg.beginFill(0x2a2a42); rg.drawRect(startX-8, fy+floorH-4, usableW+shaftW+28, 4); rg.endFill();
+            this.scene.addChild(rg);
+
+            // Ceiling lights
+            const lc = isB ? 0xef4444 : accentCol;
+            for (let li=1; li<=4; li++) {
+                const lx = startX + (li*usableW/5);
+                const lg2 = new PIXI.Graphics(); lg2.beginFill(lc, 0.4); lg2.drawRect(lx-10, fy, 20, 2); lg2.endFill();
+                const bm = new PIXI.Graphics(); bm.beginFill(lc, 0.04);
+                bm.moveTo(lx-10,fy+2); bm.lineTo(lx+10,fy+2); bm.lineTo(lx+30,fy+floorH-8); bm.lineTo(lx-30,fy+floorH-8); bm.closePath(); bm.endFill();
+                this.scene.addChild(lg2, bm);
+                this.indoorLights.push({ g:bm, maxA:0.06, type:'screen' });
+            }
+
+            // Elevator door
+            const dr = new PIXI.Graphics();
+            dr.beginFill(0x1a2030); dr.lineStyle(1, 0x111822);
+            dr.drawRect(shaftX+15, fy+floorH-44, 30, 40);
+            dr.moveTo(shaftX+30, fy+floorH-44); dr.lineTo(shaftX+30, fy+floorH-4); dr.endFill();
+            dr.beginFill(0x111822); dr.drawRect(shaftX+5, fy+floorH-25, 4, 8);
+            dr.beginFill(isB?0xef4444:0x4ade80); dr.drawCircle(shaftX+7, fy+floorH-23, 1.5); dr.endFill();
+            this.scene.addChild(dr);
+
+            // Floor content
+            const fc = new PIXI.Container(); fc.sortableChildren = true; this.scene.addChild(fc);
+            const pY = fy+floorH-4;
+            if (isB) { isSenate ? this._drawSenateBase(fc,startX,usableW,pY,fy,floorH,colHex) : this._drawHearingBase(fc,startX,usableW,pY,fy,floorH,colHex); }
+            else { isSenate ? this._drawSenateF(fc,f,numFloors,startX,usableW,pY,fy,floorH,colHex) : this._drawHearingF(fc,f,numFloors,startX,usableW,pY,fy,floorH,colHex); }
         }
 
-        // ── PRESS BOX ──
-        const pressY = galY + 80;
-        g.beginFill(0x1a2030);
-        g.drawRect(20, pressY, W * 0.3, 50);
-        g.endFill();
-        const pressLabel = new PIXI.Text('📰 PRESS BOX', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x888888 });
-        pressLabel.x = 25; pressLabel.y = pressY + 5;
-        scene.addChild(pressLabel);
-        // Cameras
-        for (let ci = 0; ci < 3; ci++) {
-            g.beginFill(0x444444);
-            g.drawRect(30 + ci * 40, pressY + 25, 14, 10);
-            g.endFill();
-            g.beginFill(0xff4444, 0.7);
-            g.drawCircle(30 + ci * 40 + 12, pressY + 25, 2);
-            g.endFill();
+        // ─── UNDERGROUND EARTH around basement ───
+        const groundY = roofH + numFloors * floorH;
+        const earth = new PIXI.Graphics();
+        earth.beginFill(0x2a2218); earth.drawRect(0, groundY, startX - 8, floorH); earth.endFill();
+        earth.beginFill(0x3a3020); earth.drawRect(0, groundY, startX - 8, 6); earth.endFill();
+        earth.beginFill(0x2a2218); earth.drawRect(shaftX + shaftW, groundY, G.vpW - shaftX - shaftW, floorH); earth.endFill();
+        earth.beginFill(0x3a3020); earth.drawRect(shaftX + shaftW, groundY, G.vpW - shaftX - shaftW, 6); earth.endFill();
+        earth.beginFill(0x4a4a5a); earth.drawRect(0, groundY - 2, startX - 8, 6); earth.endFill();
+        earth.beginFill(0x4a4a5a); earth.drawRect(shaftX + shaftW, groundY - 2, G.vpW - shaftX - shaftW, 6); earth.endFill();
+        earth.beginFill(0x2d5a3f); earth.drawRect(0, groundY - 4, startX - 8, 4); earth.endFill();
+        earth.beginFill(0x2d5a3f); earth.drawRect(shaftX + shaftW, groundY - 4, G.vpW - shaftX - shaftW, 4); earth.endFill();
+        this.scene.addChild(earth);
+
+        // ─── ELEVATOR ───
+        if (typeof CityElevator !== 'undefined') {
+            const ec = new PIXI.Container(); ec.y = roofH+(numFloors-1)*floorH+floorH; this.scene.addChild(ec);
+            if (this.lifts[bld.id]) this.lifts[bld.id].destroy();
+            this.lifts[bld.id] = new CityElevator(ec, numFloors, floorH, shaftX+15);
         }
+
+        // ─── VOID + CABLES ───
+        const basementBottom = roofH + (numFloors + 1) * floorH;
+        const vm = new PIXI.Graphics();
+        vm.beginFill(0x1a1810); vm.drawRect(0, basementBottom - 4, G.vpW, 10); vm.endFill();
+        vm.beginFill(0x050508); vm.drawRect(0, basementBottom + 6, G.vpW, 3000); vm.endFill();
+        const cableColors = [0xef4444, 0x22d3ee, 0x4ade80, 0xfbbf24, 0xa855f7, 0xf97316, 0x06b6d4, 0xe879f9];
+        for (let cy = basementBottom + 20; cy < basementBottom + 120; cy += 6) {
+            const col = cableColors[Math.floor(Math.random() * cableColors.length)];
+            const thick = 1 + Math.random() * 2;
+            vm.beginFill(col, 0.15 + Math.random() * 0.25);
+            vm.drawRect(0, cy + Math.random() * 3, G.vpW, thick);
+            vm.endFill();
+        }
+        for (let px = 80; px < G.vpW; px += 150) {
+            vm.beginFill(0x111115); vm.drawRect(px, basementBottom + 6, 20, 100); vm.endFill();
+        }
+        for (let lx = 90; lx < G.vpW; lx += 150) {
+            vm.beginFill(0xef4444); vm.drawCircle(lx, basementBottom + 25, 2); vm.endFill();
+        }
+        this.scene.addChild(vm);
+
+        // Position & scroll
+        const bp = 56, initY = G.vpH-bp-this.totalH+floorH;
+        this.scene.y = initY;
+        this.minY = Math.min(initY-floorH*3, G.vpH-bp-this.totalH-floorH);
+        this.maxY = Math.max(100, initY+floorH*3);
+        this._noYScroll = false;
+
+        this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
+        window.removeEventListener('pointermove', this._onMove); window.removeEventListener('pointerup', this._onUp);
+        this.layer.on('pointerdown', (e) => { if(this._noYScroll) return; this.isDragging=true; this._startY=e.clientY; this._startSceneY=this.scene.y; this.layer.cursor='grabbing'; });
+        this._onMove = (e) => { if(!CourtInterior.isDragging) return; let ny=CourtInterior._startSceneY+(e.clientY-CourtInterior._startY); ny=Math.max(CourtInterior.minY,Math.min(ny,CourtInterior.maxY)); CourtInterior.scene.y=ny; };
+        this._onUp = () => { CourtInterior.isDragging=false; if(CourtInterior.layer) CourtInterior.layer.cursor='grab'; };
+        window.addEventListener('pointermove', this._onMove); window.addEventListener('pointerup', this._onUp);
     },
 
-    _buildHearing(g, scene, W, H) {
-        g.beginFill(0x161220);
-        g.drawRect(0, 0, W, H * 2);
-        g.endFill();
-
-        const title = new PIXI.Text('⚖️ HEARING CHAMBER — COMPLIANCE REVIEW', {
-            fontFamily: 'Press Start 2P', fontSize: 7, fill: 0xf87171
-        });
-        title.x = 20; title.y = 15;
-        scene.addChild(title);
-
-        // Evidence screens along walls
-        for (let si = 0; si < 3; si++) {
-            const sx = 30 + si * (W - 60) / 3;
-            g.beginFill(0x111133);
-            g.drawRect(sx, 50, 100, 60);
-            g.endFill();
-            const themes = CourtData.REGULATION_THEMES;
-            const t = new PIXI.Text(themes[(si * 4) % themes.length], {
-                fontFamily: 'JetBrains Mono', fontSize: 5, fill: 0xff6666, wordWrap: true, wordWrapWidth: 90
-            });
-            t.x = sx + 5; t.y = 55;
-            scene.addChild(t);
-        }
-
-        // Examiner desk
-        g.beginFill(0x4a2020);
-        g.drawRect(W * 0.3, 140, W * 0.4, 30);
-        g.endFill();
-        // Examiner
-        g.beginFill(0x1a1a4a);
-        g.drawRect(W / 2 - 5, 124, 10, 14);
-        g.endFill();
-        g.beginFill(0xfdd8b5);
-        g.drawCircle(W / 2, 120, 5);
-        g.endFill();
-
-        // Document piles
-        for (let di = 0; di < 4; di++) {
-            const dx = W * 0.32 + di * 30;
-            for (let pi = 0; pi < 3; pi++) {
-                g.beginFill(0xeeeedd);
-                g.drawRect(dx, 142 - pi * 3, 18, 3);
-                g.endFill();
+    // ═══ SENATE FLOORS (court_senate — 5 floors) ═══
+    _drawSenateF(c,f,nf,sx,uw,pY,fy,fh,col) {
+        if(f===nf-1) {
+            // Floor 4: SENATE CHAMBER
+            this._lbl(c,sx+uw/2,pY-fh+14,'SENATE CHAMBER',0xa855f7);
+            // Judge bench — wide dark rect
+            const g=new PIXI.Graphics();g.eventMode='none';
+            const benchW=uw*0.6, benchX=sx+(uw-benchW)/2;
+            g.beginFill(0x2a1828);g.drawRect(benchX,pY-40,benchW,18);g.endFill();
+            g.beginFill(0x3a2038);g.drawRect(benchX+2,pY-38,benchW-4,2);g.endFill();
+            // 5 judge seats (small rects on bench)
+            for(let ji=0;ji<5;ji++){const jx=benchX+20+ji*(benchW-40)/4; g.beginFill(0x1a1a1a);g.drawRect(jx-5,pY-48,10,8);g.endFill();}
+            // Seal/emblem (circle behind bench)
+            g.beginFill(0xc8a850,0.15);g.drawCircle(sx+uw/2,pY-55,18);g.endFill();
+            g.beginFill(0xc8a850,0.08);g.drawCircle(sx+uw/2,pY-55,12);g.endFill();
+            // Testimony podium with microphone
+            g.beginFill(0x3a2828);g.drawRect(sx+uw/2-12,pY-22,24,22);g.endFill();
+            g.beginFill(0x444444);g.drawRect(sx+uw/2+8,pY-28,2,8);g.endFill();
+            g.beginFill(0x666666);g.drawCircle(sx+uw/2+9,pY-30,2);g.endFill();
+            c.addChild(g);
+            this._npc(c,sx+100,pY,'Chief Justice',0x8b0000,this.bld);
+        } else if(f===nf-2) {
+            // Floor 3: COMMITTEE ROOMS
+            this._lbl(c,sx+uw/2,pY-fh+14,'COMMITTEE ROOMS',0xa855f7);
+            const g=new PIXI.Graphics();g.eventMode='none';
+            // 2 long conference tables with chairs
+            for(let ti=0;ti<2;ti++){
+                const tx=sx+40+ti*(uw/2);
+                g.beginFill(0x2a1828);g.drawRect(tx,pY-28,uw*0.35,14);g.endFill();
+                // Chairs along table
+                for(let ci=0;ci<5;ci++){const cx2=tx+8+ci*(uw*0.35-16)/4; g.beginFill(0x1a1a2a);g.drawRect(cx2-4,pY-34,8,6);g.endFill(); g.beginFill(0x1a1a2a);g.drawRect(cx2-4,pY-12,8,6);g.endFill();}
             }
+            // Document piles
+            for(let di=0;di<6;di++){const dx=sx+60+di*60; for(let pi=0;pi<3;pi++){g.beginFill(0xeeeedd);g.drawRect(dx,pY-30-pi*3,14,3);g.endFill();}}
+            c.addChild(g);
+        } else if(f===nf-3) {
+            // Floor 2: OFFICES
+            this._lbl(c,sx+uw/2,pY-fh+14,'OFFICES',0xa855f7);
+            const g=new PIXI.Graphics();g.eventMode='none';
+            // Desks with monitors
+            for(let di=0;di<4;di++){
+                const dx=sx+30+di*90;
+                g.beginFill(0x2a1828);g.drawRect(dx,pY-18,60,18);g.endFill();
+                // Monitor
+                g.beginFill(0x111120);g.drawRect(dx+18,pY-35,24,16);g.endFill();
+                g.beginFill(0x22d3ee,0.2);g.drawRect(dx+20,pY-33,20,12);g.endFill();
+                // Monitor stand
+                g.beginFill(0x333340);g.drawRect(dx+28,pY-19,4,3);g.endFill();
+            }
+            // Filing cabinets
+            for(let fi=0;fi<3;fi++){const fx=sx+uw-100+fi*28; g.beginFill(0x334155);g.drawRect(fx,pY-42,22,42);g.endFill(); g.beginFill(0x475569);g.drawRect(fx+2,pY-38,18,8);g.drawRect(fx+2,pY-28,18,8);g.drawRect(fx+2,pY-18,18,8);g.endFill();}
+            // Bookshelves
+            g.beginFill(0x3a2828);g.drawRect(sx+10,pY-50,40,50);g.endFill();
+            for(let bi=0;bi<4;bi++){g.beginFill(0x4a3838);g.drawRect(sx+12,pY-48+bi*12,36,10);g.endFill(); for(let bk=0;bk<5;bk++){const bc=[0xa855f7,0xfbbf24,0xef4444,0x22d3ee,0x4ade80][bk]; g.beginFill(bc,0.4);g.drawRect(sx+14+bk*7,pY-47+bi*12,5,8);g.endFill();}}
+            c.addChild(g);
+        } else if(f===1) {
+            // Floor 1: PRESS ROOM
+            this._lbl(c,sx+uw/2,pY-fh+14,'PRESS ROOM',0xa855f7);
+            const g=new PIXI.Graphics();g.eventMode='none';
+            // Camera tripods (rect + circle)
+            for(let ci=0;ci<4;ci++){const cx2=sx+40+ci*80; g.beginFill(0x444444);g.drawRect(cx2,pY-35,4,35);g.endFill(); g.beginFill(0x333340);g.drawRect(cx2-8,pY-40,20,12);g.endFill(); g.beginFill(0xff4444,0.7);g.drawCircle(cx2+10,pY-38,2);g.endFill();}
+            // Monitor wall (grid of small screens)
+            const mwX=sx+uw-180, mwY=pY-60;
+            g.beginFill(0x111120);g.drawRect(mwX,mwY,160,55);g.endFill();
+            for(let mr=0;mr<2;mr++){for(let mc=0;mc<5;mc++){g.beginFill(0x1a1a30);g.drawRect(mwX+6+mc*30,mwY+6+mr*24,26,20);g.endFill(); g.beginFill(0x22d3ee,0.15);g.drawRect(mwX+8+mc*30,mwY+8+mr*24,22,16);g.endFill();}}
+            // Press desks
+            for(let pd=0;pd<3;pd++){const px2=sx+30+pd*100; g.beginFill(0x2a1828);g.drawRect(px2,pY-16,70,16);g.endFill();}
+            c.addChild(g);
+        } else if(f===0) {
+            // Floor 0: GRAND LOBBY
+            this._lbl(c,sx+uw/2,pY-fh+14,'GRAND LOBBY',0xa855f7);
+            const g=new PIXI.Graphics();g.eventMode='none';
+            // Security gate (rect frames)
+            g.beginFill(0x1e293b);g.drawRect(sx+60,pY-40,60,40);g.endFill();
+            g.beginFill(0x334155);g.drawRect(sx+65,pY-35,50,30);g.endFill();
+            g.beginFill(0x94a3b8);g.drawRect(sx+85,pY-30,2,25);g.drawRect(sx+93,pY-30,2,25);g.endFill();
+            g.beginFill(0x4ade80);g.drawCircle(sx+110,pY-32,2);g.endFill();
+            // Reception desk
+            g.beginFill(0x2a1828);g.drawRect(sx+200,pY-18,80,18);g.endFill();
+            g.beginFill(0xa855f7,0.3);g.drawRect(sx+200,pY-20,80,3);g.endFill();
+            // Monitor on reception
+            g.beginFill(0x111120);g.drawRect(sx+225,pY-35,30,14);g.endFill();
+            g.beginFill(0xa855f7,0.2);g.drawRect(sx+227,pY-33,26,10);g.endFill();
+            // Marble columns (thin tall rects)
+            for(let ci=0;ci<5;ci++){const cx2=sx+150+ci*60; g.beginFill(0xd4d0c4);g.drawRect(cx2,pY-60,6,60);g.endFill(); g.beginFill(0xe8e4da);g.drawRect(cx2-2,pY-63,10,4);g.endFill(); g.beginFill(0xb8b4aa);g.drawRect(cx2-1,pY-2,8,4);g.endFill();}
+            c.addChild(g);
+            this._npc(c,sx+110,pY,'Bailiff Unit',0x4a4a4a,this.bld);
         }
-
-        // Verdict display
-        const verdictY = 200;
-        g.beginFill(0x0a0a1a);
-        g.drawRect(W * 0.2, verdictY, W * 0.6, 40);
-        g.endFill();
-        const verdict = new PIXI.Text('VERDICT PENDING...', {
-            fontFamily: 'Press Start 2P', fontSize: 8, fill: 0xffaa00
-        });
-        verdict.anchor.set(0.5, 0.5);
-        verdict.x = W / 2; verdict.y = verdictY + 20;
-        scene.addChild(verdict);
+    },
+    _drawSenateBase(c,sx,uw,pY,fy,fh,col) {
+        // Basement: ARCHIVES & VAULT
+        this._lbl(c,sx+uw/2,pY-fh+14,'ARCHIVES & VAULT',0xef4444);
+        const g=new PIXI.Graphics();g.eventMode='none';
+        // Secure shelving
+        for(let si=0;si<5;si++){const shx=sx+30+si*70; g.beginFill(0x334155);g.drawRect(shx,pY-50,50,50);g.endFill(); for(let ri=0;ri<4;ri++){g.beginFill(0x475569);g.drawRect(shx+3,pY-47+ri*12,44,9);g.endFill();} for(let bi=0;bi<3;bi++){const bc=[0xa855f7,0xfbbf24,0xef4444][(si+bi)%3]; g.beginFill(bc,0.3);g.drawRect(shx+5+bi*14,pY-45,10,7);g.endFill();}}
+        // Vault door (circle with handle)
+        g.beginFill(0x64748b);g.drawCircle(sx+uw-80,pY-30,25);g.endFill();
+        g.beginFill(0x475569);g.drawCircle(sx+uw-80,pY-30,20);g.endFill();
+        g.beginFill(0x94a3b8);g.drawRect(sx+uw-90,pY-32,20,4);g.endFill();
+        g.beginFill(0x94a3b8);g.drawCircle(sx+uw-80,pY-30,3);g.endFill();
+        c.addChild(g);
     },
 
-    update() {}
+    // ═══ HEARING FLOORS (court_hearing — 3 floors) ═══
+    _drawHearingF(c,f,nf,sx,uw,pY,fy,fh,col) {
+        if(f===nf-1) {
+            // Floor 2: HEARING ROOM
+            this._lbl(c,sx+uw/2,pY-fh+14,'HEARING ROOM',0xfbbf24);
+            const g=new PIXI.Graphics();g.eventMode='none';
+            // Examiner desk with gavel
+            g.beginFill(0x2a1828);g.drawRect(sx+uw/2-50,pY-28,100,16);g.endFill();
+            // Gavel
+            g.beginFill(0x5a4030);g.drawRect(sx+uw/2+30,pY-34,12,6);g.endFill();
+            g.beginFill(0x3a2818);g.drawRect(sx+uw/2+34,pY-38,4,10);g.endFill();
+            // Witness stand
+            g.beginFill(0x3a2828);g.drawRect(sx+uw/2-12,pY-48,24,20);g.endFill();
+            // 3 evidence screens with colored frames
+            const themes = (typeof CourtData!=='undefined') ? CourtData.REGULATION_THEMES : ['Data Privacy','Autonomous Weapons Ban','Copyright of AI Content'];
+            for(let si=0;si<3;si++){
+                const scrX=sx+30+si*(uw-60)/3;
+                const fc2=[0xfbbf24,0xef4444,0xa855f7][si];
+                g.lineStyle(2,fc2,0.6); g.beginFill(0x111120);g.drawRect(scrX,pY-65,80,30);g.endFill(); g.lineStyle(0);
+                const t=new PIXI.Text(themes[(si*3)%themes.length],{fontFamily:'JetBrains Mono',fontSize:5,fill:fc2,wordWrap:true,wordWrapWidth:70});
+                t.x=scrX+5;t.y=pY-60;t.zIndex=10;c.addChild(t);
+            }
+            // Gallery benches
+            for(let bi=0;bi<3;bi++){const bx=sx+40+bi*120; g.beginFill(0x1a1a2a);g.drawRect(bx,pY-12,90,10);g.endFill();}
+            c.addChild(g);
+        } else if(f===1) {
+            // Floor 1: WAITING AREA
+            this._lbl(c,sx+uw/2,pY-fh+14,'WAITING AREA',0xfbbf24);
+            const g=new PIXI.Graphics();g.eventMode='none';
+            // Rows of benches
+            for(let bi=0;bi<4;bi++){const bx=sx+30+bi*90; g.beginFill(0x1a1a2a);g.drawRect(bx,pY-14,70,14);g.endFill(); g.beginFill(0x2a2a3a);g.drawRect(bx,pY-18,70,4);g.endFill();}
+            // Legal document displays
+            for(let di=0;di<3;di++){const dx=sx+50+di*120; g.beginFill(0x111120);g.drawRect(dx,pY-50,60,28);g.endFill(); g.beginFill(0xfbbf24,0.15);g.drawRect(dx+3,pY-47,54,22);g.endFill(); for(let li=0;li<4;li++){g.beginFill(0xfbbf24,0.3);g.drawRect(dx+8,pY-44+li*5,40,2);g.endFill();}}
+            // Water cooler
+            g.beginFill(0x94a3b8);g.drawRect(sx+uw-60,pY-35,20,35);g.endFill();
+            g.beginFill(0x22d3ee,0.4);g.drawRect(sx+uw-57,pY-30,14,18);g.endFill();
+            g.beginFill(0x64748b);g.drawRect(sx+uw-55,pY-38,10,4);g.endFill();
+            c.addChild(g);
+        } else if(f===0) {
+            // Floor 0: RECEPTION
+            this._lbl(c,sx+uw/2,pY-fh+14,'RECEPTION',0xfbbf24);
+            const g=new PIXI.Graphics();g.eventMode='none';
+            // Clerk desk with computer
+            g.beginFill(0x2a1828);g.drawRect(sx+80,pY-18,80,18);g.endFill();
+            g.beginFill(0xfbbf24,0.3);g.drawRect(sx+80,pY-20,80,3);g.endFill();
+            // Computer monitor
+            g.beginFill(0x111120);g.drawRect(sx+105,pY-35,30,14);g.endFill();
+            g.beginFill(0xfbbf24,0.2);g.drawRect(sx+107,pY-33,26,10);g.endFill();
+            g.beginFill(0x333340);g.drawRect(sx+118,pY-21,4,3);g.endFill();
+            // Security checkpoint
+            g.beginFill(0x1e293b);g.drawRect(sx+240,pY-40,60,40);g.endFill();
+            g.beginFill(0x334155);g.drawRect(sx+245,pY-35,50,30);g.endFill();
+            g.beginFill(0x94a3b8);g.drawRect(sx+265,pY-30,2,25);g.drawRect(sx+273,pY-30,2,25);g.endFill();
+            g.beginFill(0x4ade80);g.drawCircle(sx+290,pY-32,2);g.endFill();
+            c.addChild(g);
+            this._npc(c,sx+180,pY,'Court Clerk',0xfbbf24,this.bld);
+        }
+    },
+    _drawHearingBase(c,sx,uw,pY,fy,fh,col) {
+        // Basement: DOCUMENT STORAGE
+        this._lbl(c,sx+uw/2,pY-fh+14,'DOCUMENT STORAGE',0xef4444);
+        const g=new PIXI.Graphics();g.eventMode='none';
+        // Filing systems
+        for(let fi=0;fi<6;fi++){const fx=sx+20+fi*60; g.beginFill(0x334155);g.drawRect(fx,pY-45,45,45);g.endFill(); g.beginFill(0x475569);g.drawRect(fx+3,pY-42,39,39);g.endFill(); for(let dr=0;dr<3;dr++){g.beginFill(0x64748b);g.drawRect(fx+6,pY-38+dr*12,33,9);g.endFill(); g.beginFill(0x94a3b8);g.drawCircle(fx+22,pY-33+dr*12,1.5);g.endFill();}}
+        // Secure boxes
+        for(let bi=0;bi<4;bi++){const bx=sx+uw-160+bi*35; g.beginFill(0x3a3020);g.drawRect(bx,pY-24,28,24);g.endFill(); g.beginFill(0xfbbf24,0.3);g.drawRect(bx+8,pY-18,12,3);g.endFill();}
+        c.addChild(g);
+    },
+
+    // ═══ PROPS ═══
+    _lbl(c,x,y,t,col) { const tx=new PIXI.Text(t,{fontFamily:'JetBrains Mono',fontSize:7,fill:col||0x94a3b8,letterSpacing:2}); tx.anchor.set(0.5,0); tx.x=x; tx.y=y; tx.zIndex=10; c.addChild(tx); },
+    _npc(c,x,y,name,col,bld) {
+        const cont=new PIXI.Container(); cont.x=x; cont.y=y; cont.sortableChildren=true; cont.zIndex=5;
+        const labCol=col||0x64748b; const bw=16; const h=32; const headH=Math.round(h*0.35); const bodyH=h-headH-4;
+        // Shadow
+        const sh=new PIXI.Graphics(); sh.beginFill(0x000000,0.25); sh.drawEllipse(0,2,bw*0.6,3); sh.endFill(); cont.addChild(sh);
+        // Legs
+        const lw=Math.max(2,bw*0.25); const lh=4;
+        const legL=new PIXI.Graphics(); legL.beginFill(0x3d2914); legL.drawRect(-lw/2,0,lw,lh); legL.endFill(); legL.x=-bw*0.15; cont.addChild(legL);
+        const legR=new PIXI.Graphics(); legR.beginFill(0x3d2914); legR.drawRect(-lw/2,0,lw,lh); legR.endFill(); legR.x=bw*0.15; cont.addChild(legR);
+        // Body
+        const body=new PIXI.Graphics(); body.beginFill(labCol); body.drawRoundedRect(-bw/2,0,bw,Math.max(bodyH,4),bw*0.1); body.endFill(); body.y=-h+headH; cont.addChild(body);
+        // Head
+        const head=new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw*0.4,0,bw*0.8,headH,headH*0.25); head.endFill();
+        const eyeS=Math.max(1,bw*0.08);
+        head.beginFill(0x2c1810); head.drawCircle(-bw*0.1,headH*0.38,eyeS); head.drawCircle(bw*0.1,headH*0.38,eyeS); head.endFill();
+        head.beginFill(0x000000,0.4); head.drawRect(-bw*0.08,headH*0.6,bw*0.16,1.5); head.endFill();
+        head.y=-h; cont.addChild(head);
+        // Status dot
+        const dot=new PIXI.Graphics(); dot.beginFill(0x4ade80); dot.drawCircle(0,0,2); dot.endFill(); dot.y=-h-6; cont.addChild(dot);
+        // Name label
+        const tx=new PIXI.Text(name,{fontFamily:'JetBrains Mono',fontSize:7,fill:labCol,fontWeight:'bold'});
+        tx.anchor.set(0.5,1); tx.x=0; tx.y=-h-10; tx.zIndex=10; cont.addChild(tx);
+        // Click → NPC info panel
+        const npcModel = { id:'npc_'+name.toLowerCase().replace(/\s/g,'_'), name:name, isNPC:true, role:name, phase:'released', lab:bld?bld.lab:'other', desc:'Court staff — upholding AI regulation.' };
+        cont.eventMode='static'; cont.cursor='pointer';
+        cont.hitArea=new PIXI.Rectangle(-bw,-h-10,bw*2,h+14);
+        cont.on('pointertap',()=>{ if(typeof UI!=='undefined') UI.selectModel(npcModel); });
+        cont.on('pointerover',(e)=>{ if(typeof UI!=='undefined') UI.showTooltip(e,name,'Court Staff'); });
+        cont.on('pointerout',()=>{ if(typeof UI!=='undefined') UI.hideTooltip(); });
+        c.addChild(cont);
+        this.avatars.push({cont,head,body,legL,legR,_minX:x-60,_maxX:x+60,_phase:Math.random()*Math.PI*2,_walkTimer:0,_walkDir:0});
+    },
+
+    // ═══ UPDATE ═══
+    update() {
+        if (!this.scene) return;
+        // ─── Sky matches exterior day/night ───
+        const dp = G.getDayPhase(); const night = dp>.83||dp<.25;
+        const vp = document.getElementById('viewport');
+        if (vp) { let sky; if(dp<.22) sky='linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)'; else if(dp<.30){const t=(dp-.22)/.08;sky=`linear-gradient(180deg,rgb(${8+t*40|0},${10+t*30|0},${30+t*40|0}),rgb(${15+t*80|0},${15+t*50|0},${40+t*50|0}) 50%,rgb(${20+t*120|0},${20+t*80|0},${40+t*30|0}))`;} else if(dp<.72) sky='linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)'; else if(dp<.84){const t=(dp-.72)/.12;sky=`linear-gradient(180deg,rgb(${45+t*30|0},${74-t*40|0},${122-t*60|0}),rgb(${90+t*80|0},${143-t*80|0},${187-t*100|0}) 50%,rgb(${135+t*60|0},${100-t*50|0},${50-t*10|0}))`;} else sky='linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)'; if(typeof Environment!=='undefined'&&Environment.weather==='rain'&&!night&&dp>.3&&dp<.72) sky='linear-gradient(180deg,#2f3640,#475569 50%,#64748b)'; vp.style.background=sky; }
+        // Celestial body
+        if(this.celestialGfx){this.celestialGfx.clear();if(night){let np=dp>0.83?(dp-0.83)/0.42:(dp+0.17)/0.42;this.celestialGfx.beginFill(0xe8e8d0);this.celestialGfx.drawCircle(G.vpW*np,40+Math.sin(np*Math.PI)*120,12);this.celestialGfx.endFill();}else{let dayP=(dp-0.25)/(0.83-0.25);this.celestialGfx.beginFill(0xffe066);this.celestialGfx.drawCircle(G.vpW*dayP,40+Math.sin(dayP*Math.PI)*120,15);this.celestialGfx.endFill();}}
+        if(this.starsLayer){this.starsLayer.visible=night;if(night)this.starsLayer.children.forEach(s=>{s.alpha=.15+Math.abs(Math.sin(G.tick*.03+s._phase))*.5;});}
+        // Lights
+        this.indoorLights.forEach(l=>{if(!l.g||l.g.destroyed)return;if(l.type==='blink')l.g.alpha=l.maxA*(0.5+Math.sin(G.tick*0.05+Math.random()*0.1)*0.5);else if(l.type==='screen')l.g.alpha=l.maxA*(0.7+Math.sin(G.tick*0.02)*0.3);});
+        // Elevator
+        if(this.bld&&this.lifts[this.bld.id])this.lifts[this.bld.id].update();
+        // NPC wandering with walk animation
+        this.avatars.forEach(av=>{if(!av.cont||av.cont.destroyed)return;av._walkTimer=(av._walkTimer||0)-1;if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;}const nx=av.cont.x+av._walkDir*0.3;if(nx>av._minX&&nx<av._maxX)av.cont.x=nx;
+            // Walk animation — legs swing, head/body bob
+            if(av.head){av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5;}
+            if(av.body){av.body.y=-32+11+Math.abs(Math.sin(G.tick*0.15+av._phase))*1.5;}
+            if(av.legL){av.legL.y=Math.sin(G.tick*0.2+av._phase)*3;}
+            if(av.legR){av.legR.y=-Math.sin(G.tick*0.2+av._phase)*3;}
+        });
+    }
 };
