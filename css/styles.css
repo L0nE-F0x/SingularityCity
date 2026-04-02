@@ -47,6 +47,7 @@ h1, h2, h3, p { margin: 0; }
   z-index: 100;
   background: var(--bg); display: flex; flex-direction: column;
   align-items: center; justify-content: center;
+  overflow-y: auto; overflow-x: hidden;
   transition: opacity 0.8s ease, transform 0.8s ease;
 }
 #landing.exit { opacity: 0; transform: scale(1.05); pointer-events: none; }
@@ -64,7 +65,7 @@ h1, h2, h3, p { margin: 0; }
 .land-skyline { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; align-items: flex-end; opacity: 0.4; }
 .land-bld { background: linear-gradient(to top, var(--bd), transparent); margin-right: 2px; }
 
-.land-content { position: relative; z-index: 2; text-align: center; max-width: 680px; width: 90vw; padding: clamp(16px, 3vh, 30px) clamp(16px, 3vw, 30px); }
+.land-content { position: relative; z-index: 2; text-align: center; max-width: 780px; width: 94vw; padding: clamp(12px, 2vh, 20px) clamp(12px, 2vw, 20px); flex-shrink: 0; }
 .land-emoji { font-size: clamp(28px, 5vh, 50px); margin-bottom: clamp(8px, 1.5vh, 16px); animation: float 4s ease-in-out infinite; }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 
@@ -72,26 +73,26 @@ h1, h2, h3, p { margin: 0; }
 .land-sub { font-size: clamp(11px, 1.4vw, 14px); color: var(--t2); line-height: 1.7; margin-bottom: clamp(16px, 3vh, 28px); }
 .land-sub span { color: var(--ac); font-weight: bold; }
 
-.land-features { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(4px, 0.6vw, 6px); margin-bottom: clamp(12px, 2vh, 20px); max-width: 740px; margin-left: auto; margin-right: auto; }
+.land-features { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(4px, 0.5vw, 6px); margin-bottom: clamp(10px, 1.5vh, 16px); max-width: 780px; margin-left: auto; margin-right: auto; }
 .land-feat {
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: center; gap: 5px;
     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 16px; padding: 4px 10px 4px 8px;
-    font-size: clamp(8px, 0.95vw, 10px); color: var(--t2); line-height: 1.2;
+    border-radius: 10px; padding: 5px 8px;
+    font-size: 9px; color: var(--t2); line-height: 1.2;
     white-space: nowrap; transition: border-color 0.2s, background 0.2s;
 }
 .land-feat:hover { border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); }
-.land-feat span { font-size: clamp(12px, 1.4vw, 15px); flex-shrink: 0; }
+.land-feat span { font-size: 13px; flex-shrink: 0; }
 .land-feat div { display: flex; flex-direction: column; text-align: left; }
-.land-feat b { color: var(--t1); font-size: clamp(8px, 0.95vw, 10px); margin-bottom: 0; display: block; }
+.land-feat b { color: var(--t1); font-size: 9px; margin-bottom: 0; display: block; }
 
-.land-btns { display: flex; gap: 12px; justify-content: center; margin-bottom: clamp(16px, 2.5vh, 32px); }
+.land-btns { display: flex; gap: 12px; justify-content: center; margin-bottom: clamp(10px, 1.5vh, 18px); }
 .land-enter { background: var(--ac); color: #000; border: none; padding: clamp(10px, 1.5vh, 14px) clamp(18px, 3vw, 28px); font-family: 'JetBrains Mono', monospace; font-size: clamp(11px, 1.3vw, 14px); font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 15px rgba(74,222,128,0.3); }
 .land-enter:hover { transform: translateY(-2px); box-shadow: 0 0 25px rgba(74,222,128,0.5); }
 .land-how { background: transparent; color: var(--t1); border: 1px solid var(--bd); padding: clamp(10px, 1.5vh, 14px) clamp(18px, 3vw, 28px); font-family: 'JetBrains Mono', monospace; font-size: clamp(11px, 1.3vw, 14px); border-radius: 4px; cursor: pointer; transition: all 0.2s; }
 .land-how:hover { border-color: var(--t2); background: rgba(255,255,255,0.05); }
 
-.land-footer { display: flex; gap: clamp(10px, 1.5vw, 20px); justify-content: center; flex-wrap: wrap; font-size: clamp(8px, 1vw, 10px); color: var(--t3); }
+.land-footer { display: flex; gap: clamp(6px, 1vw, 14px); justify-content: center; flex-wrap: wrap; font-size: clamp(7px, 0.85vw, 9px); color: var(--t3); padding-bottom: 12px; }
 
 /* ─── GAME WRAPPER & TRANSITIONS ─── */
 #gameWrap { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity 0.5s ease, background-color 0.8s ease; }
@@ -231,9 +232,12 @@ h1, h2, h3, p { margin: 0; }
 
 /* ─── MOBILE RESPONSIVENESS & BOTTOM SHEETS ─── */
 @media (max-width: 768px) {
+  .land-features { grid-template-columns: repeat(2, 1fr); }
   .land-btns { gap: 10px; }
-  .land-feat { padding: 5px 10px 5px 8px; }
-  .land-footer { gap: 8px; }
+  .land-feat { padding: 4px 6px; font-size: 8px; }
+  .land-feat span { font-size: 11px; }
+  .land-feat b { font-size: 8px; }
+  .land-footer { gap: 6px; font-size: 7px; }
 
   .logo h1 { display: none; } 
   .nfo { flex-wrap: wrap; justify-content: center; font-size: 9px; padding: 4px 8px; }
