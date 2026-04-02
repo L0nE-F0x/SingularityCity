@@ -728,18 +728,73 @@ const InteriorRes = {
                 }
                 case 'ceo_sleeping': {
                     if (!night) {
+                        // Wake up — restore avatar parts
+                        if (av._sleepGfx) av._sleepGfx.visible = false;
+                        if (av.head) av.head.visible = true;
+                        if (av.body) av.body.visible = true;
+                        if (av.legL) av.legL.visible = true;
+                        if (av.legR) av.legR.visible = true;
+                        if (av.dot) av.dot.visible = true;
+                        if (av.shadow) av.shadow.visible = true;
+                        if (av.ghostL) av.ghostL.visible = true;
+                        if (av.ghostR) av.ghostR.visible = true;
                         av.state = 'ceo_walking_to_desk';
                         av.targetX = av.deskX;
                     } else {
-                        av.cont.x = av.bedX - 10; 
-                        av.cont.y = av.bedY; 
-                        av.cont.rotation = Math.PI / 2; 
-                        av.head.y = -32 + 4; 
-                        av.body.y = -32 + 12 + 4;
-                        if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
-                        if (Math.random() < 0.002 && this.bubbles.length < 5) {
-                            this.spawnBubble(av, ["Zzz...", "Dreaming of AGI...", "Stock go up..."][Math.floor(Math.random()*3)]);
+                        av.cont.x = av.bedX;
+                        av.cont.y = av.bedY + 12; // floor level (bedY = floorY - 12)
+                        av.cont.rotation = 0;
+                        av.cont.scale.x = 1;
+                        if (av.head) av.head.visible = false;
+                        if (av.body) av.body.visible = false;
+                        if (av.legL) av.legL.visible = false;
+                        if (av.legR) av.legR.visible = false;
+                        if (av.dot) av.dot.visible = false;
+                        if (av.shadow) av.shadow.visible = false;
+                        if (av.ghostL) av.ghostL.visible = false;
+                        if (av.ghostR) av.ghostR.visible = false;
+                        if (!av._sleepGfx) {
+                            const labData = (typeof LABS !== 'undefined' && LABS[av.m.lab]) || { color: '#a855f7' };
+                            const col = parseInt(labData.color.replace('#', ''), 16);
+                            const bt = -10;
+                            const sg = new PIXI.Graphics();
+                            sg.beginFill(0xddd8c8, 0.7); sg.drawRoundedRect(-21, bt - 9, 16, 8, 3); sg.endFill();
+                            sg.beginFill(0xfdd8b5); sg.drawCircle(-13, bt - 6, 5); sg.endFill();
+                            sg.beginFill(0x2c1810, 0.7); sg.drawEllipse(-13, bt - 11, 4, 2); sg.endFill();
+                            sg.beginFill(0x2c1810, 0.5); sg.drawRect(-16, bt - 6, 2, 1); sg.drawRect(-11, bt - 6, 2, 1); sg.endFill();
+                            sg.beginFill(0x2c1810, 0.2); sg.drawRect(-14, bt - 3, 3, 0.7); sg.endFill();
+                            sg.beginFill(col, 0.5);
+                            sg.moveTo(-6, bt + 2); sg.lineTo(-6, bt - 2);
+                            sg.quadraticCurveTo(8, bt - 14, 24, bt - 1);
+                            sg.lineTo(24, bt + 2); sg.closePath(); sg.endFill();
+                            sg.beginFill(col, 0.25);
+                            sg.moveTo(-5, bt + 1); sg.lineTo(-5, bt - 1);
+                            sg.quadraticCurveTo(8, bt - 12, 23, bt);
+                            sg.lineTo(23, bt + 1); sg.closePath(); sg.endFill();
+                            const sc = new PIXI.Container();
+                            sc.addChild(sg);
+                            sc.eventMode = 'static'; sc.cursor = 'pointer';
+                            sc.hitArea = new PIXI.Rectangle(-24, bt - 14, 52, 20);
+                            sc.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(av.m); });
+                            sc.on('pointerover', (e) => { if (typeof UI !== 'undefined') UI.showTooltip(e, av.m.name, 'CEO (sleeping)'); });
+                            sc.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+                            const zc = new PIXI.Container(); zc.x = -6; zc.y = bt - 14;
+                            const z1 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 7, fill: col, fontWeight: 'bold' });
+                            z1.anchor.set(0.5); z1.alpha = 0.7;
+                            const z2 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 9, fill: col, fontWeight: 'bold' });
+                            z2.anchor.set(0.5); z2.x = 5; z2.y = -8; z2.alpha = 0.5;
+                            const z3 = new PIXI.Text('Z', { fontFamily: 'JetBrains Mono', fontSize: 11, fill: col, fontWeight: 'bold' });
+                            z3.anchor.set(0.5); z3.x = 10; z3.y = -18; z3.alpha = 0.3;
+                            zc.addChild(z1, z2, z3);
+                            sc.addChild(zc);
+                            av._sleepGfx = sc; av._z1 = z1; av._z2 = z2; av._z3 = z3; av._zPhase = Math.random() * Math.PI * 2;
+                            av.cont.addChild(sc);
                         }
+                        av._sleepGfx.visible = true;
+                        const zt = G.tick * 0.04 + av._zPhase;
+                        av._z1.y = Math.sin(zt) * 3; av._z1.alpha = 0.5 + Math.sin(zt) * 0.3;
+                        av._z2.y = -8 + Math.sin(zt + 1) * 3; av._z2.alpha = 0.3 + Math.sin(zt + 1) * 0.25;
+                        av._z3.y = -18 + Math.sin(zt + 2) * 3; av._z3.alpha = 0.15 + Math.sin(zt + 2) * 0.2;
                     }
                     break;
                 }
@@ -886,29 +941,83 @@ const InteriorRes = {
                     if (av.m.isCeo) break; 
                     
                     const actData = getAct(getStage(av.m.rel, av.m.ret, av.m.phase), dp, G.models.indexOf(av.m), av.m);
-                    if (actData.act === 'sleep') {
-                        av.cont.x = av.bedX - 10; 
-                        av.cont.y = av.bedY; 
-                        av.cont.rotation = Math.PI / 2; 
-                        av.head.y = -32 + 4; 
-                        av.body.y = -32 + 12 + 4;
-                        if (av.legL && av.legR) { 
-                            av.legL.y = 0; 
-                            av.legR.y = 0; 
+                    if (actData.act === 'sleep' && av.bedX !== undefined) {
+                        av.cont.x = av.bedX;
+                        av.cont.y = av.floorY;
+                        av.cont.rotation = 0;
+                        av.cont.scale.x = 1;
+                        // Hide avatar parts
+                        if (av.head) av.head.visible = false;
+                        if (av.body) av.body.visible = false;
+                        if (av.legL) av.legL.visible = false;
+                        if (av.legR) av.legR.visible = false;
+                        if (av.dot) av.dot.visible = false;
+                        if (av.shadow) av.shadow.visible = false;
+                        if (av.ghostL) av.ghostL.visible = false;
+                        if (av.ghostR) av.ghostR.visible = false;
+                        // Lazy-init sleeping graphics
+                        if (!av._sleepGfx) {
+                            const labData = (typeof LABS !== 'undefined' && LABS[av.m.lab]) || { color: '#3b82f6' };
+                            const col = parseInt(labData.color.replace('#', ''), 16);
+                            const bt = -10; // mattress surface in local coords
+                            const sg = new PIXI.Graphics();
+                            sg.beginFill(0xddd8c8, 0.7); sg.drawRoundedRect(-15, bt - 8, 14, 7, 3); sg.endFill();
+                            sg.beginFill(0xfdd8b5); sg.drawCircle(-8, bt - 5, 4); sg.endFill();
+                            sg.beginFill(0x2c1810, 0.7); sg.drawEllipse(-8, bt - 9, 3.5, 1.5); sg.endFill();
+                            sg.beginFill(0x2c1810, 0.5); sg.drawRect(-10.5, bt - 5, 1.8, 0.8); sg.drawRect(-6, bt - 5, 1.8, 0.8); sg.endFill();
+                            sg.beginFill(0x2c1810, 0.2); sg.drawRect(-9, bt - 2.5, 2.5, 0.6); sg.endFill();
+                            sg.beginFill(col, 0.5);
+                            sg.moveTo(-2, bt + 2); sg.lineTo(-2, bt - 1);
+                            sg.quadraticCurveTo(7, bt - 11, 18, bt);
+                            sg.lineTo(18, bt + 2); sg.closePath(); sg.endFill();
+                            sg.beginFill(col, 0.25);
+                            sg.moveTo(-1, bt + 1); sg.lineTo(-1, bt);
+                            sg.quadraticCurveTo(7, bt - 9, 17, bt + 1);
+                            sg.lineTo(17, bt + 1); sg.closePath(); sg.endFill();
+                            const sc = new PIXI.Container();
+                            sc.addChild(sg);
+                            sc.eventMode = 'static'; sc.cursor = 'pointer';
+                            sc.hitArea = new PIXI.Rectangle(-18, bt - 12, 40, 18);
+                            sc.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(av.m); });
+                            sc.on('pointerover', (e) => { if (typeof UI !== 'undefined') UI.showTooltip(e, av.m.name, (LABS[av.m.lab] || { name: 'Lab' }).name + ' (sleeping)'); });
+                            sc.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+                            const zc = new PIXI.Container(); zc.x = -2; zc.y = bt - 12;
+                            const z1 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 7, fill: col, fontWeight: 'bold' });
+                            z1.anchor.set(0.5); z1.alpha = 0.7;
+                            const z2 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 9, fill: col, fontWeight: 'bold' });
+                            z2.anchor.set(0.5); z2.x = 5; z2.y = -8; z2.alpha = 0.5;
+                            const z3 = new PIXI.Text('Z', { fontFamily: 'JetBrains Mono', fontSize: 11, fill: col, fontWeight: 'bold' });
+                            z3.anchor.set(0.5); z3.x = 10; z3.y = -18; z3.alpha = 0.3;
+                            zc.addChild(z1, z2, z3);
+                            sc.addChild(zc);
+                            av._sleepGfx = sc; av._z1 = z1; av._z2 = z2; av._z3 = z3; av._zPhase = Math.random() * Math.PI * 2;
+                            av.cont.addChild(sc);
                         }
-                        if (Math.random() < 0.002 && this.bubbles.length < 5) {
-                            this.spawnBubble(av, ["Zzz...", "Dreaming of tokens.", "Defragmenting..."][Math.floor(Math.random()*3)]);
-                        }
+                        av._sleepGfx.visible = true;
+                        const zt = G.tick * 0.04 + av._zPhase;
+                        av._z1.y = Math.sin(zt) * 3; av._z1.alpha = 0.5 + Math.sin(zt) * 0.3;
+                        av._z2.y = -8 + Math.sin(zt + 1) * 3; av._z2.alpha = 0.3 + Math.sin(zt + 1) * 0.25;
+                        av._z3.y = -18 + Math.sin(zt + 2) * 3; av._z3.alpha = 0.15 + Math.sin(zt + 2) * 0.2;
                     } else {
-                        av.cont.rotation = 0; 
-                        av.cont.x = av.deskX - 30 + Math.sin(G.tick * 0.02 + i) * 20; 
-                        av.cont.y = av.floorY; 
+                        // Awake — restore avatar, hide sleep graphics
+                        if (av._sleepGfx) av._sleepGfx.visible = false;
+                        if (av.head) av.head.visible = true;
+                        if (av.body) av.body.visible = true;
+                        if (av.legL) av.legL.visible = true;
+                        if (av.legR) av.legR.visible = true;
+                        if (av.dot) av.dot.visible = true;
+                        if (av.shadow) av.shadow.visible = true;
+                        if (av.ghostL) av.ghostL.visible = true;
+                        if (av.ghostR) av.ghostR.visible = true;
+                        av.cont.rotation = 0;
+                        av.cont.x = av.deskX - 30 + Math.sin(G.tick * 0.02 + i) * 20;
+                        av.cont.y = av.floorY;
                         av.cont.scale.x = Math.sign(Math.cos(G.tick * 0.02 + i)) || 1;
-                        av.head.y = -32 + 4 + Math.sin(G.tick * 0.15) * 1.5; 
+                        av.head.y = -32 + 4 + Math.sin(G.tick * 0.15) * 1.5;
                         av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.15)) * 1.5;
-                        if (av.legL && av.legR) { 
-                            av.legL.y = Math.sin(G.tick * 0.15) * 2; 
-                            av.legR.y = -Math.sin(G.tick * 0.15) * 2; 
+                        if (av.legL && av.legR) {
+                            av.legL.y = Math.sin(G.tick * 0.15) * 2;
+                            av.legR.y = -Math.sin(G.tick * 0.15) * 2;
                         }
                         if (Math.random() < 0.002 && this.bubbles.length < 15) {
                             this.spawnBubble(av, ["Making coffee.", "Watching the gecko.", "Reading papers."][Math.floor(Math.random()*3)]);

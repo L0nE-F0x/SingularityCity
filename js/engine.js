@@ -1284,6 +1284,7 @@ const G = {
         // Build zone quick-jump buttons
         zones.innerHTML = '';
         this._mmZones.forEach(z => {
+            if (!BLDS.some(z.match)) return; // hide button if no matching building exists
             const btn = document.createElement('div');
             btn.className = 'mm-zone' + (z.wide ? ' wide' : '');
             btn.dataset.zone = z.id;

@@ -481,6 +481,11 @@ const UniversityInterior = {
         // ─── SPAWN AI MODEL STUDENTS ───
         if (G.models && G.charRefs) {
             const students = G.models.filter(m => { const refs = G.charRefs[m.id]; return refs && refs.bld === bld.id; });
+            const dp = G.getDayPhase(); const isNight = dp > 0.83 || dp < 0.25;
+            // Dorm room bed positions per floor (floors >= 2 have beds)
+            const dormBedXs = [];
+            if (bld.id === 'uni_dorm') { for (let bx = startX + 30; bx < startX + usableW - 80; bx += 90) dormBedXs.push(bx + 16); }
+            const dormFloors = Object.keys(floorConts).map(Number).filter(f => f >= 2).sort((a,b)=>b-a);
             const floors = Object.keys(floorConts).map(Number).sort((a,b)=>b-a);
             if (floors.length > 0 && students.length > 0) {
                 const perFloor = Math.ceil(students.length / floors.length);
@@ -488,8 +493,48 @@ const UniversityInterior = {
                     const fi = floors[Math.min(Math.floor(idx / perFloor), floors.length - 1)];
                     const fc = floorConts[fi]; if (!fc) return;
                     const posIdx = idx % perFloor;
-                    const rx = startX + 80 + posIdx * 55;
-                    this._student(fc.c, Math.min(rx, startX + usableW - 40), fc.pY, m);
+                    // Night + dorm building + dorm floor with beds → sleeping
+                    if (isNight && bld.id === 'uni_dorm' && fi >= 2 && dormBedXs.length > 0) {
+                        const bedX = dormBedXs[posIdx % dormBedXs.length];
+                        const pY = fc.pY;
+                        const labData = (typeof LABS !== 'undefined' && LABS[m.lab]) || { color: '#60a5fa' };
+                        const col = parseInt(labData.color.replace('#',''), 16);
+                        const bt = pY - 10; // mattress surface
+                        const sg = new PIXI.Graphics();
+                        sg.beginFill(0xddd8c8, 0.7); sg.drawRoundedRect(bedX - 11, bt - 8, 12, 6, 3); sg.endFill();
+                        sg.beginFill(0xfdd8b5); sg.drawCircle(bedX - 5, bt - 5, 3.5); sg.endFill();
+                        sg.beginFill(0x2c1810, 0.7); sg.drawEllipse(bedX - 5, bt - 9, 3, 1.2); sg.endFill();
+                        sg.beginFill(0x2c1810, 0.5); sg.drawRect(bedX - 7.5, bt - 5, 1.5, 0.7); sg.drawRect(bedX - 3.5, bt - 5, 1.5, 0.7); sg.endFill();
+                        sg.beginFill(0x2c1810, 0.2); sg.drawRect(bedX - 6, bt - 2.5, 2, 0.5); sg.endFill();
+                        sg.beginFill(col, 0.5);
+                        sg.moveTo(bedX + 1, bt + 2); sg.lineTo(bedX + 1, bt - 1);
+                        sg.quadraticCurveTo(bedX + 8, bt - 10, bedX + 18, bt);
+                        sg.lineTo(bedX + 18, bt + 2); sg.closePath(); sg.endFill();
+                        sg.beginFill(col, 0.25);
+                        sg.moveTo(bedX + 2, bt + 1); sg.lineTo(bedX + 2, bt);
+                        sg.quadraticCurveTo(bedX + 8, bt - 8, bedX + 17, bt + 1);
+                        sg.lineTo(bedX + 17, bt + 1); sg.closePath(); sg.endFill();
+                        const sc = new PIXI.Container(); sc.addChild(sg);
+                        sc.eventMode = 'static'; sc.cursor = 'pointer';
+                        sc.hitArea = new PIXI.Rectangle(bedX - 14, bt - 12, 36, 18);
+                        sc.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
+                        sc.on('pointerover', (e) => { const stg = typeof getStage === 'function' ? getStage(m.rel, m.ret, m.phase) : 'baby'; if (typeof UI !== 'undefined') UI.showTooltip(e, m.name, (stg === 'baby' ? 'Pre-Training' : stg === 'kid' ? 'Training' : 'Rumored') + ' (sleeping)'); });
+                        sc.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+                        fc.c.addChild(sc);
+                        // Zzz animation
+                        const zc = new PIXI.Container(); zc.x = bedX; zc.y = bt - 12;
+                        const z1 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: col, fontWeight: 'bold' });
+                        z1.anchor.set(0.5); z1.alpha = 0.7;
+                        const z2 = new PIXI.Text('z', { fontFamily: 'JetBrains Mono', fontSize: 8, fill: col, fontWeight: 'bold' });
+                        z2.anchor.set(0.5); z2.x = 4; z2.y = -7; z2.alpha = 0.5;
+                        const z3 = new PIXI.Text('Z', { fontFamily: 'JetBrains Mono', fontSize: 10, fill: col, fontWeight: 'bold' });
+                        z3.anchor.set(0.5); z3.x = 8; z3.y = -15; z3.alpha = 0.3;
+                        zc.addChild(z1, z2, z3); fc.c.addChild(zc);
+                        this.avatars.push({ cont: zc, _isZzz: true, _z1: z1, _z2: z2, _z3: z3, _phase: Math.random() * Math.PI * 2 });
+                    } else {
+                        const rx = startX + 80 + posIdx * 55;
+                        this._student(fc.c, Math.min(rx, startX + usableW - 40), fc.pY, m);
+                    }
                 });
             }
         }
@@ -682,7 +727,17 @@ const UniversityInterior = {
     _checkoutDesk(c,x,y,col) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0x1e293b);g.drawRect(x,y-18,90,18);g.endFill(); g.beginFill(col,0.3);g.drawRect(x,y-20,90,3);g.endFill(); g.beginFill(0x111120);g.drawRect(x+25,y-35,28,14);g.endFill(); g.beginFill(0x4ade80,0.3);g.drawRect(x+27,y-33,24,10);g.endFill(); c.addChild(g); },
 
     // ── uni_dorm props ──
-    _dormRoom(c,x,y,col) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0x444466);g.drawRect(x,y-14,36,14);g.endFill(); g.beginFill(0x6666aa);g.drawRect(x,y-14,36,4);g.endFill(); g.beginFill(0x4a3a2a);g.drawRect(x+42,y-12,28,12);g.endFill(); g.beginFill(0x2a2a3a);g.drawRect(x+44,y-26,10,14);g.endFill(); c.addChild(g); },
+    _dormRoom(c,x,y,col) { const g=new PIXI.Graphics();g.eventMode='none';
+        // Bed frame + mattress
+        g.beginFill(0x334155); g.drawRect(x-2,y-14,4,14); g.endFill(); // headboard
+        g.beginFill(0x334155); g.drawRect(x+2,y-6,34,6); g.endFill(); // base
+        g.beginFill(0xf1f5f9); g.drawRect(x+4,y-10,30,4); g.endFill(); // mattress
+        g.beginFill(0x60a5fa); g.drawRect(x+16,y-11,16,6); g.endFill(); // duvet
+        g.beginFill(0xffffff); g.drawRect(x+5,y-12,5,3); g.drawRect(x+11,y-12,5,3); g.endFill(); // pillows
+        // Desk + monitor
+        g.beginFill(0x4a3a2a);g.drawRect(x+42,y-12,28,12);g.endFill();
+        g.beginFill(0x2a2a3a);g.drawRect(x+44,y-26,10,14);g.endFill();
+        c.addChild(g); },
     _couch(c,x,y) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0x664422);g.drawRoundedRect(x,y-18,60,18,4);g.endFill(); g.beginFill(0x553311);g.drawRect(x,y-24,8,24);g.drawRect(x+52,y-24,8,24);g.endFill(); c.addChild(g); },
     _vendingMachine(c,x,y,col) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0x334155);g.drawRect(x,y-48,35,48);g.endFill(); g.beginFill(0x111120);g.drawRect(x+3,y-44,29,28);g.endFill(); for(let r=0;r<3;r++){for(let ci=0;ci<3;ci++){g.beginFill([0xef4444,0x4ade80,0x60a5fa][ci]);g.drawRect(x+5+ci*9,y-42+r*9,7,7);g.endFill();}} g.beginFill(col,0.4);g.drawRect(x+3,y-12,29,8);g.endFill(); c.addChild(g); },
     _tv(c,x,y) { const g=new PIXI.Graphics();g.eventMode='none'; g.beginFill(0x111120);g.drawRect(x,y-40,40,26);g.endFill(); const gl=new PIXI.Graphics();gl.eventMode='none';gl.beginFill(0x3388ff,0.15);gl.drawRect(x+2,y-38,36,22);gl.endFill();gl.blendMode=PIXI.BLEND_MODES.ADD; g.beginFill(0x333333);g.drawRect(x+17,y-14,6,8);g.endFill(); g.beginFill(0x444444);g.drawRect(x+10,y-6,20,3);g.endFill(); c.addChild(g,gl); this.indoorLights.push({g:gl,maxA:0.2,type:'screen'}); },
@@ -749,7 +804,10 @@ const UniversityInterior = {
         // Elevator
         if(this.bld&&this.lifts[this.bld.id])this.lifts[this.bld.id].update();
         // NPC wandering with walk animation
-        this.avatars.forEach(av=>{if(!av.cont||av.cont.destroyed)return;av._walkTimer=(av._walkTimer||0)-1;if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;}const nx=av.cont.x+av._walkDir*0.3;if(nx>av._minX&&nx<av._maxX)av.cont.x=nx;
+        this.avatars.forEach(av=>{if(!av.cont||av.cont.destroyed)return;
+            // Zzz animation for sleeping students
+            if(av._isZzz){const t=G.tick*0.04+av._phase;av._z1.y=Math.sin(t)*3;av._z1.alpha=0.5+Math.sin(t)*0.3;av._z2.y=-7+Math.sin(t+1)*3;av._z2.alpha=0.3+Math.sin(t+1)*0.25;av._z3.y=-15+Math.sin(t+2)*3;av._z3.alpha=0.15+Math.sin(t+2)*0.2;return;}
+            av._walkTimer=(av._walkTimer||0)-1;if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;}const nx=av.cont.x+av._walkDir*0.3;if(nx>av._minX&&nx<av._maxX)av.cont.x=nx;
             // Walk animation — legs swing, head/body bob (use _h for scaled students)
             const ah=av._h||32;
             if(av.head){av.head.y=-ah+Math.sin(G.tick*0.15+av._phase)*1.5;}
