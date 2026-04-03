@@ -1118,10 +1118,18 @@ const Entities = {
                     refs.c.y = refs._logicalY - bobY + depthOffset;
                     refs.c.scale.x = currentDir;
                     refs.c.zIndex = Math.round(refs.c.y);
-                    // Hide charLayer sprite when underground (metro riding/waiting)
-                    if (refs._metroState === 'riding' || refs._metroState === 'waiting_train') {
-                        refs.c.visible = false;
-                    } else if (refs._metroState === 'none' && refs.bld === null) {
+                    // Layer-swap: move to trainLayer when underground so models render
+                    // behind groundGfx and are only visible through the tunnel cavity
+                    const isUnderground = refs._metroState !== 'none' && refs._logicalY > G.groundY;
+                    if (isUnderground && !refs._inTrainLayer) {
+                        this.trainLayer.addChild(refs.c);
+                        refs._inTrainLayer = true;
+                    } else if (!isUnderground && refs._inTrainLayer) {
+                        this.charLayer.addChild(refs.c);
+                        refs._inTrainLayer = false;
+                    }
+                    // Restore visibility for models that left a building
+                    if (refs.bld === null && !refs.c.visible) {
                         refs.c.visible = true;
                     }
                     

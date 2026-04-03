@@ -986,15 +986,19 @@ JSON (no markdown):
                         console.log(`[Founder Found] Mapped ${m.founder_name} to ${nm.lab}`);
                         
                         if (this.supabase) {
-                            this.supabase.from('founders').upsert({
-                                lab_id: nm.lab,
-                                name: m.founder_name,
-                                role: "CEO / Lead Researcher",
-                                color: labData.color,
-                                fact: newFounder.fact
-                            }).then(({error}) => {
-                                if (error) console.error(`[Founder] Save error for ${m.founder_name}:`, error);
-                                else console.log(`[Founder] Saved ${m.founder_name} to cloud.`);
+                            // Only save founder if lab exists in DB (avoids FK violation)
+                            this.supabase.from('labs').select('id').eq('id', nm.lab).maybeSingle().then(({data: labRow}) => {
+                                if (!labRow) return; // Lab not in DB yet — skip silently
+                                return this.supabase.from('founders').upsert({
+                                    lab_id: nm.lab,
+                                    name: m.founder_name,
+                                    role: "CEO / Lead Researcher",
+                                    color: labData.color,
+                                    fact: newFounder.fact
+                                }, { onConflict: 'lab_id', ignoreDuplicates: true }).then(({error}) => {
+                                    if (error) console.error(`[Founder] Save error for ${m.founder_name}:`, error);
+                                    else console.log(`[Founder] Saved ${m.founder_name} to cloud.`);
+                                });
                             }).catch(err => console.error(`[Founder] Save failed:`, err));
                         }
                         
