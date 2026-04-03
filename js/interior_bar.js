@@ -1,13 +1,14 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   INTERIOR NEON BAR (v1.0.0)
+   INTERIOR NEON BAR (v2.0.0 — Proper Avatars + Bar Activities)
    Self-contained interior module for the Neon Bar / Karaoke venue.
    3 floors: VIP Lounge (top), Karaoke Stage (mid), Main Bar (ground) + Cellar (basement).
+   Uses proper drawAvatar system identical to exterior models.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const InteriorBar = {
     scene: null, layer: null, bld: null, avatars: [], indoorLights: [],
     skyContainer: null, starsLayer: null, celestialGfx: null,
-    isDragging: false, _noYScroll: false,
+    isDragging: false, _noYScroll: false, bubbles: [],
     
     build(bld, layer) {
         this.bld = bld; this.layer = layer; this.layer.removeChildren();
@@ -134,35 +135,75 @@ const InteriorBar = {
         for (let lx = 90; lx < G.vpW; lx += 150) { vm.beginFill(0xef4444); vm.drawCircle(lx, vmY + 25, 2); vm.endFill(); }
         this.scene.addChild(vm);
         
-        // ─── VISITOR AVATARS — spawn AI models currently inside the bar ───
+        // ─── VISITOR AVATARS — proper drawAvatar matching exterior appearance ───
         const visitingModels = G.models.filter(m => {
             const refs = G.charRefs[m.id];
             return refs && refs.bld === bld.id;
         });
-        const floorThemes = ['main_bar', 'karaoke', 'vip'];
         const visitorsPerFloor = Math.ceil(visitingModels.length / Math.max(1, numFloors));
         for (let vi = 0; vi < visitingModels.length; vi++) {
             const vm = visitingModels[vi];
             const floorIdx = Math.min(numFloors - 1, Math.floor(vi / Math.max(1, visitorsPerFloor)));
             const fy = roofH + (numFloors - 1 - floorIdx) * floorH;
             const pY = fy + floorH - 6;
-            const labData = typeof LABS !== 'undefined' ? (LABS[vm.lab] || LABS.other || { color: '#64748b' }) : { color: '#64748b' };
-            const col = parseInt(labData.color.slice(1), 16);
-            const vx = startX + 30 + ((vi * 37) % (bldW - 60));
-            const cont = new PIXI.Container(); cont.x = vx; cont.y = pY; cont.zIndex = 5;
-            const bw2 = 10, h2 = 22;
-            const sh = new PIXI.Graphics(); sh.beginFill(0x000000, 0.2); sh.drawEllipse(0, 2, bw2 * 0.5, 2); sh.endFill();
-            const legL = new PIXI.Graphics(); legL.beginFill(0x2a2a40); legL.drawRect(-2, 0, 2, 3); legL.endFill(); legL.x = -bw2 * 0.15;
-            const legR = new PIXI.Graphics(); legR.beginFill(0x2a2a40); legR.drawRect(0, 0, 2, 3); legR.endFill(); legR.x = bw2 * 0.15;
-            const body = new PIXI.Graphics(); body.beginFill(col); body.drawRoundedRect(-bw2 / 2, -h2 + 8, bw2, 12, 2); body.endFill();
-            const head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw2 * 0.35, 0, bw2 * 0.7, 8, 2); head.endFill();
-            head.beginFill(0x2c1810); head.drawCircle(-1, 3, 0.8); head.drawCircle(1, 3, 0.8); head.endFill(); head.y = -h2;
-            cont.addChild(sh, legL, legR, body, head);
-            cont.eventMode = 'static'; cont.cursor = 'pointer';
-            cont.hitArea = new PIXI.Rectangle(-bw2, -h2 - 4, bw2 * 2, h2 + 8);
-            cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(vm); });
-            this.scene.addChild(cont);
-            this.avatars.push({ cont, head, body, legL, legR, _minX: vx - 25, _maxX: vx + 25, _phase: Math.random() * Math.PI * 2, _walkTimer: 0, _walkDir: 0 });
+            const floorTheme = themes[numFloors - 1 - floorIdx]; // 'main_bar', 'karaoke', 'vip'
+
+            // Determine position & activity based on floor theme
+            let vx, activityState;
+            const seed = ((vm.id || '').charCodeAt(0) + vi) % 100;
+
+            if (floorTheme === 'main_bar') {
+                if (seed < 35) {
+                    // Sit at bar stool — along the bar counter
+                    vx = startX + 60 + (seed * 5.5) % (bldW * 0.55);
+                    activityState = 'drinking_at_bar';
+                } else if (seed < 60) {
+                    // Dancing near jukebox
+                    vx = startX + bldW - 120 + (seed % 60);
+                    activityState = 'dancing';
+                } else {
+                    // Standing/mingling
+                    vx = startX + 40 + ((vi * 47) % (bldW - 80));
+                    activityState = 'mingling';
+                }
+            } else if (floorTheme === 'karaoke') {
+                if (seed < 15) {
+                    // On stage singing
+                    vx = startX + bldW / 2 - 30 + (seed % 60);
+                    activityState = 'singing_karaoke';
+                } else if (seed < 50) {
+                    // Watching from tables
+                    vx = startX + 40 + (seed * 3) % (bldW * 0.3);
+                    activityState = 'watching_karaoke';
+                } else {
+                    // Watching from other side
+                    vx = startX + bldW / 2 + 100 + (seed * 2) % (bldW * 0.25);
+                    activityState = 'watching_karaoke';
+                }
+            } else { // vip
+                if (seed < 50) {
+                    // Lounging in booth
+                    const boothIdx = Math.floor(seed / 12.5);
+                    vx = startX + 45 + boothIdx * 100;
+                    activityState = 'vip_lounging';
+                } else {
+                    // Standing with champagne
+                    vx = startX + 60 + ((vi * 37) % (bldW - 120));
+                    activityState = 'vip_standing';
+                }
+            }
+
+            // Create proper avatar using drawAvatar (identical to exterior)
+            const floorCont = new PIXI.Container();
+            floorCont.sortableChildren = true;
+            this.scene.addChild(floorCont);
+            const av = this._drawAvatar(vm, vx, pY, floorCont, floorIdx);
+            av.state = activityState;
+            av.deskX = vx;
+            av.floorY = pY;
+            av.floorTheme = floorTheme;
+            av._minX = startX + 30;
+            av._maxX = startX + bldW - 30;
         }
 
         // Position
@@ -426,17 +467,409 @@ const InteriorBar = {
         this.avatars.push(barAv);
     },
     
+    // ═══ PROPER AVATAR FACTORY — identical to exterior updateCharStateVisuals ═══
+    _drawAvatar(m, x, y, container, floorIdx) {
+        const cont = new PIXI.Container();
+        const stg = (typeof getStage !== 'undefined') ? getStage(m.rel, m.ret, m.phase) : 'adult';
+        const sd = (typeof STAGES !== 'undefined' && STAGES[stg]) ? STAGES[stg] : { size: 1.0, headR: 0.35 };
+        const sc = sd.size;
+
+        let paramCount = 100, isMoE = false;
+        if (m.arch) {
+            if (m.arch.type && m.arch.type.includes('MoE')) isMoE = true;
+            if (m.arch.params) {
+                let pStr = m.arch.params.replace(/[^0-9.TBM]/ig, '');
+                if (pStr.includes('T')) paramCount = parseFloat(pStr) * 1000;
+                else if (pStr.includes('B')) paramCount = parseFloat(pStr);
+            }
+        }
+        const paramScale = Math.max(0.7, Math.min(1.4, 0.6 + (Math.log10(Math.max(paramCount, 1)) * 0.2)));
+        const finalSc = sc * paramScale;
+
+        const bw = Math.round(16 * finalSc);
+        const h = Math.round(32 * finalSc);
+        const headH = Math.round(h * sd.headR);
+        const bodyH = h - headH - Math.round(4 * finalSc);
+        const legH = Math.round(4 * finalSc);
+        const eyeS = Math.max(1, bw * 0.08);
+
+        const lab = (typeof LABS !== 'undefined') ? (LABS[m.lab] || LABS.other || { color: '#64748b' }) : { color: '#64748b' };
+        const colHex = parseInt(lab.color.slice(1), 16);
+
+        const isR = stg === 'retired', isRm = stg === 'rumored';
+        const suitCol = isR ? 0x667799 : colHex;
+        const skinCol = isR ? 0xb8c0cc : isRm ? 0x8b5cf6 : 0xfdd8b5;
+        const legCol = isR ? 0x7788aa : isRm ? 0x6b7280 : 0x3d2914;
+
+        // Shadow
+        const shadow = new PIXI.Graphics();
+        shadow.beginFill(0x000000, 0.25); shadow.drawEllipse(0, 2, bw * 0.6, 3); shadow.endFill();
+
+        // Head
+        const head = new PIXI.Graphics();
+        head.beginFill(skinCol, isR ? 0.3 : isRm ? 0.5 : 1);
+        head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25); head.endFill();
+        head.beginFill(isR ? 0x88aaff : isRm ? 0xa78bfa : 0x2c1810);
+        head.drawCircle(-bw * 0.1, headH * 0.38, eyeS); head.drawCircle(bw * 0.1, headH * 0.38, eyeS); head.endFill();
+        head.beginFill(0x000000, 0.4); head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5); head.endFill();
+        head.y = -h;
+
+        // Body
+        const body = new PIXI.Graphics();
+        body.beginFill(suitCol, isR ? 0.4 : isRm ? 0.4 : 1);
+        body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1); body.endFill();
+        body.y = -h + headH;
+
+        // Legs
+        const lw = Math.max(2, bw * 0.25), lh = Math.max(legH, 2);
+        const legL = new PIXI.Graphics();
+        legL.beginFill(legCol, isR ? 0.25 : 1); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill();
+        legL.x = -bw * 0.15;
+        const legR = new PIXI.Graphics();
+        legR.beginFill(legCol, isR ? 0.25 : 1); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill();
+        legR.x = bw * 0.15;
+
+        // Status dot
+        const dot = new PIXI.Graphics();
+        const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : 0x4ade80;
+        dot.beginFill(dotCol); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 6;
+
+        // MoE ghost bodies
+        const ghostL = new PIXI.Graphics(), ghostR = new PIXI.Graphics();
+        ghostL.visible = false; ghostR.visible = false;
+        if (isMoE && !isR) {
+            ghostL.beginFill(suitCol, 0.5); ghostL.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1); ghostL.endFill();
+            ghostR.beginFill(suitCol, 0.5); ghostR.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1); ghostR.endFill();
+            ghostL.blendMode = PIXI.BLEND_MODES.ADD; ghostR.blendMode = PIXI.BLEND_MODES.ADD;
+            ghostL.visible = true; ghostR.visible = true;
+            ghostL.y = body.y; ghostR.y = body.y;
+            ghostL.x = -bw * 0.2; ghostR.x = bw * 0.2;
+            ghostL.alpha = 0.4; ghostR.alpha = 0.4;
+        }
+
+        cont.addChild(shadow, ghostL, ghostR, legL, legR, body, head, dot);
+        cont.x = x; cont.y = y;
+        cont.alpha = isR ? 0.6 : isRm ? 0.8 : 1.0;
+        cont.blendMode = isR ? PIXI.BLEND_MODES.ADD : PIXI.BLEND_MODES.NORMAL;
+        cont.eventMode = 'static'; cont.cursor = 'pointer';
+        cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
+        container.addChild(cont);
+
+        const agent = {
+            m, cont, head, body, legL, legR, dot, shadow, ghostL, ghostR, isMoE,
+            state: 'mingling', timer: 0, deskX: x, floorIdx, speed: 1.2,
+            floorY: y, targetX: x, floorTheme: null, propGfx: null,
+            _minX: 0, _maxX: G.vpW, _phase: Math.random() * Math.PI * 2
+        };
+
+        // Tracking highlight
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(cont, m, false);
+            if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
+        }
+
+        this.avatars.push(agent);
+        return agent;
+    },
+
+    // ═══ SPEECH BUBBLES ═══
+    _spawnBubble(av, msg) {
+        if (!this.scene || this.bubbles.length >= 8) return;
+        const bCont = new PIXI.Container();
+        const bg = new PIXI.Graphics();
+        const txt = new PIXI.Text(msg, { fontFamily: 'JetBrains Mono', fontSize: 9, fill: 0x000000, fontWeight: 'bold' });
+        txt.anchor.set(0.5, 1); txt.y = -6;
+        bg.beginFill(0xffffff);
+        bg.drawRoundedRect(-txt.width / 2 - 6, -txt.height - 10, txt.width + 12, txt.height + 8, 4);
+        bg.endFill();
+        bg.beginFill(0xffffff); bg.moveTo(-4, -4); bg.lineTo(4, -4); bg.lineTo(0, 2); bg.endFill();
+        bCont.addChild(bg, txt);
+        bCont.x = av.cont.x; bCont.y = av.cont.y - 40;
+        this.scene.addChild(bCont);
+        this.bubbles.push({ cont: bCont, life: 120 });
+    },
+
+    _animateWalk(av) {
+        av.head.y = -32 + 4 + Math.sin(G.tick * 0.2) * 1.5;
+        av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.2)) * 1.5;
+        if (av.legL && av.legR) {
+            av.legL.y = Math.sin(G.tick * 0.3) * 3;
+            av.legR.y = -Math.sin(G.tick * 0.3) * 3;
+        }
+    },
+
     // ═══ UPDATE ═══
     update() {
         if (!this.scene) return;
-        const dp = G.getDayPhase(); const night = dp>.83||dp<.25;
+        const dp = G.getDayPhase(); const night = dp > .83 || dp < .25;
         const vp = document.getElementById('viewport');
-        if(vp){let sky;if(dp<.22)sky='linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';else if(dp<.30){const t=(dp-.22)/.08;sky=`linear-gradient(180deg,rgb(${8+t*40|0},${10+t*30|0},${30+t*40|0}),rgb(${15+t*80|0},${15+t*50|0},${40+t*50|0}) 50%,rgb(${20+t*120|0},${20+t*80|0},${40+t*30|0}))`;} else if(dp<.72) sky='linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)'; else if(dp<.84){const t=(dp-.72)/.12;sky=`linear-gradient(180deg,rgb(${45+t*30|0},${74-t*40|0},${122-t*60|0}),rgb(${90+t*80|0},${143-t*80|0},${187-t*100|0}) 50%,rgb(${135+t*60|0},${100-t*50|0},${50-t*10|0}))`;} else sky='linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';vp.style.background=sky;}
-        if(this.celestialGfx){this.celestialGfx.clear();if(night){let np=dp>0.83?(dp-0.83)/0.42:(dp+0.17)/0.42;this.celestialGfx.beginFill(0xe8e8d0);this.celestialGfx.drawCircle(G.vpW*np,40+Math.sin(np*Math.PI)*120,12);this.celestialGfx.endFill();}else{let dayP=(dp-0.25)/(0.83-0.25);this.celestialGfx.beginFill(0xffe066);this.celestialGfx.drawCircle(G.vpW*dayP,40+Math.sin(dayP*Math.PI)*120,15);this.celestialGfx.endFill();}}
-        if(this.starsLayer){this.starsLayer.visible=night;if(night)this.starsLayer.children.forEach(s=>{s.alpha=.15+Math.abs(Math.sin(G.tick*.03+s._phase))*.5;});}
+        if (vp) {
+            let sky;
+            if (dp < .22) sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
+            else if (dp < .30) { const t = (dp - .22) / .08; sky = `linear-gradient(180deg,rgb(${8+t*40|0},${10+t*30|0},${30+t*40|0}),rgb(${15+t*80|0},${15+t*50|0},${40+t*50|0}) 50%,rgb(${20+t*120|0},${20+t*80|0},${40+t*30|0}))`; }
+            else if (dp < .72) sky = 'linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)';
+            else if (dp < .84) { const t = (dp - .72) / .12; sky = `linear-gradient(180deg,rgb(${45+t*30|0},${74-t*40|0},${122-t*60|0}),rgb(${90+t*80|0},${143-t*80|0},${187-t*100|0}) 50%,rgb(${135+t*60|0},${100-t*50|0},${50-t*10|0}))`; }
+            else sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
+            vp.style.background = sky;
+        }
+        if (this.celestialGfx) {
+            this.celestialGfx.clear();
+            if (night) { let np = dp > 0.83 ? (dp - 0.83) / 0.42 : (dp + 0.17) / 0.42; this.celestialGfx.beginFill(0xe8e8d0); this.celestialGfx.drawCircle(G.vpW * np, 40 + Math.sin(np * Math.PI) * 120, 12); this.celestialGfx.endFill(); }
+            else { let dayP = (dp - 0.25) / (0.83 - 0.25); this.celestialGfx.beginFill(0xffe066); this.celestialGfx.drawCircle(G.vpW * dayP, 40 + Math.sin(dayP * Math.PI) * 120, 15); this.celestialGfx.endFill(); }
+        }
+        if (this.starsLayer) { this.starsLayer.visible = night; if (night) this.starsLayer.children.forEach(s => { s.alpha = .15 + Math.abs(Math.sin(G.tick * .03 + s._phase)) * .5; }); }
+
         // Neon + disco lights
-        this.indoorLights.forEach(l => { if(!l.g||l.g.destroyed)return; if(l.type==='neon') l.g.alpha=l.maxA*(0.6+Math.sin(G.tick*0.08)*0.3+((Math.random()<0.05)?-0.3:0)); else if(l.type==='disco') l.g.alpha=l.maxA*(0.4+Math.abs(Math.sin(G.tick*0.12))*0.6); else l.g.alpha=l.maxA*(0.7+Math.sin(G.tick*0.02)*0.3); });
-        // NPC wander
-        this.avatars.forEach((av,ci) => { if(!av.cont||av.cont.destroyed)return; if(av._trackGlow){av._trackGlow.alpha=0.25+Math.sin(G.tick*0.1)*0.15;if(av._trackArrow)av._trackArrow.y=Math.sin(G.tick*0.15)*3-2;} av._walkTimer=(av._walkTimer||0)-1; if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;} const nx=av.cont.x+av._walkDir*0.3; if(nx>av._minX&&nx<av._maxX)av.cont.x=nx; if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5; if(av.legL)av.legL.y=Math.sin(G.tick*0.2+ci)*3; if(av.legR)av.legR.y=-Math.sin(G.tick*0.2+ci)*3; });
+        this.indoorLights.forEach(l => {
+            if (!l.g || l.g.destroyed) return;
+            if (l.type === 'neon') l.g.alpha = l.maxA * (0.6 + Math.sin(G.tick * 0.08) * 0.3 + ((Math.random() < 0.05) ? -0.3 : 0));
+            else if (l.type === 'disco') l.g.alpha = l.maxA * (0.4 + Math.abs(Math.sin(G.tick * 0.12)) * 0.6);
+            else l.g.alpha = l.maxA * (0.7 + Math.sin(G.tick * 0.02) * 0.3);
+        });
+
+        // Bubble lifecycle
+        for (let bi = this.bubbles.length - 1; bi >= 0; bi--) {
+            const b = this.bubbles[bi];
+            b.life--;
+            b.cont.y -= 0.15;
+            b.cont.alpha = Math.min(1, b.life / 30);
+            if (b.life <= 0) { b.cont.destroy({ children: true }); this.bubbles.splice(bi, 1); }
+        }
+
+        // ─── AVATAR STATE MACHINE ───
+        this.avatars.forEach((av, ci) => {
+            if (!av.cont || av.cont.destroyed) return;
+
+            // Tracking highlight pulse
+            if (av._trackGlow) {
+                av._trackGlow.alpha = 0.25 + Math.sin(G.tick * 0.1) * 0.15;
+                if (av._trackArrow) av._trackArrow.y = Math.sin(G.tick * 0.15) * 3 - 2;
+            }
+
+            // NPC staff — simple wander only (no state machine)
+            if (!av.m || av.m.isNPC || av.m.id === 'npc_cellar_rat') {
+                av._walkTimer = (av._walkTimer || 0) - 1;
+                if (av._walkTimer <= 0) { av._walkDir = (Math.random() > 0.5) ? 1 : -1; av._walkTimer = 60 + Math.random() * 120; }
+                const nx = av.cont.x + av._walkDir * 0.3;
+                if (nx > av._minX && nx < av._maxX) av.cont.x = nx;
+                if (av.head) av.head.y = -32 + Math.sin(G.tick * 0.15 + (av._phase || 0)) * 1.5;
+                if (av.legL) av.legL.y = Math.sin(G.tick * 0.2 + ci) * 3;
+                if (av.legR) av.legR.y = -Math.sin(G.tick * 0.2 + ci) * 3;
+                return;
+            }
+
+            if (av.propGfx) av.propGfx.visible = false;
+
+            switch (av.state) {
+                // ─── DRINKING AT BAR (sitting on stool, holding drink) ───
+                case 'drinking_at_bar': {
+                    av.cont.x = av.deskX;
+                    av.cont.y = av.floorY;
+                    av.cont.scale.x = -1; // facing bar counter
+                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.03 + ci) * 0.5;
+                    av.body.y = -32 + 12 + 4;
+                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    // Hold a cocktail glass
+                    if (!av.propGfx) { av.propGfx = new PIXI.Graphics(); av.cont.addChild(av.propGfx); }
+                    av.propGfx.visible = true;
+                    av.propGfx.clear();
+                    // Glass stem + bowl
+                    av.propGfx.beginFill(0xffffff, 0.3);
+                    av.propGfx.drawPolygon([6, -8, 10, -16, 14, -8]);
+                    av.propGfx.endFill();
+                    // Liquid
+                    const drinkCol = [0xff00ff, 0x00ffff, 0xa855f7, 0xfbbf24][ci % 4];
+                    av.propGfx.beginFill(drinkCol, 0.6);
+                    av.propGfx.drawRect(8, -14, 4, 5);
+                    av.propGfx.endFill();
+                    // Sipping animation — occasional head tilt
+                    if (G.tick % 180 < 20) av.head.y -= 2;
+
+                    if (Math.random() < 0.002 && this.bubbles.length < 8) {
+                        this._spawnBubble(av, ["Cheers!", "Another round.", "Smooth.", "Great mix.", "To the singularity!", "Neon vibes."][Math.floor(Math.random() * 6)]);
+                    }
+                    if (Math.random() < 0.0008) {
+                        av.targetX = av._minX + Math.random() * (av._maxX - av._minX);
+                        av.state = 'walking_to_spot';
+                    }
+                    break;
+                }
+
+                // ─── DANCING (near jukebox/stage, rhythmic bounce) ───
+                case 'dancing': {
+                    const bounce = Math.sin(G.tick * 0.15 + ci * 0.7);
+                    const sway = Math.sin(G.tick * 0.08 + ci * 1.3) * 4;
+                    av.cont.x = av.deskX + sway;
+                    av.cont.y = av.floorY;
+                    av.head.y = -32 + 4 + Math.abs(bounce) * 3;
+                    av.body.y = -32 + 12 + 4 + Math.abs(bounce) * 2;
+                    if (av.legL && av.legR) {
+                        av.legL.y = bounce * 2;
+                        av.legR.y = -bounce * 2;
+                    }
+                    av.cont.scale.x = Math.sin(G.tick * 0.03 + ci) > 0 ? 1 : -1;
+
+                    if (Math.random() < 0.002 && this.bubbles.length < 8) {
+                        this._spawnBubble(av, ["♪ ♪ ♪", "This beat!", "Dance mode!", "Vibing!", "🎵"][Math.floor(Math.random() * 5)]);
+                    }
+                    if (Math.random() < 0.0005) {
+                        av.state = 'mingling';
+                        av.timer = 200 + Math.random() * 200;
+                    }
+                    break;
+                }
+
+                // ─── MINGLING (walking around socializing) ───
+                case 'mingling': {
+                    av.timer = (av.timer || 0) - 1;
+                    if (av.timer <= 0) {
+                        av.targetX = av._minX + Math.random() * (av._maxX - av._minX);
+                        av.state = 'walking_to_spot';
+                    }
+                    // Idle standing with subtle head bob
+                    av.cont.x = av.deskX;
+                    av.cont.y = av.floorY;
+                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.05 + ci) * 1;
+                    av.body.y = -32 + 12 + 4;
+                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+
+                    if (Math.random() < 0.0015 && this.bubbles.length < 8) {
+                        this._spawnBubble(av, ["Nice place.", "Love the neon.", "Who's singing next?", "Great crowd tonight.", "Let me buy a round."][Math.floor(Math.random() * 5)]);
+                    }
+                    break;
+                }
+
+                // ─── SINGING KARAOKE (on stage, animated performance) ───
+                case 'singing_karaoke': {
+                    av.cont.x = av.deskX;
+                    av.cont.y = av.floorY - 8; // standing on stage platform
+                    const singBob = Math.sin(G.tick * 0.12 + ci);
+                    av.head.y = -32 + 4 + singBob * 2;
+                    av.body.y = -32 + 12 + 4 + Math.abs(singBob);
+                    if (av.legL && av.legR) {
+                        av.legL.y = Math.sin(G.tick * 0.1 + ci) * 1.5;
+                        av.legR.y = -Math.sin(G.tick * 0.1 + ci) * 1.5;
+                    }
+                    // Sway left-right like a performer
+                    av.cont.scale.x = Math.sin(G.tick * 0.04 + ci) > 0 ? 1 : -1;
+
+                    if (Math.random() < 0.003 && this.bubbles.length < 8) {
+                        this._spawnBubble(av, ["♪ TRAINING DATAAA ♪", "♪ Loss is dropping! ♪", "♪ My weights, my rules ♪", "♫ GRADIENT DESCENT ♫", "♪ Tokens for days! ♪", "♪ Back-prop blues ♪"][Math.floor(Math.random() * 6)]);
+                    }
+                    if (Math.random() < 0.0003) {
+                        av.state = 'watching_karaoke';
+                        av.cont.y = av.floorY;
+                        av.targetX = av._minX + Math.random() * (av._maxX - av._minX);
+                        av.deskX = av.targetX;
+                    }
+                    break;
+                }
+
+                // ─── WATCHING KARAOKE (seated at tables, facing stage) ───
+                case 'watching_karaoke': {
+                    av.cont.x = av.deskX;
+                    av.cont.y = av.floorY;
+                    // Face toward center stage
+                    const stageCenter = av._minX + (av._maxX - av._minX) / 2;
+                    av.cont.scale.x = av.deskX < stageCenter ? 1 : -1;
+                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.04 + ci) * 0.8;
+                    av.body.y = -32 + 12 + 4;
+                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    // Occasional clapping (head nodding faster)
+                    if (G.tick % 120 < 30) av.head.y += Math.sin(G.tick * 0.3) * 1;
+
+                    if (Math.random() < 0.002 && this.bubbles.length < 8) {
+                        this._spawnBubble(av, ["👏👏", "Encore!", "Great voice!", "Bravo!", "My turn next!", "That was... unique."][Math.floor(Math.random() * 6)]);
+                    }
+                    if (Math.random() < 0.0005) {
+                        av.state = 'singing_karaoke';
+                        av.deskX = av._minX + (av._maxX - av._minX) * 0.45 + Math.random() * 30;
+                    }
+                    break;
+                }
+
+                // ─── VIP LOUNGING (seated in booth, relaxed) ───
+                case 'vip_lounging': {
+                    av.cont.x = av.deskX;
+                    av.cont.y = av.floorY;
+                    // Leaning back in booth
+                    av.head.y = -32 + 8 + Math.sin(G.tick * 0.02 + ci) * 0.5;
+                    av.body.y = -32 + 14;
+                    if (av.legL && av.legR) {
+                        av.legL.rotation = -0.3;
+                        av.legR.rotation = -0.3;
+                        av.legL.y = 2;
+                        av.legR.y = 2;
+                    }
+                    // Champagne glass prop
+                    if (!av.propGfx) { av.propGfx = new PIXI.Graphics(); av.cont.addChild(av.propGfx); }
+                    av.propGfx.visible = true;
+                    av.propGfx.clear();
+                    av.propGfx.beginFill(0xfbbf24, 0.5);
+                    av.propGfx.drawRect(6, -10, 3, 8);
+                    av.propGfx.endFill();
+                    av.propGfx.beginFill(0xffffff, 0.3);
+                    av.propGfx.drawRect(5, -12, 5, 2);
+                    av.propGfx.endFill();
+
+                    if (Math.random() < 0.002 && this.bubbles.length < 8) {
+                        this._spawnBubble(av, ["VIP treatment.", "Exclusive batch.", "Top-tier compute.", "Premium tokens only.", "Champagne tastes.", "The good life."][Math.floor(Math.random() * 6)]);
+                    }
+                    if (Math.random() < 0.0005) {
+                        if (av.legL) { av.legL.rotation = 0; av.legR.rotation = 0; }
+                        av.state = 'vip_standing';
+                        av.timer = 150 + Math.random() * 150;
+                    }
+                    break;
+                }
+
+                // ─── VIP STANDING (with champagne, socializing) ───
+                case 'vip_standing': {
+                    av.cont.x = av.deskX;
+                    av.cont.y = av.floorY;
+                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.04 + ci) * 1;
+                    av.body.y = -32 + 12 + 4;
+                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    // Champagne flute
+                    if (!av.propGfx) { av.propGfx = new PIXI.Graphics(); av.cont.addChild(av.propGfx); }
+                    av.propGfx.visible = true;
+                    av.propGfx.clear();
+                    av.propGfx.beginFill(0xfbbf24, 0.5); av.propGfx.drawRect(7, -10, 3, 8); av.propGfx.endFill();
+
+                    av.timer = (av.timer || 0) - 1;
+                    if (av.timer <= 0) {
+                        av.targetX = av._minX + Math.random() * (av._maxX - av._minX);
+                        av.state = 'walking_to_spot';
+                    }
+                    if (Math.random() < 0.0015 && this.bubbles.length < 8) {
+                        this._spawnBubble(av, ["Networking.", "Have you met...?", "My pre-training was wild.", "Let's collab.", "Fine-tuning myself."][Math.floor(Math.random() * 5)]);
+                    }
+                    break;
+                }
+
+                // ─── WALKING TO SPOT (transition between activities) ───
+                case 'walking_to_spot': {
+                    this._animateWalk(av);
+                    const dx = av.targetX - av.cont.x;
+                    if (Math.abs(dx) < av.speed) {
+                        av.cont.x = av.targetX;
+                        av.deskX = av.targetX;
+                        // Return to floor-appropriate activity
+                        if (av.floorTheme === 'main_bar') {
+                            av.state = Math.random() < 0.5 ? 'drinking_at_bar' : 'mingling';
+                        } else if (av.floorTheme === 'karaoke') {
+                            av.state = Math.random() < 0.15 ? 'singing_karaoke' : 'watching_karaoke';
+                        } else {
+                            av.state = Math.random() < 0.6 ? 'vip_lounging' : 'vip_standing';
+                            av.timer = 150 + Math.random() * 200;
+                        }
+                    } else {
+                        av.cont.x += Math.sign(dx) * av.speed;
+                        av.cont.scale.x = Math.sign(dx);
+                    }
+                    break;
+                }
+            }
+        });
     }
 };
