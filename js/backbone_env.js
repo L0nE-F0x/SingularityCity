@@ -84,22 +84,22 @@ const BackboneEnv = {
 
         // ─── Fiber pulses: travel along cables, reset when out of zone ───
         this.fiberPulses.forEach(p => {
+            if (!p || p.destroyed) return;
             p.x += p._speed;
             p.y = p._baseY + Math.sin(fc * 0.02 + p._baseY) * 2;
-            // Reset when too far from zone
             const margin = 400;
             if (p._speed > 0 && p.x > BackboneZone.zoneEndX + margin) {
                 p.x = BackboneZone.zoneStartX - margin * 0.3;
             } else if (p._speed < 0 && p.x < BackboneZone.zoneStartX - margin) {
                 p.x = BackboneZone.zoneEndX + margin * 0.3;
             }
-            // Brighten near IXP center
             const distFromCenter = Math.abs(p.x - p._originX);
             p.alpha = distFromCenter < 100 ? 0.9 : Math.max(0.2, 0.9 - distFromCenter / 800);
         });
 
         // ─── Cooling fog: drift upward, sway ───
         this.coolingFog.forEach(p => {
+            if (!p || p.destroyed) return;
             p.y -= p._speed;
             p.x = p._baseX + Math.sin(fc * 0.015 + p._phase) * 8;
             p.alpha = Math.max(0, 0.12 - (p._resetY - p.y) * 0.001);
@@ -111,6 +111,7 @@ const BackboneEnv = {
 
         // ─── Server LEDs: stochastic blinking ───
         this.serverLEDs.forEach(led => {
+            if (!led || led.destroyed) return;
             led.visible = ((fc + led._phase) % led._rate) < led._rate * 0.6;
         });
     },

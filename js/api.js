@@ -551,7 +551,8 @@ const API = {
 
     async fetchStocks() {
       if (!G.finnhubKey) return;
-      const symbols = [...new Set(Object.values(LABS).map(l => l.ticker).filter(Boolean))];
+      const fabTickers = ['TSM', 'ASML', 'INTC']; // TSMC, ASML, Intel — public semiconductor companies
+      const symbols = [...new Set([...Object.values(LABS).map(l => l.ticker).filter(Boolean), ...fabTickers])];
       
       for (const sym of symbols) {
           try {
@@ -676,7 +677,7 @@ const API = {
     async fetchVCDealsRSS() {
         const feeds = [
             { url: 'https://techcrunch.com/category/venture/feed/', source: 'TechCrunch' },
-            { url: 'https://news.crunchbase.com/venture/feed/', source: 'Crunchbase' },
+            { url: 'https://venturebeat.com/category/business/feed/', source: 'VentureBeat' },
         ];
 
         // 1. Load persisted deals from Supabase first

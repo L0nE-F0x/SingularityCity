@@ -54,6 +54,7 @@ const VCRowEnv = {
 
         // ─── MONEY PARTICLES (float upward, reset) ───
         this.moneyParts.forEach(p => {
+            if (!p || p.destroyed) return;
             if (!isBusinessHours) { p.alpha = 0; return; }
             p.y -= p._speed;
             p.x += p._driftX + Math.sin(G.tick * 0.05 + p._phase) * 0.15;
@@ -68,7 +69,7 @@ const VCRowEnv = {
 
         // ─── MARKET ARROWS (redraw every 120 frames) ───
         this._arrowTimer++;
-        if (this._arrowTimer % 120 === 0 && this.arrowGfx) {
+        if (this._arrowTimer % 120 === 0 && this.arrowGfx && !this.arrowGfx.destroyed) {
             this.arrowGfx.clear();
             if (!isBusinessHours) return;
             const gy = G.groundY;

@@ -1883,7 +1883,10 @@ const Environment = {
             container.addChild(beaconCont); b._beacon = { beam, emitter, crown };
         }
 
-        if (lab && lab.ticker && !b.id.startsWith('house_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_')) {
+        // Fab/DC buildings: look up ticker from supplementary map if lab has none
+        const FAB_TICKERS = { tsmc: 'TSM', asml: 'ASML', intel: 'INTC', samsung: '005930.KS' };
+        const tickerSym = (lab && lab.ticker) ? lab.ticker : (b.lab && FAB_TICKERS[b.lab]) ? FAB_TICKERS[b.lab] : null;
+        if (tickerSym && !b.id.startsWith('house_') && !b.id.startsWith('forest_')) {
             const tickCont = new PIXI.Container();
             tickCont.y = 0;
             const tickBg = new PIXI.Graphics();
@@ -1892,12 +1895,12 @@ const Environment = {
             const mask = new PIXI.Graphics();
             mask.beginFill(0xffffff); mask.drawRect(0, -5, b.w, 24); mask.endFill();
             tickCont.addChild(mask); tickCont.mask = mask;
-            const tickTxt = new PIXI.Text(`${lab.ticker} AWAITING TELEMETRY`, {
+            const tickTxt = new PIXI.Text(`${tickerSym} AWAITING TELEMETRY`, {
                 fontFamily: 'monospace', fontSize: 10, fontWeight: '900', strokeThickness: 1,
                 fill: 0x888888, stroke: 0x888888, dropShadow: true, dropShadowColor: 0x888888, dropShadowBlur: 10, dropShadowDistance: 0, padding: 10
             });
             tickTxt.y = 1; tickTxt.x = b.w; tickTxt.blendMode = PIXI.BLEND_MODES.ADD;
-            tickCont.addChild(tickTxt); b._stockTicker = tickTxt; b._tickerW = b.w; b._tickerSym = lab.ticker;
+            tickCont.addChild(tickTxt); b._stockTicker = tickTxt; b._tickerW = b.w; b._tickerSym = tickerSym;
             container.addChild(tickCont);
         }
 
@@ -2369,13 +2372,13 @@ const Environment = {
         
         BLDS.forEach(b => {
             if (b.x + b.w < camL || b.x > camR) return;
-            if (b._beacon) {
-                b._beacon.beam.alpha = 0.7 + Math.sin(G.tick * 0.1) * 0.3; 
-                if (b._beacon.crown) { 
-                    b._beacon.crown.scale.set(1 + Math.sin(G.tick * 0.05) * 0.1); b._beacon.crown.y = -120 + Math.sin(G.tick * 0.08) * 5; 
-                } 
-            } 
-            if (b._stockTicker && b._tickerW) {
+            if (b._beacon && b._beacon.beam && !b._beacon.beam.destroyed) {
+                b._beacon.beam.alpha = 0.7 + Math.sin(G.tick * 0.1) * 0.3;
+                if (b._beacon.crown && !b._beacon.crown.destroyed) {
+                    b._beacon.crown.scale.set(1 + Math.sin(G.tick * 0.05) * 0.1); b._beacon.crown.y = -120 + Math.sin(G.tick * 0.08) * 5;
+                }
+            }
+            if (b._stockTicker && b._tickerW && !b._stockTicker.destroyed) {
                 b._stockTicker.x -= 0.6;
                 if (b._stockTicker.x + b._stockTicker.width < 0) {
                     b._stockTicker.x = b._tickerW;
@@ -2384,14 +2387,14 @@ const Environment = {
                     const sd = API.stockPrices[b._tickerSym]; b._stockTicker.text = `${b._tickerSym} $${sd.price} [${sd.change}]`; b._stockTicker.style.fill = sd.color; b._stockTicker.style.stroke = sd.color; b._stockTicker.style.dropShadow = true; b._stockTicker.style.dropShadowColor = sd.color; b._stockTicker.style.dropShadowBlur = 10;
                 }
             }
-            if (b._vcTicker && b._vcTickerW) {
+            if (b._vcTicker && b._vcTickerW && !b._vcTicker.destroyed) {
                 b._vcTicker.x -= 0.6;
                 if (b._vcTicker.x + b._vcTicker.width < 0) {
                     b._vcTicker.text = (typeof VCRow !== 'undefined') ? VCRow.getNextTickerItem() : '';
                     b._vcTicker.x = b._vcTickerW;
                 }
             }
-            if (b._bkTicker && b._bkTickerW) {
+            if (b._bkTicker && b._bkTickerW && !b._bkTicker.destroyed) {
                 b._bkTicker.x -= 0.5;
                 if (b._bkTicker.x + b._bkTicker.width < 0) {
                     b._bkTicker.text = (typeof BackboneZone !== 'undefined') ? BackboneZone.getNextTickerItem() : '';
@@ -2402,7 +2405,7 @@ const Environment = {
         
         if (G.tick % 120 === 0) { 
             const park = G.bldById['park'];
-            if (park && park._monIcon) { 
+            if (park && park._monIcon && !park._monIcon.destroyed) {
                 const sorted = [...G.models].filter(m => !m.ret || new Date(m.ret) > new Date()).map(m => { const elo = BM[m.id]?.ELO || 0; const avg = typeof avgBM === 'function' ? avgBM(m.id) : 0; return { m, score: elo ? ((elo - 1000) / 4.5) : avg }; }).sort((a, b) => b.score - a.score);
                 const top = sorted[0]; 
                 if (top) { 
