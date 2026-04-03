@@ -1269,7 +1269,7 @@ const G = {
         { id: 'university', emoji: '🎓', label: 'AI Academy',   match: b => b.type === 'university' },
         { id: 'pine',     emoji: '🌲', label: 'Pine Reserve',   match: b => b.id === 'forest_0' },
         { id: 'court',    emoji: '🏛️', label: 'AI Court',       match: b => b.type === 'court' },
-        { id: 'tech',     emoji: '🏢', label: 'Tech District',  match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'metro_dc' && b.type !== 'university' && b.type !== 'court' && b.type !== 'convention_center', wide: true },
+        { id: 'tech',     emoji: '🏢', label: 'Tech District',  match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'metro_dc' && b.type !== 'university' && b.type !== 'court' && b.type !== 'convention_center' },
         { id: 'midline',  emoji: '🚇', label: 'Central Line',   match: b => b.id === 'metro_mid' },
         { id: 'conference', emoji: '🎓', label: 'Conference',   match: b => b.id === 'convention_center' },
         { id: 'metro',    emoji: '🚇', label: 'Metro East',     match: b => b.id === 'metro_east' },
@@ -1277,7 +1277,7 @@ const G = {
         { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
         { id: 'vcrow',    emoji: '💰', label: 'VC Row',          match: b => b.id.startsWith('vcrow_') },
         { id: 'estates',  emoji: '🏡', label: "Billionaire's",  match: b => b.id.startsWith('house_') },
-        { id: 'power',   emoji: '⚡', label: 'Power Grid',    match: b => b.id.startsWith('power_') }
+        { id: 'power',   emoji: '⚡', label: 'Power Grid',    match: b => b.id.startsWith('power_'), wide: true }
     ],
     
     initMinimap() {

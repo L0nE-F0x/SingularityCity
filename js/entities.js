@@ -191,11 +191,33 @@ const Entities = {
     },
 
     spawnCar() {
-        const dir = Math.random() > .5 ? 1 : -1; 
-        if (!G.cars.some(c => c.isTruck)) {
-            const carObj = EntitiesGfx.spawnCar(this.carLayer, this.reflectionLayer, dir);
-            G.cars.push(carObj);
+        if (G.cars.some(c => c.isTruck)) return;
+        // Route truck between meaningful Nvidia locations: Port → Nvidia FAB/DC → Nvidia HQ (or reverse)
+        let portBld = null, nvFab = null, nvHQ = null;
+        if (typeof BLDS !== 'undefined') {
+            portBld = BLDS.find(b => b.id === 'port_warehouse' || b.id.startsWith('port_'));
+            nvFab = BLDS.find(b => b.id === 'fab_nvidia_design');
+            nvHQ = BLDS.find(b => b.lab === 'nvidia' && !b.id.startsWith('fab_') && !b.id.startsWith('dc_'));
         }
+        // Build waypoints array (x positions to stop at)
+        const stops = [];
+        if (portBld) stops.push(portBld.x + (portBld.w || 100) / 2);
+        if (nvFab) stops.push(nvFab.x + (nvFab.w || 100) / 2);
+        if (nvHQ) stops.push(nvHQ.x + (nvHQ.w || 100) / 2);
+        // If we found stops, pick a direction that makes sense; otherwise random
+        let dir;
+        if (stops.length >= 2) {
+            dir = Math.random() > 0.5 ? 1 : -1;
+            stops.sort((a, b) => dir > 0 ? a - b : b - a);
+        } else {
+            dir = Math.random() > 0.5 ? 1 : -1;
+        }
+        const carObj = EntitiesGfx.spawnCar(this.carLayer, this.reflectionLayer, dir);
+        carObj._stops = stops.length >= 2 ? stops : null;
+        carObj._stopIdx = 0;
+        carObj._waitTimer = 0;
+        carObj._delivering = stops.length >= 2;
+        G.cars.push(carObj);
     },
 
     updateChatBubbles(dp) {
@@ -745,21 +767,50 @@ const Entities = {
 
       // Port zone bounds for skipping vehicles
 
-      G.cars = G.cars.filter(c => { 
-        c.gfx.x += c.dir * c.speed; 
-        if (c.ref) c.ref.x = c.gfx.x; 
-        if (c.beam) c.beam.alpha = this.lightLayer.alpha; 
-        const laneY = c.dir > 0 ? 26 : 12; c.gfx.y = G.groundY + laneY; 
+      G.cars = G.cars.filter(c => {
+        // Delivery truck with waypoints: stop at each location
+        if (c._delivering && c._stops && c._stops.length > 0) {
+            if (c._waitTimer > 0) {
+                c._waitTimer--;
+                // Idle at stop: flash headlights gently
+                if (c.beam) c.beam.alpha = (G.tick % 40 < 20) ? 0.2 : 0.05;
+                return true;
+            }
+            const target = c._stops[c._stopIdx];
+            const dx = target - c.gfx.x;
+            if (Math.abs(dx) < 3) {
+                // Arrived at stop
+                c.gfx.x = target;
+                c._waitTimer = 120 + Math.random() * 80; // pause ~2-3 sec
+                c._stopIdx++;
+                if (c._stopIdx >= c._stops.length) {
+                    // All stops done — drive off screen
+                    c._delivering = false;
+                }
+            } else {
+                // Drive toward next stop
+                const moveDir = Math.sign(dx);
+                c.gfx.x += moveDir * c.speed;
+                c.gfx.scale ? (c.gfx.scale.x = moveDir) : null;
+            }
+        } else {
+            c.gfx.x += c.dir * c.speed;
+        }
+        if (c.ref) c.ref.x = c.gfx.x;
+        if (c.beam && !c._waitTimer) c.beam.alpha = this.lightLayer.alpha;
+        const laneY = c.dir > 0 ? 26 : 12; c.gfx.y = G.groundY + laneY;
         if (c.ref) c.ref.y = c.gfx.y;
-        // Hide in port/ocean zone
+        // Hide in port/ocean zone (unless delivering TO port)
         const inPort = c.gfx.x > portMinX && c.gfx.x < portMaxX;
-        c.gfx.visible = !inPort; if (c.ref) c.ref.visible = !inPort;
-        if (c.gfx.x < -80 || c.gfx.x > G.cityW + 80) { 
-            c.gfx.destroy(); 
-            if (c.ref) c.ref.destroy(); 
-            return false; 
-        } 
-        return true; 
+        const goingToPort = c._delivering && c._stops && c._stops[c._stopIdx] > portMinX && c._stops[c._stopIdx] < portMaxX;
+        c.gfx.visible = goingToPort || !inPort;
+        if (c.ref) c.ref.visible = c.gfx.visible;
+        if (c.gfx.x < -80 || c.gfx.x > G.cityW + 80) {
+            c.gfx.destroy();
+            if (c.ref) c.ref.destroy();
+            return false;
+        }
+        return true;
       });
       
       const occ = {}; if (!G.familyDestinations) G.familyDestinations = {}; if (!G.lastBlock) G.lastBlock = -1;

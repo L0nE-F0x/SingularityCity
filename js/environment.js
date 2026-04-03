@@ -376,6 +376,37 @@ const Environment = {
       // ─── POWER ZONE: Underground overpaint (drawn AFTER all city infrastructure) ───
       if (hasPowerZone) {
           const ppw = G.cityW + 200 - powerStartX;
+
+          // ─── Terminal boxes where data cables meet the power zone boundary ───
+          const termX = powerStartX - 8;
+          const termW = 16, termH = 36;
+          // Main terminal enclosure (dark steel box)
+          g.beginFill(0x1a1a2a); g.drawRect(termX, gy + 33, termW, termH); g.endFill();
+          g.beginFill(0x252540); g.drawRect(termX + 1, gy + 34, termW - 2, 2); g.endFill(); // top edge highlight
+          g.beginFill(0x101020); g.drawRect(termX + 1, gy + 33 + termH - 2, termW - 2, 2); g.endFill(); // bottom edge
+          // Vertical divider lines (panel look)
+          g.beginFill(0x0a0a18); g.drawRect(termX + 5, gy + 36, 1, termH - 6); g.endFill();
+          g.beginFill(0x0a0a18); g.drawRect(termX + 10, gy + 36, 1, termH - 6); g.endFill();
+          // Status LEDs on terminal
+          const ledCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
+          for (let li = 0; li < 6; li++) {
+              g.beginFill(ledCols[li], 0.8); g.drawCircle(termX + 3 + (li % 3) * 5, gy + 40 + Math.floor(li / 3) * 8, 1.2); g.endFill();
+          }
+          // Cable entry points (small colored stubs entering the box from the left)
+          for (let si = 0; si < 5; si++) {
+              const sc = ledCols[si % ledCols.length];
+              g.beginFill(sc, 0.4); g.drawRect(termX - 6, gy + 37 + si * 6, 8, 2); g.endFill();
+          }
+          // Mounting bolts
+          g.beginFill(0x444460); g.drawCircle(termX + 2, gy + 34, 1.5); g.endFill();
+          g.beginFill(0x444460); g.drawCircle(termX + termW - 2, gy + 34, 1.5); g.endFill();
+          g.beginFill(0x444460); g.drawCircle(termX + 2, gy + 33 + termH - 1, 1.5); g.endFill();
+          g.beginFill(0x444460); g.drawCircle(termX + termW - 2, gy + 33 + termH - 1, 1.5); g.endFill();
+          // "JUNCTION" label (tiny)
+          // Ground-level terminal cap (visible on the road surface)
+          g.beginFill(0x2a2a3a); g.drawRect(termX - 2, gy + 30, termW + 4, 4); g.endFill();
+          g.beginFill(0xfbbf24, 0.3); g.drawRect(termX, gy + 30, termW, 1); g.endFill(); // caution stripe
+
           // Solid fill covers metro tunnel, data cables, everything
           g.beginFill(0x0a0a0f); g.drawRect(powerStartX, gy + 32, ppw, 38); g.endFill();
           g.beginFill(0x2d1a11); g.drawRect(powerStartX, gy + 70, ppw, 200); g.endFill();
