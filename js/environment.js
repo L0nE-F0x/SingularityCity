@@ -1886,9 +1886,12 @@ const Environment = {
         // Fab/DC buildings: look up ticker from supplementary map if lab has none
         const FAB_TICKERS = { tsmc: 'TSM', asml: 'ASML', intel: 'INTC', samsung: '005930.KS' };
         const tickerSym = (lab && lab.ticker) ? lab.ticker : (b.lab && FAB_TICKERS[b.lab]) ? FAB_TICKERS[b.lab] : null;
-        if (tickerSym && !b.id.startsWith('house_') && !b.id.startsWith('forest_')) {
+        const isFabOrDC = b.id.startsWith('fab_') || b.id.startsWith('dc_');
+        const isConstruction = isFabOrDC && b.dcData && b.dcData.status === 'construction';
+        if (tickerSym && !b.id.startsWith('house_') && !b.id.startsWith('forest_') && !isConstruction) {
             const tickCont = new PIXI.Container();
-            tickCont.y = 0;
+            // Fab/DC: position below HVAC vents; regular labs: top rim
+            tickCont.y = isFabOrDC ? 16 : 0;
             const tickBg = new PIXI.Graphics();
             tickBg.beginFill(0x000000, 0.85); tickBg.drawRect(0, 0, b.w, 14); tickBg.endFill();
             tickCont.addChild(tickBg);

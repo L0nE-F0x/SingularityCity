@@ -1285,7 +1285,7 @@ const G = {
         { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
         { id: 'vcrow',    emoji: '💰', label: 'VC Row',          match: b => b.id.startsWith('vcrow_') },
         { id: 'estates',  emoji: '🏡', label: "Billionaire's",  match: b => b.id.startsWith('house_') },
-        { id: 'power',   emoji: '⚡', label: 'Power Grid',    match: b => b.id.startsWith('power_'), wide: true }
+        { id: 'power',   emoji: '⚡', label: 'Power Grid',    match: b => b.id.startsWith('power_') }
     ],
     
     initMinimap() {
