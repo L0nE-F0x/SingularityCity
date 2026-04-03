@@ -1684,16 +1684,20 @@ const G = {
           setInterval(() => API.fetchZeroEval(), 20 * 60 * 1000); // every 20 min
       }
 
-      // ─── LIVE DATA: VC Funding, Supply Chain, Regulation News, arXiv Papers ───
+      // ─── LIVE DATA: VC Funding, Supply Chain, Regulation News, arXiv Papers, RSS Deals ───
       if (typeof API !== 'undefined') {
           setTimeout(() => API.fetchVCFunding(), 10000);
           setTimeout(() => API.fetchSupplyChain(), 12000);
           setTimeout(() => API.fetchRegulationNews(), 15000);
           setTimeout(() => API.fetchArxivPapers(), 18000);
+          setTimeout(() => API.fetchVCDealsRSS(), 22000);            // RSS VC deal headlines
+          setTimeout(() => API.fetchSupplyChainNews(), 26000);       // RSS semiconductor news
           setInterval(() => API.fetchVCFunding(), 30 * 60 * 1000);        // every 30 min
           setInterval(() => API.fetchSupplyChain(), 60 * 60 * 1000);      // every hour
           setInterval(() => API.fetchRegulationNews(), 15 * 60 * 1000);   // every 15 min
           setInterval(() => API.fetchArxivPapers(), 60 * 60 * 1000);      // every hour
+          setInterval(() => API.fetchVCDealsRSS(), 30 * 60 * 1000);      // every 30 min
+          setInterval(() => API.fetchSupplyChainNews(), 60 * 60 * 1000);  // every hour
       }
       
       this.startAutoScan(); 

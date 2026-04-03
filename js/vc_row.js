@@ -72,7 +72,7 @@ const VCRow = {
 
     _buildTicker() {
         this.dealTicker = [];
-        // Generate ticker entries from funding data
+        // Lab aggregate totals (reference data)
         Object.entries(this.FUNDING).forEach(([lab, data]) => {
             const labName = (typeof LABS !== 'undefined' && LABS[lab]) ? LABS[lab].name : lab;
             if (data.total > 0) {
@@ -80,13 +80,21 @@ const VCRow = {
                 if (data.valuation) this.dealTicker.push(`📊 ${labName} valued at $${(data.valuation / 1000).toFixed(0)}B`);
             }
         });
-        // Add market color
-        this.dealTicker.push('📈 GPU futures +12% on compute shortage');
-        this.dealTicker.push('🔔 New Series A: $45M for stealth AI lab');
-        this.dealTicker.push('📉 API pricing down 40% YoY — price war intensifies');
-        this.dealTicker.push('🏦 Titan Bank leads $2.1B syndicated loan for datacenter build');
-        this.dealTicker.push('🚀 Launchpad Demo Day: 12 startups, $180M committed');
-        this.dealTicker.push('⚡ Compute derivatives trading volume hits all-time high');
+        // Real RSS-sourced deal headlines (replaces old hardcoded filler)
+        if (typeof API !== 'undefined' && API.vcDeals?.length > 0) {
+            API.vcDeals.slice(0, 10).forEach(deal => {
+                const emoji = /series\s+[c-f]/i.test(deal.round) ? '🦄' : deal.round ? '🔔' : '💰';
+                this.dealTicker.push(`${emoji} ${deal.headline}`);
+            });
+        } else {
+            // Generic fallback when no RSS data available yet
+            this.dealTicker.push('📈 GPU compute demand trending up on AI training surge');
+            this.dealTicker.push('🔔 AI startup funding at record highs');
+            this.dealTicker.push('📉 API pricing dropping as competition intensifies');
+            this.dealTicker.push('🏦 Late-stage mega-rounds dominating AI investment');
+            this.dealTicker.push('🚀 Early-stage AI seed rounds accelerating globally');
+            this.dealTicker.push('⚡ Datacenter capacity demand outpacing supply');
+        }
         // Shuffle
         for (let i = this.dealTicker.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));

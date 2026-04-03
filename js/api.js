@@ -5,6 +5,8 @@ const API = {
     liveNews: [],
     regulationNews: [],
     arxivPapers: [],
+    vcDeals: [],
+    supplyChainNews: [],
     newsIdx: 0,
     stockPrices: {},
     
@@ -668,6 +670,165 @@ const API = {
                 console.log(`📄 arXiv: ${papers.length} real AI papers fetched`);
             }
         } catch (e) { console.warn('[arXiv] Fetch failed:', e.message); }
+    },
+
+    // ═══ LIVE VC DEALS — parses funding headlines from venture RSS feeds ═══
+    async fetchVCDealsRSS() {
+        const feeds = [
+            { url: 'https://techcrunch.com/category/venture/feed/', source: 'TechCrunch' },
+            { url: 'https://news.crunchbase.com/venture/feed/', source: 'Crunchbase' },
+        ];
+
+        // 1. Load persisted deals from Supabase first
+        if (this.supabase && this.vcDeals.length === 0) {
+            try {
+                const { data } = await this.supabase.from('vc_deals')
+                    .select('*').order('created_at', { ascending: false }).limit(20);
+                if (data?.length) {
+                    this.vcDeals = data.map(d => ({
+                        headline: d.headline, amount: d.amount, round: d.round,
+                        url: d.url, source: d.source, date: d.pub_date
+                    }));
+                }
+            } catch (e) { /* table may not exist yet */ }
+        }
+
+        // 2. Fetch fresh from RSS
+        const amtPattern = /\$\s*([\d,.]+)\s*(M|B|million|billion|mn|bn)/i;
+        const fundingVerbs = /\b(raises?|raised|secures?|secured|closes?|closed|lands?|landed|gets?|got|nabs?|nabbed|bags?|bagged|grabs?|grabbed|nets?|netted|funding)\b/i;
+        const roundPattern = /\b(seed|pre-seed|series\s+[a-f])\b/i;
+
+        const existingHeadlines = new Set(this.vcDeals.map(d => d.headline));
+        let newCount = 0;
+
+        for (const feed of feeds) {
+            try {
+                const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`, { signal: AbortSignal.timeout(8000) });
+                if (!r.ok) continue;
+                const d = await r.json();
+                if (d.status !== 'ok' || !d.items?.length) continue;
+
+                for (const item of d.items) {
+                    if (!amtPattern.test(item.title) || !fundingVerbs.test(item.title)) continue;
+                    if (existingHeadlines.has(item.title)) continue;
+
+                    const amtMatch = item.title.match(amtPattern);
+                    const rawNum = parseFloat(amtMatch[1].replace(/,/g, ''));
+                    const unit = /^b/i.test(amtMatch[2]) ? 'B' : 'M';
+
+                    const roundMatch = item.title.match(roundPattern);
+
+                    const deal = {
+                        headline: item.title,
+                        amount: `$${rawNum}${unit}`,
+                        round: roundMatch ? roundMatch[1] : '',
+                        url: item.link,
+                        source: feed.source,
+                        date: item.pubDate?.split(' ')[0] || item.pubDate?.split('T')[0] || ''
+                    };
+
+                    this.vcDeals.unshift(deal);
+                    existingHeadlines.add(item.title);
+                    newCount++;
+
+                    // Persist to Supabase (fire-and-forget)
+                    if (this.supabase) {
+                        this.supabase.from('vc_deals').insert({
+                            headline: deal.headline,
+                            amount: deal.amount,
+                            round: deal.round || null,
+                            url: deal.url,
+                            source: deal.source,
+                            pub_date: deal.date || null
+                        }).then(() => {}).catch(() => {});
+                    }
+                }
+            } catch (e) { console.warn(`[VC RSS] ${feed.source}:`, e.message); }
+        }
+
+        // Keep max 30 deals
+        this.vcDeals = this.vcDeals.slice(0, 30);
+
+        if (this.vcDeals.length > 0) {
+            console.log(`💰 VC Deals: ${this.vcDeals.length} total (${newCount} new from RSS)`);
+            if (typeof VCRow !== 'undefined') VCRow._buildTicker();
+        }
+    },
+
+    // ═══ LIVE SUPPLY CHAIN NEWS — semiconductor industry headlines from RSS ═══
+    async fetchSupplyChainNews() {
+        const feeds = [
+            { url: 'https://www.tomshardware.com/feeds/all', source: "Tom's Hardware" },
+            { url: 'https://wccftech.com/feed/', source: 'WCCFTech' },
+        ];
+
+        const chipKeywords = /\b(TSMC|Samsung.{0,12}(?:foundry|fab|chip|semiconductor)|Intel.{0,12}(?:foundry|fab|chip)|ASML|HBM\d?|CoWoS|EUV|DUV|semiconductor|chip.{0,8}(?:shortage|supply|demand)|wafer|foundry|lithograph|advanced\s+packaging|\dnm\b|GPU.{0,8}(?:supply|shortage|production)|Nvidia.{0,8}(?:supply|production|chip)|AMD.{0,8}(?:supply|chip)|DRAM|NAND|memory.{0,8}(?:shortage|supply)|Blackwell|Rubin|B200|B100|H100|H200|MI\d{3})\b/i;
+
+        // 1. Load persisted from Supabase
+        if (this.supabase && this.supplyChainNews.length === 0) {
+            try {
+                const { data } = await this.supabase.from('supply_chain')
+                    .select('*').order('created_at', { ascending: false }).limit(20);
+                if (data?.length) {
+                    this.supplyChainNews = data.map(d => ({
+                        headline: d.title, url: d.source_url,
+                        source: d.detail, category: d.category,
+                        date: d.created_at?.split('T')[0]
+                    }));
+                }
+            } catch (e) { /* table may not exist yet */ }
+        }
+
+        // 2. Fetch fresh from RSS
+        const existing = new Set(this.supplyChainNews.map(n => n.headline));
+        let newCount = 0;
+
+        for (const feed of feeds) {
+            try {
+                const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`, { signal: AbortSignal.timeout(8000) });
+                if (!r.ok) continue;
+                const d = await r.json();
+                if (d.status !== 'ok' || !d.items?.length) continue;
+
+                for (const item of d.items) {
+                    if (!chipKeywords.test(item.title) || existing.has(item.title)) continue;
+
+                    // Auto-categorize based on headline keywords
+                    const cat = /ASML|EUV|DUV|lithograph/i.test(item.title) ? 'lithography'
+                        : /foundry|TSMC|Samsung.{0,6}fab|Intel.{0,6}fab|wafer|node|nanometer|\dnm/i.test(item.title) ? 'foundry'
+                        : /HBM|CoWoS|packaging|memory|DRAM|NAND|shortage/i.test(item.title) ? 'bottleneck'
+                        : 'accelerator';
+
+                    const entry = {
+                        headline: item.title,
+                        url: item.link,
+                        source: feed.source,
+                        category: cat,
+                        date: item.pubDate?.split(' ')[0] || item.pubDate?.split('T')[0] || ''
+                    };
+
+                    this.supplyChainNews.unshift(entry);
+                    existing.add(item.title);
+                    newCount++;
+
+                    // Persist to Supabase (fire-and-forget)
+                    if (this.supabase) {
+                        this.supabase.from('supply_chain').insert({
+                            category: cat,
+                            title: entry.headline.substring(0, 200),
+                            detail: entry.source,
+                            source_url: entry.url
+                        }).then(() => {}).catch(() => {});
+                    }
+                }
+            } catch (e) { console.warn(`[Supply Chain RSS] ${feed.source}:`, e.message); }
+        }
+
+        this.supplyChainNews = this.supplyChainNews.slice(0, 25);
+
+        if (this.supplyChainNews.length > 0) {
+            console.log(`🔗 Supply Chain: ${this.supplyChainNews.length} headlines (${newCount} new from RSS)`);
+        }
     },
 
     async askAnalyst() {

@@ -1004,6 +1004,23 @@ const UI = {
                 </div>`;
       });
 
+      // Live semiconductor news from RSS
+      if (typeof API !== 'undefined' && API.supplyChainNews?.length > 0) {
+          h += `<div class="arch-title" style="margin-top:16px;">📰 Live Semiconductor News</div>`;
+          API.supplyChainNews.slice(0, 6).forEach(n => {
+              const catColors = { lithography: '#f97316', foundry: '#22d3ee', bottleneck: '#ef4444', accelerator: '#4ade80' };
+              const catIcons = { lithography: '🔬', foundry: '🏭', bottleneck: '⚠️', accelerator: '🚀' };
+              h += `<a href="${n.url}" target="_blank" rel="noopener" style="display:block;padding:8px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;margin-bottom:3px;text-decoration:none;cursor:pointer;">
+                      <div style="display:flex;align-items:center;gap:6px">
+                          <span style="font-size:10px">${catIcons[n.category] || '📰'}</span>
+                          <span style="font-size:7px;padding:2px 5px;background:${catColors[n.category] || 'var(--bd)'}22;color:${catColors[n.category] || 'var(--t2)'};border-radius:3px;text-transform:uppercase;font-weight:700">${n.category}</span>
+                          <span style="font-size:7px;color:var(--t3);margin-left:auto">${n.source}</span>
+                      </div>
+                      <div style="font-size:8px;color:var(--t1);margin-top:4px;line-height:1.3">${n.headline}</div>
+                    </a>`;
+          });
+      }
+
       h += `<div class="arch-title" style="margin-top:16px;">🏢 Active Lab Clusters</div>`;
       COMPUTE_DATA.clusters.forEach(c => {
         const lab = c.lab ? LABS[c.lab] : null;
