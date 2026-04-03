@@ -557,7 +557,7 @@ const InteriorBar = {
 
         const agent = {
             m, cont, head, body, legL, legR, dot, shadow, ghostL, ghostR, isMoE,
-            state: 'mingling', timer: 0, deskX: x, floorIdx, speed: 1.2,
+            state: 'mingling', timer: 0, deskX: x, floorIdx, speed: 0.4,
             floorY: y, targetX: x, floorTheme: null, propGfx: null,
             _minX: 0, _maxX: G.vpW, _phase: Math.random() * Math.PI * 2
         };
@@ -590,11 +590,11 @@ const InteriorBar = {
     },
 
     _animateWalk(av) {
-        av.head.y = -32 + 4 + Math.sin(G.tick * 0.2) * 1.5;
-        av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.2)) * 1.5;
+        av.head.y = -32 + 4 + Math.sin(G.tick * 0.08) * 1;
+        av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.08)) * 1;
         if (av.legL && av.legR) {
-            av.legL.y = Math.sin(G.tick * 0.3) * 3;
-            av.legR.y = -Math.sin(G.tick * 0.3) * 3;
+            av.legL.y = Math.sin(G.tick * 0.12) * 2;
+            av.legR.y = -Math.sin(G.tick * 0.12) * 2;
         }
     },
 
@@ -649,12 +649,12 @@ const InteriorBar = {
             // NPC staff — simple wander only (no state machine)
             if (!av.m || av.m.isNPC || av.m.id === 'npc_cellar_rat') {
                 av._walkTimer = (av._walkTimer || 0) - 1;
-                if (av._walkTimer <= 0) { av._walkDir = (Math.random() > 0.5) ? 1 : -1; av._walkTimer = 60 + Math.random() * 120; }
-                const nx = av.cont.x + av._walkDir * 0.3;
+                if (av._walkTimer <= 0) { av._walkDir = (Math.random() > 0.5) ? 1 : -1; av._walkTimer = 120 + Math.random() * 200; }
+                const nx = av.cont.x + av._walkDir * 0.12;
                 if (nx > av._minX && nx < av._maxX) av.cont.x = nx;
-                if (av.head) av.head.y = -32 + Math.sin(G.tick * 0.15 + (av._phase || 0)) * 1.5;
-                if (av.legL) av.legL.y = Math.sin(G.tick * 0.2 + ci) * 3;
-                if (av.legR) av.legR.y = -Math.sin(G.tick * 0.2 + ci) * 3;
+                if (av.head) av.head.y = -32 + Math.sin(G.tick * 0.06 + (av._phase || 0)) * 1;
+                if (av.legL) av.legL.y = Math.sin(G.tick * 0.08 + ci) * 2;
+                if (av.legR) av.legR.y = -Math.sin(G.tick * 0.08 + ci) * 2;
                 return;
             }
 
@@ -685,10 +685,10 @@ const InteriorBar = {
                     // Sipping animation — occasional head tilt
                     if (G.tick % 180 < 20) av.head.y -= 2;
 
-                    if (Math.random() < 0.002 && this.bubbles.length < 8) {
+                    if (Math.random() < 0.001 && this.bubbles.length < 8) {
                         this._spawnBubble(av, ["Cheers!", "Another round.", "Smooth.", "Great mix.", "To the singularity!", "Neon vibes."][Math.floor(Math.random() * 6)]);
                     }
-                    if (Math.random() < 0.0008) {
+                    if (Math.random() < 0.0003) {
                         av.targetX = av._minX + Math.random() * (av._maxX - av._minX);
                         av.state = 'walking_to_spot';
                     }
@@ -697,17 +697,17 @@ const InteriorBar = {
 
                 // ─── DANCING (near jukebox/stage, rhythmic bounce) ───
                 case 'dancing': {
-                    const bounce = Math.sin(G.tick * 0.15 + ci * 0.7);
-                    const sway = Math.sin(G.tick * 0.08 + ci * 1.3) * 4;
+                    const bounce = Math.sin(G.tick * 0.06 + ci * 0.7);
+                    const sway = Math.sin(G.tick * 0.03 + ci * 1.3) * 2.5;
                     av.cont.x = av.deskX + sway;
                     av.cont.y = av.floorY;
-                    av.head.y = -32 + 4 + Math.abs(bounce) * 3;
-                    av.body.y = -32 + 12 + 4 + Math.abs(bounce) * 2;
+                    av.head.y = -32 + 4 + Math.abs(bounce) * 2;
+                    av.body.y = -32 + 12 + 4 + Math.abs(bounce) * 1.5;
                     if (av.legL && av.legR) {
-                        av.legL.y = bounce * 2;
-                        av.legR.y = -bounce * 2;
+                        av.legL.y = bounce * 1.5;
+                        av.legR.y = -bounce * 1.5;
                     }
-                    av.cont.scale.x = Math.sin(G.tick * 0.03 + ci) > 0 ? 1 : -1;
+                    av.cont.scale.x = Math.sin(G.tick * 0.015 + ci) > 0 ? 1 : -1;
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
                         this._spawnBubble(av, ["♪ ♪ ♪", "This beat!", "Dance mode!", "Vibing!", "🎵"][Math.floor(Math.random() * 5)]);
@@ -721,7 +721,8 @@ const InteriorBar = {
 
                 // ─── MINGLING (walking around socializing) ───
                 case 'mingling': {
-                    av.timer = (av.timer || 0) - 1;
+                    if (!av.timer) av.timer = 300 + Math.random() * 400;
+                    av.timer--;
                     if (av.timer <= 0) {
                         av.targetX = av._minX + Math.random() * (av._maxX - av._minX);
                         av.state = 'walking_to_spot';
@@ -729,7 +730,7 @@ const InteriorBar = {
                     // Idle standing with subtle head bob
                     av.cont.x = av.deskX;
                     av.cont.y = av.floorY;
-                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.05 + ci) * 1;
+                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.03 + ci) * 0.8;
                     av.body.y = -32 + 12 + 4;
                     if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
 
@@ -743,15 +744,15 @@ const InteriorBar = {
                 case 'singing_karaoke': {
                     av.cont.x = av.deskX;
                     av.cont.y = av.floorY - 8; // standing on stage platform
-                    const singBob = Math.sin(G.tick * 0.12 + ci);
-                    av.head.y = -32 + 4 + singBob * 2;
-                    av.body.y = -32 + 12 + 4 + Math.abs(singBob);
+                    const singBob = Math.sin(G.tick * 0.05 + ci);
+                    av.head.y = -32 + 4 + singBob * 1.5;
+                    av.body.y = -32 + 12 + 4 + Math.abs(singBob) * 0.8;
                     if (av.legL && av.legR) {
-                        av.legL.y = Math.sin(G.tick * 0.1 + ci) * 1.5;
-                        av.legR.y = -Math.sin(G.tick * 0.1 + ci) * 1.5;
+                        av.legL.y = Math.sin(G.tick * 0.04 + ci) * 1;
+                        av.legR.y = -Math.sin(G.tick * 0.04 + ci) * 1;
                     }
                     // Sway left-right like a performer
-                    av.cont.scale.x = Math.sin(G.tick * 0.04 + ci) > 0 ? 1 : -1;
+                    av.cont.scale.x = Math.sin(G.tick * 0.02 + ci) > 0 ? 1 : -1;
 
                     if (Math.random() < 0.003 && this.bubbles.length < 8) {
                         this._spawnBubble(av, ["♪ TRAINING DATAAA ♪", "♪ Loss is dropping! ♪", "♪ My weights, my rules ♪", "♫ GRADIENT DESCENT ♫", "♪ Tokens for days! ♪", "♪ Back-prop blues ♪"][Math.floor(Math.random() * 6)]);
@@ -775,8 +776,8 @@ const InteriorBar = {
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.04 + ci) * 0.8;
                     av.body.y = -32 + 12 + 4;
                     if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
-                    // Occasional clapping (head nodding faster)
-                    if (G.tick % 120 < 30) av.head.y += Math.sin(G.tick * 0.3) * 1;
+                    // Occasional clapping (gentle head nodding)
+                    if (G.tick % 240 < 40) av.head.y += Math.sin(G.tick * 0.1) * 0.8;
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
                         this._spawnBubble(av, ["👏👏", "Encore!", "Great voice!", "Bravo!", "My turn next!", "That was... unique."][Math.floor(Math.random() * 6)]);
@@ -812,10 +813,10 @@ const InteriorBar = {
                     av.propGfx.drawRect(5, -12, 5, 2);
                     av.propGfx.endFill();
 
-                    if (Math.random() < 0.002 && this.bubbles.length < 8) {
+                    if (Math.random() < 0.001 && this.bubbles.length < 8) {
                         this._spawnBubble(av, ["VIP treatment.", "Exclusive batch.", "Top-tier compute.", "Premium tokens only.", "Champagne tastes.", "The good life."][Math.floor(Math.random() * 6)]);
                     }
-                    if (Math.random() < 0.0005) {
+                    if (Math.random() < 0.0002) {
                         if (av.legL) { av.legL.rotation = 0; av.legR.rotation = 0; }
                         av.state = 'vip_standing';
                         av.timer = 150 + Math.random() * 150;
@@ -827,7 +828,7 @@ const InteriorBar = {
                 case 'vip_standing': {
                     av.cont.x = av.deskX;
                     av.cont.y = av.floorY;
-                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.04 + ci) * 1;
+                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.025 + ci) * 0.8;
                     av.body.y = -32 + 12 + 4;
                     if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
                     // Champagne flute
@@ -836,12 +837,13 @@ const InteriorBar = {
                     av.propGfx.clear();
                     av.propGfx.beginFill(0xfbbf24, 0.5); av.propGfx.drawRect(7, -10, 3, 8); av.propGfx.endFill();
 
-                    av.timer = (av.timer || 0) - 1;
+                    if (!av.timer) av.timer = 400 + Math.random() * 300;
+                    av.timer--;
                     if (av.timer <= 0) {
                         av.targetX = av._minX + Math.random() * (av._maxX - av._minX);
                         av.state = 'walking_to_spot';
                     }
-                    if (Math.random() < 0.0015 && this.bubbles.length < 8) {
+                    if (Math.random() < 0.001 && this.bubbles.length < 8) {
                         this._spawnBubble(av, ["Networking.", "Have you met...?", "My pre-training was wild.", "Let's collab.", "Fine-tuning myself."][Math.floor(Math.random() * 5)]);
                     }
                     break;
