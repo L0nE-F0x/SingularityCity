@@ -197,22 +197,44 @@ const VCRow = {
     updateCommuters(dp) {
         if (!this.carCommuters.length) return;
         const wantWork = dp > 0.33 && dp < 0.75;
+        const lunchWindow = dp >= 0.45 && dp < 0.55;
 
-        this.carCommuters.forEach(cm => {
+        this.carCommuters.forEach((cm, ci) => {
+            // Morning arrival
             if (wantWork && cm.state === 'at_home') {
                 cm.state = 'driving_to_work';
                 cm.carCont.visible = true;
                 cm.carCont.x = cm.homeX;
                 cm.carCont.scale.x = cm.workX > cm.homeX ? 1 : -1;
                 cm.bld = null;
-            } else if (!wantWork && cm.state === 'at_work') {
+            }
+            // Evening departure
+            else if (!wantWork && (cm.state === 'at_work' || cm.state === 'back_from_lunch')) {
                 cm.state = 'driving_home';
                 cm.carCont.visible = true;
                 cm.carCont.x = cm.workX;
                 cm.carCont.scale.x = cm.homeX > cm.workX ? 1 : -1;
                 cm.bld = null;
             }
+            // Lunch break — staggered by NPC index so they don't all leave at once
+            else if (lunchWindow && cm.state === 'at_work' && !cm._lunchDone) {
+                const lunchThreshold = 0.45 + (ci * 0.015);
+                if (dp >= lunchThreshold && Math.random() < 0.003) {
+                    cm.state = 'driving_to_lunch';
+                    cm.carCont.visible = true;
+                    cm.carCont.x = cm.workX;
+                    // Drive to a random spot (cafe area or a short cruise)
+                    const cafeBld = G.bldById['cafe'];
+                    cm._lunchX = cafeBld ? cafeBld.x + cafeBld.w / 2 : cm.workX + (Math.random() > 0.5 ? 400 : -400);
+                    cm.carCont.scale.x = cm._lunchX > cm.workX ? 1 : -1;
+                    cm.bld = null;
+                    cm._lunchDone = true;
+                }
+            }
+            // Reset lunch flag for next day
+            if (dp < 0.33) cm._lunchDone = false;
 
+            // Movement states
             if (cm.state === 'driving_to_work') {
                 const dx = cm.workX - cm.carCont.x;
                 if (Math.abs(dx) < 5) {
@@ -231,7 +253,30 @@ const VCRow = {
                 } else {
                     cm.carCont.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
                 }
-            } else {
+            } else if (cm.state === 'driving_to_lunch') {
+                const dx = cm._lunchX - cm.carCont.x;
+                if (Math.abs(dx) < 5) {
+                    cm.state = 'at_lunch';
+                    cm._lunchTimer = 400 + Math.random() * 300; // ~7-12 seconds at lunch
+                } else {
+                    cm.carCont.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
+                }
+            } else if (cm.state === 'at_lunch') {
+                cm._lunchTimer--;
+                if (cm._lunchTimer <= 0) {
+                    cm.state = 'driving_from_lunch';
+                    cm.carCont.scale.x = cm.workX > cm.carCont.x ? 1 : -1;
+                }
+            } else if (cm.state === 'driving_from_lunch') {
+                const dx = cm.workX - cm.carCont.x;
+                if (Math.abs(dx) < 5) {
+                    cm.state = 'back_from_lunch';
+                    cm.carCont.visible = false;
+                    cm.bld = cm.workBldId;
+                } else {
+                    cm.carCont.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
+                }
+            } else if (cm.state !== 'driving_to_work' && cm.state !== 'driving_home' && cm.state !== 'driving_to_lunch' && cm.state !== 'at_lunch' && cm.state !== 'driving_from_lunch') {
                 cm.carCont.visible = false;
             }
         });

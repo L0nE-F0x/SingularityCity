@@ -529,8 +529,8 @@ const Entities = {
                               }
                           }
                           
-                          // ─── SCENIC FLYOVER / HQ COMMUTE (rare, only if no space trip) ───
-                          if (!spaceTrip && Math.random() < 0.00005 && dp > 0.3 && dp < 0.8) {
+                          // ─── SCENIC FLYOVER / HQ COMMUTE ───
+                          if (!spaceTrip && Math.random() < 0.002 && dp > 0.3 && dp < 0.8) {
                               // Pull CEO out of current building
                               const oldBld = G.bldById[ceo.bld];
                               const startX = oldBld ? oldBld.x + oldBld.w / 2 : ceo.logicalX;
@@ -547,12 +547,12 @@ const Entities = {
                               heli.cont.x = heli.logicalX;
                               heli.cont.y = heli.logicalY;
                               
-                              // 30% chance: fly to HQ rooftop, 70%: scenic tour
+                              // 60% chance: fly to HQ rooftop helipad, 40%: scenic tour
                               const hqBld = (G.bldsByLab[lab] || []).find(b2 => !b2.id.startsWith('house_'));
-                              if (Math.random() < 0.3 && hqBld && oldBld && oldBld.id !== hqBld.id) {
-                                  // Helicopter commute to HQ rooftop
+                              if (Math.random() < 0.6 && hqBld && oldBld && oldBld.id !== hqBld.id) {
+                                  // Helicopter commute to HQ rooftop helipad
                                   heli.targetX = hqBld.x + hqBld.w / 2;
-                                  heli.targetY = G.groundY - 24 - (hqBld.h || 80) - 10;
+                                  heli.targetY = G.groundY - (hqBld.h || 80) + 4; // land ON the roof
                                   heli._landingBld = hqBld;
                                   heli.state = 'flying_to_hq';
                               } else {
@@ -564,7 +564,7 @@ const Entities = {
                               }
                               
                               heli._scenicCooldown = true;
-                              setTimeout(() => { heli._scenicCooldown = false; }, (600 + Math.random() * 600) * 1000);
+                              setTimeout(() => { heli._scenicCooldown = false; }, (60 + Math.random() * 60) * 1000);
                           }
                       }
                       break;

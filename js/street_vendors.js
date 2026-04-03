@@ -151,15 +151,6 @@ const StreetVendors = {
         sign.y = -52;
         cont.addChild(sign);
 
-        // Name plate
-        const nm = new PIXI.Text(v.name, {
-            fontFamily: 'JetBrains Mono', fontSize: 6,
-            fill: 0xffffff, fontWeight: 'bold'
-        });
-        nm.anchor.set(0.5, 0);
-        nm.y = -60;
-        nm.alpha = 0.65;
-        cont.addChild(nm);
 
         // Click interaction
         cont.eventMode = 'static';
@@ -307,11 +298,22 @@ const StreetVendors = {
 
             } else if (vm.state === 'vending') {
                 vm.c.visible = true;
-                vm.c.scale.x = 1;
-                // Idle animation
-                vm.head.y = -28 + Math.sin(G.tick * 0.08 + vi) * 0.5;
-                vm.legL.y = 0;
-                vm.legR.y = 0;
+
+                // Roam near the stall — walk up and down the sidewalk
+                if (!vm._roamDir) vm._roamDir = 1;
+                if (!vm._roamTimer) vm._roamTimer = 80 + Math.random() * 120;
+                vm._roamTimer--;
+                if (vm._roamTimer <= 0) {
+                    vm._roamDir *= -1;
+                    vm._roamTimer = 80 + Math.random() * 160;
+                }
+                const roamRange = 45;
+                const nx = vm.c.x + vm._roamDir * 0.35;
+                if (nx > vm.stallX - roamRange && nx < vm.stallX + roamRange) {
+                    vm.c.x = nx;
+                }
+                vm.c.scale.x = vm._roamDir > 0 ? 1 : -1;
+                this._animWalk(vm, vi);
 
                 // Vendor call-outs
                 vm.chatTimer--;
