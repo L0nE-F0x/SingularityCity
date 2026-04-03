@@ -323,7 +323,7 @@ const EntitiesGfx = {
             glassFront.endFill();
             glassFront.lineStyle(0);
             glassFront.x = sx;
-            carLayer.addChild(glassFront);
+            undergroundLayer.addChild(glassFront);
 
             stationVisuals.push({ statCont, backCutout, glassFront, _bldId: sd.bldId });
         });
