@@ -207,10 +207,17 @@ const Camera = {
             }
         }
         
-        let maxBldHeight = 0;
-        if (typeof BLDS !== 'undefined') {
-            maxBldHeight = Math.max(...BLDS.map(b => (b.dynamicFl || 3) * 45));
+        // Cache maxBldHeight — only recalculate every 300 frames (~5s)
+        if (!this._maxBldH || G.tick % 300 === 0) {
+            this._maxBldH = 0;
+            if (typeof BLDS !== 'undefined') {
+                for (let i = 0; i < BLDS.length; i++) {
+                    const h = (BLDS[i].dynamicFl || 3) * 45;
+                    if (h > this._maxBldH) this._maxBldH = h;
+                }
+            }
         }
+        let maxBldHeight = this._maxBldH;
 
         const groundAnchor = G.groundY * (1 / this.targetZoom - 1);
         

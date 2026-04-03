@@ -18,7 +18,6 @@ const BurnTracker = {
         this.calculateCapex();
         this.buildUI();
         this.lastTime = performance.now();
-        requestAnimationFrame((t) => this.tick(t));
     },
 
     calculateCapex() {
@@ -119,11 +118,17 @@ const BurnTracker = {
     },
 
     tick(currentTime) {
+        if (!currentTime) currentTime = performance.now();
         const deltaSec = (currentTime - this.lastTime) / 1000;
+        if (deltaSec <= 0 || deltaSec > 2) { this.lastTime = currentTime; return; }
         this.lastTime = currentTime;
 
         if (this.capexPerSec === 0) this.calculateCapex();
-        this.calculateDynamicOpex();
+        // Only recalculate opex every 60 frames (~1s) instead of every frame
+        if (!this._opexTick || ++this._opexTick >= 60) {
+            this.calculateDynamicOpex();
+            this._opexTick = 0;
+        }
 
         const totalBurnRate = this.capexPerSec + this.opexPerSec;
         this.totalBurned += totalBurnRate * deltaSec;
@@ -132,8 +137,6 @@ const BurnTracker = {
             this.totalEl.innerText = this.formatMoney(this.totalBurned);
             this.rateEl.innerText = `GLOBAL BURN RATE: ${this.formatMoney(totalBurnRate)}/s`;
         }
-
-        requestAnimationFrame((t) => this.tick(t));
     }
 };
 

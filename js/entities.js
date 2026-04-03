@@ -270,10 +270,16 @@ const Entities = {
     },
 
     update(dp, night) {
-      // Port zone bounds (used to hide vehicles in ocean)
-      const portBlds = BLDS ? BLDS.filter(b => b.id.startsWith('port_')) : [];
-      const portMinX = portBlds.length ? Math.min(...portBlds.map(b => b.x)) - 80 : -9999;
-      const portMaxX = portBlds.length ? Math.max(...portBlds.map(b => b.x + b.w)) + 40 : -9999;
+      // Port zone bounds — cached (only changes on city rebuild)
+      if (!this._portBoundsCache || this._portBoundsCity !== G.cityW) {
+          const pb = BLDS ? BLDS.filter(b => b.id.startsWith('port_')) : [];
+          this._portMinX = pb.length ? pb.reduce((m, b) => Math.min(m, b.x), Infinity) - 80 : -9999;
+          this._portMaxX = pb.length ? pb.reduce((m, b) => Math.max(m, b.x + b.w), 0) + 40 : -9999;
+          this._portBoundsCache = true;
+          this._portBoundsCity = G.cityW;
+      }
+      const portMinX = this._portMinX;
+      const portMaxX = this._portMaxX;
       if (this.updateTrain) this.updateTrain(); 
 
       // Cache weekend check once per update (used by both CEO and model loops)
@@ -954,7 +960,7 @@ const Entities = {
                         
                         // If train is here, push non-boarding characters to back of platform
                         // so they don't overlap the train body visually
-                        if (activeTrain && activeTrain.state === 'waiting' && activeTrain.x === s1) {
+                        if (activeTrain && activeTrain.state === 'waiting' && Math.abs(activeTrain.x - s1) < 5) {
                             if (activeTrain.passengers < 30) {
                                 activeTrain.passengers++;
                                 refs._metroState = 'riding';
@@ -971,7 +977,7 @@ const Entities = {
                             // Clamp offset to stay inside the train body (±150px)
                             var rideOffset = Math.max(-150, Math.min(150, pseudoRandomOffset * 1.2));
                             refs.c.x = t.x + rideOffset;
-                            if (t.state === 'waiting' && t.x === s2) {
+                            if (t.state === 'waiting' && Math.abs(t.x - s2) < 5) {
                                 t.passengers = Math.max(0, t.passengers - 1);
                                 refs.c.x = s2;
                                 refs._currentLeg++;

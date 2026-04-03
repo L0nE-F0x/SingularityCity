@@ -211,12 +211,18 @@ const SpaceEntities = {
     // ─── Draw animated flame on rocket ───
     drawFlame(rocket, intensity) {
         const f = rocket.flame;
-        f.removeChildren();
         f.visible = true;
-        
-        const flameGfx = new PIXI.Graphics();
+
+        // Reuse a single Graphics object instead of creating new one every frame
+        if (!rocket._flameGfx) {
+            rocket._flameGfx = new PIXI.Graphics();
+            rocket._flameGfx.blendMode = PIXI.BLEND_MODES.ADD;
+            f.addChild(rocket._flameGfx);
+        }
+        const flameGfx = rocket._flameGfx;
+        flameGfx.clear();
         const h = 10 + intensity * 15;
-        
+
         // Outer flame (orange-red)
         flameGfx.beginFill(0xef4444, 0.8);
         flameGfx.drawPolygon([
@@ -225,7 +231,7 @@ const SpaceEntities = {
             6 + intensity * 2, 0
         ]);
         flameGfx.endFill();
-        
+
         // Inner flame (yellow-white)
         flameGfx.beginFill(0xfbbf24, 0.9);
         flameGfx.drawPolygon([
@@ -234,7 +240,7 @@ const SpaceEntities = {
             3 + intensity, 0
         ]);
         flameGfx.endFill();
-        
+
         // Core (white hot)
         flameGfx.beginFill(0xffffff, 0.7);
         flameGfx.drawPolygon([
@@ -243,9 +249,6 @@ const SpaceEntities = {
             1, 0
         ]);
         flameGfx.endFill();
-        
-        flameGfx.blendMode = PIXI.BLEND_MODES.ADD;
-        f.addChild(flameGfx);
     },
     
     // ─── Main update loop — called every frame ───

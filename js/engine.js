@@ -909,7 +909,11 @@ const G = {
         this.activeInterior = null;
 
         if (typeof SND !== 'undefined') SND.setAmbient('outside');
-        if (this.interiorLayer) this.interiorLayer.visible = false;
+        // Destroy all PIXI children to prevent memory leak from accumulated interiors
+        if (this.interiorLayer) {
+            this.interiorLayer.removeChildren().forEach(c => { if (c.destroy) c.destroy({ children: true, texture: false, baseTexture: false }); });
+            this.interiorLayer.visible = false;
+        }
         this.world.visible = true;
 
         const exitBtn = document.getElementById('btnExitInterior');
@@ -1800,6 +1804,8 @@ const G = {
       if (this.tracking) this.updateTracking();
       // Minimap update every 10 frames
       if (this.tick % 10 === 0) this.updateMinimap();
+      // BurnTracker — piggyback on main loop instead of independent rAF
+      if (typeof BurnTracker !== 'undefined' && BurnTracker.totalEl) BurnTracker.tick();
       this.update();
     },
   
@@ -1903,7 +1909,8 @@ const G = {
 
         const nfoEl = document.getElementById('nfo');
         if (nfoEl) {
-            const estateCount = typeof BLDS !== 'undefined' ? BLDS.filter(b => b.id.startsWith('house_')).length : 0;
+            if (!this._estateCount || this.tick % 600 === 0) { this._estateCount = typeof BLDS !== 'undefined' ? BLDS.filter(b => b.id.startsWith('house_')).length : 0; }
+            const estateCount = this._estateCount;
             nfoEl.innerHTML = `<span title="Current time of day in Singularity City — ${lbl}">🕒 <span class="st">${ts}</span></span><span style="font-size:7px;color:var(--ac)" title="City is running live — all data updates in real time">● LIVE</span><span title="Active AI model citizens currently in the city">👥 <span class="st">${alive}</span></span><span title="${labCount} AI labs with districts in the city">🏢 <span class="st">${labCount}</span></span><span title="${estateCount} CEO/Founder estates on Billionaire's Row">🏛️ <span class="st">${estateCount}</span></span>${preT > 0 ? `<span title="Models currently in pre-training, training, or rumored phase">🔬 <span class="st" style="color:var(--pk)">${preT}</span></span>` : ''}<span title="${dead} retired or deprecated models (visible as ghosts)">👻 <span class="st">${dead}</span></span>${disc > 0 ? `<span title="${disc} models discovered via network scans by all players globally">🛰️ <span class="st" style="color:var(--cy)">${disc}</span></span>` : ''}${wI ? `<span title="Current weather: ${Environment.weather || 'clear'}">${wI}</span>` : ''}${this.autoScanMin > 0 ? `<span style="font-size:7px;color:var(--cy)" title="Auto-scan interval — scanning for new models every ${this.autoScanMin} minutes">🔄 ${this.autoScanMin}m</span>` : ''}`;
         }
       }
