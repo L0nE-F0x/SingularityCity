@@ -98,6 +98,10 @@ const ConferenceData = {
     },
 
     getPaperTitle() {
+        // Prefer real arXiv papers when available
+        if (typeof API !== 'undefined' && API.arxivPapers && API.arxivPapers.length > 0) {
+            return API.arxivPapers[Math.floor(Math.random() * API.arxivPapers.length)].title;
+        }
         return this.PAPER_TITLES[Math.floor(Math.random() * this.PAPER_TITLES.length)];
     },
 

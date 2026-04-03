@@ -99,7 +99,15 @@ const CourtData = {
             summoned.push(m);
         }
         this._summonedModels = summoned.map(m => m.id);
-        this._hearingTheme = this.REGULATION_THEMES[Math.floor(Math.random() * this.REGULATION_THEMES.length)];
+        // Prefer real regulation news headlines over hardcoded themes
+        if (typeof API !== 'undefined' && API.regulationNews && API.regulationNews.length > 0) {
+            const newsItem = API.regulationNews[Math.floor(Math.random() * API.regulationNews.length)];
+            this._hearingTheme = newsItem.headline;
+            this._hearingUrl = newsItem.url || null;
+        } else {
+            this._hearingTheme = this.REGULATION_THEMES[Math.floor(Math.random() * this.REGULATION_THEMES.length)];
+            this._hearingUrl = null;
+        }
 
         if (summoned.length > 0 && typeof UI !== 'undefined') {
             UI.addToast('⚖️ ' + summoned.map(m => m.name).join(' & ') + ' summoned to AI Senate!');

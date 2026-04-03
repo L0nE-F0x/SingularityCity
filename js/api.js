@@ -3,6 +3,8 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 const API = {
     liveNews: [],
+    regulationNews: [],
+    arxivPapers: [],
     newsIdx: 0,
     stockPrices: {},
     
@@ -575,6 +577,99 @@ const API = {
       }
     },
   
+    // ═══ LIVE VC FUNDING — reads from Supabase vc_funding table ═══
+    async fetchVCFunding() {
+        if (!this.supabase) return;
+        try {
+            const { data, error } = await this.supabase.from('vc_funding').select('*');
+            if (error || !data || data.length === 0) return;
+            if (typeof VCRow !== 'undefined' && VCRow.FUNDING) {
+                data.forEach(row => {
+                    VCRow.FUNDING[row.lab_id] = {
+                        total: row.total_m || VCRow.FUNDING[row.lab_id]?.total || 0,
+                        valuation: row.valuation_m || VCRow.FUNDING[row.lab_id]?.valuation || 0,
+                        rounds: row.rounds || VCRow.FUNDING[row.lab_id]?.rounds || ''
+                    };
+                });
+                VCRow._buildTicker();
+                console.log(`💰 VC funding updated: ${data.length} labs from Supabase`);
+            }
+        } catch (e) { console.warn('[VC Funding] Fetch failed:', e.message); }
+    },
+
+    // ═══ LIVE SUPPLY CHAIN — reads from Supabase supply_chain table ═══
+    async fetchSupplyChain() {
+        if (!this.supabase) return;
+        try {
+            const { data, error } = await this.supabase.from('supply_chain').select('*');
+            if (error || !data || data.length === 0) return;
+            if (typeof SUPPLY_CHAIN !== 'undefined') {
+                const cats = { bottleneck: [], accelerator: [], foundry: [] };
+                data.forEach(row => {
+                    if (cats[row.category]) cats[row.category].push(row.data);
+                    else if (row.category === 'lithography') SUPPLY_CHAIN.lithography = { asml_high_na: row.data };
+                });
+                if (cats.bottleneck.length) SUPPLY_CHAIN.bottlenecks = cats.bottleneck;
+                if (cats.accelerator.length) SUPPLY_CHAIN.accelerators = cats.accelerator;
+                if (cats.foundry.length) SUPPLY_CHAIN.foundries = cats.foundry;
+                console.log(`🔗 Supply chain updated: ${data.length} entries from Supabase`);
+            }
+        } catch (e) { console.warn('[Supply Chain] Fetch failed:', e.message); }
+    },
+
+    // ═══ REGULATION NEWS — filters live news for AI policy/regulation headlines ═══
+    async fetchRegulationNews() {
+        // Extract regulation-relevant items from the live news feed
+        const regKeywords = /regulat|senate|congress|EU AI Act|compliance|safety|ban|lawsuit|copyright|FTC|antitrust|oversight|hearing|legislation|policy|GDPR|govern/i;
+        const regItems = this.liveNews.filter(n => regKeywords.test(n.headline));
+        if (regItems.length > 0) {
+            this.regulationNews = regItems;
+            console.log(`⚖️ Regulation news: ${regItems.length} relevant headlines found`);
+        }
+        // Also try dedicated regulation RSS feed
+        try {
+            const r = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://www.theverge.com/rss/ai-artificial-intelligence/index.xml'), { signal: AbortSignal.timeout(8000) });
+            if (r.ok) {
+                const d = await r.json();
+                if (d.status === 'ok' && d.items?.length > 0) {
+                    const regFiltered = d.items.filter(i => regKeywords.test(i.title));
+                    regFiltered.forEach(i => {
+                        if (!this.regulationNews.find(n => n.headline === i.title)) {
+                            this.regulationNews.push({ headline: i.title, url: i.link, source: 'Regulation Feed' });
+                        }
+                    });
+                }
+            }
+        } catch (e) { /* silent */ }
+    },
+
+    // ═══ ARXIV PAPERS — real CS/AI papers for conference poster sessions ═══
+    async fetchArxivPapers() {
+        const isDeployed = !['localhost', '127.0.0.1'].includes(window.location.hostname);
+        const url = isDeployed
+            ? '/api/arxiv/query?search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL&sortBy=submittedDate&sortOrder=descending&max_results=20'
+            : 'https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL&sortBy=submittedDate&sortOrder=descending&max_results=20';
+        try {
+            const r = await fetch(url, { signal: AbortSignal.timeout(12000) });
+            if (!r.ok) return;
+            const text = await r.text();
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(text, 'text/xml');
+            const entries = xml.querySelectorAll('entry');
+            const papers = [];
+            entries.forEach(e => {
+                const title = e.querySelector('title')?.textContent?.trim().replace(/\s+/g, ' ');
+                const id = e.querySelector('id')?.textContent?.split('/abs/').pop() || '';
+                const published = e.querySelector('published')?.textContent?.split('T')[0] || '';
+                if (title) papers.push({ title, id, published });
+            });
+            if (papers.length > 0) {
+                this.arxivPapers = papers;
+                console.log(`📄 arXiv: ${papers.length} real AI papers fetched`);
+            }
+        } catch (e) { console.warn('[arXiv] Fetch failed:', e.message); }
+    },
+
     async askAnalyst() {
       const input = document.getElementById('analystInput');
       if (!input) return;
@@ -1189,6 +1284,14 @@ JSON (no markdown):
         G.evolveCity();
         
         await stockPromise;
+
+        // ─── LIVE DATA REFRESH: Piggyback on scan to update all live feeds ───
+        Promise.allSettled([
+            this.fetchVCFunding(),
+            this.fetchSupplyChain(),
+            this.fetchRegulationNews(),
+            this.fetchArxivPapers()
+        ]).then(() => console.log('📡 Live data refresh complete'));
 
       } catch(e) {
         console.error(`⛔ [SCAN] FATAL ERROR:`, e.message);
