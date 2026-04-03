@@ -603,7 +603,7 @@ const UI = {
       }
 
       if (curOcc.length > 0) {
-        const isOutdoor = ['park', 'graveyard', 'legacy'].includes(b.id);
+        const isOutdoor = ['park', 'graveyard'].includes(b.id);
         const locLabel = isOutdoor ? 'Gathering Here' : 'Currently Inside';
         html += `<div style="margin:0 16px 16px"><span class="ipanel-lbl" style="margin-bottom:6px;display:block">${locLabel} (${curOcc.length})</span>`;
         curOcc.forEach(({ m, ai, stg }) => {
@@ -612,7 +612,7 @@ const UI = {
         });
         html += '</div>';
       } else if (!b.lab || b.id.startsWith('house_')) {
-        const isOutdoor = ['park', 'graveyard', 'legacy'].includes(b.id);
+        const isOutdoor = ['park', 'graveyard'].includes(b.id);
         const emptyLabel = isOutdoor ? 'Nobody here right now' : 'Nobody inside right now';
         html += `<div style="margin:0 16px 16px;padding:12px;text-align:center;color:var(--t3);font-size:9px;background:var(--cd);border:1px solid var(--bd);border-radius:4px">${emptyLabel}</div>`;
       }

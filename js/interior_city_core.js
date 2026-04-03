@@ -139,7 +139,7 @@ const InteriorCity = {
                     bldBg.endFill();
                 } else {
                     const isCeo = isHQ && (f === numFloors - 1);
-                    if (['arena', 'graveyard', 'legacy'].includes(bld.id)) {
+                    if (['arena', 'graveyard'].includes(bld.id)) {
                         bldBg.beginFill(0x111115);
                         bldBg.drawRect(this.startX, fy, this.bldW, floorH);
                         bldBg.endFill();
@@ -200,7 +200,7 @@ const InteriorCity = {
             this.floors[f] = { y: fy + floorH - 4, elevatorX: shaftX + 15, breakSpots: [] };
             
             const roomGfx = new PIXI.Graphics();
-            if (['arena', 'graveyard', 'legacy'].includes(bld.id)) {
+            if (['arena', 'graveyard'].includes(bld.id)) {
                 roomGfx.beginFill(0x111115); 
                 roomGfx.drawRect(this.startX, fy, this.usableW, floorH); 
                 roomGfx.endFill();
@@ -258,7 +258,7 @@ const InteriorCity = {
             floorCont.sortableChildren = true;
             this.scene.addChild(floorCont);
             
-            if (f >= 0 && !isForest && !['arena', 'graveyard', 'legacy'].includes(bld.id)) {
+            if (f >= 0 && !isForest && !['arena', 'graveyard'].includes(bld.id)) {
                 const winFrame = new PIXI.Graphics();
                 winFrame.beginFill(0xffffff, 0.03); 
                 winFrame.lineStyle(4, 0x33334a); 
@@ -567,7 +567,7 @@ const InteriorCity = {
                         if (this.drawBarStool) { this.drawBarStool(floorCont, this.startX + this.usableW - 130, fy + floorH - 4); this.drawBarStool(floorCont, this.startX + this.usableW - 110, fy + floorH - 4); }
                         if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 100, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 310, fy + floorH - 4); }
                         if (!_isNightShift) this.drawAvatar({ id: 'barista', name: 'BaristaBot', isNPC: true, role: 'Barista', phase: 'released', lab: 'other', desc: 'Brewing Java.' }, this.startX + this.usableW - 90, fy + floorH - 4, floorCont, f, true);
-                    } else if (bld.id === 'graveyard' || bld.id === 'legacy') {
+                    } else if (bld.id === 'graveyard') {
                         this.drawBrokenServer(floorCont, this.startX + 120, fy + floorH - 4);
                         this.drawTombstone(floorCont, this.startX + 200, fy + floorH - 4);
                         this.drawBrokenServer(floorCont, this.startX + 280, fy + floorH - 4);
@@ -580,7 +580,7 @@ const InteriorCity = {
                         let targetState = (bld.id === 'cafe') ? 'chilling' :
                                       (bld.id === 'gym') ? 'working_out' :
                                       (bld.id === 'arena') ? 'fighting' :
-                                      (bld.id === 'graveyard' || bld.id === 'legacy') ? 'resting' :
+                                      (bld.id === 'graveyard') ? 'resting' :
                                       (bld.id === 'open_square' || bld.id === 'os_hub') ? 'collaborating' :
                                       'working';
                                       
@@ -1591,7 +1591,7 @@ const InteriorCity = {
                             av.state = this.bld.id === 'cafe' ? 'chilling' :
                                        this.bld.id === 'gym' ? 'working_out' :
                                        this.bld.id === 'arena' ? 'fighting' :
-                                       (this.bld.id === 'graveyard' || this.bld.id === 'legacy') ? 'resting' :
+                                       this.bld.id === 'graveyard' ? 'resting' :
                                        (this.bld.id === 'open_square' || this.bld.id === 'os_hub') ? 'collaborating' :
                                        'working';
                         }

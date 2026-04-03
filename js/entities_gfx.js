@@ -314,7 +314,7 @@ const EntitiesGfx = {
             backCutout.drawRect(-20, G.groundY, 40, tunnelY - G.groundY - 5);
             backCutout.endFill();
             backCutout.x = sx;
-            charLayer.addChildAt(backCutout, 0);
+            undergroundLayer.addChild(backCutout);
 
             const glassFront = new PIXI.Graphics();
             glassFront.beginFill(0x22d3ee, 0.1);
