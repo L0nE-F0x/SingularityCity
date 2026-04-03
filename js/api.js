@@ -236,8 +236,8 @@ const API = {
     
     async fetchHuggingFace() {
         try {
-            const isNetlify = window.location.hostname.includes('netlify');
-            const url = isNetlify 
+            const isDeployed = !['localhost','127.0.0.1'].includes(window.location.hostname);
+            const url = isDeployed 
                 ? '/api/hf/models?sort=likes&limit=25&pipeline_tag=text-generation'
                 : 'https://huggingface.co/api/models?sort=likes&limit=25&pipeline_tag=text-generation';
             const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
@@ -331,8 +331,8 @@ const API = {
     
     async fetchZeroEval() {
         try {
-            const isNetlify = window.location.hostname.includes('netlify');
-            const url = isNetlify
+            const isDeployed = !['localhost','127.0.0.1'].includes(window.location.hostname);
+            const url = isDeployed
                 ? '/api/zeroeval/leaderboard/models/full?justCanonicals=true'
                 : 'https://api.zeroeval.com/leaderboard/models/full?justCanonicals=true';
             const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
