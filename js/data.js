@@ -226,25 +226,25 @@ function getAct(stg, dp, seed, model) {
   if (stg === 'retired') return { act: 'sleep', bid: 'graveyard' };
   // University campus: rumored/baby/kid route to campus during daytime
   const hasUni = typeof UniversityData !== 'undefined' && G.bldById['uni_main'];
-  const hasMuseum = G.bldById && G.bldById['legacy'];
+  const hasMuseum = G.bldById && G.bldById['bld_1'];
   if (stg === 'rumored') {
     if (dp > .2 && dp < .8) {
       // ~12% of rumored models go on a museum field trip during midday
-      if (hasMuseum && dp > .4 && dp < .6 && ((seed * 13) % 100) < 12) return { act: 'socialize', bid: 'legacy' };
+      if (hasMuseum && dp > .4 && dp < .6 && ((seed * 13) % 100) < 12) return { act: 'socialize', bid: 'bld_1' };
       return { act: 'work', bid: hasUni ? 'uni_lab' : null };
     }
     return { act: 'sleep', bid: hasUni ? 'uni_dorm' : resId };
   }
   if (stg === 'baby') {
     if (dp > .2 && dp < .8) {
-      if (hasMuseum && dp > .4 && dp < .6 && ((seed * 13) % 100) < 12) return { act: 'socialize', bid: 'legacy' };
+      if (hasMuseum && dp > .4 && dp < .6 && ((seed * 13) % 100) < 12) return { act: 'socialize', bid: 'bld_1' };
       return { act: 'work', bid: 'uni_dorm' };
     }
     return { act: 'sleep', bid: resId };
   }
   if (stg === 'kid') {
     if (dp > .3 && dp < .9) {
-      if (hasMuseum && dp > .45 && dp < .6 && ((seed * 13) % 100) < 10) return { act: 'socialize', bid: 'legacy' };
+      if (hasMuseum && dp > .45 && dp < .6 && ((seed * 13) % 100) < 10) return { act: 'socialize', bid: 'bld_1' };
       return { act: 'train', bid: 'uni_main' };
     }
     return { act: 'sleep', bid: resId };

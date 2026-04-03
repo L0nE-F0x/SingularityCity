@@ -21,7 +21,7 @@ const Interior = {
             this.activeModule = InteriorBar;
         } else if (bld.id.startsWith('power_') && typeof InteriorPower !== 'undefined') {
             this.activeModule = InteriorPower;
-        } else if (bld.id === 'legacy' && typeof InteriorLegacy !== 'undefined') {
+        } else if (bld.id === 'bld_1' && typeof InteriorLegacy !== 'undefined') {
             this.activeModule = InteriorLegacy;
         } else if (bld.id.startsWith('npc_apt_') && typeof InteriorNPC !== 'undefined') {
             this.activeModule = InteriorNPC;

@@ -23,8 +23,8 @@ const NPCHousing = {
         { id: 'npc_referee',    name: 'Referee',       role: 'Arena Referee',        workplace: 'arena',  color: '#ef4444', shift: 'day' },
         { id: 'npc_nannybot',   name: 'NannyBot',      role: 'Dorm Advisor',         workplace: 'university', color: '#ff69b4', shift: 'day' },
         { id: 'npc_reaper',     name: 'Grim Reaper',   role: 'Sanitation',           workplace: 'graveyard', color: '#666688', shift: 'night' },
-        { id: 'npc_curator',    name: 'Curator',       role: 'Museum Curator',       workplace: 'legacy',    color: '#c9a84c', shift: 'day' },
-        { id: 'npc_tour_guide', name: 'Tour Guide',    role: 'Museum Guide',         workplace: 'legacy',    color: '#60a5fa', shift: 'day' },
+        { id: 'npc_curator',    name: 'Curator',       role: 'Museum Curator',       workplace: 'museum',    color: '#c9a84c', shift: 'day' },
+        { id: 'npc_tour_guide', name: 'Tour Guide',    role: 'Museum Guide',         workplace: 'museum',    color: '#60a5fa', shift: 'day' },
         { id: 'npc_flight_dir', name: 'Flight Director', role: 'Mission Commander',  workplace: 'space',  color: '#ff6b00', shift: 'day' },
         { id: 'npc_capcom',     name: 'CAPCOM',        role: 'Communications',       workplace: 'space',  color: '#00b4d8', shift: 'day' },
         { id: 'npc_crane_op',   name: 'Crane Op',      role: 'Crane Operator',       workplace: 'space',  color: '#facc15', shift: 'day' },
@@ -131,7 +131,7 @@ const NPCHousing = {
         } else if (npc.workplace === 'space') {
             const b = BLDS.find(b => b.id === 'mission_control' || b.id.startsWith('pad_')); return b ? b.x + b.w/2 : 500;
         }
-        const map = { cafe:'cafe', gym:'gym', arena:'arena', neon_bar:'neon_bar', graveyard:'graveyard', legacy:'legacy', forest:'forest_0' };
+        const map = { cafe:'cafe', gym:'gym', arena:'arena', neon_bar:'neon_bar', graveyard:'graveyard', museum:'bld_1', forest:'forest_0' };
         if (npc.workplace === 'university') { const b = G.bldById['uni_main'] || G.bldById['uni_dorm']; if (b) return b.x + b.w/2; }
         if (npc.workplace === 'court') { const b = G.bldById['court_senate'] || G.bldById['court_hearing']; if (b) return b.x + b.w/2; }
         if (npc.workplace === 'vcrow') { const b = G.bldById['vcrow_titan'] || G.bldById['vcrow_apex']; if (b) return b.x + b.w/2; }
@@ -148,7 +148,7 @@ const NPCHousing = {
             const b = BLDS.find(b => b.id === 'mission_control' || b.id.startsWith('pad_'));
             return b ? b.id : null;
         }
-        const map = { cafe:'cafe', gym:'gym', arena:'arena', neon_bar:'neon_bar', graveyard:'graveyard', legacy:'legacy', forest:'forest_0', social:'convention_center', hq:null };
+        const map = { cafe:'cafe', gym:'gym', arena:'arena', neon_bar:'neon_bar', graveyard:'graveyard', museum:'bld_1', forest:'forest_0', social:'convention_center', hq:null };
         if (npc.workplace === 'university') { const b = G.bldById['uni_main'] || G.bldById['uni_dorm']; return b ? b.id : null; }
         if (npc.workplace === 'court') { const b = G.bldById['court_senate'] || G.bldById['court_hearing']; return b ? b.id : null; }
         if (npc.workplace === 'vcrow') { const b = G.bldById['vcrow_titan'] || G.bldById['vcrow_apex']; return b ? b.id : null; }
