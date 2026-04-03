@@ -334,9 +334,9 @@ function getAct(stg, dp, seed, model) {
   // 19:12–22:48  Staggered departure — some hit the bar instead of going home
   if (dp >= 0.80 && dp < 0.95) {
       const goHomeTime = 0.80 + (s / 100) * 0.08;
-      if (dp < goHomeTime) return { act: 'nightlife', bid: 'neon_bar' };
-      // ~15% of models go to the neon bar instead of straight home
-      if (s < 15) return { act: 'nightlife', bid: 'neon_bar' };
+      if (dp < goHomeTime) return { act: 'work', bid: null }; // Still wrapping up at HQ
+      // ~20% of models go to the neon bar instead of straight home
+      if (s < 20) return { act: 'nightlife', bid: 'neon_bar' };
       return { act: 'commute', bid: resId };
   }
 

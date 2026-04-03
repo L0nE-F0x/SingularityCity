@@ -134,6 +134,37 @@ const InteriorBar = {
         for (let lx = 90; lx < G.vpW; lx += 150) { vm.beginFill(0xef4444); vm.drawCircle(lx, vmY + 25, 2); vm.endFill(); }
         this.scene.addChild(vm);
         
+        // ─── VISITOR AVATARS — spawn AI models currently inside the bar ───
+        const visitingModels = G.models.filter(m => {
+            const refs = G.charRefs[m.id];
+            return refs && refs.bld === bld.id;
+        });
+        const floorThemes = ['main_bar', 'karaoke', 'vip'];
+        const visitorsPerFloor = Math.ceil(visitingModels.length / Math.max(1, numFloors));
+        for (let vi = 0; vi < visitingModels.length; vi++) {
+            const vm = visitingModels[vi];
+            const floorIdx = Math.min(numFloors - 1, Math.floor(vi / Math.max(1, visitorsPerFloor)));
+            const fy = roofH + (numFloors - 1 - floorIdx) * floorH;
+            const pY = fy + floorH - 6;
+            const labData = typeof LABS !== 'undefined' ? (LABS[vm.lab] || LABS.other || { color: '#64748b' }) : { color: '#64748b' };
+            const col = parseInt(labData.color.slice(1), 16);
+            const vx = startX + 30 + ((vi * 37) % (bldW - 60));
+            const cont = new PIXI.Container(); cont.x = vx; cont.y = pY; cont.zIndex = 5;
+            const bw2 = 10, h2 = 22;
+            const sh = new PIXI.Graphics(); sh.beginFill(0x000000, 0.2); sh.drawEllipse(0, 2, bw2 * 0.5, 2); sh.endFill();
+            const legL = new PIXI.Graphics(); legL.beginFill(0x2a2a40); legL.drawRect(-2, 0, 2, 3); legL.endFill(); legL.x = -bw2 * 0.15;
+            const legR = new PIXI.Graphics(); legR.beginFill(0x2a2a40); legR.drawRect(0, 0, 2, 3); legR.endFill(); legR.x = bw2 * 0.15;
+            const body = new PIXI.Graphics(); body.beginFill(col); body.drawRoundedRect(-bw2 / 2, -h2 + 8, bw2, 12, 2); body.endFill();
+            const head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw2 * 0.35, 0, bw2 * 0.7, 8, 2); head.endFill();
+            head.beginFill(0x2c1810); head.drawCircle(-1, 3, 0.8); head.drawCircle(1, 3, 0.8); head.endFill(); head.y = -h2;
+            cont.addChild(sh, legL, legR, body, head);
+            cont.eventMode = 'static'; cont.cursor = 'pointer';
+            cont.hitArea = new PIXI.Rectangle(-bw2, -h2 - 4, bw2 * 2, h2 + 8);
+            cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(vm); });
+            this.scene.addChild(cont);
+            this.avatars.push({ cont, head, body, legL, legR, _minX: vx - 25, _maxX: vx + 25, _phase: Math.random() * Math.PI * 2, _walkTimer: 0, _walkDir: 0 });
+        }
+
         // Position
         const bp = 56; this.scene.y = G.vpH - bp - this.totalH + floorH;
         this.minY = this.scene.y - floorH * 3; this.maxY = this.scene.y + floorH * 3;
