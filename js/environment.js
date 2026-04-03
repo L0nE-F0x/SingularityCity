@@ -2054,8 +2054,8 @@ const Environment = {
             });
         }
         // Per-frame: only cheap alpha animations (visibility-culled)
-        const camL = typeof Camera !== 'undefined' ? (-Camera.x / (Camera.zoom || 1)) - 200 : 0;
-        const camR = camL + G.vpW / (Camera.zoom || 1) + 400;
+        const camL = typeof Camera !== 'undefined' ? -Camera.x - 200 : 0;
+        const camR = -Camera.x + G.vpW / (Camera.zoom || 1) + 200;
 
         // ─── CONTAINER VISIBILITY CULLING — tell PixiJS to skip rendering off-screen buildings ───
         BLDS.forEach(b => {

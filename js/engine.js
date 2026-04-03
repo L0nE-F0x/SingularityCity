@@ -1271,6 +1271,7 @@ const G = {
         { id: 'metro',    emoji: '🚇', label: 'Metro East',     match: b => b.id === 'metro_east' },
         { id: 'nightlife', emoji: '🍸', label: 'Nightlife',     match: b => b.id === 'neon_bar' },
         { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
+        { id: 'vcrow',    emoji: '💰', label: 'VC Row',          match: b => b.id.startsWith('vcrow_') },
         { id: 'estates',  emoji: '🏡', label: "Billionaire's",  match: b => b.id.startsWith('house_') },
         { id: 'power',   emoji: '⚡', label: 'Power Grid',    match: b => b.id.startsWith('power_') }
     ],
