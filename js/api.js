@@ -831,6 +831,42 @@ const API = {
         }
     },
 
+    // ═══ NETWORK STATUS — cloud provider incidents + internet health for The Backbone ═══
+    async fetchNetworkStatus() {
+        const feeds = [
+            { url: 'https://status.aws.amazon.com/rss/all.rss', source: 'AWS' },
+            { url: 'https://status.cloud.google.com/feed.atom', source: 'Google Cloud' },
+        ];
+
+        const incidents = [];
+
+        for (const feed of feeds) {
+            try {
+                const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`, { signal: AbortSignal.timeout(8000) });
+                if (!r.ok) continue;
+                const d = await r.json();
+                if (d.status !== 'ok' || !d.items?.length) continue;
+
+                d.items.slice(0, 5).forEach(item => {
+                    const isMajor = /outage|degraded|disruption|emergency/i.test(item.title);
+                    const isMinor = /elevated|latency|intermittent|delay/i.test(item.title);
+                    incidents.push({
+                        headline: `${feed.source}: ${item.title}`,
+                        severity: isMajor ? 'major' : isMinor ? 'minor' : 'info',
+                        url: item.link,
+                        date: item.pubDate?.split(' ')[0] || ''
+                    });
+                });
+            } catch (e) { /* silent — status feeds sometimes fail */ }
+        }
+
+        if (incidents.length > 0 && typeof BackboneZone !== 'undefined') {
+            BackboneZone.cloudStatus = incidents;
+            BackboneZone._buildTicker();
+            console.log(`🌐 Network Status: ${incidents.length} cloud provider updates`);
+        }
+    },
+
     async askAnalyst() {
       const input = document.getElementById('analystInput');
       if (!input) return;

@@ -97,6 +97,17 @@ const Environment = {
       }
       const hasSpaceZone = spaceStartX < Infinity && spaceEndX > 0;
 
+      // ─── Determine backbone zone X range ───
+      let backboneStartX = Infinity, backboneEndX = 0;
+      BLDS.forEach(b => {
+          if (b.id.startsWith('backbone_')) {
+              if (b.x < backboneStartX) backboneStartX = b.x;
+              if (b.x + b.w > backboneEndX) backboneEndX = b.x + b.w;
+          }
+      });
+      const hasBackboneZone = backboneStartX < Infinity && backboneEndX > 0;
+      if (hasBackboneZone) { backboneStartX -= 60; backboneEndX += 40; }
+
       // ─── CITY TERRAIN (skip space zone range) ───
       const drawCityTerrain = (startX, endX) => {
           if (startX >= endX) return;
@@ -190,27 +201,56 @@ const Environment = {
           g.beginFill(0x6b7280, 0.3); g.drawRect(powerStartX + 100, gy - 22, 2, 18); g.drawRect(powerStartX + 100, gy - 20, 20, 1); g.endFill();
       }
 
+      // ─── BACKBONE ZONE TERRAIN — dark metallic with fiber glow ───
+      if (hasBackboneZone) {
+          const bkw = backboneEndX - backboneStartX;
+          // Dark metallic sidewalk
+          g.beginFill(0x0c1525); g.drawRect(backboneStartX, gy - 24, bkw, 24); g.endFill();
+          g.beginFill(0x111e30); g.drawRect(backboneStartX, gy - 24, bkw, 12); g.endFill();
+          g.beginFill(0x1a2a40); g.drawRect(backboneStartX, gy - 24, bkw, 2); g.endFill();
+          // Fiber glow lines embedded in sidewalk
+          for (let fx = backboneStartX; fx < backboneEndX; fx += 50) {
+              g.beginFill(0x22d3ee, 0.08); g.drawRect(fx, gy - 20, 25, 1); g.endFill();
+              g.beginFill(0x4ade80, 0.06); g.drawRect(fx + 30, gy - 16, 15, 1); g.endFill();
+          }
+          // Dark road
+          g.beginFill(0x0a1220); g.drawRect(backboneStartX, gy, bkw, 32); g.endFill();
+          g.beginFill(0x0e1828); g.drawRect(backboneStartX, gy, bkw, 16); g.endFill();
+          // Cyan fiber center line (data running under road)
+          g.beginFill(0x22d3ee, 0.12); g.drawRect(backboneStartX, gy + 14, bkw, 3); g.endFill();
+          g.beginFill(0x4ade80, 0.08); g.drawRect(backboneStartX, gy + 12, bkw, 1); g.endFill();
+          // Road dashes
+          for (let x = backboneStartX; x < backboneEndX; x += 40) {
+              g.beginFill(0x1a3050, 0.5); g.drawRect(x, gy + 14, 20, 3); g.endFill();
+          }
+          // Edge glow accents
+          g.beginFill(0x22d3ee, 0.06); g.drawRect(backboneStartX, gy + 2, bkw, 1); g.endFill();
+          g.beginFill(0x22d3ee, 0.06); g.drawRect(backboneStartX, gy + 29, bkw, 1); g.endFill();
+      }
+
       if (hasSpaceZone) {
           // Desert terrain for space zone
           if (typeof SpaceEnvironment !== 'undefined') {
               SpaceEnvironment.buildDesertTerrain(g, gy, spaceStartX, spaceEndX);
               SpaceEnvironment.buildDesertScenery(g, gy, spaceStartX, spaceEndX);
           }
-          // City terrain: skip port zone, space zone, and power zone
+          // City terrain: skip port zone, space zone, power zone, and backbone zone
+          const cityEndX = hasBackboneZone ? backboneStartX : (hasPowerZone ? powerStartX : G.cityW);
           if (hasPortZone) {
-              // ocean covers from 0 to portStartX
               drawCityTerrain(portEndX, spaceStartX);
           } else {
               drawCityTerrain(0, spaceStartX);
           }
-          drawCityTerrain(spaceEndX, hasPowerZone ? powerStartX : G.cityW);
+          drawCityTerrain(spaceEndX, cityEndX);
+          if (hasBackboneZone && hasPowerZone) drawCityTerrain(backboneEndX, powerStartX);
       } else {
+          const cityEndX = hasBackboneZone ? backboneStartX : (hasPowerZone ? powerStartX : G.cityW);
           if (hasPortZone) {
-              // ocean covers from 0 to portStartX
-              drawCityTerrain(portEndX, hasPowerZone ? powerStartX : G.cityW);
+              drawCityTerrain(portEndX, cityEndX);
           } else {
-              drawCityTerrain(0, hasPowerZone ? powerStartX : G.cityW);
+              drawCityTerrain(0, cityEndX);
           }
+          if (hasBackboneZone && hasPowerZone) drawCityTerrain(backboneEndX, powerStartX);
       }
 
       // Underground base (skip special zones)
@@ -239,7 +279,7 @@ const Environment = {
           g.beginFill(col, a); g.drawRect(cursor, y, G.cityW + 4000 - cursor, h); g.endFill();
       };
       // Helper: is X in a non-city zone?
-      const inSpecialZone = (x) => (hasSpaceZone && x >= spaceStartX && x <= spaceEndX) || (hasPortZone && x >= portStartX && x <= portEndX) || (hasPowerZone && x >= powerStartX && x <= powerEndX);
+      const inSpecialZone = (x) => (hasSpaceZone && x >= spaceStartX && x <= spaceEndX) || (hasPortZone && x >= portStartX && x <= portEndX) || (hasPowerZone && x >= powerStartX && x <= powerEndX) || (hasBackboneZone && x >= backboneStartX && x <= backboneEndX);
 
       const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
       const cableEndX = hasPowerZone ? powerStartX : G.cityW + 2000;
@@ -370,6 +410,50 @@ const Environment = {
               g.beginFill(0x4488cc, 0.03);
               g.moveTo(rx, gy + 32); g.lineTo(rx - 20, gy + 200); g.lineTo(rx + 20, gy + 200);
               g.closePath(); g.endFill();
+          }
+      }
+
+      // ─── BACKBONE ZONE: Dense underground fiber nexus ───
+      if (hasBackboneZone) {
+          const bkw = backboneEndX - backboneStartX;
+          // Dark fiber infrastructure underground
+          g.beginFill(0x060a14); g.drawRect(backboneStartX, gy + 32, bkw, 38); g.endFill();
+          // Dense fiber trunk (the main nexus where all cables converge)
+          for (let fi = 0; fi < 10; fi++) {
+              const fy = gy + 35 + fi * 3;
+              const col = cableCols[fi % cableCols.length];
+              g.beginFill(col, 0.35 + Math.random() * 0.25);
+              g.drawRect(backboneStartX + 10, fy, bkw - 20, 2);
+              g.endFill();
+          }
+          // Cable node dots (junction points)
+          for (let ni = 0; ni < 30; ni++) {
+              const nx = backboneStartX + 20 + Math.random() * (bkw - 40);
+              const ny = gy + 36 + Math.random() * 28;
+              g.beginFill(cableCols[Math.floor(Math.random() * cableCols.length)], 0.5);
+              g.drawCircle(nx, ny, 1.5 + Math.random() * 2);
+              g.endFill();
+          }
+          // Vertical risers from buildings down to fiber trunk
+          const bkBlds = BLDS.filter(b => b.id.startsWith('backbone_'));
+          bkBlds.forEach(bb => {
+              const cx = bb.x + bb.w / 2;
+              // Main riser conduit
+              g.beginFill(0x1a2540); g.drawRect(cx - 4, gy + 32, 8, 20); g.endFill();
+              // Fiber glow inside riser
+              g.beginFill(0x22d3ee, 0.2); g.drawRect(cx - 2, gy + 34, 4, 16); g.endFill();
+              // Junction box at top
+              g.beginFill(0x1a2a40); g.drawRect(cx - 6, gy + 30, 12, 5); g.endFill();
+              g.beginFill(0x22d3ee, 0.4); g.drawCircle(cx - 2, gy + 32, 1.2); g.endFill();
+              g.beginFill(0x4ade80, 0.4); g.drawCircle(cx + 2, gy + 32, 1.2); g.endFill();
+          });
+          // Deep earth below
+          g.beginFill(0x0a0f1a); g.drawRect(backboneStartX, gy + 70, bkw, 100); g.endFill();
+          // Additional deep fiber conduits
+          for (let di = 0; di < 6; di++) {
+              const dy = gy + 80 + di * 12;
+              const col = cableCols[di % cableCols.length];
+              g.beginFill(col, 0.12); g.drawRect(backboneStartX, dy, bkw, 1); g.endFill();
           }
       }
 
@@ -633,6 +717,8 @@ const Environment = {
               b._tickerW = null;
               b._vcTicker = null;
               b._vcTickerW = null;
+              b._bkTicker = null;
+              b._bkTickerW = null;
               b._winFaces = null;
               b._winTexts = null;
               b._sign = null;
@@ -1238,8 +1324,100 @@ const Environment = {
           countTxt.anchor.set(0.5, 0); countTxt.x = b.w / 2; countTxt.y = h - 60;
           container.addChild(countTxt); b._graveTxt = countTxt;
           
+        } else if (b.id.startsWith('backbone_')) {
+          // ── THE BACKBONE: Network Infrastructure Buildings ──
+          const bkCol = 0x22d3ee;
+          // Dark metallic base
+          gfx.beginFill(0x0a1020); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
+          // Subtle panel lines
+          for (let px = 0; px < b.w; px += 30) { gfx.beginFill(0x111e30); gfx.drawRect(px, 0, 1, h); gfx.endFill(); }
+          // Accent glow stripe at top
+          gfx.beginFill(bkCol, 0.15); gfx.drawRect(0, 0, b.w, 3); gfx.endFill();
+          gfx.beginFill(bkCol, 0.08); gfx.drawRect(0, 3, b.w, 2); gfx.endFill();
+          // Floor slabs
+          for (let fi = 1; fi < floors; fi++) {
+              const fy = fi * 18;
+              gfx.beginFill(0x1a2540); gfx.drawRect(0, fy, b.w, 2); gfx.endFill();
+          }
+          // Windows with cool-toned internal glow
+          for (let fi = 0; fi < floors; fi++) {
+              for (let wx = 8; wx < b.w - 12; wx += 22) {
+                  const wy = fi * 18 + 6;
+                  gfx.beginFill(0x0a1830); gfx.drawRect(wx, wy, 16, 10); gfx.endFill();
+                  // Screen/LED glow inside
+                  const glowCol = [0x22d3ee, 0x4ade80, 0x3b82f6, 0x8b5cf6][Math.floor(Math.random()*4)];
+                  gfx.beginFill(glowCol, 0.08 + Math.random() * 0.1);
+                  gfx.drawRect(wx + 1, wy + 1, 14, 8); gfx.endFill();
+              }
+          }
+          // Building-specific features
+          if (b.id === 'backbone_landing') {
+              // Armored cable entry points at base
+              for (let ci = 0; ci < 4; ci++) {
+                  const cx = 20 + ci * 40;
+                  gfx.beginFill(0x1a2540); gfx.drawRect(cx, h-16, 24, 16); gfx.endFill();
+                  gfx.beginFill([0x22d3ee, 0x4ade80, 0xfacc15, 0xf43f5e][ci], 0.3);
+                  gfx.drawRect(cx+4, h-12, 16, 3); gfx.endFill();
+              }
+              // Armored cable stub coming from ground
+              gfx.beginFill(0x333850); gfx.drawRect(b.w/2-20, h-8, 40, 8); gfx.endFill();
+          } else if (b.id === 'backbone_ixp') {
+              // Central hub: data convergence symbol
+              gfx.beginFill(bkCol, 0.12); gfx.drawRect(b.w/2-30, h/2-15, 60, 30); gfx.endFill();
+              gfx.beginFill(bkCol, 0.06); gfx.drawRect(b.w/2-40, h/2-5, 80, 10); gfx.endFill();
+              // Cable junction strips
+              for (let si = 0; si < 6; si++) {
+                  const sy = h - 20 + si * 3;
+                  const col = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6][si];
+                  gfx.beginFill(col, 0.2); gfx.drawRect(0, sy, b.w, 2); gfx.endFill();
+              }
+          } else if (b.id === 'backbone_ground') {
+              // Satellite dishes on roof
+              for (let di = 0; di < 3; di++) {
+                  const dx = 30 + di * 55;
+                  // Dish mount
+                  gfx.beginFill(0x64748b); gfx.drawRect(dx+10, 6, 4, 16); gfx.endFill();
+                  // Dish
+                  gfx.beginFill(0xcbd5e1, 0.25);
+                  gfx.drawEllipse(dx+12, 6, 22, 8); gfx.endFill();
+                  gfx.beginFill(0xe2e8f0, 0.15);
+                  gfx.drawEllipse(dx+12, 6, 18, 6); gfx.endFill();
+                  // Feed horn
+                  gfx.beginFill(0xa855f7, 0.5); gfx.drawCircle(dx+12, 6, 2); gfx.endFill();
+              }
+          } else if (b.id === 'backbone_cdn') {
+              // Edge cache indicators
+              for (let ri = 0; ri < 5; ri++) {
+                  const ry = 10 + ri * (floors * 18) / 5;
+                  gfx.beginFill(0xf97316, 0.08); gfx.drawRect(4, ry, b.w-8, 8); gfx.endFill();
+                  // Status bar
+                  const fill = 0.4 + Math.random() * 0.6;
+                  gfx.beginFill(0x4ade80, 0.2); gfx.drawRect(6, ry+2, (b.w-12)*fill, 4); gfx.endFill();
+              }
+          } else if (b.id === 'backbone_noc') {
+              // Large NOC: monitoring screens visible through windows
+              for (let fi = 1; fi < floors - 1; fi++) {
+                  const fy = fi * 18 + 4;
+                  // Large screen arrays
+                  for (let sx = 10; sx < b.w - 20; sx += 35) {
+                      gfx.beginFill(0x0a0818); gfx.drawRect(sx, fy, 28, 12); gfx.endFill();
+                      gfx.beginFill(bkCol, 0.06); gfx.drawRect(sx+1, fy+1, 26, 10); gfx.endFill();
+                  }
+              }
+              // Rooftop antenna array
+              for (let ai = 0; ai < 3; ai++) {
+                  const ax = 40 + ai * 65;
+                  gfx.beginFill(0x64748b); gfx.drawRect(ax, -8, 3, 12); gfx.endFill();
+                  gfx.beginFill(0x94a3b8); gfx.drawRect(ax-5, -4, 13, 2); gfx.endFill();
+                  gfx.beginFill(0xef4444, 0.5); gfx.drawCircle(ax+1, -8, 1.5); gfx.endFill();
+              }
+          }
+          // Base / foundation
+          gfx.beginFill(0x111e30); gfx.drawRect(0, h-4, b.w, 4); gfx.endFill();
+          gfx.beginFill(bkCol, 0.1); gfx.drawRect(0, h-4, b.w, 1); gfx.endFill();
+
         } else if (b.id.startsWith('power_')) {
-          // ── POWER GRID ZONE BUILDINGS ──          
+          // ── POWER GRID ZONE BUILDINGS ──
           if (b.id === 'power_solar') {
             // Ground pad
             gfx.beginFill(0x2a2a20); gfx.drawRect(0, h-10, b.w, 10); gfx.endFill();
@@ -1723,6 +1901,25 @@ const Environment = {
             container.addChild(tickCont);
         }
 
+        // ─── BACKBONE: Network status ticker on IXP building ───
+        if (b.id === 'backbone_ixp' && typeof BackboneZone !== 'undefined') {
+            const bkTickCont = new PIXI.Container();
+            bkTickCont.y = 0;
+            const bkTickBg = new PIXI.Graphics();
+            bkTickBg.beginFill(0x000000, 0.9); bkTickBg.drawRect(0, 0, b.w, 14); bkTickBg.endFill();
+            bkTickCont.addChild(bkTickBg);
+            const bkMask = new PIXI.Graphics();
+            bkMask.beginFill(0xffffff); bkMask.drawRect(0, -5, b.w, 24); bkMask.endFill();
+            bkTickCont.addChild(bkMask); bkTickCont.mask = bkMask;
+            const bkTickTxt = new PIXI.Text(BackboneZone.getNextTickerItem(), {
+                fontFamily: 'monospace', fontSize: 10, fontWeight: '900', strokeThickness: 1,
+                fill: 0x22d3ee, stroke: 0x22d3ee, dropShadow: true, dropShadowColor: 0x22d3ee, dropShadowBlur: 10, dropShadowDistance: 0, padding: 10
+            });
+            bkTickTxt.y = 1; bkTickTxt.x = b.w; bkTickTxt.blendMode = PIXI.BLEND_MODES.ADD;
+            bkTickCont.addChild(bkTickTxt); b._bkTicker = bkTickTxt; b._bkTickerW = b.w;
+            container.addChild(bkTickCont);
+        }
+
         // ─── VC ROW: Deal ticker on rooftop (same pattern as HQ stock tickers above) ───
         if (b.type === 'vcrow' && typeof VCRow !== 'undefined') {
             const vTickCont = new PIXI.Container();
@@ -2193,7 +2390,14 @@ const Environment = {
                     b._vcTicker.text = (typeof VCRow !== 'undefined') ? VCRow.getNextTickerItem() : '';
                     b._vcTicker.x = b._vcTickerW;
                 }
-            } 
+            }
+            if (b._bkTicker && b._bkTickerW) {
+                b._bkTicker.x -= 0.5;
+                if (b._bkTicker.x + b._bkTicker.width < 0) {
+                    b._bkTicker.text = (typeof BackboneZone !== 'undefined') ? BackboneZone.getNextTickerItem() : '';
+                    b._bkTicker.x = b._bkTickerW;
+                }
+            }
         });
         
         if (G.tick % 120 === 0) { 

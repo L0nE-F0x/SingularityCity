@@ -33,6 +33,8 @@ const Interior = {
             this.activeModule = ConferenceInterior;
         } else if (bld.type === 'vcrow' && typeof InteriorVCRow !== 'undefined') {
             this.activeModule = InteriorVCRow;
+        } else if (bld.type === 'backbone' && typeof InteriorBackbone !== 'undefined') {
+            this.activeModule = InteriorBackbone;
         } else {
             this.activeModule = InteriorCity;
         }

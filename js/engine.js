@@ -238,7 +238,7 @@ const G = {
         const isSpecialId = (id) => id.startsWith('res_') || id === 'metro_res' || id.startsWith('house_') ||
             id === 'metro_east' || id === 'metro_dc' || id === 'metro_mid' || id.startsWith('npc_apt_') ||
             id === 'neon_bar' || id === 'visitor_monument' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
-            id.startsWith('uni_') || id.startsWith('court_') || id === 'convention_center';
+            id.startsWith('uni_') || id.startsWith('court_') || id === 'convention_center' || id.startsWith('backbone_');
 
         const techBldsList = BLDS.filter(b =>
             !isSpecialId(b.id) && !isDcBld(b) && !isSpaceOrForestSep(b)
@@ -332,7 +332,13 @@ const G = {
             currentX += mEast.w;
         }
 
-        currentX += 500; 
+        // ─── THE BACKBONE: Network Infrastructure District ───
+        if (typeof BackboneZone !== 'undefined') {
+            currentX = BackboneZone.positionZone(currentX);
+        } else {
+            currentX += 500;
+        }
+
         let fSilicon = BLDS.find(b => b.id === 'forest_1');
         if (fSilicon) {
             fSilicon.x = currentX;
@@ -397,6 +403,7 @@ const G = {
         if (nBar) addZB('nightlife', [nBar]);
         if (fSilicon) addZB('forest', [fSilicon]);
         addZB('estates', BLDS.filter(b => b.id.startsWith('house_')));
+        addZB('backbone', BLDS.filter(b => b.id.startsWith('backbone_')));
         addZB('power', BLDS.filter(b => b.id.startsWith('power_')));
 
         BLDS.sort((a, b) => a.x - b.x);
@@ -1274,6 +1281,7 @@ const G = {
         { id: 'conference', emoji: '🎓', label: 'Conference',   match: b => b.id === 'convention_center' },
         { id: 'metro',    emoji: '🚇', label: 'Metro East',     match: b => b.id === 'metro_east' },
         { id: 'nightlife', emoji: '🍸', label: 'Nightlife',     match: b => b.id === 'neon_bar' },
+        { id: 'backbone', emoji: '🌐', label: 'The Backbone',  match: b => b.id.startsWith('backbone_') },
         { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
         { id: 'vcrow',    emoji: '💰', label: 'VC Row',          match: b => b.id.startsWith('vcrow_') },
         { id: 'estates',  emoji: '🏡', label: "Billionaire's",  match: b => b.id.startsWith('house_') },
@@ -1351,7 +1359,7 @@ const G = {
         const scale = cW / Math.max(this.cityW, 1);
         
         // Draw zone color bands
-        const zoneColors = { port: '#0a1628', space: '#c2956a', frontier: '#1b4332', npc_housing: '#1a2030', res: '#334155', pine: '#1b4332', tech: '#2a2a42', metro: '#475569', nightlife: '#1a0a2e', silicon: '#1b4332', estates: '#3d2514', power: '#1a1a10' };
+        const zoneColors = { port: '#0a1628', space: '#c2956a', frontier: '#1b4332', npc_housing: '#1a2030', res: '#334155', pine: '#1b4332', tech: '#2a2a42', metro: '#475569', nightlife: '#1a0a2e', backbone: '#0a1525', silicon: '#1b4332', estates: '#3d2514', power: '#1a1a10' };
         
         this._mmZones.forEach(z => {
             let minX = Infinity, maxX = 0;
@@ -1493,7 +1501,8 @@ const G = {
       if (typeof CourtData !== 'undefined') CourtData.init();
       if (typeof ConferenceData !== 'undefined') ConferenceData.init();
       if (typeof VCRow !== 'undefined') VCRow.init();
-      
+      if (typeof BackboneZone !== 'undefined') BackboneZone.init();
+
       this.recalculateZoning(); 
       
       
@@ -1617,6 +1626,9 @@ const G = {
       if (typeof VCRowEnv !== 'undefined') {
           VCRowEnv.buildAnimations(this.charLayer);
       }
+      if (typeof BackboneEnv !== 'undefined') {
+          BackboneEnv.buildAnimations(this.charLayer);
+      }
       if (typeof VCRow !== 'undefined' && this.carLayer) {
           VCRow.spawnCars(this.carLayer);
       }
@@ -1692,12 +1704,14 @@ const G = {
           setTimeout(() => API.fetchArxivPapers(), 18000);
           setTimeout(() => API.fetchVCDealsRSS(), 22000);            // RSS VC deal headlines
           setTimeout(() => API.fetchSupplyChainNews(), 26000);       // RSS semiconductor news
+          setTimeout(() => API.fetchNetworkStatus(), 30000);         // Cloud status for Backbone
           setInterval(() => API.fetchVCFunding(), 30 * 60 * 1000);        // every 30 min
           setInterval(() => API.fetchSupplyChain(), 60 * 60 * 1000);      // every hour
           setInterval(() => API.fetchRegulationNews(), 15 * 60 * 1000);   // every 15 min
           setInterval(() => API.fetchArxivPapers(), 60 * 60 * 1000);      // every hour
           setInterval(() => API.fetchVCDealsRSS(), 30 * 60 * 1000);      // every 30 min
           setInterval(() => API.fetchSupplyChainNews(), 60 * 60 * 1000);  // every hour
+          setInterval(() => API.fetchNetworkStatus(), 15 * 60 * 1000);    // every 15 min
       }
       
       this.startAutoScan(); 
@@ -1876,6 +1890,8 @@ const G = {
       if (typeof PortEnv !== 'undefined') PortEnv.update();
       if (typeof PowerEnv !== 'undefined') PowerEnv.update();
       if (typeof VCRowEnv !== 'undefined') VCRowEnv.update();
+      if (typeof BackboneEnv !== 'undefined') BackboneEnv.update();
+      if (typeof BackboneZone !== 'undefined') BackboneZone.update();
       if (typeof VCRow !== 'undefined') { VCRow.update(); VCRow.updateCommuters(dp); }
       if (typeof Multiplayer !== 'undefined') Multiplayer.update();
       if (typeof SeasonalEnv !== 'undefined') SeasonalEnv.update();
