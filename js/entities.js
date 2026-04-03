@@ -23,6 +23,7 @@ const Entities = {
             this.trainEast = trains.trainEast;
             this.trainMid = trains.trainMid;
             this.trainDC = trains.trainDC;
+            this.metroRiderCont = trains.riderCont;
             this.stationVisuals = trains.stationVisuals;
             this.bunkerGfx = trains.bunkerGfx;
             this.bunkerTxts = trains.bunkerTxts;
@@ -1118,11 +1119,13 @@ const Entities = {
                     refs.c.y = refs._logicalY - bobY + depthOffset;
                     refs.c.scale.x = currentDir;
                     refs.c.zIndex = Math.round(refs.c.y);
-                    // Layer-swap: move to trainLayer when underground so models render
-                    // behind groundGfx and are only visible through the tunnel cavity
+                    // Layer-swap: move to metroRiderCont when underground so models render
+                    // behind groundGfx (only visible through tunnel cavity) and INSIDE trains
+                    // (riderCont sits between train body and front panel in trainLayer)
                     const isUnderground = refs._metroState !== 'none' && refs._logicalY > G.groundY;
+                    const riderLayer = this.metroRiderCont || this.trainLayer;
                     if (isUnderground && !refs._inTrainLayer) {
-                        this.trainLayer.addChild(refs.c);
+                        riderLayer.addChild(refs.c);
                         refs._inTrainLayer = true;
                     } else if (!isUnderground && refs._inTrainLayer) {
                         this.charLayer.addChild(refs.c);

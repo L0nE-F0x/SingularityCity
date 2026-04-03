@@ -334,11 +334,22 @@ const EntitiesGfx = {
 
         this.drawBunkers(bunkerGfx, charLayer, bunkerTxts);
 
+        const tW = this.createTrainObj(trainLayer, carLayer, mResX, mHqX, 180, tunnelY);
+        const tE = mMidX ? this.createTrainObj(trainLayer, carLayer, mHqX, mMidX, 90, tunnelY) : this.createTrainObj(trainLayer, carLayer, mHqX, mEastX, 90, tunnelY);
+        const tM = mMidX ? this.createTrainObj(trainLayer, carLayer, mMidX, mEastX, 45, tunnelY) : null;
+        const tD = mDcX ? this.createTrainObj(trainLayer, carLayer, mDcX, mResX, 120, tunnelY) : null;
+
+        // Restructure trainLayer: bodies → riderCont → fronts
+        // so metro riders render INSIDE the train (behind front panel)
+        const riderCont = new PIXI.Container();
+        riderCont.sortableChildren = true;
+        [tW, tE, tM, tD].forEach(t => { if (t) trainLayer.removeChild(t.front); });
+        trainLayer.addChild(riderCont);
+        [tW, tE, tM, tD].forEach(t => { if (t) trainLayer.addChild(t.front); });
+
         return {
-            trainWest: this.createTrainObj(trainLayer, carLayer, mResX, mHqX, 180, tunnelY),
-            trainEast: mMidX ? this.createTrainObj(trainLayer, carLayer, mHqX, mMidX, 90, tunnelY) : this.createTrainObj(trainLayer, carLayer, mHqX, mEastX, 90, tunnelY),
-            trainMid: mMidX ? this.createTrainObj(trainLayer, carLayer, mMidX, mEastX, 45, tunnelY) : null,
-            trainDC: mDcX ? this.createTrainObj(trainLayer, carLayer, mDcX, mResX, 120, tunnelY) : null,
+            trainWest: tW, trainEast: tE, trainMid: tM, trainDC: tD,
+            riderCont: riderCont,
             stationVisuals: stationVisuals,
             bunkerGfx: bunkerGfx,
             bunkerTxts: bunkerTxts

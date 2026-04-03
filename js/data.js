@@ -311,24 +311,30 @@ function getAct(stg, dp, seed, model) {
   // 13:12–15:36  Afternoon work block
   if (dp >= 0.55 && dp < 0.65) return { act: 'work', bid: null };
 
-  // 15:36–18:00  Late afternoon — open source devs may share, others work
-  if (dp >= .65 && dp < .75) {
+  // 15:36–17:17  Late afternoon — open source devs share, some leave early
+  if (dp >= .65 && dp < .72) {
       if (model.os && s < 30) return { act: 'share', bid: 'open_square' };
+      if (s < 15) return { act: 'socialize', bid: 'park' };
       return { act: 'work', bid: null };
   }
 
-  // 18:00–19:40  Arena time for some, others wrapping up (personality biased)
-  if (dp >= .75 && dp < .82) {
+  // 17:17–19:12  Evening wind-down — arena, social, early departures
+  if (dp >= .72 && dp < .80) {
       const traitBid = (typeof Personality !== 'undefined') ? Personality.getBuildingBias(model, 'play', dp) : null;
       if (traitBid) return { act: s < 50 ? 'arena' : 'socialize', bid: traitBid };
       if (s < 20) return { act: 'arena', bid: 'arena' };
+      if (s < 40) return { act: 'socialize', bid: 'park' };
+      if (s < 55) return { act: 'nightlife', bid: 'neon_bar' };
+      // Staggered early leavers
+      const earlyLeave = 0.72 + (s / 100) * 0.08;
+      if (dp >= earlyLeave) return { act: 'commute', bid: resId };
       return { act: 'work', bid: null };
   }
-  
-  // 19:40–22:48  Staggered departure — some hit the bar instead of going home
-  if (dp >= 0.82 && dp < 0.95) {
-      const goHomeTime = 0.82 + (s / 100) * 0.10;
-      if (dp < goHomeTime) return { act: 'work', bid: null };
+
+  // 19:12–22:48  Staggered departure — some hit the bar instead of going home
+  if (dp >= 0.80 && dp < 0.95) {
+      const goHomeTime = 0.80 + (s / 100) * 0.08;
+      if (dp < goHomeTime) return { act: 'nightlife', bid: 'neon_bar' };
       // ~15% of models go to the neon bar instead of straight home
       if (s < 15) return { act: 'nightlife', bid: 'neon_bar' };
       return { act: 'commute', bid: resId };

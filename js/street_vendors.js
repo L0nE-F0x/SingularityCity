@@ -255,7 +255,7 @@ const StreetVendors = {
         if (!this.vendors.length) return;
 
         this.vendors.forEach((vm, vi) => {
-            const vendTime = dp >= 0.33 && dp < 0.75;
+            const vendTime = dp >= 0.33 && dp < 0.83;
             const goTime   = dp >= 0.28 && dp < 0.33;
 
             // State machine
