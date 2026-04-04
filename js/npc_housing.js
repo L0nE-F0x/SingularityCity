@@ -126,6 +126,10 @@ const NPCHousing = {
     },
 
     _getWorkX(npc) {
+        // Direct building ID lookup (e.g. backbone_noc, backbone_ixp)
+        if (npc.workplace && G.bldById[npc.workplace]) {
+            const b = G.bldById[npc.workplace]; return b.x + b.w / 2;
+        }
         if (npc.workplace === 'dc' || npc.workplace === 'fab') {
             const b = BLDS.find(b => b.id.startsWith('dc_') || b.id.startsWith('fab_')); return b ? b.x + b.w/2 : 2000;
         } else if (npc.workplace === 'space') {
@@ -140,6 +144,8 @@ const NPCHousing = {
     },
 
     _getWorkBld(npc) {
+        // Direct building ID lookup (e.g. backbone_noc, backbone_ixp)
+        if (npc.workplace && G.bldById[npc.workplace]) return npc.workplace;
         if (npc.workplace === 'dc' || npc.workplace === 'fab') {
             const b = BLDS.find(b => b.id.startsWith('dc_') || b.id.startsWith('fab_'));
             return b ? b.id : null;

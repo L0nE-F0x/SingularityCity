@@ -9,13 +9,13 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const InteriorBackbone = {
-    scene: null, layer: null, bld: null, avatars: [], indoorLights: [],
+    scene: null, layer: null, bld: null, avatars: [], bubbles: [], indoorLights: [],
     skyContainer: null, starsLayer: null, celestialGfx: null,
     isDragging: false, _startY: 0, _startSceneY: 0, minY: 0, maxY: 0, totalH: 0,
 
     build(bld, layer) {
         this.bld = bld; this.layer = layer; this.layer.removeChildren();
-        this.avatars = []; this.indoorLights = [];
+        this.avatars = []; this.bubbles = []; this.indoorLights = [];
 
         // Sky
         this.skyContainer = new PIXI.Container(); this.layer.addChild(this.skyContainer);
@@ -83,9 +83,14 @@ const InteriorBackbone = {
             const fl = new PIXI.Text(floorName.toUpperCase(), { fontFamily:'JetBrains Mono', fontSize:7, fill:layout.col, letterSpacing:2 });
             fl.anchor.set(0.5,0); fl.x = startX+bldW/2; fl.y = fy+6; this.scene.addChild(fl);
             // Floor props
-            const fc = new PIXI.Container(); this.scene.addChild(fc);
+            const fc = new PIXI.Container(); fc.sortableChildren = true; this.scene.addChild(fc);
             const pY = fy + floorH - 6;
             this._drawFloorProps(fc, startX, bldW, pY, fy, floorH, floorName, layout.col, bld.id);
+            // Spawn NPCs on this floor
+            const floorNpcs = this._getNPCsForFloor(floorName, layout, f, numFloors);
+            floorNpcs.forEach(npcDef => {
+                this.drawNPC(fc, startX + npcDef.xOff, pY, npcDef.role, npcDef.col);
+            });
         }
 
         // Earth + fiber cables below building
@@ -287,6 +292,222 @@ const InteriorBackbone = {
         c.addChild(g);
     },
 
+    // ════════════════════════════════════════════════════
+    //   NPC FLOOR ASSIGNMENT
+    // ════════════════════════════════════════════════════
+
+    _getNPCsForFloor(floorName, layout, floorIdx, numFloors) {
+        const fn = floorName.toLowerCase();
+        const col = layout.col;
+        const bw = G.vpW - 120;
+        // Assign defined NPCs to specific floors, plus generic extras
+        if (fn.includes('war room') || fn.includes('monitoring wall')) {
+            return [
+                { role: 'NOC Lead', col: 0x22d3ee, xOff: bw * 0.25 },
+                { role: 'SRE', col: 0xef4444, xOff: bw * 0.55 },
+                { role: 'Analyst', col: 0x94a3b8, xOff: bw * 0.8 }
+            ];
+        } else if (fn.includes('peering') || fn.includes('meet-me')) {
+            return [
+                { role: 'Peering Eng', col: 0x4ade80, xOff: bw * 0.3 },
+                { role: 'IX Operator', col: 0x22d3ee, xOff: bw * 0.65 }
+            ];
+        } else if (fn.includes('cross-connect')) {
+            return [{ role: 'Patch Tech', col: 0xfbbf24, xOff: bw * 0.5 }];
+        } else if (fn.includes('cable vault') || fn.includes('amplifier')) {
+            return [
+                { role: 'Splice Tech', col: 0xfbbf24, xOff: bw * 0.35 },
+                { role: 'Cable Tech', col: 0x3b82f6, xOff: bw * 0.7 }
+            ];
+        } else if (fn.includes('cache') || fn.includes('edge compute') || fn.includes('server')) {
+            return [
+                { role: 'CDN Eng', col: 0xf97316, xOff: bw * 0.3 },
+                { role: 'Cache Ops', col: 0x94a3b8, xOff: bw * 0.7 }
+            ];
+        } else if (fn.includes('dish') || fn.includes('tracking') || fn.includes('antenna')) {
+            return [
+                { role: 'Sat Ops', col: 0xa855f7, xOff: bw * 0.3 },
+                { role: 'RF Engineer', col: 0x64748b, xOff: bw * 0.65 }
+            ];
+        } else if (fn.includes('incident') || fn.includes('ops deck')) {
+            return [
+                { role: 'Incident Cmdr', col: 0xef4444, xOff: bw * 0.4 },
+                { role: 'Comms Lead', col: 0x94a3b8, xOff: bw * 0.6 }
+            ];
+        } else if (fn.includes('waf') || fn.includes('noc desk')) {
+            return [{ role: 'Security Eng', col: 0xef4444, xOff: bw * 0.5 }];
+        } else if (fn.includes('executive') || fn.includes('boardroom')) {
+            return [{ role: 'VP Infra', col: 0xfbbf24, xOff: bw * 0.5 }];
+        } else if (fn.includes('rooftop') || fn.includes('terrace')) {
+            return []; // No NPCs on rooftop antenna array
+        } else {
+            return [{ role: 'Technician', col: 0x64748b, xOff: bw * 0.5 }];
+        }
+    },
+
+    // ════════════════════════════════════════════════════
+    //   PIXEL ART NPC
+    // ════════════════════════════════════════════════════
+
+    drawNPC(c, x, y, role, col) {
+        const colHex = col || 0x64748b;
+        const bw = 12, h = 28, headH = 10, bodyH = h - headH - 4, legH = 4, eyeS = 1;
+        const cont = new PIXI.Container();
+
+        const shadow = new PIXI.Graphics();
+        shadow.beginFill(0x000000, 0.25); shadow.drawEllipse(0, 2, bw * 0.6, 3); shadow.endFill();
+
+        const head = new PIXI.Graphics();
+        head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25); head.endFill();
+        head.beginFill(0x2c1810); head.drawCircle(-bw * 0.1, headH * 0.38, eyeS); head.drawCircle(bw * 0.1, headH * 0.38, eyeS); head.endFill();
+        head.beginFill(0x000000, 0.4); head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5); head.endFill();
+        head.y = -h;
+
+        const body = new PIXI.Graphics();
+        body.beginFill(colHex); body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1); body.endFill();
+        body.y = -h + headH;
+
+        const lw = Math.max(2, bw * 0.25), lh = Math.max(legH, 2);
+        const legL = new PIXI.Graphics();
+        legL.beginFill(0x1e293b); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill(); legL.x = -bw * 0.15;
+        const legR = new PIXI.Graphics();
+        legR.beginFill(0x1e293b); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill(); legR.x = bw * 0.15;
+
+        const dot = new PIXI.Graphics();
+        dot.beginFill(colHex); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 6;
+
+        cont.addChild(shadow, legL, legR, body, head, dot);
+        cont.x = x; cont.y = y;
+
+        const txt = new PIXI.Text(role, { fontFamily: '"JetBrains Mono", monospace', fontSize: 6, fill: colHex });
+        txt.anchor.set(0.5, 1); txt.y = -h - 8;
+        cont.addChild(txt);
+
+        cont.eventMode = 'static'; cont.cursor = 'pointer';
+        cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.addToast(`${role} — Backbone Infrastructure`); });
+
+        c.addChild(cont);
+
+        const agent = {
+            m: { id: 'bb_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true },
+            cont, head, body, legL, legR, dot, shadow, label: txt,
+            state: 'working', timer: 60 + Math.floor(Math.random() * 200),
+            deskX: x, floorY: y, targetX: x, speed: 0.8,
+            role, _h: h
+        };
+        this.avatars.push(agent);
+        return agent;
+    },
+
+    // ════════════════════════════════════════════════════
+    //   NPC ANIMATION STATE MACHINE
+    // ════════════════════════════════════════════════════
+
+    updateAvatars() {
+        const BACKBONE_MSGS = [
+            "BGP converged.", "Latency nominal.", "Cache hit 94%.",
+            "Fiber signal clean.", "Peering session up.", "Route flap detected.",
+            "DDoS mitigated.", "Failover tested.", "Patch panel traced.",
+            "Satellite lock OK.", "Traffic spike — scaling.", "All green."
+        ];
+
+        this.avatars.forEach(av => {
+            if (!av.cont || av.cont.destroyed) return;
+            av.timer--;
+
+            switch (av.state) {
+                case 'working': {
+                    av.head.y = -av._h + Math.sin(G.tick * 0.04 + av.deskX) * 0.5;
+                    av.body.y = -av._h + av._h * 0.36 + Math.abs(Math.sin(G.tick * 0.03 + av.deskX)) * 0.3;
+                    if (av.timer <= 0) {
+                        const r = Math.random();
+                        if (r < 0.3) {
+                            av.state = 'walking';
+                            av.targetX = av.deskX + (Math.random() - 0.5) * 120;
+                            av.targetX = Math.max(30, Math.min(G.vpW - 30, av.targetX));
+                        } else if (r < 0.5) {
+                            av.state = 'chatting';
+                            av.timer = 80 + Math.floor(Math.random() * 60);
+                            this.spawnBubble(av, BACKBONE_MSGS[Math.floor(Math.random() * BACKBONE_MSGS.length)]);
+                        } else {
+                            av.timer = 100 + Math.floor(Math.random() * 200);
+                            if (Math.random() < 0.3) {
+                                this.spawnBubble(av, BACKBONE_MSGS[Math.floor(Math.random() * BACKBONE_MSGS.length)]);
+                            }
+                        }
+                    }
+                    break;
+                }
+                case 'walking': {
+                    const dx = av.targetX - av.cont.x;
+                    if (Math.abs(dx) < 2) {
+                        av.cont.x = av.targetX;
+                        av.cont.scale.x = 1;
+                        if (av.label) av.label.scale.x = 1;
+                        if (av.dot) av.dot.scale.x = 1;
+                        av.state = 'working';
+                        av.timer = 100 + Math.floor(Math.random() * 200);
+                    } else {
+                        const dir = dx > 0 ? 1 : -1;
+                        av.cont.x += dir * av.speed;
+                        av.cont.scale.x = dir;
+                        if (av.label) av.label.scale.x = dir;
+                        if (av.dot) av.dot.scale.x = dir;
+                    }
+                    av.head.y = -av._h + Math.sin(G.tick * 0.2) * 1.5;
+                    av.body.y = -av._h + av._h * 0.36 + Math.abs(Math.sin(G.tick * 0.2)) * 1.5;
+                    av.legL.y = Math.sin(G.tick * 0.3) * 3;
+                    av.legR.y = -Math.sin(G.tick * 0.3) * 3;
+                    break;
+                }
+                case 'chatting': {
+                    av.head.y = -av._h + Math.sin(G.tick * 0.06) * 1;
+                    av.body.y = -av._h + av._h * 0.36;
+                    if (av.timer <= 0) {
+                        av.state = 'working';
+                        av.timer = 80 + Math.floor(Math.random() * 150);
+                    }
+                    break;
+                }
+            }
+        });
+
+        // Update speech bubbles
+        for (let i = this.bubbles.length - 1; i >= 0; i--) {
+            const b = this.bubbles[i];
+            b.life--;
+            b.cont.y -= 0.15;
+            b.cont.alpha = Math.min(1, b.life / 20);
+            if (b.life <= 0) {
+                if (b.cont.parent) b.cont.parent.removeChild(b.cont);
+                b.cont.destroy({ children: true });
+                this.bubbles.splice(i, 1);
+            }
+        }
+    },
+
+    spawnBubble(av, msg) {
+        if (!this.scene || this.scene.destroyed) return;
+        const bCont = new PIXI.Container();
+        const txt = new PIXI.Text(msg, { fontFamily: '"JetBrains Mono", monospace', fontSize: 8, fill: 0x000000, fontWeight: 'bold' });
+        txt.anchor.set(0.5, 1); txt.y = -6;
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0xffffff);
+        bg.drawRoundedRect(-txt.width / 2 - 6, -txt.height - 10, txt.width + 12, txt.height + 8, 4);
+        bg.endFill();
+        bg.beginFill(0xffffff);
+        bg.moveTo(-4, -4); bg.lineTo(4, -4); bg.lineTo(0, 2); bg.endFill();
+        bCont.addChild(bg, txt);
+        bCont.x = av.cont.x;
+        bCont.y = av.cont.y - av._h - 10;
+        this.scene.addChild(bCont);
+        this.bubbles.push({ cont: bCont, life: 120 });
+    },
+
+    // ════════════════════════════════════════════════════
+    //   UPDATE LOOP
+    // ════════════════════════════════════════════════════
+
     update() {
         // Animate stars
         if (this.starsLayer && typeof G !== 'undefined') {
@@ -301,5 +522,7 @@ const InteriorBackbone = {
                 if (l._flicker) l.alpha = 0.3 + Math.sin(fc * 0.05 + l._phase) * 0.3;
             });
         }
+        // Animate NPCs
+        this.updateAvatars();
     }
 };
