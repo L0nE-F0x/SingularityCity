@@ -149,19 +149,27 @@ const Camera = {
             } else if (G.tracking.type === 'ceo') {
                 const ceo = G.ceoRefs ? G.ceoRefs[G.tracking.lab] : null;
                 if (ceo) {
-                    // Check if CEO is in a helicopter — follow the heli instead
-                    if (ceo._inHeli && typeof Entities !== 'undefined' && Entities.heliRefs) {
-                        const heli = Entities.heliRefs[G.tracking.lab];
-                        if (heli && heli.cont && heli.cont.visible) {
-                            entityX = heli.cont.x;
-                            entityY = heli.cont.y;
+                    const heli = (typeof Entities !== 'undefined' && Entities.heliRefs) ? Entities.heliRefs[G.tracking.lab] : null;
+                    const heliActive = heli && heli.state !== 'hidden';
+
+                    if (heliActive && heli.cont && heli.cont.visible) {
+                        // Helicopter is flying/landing/taking off — follow it
+                        entityX = heli.cont.x;
+                        entityY = heli.cont.y;
+                    } else if (heliActive && !heli.cont.visible) {
+                        // Helicopter grounded (hidden inside building) — follow building position
+                        const bld = ceo.bld ? G.bldById[ceo.bld] : null;
+                        if (bld) {
+                            entityX = bld.x + bld.w / 2;
+                            entityY = G.groundY;
                         } else {
-                            entityX = ceo.logicalX;
-                            entityY = G.groundY - 220; // approximate heli altitude
+                            entityX = heli.logicalX;
+                            entityY = heli.logicalY;
                         }
                     } else {
+                        // No helicopter — follow car/walking position
                         entityX = ceo.logicalX;
-                        entityY = G.groundY + 20; // driving at road level
+                        entityY = G.groundY + 20;
                     }
                 }
             } else if (G.tracking.type === 'npc') {
