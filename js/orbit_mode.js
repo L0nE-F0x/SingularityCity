@@ -154,9 +154,9 @@ const OrbitMode = {
         if (this.active || this._transitioning) return;
         this._pullCount++;
         clearTimeout(this._pullDecay);
-        this._pullDecay = setTimeout(() => { this._pullCount = 0; }, 1500);
+        this._pullDecay = setTimeout(() => { this._pullCount = 0; }, 800);
 
-        if (this._pullCount >= 3) {
+        if (this._pullCount >= 12) {
             this._pullCount = 0;
             this.enter();
         }
@@ -352,41 +352,71 @@ const OrbitMode = {
         const earth = this._earthGfx;
         earth.clear();
 
-        // Dark earth surface
-        earth.beginFill(0x0a1628);
+        // Dark earth surface — deep ocean blue
+        earth.beginFill(0x060d1a);
         earth.drawEllipse(centerX, earthY + curveRadius + 8, curveRadius + 5, curveRadius);
         earth.endFill();
 
-        // Landmass patches (subtle green/brown tones to suggest continents)
-        const landPatches = [
-            { x: -0.2, y: 0.02, w: 0.15, h: 0.04, color: 0x0d2818 },   // South America-ish
-            { x: 0.05, y: 0.01, w: 0.12, h: 0.03, color: 0x1a3020 },    // Africa-ish
-            { x: 0.2, y: 0.015, w: 0.18, h: 0.035, color: 0x0d2818 },   // Asia-ish
-            { x: -0.35, y: 0.008, w: 0.2, h: 0.025, color: 0x152c1a },  // North America-ish
-            { x: 0.35, y: 0.025, w: 0.08, h: 0.02, color: 0x1a3020 },   // Australia-ish
-        ];
-        landPatches.forEach(p => {
-            earth.beginFill(p.color, 0.7);
-            earth.drawEllipse(centerX + p.x * W, earthY + p.y * H + 14, p.w * W, p.h * H);
-            earth.endFill();
-        });
+        // Subtle latitude grid lines on the surface (abstract/clean)
+        earth.lineStyle(1, 0x1a2a44, 0.2);
+        for (let i = 1; i <= 4; i++) {
+            const gridOffset = i * 12;
+            const gridRadiusX = curveRadius - i * 30;
+            if (gridRadiusX > 0) {
+                earth.drawEllipse(centerX, earthY + curveRadius + 8 + gridOffset, gridRadiusX, curveRadius - gridOffset);
+            }
+        }
+        // Longitude lines
+        for (let i = -3; i <= 3; i++) {
+            const lx = centerX + i * (curveRadius / 4);
+            earth.lineStyle(1, 0x1a2a44, 0.12);
+            earth.moveTo(lx, earthY + 10);
+            earth.lineTo(lx + i * 3, earthY + 80);
+        }
+        earth.lineStyle(0);
 
-        // City lights (tiny bright dots on the dark side)
-        const cityLights = [
-            { x: -0.18, y: 0.025 }, { x: -0.15, y: 0.02 }, { x: -0.32, y: 0.012 },
-            { x: -0.28, y: 0.015 }, { x: 0.08, y: 0.015 }, { x: 0.12, y: 0.018 },
-            { x: 0.22, y: 0.02 }, { x: 0.28, y: 0.022 }, { x: 0.35, y: 0.028 },
-            { x: -0.1, y: 0.03 }, { x: 0.0, y: 0.025 }, { x: 0.15, y: 0.012 },
-            { x: -0.25, y: 0.018 }, { x: 0.32, y: 0.015 }, { x: -0.05, y: 0.02 },
-            { x: 0.18, y: 0.028 }, { x: -0.38, y: 0.01 }, { x: 0.4, y: 0.03 },
+        // City light clusters (warm dots scattered on the surface — no landmasses)
+        const cityLightClusters = [
+            // North America
+            { cx: -0.30, cy: 0.01, count: 6, spread: 0.04 },
+            // Europe
+            { cx: 0.05, cy: 0.01, count: 8, spread: 0.04 },
+            // East Asia
+            { cx: 0.25, cy: 0.015, count: 7, spread: 0.05 },
+            // South America
+            { cx: -0.18, cy: 0.03, count: 3, spread: 0.03 },
+            // India
+            { cx: 0.15, cy: 0.025, count: 4, spread: 0.03 },
+            // Middle East
+            { cx: 0.10, cy: 0.018, count: 3, spread: 0.02 },
+            // Australia
+            { cx: 0.35, cy: 0.03, count: 2, spread: 0.02 },
+            // Africa
+            { cx: 0.02, cy: 0.025, count: 2, spread: 0.02 },
         ];
-        cityLights.forEach(cl => {
-            const dp = G.getDayPhase();
-            const isNightSide = (cl.x < 0.1); // simplified day/night
-            if (isNightSide || dp > 0.75 || dp < 0.3) {
-                earth.beginFill(0xffcc44, 0.5 + Math.random() * 0.3);
-                earth.drawCircle(centerX + cl.x * W, earthY + cl.y * H + 14, 1 + Math.random() * 1.5);
+        cityLightClusters.forEach(cluster => {
+            for (let i = 0; i < cluster.count; i++) {
+                const ox = (Math.random() - 0.5) * cluster.spread * 2;
+                const oy = Math.random() * cluster.spread * 0.5;
+                const brightness = 0.3 + Math.random() * 0.5;
+                const size = 0.5 + Math.random() * 1.2;
+                earth.beginFill(0xffcc44, brightness);
+                earth.drawCircle(
+                    centerX + (cluster.cx + ox) * W,
+                    earthY + (cluster.cy + oy) * H + 14,
+                    size
+                );
                 earth.endFill();
+                // Soft glow around larger lights
+                if (size > 1) {
+                    earth.beginFill(0xffcc44, brightness * 0.15);
+                    earth.drawCircle(
+                        centerX + (cluster.cx + ox) * W,
+                        earthY + (cluster.cy + oy) * H + 14,
+                        size * 3
+                    );
+                    earth.endFill();
+                }
             }
         });
     },

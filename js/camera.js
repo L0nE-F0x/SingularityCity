@@ -246,7 +246,8 @@ const Camera = {
         // Clamp camera boundaries (skip during tracking — entity position takes priority)
         if (!G.tracking || G.activeInterior) {
             // Detect upward pull at sky boundary → trigger Orbit Mode
-            if (this.targetY < minY && typeof OrbitMode !== 'undefined' && !OrbitMode.active && !G.activeInterior) {
+            // Only register when user is actively dragging upward (not momentum/interpolation)
+            if (this.targetY < minY && this.isDragging && this._velY > 2 && typeof OrbitMode !== 'undefined' && !OrbitMode.active && !G.activeInterior) {
                 OrbitMode.registerPull();
             }
             this.targetY = Math.max(minY, Math.min(this.targetY, maxY));
