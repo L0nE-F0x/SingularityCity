@@ -122,6 +122,8 @@ h1, h2, h3, p { margin: 0; }
 .btn.on { background: var(--sf); border-color: var(--ac); color: var(--ac); }
 .btn.scanning { background: rgba(74,222,128,0.1); border-color: var(--ac); color: var(--ac); pointer-events: none; animation: pulse 1s infinite alternate; }
 .btn.macro-active { background: #8b5cf6 !important; color: #fff !important; border-color: #a78bfa !important; box-shadow: 0 0 10px #8b5cf6 !important; }
+.btn.xray-active { background: #001a0a !important; color: #00ff88 !important; border-color: #00ff88 !important; box-shadow: 0 0 12px rgba(0,255,136,0.4) !important; text-shadow: 0 0 6px #00ff88; }
+#gameWrap.xray-mode { background-color: #030808 !important; }
 
 /* ─── PIXI VIEWPORT ─── */
 .vp { flex: 1; width: 100%; position: relative; z-index: 1; cursor: grab; }

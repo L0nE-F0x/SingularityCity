@@ -264,6 +264,7 @@ if (_isMobile) {
         <button class="btn" onclick="UI.uiClick();UI.showCostDashboard()" title="Pricing comparison & ROI">💰 Costs</button>
         <button class="btn" onclick="UI.uiClick();UI.showAnalyst()" title="Ask AI questions">🤖 Analyst</button>
         <button class="btn" onclick="UI.uiClick();UI.showAchievements()" title="Achievements">🏆 Trophies</button>
+        <button class="btn" id="btnXRay" onclick="UI.uiClick();if(typeof XRayMode!=='undefined')XRayMode.toggle()" title="X-Ray diagnostic overlay">🔬 X-Ray</button>
         <button class="btn" onclick="UI.uiClick();UI.showSettings()" title="Settings">⚙️</button>
         <button class="btn" id="btnSound" onclick="UI.uiClick();UI.toggleSound()" title="Sound on/off">🔊</button>
       </div></div>
@@ -382,6 +383,7 @@ if (_isMobile) {
 <script src="js/longevity_zone.js"></script>
 <script src="js/longevity_env.js"></script>
 <script src="js/interior_longevity.js"></script>
+<script src="js/xray_mode.js"></script>
 <script src="js/multiplayer.js"></script>
 <script src="js/holomap.js"></script>
 <script src="js/easter_eggs.js"></script>

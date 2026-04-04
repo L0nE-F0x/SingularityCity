@@ -1516,6 +1516,7 @@ const G = {
       if (typeof RoboticsZone !== 'undefined') RoboticsZone.update();
       if (typeof LongevityEnv !== 'undefined') LongevityEnv.update();
       if (typeof LongevityZone !== 'undefined') LongevityZone.update();
+      if (typeof XRayMode !== 'undefined') XRayMode.update();
       if (typeof VCRow !== 'undefined') { VCRow.update(); VCRow.updateCommuters(dp); }
       if (typeof Multiplayer !== 'undefined') Multiplayer.update();
       if (typeof SeasonalEnv !== 'undefined') SeasonalEnv.update();
