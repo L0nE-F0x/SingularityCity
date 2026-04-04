@@ -52,6 +52,7 @@ const Camera = {
     onDown(e) {
         if (e.target.closest('.ctrls-scroll') || e.target.closest('.ov')) return;
         if (typeof G !== 'undefined' && G.activeInterior) return;
+        if (typeof OrbitMode !== 'undefined' && OrbitMode.active) return;
 
         // Double-tap zoom detection
         const now = performance.now();
@@ -83,6 +84,7 @@ const Camera = {
     onMove(e) {
         if(!this.isDragging) return;
         if (typeof G !== 'undefined' && G.activeInterior) return;
+        if (typeof OrbitMode !== 'undefined' && OrbitMode.active) return;
 
         const now = performance.now();
         const dx = e.clientX - this.lastX;
@@ -114,10 +116,12 @@ const Camera = {
         if (vpEl) vpEl.classList.remove('dragging');
     },
 
-    onWheel(e) { 
+    onWheel(e) {
         if (e.target.closest('.ctrls-scroll') || e.target.closest('.ov')) return;
-        if (typeof G !== 'undefined' && G.activeInterior) return; 
-        
+        if (typeof G !== 'undefined' && G.activeInterior) return;
+        // Block wheel input while in orbit mode
+        if (typeof OrbitMode !== 'undefined' && OrbitMode.active) { e.preventDefault(); return; }
+
         e.preventDefault();
         this.targetX -= e.deltaY * 0.5;
     },
@@ -241,6 +245,10 @@ const Camera = {
         
         // Clamp camera boundaries (skip during tracking — entity position takes priority)
         if (!G.tracking || G.activeInterior) {
+            // Detect upward pull at sky boundary → trigger Orbit Mode
+            if (this.targetY < minY && typeof OrbitMode !== 'undefined' && !OrbitMode.active && !G.activeInterior) {
+                OrbitMode.registerPull();
+            }
             this.targetY = Math.max(minY, Math.min(this.targetY, maxY));
         }
         

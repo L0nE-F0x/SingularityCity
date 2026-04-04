@@ -339,6 +339,16 @@ const G = {
             currentX += 500;
         }
 
+        // ─── ROBOTICS FACTORY: Physical AI Manufacturing District ───
+        if (typeof RoboticsZone !== 'undefined') {
+            currentX = RoboticsZone.positionZone(currentX);
+        }
+
+        // ─── LONGEVITY RESEARCH WING: AI Drug Discovery ───
+        if (typeof LongevityZone !== 'undefined') {
+            currentX = LongevityZone.positionZone(currentX);
+        }
+
         let fSilicon = BLDS.find(b => b.id === 'forest_1');
         if (fSilicon) {
             fSilicon.x = currentX;
@@ -404,6 +414,8 @@ const G = {
         if (fSilicon) addZB('forest', [fSilicon]);
         addZB('estates', BLDS.filter(b => b.id.startsWith('house_')));
         addZB('backbone', BLDS.filter(b => b.id.startsWith('backbone_')));
+        addZB('robotics', BLDS.filter(b => b.id.startsWith('robotics_')));
+        addZB('longevity', BLDS.filter(b => b.id.startsWith('longevity_')));
         addZB('power', BLDS.filter(b => b.id.startsWith('power_')));
 
         BLDS.sort((a, b) => a.x - b.x);
@@ -1171,6 +1183,8 @@ const G = {
       if (typeof ConferenceData !== 'undefined') ConferenceData.init();
       if (typeof VCRow !== 'undefined') VCRow.init();
       if (typeof BackboneZone !== 'undefined') BackboneZone.init();
+      if (typeof RoboticsZone !== 'undefined') RoboticsZone.init();
+      if (typeof LongevityZone !== 'undefined') LongevityZone.init();
 
       this.recalculateZoning(); 
       
@@ -1210,6 +1224,7 @@ const G = {
           this.vpH = window.innerHeight;
           this.app.renderer.resize(this.vpW, this.vpH);
           if (this.viewMode === 'macro') this.buildMacroLayer();
+          if (typeof OrbitMode !== 'undefined') OrbitMode.resize();
       });
       
       // Alt-tab: browser toolbar may appear/disappear without firing resize
@@ -1311,6 +1326,12 @@ const G = {
       }
       if (typeof BackboneEnv !== 'undefined') {
           BackboneEnv.buildAnimations(this.charLayer);
+      }
+      if (typeof RoboticsEnv !== 'undefined') {
+          RoboticsEnv.buildAnimations(this.charLayer);
+      }
+      if (typeof LongevityEnv !== 'undefined') {
+          LongevityEnv.buildAnimations(this.charLayer);
       }
       if (typeof VCRow !== 'undefined' && this.carLayer) {
           VCRow.spawnCars(this.carLayer);
@@ -1432,9 +1453,16 @@ const G = {
     },
   
     update() {
+      // Orbit Mode runs independently — update even during transitions
+      if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) {
+          OrbitMode.update();
+          if (OrbitMode.active && !OrbitMode._transitioning) return; // fully in orbit — skip city updates
+          // During transition, continue with city updates below for smooth crossfade
+      }
+
       if (this.activeInterior && typeof Interior !== 'undefined') {
           Interior.update();
-          return; 
+          return;
       }
 
       if(this.viewMode === 'macro') {
@@ -1484,6 +1512,10 @@ const G = {
       if (typeof VCRowEnv !== 'undefined') VCRowEnv.update();
       if (typeof BackboneEnv !== 'undefined') BackboneEnv.update();
       if (typeof BackboneZone !== 'undefined') BackboneZone.update();
+      if (typeof RoboticsEnv !== 'undefined') RoboticsEnv.update();
+      if (typeof RoboticsZone !== 'undefined') RoboticsZone.update();
+      if (typeof LongevityEnv !== 'undefined') LongevityEnv.update();
+      if (typeof LongevityZone !== 'undefined') LongevityZone.update();
       if (typeof VCRow !== 'undefined') { VCRow.update(); VCRow.updateCommuters(dp); }
       if (typeof Multiplayer !== 'undefined') Multiplayer.update();
       if (typeof SeasonalEnv !== 'undefined') SeasonalEnv.update();

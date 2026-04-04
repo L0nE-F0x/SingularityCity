@@ -35,6 +35,10 @@ const Interior = {
             this.activeModule = InteriorVCRow;
         } else if (bld.type === 'backbone' && typeof InteriorBackbone !== 'undefined') {
             this.activeModule = InteriorBackbone;
+        } else if (bld.type === 'robotics' && typeof InteriorRobotics !== 'undefined') {
+            this.activeModule = InteriorRobotics;
+        } else if (bld.type === 'longevity' && typeof InteriorLongevity !== 'undefined') {
+            this.activeModule = InteriorLongevity;
         } else {
             this.activeModule = InteriorCity;
         }

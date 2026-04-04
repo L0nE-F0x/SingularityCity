@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v202';
+const CACHE_NAME = 'singularity-city-v205';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -55,6 +55,12 @@ const CORE_ASSETS = [
     '/js/backbone_zone.js',
     '/js/backbone_env.js',
     '/js/interior_backbone.js',
+    '/js/robotics_zone.js',
+    '/js/robotics_env.js',
+    '/js/interior_robotics.js',
+    '/js/longevity_zone.js',
+    '/js/longevity_env.js',
+    '/js/interior_longevity.js',
     '/js/multiplayer.js',
     '/js/interior_manager.js',
     '/js/burn_tracker.js',
@@ -63,6 +69,7 @@ const CORE_ASSETS = [
     '/js/space_environment.js',
     '/js/space_entities.js',
     '/js/space_interior.js',
+    '/js/orbit_mode.js',
     '/js/holomap.js',
     '/js/easter_eggs.js',
     '/js/persistence.js',

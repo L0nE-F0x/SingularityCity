@@ -20,6 +20,8 @@ const MacroView = {
         { id: 'metro',    emoji: '🚇', label: 'Metro East',     match: b => b.id === 'metro_east' },
         { id: 'nightlife', emoji: '🍸', label: 'Nightlife',     match: b => b.id === 'neon_bar' },
         { id: 'backbone', emoji: '🌐', label: 'The Backbone',  match: b => b.id.startsWith('backbone_') },
+        { id: 'robotics', emoji: '🤖', label: 'Robotics Factory', match: b => b.id.startsWith('robotics_') },
+        { id: 'longevity', emoji: '🧬', label: 'Longevity Wing', match: b => b.id.startsWith('longevity_') },
         { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
         { id: 'vcrow',    emoji: '💰', label: 'VC Row',          match: b => b.id.startsWith('vcrow_') },
         { id: 'estates',  emoji: '🏡', label: "Billionaire's",  match: b => b.id.startsWith('house_') },
@@ -34,6 +36,17 @@ const MacroView = {
 
         // Build zone quick-jump buttons
         zones.innerHTML = '';
+
+        // Orbit Mode button (special — not a zone, launches orbit view)
+        if (typeof OrbitMode !== 'undefined') {
+            const orbitBtn = document.createElement('div');
+            orbitBtn.className = 'mm-zone mm-orbit';
+            orbitBtn.dataset.zone = 'orbit';
+            orbitBtn.textContent = '🛰️ Orbit';
+            orbitBtn.onclick = () => { OrbitMode.enter(); };
+            zones.appendChild(orbitBtn);
+        }
+
         this._mmZones.forEach(z => {
             if (!BLDS.some(z.match)) return; // hide button if no matching building exists
             const btn = document.createElement('div');

@@ -231,6 +231,8 @@ h1, h2, h3, p { margin: 0; }
 .mm-zone.wide { grid-column: 1 / -1; }
 .mm-zone:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: var(--t2); }
 .mm-zone.active { border-color: var(--cy); color: var(--cy); background: rgba(34,211,238,0.08); }
+.mm-zone.mm-orbit { grid-column: 1 / -1; background: linear-gradient(135deg, rgba(68,170,255,0.12), rgba(100,50,200,0.10)); border-color: rgba(68,170,255,0.35); color: #66bbff; font-weight: bold; letter-spacing: 0.5px; }
+.mm-zone.mm-orbit:hover { background: linear-gradient(135deg, rgba(68,170,255,0.22), rgba(100,50,200,0.18)); color: #88ddff; border-color: rgba(68,170,255,0.6); }
 
 /* ═══════════════════════════════════════════════════
    PWA INSTALL BANNER
