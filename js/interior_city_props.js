@@ -159,12 +159,22 @@ const InteriorCityProps = {
             wallCol = 0x050510; floorCol = 0x0a0a15; lightCol = 0x00ffff; beamAlpha = 0.05; ceilingLightA = 0.3; 
         } else if (theme === 'zen_garden') { 
             wallCol = 0x2a2a3e; floorCol = 0x1a1a2e; lightCol = 0xffeebb; beamAlpha = 0.25; 
-        } else if (theme === 'gym_cardio' || theme === 'gym_weights' || theme === 'gym_combat') { 
-            wallCol = 0x151b22; floorCol = 0x0f172a; 
-        } else if (theme === 'arena_main' || theme === 'arena_training' || theme === 'arena_lobby') { 
-            wallCol = 0x111115; floorCol = 0x0a0a0f; 
-        } else if (theme === 'cafe') { 
-            wallCol = 0x271e1a; floorCol = 0x17120f; 
+        } else if (theme.startsWith('gym_')) {
+            wallCol = 0x151b22; floorCol = 0x0f172a;
+            if (theme === 'gym_yoga') { wallCol = 0x1a1a2e; floorCol = 0x151520; lightCol = 0xa855f7; beamAlpha = 0.08; }
+            if (theme === 'gym_pool') { wallCol = 0x0f1a2e; floorCol = 0x0a1520; lightCol = 0x38bdf8; beamAlpha = 0.12; }
+        } else if (theme.startsWith('arena_')) {
+            wallCol = 0x111115; floorCol = 0x0a0a0f;
+            if (theme === 'arena_commentary') { wallCol = 0x0f1020; floorCol = 0x0a0a15; }
+            if (theme === 'arena_trophy') { wallCol = 0x1a1510; floorCol = 0x100e08; lightCol = 0xfbbf24; beamAlpha = 0.15; }
+        } else if (theme === 'cafe' || theme.startsWith('cafe_')) {
+            wallCol = 0x271e1a; floorCol = 0x17120f;
+            if (theme === 'cafe_rooftop') { wallCol = 0x1a2030; floorCol = 0x0f1520; lightCol = 0xfbbf24; beamAlpha = 0.1; }
+            if (theme === 'cafe_kitchen') { wallCol = 0x1e2025; floorCol = 0x14161a; }
+        } else if (theme.startsWith('os_')) {
+            wallCol = 0x0f172a; floorCol = 0x0a1020;
+            if (theme === 'os_garden') { wallCol = 0x1a2a1a; floorCol = 0x0f1a0f; lightCol = 0x86efac; beamAlpha = 0.1; }
+            if (theme === 'os_server') { wallCol = 0x050510; floorCol = 0x0a0a15; lightCol = 0x4ade80; beamAlpha = 0.08; }
         } else if (theme.startsWith('bar_')) {
             wallCol = 0x12081e; floorCol = 0x0a0512; lightCol = 0xff00ff; beamAlpha = 0.08; ceilingLightA = 0.3;
         }
@@ -1192,6 +1202,477 @@ const InteriorCityProps = {
         g.beginFill(0x334155); g.drawRect(x-1.5, y-18, 3, 18); g.endFill();
         g.beginFill(0x475569); g.drawRect(x-5, y, 10, 2); g.endFill();
         g.beginFill(0x78350f); g.drawEllipse(x, y-18, 7, 3); g.endFill();
+        c.addChild(g);
+    },
+
+    // ════════════════════════════════════════════════════════
+    //   EXPANDED CAFÉ PROPS
+    // ════════════════════════════════════════════════════════
+
+    drawCafeCouch(c, x, y, col) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        const cHex = col || 0x8b4513;
+        // Seat
+        g.beginFill(cHex, 0.6); g.drawRoundedRect(x-22, y-12, 44, 12, 3); g.endFill();
+        // Back
+        g.beginFill(cHex, 0.4); g.drawRoundedRect(x-22, y-24, 44, 14, 3); g.endFill();
+        // Arms
+        g.beginFill(cHex, 0.5); g.drawRoundedRect(x-26, y-20, 6, 20, 2); g.drawRoundedRect(x+20, y-20, 6, 20, 2); g.endFill();
+        // Cushions
+        g.beginFill(0xfbbf24, 0.3); g.drawCircle(x-8, y-14, 4); g.drawCircle(x+8, y-14, 4); g.endFill();
+        c.addChild(g);
+    },
+
+    drawCafeBookshelf(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Shelf frame
+        g.beginFill(0x3d2914); g.drawRect(x-18, y-50, 36, 50); g.endFill();
+        g.beginFill(0x2a1f0e); g.drawRect(x-16, y-48, 32, 46); g.endFill();
+        // Shelves
+        g.beginFill(0x4a3520); g.drawRect(x-16, y-36, 32, 2); g.drawRect(x-16, y-22, 32, 2); g.drawRect(x-16, y-8, 32, 2); g.endFill();
+        // Books (random colors)
+        const bookCols = [0xef4444, 0x3b82f6, 0x22c55e, 0xf59e0b, 0xa855f7, 0x06b6d4];
+        for (let shelf = 0; shelf < 3; shelf++) {
+            const shelfY = y - 47 + shelf * 14;
+            let bx = x - 14;
+            while (bx < x + 14) {
+                const bw = 3 + Math.random() * 3;
+                const bh = 8 + Math.random() * 4;
+                g.beginFill(bookCols[Math.floor(Math.random() * bookCols.length)]);
+                g.drawRect(bx, shelfY + (12 - bh), bw, bh);
+                g.endFill();
+                bx += bw + 1;
+            }
+        }
+        c.addChild(g);
+    },
+
+    drawPastryDisplay(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Glass case
+        g.beginFill(0x1e293b); g.drawRect(x-20, y-18, 40, 18); g.endFill();
+        g.lineStyle(1, 0xffffff, 0.15); g.drawRect(x-18, y-30, 36, 14); g.lineStyle(0);
+        g.beginFill(0x111118, 0.4); g.drawRect(x-18, y-30, 36, 14); g.endFill();
+        // Pastries inside
+        g.beginFill(0xd97706); g.drawEllipse(x-8, y-22, 5, 3); g.endFill();
+        g.beginFill(0xca8a04); g.drawEllipse(x+4, y-23, 4, 3); g.endFill();
+        g.beginFill(0xfbbf24); g.drawCircle(x+12, y-22, 3); g.endFill();
+        g.beginFill(0x92400e); g.drawEllipse(x-2, y-20, 6, 2); g.endFill();
+        // Top counter
+        g.beginFill(0xf1f5f9); g.drawRect(x-22, y-18, 44, 3); g.endFill();
+        c.addChild(g);
+    },
+
+    drawKitchenOven(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Oven body
+        g.beginFill(0x475569); g.drawRect(x-16, y-35, 32, 35); g.endFill();
+        // Oven door
+        g.beginFill(0x334155); g.drawRect(x-12, y-28, 24, 16); g.endFill();
+        g.beginFill(0x1e293b); g.drawRect(x-10, y-26, 20, 12); g.endFill();
+        // Window
+        g.beginFill(0xf97316, 0.2); g.drawRect(x-8, y-24, 16, 8); g.endFill();
+        // Handle
+        g.beginFill(0xcbd5e1); g.drawRect(x-10, y-12, 20, 2); g.endFill();
+        // Burner dials
+        g.beginFill(0x111118); g.drawCircle(x-8, y-32, 2); g.drawCircle(x, y-32, 2); g.drawCircle(x+8, y-32, 2); g.endFill();
+        // Warm glow
+        const glow = new PIXI.Graphics();
+        glow.beginFill(0xf97316, 0.15); glow.drawRect(x-8, y-24, 16, 8); glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.2, type: 'fire' });
+    },
+
+    drawPrepStation(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Counter
+        g.beginFill(0x475569); g.drawRect(x-20, y-18, 40, 18); g.endFill();
+        g.beginFill(0xe2e8f0); g.drawRect(x-22, y-18, 44, 3); g.endFill();
+        // Cutting board
+        g.beginFill(0x78350f); g.drawRect(x-12, y-22, 16, 2); g.endFill();
+        // Knife
+        g.beginFill(0xcbd5e1); g.drawRect(x+6, y-24, 1, 6); g.endFill();
+        g.beginFill(0x4a2e1a); g.drawRect(x+5, y-19, 3, 4); g.endFill();
+        // Ingredients
+        g.beginFill(0xef4444); g.drawCircle(x-8, y-22, 2); g.endFill();
+        g.beginFill(0x22c55e); g.drawCircle(x-3, y-23, 2); g.endFill();
+        c.addChild(g);
+    },
+
+    drawOutdoorTable(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Umbrella pole
+        g.beginFill(0x888888); g.drawRect(x-1, y-45, 2, 30); g.endFill();
+        // Umbrella canopy
+        g.beginFill(0xef4444, 0.7); g.drawPolygon([x, y-48, x-24, y-38, x+24, y-38]); g.endFill();
+        g.beginFill(0xffffff, 0.15); g.drawPolygon([x, y-48, x-8, y-38, x+8, y-38]); g.endFill();
+        // Table
+        g.beginFill(0xf1f5f9); g.drawEllipse(x, y-15, 18, 4); g.endFill();
+        g.beginFill(0x888888); g.drawRect(x-1, y-15, 2, 15); g.endFill();
+        // Chairs
+        g.beginFill(0x475569); g.drawRect(x-16, y-8, 6, 8); g.drawRect(x+10, y-8, 6, 8); g.endFill();
+        c.addChild(g);
+    },
+
+    drawStringLights(c, x, y, w) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        g.lineStyle(1, 0x888888, 0.4);
+        // Wire
+        const segments = Math.floor(w / 20);
+        for (let i = 0; i <= segments; i++) {
+            const lx = x + (i / segments) * w;
+            const ly = y + Math.sin(i * 0.5) * 3;
+            if (i === 0) g.moveTo(lx, ly);
+            else g.lineTo(lx, ly);
+        }
+        g.lineStyle(0);
+        // Bulbs
+        const bulbCols = [0xfbbf24, 0xef4444, 0x22c55e, 0x3b82f6, 0xf97316];
+        for (let i = 0; i <= segments; i++) {
+            const lx = x + (i / segments) * w;
+            const ly = y + Math.sin(i * 0.5) * 3 + 2;
+            g.beginFill(bulbCols[i % bulbCols.length], 0.8);
+            g.drawCircle(lx, ly, 1.5);
+            g.endFill();
+        }
+        const glow = new PIXI.Graphics();
+        for (let i = 0; i <= segments; i++) {
+            const lx = x + (i / segments) * w;
+            const ly = y + Math.sin(i * 0.5) * 3 + 2;
+            glow.beginFill(bulbCols[i % bulbCols.length], 0.15);
+            glow.drawCircle(lx, ly, 4);
+            glow.endFill();
+        }
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.2, type: 'fairy' });
+    },
+
+    // ════════════════════════════════════════════════════════
+    //   EXPANDED GYM PROPS
+    // ════════════════════════════════════════════════════════
+
+    drawYogaMat(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        const cols = [0xa855f7, 0x06b6d4, 0x22c55e, 0xf472b6];
+        const col = cols[Math.floor(Math.random() * cols.length)];
+        // Mat
+        g.beginFill(col, 0.5); g.drawRoundedRect(x-20, y-3, 40, 3, 1); g.endFill();
+        g.beginFill(col, 0.3); g.drawEllipse(x, y-2, 20, 2); g.endFill();
+        // Rolled edge
+        g.beginFill(col, 0.7); g.drawEllipse(x+20, y-3, 2, 2); g.endFill();
+        c.addChild(g);
+    },
+
+    drawExerciseBall(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        const cols = [0x3b82f6, 0xef4444, 0xa855f7];
+        const col = cols[Math.floor(Math.random() * cols.length)];
+        g.beginFill(col, 0.6); g.drawCircle(x, y-10, 10); g.endFill();
+        g.beginFill(0xffffff, 0.15); g.drawEllipse(x-3, y-14, 4, 3); g.endFill();
+        // Shadow
+        g.beginFill(0x000000, 0.15); g.drawEllipse(x, y, 10, 3); g.endFill();
+        c.addChild(g);
+    },
+
+    drawPoolLane(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Pool edge
+        g.beginFill(0x1e293b); g.drawRect(x-50, y-4, 100, 4); g.endFill();
+        g.beginFill(0xe2e8f0); g.drawRect(x-52, y-5, 104, 2); g.endFill();
+        // Water
+        g.beginFill(0x0284c7, 0.5); g.drawRect(x-48, y-3, 96, 3); g.endFill();
+        // Lane dividers
+        g.beginFill(0xfbbf24, 0.4); g.drawRect(x-48, y-3, 96, 1); g.endFill();
+        // Water shimmer
+        const glow = new PIXI.Graphics();
+        glow.beginFill(0x38bdf8, 0.2); glow.drawRect(x-48, y-15, 96, 12); glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.3, type: 'signal' });
+    },
+
+    drawSteamRoom(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Room box
+        g.beginFill(0x3d2914); g.drawRect(x-25, y-35, 50, 35); g.endFill();
+        g.beginFill(0x2a1f0e); g.drawRect(x-22, y-32, 44, 30); g.endFill();
+        // Wooden bench
+        g.beginFill(0x78350f); g.drawRect(x-18, y-12, 36, 4); g.endFill();
+        g.beginFill(0x92400e); g.drawRect(x-16, y-8, 4, 8); g.drawRect(x+12, y-8, 4, 8); g.endFill();
+        // Door
+        g.beginFill(0x4a3520); g.drawRect(x-4, y-28, 8, 26); g.endFill();
+        g.beginFill(0xcbd5e1); g.drawCircle(x+2, y-14, 1.5); g.endFill();
+        // Steam wisps
+        const steam = new PIXI.Graphics();
+        steam.beginFill(0xffffff, 0.08);
+        steam.drawEllipse(x-8, y-20, 8, 4);
+        steam.drawEllipse(x+6, y-24, 6, 3);
+        steam.drawEllipse(x-2, y-28, 5, 3);
+        steam.endFill();
+        c.addChild(g, steam);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: steam, maxA: 0.12, type: 'fire' });
+    },
+
+    drawLockerRow(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        for (let i = 0; i < 5; i++) {
+            const lx = x + i * 12;
+            g.beginFill(0x334155); g.drawRect(lx, y-35, 10, 35); g.endFill();
+            g.beginFill(0x475569); g.drawRect(lx+1, y-33, 8, 31); g.endFill();
+            // Handle
+            g.beginFill(0xcbd5e1); g.drawRect(lx+6, y-18, 2, 4); g.endFill();
+            // Vent
+            g.lineStyle(1, 0x555555, 0.3);
+            g.moveTo(lx+2, y-30); g.lineTo(lx+7, y-30);
+            g.moveTo(lx+2, y-28); g.lineTo(lx+7, y-28);
+            g.lineStyle(0);
+        }
+        c.addChild(g);
+    },
+
+    // ════════════════════════════════════════════════════════
+    //   EXPANDED ARENA PROPS
+    // ════════════════════════════════════════════════════════
+
+    drawCommentaryDesk(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Long desk
+        g.beginFill(0x1e293b); g.drawRect(x-40, y-18, 80, 18); g.endFill();
+        g.beginFill(0x334155); g.drawRect(x-42, y-18, 84, 4); g.endFill();
+        // Monitors (3)
+        for (let i = -1; i <= 1; i++) {
+            g.beginFill(0x0f172a); g.drawRect(x + i*26 - 10, y-35, 20, 14); g.endFill();
+            const glow = new PIXI.Graphics();
+            glow.beginFill(0x38bdf8, 0.4); glow.drawRect(x + i*26 - 8, y-33, 16, 10); glow.endFill();
+            glow.blendMode = PIXI.BLEND_MODES.ADD;
+            c.addChild(glow);
+            if (!this.indoorLights) this.indoorLights = [];
+            this.indoorLights.push({ g: glow, maxA: 0.5, type: 'ceiling' });
+        }
+        // Microphones
+        g.beginFill(0x555555); g.drawRect(x-20, y-24, 1, 6); g.drawRect(x+20, y-24, 1, 6); g.endFill();
+        g.beginFill(0x222222); g.drawCircle(x-20, y-25, 2); g.drawCircle(x+20, y-25, 2); g.endFill();
+        // Chairs
+        g.beginFill(0x1e293b); g.drawRect(x-18, y-8, 8, 8); g.drawRect(x+10, y-8, 8, 8); g.endFill();
+        c.addChild(g);
+    },
+
+    drawTrophyCase(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Glass case
+        g.beginFill(0x1e293b); g.drawRect(x-18, y-45, 36, 45); g.endFill();
+        g.lineStyle(1, 0xffffff, 0.1); g.drawRect(x-16, y-42, 32, 38); g.lineStyle(0);
+        g.beginFill(0x111118, 0.3); g.drawRect(x-16, y-42, 32, 38); g.endFill();
+        // Shelves
+        g.beginFill(0x334155); g.drawRect(x-16, y-28, 32, 2); g.drawRect(x-16, y-14, 32, 2); g.endFill();
+        // Trophies
+        const tCols = [0xfbbf24, 0xcbd5e1, 0xcd7f32];
+        for (let s = 0; s < 3; s++) {
+            const sy = y - 40 + s * 14;
+            g.beginFill(tCols[s]);
+            g.drawPolygon([x-4, sy+10, x+4, sy+10, x+2, sy+4, x-2, sy+4]);
+            g.drawCircle(x-5, sy+6, 2); g.drawCircle(x+5, sy+6, 2);
+            g.endFill();
+        }
+        // Warm glow
+        const glow = new PIXI.Graphics();
+        glow.beginFill(0xfbbf24, 0.1); glow.drawRect(x-16, y-42, 32, 38); glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.15, type: 'signal' });
+    },
+
+    drawAudienceStands(c, x, y, w) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        const hw = w || 80;
+        // Tiered seating
+        for (let row = 0; row < 3; row++) {
+            const ry = y - 4 - row * 10;
+            const rw = hw - row * 12;
+            g.beginFill(0x1e293b); g.drawRect(x - rw/2, ry - 6, rw, 6); g.endFill();
+            g.beginFill(0x334155); g.drawRect(x - rw/2, ry - 8, rw, 3); g.endFill();
+        }
+        c.addChild(g);
+    },
+
+    drawJumbotron(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Frame
+        g.beginFill(0x0f172a); g.drawRect(x-35, y-45, 70, 35); g.endFill();
+        g.beginFill(0x1e293b); g.drawRect(x-37, y-47, 74, 2); g.drawRect(x-37, y-10, 74, 2); g.endFill();
+        // Screen content (ELO display)
+        const glow = new PIXI.Graphics();
+        glow.beginFill(0xef4444, 0.25); glow.drawRect(x-30, y-42, 28, 28); glow.endFill();
+        glow.beginFill(0x3b82f6, 0.25); glow.drawRect(x+2, y-42, 28, 28); glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        // VS text
+        const vs = new PIXI.Text('VS', { fontFamily: 'JetBrains Mono', fontSize: 8, fill: 0xffffff, fontWeight: 'bold' });
+        vs.anchor.set(0.5); vs.x = x; vs.y = y - 28;
+        // Stand
+        g.beginFill(0x334155); g.drawRect(x-2, y-10, 4, 10); g.endFill();
+        c.addChild(g, glow, vs);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.35, type: 'ceiling' });
+    },
+
+    drawLeaderboard(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Board
+        g.beginFill(0x0f172a); g.drawRect(x-22, y-50, 44, 46); g.endFill();
+        g.beginFill(0x1e293b); g.drawRect(x-24, y-52, 48, 2); g.endFill();
+        // Rows
+        const rowCols = [0xfbbf24, 0xcbd5e1, 0xcd7f32, 0x64748b, 0x64748b];
+        for (let i = 0; i < 5; i++) {
+            g.beginFill(rowCols[i], 0.4); g.drawRect(x-18, y-46 + i*8, 36, 6); g.endFill();
+        }
+        // Glow
+        const glow = new PIXI.Graphics();
+        glow.beginFill(0x22d3ee, 0.1); glow.drawRect(x-22, y-50, 44, 46); glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.15, type: 'signal' });
+    },
+
+    // ════════════════════════════════════════════════════════
+    //   OPEN SOURCE HUB PROPS
+    // ════════════════════════════════════════════════════════
+
+    drawContributorWall(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Large wall panel
+        g.beginFill(0x1e293b); g.drawRect(x-40, y-45, 80, 42); g.endFill();
+        // Git contribution graph style grid
+        const cols = [0x0e4429, 0x006d32, 0x26a641, 0x39d353];
+        for (let row = 0; row < 5; row++) {
+            for (let col = 0; col < 12; col++) {
+                const intensity = Math.random();
+                const fillCol = intensity < 0.3 ? 0x161b22 : cols[Math.floor(intensity * cols.length)];
+                g.beginFill(fillCol);
+                g.drawRect(x - 36 + col * 6, y - 42 + row * 6, 4, 4);
+                g.endFill();
+            }
+        }
+        // Title
+        const title = new PIXI.Text('CONTRIBUTORS', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x8b949e });
+        title.anchor.set(0.5); title.x = x; title.y = y - 46;
+        c.addChild(g, title);
+    },
+
+    drawHackathonDesk(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Long shared desk
+        g.beginFill(0x1e293b); g.drawRect(x-30, y-18, 60, 18); g.endFill();
+        g.beginFill(0x334155); g.drawRect(x-32, y-18, 64, 3); g.endFill();
+        // Multiple laptops
+        for (let i = -1; i <= 1; i++) {
+            const lx = x + i * 20;
+            // Laptop base
+            g.beginFill(0x475569); g.drawRect(lx-7, y-20, 14, 2); g.endFill();
+            // Laptop screen
+            g.beginFill(0x0f172a); g.drawRect(lx-6, y-30, 12, 10); g.endFill();
+            const glow = new PIXI.Graphics();
+            const sc = [0x22c55e, 0x06b6d4, 0xa855f7][i+1];
+            glow.beginFill(sc, 0.4); glow.drawRect(lx-5, y-29, 10, 8); glow.endFill();
+            glow.blendMode = PIXI.BLEND_MODES.ADD;
+            c.addChild(glow);
+            if (!this.indoorLights) this.indoorLights = [];
+            this.indoorLights.push({ g: glow, maxA: 0.4, type: 'ceiling' });
+        }
+        // Energy drinks
+        g.beginFill(0xef4444); g.drawRect(x+22, y-24, 4, 6); g.endFill();
+        g.beginFill(0x22c55e); g.drawRect(x-26, y-23, 4, 5); g.endFill();
+        c.addChild(g);
+    },
+
+    drawWhiteboard(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Board
+        g.beginFill(0xf1f5f9); g.drawRect(x-30, y-45, 60, 35); g.endFill();
+        g.beginFill(0x94a3b8); g.drawRect(x-32, y-47, 64, 3); g.drawRect(x-32, y-10, 64, 3); g.endFill();
+        // Scribbles (architecture diagrams)
+        g.lineStyle(1, 0x3b82f6, 0.6);
+        g.drawRect(x-20, y-38, 12, 8);
+        g.moveTo(x-8, y-34); g.lineTo(x+2, y-34);
+        g.drawRect(x+2, y-38, 12, 8);
+        g.lineStyle(1, 0xef4444, 0.4);
+        g.moveTo(x-15, y-25); g.lineTo(x+15, y-25);
+        g.moveTo(x-15, y-22); g.lineTo(x+10, y-22);
+        g.lineStyle(1, 0x22c55e, 0.5);
+        g.drawCircle(x-10, y-16, 3); g.moveTo(x-7, y-16); g.lineTo(x+5, y-16); g.drawCircle(x+8, y-16, 3);
+        g.lineStyle(0);
+        // Markers in tray
+        g.beginFill(0xef4444); g.drawRect(x-25, y-9, 8, 2); g.endFill();
+        g.beginFill(0x3b82f6); g.drawRect(x-15, y-9, 8, 2); g.endFill();
+        g.beginFill(0x22c55e); g.drawRect(x-5, y-9, 8, 2); g.endFill();
+        c.addChild(g);
+    },
+
+    drawOpenServerRack(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Open frame rack (no doors)
+        g.beginFill(0x222233); g.drawRect(x-14, y-45, 28, 45); g.endFill();
+        // Rails
+        g.beginFill(0x475569); g.drawRect(x-14, y-45, 2, 45); g.drawRect(x+12, y-45, 2, 45); g.endFill();
+        // Server units
+        for (let i = 0; i < 5; i++) {
+            const sy = y - 42 + i * 8;
+            g.beginFill(0x1a1a2e); g.drawRect(x-12, sy, 24, 6); g.endFill();
+            // Status LEDs
+            g.beginFill(0x4ade80); g.drawCircle(x-8, sy+3, 1); g.endFill();
+            g.beginFill(Math.random() > 0.5 ? 0x4ade80 : 0xfbbf24); g.drawCircle(x-4, sy+3, 1); g.endFill();
+        }
+        // Activity glow
+        const glow = new PIXI.Graphics();
+        for (let i = 0; i < 5; i++) {
+            glow.beginFill(0x4ade80, 0.15); glow.drawCircle(x-8, y-39+i*8, 2); glow.endFill();
+        }
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.2, type: 'signal' });
+    },
+
+    drawGardenPlanter(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Planter box
+        g.beginFill(0x78350f); g.drawRect(x-15, y-10, 30, 10); g.endFill();
+        g.beginFill(0x92400e); g.drawRect(x-17, y-10, 34, 3); g.endFill();
+        // Soil
+        g.beginFill(0x3d2914); g.drawRect(x-13, y-12, 26, 4); g.endFill();
+        // Plants
+        g.beginFill(0x166534); g.drawCircle(x-6, y-18, 5); g.drawCircle(x+4, y-16, 4); g.endFill();
+        g.beginFill(0x22c55e); g.drawCircle(x-4, y-20, 3); g.drawCircle(x+6, y-18, 3); g.endFill();
+        // Flowers
+        g.beginFill(0xfbbf24); g.drawCircle(x-8, y-22, 2); g.endFill();
+        g.beginFill(0xf472b6); g.drawCircle(x+2, y-20, 2); g.endFill();
+        c.addChild(g);
+    },
+
+    drawHammock(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Poles
+        g.beginFill(0x4a2e1a); g.drawRect(x-25, y-30, 3, 30); g.drawRect(x+22, y-30, 3, 30); g.endFill();
+        // Hammock fabric (catenary curve)
+        g.beginFill(0x06b6d4, 0.4);
+        g.moveTo(x-24, y-25);
+        g.bezierCurveTo(x-10, y-10, x+10, y-10, x+24, y-25);
+        g.lineTo(x+24, y-22);
+        g.bezierCurveTo(x+10, y-8, x-10, y-8, x-24, y-22);
+        g.closePath();
+        g.endFill();
+        // Rope lines
+        g.lineStyle(1, 0x888888, 0.4);
+        g.moveTo(x-24, y-28); g.lineTo(x-24, y-25);
+        g.moveTo(x+24, y-28); g.lineTo(x+24, y-25);
+        g.lineStyle(0);
         c.addChild(g);
     }
 };

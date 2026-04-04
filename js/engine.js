@@ -610,9 +610,20 @@ const G = {
 
       // ─── Apply aggregated data to buildings ───
       BLDS.forEach(b => {
-        if (b.id === 'gym' || b.id === 'arena') {
-            b.dynamicFl = 3;
-            b.desc = b.id === 'gym' ? 'RLHF Gym for heavy compute training.' : 'LMSYS Chatbot Arena for model battles.';
+        if (b.id === 'cafe' || b.id === 'gym' || b.id === 'arena' || b.id === 'open_square') {
+            if (b.id === 'cafe') {
+                b.dynamicFl = 4; b.w = Math.max(b.w || 0, 200);
+                b.desc = 'API Café — the city\'s beloved coffee house. Code reviews over lattes, pastries & rooftop vibes.';
+            } else if (b.id === 'gym') {
+                b.dynamicFl = 5; b.w = Math.max(b.w || 0, 200);
+                b.desc = 'RLHF Gym — five floors of heavy compute training: cardio, weights, combat, yoga & pool.';
+            } else if (b.id === 'arena') {
+                b.dynamicFl = 5; b.w = Math.max(b.w || 0, 210);
+                b.desc = 'LMSYS Chatbot Arena — where models battle for ELO supremacy across five legendary floors.';
+            } else if (b.id === 'open_square') {
+                b.dynamicFl = 5; b.w = Math.max(b.w || 0, 210);
+                b.desc = 'Open Source Hub — collaborative HQ for open-source contributors, hackathons & community servers.';
+            }
         }
 
         if (b.id === 'neon_bar') {

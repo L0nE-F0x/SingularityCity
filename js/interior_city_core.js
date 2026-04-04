@@ -81,8 +81,8 @@ const InteriorCity = {
         let numFloors = 1;
         if (isHQ) {
             numFloors = Math.max(3, bld.dynamicFl || 3);
-        } else if (bld.id === 'gym' || bld.id === 'arena') {
-            numFloors = 3;
+        } else if (bld.id === 'gym' || bld.id === 'arena' || bld.id === 'cafe' || bld.id === 'open_square') {
+            numFloors = bld.dynamicFl || 3;
         } else {
             numFloors = bld.fl || 1;
         }
@@ -180,13 +180,17 @@ const InteriorCity = {
             if (isForest) {
                 floorTheme = isSiliconWoods ? 'silicon_woods' : isFrontierPines ? 'launch_viewing' : 'campsite';
             } else if (bld.id === 'gym') {
-                const gymThemes = ['gym_cardio', 'gym_weights', 'gym_combat'];
-                floorTheme = gymThemes[f % 3];
+                const gymThemes = ['gym_cardio', 'gym_weights', 'gym_combat', 'gym_yoga', 'gym_pool'];
+                floorTheme = gymThemes[f % gymThemes.length];
             } else if (bld.id === 'arena') {
-                const arenaThemes = ['arena_lobby', 'arena_training', 'arena_main'];
-                floorTheme = arenaThemes[f % 3];
+                const arenaThemes = ['arena_lobby', 'arena_training', 'arena_main', 'arena_commentary', 'arena_trophy'];
+                floorTheme = arenaThemes[f % arenaThemes.length];
             } else if (bld.id === 'cafe') {
-                floorTheme = 'cafe';
+                const cafeThemes = ['cafe', 'cafe_lounge', 'cafe_kitchen', 'cafe_rooftop'];
+                floorTheme = cafeThemes[f % cafeThemes.length];
+            } else if (bld.id === 'open_square') {
+                const osThemes = ['os_lobby', 'os_hackathon', 'os_collab', 'os_server', 'os_garden'];
+                floorTheme = osThemes[f % osThemes.length];
             } else if (bld.id === 'neon_bar') {
                 const barThemes = ['bar_lounge', 'bar_karaoke', 'bar_vip'];
                 floorTheme = barThemes[f % 3];
@@ -571,6 +575,7 @@ const InteriorCity = {
                         
                         // NPC: Park Ranger
                         this.drawAvatar({ id: 'ranger', name: 'Park Ranger', isNPC: true, role: 'Ranger', phase: 'released', lab: 'other', desc: 'Ensuring safe viewing distances.' }, this.startX + 140, fy + floorH - 4, floorCont, f, true);
+                    // ─── GYM FLOORS ───
                     } else if (floorTheme === 'gym_cardio') {
                         if (this.drawMirrorWall) this.drawMirrorWall(floorCont, this.startX + this.usableW / 2, fy + floorH - 4, this.usableW - 100);
                         while(currX < this.startX + this.usableW - 120) {
@@ -597,12 +602,30 @@ const InteriorCity = {
                         }
                         if (this.drawVendingMachine) this.drawVendingMachine(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
                         if (!_isNightShift) this.drawAvatar({ id: 'trainer', name: 'Spotter', isNPC: true, role: 'Trainer', phase: 'released', lab: 'other', desc: 'Heavy lifting.' }, this.startX + this.usableW - 80, fy + floorH - 4, floorCont, f, true);
+                    } else if (floorTheme === 'gym_yoga') {
+                        // Yoga / Pilates studio
+                        if (this.drawMirrorWall) this.drawMirrorWall(floorCont, this.startX + this.usableW / 2, fy + floorH - 4, this.usableW - 100);
+                        while(currX < this.startX + this.usableW - 120) {
+                            if (this.drawYogaMat) this.drawYogaMat(floorCont, currX, fy + floorH - 4);
+                            if (Math.random() > 0.6 && this.drawExerciseBall) this.drawExerciseBall(floorCont, currX + 30, fy + floorH - 4);
+                            currX += 70;
+                        }
+                        if (this.drawPlant) this.drawPlant(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
+                        if (!_isNightShift) this.drawAvatar({ id: 'yoga_inst', name: 'Yoga Sensei', isNPC: true, role: 'Instructor', phase: 'released', lab: 'other', desc: 'Namaste, gradient.' }, this.startX + this.usableW / 2, fy + floorH - 4, floorCont, f, true);
+                    } else if (floorTheme === 'gym_pool') {
+                        // Pool & steam room
+                        if (this.drawPoolLane) this.drawPoolLane(floorCont, this.startX + this.usableW / 2, fy + floorH - 4);
+                        if (this.drawSteamRoom) this.drawSteamRoom(floorCont, this.startX + this.usableW - 60, fy + floorH - 4);
+                        if (this.drawLockerRow) this.drawLockerRow(floorCont, this.startX + 60, fy + floorH - 4);
+                        if (this.drawWaterCooler) this.drawWaterCooler(floorCont, this.startX + 140, fy + floorH - 4);
+
+                    // ─── ARENA FLOORS ───
                     } else if (floorTheme === 'arena_lobby') {
                         this.drawReceptionDesk(floorCont, this.startX + 120, fy + floorH - 4, 0xef4444);
                         this.drawCouches(floorCont, this.startX + 250, fy + floorH - 4, 0xef4444);
-                        if (this.drawScoreboard) this.drawScoreboard(floorCont, this.startX + 400, fy + floorH - 4);
-                        if (this.drawVendingMachine) this.drawVendingMachine(floorCont, this.startX + this.usableW - 60, fy + floorH - 4);
-                        if (this.drawPlant) this.drawPlant(floorCont, this.startX + 180, fy + floorH - 4);
+                        if (this.drawLeaderboard) this.drawLeaderboard(floorCont, this.startX + this.usableW - 80, fy + floorH - 4);
+                        if (this.drawVendingMachine) this.drawVendingMachine(floorCont, this.startX + this.usableW - 140, fy + floorH - 4);
+                        if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 180, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 340, fy + floorH - 4); }
                     } else if (floorTheme === 'arena_training') {
                         if (this.drawMirrorWall) this.drawMirrorWall(floorCont, this.startX + this.usableW / 2, fy + floorH - 4, this.usableW - 100);
                         while(currX < this.startX + this.usableW - 120) {
@@ -616,18 +639,108 @@ const InteriorCity = {
                             this.drawSpotlight(floorCont, this.startX + this.usableW * 0.65, fy + floorH - 4, 0x38bdf8);
                         }
                         if (this.drawRing) this.drawRing(floorCont, this.startX + this.usableW / 2, fy + floorH - 4);
-                        if (this.drawScoreboard) this.drawScoreboard(floorCont, this.startX + this.usableW - 80, fy + floorH - 4);
-                        if (!_isNightShift) this.drawAvatar({ id: 'ref', name: 'Referee', isNPC: true, role: 'Referee', phase: 'released', lab: 'other', desc: 'Fair fights.' }, this.startX + this.usableW - 120, fy + floorH - 4, floorCont, f, true);
+                        if (this.drawAudienceStands) this.drawAudienceStands(floorCont, this.startX + 100, fy + floorH - 4, 80);
+                        if (this.drawAudienceStands) this.drawAudienceStands(floorCont, this.startX + this.usableW - 100, fy + floorH - 4, 80);
+                        if (!_isNightShift) this.drawAvatar({ id: 'ref', name: 'Referee', isNPC: true, role: 'Referee', phase: 'released', lab: 'other', desc: 'Fair fights.' }, this.startX + this.usableW / 2, fy + floorH - 4, floorCont, f, true);
+                    } else if (floorTheme === 'arena_commentary') {
+                        // Commentary booth with monitors and jumbotron
+                        if (this.drawCommentaryDesk) this.drawCommentaryDesk(floorCont, this.startX + this.usableW / 2, fy + floorH - 4);
+                        if (this.drawJumbotron) this.drawJumbotron(floorCont, this.startX + 100, fy + floorH - 4);
+                        if (this.drawPlant) this.drawPlant(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
+                        if (!_isNightShift) this.drawAvatar({ id: 'commentator', name: 'Commentator', isNPC: true, role: 'Commentator', phase: 'released', lab: 'other', desc: 'And the ELO shifts again!' }, this.startX + this.usableW / 2 - 15, fy + floorH - 4, floorCont, f, true);
+                    } else if (floorTheme === 'arena_trophy') {
+                        // Trophy room / hall of fame
+                        if (this.drawTrophyCase) {
+                            this.drawTrophyCase(floorCont, this.startX + 100, fy + floorH - 4);
+                            this.drawTrophyCase(floorCont, this.startX + 200, fy + floorH - 4);
+                            this.drawTrophyCase(floorCont, this.startX + 300, fy + floorH - 4);
+                        }
+                        if (this.drawLeaderboard) this.drawLeaderboard(floorCont, this.startX + this.usableW - 80, fy + floorH - 4);
+                        if (this.drawSpotlight) {
+                            this.drawSpotlight(floorCont, this.startX + 100, fy + floorH - 4, 0xfbbf24);
+                            this.drawSpotlight(floorCont, this.startX + 300, fy + floorH - 4, 0xfbbf24);
+                        }
+                        this.drawCouches(floorCont, this.startX + this.usableW / 2, fy + floorH - 4, 0xef4444);
+
+                    // ─── CAFÉ FLOORS ───
                     } else if (floorTheme === 'cafe') {
+                        // Ground floor — main café
                         if (this.drawMenuBoard) this.drawMenuBoard(floorCont, this.startX + 60, fy + floorH - 4);
                         this.drawBaristaCounter(floorCont, this.startX + this.usableW - 100, fy + floorH - 4);
-                        if (this.drawCoffeeMachine) this.drawCoffeeMachine(floorCont, this.startX + this.usableW - 150, fy + floorH - 4);
+                        if (this.drawCoffeeMachine) this.drawCoffeeMachine(floorCont, this.startX + this.usableW - 160, fy + floorH - 4);
+                        if (this.drawPastryDisplay) this.drawPastryDisplay(floorCont, this.startX + this.usableW - 220, fy + floorH - 4);
                         this.drawCafeTable(floorCont, this.startX + 140, fy + floorH - 4);
-                        this.drawCafeTable(floorCont, this.startX + 250, fy + floorH - 4);
-                        this.drawCafeTable(floorCont, this.startX + 360, fy + floorH - 4);
-                        if (this.drawBarStool) { this.drawBarStool(floorCont, this.startX + this.usableW - 130, fy + floorH - 4); this.drawBarStool(floorCont, this.startX + this.usableW - 110, fy + floorH - 4); }
-                        if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 100, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 310, fy + floorH - 4); }
+                        this.drawCafeTable(floorCont, this.startX + 230, fy + floorH - 4);
+                        this.drawCafeTable(floorCont, this.startX + 320, fy + floorH - 4);
+                        if (this.drawBarStool) { this.drawBarStool(floorCont, this.startX + this.usableW - 130, fy + floorH - 4); this.drawBarStool(floorCont, this.startX + this.usableW - 115, fy + floorH - 4); this.drawBarStool(floorCont, this.startX + this.usableW - 100, fy + floorH - 4); }
+                        if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 100, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 280, fy + floorH - 4); }
                         if (!_isNightShift) this.drawAvatar({ id: 'barista', name: 'BaristaBot', isNPC: true, role: 'Barista', phase: 'released', lab: 'other', desc: 'Brewing Java.' }, this.startX + this.usableW - 90, fy + floorH - 4, floorCont, f, true);
+                    } else if (floorTheme === 'cafe_lounge') {
+                        // Upstairs lounge — couches, bookshelves, ambient lighting
+                        if (this.drawCafeBookshelf) { this.drawCafeBookshelf(floorCont, this.startX + 80, fy + floorH - 4); this.drawCafeBookshelf(floorCont, this.startX + this.usableW - 80, fy + floorH - 4); }
+                        if (this.drawCafeCouch) { this.drawCafeCouch(floorCont, this.startX + 160, fy + floorH - 4, 0x8b4513); this.drawCafeCouch(floorCont, this.startX + 320, fy + floorH - 4, 0x6b3410); }
+                        this.drawCafeTable(floorCont, this.startX + 240, fy + floorH - 4);
+                        if (this.drawStringLights) this.drawStringLights(floorCont, this.startX + 60, fy + 8, this.usableW - 120);
+                        if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 200, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 380, fy + floorH - 4); }
+                    } else if (floorTheme === 'cafe_kitchen') {
+                        // Back kitchen — ovens, prep stations
+                        if (this.drawKitchenOven) { this.drawKitchenOven(floorCont, this.startX + 100, fy + floorH - 4); this.drawKitchenOven(floorCont, this.startX + 200, fy + floorH - 4); }
+                        if (this.drawPrepStation) { this.drawPrepStation(floorCont, this.startX + 300, fy + floorH - 4); this.drawPrepStation(floorCont, this.startX + 400, fy + floorH - 4); }
+                        if (this.drawWaterCooler) this.drawWaterCooler(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
+                        if (!_isNightShift) this.drawAvatar({ id: 'baker', name: 'Baker Bot', isNPC: true, role: 'Pastry Chef', phase: 'released', lab: 'other', desc: 'Batch processing croissants.' }, this.startX + 260, fy + floorH - 4, floorCont, f, true);
+                    } else if (floorTheme === 'cafe_rooftop') {
+                        // Rooftop terrace with outdoor seating
+                        if (this.drawOutdoorTable) { this.drawOutdoorTable(floorCont, this.startX + 120, fy + floorH - 4); this.drawOutdoorTable(floorCont, this.startX + 260, fy + floorH - 4); this.drawOutdoorTable(floorCont, this.startX + 400, fy + floorH - 4); }
+                        if (this.drawStringLights) this.drawStringLights(floorCont, this.startX + 60, fy + 6, this.usableW - 120);
+                        if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 60, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 190, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 330, fy + floorH - 4); this.drawPlant(floorCont, this.startX + this.usableW - 50, fy + floorH - 4); }
+                        if (this.drawBiophilicDivider) this.drawBiophilicDivider(floorCont, this.startX + this.usableW - 100, fy + floorH - 4);
+
+                    // ─── OPEN SOURCE HUB FLOORS ───
+                    } else if (floorTheme === 'os_lobby') {
+                        // Welcome hall + contributor wall
+                        this.drawReceptionDesk(floorCont, this.startX + 120, fy + floorH - 4, 0xa855f7);
+                        if (this.drawContributorWall) this.drawContributorWall(floorCont, this.startX + 280, fy + floorH - 4);
+                        this.drawCouches(floorCont, this.startX + 400, fy + floorH - 4, 0xa855f7);
+                        if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 60, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 200, fy + floorH - 4); }
+                        if (this.drawVendingMachine) this.drawVendingMachine(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
+                        if (!_isNightShift) this.drawAvatar({ id: 'os_greeter', name: 'Maintainer', isNPC: true, role: 'Lead Maintainer', phase: 'released', lab: 'other', desc: 'Reviewing pull requests since 2020.' }, this.startX + 140, fy + floorH - 4, floorCont, f, true);
+                    } else if (floorTheme === 'os_hackathon') {
+                        // Hackathon space — long desks, laptops, energy drinks
+                        if (this.drawHackathonDesk) {
+                            this.drawHackathonDesk(floorCont, this.startX + 120, fy + floorH - 4);
+                            this.drawHackathonDesk(floorCont, this.startX + 280, fy + floorH - 4);
+                            this.drawHackathonDesk(floorCont, this.startX + 440, fy + floorH - 4);
+                        }
+                        if (this.drawWaterCooler) this.drawWaterCooler(floorCont, this.startX + 60, fy + floorH - 4);
+                        if (this.drawVendingMachine) this.drawVendingMachine(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
+                    } else if (floorTheme === 'os_collab') {
+                        // Collaboration pods + whiteboards
+                        if (this.drawWhiteboard) { this.drawWhiteboard(floorCont, this.startX + 100, fy + floorH - 4); this.drawWhiteboard(floorCont, this.startX + 350, fy + floorH - 4); }
+                        if (this.drawCollaborationPod) { this.drawCollaborationPod(floorCont, this.startX + 220, fy + floorH - 4, 0xa855f7); this.drawCollaborationPod(floorCont, this.startX + 450, fy + floorH - 4, 0x06b6d4); }
+                        if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 160, fy + floorH - 4); this.drawPlant(floorCont, this.startX + 300, fy + floorH - 4); }
+                        if (!_isNightShift) this.drawAvatar({ id: 'os_contrib', name: 'Contributor', isNPC: true, role: 'Core Contributor', phase: 'released', lab: 'other', desc: 'Squashing bugs, one PR at a time.' }, this.startX + 260, fy + floorH - 4, floorCont, f, true);
+                    } else if (floorTheme === 'os_server') {
+                        // Community server infrastructure
+                        if (this.drawOpenServerRack) {
+                            let sx = this.startX + 80;
+                            while (sx < this.startX + this.usableW - 120) {
+                                this.drawOpenServerRack(floorCont, sx, fy + floorH - 4);
+                                sx += 60;
+                            }
+                        }
+                        if (this.drawWaterCooler) this.drawWaterCooler(floorCont, this.startX + this.usableW - 50, fy + floorH - 4);
+                    } else if (floorTheme === 'os_garden') {
+                        // Rooftop garden / relaxation for devs
+                        if (this.drawGardenPlanter) {
+                            this.drawGardenPlanter(floorCont, this.startX + 80, fy + floorH - 4);
+                            this.drawGardenPlanter(floorCont, this.startX + 200, fy + floorH - 4);
+                            this.drawGardenPlanter(floorCont, this.startX + 400, fy + floorH - 4);
+                        }
+                        if (this.drawHammock) this.drawHammock(floorCont, this.startX + 300, fy + floorH - 4);
+                        if (this.drawBiophilicDivider) this.drawBiophilicDivider(floorCont, this.startX + 140, fy + floorH - 4);
+                        if (this.drawStringLights) this.drawStringLights(floorCont, this.startX + 60, fy + 6, this.usableW - 120);
+                        if (this.drawPlant) { this.drawPlant(floorCont, this.startX + 340, fy + floorH - 4); this.drawPlant(floorCont, this.startX + this.usableW - 60, fy + floorH - 4); }
+
                     } else if (bld.id === 'graveyard') {
                         this.drawBrokenServer(floorCont, this.startX + 120, fy + floorH - 4);
                         this.drawTombstone(floorCont, this.startX + 200, fy + floorH - 4);

@@ -1974,10 +1974,10 @@ const Environment = {
         
         // ─── NEON SIGNS for social buildings (visible at night only) ───
         const neonConfig = {
-            'cafe': { text: '☕ CAFÉ', col: 0xf59e0b, speed: 0.08, flicker: 0.3 },
-            'gym': { text: '🏋️ GYM', col: 0x22d3ee, speed: 0.12, flicker: 0.4 },
-            'arena': { text: '⚔️ ARENA', col: 0xef4444, speed: 0.06, flicker: 0.25 },
-            'open_square': { text: '🏛 SQUARE', col: 0xa855f7, speed: 0.10, flicker: 0.35 },
+            'cafe': { text: '☕ API CAFÉ', col: 0xf59e0b, speed: 0.08, flicker: 0.3 },
+            'gym': { text: '🏋️ RLHF GYM', col: 0x22d3ee, speed: 0.12, flicker: 0.4 },
+            'arena': { text: '⚔️ LMSYS ARENA', col: 0xef4444, speed: 0.06, flicker: 0.25 },
+            'open_square': { text: '💻 OPEN SOURCE HUB', col: 0xa855f7, speed: 0.10, flicker: 0.35 },
             'neon_bar': { text: '🍸 NEON BAR', col: 0xff00ff, speed: 0.15, flicker: 0.45 },
             'uni_dorm': { text: '🎓 DORMITORY', col: 0x60a5fa, speed: 0.07, flicker: 0.2 }
         };
