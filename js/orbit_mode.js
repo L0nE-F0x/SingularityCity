@@ -1,37 +1,42 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   ORBIT MODE (v1.0.0 — Low Earth Orbit View with Real Satellite Data)
-   Pull up from the city sky boundary to transition into LEO. Starlink + other satellites
-   mapped from CelesTrak GP data. Smooth city→stratosphere→space transition.
+   ORBIT MODE (v2.0.0 — Top-Down Pixel Art Earth with Real Satellite Data)
+   Activated via minimap 🛰️ Orbit button. Top-down view of Earth with cute pixel art
+   satellites orbiting on rings. Fetches real data from CelesTrak, filtered to user's
+   timezone region. Matches the 2D pixel art aesthetic of the rest of the city.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const OrbitMode = {
     active: false,
-    layer: null,           // PIXI.Container added to app.stage
+    layer: null,
     _built: false,
     _transitioning: false,
-    _exiting: false,        // true when transitioning OUT of orbit
-    _transitionProgress: 0, // 0 = city, 1 = full orbit
-    _pullCount: 0,          // consecutive upward scroll attempts at sky ceiling
-    _pullDecay: null,       // timeout to reset pull count
+    _exiting: false,
+    _transitionProgress: 0,
+    _pullCount: 0,
+    _pullDecay: null,
 
-    // Satellite data
     satellites: [],
     _satSprites: [],
-    _satGroups: {},         // { starlink: [...], oneweb: [...], other: [...] }
-    _earthGfx: null,
-    _atmosGfx: null,
+    _satGroups: {},
+    _earthCont: null,
+    _orbitRings: null,
     _starField: null,
     _satLayer: null,
     _hudCont: null,
     _tooltip: null,
     _orbitTick: 0,
+    _earthRadius: 0,
+    _centerX: 0,
+    _centerY: 0,
 
-    // ─── SATELLITE FETCH (CelesTrak GP JSON) ───
+    // Saved camera state
+    _savedCamX: 0, _savedCamY: 0, _savedCamZoom: 1,
+
     CACHE_KEY: 'sc_orbit_sats',
-    CACHE_TTL: 60 * 60 * 1000,  // 1 hour
+    CACHE_TTL: 60 * 60 * 1000,
 
+    // ─── SATELLITE FETCH ───
     async fetchSatellites() {
-        // Check localStorage cache first
         try {
             const cached = JSON.parse(localStorage.getItem(this.CACHE_KEY));
             if (cached && Date.now() - cached.ts < this.CACHE_TTL) {
@@ -42,7 +47,6 @@ const OrbitMode = {
             }
         } catch (_) {}
 
-        // Fetch Starlink constellation (biggest visual impact)
         try {
             const urls = [
                 'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=json',
@@ -56,55 +60,69 @@ const OrbitMode = {
             const starlinkRaw = results[0].status === 'fulfilled' ? results[0].value : [];
             const onewebRaw = results[1].status === 'fulfilled' ? results[1].value : [];
 
-            // Take a sample — rendering 6000+ satellites kills performance
-            const sampleStarlink = this._sampleArray(starlinkRaw, 300);
-            const sampleOneweb = this._sampleArray(onewebRaw, 60);
+            // Filter to user's longitude region (+/- 60 degrees) based on RAAN
+            const userLon = this._getUserLongitude();
+            const filterByRegion = (arr) => {
+                return arr.filter(s => {
+                    const raan = s.RA_OF_ASC_NODE || 0;
+                    const diff = Math.abs(((raan - userLon + 540) % 360) - 180);
+                    return diff < 90; // show satellites in a 180-degree arc around user
+                });
+            };
+
+            const regionStarlink = filterByRegion(starlinkRaw);
+            const regionOneweb = filterByRegion(onewebRaw);
+
+            const sampleStarlink = this._sampleArray(regionStarlink.length ? regionStarlink : starlinkRaw, 80);
+            const sampleOneweb = this._sampleArray(regionOneweb.length ? regionOneweb : onewebRaw, 20);
 
             sats = [
                 ...sampleStarlink.map(s => this._parseSat(s, 'starlink')),
                 ...sampleOneweb.map(s => this._parseSat(s, 'oneweb'))
             ];
 
-            // Add ISS manually (always visible)
+            // Always show ISS
             sats.push({
                 name: 'ISS (ZARYA)', group: 'iss', noradId: 25544,
                 inclination: 51.6, eccentricity: 0.0001, meanMotion: 15.5,
                 altitude: 420, phase: Math.random() * 360, raan: Math.random() * 360
             });
 
-            // Add some GPS/Galileo for variety
+            // GPS + Galileo
             sats.push(
                 { name: 'GPS BIIR-2', group: 'gps', noradId: 28474, inclination: 55, eccentricity: 0.01, meanMotion: 2.0, altitude: 20200, phase: Math.random() * 360, raan: 45 },
                 { name: 'GPS BIIR-3', group: 'gps', noradId: 28874, inclination: 55, eccentricity: 0.01, meanMotion: 2.0, altitude: 20200, phase: Math.random() * 360, raan: 120 },
-                { name: 'GPS BIIR-6', group: 'gps', noradId: 29486, inclination: 55, eccentricity: 0.01, meanMotion: 2.0, altitude: 20200, phase: Math.random() * 360, raan: 200 },
                 { name: 'GALILEO-1', group: 'galileo', noradId: 37846, inclination: 56, eccentricity: 0.0002, meanMotion: 1.7, altitude: 23222, phase: Math.random() * 360, raan: 90 },
-                { name: 'GALILEO-2', group: 'galileo', noradId: 37847, inclination: 56, eccentricity: 0.0002, meanMotion: 1.7, altitude: 23222, phase: Math.random() * 360, raan: 270 }
+                { name: 'GALILEO-2', group: 'galileo', noradId: 38857, inclination: 56, eccentricity: 0.0002, meanMotion: 1.7, altitude: 23222, phase: Math.random() * 360, raan: 270 }
             );
 
-            // If API returned empty (CORS/blocked), use fallback constellation
             if (sampleStarlink.length === 0 && sampleOneweb.length === 0) {
-                console.warn('[Orbit] CelesTrak returned empty — using fallback constellation');
                 this._generateFallbackSatellites();
-                return;
+            } else {
+                this.satellites = sats;
+                this._groupSatellites();
+                try {
+                    localStorage.setItem(this.CACHE_KEY, JSON.stringify({ ts: Date.now(), data: sats }));
+                } catch (_) {}
             }
 
-            this.satellites = sats;
-            this._groupSatellites();
-            try { localStorage.setItem(this.CACHE_KEY, JSON.stringify({ ts: Date.now(), data: this.satellites })); } catch (_) {}
-            console.log(`🛰️ Orbit: Loaded ${this.satellites.length} satellites (${sampleStarlink.length} Starlink, ${sampleOneweb.length} OneWeb)`);
+            console.log(`🛰️ Orbit: Loaded ${this.satellites.length} satellites (filtered to your region)`);
         } catch (e) {
             console.warn('[Orbit] Satellite fetch failed:', e.message);
             this._generateFallbackSatellites();
         }
     },
 
+    _getUserLongitude() {
+        // Approximate longitude from timezone offset
+        const offsetMin = new Date().getTimezoneOffset();
+        return -offsetMin / 4; // 1 degree = 4 minutes of time
+    },
+
     _parseSat(raw, group) {
         return {
-            name: raw.OBJECT_NAME || 'Unknown',
-            group,
-            noradId: raw.NORAD_CAT_ID || 0,
-            inclination: raw.INCLINATION || 53,
-            eccentricity: raw.ECCENTRICITY || 0.0001,
+            name: raw.OBJECT_NAME || 'Unknown', group, noradId: raw.NORAD_CAT_ID || 0,
+            inclination: raw.INCLINATION || 53, eccentricity: raw.ECCENTRICITY || 0.0001,
             meanMotion: raw.MEAN_MOTION || 15.0,
             altitude: raw.MEAN_MOTION ? (8681663.5 / Math.pow(raw.MEAN_MOTION, 2/3)) - 6371 : 550,
             phase: raw.MEAN_ANOMALY || Math.random() * 360,
@@ -129,99 +147,71 @@ const OrbitMode = {
     },
 
     _generateFallbackSatellites() {
-        // If API fails, generate plausible Starlink-like distribution
         const sats = [];
-        for (let i = 0; i < 200; i++) {
+        for (let i = 0; i < 60; i++) {
             sats.push({
-                name: `STARLINK-${1000 + i}`,
-                group: 'starlink',
-                noradId: 50000 + i,
-                inclination: 53 + (Math.random() - 0.5) * 4,
-                eccentricity: 0.0001,
-                meanMotion: 15.0 + (Math.random() - 0.5) * 0.4,
-                altitude: 540 + Math.random() * 30,
-                phase: Math.random() * 360,
-                raan: Math.random() * 360
+                name: `STARLINK-${1000 + i}`, group: 'starlink', noradId: 50000 + i,
+                inclination: 53 + Math.random() * 4, eccentricity: 0.0001,
+                meanMotion: 15.0 + Math.random() * 0.5, altitude: 540 + Math.random() * 30,
+                phase: Math.random() * 360, raan: Math.random() * 360
             });
         }
-        sats.push({ name: 'ISS (ZARYA)', group: 'iss', noradId: 25544, inclination: 51.6, eccentricity: 0.0001, meanMotion: 15.5, altitude: 420, phase: Math.random() * 360, raan: Math.random() * 360 });
+        sats.push({ name: 'ISS (ZARYA)', group: 'iss', noradId: 25544, inclination: 51.6, eccentricity: 0.0001, meanMotion: 15.5, altitude: 420, phase: Math.random() * 360, raan: 0 });
+        sats.push({ name: 'GPS BIIR-2', group: 'gps', noradId: 28474, inclination: 55, eccentricity: 0.01, meanMotion: 2.0, altitude: 20200, phase: Math.random() * 360, raan: 45 });
+        sats.push({ name: 'GALILEO-1', group: 'galileo', noradId: 37846, inclination: 56, eccentricity: 0.0002, meanMotion: 1.7, altitude: 23222, phase: Math.random() * 360, raan: 90 });
         this.satellites = sats;
         this._groupSatellites();
     },
 
-    // ─── PULL DETECTION (called from Camera) ───
-    registerPull() {
-        if (this.active || this._transitioning) return;
-        this._pullCount++;
-        clearTimeout(this._pullDecay);
-        this._pullDecay = setTimeout(() => { this._pullCount = 0; }, 800);
+    // Pull detection (kept for API compatibility but no longer triggered from camera)
+    registerPull() {},
 
-        if (this._pullCount >= 12) {
-            this._pullCount = 0;
-            this.enter();
-        }
-    },
-
-    // ─── ENTER ORBIT ───
+    // ─── ENTER / EXIT ───
     async enter() {
         if (this.active || this._transitioning) return;
         this._transitioning = true;
         this._exiting = false;
         this._transitionProgress = 0;
 
-        // Save camera state for restoration on exit
         this._savedCamX = Camera.targetX;
         this._savedCamY = Camera.targetY;
         this._savedCamZoom = Camera.targetZoom;
 
-        // Stop tracking
         if (typeof G !== 'undefined' && G.tracking) G.stopTracking();
-
-        // Fetch satellite data if we haven't yet
         if (this.satellites.length === 0) await this.fetchSatellites();
-
-        // Build orbit layer if first time
         if (!this._built) this._build();
 
         this.layer.visible = true;
         this.layer.alpha = 0;
         this.active = true;
 
-        // Show exit button
         this._showExitBtn();
 
-        // Hide normal UI
         const topUI = document.querySelector('.top');
         if (topUI) topUI.style.display = 'none';
         const infoPanel = document.getElementById('infoPanel');
         if (infoPanel) infoPanel.classList.remove('open');
         const mm = document.getElementById('minimap');
         if (mm) mm.style.display = 'none';
-        // Hide any HTML tooltips that could bleed through
         const htmlTips = document.querySelectorAll('.bld-tip, .ship-tip, .tooltip, [id*="tooltip"], [id*="Tip"]');
         htmlTips.forEach(t => { t.style.display = 'none'; });
 
         if (typeof SND !== 'undefined') SND.setAmbient('orbit');
 
-        // Set renderer background opaque (canvas is normally transparent)
         if (G.app && G.app.renderer && G.app.renderer.background) {
             G.app.renderer.background.alpha = 1;
             G.app.renderer.background.color = 0x020208;
         }
 
-        if (typeof UI !== 'undefined') UI.addToast('🛰️ Entering Low Earth Orbit...');
-        console.log('🌍 Orbit Mode: entering');
+        if (typeof UI !== 'undefined') UI.addToast('🛰️ Entering orbit view...');
     },
 
-    // ─── EXIT ORBIT ───
     exit() {
         if (!this.active) return;
         this._transitioning = true;
         this._exiting = true;
-        this._transitionProgress = 1; // will animate back to 0
-
+        this._transitionProgress = 1;
         if (typeof SND !== 'undefined') SND.setAmbient('outside');
-        console.log('🌍 Orbit Mode: exiting');
     },
 
     _completeExit() {
@@ -232,25 +222,19 @@ const OrbitMode = {
 
         if (this.layer) this.layer.visible = false;
 
-        // Restore UI
         const topUI = document.querySelector('.top');
         if (topUI) topUI.style.display = '';
         const mm = document.getElementById('minimap');
         if (mm) mm.style.display = '';
 
-        // Restore renderer transparency
         if (G.app && G.app.renderer && G.app.renderer.background) {
             G.app.renderer.background.alpha = 0;
         }
 
-        // Restore world
         if (G.world) { G.world.visible = true; G.world.alpha = 1; }
 
-        // Hide exit button
         const exitBtn = document.getElementById('btnExitOrbit');
         if (exitBtn) exitBtn.style.display = 'none';
-
-        // Hide tooltip
         if (this._tooltip) this._tooltip.visible = false;
 
         if (typeof Camera !== 'undefined') {
@@ -263,56 +247,62 @@ const OrbitMode = {
         }
     },
 
-    // ─── BUILD PIXI SCENE ───
+    // ─── BUILD TOP-DOWN PIXEL ART SCENE ───
     _build() {
         if (!G.app) return;
         this.layer = new PIXI.Container();
         G.app.stage.addChild(this.layer);
 
         const W = G.vpW, H = G.vpH;
+        this._centerX = W / 2;
+        this._centerY = H / 2;
+        this._earthRadius = Math.min(W, H) * 0.22;
 
-        // Opaque black background (canvas is transparent, must cover HTML beneath)
-        this._bgGfx = new PIXI.Graphics();
-        this._bgGfx.beginFill(0x020208);
-        this._bgGfx.drawRect(-200, -200, W + 400, H + 400);
-        this._bgGfx.endFill();
-        this.layer.addChild(this._bgGfx);
+        // Background
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0x020208);
+        bg.drawRect(-200, -200, W + 400, H + 400);
+        bg.endFill();
+        this.layer.addChild(bg);
+        this._bgGfx = bg;
 
-        // Star field background
+        // Star field
         this._starField = new PIXI.Container();
-        for (let i = 0; i < 400; i++) {
+        for (let i = 0; i < 300; i++) {
             const s = new PIXI.Graphics();
-            const sz = 0.3 + Math.random() * 1.8;
-            const brightness = 0.3 + Math.random() * 0.7;
-            s.beginFill(0xffffff, brightness);
-            s.drawCircle(0, 0, sz);
+            const sz = Math.random() < 0.1 ? 2 : 1; // pixel art: 1px or 2px dots
+            s.beginFill(0xffffff, 0.3 + Math.random() * 0.5);
+            s.drawRect(0, 0, sz, sz); // square pixels, not circles
             s.endFill();
-            s.x = Math.random() * W * 1.5 - W * 0.25;
-            s.y = Math.random() * H * 0.75;
+            s.x = Math.floor(Math.random() * W);
+            s.y = Math.floor(Math.random() * H);
             s._twinklePhase = Math.random() * Math.PI * 2;
-            s._twinkleSpeed = 0.01 + Math.random() * 0.03;
+            s._twinkleSpeed = 0.01 + Math.random() * 0.02;
             this._starField.addChild(s);
         }
         this.layer.addChild(this._starField);
 
-        // Earth curvature (bottom of screen)
-        this._earthGfx = new PIXI.Graphics();
-        this._atmosGfx = new PIXI.Graphics();
+        // Orbit rings (dashed circles at different altitudes)
+        this._orbitRings = new PIXI.Graphics();
+        this._drawOrbitRings();
+        this.layer.addChild(this._orbitRings);
+
+        // Earth (top-down pixel art circle)
+        this._earthCont = new PIXI.Container();
         this._drawEarth();
-        this.layer.addChild(this._atmosGfx);
-        this.layer.addChild(this._earthGfx);
+        this.layer.addChild(this._earthCont);
 
         // Satellite layer
         this._satLayer = new PIXI.Container();
         this.layer.addChild(this._satLayer);
         this._buildSatelliteSprites();
 
-        // HUD overlay
+        // HUD
         this._hudCont = new PIXI.Container();
         this._buildHUD();
         this.layer.addChild(this._hudCont);
 
-        // Tooltip (hidden by default)
+        // Tooltip
         this._tooltip = new PIXI.Container();
         this._tooltip.visible = false;
         this._tooltipBg = new PIXI.Graphics();
@@ -320,7 +310,7 @@ const OrbitMode = {
         this._tooltip.addChild(this._tooltipBg, this._tooltipText);
         this.layer.addChild(this._tooltip);
 
-        // Pointer interaction for satellite tapping
+        // Tap interaction
         this.layer.eventMode = 'static';
         this.layer.on('pointerdown', (e) => this._onTap(e));
 
@@ -328,187 +318,248 @@ const OrbitMode = {
     },
 
     _drawEarth() {
-        const W = G.vpW, H = G.vpH;
-        const earthY = H * 0.78;          // Earth starts at 78% down
-        const curveRadius = W * 1.2;       // Wide curve for horizon effect
-        const centerX = W / 2;
+        this._earthCont.removeChildren();
+        const cx = this._centerX, cy = this._centerY, r = this._earthRadius;
+        const earth = new PIXI.Graphics();
 
-        // Atmosphere glow layers
-        const atmos = this._atmosGfx;
-        atmos.clear();
-        // Outer atmosphere (faint blue glow)
-        for (let i = 4; i >= 0; i--) {
-            const offset = i * 8;
-            const alpha = 0.04 + (4 - i) * 0.03;
-            atmos.beginFill(0x4488ff, alpha);
-            atmos.drawEllipse(centerX, earthY + curveRadius - offset, curveRadius + 40 - i * 5, curveRadius);
-            atmos.endFill();
-        }
-        // Thin bright atmosphere line
-        atmos.lineStyle(2, 0x66bbff, 0.6);
-        atmos.drawEllipse(centerX, earthY + curveRadius, curveRadius + 10, curveRadius);
-
-        // Earth body
-        const earth = this._earthGfx;
-        earth.clear();
-
-        // Dark earth surface — deep ocean blue
-        earth.beginFill(0x060d1a);
-        earth.drawEllipse(centerX, earthY + curveRadius + 8, curveRadius + 5, curveRadius);
+        // Ocean (dark blue circle)
+        earth.beginFill(0x0a1a3a);
+        earth.drawCircle(cx, cy, r);
         earth.endFill();
 
-        // Subtle latitude grid lines on the surface (abstract/clean)
-        earth.lineStyle(1, 0x1a2a44, 0.2);
-        for (let i = 1; i <= 4; i++) {
-            const gridOffset = i * 12;
-            const gridRadiusX = curveRadius - i * 30;
-            if (gridRadiusX > 0) {
-                earth.drawEllipse(centerX, earthY + curveRadius + 8 + gridOffset, gridRadiusX, curveRadius - gridOffset);
-            }
-        }
-        // Longitude lines
-        for (let i = -3; i <= 3; i++) {
-            const lx = centerX + i * (curveRadius / 4);
-            earth.lineStyle(1, 0x1a2a44, 0.12);
-            earth.moveTo(lx, earthY + 10);
-            earth.lineTo(lx + i * 3, earthY + 80);
-        }
+        // Latitude/longitude grid (subtle)
+        earth.lineStyle(1, 0x1a3060, 0.25);
+        earth.drawCircle(cx, cy, r * 0.33);
+        earth.drawCircle(cx, cy, r * 0.66);
+        earth.moveTo(cx - r, cy); earth.lineTo(cx + r, cy);
+        earth.moveTo(cx, cy - r); earth.lineTo(cx, cy + r);
+        // Diagonals
+        const d = r * 0.707;
+        earth.moveTo(cx - d, cy - d); earth.lineTo(cx + d, cy + d);
+        earth.moveTo(cx + d, cy - d); earth.lineTo(cx - d, cy + d);
         earth.lineStyle(0);
 
-        // City light clusters (warm dots scattered on the surface — no landmasses)
-        const cityLightClusters = [
-            // North America
-            { cx: -0.30, cy: 0.01, count: 6, spread: 0.04 },
-            // Europe
-            { cx: 0.05, cy: 0.01, count: 8, spread: 0.04 },
-            // East Asia
-            { cx: 0.25, cy: 0.015, count: 7, spread: 0.05 },
-            // South America
-            { cx: -0.18, cy: 0.03, count: 3, spread: 0.03 },
-            // India
-            { cx: 0.15, cy: 0.025, count: 4, spread: 0.03 },
-            // Middle East
-            { cx: 0.10, cy: 0.018, count: 3, spread: 0.02 },
-            // Australia
-            { cx: 0.35, cy: 0.03, count: 2, spread: 0.02 },
-            // Africa
-            { cx: 0.02, cy: 0.025, count: 2, spread: 0.02 },
+        // Day/night terminator based on real time
+        const dp = G.getDayPhase();
+        const terminatorAngle = dp * Math.PI * 2 - Math.PI / 2;
+        // Dark side overlay (half the earth in shadow)
+        earth.beginFill(0x000008, 0.5);
+        earth.arc(cx, cy, r, terminatorAngle, terminatorAngle + Math.PI);
+        earth.lineTo(cx, cy);
+        earth.closePath();
+        earth.endFill();
+
+        // City light clusters on the dark side (pixel dots)
+        const clusters = [
+            { angle: 0.0, dist: 0.4, count: 5 },     // East coast US
+            { angle: 0.5, dist: 0.3, count: 6 },      // Europe
+            { angle: 0.8, dist: 0.5, count: 4 },       // East Asia
+            { angle: 1.2, dist: 0.6, count: 3 },       // SE Asia
+            { angle: 0.3, dist: 0.55, count: 3 },      // Middle East
+            { angle: -0.3, dist: 0.35, count: 4 },     // West coast US
+            { angle: -0.5, dist: 0.7, count: 2 },      // South America
+            { angle: 0.6, dist: 0.7, count: 2 },       // Africa
+            { angle: 1.5, dist: 0.55, count: 2 },      // Australia
         ];
-        cityLightClusters.forEach(cluster => {
-            for (let i = 0; i < cluster.count; i++) {
-                const ox = (Math.random() - 0.5) * cluster.spread * 2;
-                const oy = Math.random() * cluster.spread * 0.5;
-                const brightness = 0.3 + Math.random() * 0.5;
-                const size = 0.5 + Math.random() * 1.2;
-                earth.beginFill(0xffcc44, brightness);
-                earth.drawCircle(
-                    centerX + (cluster.cx + ox) * W,
-                    earthY + (cluster.cy + oy) * H + 14,
-                    size
-                );
+        clusters.forEach(c => {
+            for (let i = 0; i < c.count; i++) {
+                const a = c.angle + (Math.random() - 0.5) * 0.3;
+                const d = c.dist + (Math.random() - 0.5) * 0.15;
+                const lx = cx + Math.cos(a) * r * d;
+                const ly = cy + Math.sin(a) * r * d;
+                earth.beginFill(0xffcc44, 0.4 + Math.random() * 0.4);
+                earth.drawRect(Math.floor(lx), Math.floor(ly), 1, 1); // 1px pixel dots
                 earth.endFill();
-                // Soft glow around larger lights
-                if (size > 1) {
-                    earth.beginFill(0xffcc44, brightness * 0.15);
-                    earth.drawCircle(
-                        centerX + (cluster.cx + ox) * W,
-                        earthY + (cluster.cy + oy) * H + 14,
-                        size * 3
-                    );
-                    earth.endFill();
-                }
             }
+        });
+
+        // Atmosphere glow ring
+        earth.lineStyle(3, 0x4488ff, 0.15);
+        earth.drawCircle(cx, cy, r + 4);
+        earth.lineStyle(2, 0x66bbff, 0.25);
+        earth.drawCircle(cx, cy, r + 2);
+        earth.lineStyle(1, 0x88ccff, 0.4);
+        earth.drawCircle(cx, cy, r + 1);
+
+        // "YOU ARE HERE" marker based on timezone
+        const userLon = this._getUserLongitude();
+        const userAngle = (userLon / 180) * Math.PI - Math.PI / 2;
+        const markerX = cx + Math.cos(userAngle) * r * 0.6;
+        const markerY = cy + Math.sin(userAngle) * r * 0.6;
+        earth.beginFill(0x4ade80);
+        earth.drawRect(Math.floor(markerX) - 1, Math.floor(markerY) - 1, 3, 3);
+        earth.endFill();
+        // Pulsing ring drawn in update()
+
+        this._earthCont.addChild(earth);
+        this._earthGfx = earth;
+
+        // "YOU" label
+        const youLabel = new PIXI.Text('YOU', {
+            fontFamily: 'Press Start 2P, monospace', fontSize: 6, fill: '#4ade80'
+        });
+        youLabel.anchor.set(0.5, 0);
+        youLabel.x = Math.floor(markerX);
+        youLabel.y = Math.floor(markerY) + 5;
+        this._earthCont.addChild(youLabel);
+        this._youMarkerX = markerX;
+        this._youMarkerY = markerY;
+    },
+
+    _drawOrbitRings() {
+        const g = this._orbitRings;
+        g.clear();
+        const cx = this._centerX, cy = this._centerY, r = this._earthRadius;
+
+        // LEO ring (Starlink ~550km)
+        const leoR = r + r * 0.35;
+        this._drawDashedCircle(g, cx, cy, leoR, 0x44aaff, 0.12, 4, 6);
+
+        // MEO ring (OneWeb ~1200km)
+        const meoR = r + r * 0.55;
+        this._drawDashedCircle(g, cx, cy, meoR, 0xff8844, 0.10, 4, 8);
+
+        // GPS ring (~20200km)
+        const gpsR = r + r * 0.85;
+        this._drawDashedCircle(g, cx, cy, gpsR, 0x44ff88, 0.08, 3, 10);
+
+        // Labels on rings
+        const ringLabels = [
+            { r: leoR, label: 'LEO 550km', color: '#44aaff' },
+            { r: meoR, label: '1,200km', color: '#ff8844' },
+            { r: gpsR, label: 'GPS 20,200km', color: '#44ff88' },
+        ];
+        ringLabels.forEach(rl => {
+            const lbl = new PIXI.Text(rl.label, {
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 7, fill: rl.color
+            });
+            lbl.alpha = 0.4;
+            lbl.x = cx + rl.r * 0.7;
+            lbl.y = cy - rl.r * 0.7 - 8;
+            this._orbitRings.addChild(lbl);
         });
     },
 
+    _drawDashedCircle(g, cx, cy, radius, color, alpha, dashLen, gapLen) {
+        const circumference = 2 * Math.PI * radius;
+        const segLen = dashLen + gapLen;
+        const segments = Math.floor(circumference / segLen);
+        g.lineStyle(1, color, alpha);
+        for (let i = 0; i < segments; i++) {
+            const startAngle = (i * segLen / circumference) * Math.PI * 2;
+            const endAngle = ((i * segLen + dashLen) / circumference) * Math.PI * 2;
+            g.moveTo(cx + Math.cos(startAngle) * radius, cy + Math.sin(startAngle) * radius);
+            // Draw small line segments along the arc
+            const steps = 3;
+            for (let s = 1; s <= steps; s++) {
+                const a = startAngle + (endAngle - startAngle) * (s / steps);
+                g.lineTo(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius);
+            }
+        }
+        g.lineStyle(0);
+    },
+
+    // ─── PIXEL ART SATELLITE SPRITES ───
     _buildSatelliteSprites() {
         this._satSprites = [];
-        const W = G.vpW, H = G.vpH;
-        const earthY = H * 0.78;
+        const cx = this._centerX, cy = this._centerY, r = this._earthRadius;
 
         const groupColors = {
-            starlink: 0x44aaff,
-            oneweb: 0xff8844,
-            iss: 0xffff00,
-            gps: 0x44ff88,
-            galileo: 0xaa88ff,
-            other: 0x888888
+            starlink: 0x44aaff, oneweb: 0xff8844,
+            iss: 0xffff00, gps: 0x44ff88,
+            galileo: 0xaa88ff, other: 0x888888
         };
 
-        this.satellites.forEach((sat, i) => {
-            const g = new PIXI.Graphics();
+        this.satellites.forEach((sat) => {
             const color = groupColors[sat.group] || 0x888888;
-            const size = sat.group === 'iss' ? 3.5 : (sat.group === 'gps' || sat.group === 'galileo') ? 1.8 : 1.0;
+            const g = new PIXI.Graphics();
 
-            g.beginFill(color);
-            g.drawCircle(0, 0, size);
-            g.endFill();
-
-            // Solar panel glint for ISS
             if (sat.group === 'iss') {
-                g.beginFill(0xffffaa, 0.6);
+                // Pixel art ISS — larger, detailed
+                // Main truss
+                g.beginFill(0xc0c0c0);
                 g.drawRect(-6, -1, 12, 2);
+                g.endFill();
+                // Solar panels (4 pairs)
+                g.beginFill(0x3366cc);
+                g.drawRect(-8, -4, 3, 3); g.drawRect(-8, 1, 3, 3);
+                g.drawRect(-3, -4, 3, 3); g.drawRect(-3, 1, 3, 3);
+                g.drawRect(1, -4, 3, 3);  g.drawRect(1, 1, 3, 3);
+                g.drawRect(5, -4, 3, 3);  g.drawRect(5, 1, 3, 3);
+                g.endFill();
+                // Modules (center)
+                g.beginFill(0xeeeeee);
+                g.drawRect(-2, -1, 4, 2);
+                g.endFill();
+            } else if (sat.group === 'gps' || sat.group === 'galileo') {
+                // Pixel art nav sat — body + small panels
+                g.beginFill(color);
+                g.drawRect(-1, -1, 3, 3);
+                g.endFill();
+                g.beginFill(0x2255aa);
+                g.drawRect(-3, -1, 2, 2);
+                g.drawRect(2, -1, 2, 2);
+                g.endFill();
+                // Antenna
+                g.beginFill(0xcccccc);
+                g.drawRect(0, -3, 1, 2);
+                g.endFill();
+            } else {
+                // Starlink/OneWeb — tiny pixel dot with mini solar panels
+                g.beginFill(color);
+                g.drawRect(0, 0, 2, 2);
+                g.endFill();
+                // Tiny solar panels
+                g.beginFill(color, 0.5);
+                g.drawRect(-2, 0, 2, 1);
+                g.drawRect(2, 0, 2, 1);
                 g.endFill();
             }
 
-            // Position satellites in orbital arcs
-            // Map satellite orbital parameters to screen positions
-            const orbitHeight = this._altitudeToScreenY(sat.altitude, earthY, H);
-            const angle = (sat.phase / 180) * Math.PI;
-            const orbitWidth = W * 0.8 + (sat.raan / 360) * W * 0.4;
+            // Calculate orbit radius on screen
+            const altNorm = Math.log(1 + (sat.altitude - 200) / 35800 * 9) / Math.log(10);
+            const orbitR = r + r * (0.35 + altNorm * 0.6);
+            const startAngle = (sat.phase / 180) * Math.PI;
 
-            g.x = W / 2 + Math.cos(angle) * orbitWidth * 0.5;
-            g.y = orbitHeight + Math.sin(angle * 0.3) * 30;
+            g.x = cx + Math.cos(startAngle) * orbitR;
+            g.y = cy + Math.sin(startAngle) * orbitR;
 
-            // Store orbital animation params
             g._sat = sat;
-            g._orbitSpeed = (sat.meanMotion / 15) * 0.0003;  // normalized orbital speed
-            g._orbitPhase = angle;
-            g._orbitRadius = orbitWidth * 0.5;
-            g._orbitCenterY = orbitHeight;
+            g._orbitRadius = orbitR;
+            g._orbitPhase = startAngle;
+            g._orbitSpeed = (sat.meanMotion / 15) * 0.002; // faster for visual interest
             g._baseColor = color;
-            g._size = size;
 
             this._satLayer.addChild(g);
             this._satSprites.push(g);
         });
     },
 
-    _altitudeToScreenY(altKm, earthY, H) {
-        // Map real altitude to screen position
-        // LEO (200-2000km) → 55%-75% of screen height
-        // MEO (2000-35786km) → 25%-55%
-        // Normalize: 200km → near earth, 35000km → high up
-        const minAlt = 200, maxAlt = 36000;
-        const clamped = Math.max(minAlt, Math.min(maxAlt, altKm));
-        const t = (clamped - minAlt) / (maxAlt - minAlt);
-        // Logarithmic mapping for visual spread
-        const logT = Math.log(1 + t * 9) / Math.log(10);
-        return earthY - 40 - logT * (earthY - H * 0.08);
-    },
-
+    // ─── HUD ───
     _buildHUD() {
         const W = G.vpW;
-        // Title
-        const title = new PIXI.Text('LOW EARTH ORBIT', {
-            fontFamily: 'Press Start 2P, monospace',
-            fontSize: 12,
-            fill: '#66bbff',
-            letterSpacing: 2
+
+        const title = new PIXI.Text('ORBIT VIEW', {
+            fontFamily: 'Press Start 2P, monospace', fontSize: 12, fill: '#66bbff', letterSpacing: 2
         });
-        title.x = 16;
-        title.y = 16;
+        title.x = 16; title.y = 16;
         this._hudCont.addChild(title);
 
-        // Satellite count
         this._satCountText = new PIXI.Text('', {
-            fontFamily: 'JetBrains Mono, monospace',
-            fontSize: 10,
-            fill: '#88aacc'
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fill: '#88aacc'
         });
-        this._satCountText.x = 16;
-        this._satCountText.y = 36;
+        this._satCountText.x = 16; this._satCountText.y = 36;
         this._hudCont.addChild(this._satCountText);
+
+        // Location info
+        const tzOffset = new Date().getTimezoneOffset();
+        const tzHours = -tzOffset / 60;
+        const tzStr = `UTC${tzHours >= 0 ? '+' : ''}${tzHours}`;
+        const locText = new PIXI.Text(`Showing satellites near ${tzStr}`, {
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fill: '#4ade80'
+        });
+        locText.x = 16; locText.y = 52;
+        this._hudCont.addChild(locText);
 
         // Legend
         const legendItems = [
@@ -518,52 +569,18 @@ const OrbitMode = {
             { color: 0x44ff88, label: 'GPS' },
             { color: 0xaa88ff, label: 'Galileo' }
         ];
-        const legendY = 58;
         legendItems.forEach((item, i) => {
             const dot = new PIXI.Graphics();
             dot.beginFill(item.color);
-            dot.drawCircle(0, 0, 3);
+            dot.drawRect(0, 0, 4, 4); // pixel square
             dot.endFill();
-            dot.x = 22;
-            dot.y = legendY + i * 16;
+            dot.x = 18; dot.y = 72 + i * 16;
 
             const lbl = new PIXI.Text(item.label, {
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 9,
-                fill: '#aabbcc'
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: '#aabbcc'
             });
-            lbl.x = 32;
-            lbl.y = legendY + i * 16 - 5;
-
+            lbl.x = 28; lbl.y = 72 + i * 16 - 3;
             this._hudCont.addChild(dot, lbl);
-        });
-
-        // Altitude scale (right side)
-        const scaleX = W - 60;
-        const altitudes = [
-            { alt: 400, label: '400km LEO' },
-            { alt: 550, label: '550km Starlink' },
-            { alt: 1200, label: '1200km OneWeb' },
-            { alt: 20200, label: '20,200km GPS' },
-            { alt: 35786, label: '35,786km GEO' }
-        ];
-        const earthY = G.vpH * 0.78;
-        altitudes.forEach(a => {
-            const y = this._altitudeToScreenY(a.alt, earthY, G.vpH);
-            const tick = new PIXI.Graphics();
-            tick.lineStyle(1, 0x445566, 0.5);
-            tick.moveTo(scaleX, y);
-            tick.lineTo(scaleX + 20, y);
-
-            const lbl = new PIXI.Text(a.label, {
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 7,
-                fill: '#556677'
-            });
-            lbl.x = scaleX - lbl.width - 4;
-            lbl.y = y - 4;
-
-            this._hudCont.addChild(tick, lbl);
         });
     },
 
@@ -573,17 +590,13 @@ const OrbitMode = {
         const pos = e.data ? e.data.global : e.global;
         if (!pos) return;
 
-        // Check if we tapped near a satellite
-        let closest = null, closestDist = 20; // 20px tap radius
+        let closest = null, closestDist = 15;
         this._satSprites.forEach(sp => {
             if (sp.destroyed) return;
             const dx = sp.x - pos.x;
             const dy = sp.y - pos.y;
             const d = Math.sqrt(dx * dx + dy * dy);
-            if (d < closestDist) {
-                closestDist = d;
-                closest = sp;
-            }
+            if (d < closestDist) { closestDist = d; closest = sp; }
         });
 
         if (closest && closest._sat) {
@@ -595,76 +608,56 @@ const OrbitMode = {
 
     _showTooltip(sprite) {
         const sat = sprite._sat;
-        const tt = this._tooltip;
-        const bg = this._tooltipBg;
-        const txt = this._tooltipText;
-
         const altStr = sat.altitude < 1000 ? `${Math.round(sat.altitude)}km` : `${(sat.altitude / 1000).toFixed(1)}K km`;
-        const speedKmS = (2 * Math.PI * (6371 + sat.altitude)) / (86400 / sat.meanMotion) ;
-        const speedStr = `${(speedKmS).toFixed(1)} km/s`;
+        const speedKmS = (2 * Math.PI * (6371 + sat.altitude)) / (86400 / sat.meanMotion);
 
-        txt.text = `${sat.name}\n` +
-                   `Group: ${sat.group.toUpperCase()}\n` +
-                   `Altitude: ${altStr}\n` +
-                   `Inclination: ${sat.inclination.toFixed(1)}°\n` +
-                   `Speed: ${speedStr}\n` +
-                   `NORAD: ${sat.noradId}`;
+        this._tooltipText.text = `${sat.name}\nGroup: ${sat.group.toUpperCase()}\nAlt: ${altStr}\nIncl: ${sat.inclination.toFixed(1)}°\nSpeed: ${speedKmS.toFixed(1)} km/s\nNORAD: ${sat.noradId}`;
 
-        bg.clear();
-        bg.beginFill(0x0a1628, 0.92);
-        bg.lineStyle(1, 0x44aaff, 0.6);
-        bg.drawRoundedRect(-8, -8, txt.width + 16, txt.height + 16, 4);
-        bg.endFill();
+        this._tooltipBg.clear();
+        this._tooltipBg.beginFill(0x0a1628, 0.92);
+        this._tooltipBg.lineStyle(1, 0x44aaff, 0.6);
+        this._tooltipBg.drawRect(-8, -8, this._tooltipText.width + 16, this._tooltipText.height + 16);
+        this._tooltipBg.endFill();
 
-        tt.x = Math.min(sprite.x + 12, G.vpW - txt.width - 30);
-        tt.y = Math.max(sprite.y - 20, 10);
-        tt.visible = true;
+        this._tooltip.x = Math.min(sprite.x + 12, G.vpW - this._tooltipText.width - 30);
+        this._tooltip.y = Math.max(sprite.y - 20, 10);
+        this._tooltip.visible = true;
     },
 
-    // ─── EXIT BUTTON ───
     _showExitBtn() {
         let btn = document.getElementById('btnExitOrbit');
         if (!btn) {
             btn = document.createElement('button');
             btn.id = 'btnExitOrbit';
             btn.innerHTML = '🌍 RETURN TO CITY';
-            btn.style.cssText = 'position:absolute; top:0px; right:20px; z-index:9999; background:linear-gradient(135deg, #1a3a5c, #0d2240); color:#66bbff; border:none; border-bottom: 3px solid #44aaff; padding:12px 20px; border-radius:0 0 6px 6px; cursor:pointer; font-size:12px; font-weight:bold; font-family:"Press Start 2P", monospace; box-shadow: 0 4px 12px rgba(68,170,255,0.3); transition: background 0.2s;';
-            btn.onmouseover = () => { btn.style.background = 'linear-gradient(135deg, #234b6e, #153050)'; };
-            btn.onmouseout = () => { btn.style.background = 'linear-gradient(135deg, #1a3a5c, #0d2240)'; };
+            btn.style.cssText = 'position:absolute;top:0;right:20px;z-index:9999;background:linear-gradient(135deg,#1a3a5c,#0d2240);color:#66bbff;border:none;border-bottom:3px solid #44aaff;padding:12px 20px;border-radius:0 0 6px 6px;cursor:pointer;font-size:12px;font-weight:bold;font-family:"Press Start 2P",monospace;box-shadow:0 4px 12px rgba(68,170,255,0.3);transition:background 0.2s;';
+            btn.onmouseover = () => { btn.style.background = 'linear-gradient(135deg,#234b6e,#153050)'; };
+            btn.onmouseout = () => { btn.style.background = 'linear-gradient(135deg,#1a3a5c,#0d2240)'; };
             btn.onclick = () => { if (typeof SND !== 'undefined') SND.uiClick(); this.exit(); };
             document.body.appendChild(btn);
         }
         btn.style.display = 'block';
     },
 
-    // ─── FRAME UPDATE (called from engine loop) ───
+    // ─── FRAME UPDATE ───
     update() {
         if (!this.active && !this._transitioning) return;
         this._orbitTick++;
 
-        // ─── TRANSITION ANIMATION ───
+        // Transition animation
         if (this._transitioning) {
             if (!this._exiting) {
-                // Entering: fade in orbit, fade out city
-                this._transitionProgress = Math.min(1, this._transitionProgress + 0.025);
+                this._transitionProgress = Math.min(1, this._transitionProgress + 0.03);
                 this.layer.alpha = this._transitionProgress;
-                if (G.world) {
-                    G.world.alpha = 1 - this._transitionProgress;
-                    const z = 1 - this._transitionProgress * 0.5;
-                    Camera.targetZoom = z;
-                }
+                if (G.world) G.world.alpha = 1 - this._transitionProgress;
                 if (this._transitionProgress >= 1) {
                     this._transitioning = false;
                     if (G.world) G.world.visible = false;
                 }
             } else {
-                // Exiting: fade out orbit, fade in city
-                this._transitionProgress = Math.max(0, this._transitionProgress - 0.03);
+                this._transitionProgress = Math.max(0, this._transitionProgress - 0.035);
                 this.layer.alpha = this._transitionProgress;
-                if (G.world) {
-                    G.world.visible = true;
-                    G.world.alpha = 1 - this._transitionProgress;
-                }
+                if (G.world) { G.world.visible = true; G.world.alpha = 1 - this._transitionProgress; }
                 if (this._transitionProgress <= 0) {
                     this._completeExit();
                     if (G.world) G.world.alpha = 1;
@@ -675,73 +668,67 @@ const OrbitMode = {
 
         if (!this.active) return;
 
-        // ─── ANIMATE SATELLITES ───
-        const W = G.vpW, H = G.vpH;
-        const earthY = H * 0.78;
+        const cx = this._centerX, cy = this._centerY;
 
+        // Animate satellites orbiting around Earth
         this._satSprites.forEach(sp => {
             if (sp.destroyed) return;
             sp._orbitPhase += sp._orbitSpeed;
+            sp.x = cx + Math.cos(sp._orbitPhase) * sp._orbitRadius;
+            sp.y = cy + Math.sin(sp._orbitPhase) * sp._orbitRadius;
 
-            // Orbital motion: primarily horizontal sweep with slight vertical oscillation
-            const phase = sp._orbitPhase;
-            sp.x = W / 2 + Math.cos(phase) * sp._orbitRadius;
-            sp.y = sp._orbitCenterY + Math.sin(phase * 0.4) * 20;
+            // Rotate satellite sprite to face direction of travel
+            sp.rotation = sp._orbitPhase + Math.PI / 2;
 
-            // Wrap horizontally
-            if (sp.x < -20) sp.x += W + 40;
-            if (sp.x > W + 20) sp.x -= W + 40;
+            // Dim satellites on the "far side" of Earth (behind the planet)
+            const distFromCenter = Math.sqrt((sp.x - cx) ** 2 + (sp.y - cy) ** 2);
+            const behindEarth = distFromCenter < this._earthRadius * 0.9;
+            sp.visible = !behindEarth;
 
-            // Hide satellites that go below earth
-            sp.visible = sp.y < earthY - 5;
-
-            // Solar panel glint effect for ISS
+            // ISS blink
             if (sp._sat.group === 'iss') {
-                sp.alpha = 0.8 + Math.sin(this._orbitTick * 0.05) * 0.2;
-            }
-
-            // Twinkle for small satellites
-            if (sp._size <= 1.0) {
-                sp.alpha = 0.4 + Math.sin(this._orbitTick * 0.02 + sp._orbitPhase * 100) * 0.3;
+                sp.alpha = 0.8 + Math.sin(this._orbitTick * 0.08) * 0.2;
             }
         });
 
-        // ─── TWINKLE STARS ───
-        if (this._starField && this._orbitTick % 2 === 0) {
+        // Twinkle stars
+        if (this._orbitTick % 3 === 0) {
             this._starField.children.forEach(s => {
                 if (s.destroyed) return;
-                s.alpha = 0.2 + Math.sin(this._orbitTick * s._twinkleSpeed + s._twinklePhase) * 0.3;
+                s.alpha = 0.15 + Math.sin(this._orbitTick * s._twinkleSpeed + s._twinklePhase) * 0.35;
             });
         }
 
-        // ─── UPDATE HUD ───
+        // Update HUD
         if (this._satCountText && this._orbitTick % 30 === 0) {
-            const groups = this._satGroups;
+            const g = this._satGroups;
             this._satCountText.text =
                 `Tracking ${this.satellites.length} satellites  |  ` +
-                `Starlink: ${groups.starlink ? groups.starlink.length : 0}  ` +
-                `OneWeb: ${groups.oneweb ? groups.oneweb.length : 0}  ` +
-                `GPS: ${(groups.gps ? groups.gps.length : 0) + (groups.galileo ? groups.galileo.length : 0)}`;
+                `Starlink: ${g.starlink ? g.starlink.length : 0}  ` +
+                `OneWeb: ${g.oneweb ? g.oneweb.length : 0}  ` +
+                `GPS: ${(g.gps ? g.gps.length : 0) + (g.galileo ? g.galileo.length : 0)}`;
         }
     },
 
-    // ─── RESIZE HANDLER ───
     resize() {
         if (!this._built) return;
-        // Resize opaque background
+        const W = G.vpW, H = G.vpH;
+        this._centerX = W / 2;
+        this._centerY = H / 2;
+        this._earthRadius = Math.min(W, H) * 0.22;
+
         if (this._bgGfx) {
             this._bgGfx.clear();
             this._bgGfx.beginFill(0x020208);
-            this._bgGfx.drawRect(-200, -200, G.vpW + 400, G.vpH + 400);
+            this._bgGfx.drawRect(-200, -200, W + 400, H + 400);
             this._bgGfx.endFill();
         }
-        // Rebuild earth and reposition on viewport change
+        this._drawOrbitRings();
+        this._earthCont.removeChildren();
         this._drawEarth();
-        // Reposition satellites
         this._satLayer.removeChildren();
         this._satSprites = [];
         this._buildSatelliteSprites();
-        // Rebuild HUD
         this._hudCont.removeChildren();
         this._buildHUD();
     }

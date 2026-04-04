@@ -36,9 +36,10 @@ A globally synced, real-time pixel-art simulation where every AI model is a citi
 - **Full interiors** — Nuclear (4 floors), Coal (4 floors), Hydro/Solar/Wind (2 floors each)
 
 ### 🛰️ Orbit Mode
-- **Pull camera past the sky** to enter Low Earth Orbit view
+- **Top-down pixel art Earth** with ocean, grid lines, day/night terminator, and city light clusters
 - **Real satellite data** from CelesTrak — Starlink, OneWeb, ISS, GPS, Galileo constellations
-- **Earth curvature** with atmosphere glow, landmasses, city lights on the dark side
+- **Timezone-filtered** — shows satellites currently above your location with "YOU ARE HERE" marker
+- **Pixel art satellites** — detailed ISS with solar panels, GPS with antenna, Starlink/OneWeb dots
 - **Smooth transitions** with full camera state save/restore on exit
 
 ### 🤖 Robotics Factory Zone
