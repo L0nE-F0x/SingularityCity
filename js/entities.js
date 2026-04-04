@@ -457,8 +457,9 @@ const Entities = {
       // ─── HELICOPTER UPDATE LOOP ───
       if (this.heliRefs) {
           const siliconWoods = G.bldById['forest_1'];
-          const helipadX = siliconWoods ? siliconWoods.x + 80 : 0;
-          const helipadY = G.groundY - 30;
+          const helipadX = siliconWoods ? siliconWoods.x + siliconWoods.w / 2 : 0;
+          const swH = siliconWoods ? ((siliconWoods.dynamicFl || siliconWoods.fl || 1) * 18 + 24) : 42;
+          const helipadY = G.groundY - 24 - swH + 6; // land inside the forest canopy, not on the street
           
           Object.entries(this.heliRefs).forEach(([lab, heli]) => {
               const ceo = G.ceoRefs ? G.ceoRefs[lab] : null;
@@ -543,8 +544,9 @@ const Entities = {
                                       
                                       heli.logicalX = startX;
                                       heli.logicalY = G.groundY - 240;
+                                      const mcH = ((mcBld.dynamicFl || mcBld.fl || 3) * 18 + 24);
                                       heli.targetX = mcBld.x + mcBld.w / 2;
-                                      heli.targetY = G.groundY - 24 - (mcBld.h || 80) - 10;
+                                      heli.targetY = G.groundY - 24 - mcH;
                                       heli._landingBld = mcBld;
                                       heli.state = 'flying_to_hq';
                                       heli.cont.visible = true;
@@ -580,8 +582,9 @@ const Entities = {
                               const hqBld = (G.bldsByLab[lab] || []).find(b2 => !b2.id.startsWith('house_'));
                               if (Math.random() < 0.6 && hqBld && oldBld && oldBld.id !== hqBld.id) {
                                   // Helicopter commute to HQ rooftop helipad
-                                  heli.targetX = hqBld.x + hqBld.w / 2;
-                                  heli.targetY = G.groundY - (hqBld.h || 80) + 4; // land ON the roof
+                                  const hqH = ((hqBld.dynamicFl || hqBld.fl || 3) * 18 + 24);
+                                  heli.targetX = hqBld.x + hqBld.w - 35; // align with helipad X (w-35 from env rendering)
+                                  heli.targetY = G.groundY - 24 - hqH; // rooftop world Y
                                   heli._landingBld = hqBld;
                                   heli.state = 'flying_to_hq';
                               } else {
