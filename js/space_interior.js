@@ -356,7 +356,7 @@ const SpaceInterior = {
         // Hook cable
         g.beginFill(0x94a3b8); g.drawRect(cx - 1, y + 16, 2, 30); g.endFill();
         // Hook
-        g.lineStyle(2, 0xfacc15); g.drawArc(cx, y + 48, 6, 0, Math.PI); g.lineStyle(0);
+        g.lineStyle(2, 0xfacc15); g.arc(cx, y + 48, 6, 0, Math.PI); g.lineStyle(0);
         c.addChild(g);
     },
     
