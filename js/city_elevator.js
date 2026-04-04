@@ -100,7 +100,7 @@ class CityElevator {
     }
 
     update() {
-        if (this.destroyed) return;
+        if (this.destroyed || !this.car || this.car.destroyed) { this.destroyed = true; return; }
         let currentPassingFloor = -Math.round(this.car.y / this.floorHeight);
         const totalFloors = this.numFloors + 1;
         const maxW = 36;
