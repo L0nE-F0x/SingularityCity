@@ -276,9 +276,12 @@ const StreetVendors = {
                     vm.state = 'vending';
                     vm.c.x = vm.stallX - 20;
                     vm.stall.cont.visible = true;
+                    vm.stall.cont.x = vm.stallX;
                 } else {
                     vm.c.x += Math.sign(dx) * Math.min(vm.speed, Math.abs(dx));
-                    vm.c.scale.x = dx > 0 ? 1 : -1;
+                    const dir = dx > 0 ? 1 : -1;
+                    vm.c.scale.x = dir;
+                    vm.chat.scale.x = dir; // counter-scale chat text
                     this._animWalk(vm, vi);
                 }
                 vm.chat.visible = false;
@@ -291,7 +294,9 @@ const StreetVendors = {
                     vm.bld = vm.homeBldId;
                 } else {
                     vm.c.x += Math.sign(dx) * Math.min(vm.speed, Math.abs(dx));
-                    vm.c.scale.x = dx > 0 ? 1 : -1;
+                    const dir = dx > 0 ? 1 : -1;
+                    vm.c.scale.x = dir;
+                    vm.chat.scale.x = dir; // counter-scale chat text
                     this._animWalk(vm, vi);
                 }
                 vm.chat.visible = false;
@@ -299,7 +304,7 @@ const StreetVendors = {
             } else if (vm.state === 'vending') {
                 vm.c.visible = true;
 
-                // Roam near the stall — walk up and down the sidewalk
+                // Roam along the street — cart moves with vendor
                 if (!vm._roamDir) vm._roamDir = 1;
                 if (!vm._roamTimer) vm._roamTimer = 80 + Math.random() * 120;
                 vm._roamTimer--;
@@ -307,12 +312,16 @@ const StreetVendors = {
                     vm._roamDir *= -1;
                     vm._roamTimer = 80 + Math.random() * 160;
                 }
-                const roamRange = 45;
+                const roamRange = 80;
                 const nx = vm.c.x + vm._roamDir * 0.35;
                 if (nx > vm.stallX - roamRange && nx < vm.stallX + roamRange) {
                     vm.c.x = nx;
+                    // Move cart with the vendor
+                    vm.stall.cont.x = nx + 20;
                 }
-                vm.c.scale.x = vm._roamDir > 0 ? 1 : -1;
+                const dir = vm._roamDir > 0 ? 1 : -1;
+                vm.c.scale.x = dir;
+                vm.chat.scale.x = dir; // counter-scale chat text
                 this._animWalk(vm, vi);
 
                 // Vendor call-outs

@@ -455,8 +455,8 @@ const CourtInterior = {
         // Position & scroll
         const bp = 56, initY = G.vpH-bp-this.totalH+floorH;
         this.scene.y = initY;
-        this.minY = Math.min(initY-floorH*3, G.vpH-bp-this.totalH-floorH);
-        this.maxY = Math.max(100, initY+floorH*3);
+        this.minY = Math.min(initY - floorH * 3, G.vpH - bp - this.totalH - floorH);
+        this.maxY = Math.max(initY + floorH * 3, G.vpH - bp);
         this._noYScroll = false;
 
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';

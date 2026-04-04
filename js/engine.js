@@ -1255,7 +1255,7 @@ const G = {
       this.lightLayer.addChild(this.staticLightsGfx);
       this.fxGfx = new PIXI.Graphics();
       
-      this.world.addChild(this.starsLayer, this.celestialGfx, this.cloudLayer, this.bldLayer, this.undergroundLayer, this.trainLayer, this.groundGfx, this.reflectionLayer, this.charLayer, this.carLayer, this.lightLayer, this.fxGfx);
+      this.world.addChild(this.starsLayer, this.celestialGfx, this.cloudLayer, this.bldLayer, this.undergroundLayer, this.groundGfx, this.trainLayer, this.reflectionLayer, this.charLayer, this.carLayer, this.lightLayer, this.fxGfx);
       
       if (typeof Environment !== 'undefined') {
           Environment.init({ starsLayer: this.starsLayer, celestialGfx: this.celestialGfx, cloudLayer: this.cloudLayer, bldLayer: this.bldLayer, groundGfx: this.groundGfx, reflectionLayer: this.reflectionLayer, staticLightsGfx: this.staticLightsGfx, lightLayer: this.lightLayer, fxGfx: this.fxGfx });

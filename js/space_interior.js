@@ -176,8 +176,8 @@ const SpaceInterior = {
         // Position scene
         const bottomPadding = 56;
         this.scene.y = G.vpH - bottomPadding - totalH + floorH;
-        this.minY = Math.min(50, G.vpH - bottomPadding - totalH);
-        this.maxY = 50;
+        this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - bottomPadding - totalH - floorH);
+        this.maxY = Math.max(this.scene.y + floorH * 3, G.vpH - bottomPadding);
         this._noYScroll = false;
         
         this.layer.eventMode = 'static';

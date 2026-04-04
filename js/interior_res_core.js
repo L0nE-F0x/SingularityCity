@@ -480,8 +480,8 @@ const InteriorRes = {
         const initY = G.vpH - bottomPadding - this.totalH + floorH;
         this.scene.y = initY; 
         // Allow scrolling down to see silo, up to see roof — generous range
-        this.minY = Math.min(initY - floorH * 4, G.vpH - bottomPadding - this.totalH - floorH); 
-        this.maxY = Math.max(100, initY + floorH * 4); 
+        this.minY = Math.min(initY - floorH * 4, G.vpH - bottomPadding - this.totalH - floorH);
+        this.maxY = Math.max(initY + floorH * 4, G.vpH - bottomPadding);
 
         this.layer.eventMode = 'static'; 
         this.layer.cursor = 'grab';

@@ -213,18 +213,52 @@ const InteriorCity = {
             } else if (isForest) {
                 // Forests are OUTDOORS — no walls, no ceiling, just ground.
                 // The CSS sky gradient on the viewport shows through the transparent canvas.
-                
+
                 const groundY = fy + floorH - 8;
-                // Dark soil base (connects to void earth below)
-                roomGfx.beginFill(0x1a1510); 
-                roomGfx.drawRect(0, groundY + 4, G.vpW, 200); 
-                roomGfx.endFill();
                 // Grass surface
-                roomGfx.beginFill(0x1b4332); 
-                roomGfx.drawRect(0, groundY, G.vpW, 6); 
+                roomGfx.beginFill(0x2d6a4f);
+                roomGfx.drawRect(0, groundY, G.vpW, 3);
                 roomGfx.endFill();
-                roomGfx.beginFill(0x2d6a4f); 
-                roomGfx.drawRect(0, groundY, G.vpW, 3); 
+                roomGfx.beginFill(0x1b4332);
+                roomGfx.drawRect(0, groundY + 3, G.vpW, 4);
+                roomGfx.endFill();
+                // Rich topsoil
+                roomGfx.beginFill(0x2a1f0e);
+                roomGfx.drawRect(0, groundY + 7, G.vpW, 18);
+                roomGfx.endFill();
+                roomGfx.beginFill(0x1e1608);
+                roomGfx.drawRect(0, groundY + 12, G.vpW, 14);
+                roomGfx.endFill();
+                // Root-filled soil (darker with texture)
+                roomGfx.beginFill(0x1a1208);
+                roomGfx.drawRect(0, groundY + 26, G.vpW, 20);
+                roomGfx.endFill();
+                // Scattered roots
+                for (let rx = 20; rx < G.vpW; rx += 40 + Math.random() * 60) {
+                    roomGfx.beginFill(0x3d2b10, 0.3);
+                    roomGfx.drawRect(rx, groundY + 10 + Math.random() * 12, 12 + Math.random() * 20, 2);
+                    roomGfx.endFill();
+                }
+                // Clay layer
+                roomGfx.beginFill(0x1a0f06);
+                roomGfx.drawRect(0, groundY + 46, G.vpW, 25);
+                roomGfx.endFill();
+                roomGfx.beginFill(0x14100a);
+                roomGfx.drawRect(0, groundY + 56, G.vpW, 20);
+                roomGfx.endFill();
+                // Rock / sediment
+                roomGfx.beginFill(0x0e0c08);
+                roomGfx.drawRect(0, groundY + 71, G.vpW, 30);
+                roomGfx.endFill();
+                // Scattered stones
+                for (let sx = 30; sx < G.vpW; sx += 50 + Math.random() * 80) {
+                    roomGfx.beginFill(0x2a2520, 0.25);
+                    roomGfx.drawEllipse(sx, groundY + 60 + Math.random() * 30, 4 + Math.random() * 6, 2 + Math.random() * 3);
+                    roomGfx.endFill();
+                }
+                // Deep earth (fills to bottom)
+                roomGfx.beginFill(0x080604);
+                roomGfx.drawRect(0, groundY + 101, G.vpW, 400);
                 roomGfx.endFill();
             }
             this.scene.addChild(roomGfx);
@@ -703,9 +737,9 @@ const InteriorCity = {
             this.maxY = this.scene.y; // locked
             this._noYScroll = true;
         } else {
-            this.scene.y = G.vpH - bottomPadding - this.totalH + floorH; 
-            this.minY = Math.min(50, G.vpH - bottomPadding - this.totalH); 
-            this.maxY = 50;
+            this.scene.y = G.vpH - bottomPadding - this.totalH + floorH;
+            this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - bottomPadding - this.totalH - floorH);
+            this.maxY = Math.max(this.scene.y + floorH * 3, G.vpH - bottomPadding);
             this._noYScroll = false;
         }
 

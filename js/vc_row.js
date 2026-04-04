@@ -265,14 +265,17 @@ const VCRow = {
                 const dx = cm._lunchX - cm.carCont.x;
                 if (Math.abs(dx) < 5) {
                     cm.state = 'at_lunch';
-                    cm._lunchTimer = 400 + Math.random() * 300; // ~7-12 seconds at lunch
+                    cm.carCont.visible = false;  // Car disappears — NPC enters building
+                    cm._lunchTimer = 400 + Math.random() * 300;
                 } else {
                     cm.carCont.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
                 }
             } else if (cm.state === 'at_lunch') {
+                cm.carCont.visible = false;
                 cm._lunchTimer--;
                 if (cm._lunchTimer <= 0) {
                     cm.state = 'driving_from_lunch';
+                    cm.carCont.visible = true;   // Car reappears — NPC exits building
                     cm.carCont.scale.x = cm.workX > cm.carCont.x ? 1 : -1;
                 }
             } else if (cm.state === 'driving_from_lunch') {
