@@ -1202,8 +1202,20 @@ const G = {
       });
       
       // Alt-tab: browser toolbar may appear/disappear without firing resize
+      // Also keep simulation running in background at reduced tick rate
+      this._bgInterval = null;
       document.addEventListener('visibilitychange', () => {
-          if (!document.hidden) {
+          if (document.hidden) {
+              // Browser pauses rAF when tab is hidden — run sim at ~2 tps instead
+              if (!this._bgInterval) {
+                  this._bgInterval = setInterval(() => this.loop(), 500);
+              }
+          } else {
+              // Tab visible again — stop background ticker, let rAF resume
+              if (this._bgInterval) {
+                  clearInterval(this._bgInterval);
+                  this._bgInterval = null;
+              }
               this.vpW = window.innerWidth;
               this.vpH = window.innerHeight;
               this.app.renderer.resize(this.vpW, this.vpH);
