@@ -916,6 +916,8 @@ const G = {
         this.activeInterior = null;
 
         if (typeof SND !== 'undefined') SND.setAmbient('outside');
+        // Clean up interior module event listeners before destroying PIXI objects
+        if (typeof Interior !== 'undefined') Interior.cleanup();
         // Destroy all PIXI children to prevent memory leak from accumulated interiors
         if (this.interiorLayer) {
             this.interiorLayer.removeChildren().forEach(c => { if (c.destroy) c.destroy({ children: true, texture: false, baseTexture: false }); });

@@ -179,7 +179,7 @@ const InteriorNPC = {
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
         window.removeEventListener('pointermove', this._onMove); window.removeEventListener('pointerup', this._onUp);
         this.layer.on('pointerdown', (e) => { this.isDragging=true; this._startY=e.clientY; this._startSceneY=this.scene.y; this.layer.cursor='grabbing'; });
-        this._onMove = (e) => { if(!InteriorNPC.isDragging) return; let ny=InteriorNPC._startSceneY+(e.clientY-InteriorNPC._startY); ny=Math.max(InteriorNPC.minY,Math.min(ny,InteriorNPC.maxY)); InteriorNPC.scene.y=ny; };
+        this._onMove = (e) => { if(!InteriorNPC.isDragging || !InteriorNPC.scene || InteriorNPC.scene.destroyed) return; let ny=InteriorNPC._startSceneY+(e.clientY-InteriorNPC._startY); ny=Math.max(InteriorNPC.minY,Math.min(ny,InteriorNPC.maxY)); InteriorNPC.scene.y=ny; };
         this._onUp = () => { InteriorNPC.isDragging=false; if(InteriorNPC.layer) InteriorNPC.layer.cursor='grab'; };
         window.addEventListener('pointermove', this._onMove); window.addEventListener('pointerup', this._onUp);
     },

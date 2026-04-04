@@ -131,7 +131,7 @@ const InteriorBackbone = {
             this._startSceneY = this.scene.y; this.layer.cursor = 'grabbing';
         });
         this._onMove = (e) => {
-            if (!InteriorBackbone.isDragging) return;
+            if (!InteriorBackbone.isDragging || !InteriorBackbone.scene || InteriorBackbone.scene.destroyed) return;
             let ny = InteriorBackbone._startSceneY + (e.clientY - InteriorBackbone._startY);
             ny = Math.max(InteriorBackbone.minY, Math.min(ny, InteriorBackbone.maxY));
             InteriorBackbone.scene.y = ny;

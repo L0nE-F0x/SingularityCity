@@ -232,7 +232,7 @@ const InteriorVCRow = {
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
         window.removeEventListener('pointermove', this._onMove); window.removeEventListener('pointerup', this._onUp);
         this.layer.on('pointerdown', (e) => { this.isDragging = true; this._startY = e.clientY; this._startSceneY = this.scene.y; this.layer.cursor = 'grabbing'; });
-        this._onMove = (e) => { if (!InteriorVCRow.isDragging) return; let ny = InteriorVCRow._startSceneY + (e.clientY - InteriorVCRow._startY); ny = Math.max(InteriorVCRow.minY, Math.min(ny, InteriorVCRow.maxY)); InteriorVCRow.scene.y = ny; };
+        this._onMove = (e) => { if (!InteriorVCRow.isDragging || !InteriorVCRow.scene || InteriorVCRow.scene.destroyed) return; let ny = InteriorVCRow._startSceneY + (e.clientY - InteriorVCRow._startY); ny = Math.max(InteriorVCRow.minY, Math.min(ny, InteriorVCRow.maxY)); InteriorVCRow.scene.y = ny; };
         this._onUp = () => { InteriorVCRow.isDragging = false; if (InteriorVCRow.layer) InteriorVCRow.layer.cursor = 'grab'; };
         window.addEventListener('pointermove', this._onMove); window.addEventListener('pointerup', this._onUp);
     },

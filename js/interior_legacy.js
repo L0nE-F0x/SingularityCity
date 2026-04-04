@@ -190,7 +190,7 @@ const InteriorLegacy = {
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
         window.removeEventListener('pointermove', this._onMove); window.removeEventListener('pointerup', this._onUp);
         this.layer.on('pointerdown', (e) => { if(this._noYScroll) return; this.isDragging=true; this._startY=e.clientY; this._startSceneY=this.scene.y; this.layer.cursor='grabbing'; });
-        this._onMove = (e) => { if(!InteriorLegacy.isDragging) return; let ny=InteriorLegacy._startSceneY+(e.clientY-InteriorLegacy._startY); ny=Math.max(InteriorLegacy.minY,Math.min(ny,InteriorLegacy.maxY)); InteriorLegacy.scene.y=ny; };
+        this._onMove = (e) => { if(!InteriorLegacy.isDragging || !InteriorLegacy.scene || InteriorLegacy.scene.destroyed) return; let ny=InteriorLegacy._startSceneY+(e.clientY-InteriorLegacy._startY); ny=Math.max(InteriorLegacy.minY,Math.min(ny,InteriorLegacy.maxY)); InteriorLegacy.scene.y=ny; };
         this._onUp = () => { InteriorLegacy.isDragging=false; if(InteriorLegacy.layer) InteriorLegacy.layer.cursor='grab'; };
         window.addEventListener('pointermove', this._onMove); window.addEventListener('pointerup', this._onUp);
     },

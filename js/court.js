@@ -462,7 +462,7 @@ const CourtInterior = {
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
         window.removeEventListener('pointermove', this._onMove); window.removeEventListener('pointerup', this._onUp);
         this.layer.on('pointerdown', (e) => { if(this._noYScroll) return; this.isDragging=true; this._startY=e.clientY; this._startSceneY=this.scene.y; this.layer.cursor='grabbing'; });
-        this._onMove = (e) => { if(!CourtInterior.isDragging) return; let ny=CourtInterior._startSceneY+(e.clientY-CourtInterior._startY); ny=Math.max(CourtInterior.minY,Math.min(ny,CourtInterior.maxY)); CourtInterior.scene.y=ny; };
+        this._onMove = (e) => { if(!CourtInterior.isDragging || !CourtInterior.scene || CourtInterior.scene.destroyed) return; let ny=CourtInterior._startSceneY+(e.clientY-CourtInterior._startY); ny=Math.max(CourtInterior.minY,Math.min(ny,CourtInterior.maxY)); CourtInterior.scene.y=ny; };
         this._onUp = () => { CourtInterior.isDragging=false; if(CourtInterior.layer) CourtInterior.layer.cursor='grab'; };
         window.addEventListener('pointermove', this._onMove); window.addEventListener('pointerup', this._onUp);
     },

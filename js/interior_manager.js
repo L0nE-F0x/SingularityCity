@@ -45,6 +45,25 @@ const Interior = {
         }
     },
 
+    cleanup() {
+        // Remove stale window event listeners when exiting any interior
+        if (this.activeModule) {
+            // Modules use either onMove/_onMove and onUp/_onUp patterns
+            const moveFn = this.activeModule.onMove || this.activeModule._onMove;
+            const upFn = this.activeModule.onUp || this.activeModule._onUp;
+            if (moveFn) window.removeEventListener('pointermove', moveFn);
+            if (upFn) window.removeEventListener('pointerup', upFn);
+            this.activeModule.isDragging = false;
+            this.activeModule.scene = null;
+            if (this.activeModule.layer) {
+                this.activeModule.layer.removeAllListeners();
+                this.activeModule.layer = null;
+            }
+        }
+        this.activeModule = null;
+        this.isDragging = false;
+    },
+
     update() {
         if (this.activeModule && this.activeModule.update) {
             this.activeModule.update();

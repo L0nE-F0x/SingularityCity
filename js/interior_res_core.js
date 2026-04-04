@@ -499,7 +499,7 @@ const InteriorRes = {
     },
 
     onMove: (e) => {
-        if (!InteriorRes.isDragging) return;
+        if (!InteriorRes.isDragging || !InteriorRes.scene || InteriorRes.scene.destroyed) return;
         let newY = InteriorRes.startSceneY + (e.clientY - InteriorRes.startY);
         if (newY < InteriorRes.minY) newY = InteriorRes.minY;
         if (newY > InteriorRes.maxY) newY = InteriorRes.maxY;

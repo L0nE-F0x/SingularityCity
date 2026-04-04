@@ -192,7 +192,7 @@ const SpaceInterior = {
             this.layer.cursor = 'grabbing';
         });
         this._onMove = (e) => {
-            if (!this.isDragging) return;
+            if (!this.isDragging || !this.scene || this.scene.destroyed) return;
             let newY = this._startSceneY + (e.clientY - this._startY);
             if (newY < this.minY) newY = this.minY;
             if (newY > this.maxY) newY = this.maxY;

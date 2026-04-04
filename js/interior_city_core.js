@@ -706,7 +706,7 @@ const InteriorCity = {
     },
 
     onMove: (e) => {
-        if (!InteriorCity.isDragging) return;
+        if (!InteriorCity.isDragging || !InteriorCity.scene || InteriorCity.scene.destroyed) return;
         let newY = InteriorCity.startSceneY + (e.clientY - InteriorCity.startY);
         if (newY < InteriorCity.minY) newY = InteriorCity.minY;
         if (newY > InteriorCity.maxY) newY = InteriorCity.maxY;
