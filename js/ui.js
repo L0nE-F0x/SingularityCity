@@ -134,9 +134,8 @@ const UI = {
     },
   
     uiClick() {
-      if(typeof SND !== 'undefined') {
-          SND.uiClick();
-      }
+      if(typeof SND !== 'undefined') SND.uiClick();
+      if(typeof haptic === 'function') haptic(10);
     },
   
     toggleLog() {

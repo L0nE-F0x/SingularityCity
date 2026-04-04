@@ -3,10 +3,11 @@
   "short_name": "SC",
   "description": "A living, breathing city where AI models are citizens. Track benchmarks, news, and the race to AGI in real-time.",
   "start_url": "/",
-  "display": "standalone",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
   "background_color": "#060610",
-  "theme_color": "#4ade80",
-  "orientation": "any",
+  "theme_color": "#060610",
+  "orientation": "landscape",
   "categories": ["utilities", "news", "entertainment"],
   "icons": [
     {

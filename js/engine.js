@@ -1230,6 +1230,8 @@ const G = {
               this.vpW = window.innerWidth;
               this.vpH = window.innerHeight;
               this.app.renderer.resize(this.vpW, this.vpH);
+              // Re-acquire wake lock (released when screen turns off)
+              if (window.isMobile && typeof _requestWakeLock === 'function') _requestWakeLock();
           }
       });
       
@@ -1607,16 +1609,29 @@ async function enterCity() {
       await API.fetchCloudModels();
   }
 
-  const instrOv = document.getElementById('instrOv'); 
+  const instrOv = document.getElementById('instrOv');
   if (instrOv) instrOv.classList.remove('open');
-  const l = document.getElementById('landing'); 
+  const l = document.getElementById('landing');
   if (l) l.classList.add('exit');
-  const gw = document.getElementById('gameWrap'); 
+  const gw = document.getElementById('gameWrap');
   if (gw) gw.classList.add('active');
   if (l) setTimeout(() => l.remove(), 900);
-  
+
   if (typeof SND !== 'undefined') {
       SND.init();
       SND.setAmbient('outside');
+  }
+
+  // ─── MOBILE: fullscreen, wake lock, orientation ───
+  if (window.isMobile) {
+      if (typeof _requestFullscreen === 'function') _requestFullscreen();
+      if (typeof _requestWakeLock === 'function') _requestWakeLock();
+      if (typeof _lockLandscape === 'function') _lockLandscape();
+      // Enable orientation check now that we're in the city
+      window._orientCheckEnabled = true;
+      if (typeof _checkOrientation === 'function') _checkOrientation();
+      // Hide install banner if still showing
+      const ib = document.getElementById('installBanner');
+      if (ib) ib.style.display = 'none';
   }
 }
