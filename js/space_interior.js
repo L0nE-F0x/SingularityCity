@@ -581,7 +581,7 @@ const SpaceInterior = {
 
         const agent = {
             m: { id: 'npc_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true },
-            cont, head, body, legL, legR, dot, shadow,
+            cont, head, body, legL, legR, dot, shadow, label: txt,
             state: 'working', timer: 60 + Math.floor(Math.random() * 200),
             deskX: x, floorY: y, targetX: x, speed: 0.8,
             role, _h: h
@@ -639,11 +639,18 @@ const SpaceInterior = {
                     const dx = av.targetX - av.cont.x;
                     if (Math.abs(dx) < 2) {
                         av.cont.x = av.targetX;
+                        av.cont.scale.x = 1;
+                        if (av.label) av.label.scale.x = 1;
+                        if (av.dot) av.dot.scale.x = 1;
                         av.state = 'working';
                         av.timer = 100 + Math.floor(Math.random() * 200);
                     } else {
-                        av.cont.x += Math.sign(dx) * av.speed;
-                        av.cont.scale.x = dx > 0 ? 1 : -1;
+                        const dir = dx > 0 ? 1 : -1;
+                        av.cont.x += dir * av.speed;
+                        av.cont.scale.x = dir;
+                        // Counter-scale text & dot so they don't mirror
+                        if (av.label) av.label.scale.x = dir;
+                        if (av.dot) av.dot.scale.x = dir;
                     }
                     // Walk animation
                     av.head.y = -av._h + Math.sin(G.tick * 0.2) * 1.5;
