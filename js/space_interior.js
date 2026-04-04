@@ -233,6 +233,9 @@ const SpaceInterior = {
                 l.g.alpha = Math.sin(G.tick * 0.05) > 0 ? l.maxA : 0.1;
             }
         });
+
+        // Animate space NPCs
+        this.updateAvatars();
     },
     
     // ════════════════════════════════════════════════════
@@ -500,19 +503,202 @@ const SpaceInterior = {
     },
     
     drawNPC(c, x, y, role, col) {
-        const g = new PIXI.Graphics(); g.eventMode = 'none';
-        // Body
-        g.beginFill(col || 0x64748b); g.drawRoundedRect(x-5, y-18, 10, 12, 2); g.endFill();
+        const colHex = col || 0x64748b;
+        const bw = 12;
+        const h = 28;
+        const headH = 10;
+        const bodyH = h - headH - 4;
+        const legH = 4;
+        const eyeS = 1;
+
+        const cont = new PIXI.Container();
+
+        // Shadow
+        const shadow = new PIXI.Graphics();
+        shadow.beginFill(0x000000, 0.25);
+        shadow.drawEllipse(0, 2, bw * 0.6, 3);
+        shadow.endFill();
+
         // Head
-        g.beginFill(0xfdd8b5); g.drawRoundedRect(x-4, y-26, 8, 8, 3); g.endFill();
-        // Eyes
-        g.beginFill(0x2c1810); g.drawCircle(x-1.5, y-23, 0.8); g.drawCircle(x+1.5, y-23, 0.8); g.endFill();
+        const head = new PIXI.Graphics();
+        head.beginFill(0xfdd8b5);
+        head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
+        head.endFill();
+        head.beginFill(0x2c1810);
+        head.drawCircle(-bw * 0.1, headH * 0.38, eyeS);
+        head.drawCircle(bw * 0.1, headH * 0.38, eyeS);
+        head.endFill();
+        head.beginFill(0x000000, 0.4);
+        head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
+        head.endFill();
+        head.y = -h;
+
+        // Body
+        const body = new PIXI.Graphics();
+        body.beginFill(colHex);
+        body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1);
+        body.endFill();
+        body.y = -h + headH;
+
         // Legs
-        g.beginFill(0x1e293b); g.drawRect(x-4, y-6, 3, 6); g.drawRect(x+1, y-6, 3, 6); g.endFill();
-        c.addChild(g);
-        // Role label
-        const txt = new PIXI.Text(role, { fontFamily: 'JetBrains Mono', fontSize: 6, fill: col || 0x94a3b8 });
-        txt.anchor.set(0.5, 1); txt.x = x; txt.y = y - 28;
-        c.addChild(txt);
+        const lw = Math.max(2, bw * 0.25);
+        const lh = Math.max(legH, 2);
+        const legL = new PIXI.Graphics();
+        legL.beginFill(0x1e293b);
+        legL.drawRect(-lw / 2, 0, lw, lh);
+        legL.endFill();
+        legL.x = -bw * 0.15;
+        const legR = new PIXI.Graphics();
+        legR.beginFill(0x1e293b);
+        legR.drawRect(-lw / 2, 0, lw, lh);
+        legR.endFill();
+        legR.x = bw * 0.15;
+
+        // Status dot
+        const dot = new PIXI.Graphics();
+        dot.beginFill(colHex);
+        dot.drawCircle(0, 0, 2);
+        dot.endFill();
+        dot.y = -h - 6;
+
+        cont.addChild(shadow, legL, legR, body, head, dot);
+        cont.x = x;
+        cont.y = y;
+
+        // Role label above head
+        const txt = new PIXI.Text(role, { fontFamily: '"JetBrains Mono", monospace', fontSize: 6, fill: colHex });
+        txt.anchor.set(0.5, 1);
+        txt.y = -h - 8;
+        cont.addChild(txt);
+
+        cont.eventMode = 'static';
+        cont.cursor = 'pointer';
+        cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined') UI.addToast(`${role} — Space Zone Personnel`);
+        });
+
+        c.addChild(cont);
+
+        const agent = {
+            m: { id: 'npc_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true },
+            cont, head, body, legL, legR, dot, shadow,
+            state: 'working', timer: 60 + Math.floor(Math.random() * 200),
+            deskX: x, floorY: y, targetX: x, speed: 0.8,
+            role, _h: h
+        };
+        this.avatars.push(agent);
+        return agent;
+    },
+
+    // ════════════════════════════════════════════════════
+    //   SPACE NPC ANIMATION & STATE MACHINE
+    // ════════════════════════════════════════════════════
+
+    updateAvatars() {
+        const SPACE_MSGS = [
+            "Telemetry nominal.", "Signal acquired.", "Orbit stable.",
+            "Recalculating trajectory.", "Comms check.", "All systems go.",
+            "Adjusting azimuth.", "Fuel pressure OK.", "T-minus holding.",
+            "Copy that, Houston.", "Roger, flight.", "Go for launch."
+        ];
+
+        this.avatars.forEach(av => {
+            if (!av.cont || av.cont.destroyed) return;
+            av.timer--;
+
+            switch (av.state) {
+                case 'working': {
+                    // Idle animation — slight head bob and body sway
+                    av.head.y = -av._h + Math.sin(G.tick * 0.04 + av.deskX) * 0.5;
+                    av.body.y = -av._h + av._h * 0.36 + Math.abs(Math.sin(G.tick * 0.03 + av.deskX)) * 0.3;
+
+                    if (av.timer <= 0) {
+                        const r = Math.random();
+                        if (r < 0.3) {
+                            // Walk to a random nearby spot
+                            av.state = 'walking';
+                            av.targetX = av.deskX + (Math.random() - 0.5) * 120;
+                            av.targetX = Math.max(30, Math.min(G.vpW - 30, av.targetX));
+                        } else if (r < 0.5) {
+                            // Chat with someone
+                            av.state = 'chatting';
+                            av.timer = 80 + Math.floor(Math.random() * 60);
+                            this.spawnBubble(av, SPACE_MSGS[Math.floor(Math.random() * SPACE_MSGS.length)]);
+                        } else {
+                            // Keep working, reset timer
+                            av.timer = 100 + Math.floor(Math.random() * 200);
+                            if (Math.random() < 0.3) {
+                                this.spawnBubble(av, SPACE_MSGS[Math.floor(Math.random() * SPACE_MSGS.length)]);
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                case 'walking': {
+                    const dx = av.targetX - av.cont.x;
+                    if (Math.abs(dx) < 2) {
+                        av.cont.x = av.targetX;
+                        av.state = 'working';
+                        av.timer = 100 + Math.floor(Math.random() * 200);
+                    } else {
+                        av.cont.x += Math.sign(dx) * av.speed;
+                        av.cont.scale.x = dx > 0 ? 1 : -1;
+                    }
+                    // Walk animation
+                    av.head.y = -av._h + Math.sin(G.tick * 0.2) * 1.5;
+                    av.body.y = -av._h + av._h * 0.36 + Math.abs(Math.sin(G.tick * 0.2)) * 1.5;
+                    av.legL.y = Math.sin(G.tick * 0.3) * 3;
+                    av.legR.y = -Math.sin(G.tick * 0.3) * 3;
+                    break;
+                }
+
+                case 'chatting': {
+                    // Slight gesturing animation
+                    av.head.y = -av._h + Math.sin(G.tick * 0.06) * 1;
+                    av.body.y = -av._h + av._h * 0.36;
+
+                    if (av.timer <= 0) {
+                        av.state = 'working';
+                        av.timer = 80 + Math.floor(Math.random() * 150);
+                    }
+                    break;
+                }
+            }
+        });
+
+        // Update speech bubbles
+        for (let i = this.bubbles.length - 1; i >= 0; i--) {
+            const b = this.bubbles[i];
+            b.life--;
+            b.cont.y -= 0.15;
+            b.cont.alpha = Math.min(1, b.life / 20);
+            if (b.life <= 0) {
+                if (b.cont.parent) b.cont.parent.removeChild(b.cont);
+                b.cont.destroy({ children: true });
+                this.bubbles.splice(i, 1);
+            }
+        }
+    },
+
+    spawnBubble(av, msg) {
+        if (!this.scene || this.scene.destroyed) return;
+        const bCont = new PIXI.Container();
+        const txt = new PIXI.Text(msg, {
+            fontFamily: '"JetBrains Mono", monospace', fontSize: 8, fill: 0x000000, fontWeight: 'bold'
+        });
+        txt.anchor.set(0.5, 1);
+        txt.y = -6;
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0xffffff);
+        bg.drawRoundedRect(-txt.width / 2 - 6, -txt.height - 10, txt.width + 12, txt.height + 8, 4);
+        bg.endFill();
+        bg.beginFill(0xffffff);
+        bg.moveTo(-4, -4); bg.lineTo(4, -4); bg.lineTo(0, 2); bg.endFill();
+        bCont.addChild(bg, txt);
+        bCont.x = av.cont.x;
+        bCont.y = av.cont.y - av._h - 10;
+        this.scene.addChild(bCont);
+        this.bubbles.push({ cont: bCont, life: 120 });
     }
 };
