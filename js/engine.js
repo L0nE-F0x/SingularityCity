@@ -612,7 +612,7 @@ const G = {
       BLDS.forEach(b => {
         if (b.id === 'cafe' || b.id === 'gym' || b.id === 'arena' || b.id === 'open_square') {
             if (b.id === 'cafe') {
-                b.dynamicFl = 4; b.w = Math.max(b.w || 0, 200);
+                b.dynamicFl = 4; b.w = Math.max(b.w || 0, 160);
                 b.desc = 'API Café — the city\'s beloved coffee house. Code reviews over lattes, pastries & rooftop vibes.';
             } else if (b.id === 'gym') {
                 b.dynamicFl = 5; b.w = Math.max(b.w || 0, 200);
