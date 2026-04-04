@@ -8,6 +8,7 @@ const InteriorResProps = {
     initLift(layer, bldId, numFloors, floorHeight, shaftX, minFloor) {
         if (this.lifts[bldId]) {
             this.lifts[bldId].destroy();
+            delete this.lifts[bldId];
         }
         const lift = new ResElevator(layer, numFloors, floorHeight, shaftX, minFloor);
         this.lifts[bldId] = lift;
@@ -15,7 +16,9 @@ const InteriorResProps = {
     },
 
     updateLifts() {
-        Object.values(this.lifts).forEach(lift => lift.update());
+        Object.values(this.lifts).forEach(lift => {
+            if (!lift.destroyed) lift.update();
+        });
     },
     
     getLift(bldId) {
@@ -660,7 +663,8 @@ class ResElevator {
         this.floorHeight = floorHeight;
         this.x = shaftX;
         this.minFloor = (minFloor !== undefined) ? minFloor : -1;
-        
+        this.destroyed = false;
+
         this.state = 'idle'; 
         this.currentFloor = 0;
         this.targetFloor = 0;
@@ -752,6 +756,7 @@ class ResElevator {
     }
 
     update() {
+        if (this.destroyed || !this.car || this.car.destroyed) { this.destroyed = true; return; }
         let currentPassingFloor = -Math.round(this.car.y / this.floorHeight);
         const totalFloors = this.numFloors - this.minFloor;
         const maxW = 36; 
@@ -827,12 +832,13 @@ class ResElevator {
     }
 
     destroy() {
-        this.shaft.destroy();
-        this.car.destroy();
+        this.destroyed = true;
+        if (this.shaft && !this.shaft.destroyed) this.shaft.destroy();
+        if (this.car && !this.car.destroyed) this.car.destroy();
         this.doors.forEach(d => {
-            d.left.destroy();
-            d.right.destroy();
-            d.lights.forEach(l => l.destroy());
+            if (d.left && !d.left.destroyed) d.left.destroy();
+            if (d.right && !d.right.destroyed) d.right.destroy();
+            d.lights.forEach(l => { if (l && !l.destroyed) l.destroy(); });
         });
     }
 }
