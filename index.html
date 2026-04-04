@@ -229,6 +229,17 @@ async function _lockLandscape() {
 window.haptic = (ms) => {
     if (_isMobile && navigator.vibrate) navigator.vibrate(ms || 10);
 };
+
+// ─── FULLSCREEN ON FIRST TAP (hides Android notification bar) ───
+if (_isMobile) {
+    const _goFullOnce = () => {
+        _requestFullscreen();
+        document.removeEventListener('click', _goFullOnce);
+        document.removeEventListener('touchend', _goFullOnce);
+    };
+    document.addEventListener('click', _goFullOnce, { once: true });
+    document.addEventListener('touchend', _goFullOnce, { once: true });
+}
 </script>
 
 <div id="gameWrap">
