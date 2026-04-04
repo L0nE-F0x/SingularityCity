@@ -421,113 +421,8 @@ const G = {
       this.save();
     },
 
-    // ═══════════════════════════════════════════════
-    //   EASTER EGGS & ACHIEVEMENT TRIGGERS
-    // ═══════════════════════════════════════════════
-    
-    initEasterEggs() {
-        const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
-        
-        // Konami Code listener
-        window.addEventListener('keydown', (e) => {
-            this._konamiSeq.push(e.key);
-            if (this._konamiSeq.length > 10) this._konamiSeq.shift();
-            if (this._konamiSeq.length === 10 && this._konamiSeq.every((k, i) => k === KONAMI[i])) {
-                this._konamiSeq = [];
-                this.triggerMatrixRain();
-                this.unlockAchieve('konami');
-            }
-        });
-        
-        // Moon click listener — detect clicks near the moon/sun in celestialGfx
-        if (this.celestialGfx) {
-            this.celestialGfx.eventMode = 'static';
-            this.celestialGfx.cursor = 'pointer';
-            this.celestialGfx.on('pointerdown', () => {
-                this._moonClicks++;
-                if (typeof SND !== 'undefined') SND.playTone(600 + this._moonClicks * 200, 'sine', 0.08, 0.03);
-                if (this._moonClicks >= 5) {
-                    this._moonClicks = 0;
-                    this.triggerCatMode();
-                    this.unlockAchieve('cat_mode');
-                }
-            });
-        }
-        
-        // Night Owl check
-        const h = new Date().getHours();
-        if (h >= 0 && h < 5) {
-            setTimeout(() => this.unlockAchieve('night_owl'), 5000);
-        }
-    },
-    
-    triggerMatrixRain() {
-        if (this._matrixMode) return;
-        this._matrixMode = true;
-        if (typeof UI !== 'undefined') UI.addToast('🕹️ THE MATRIX HAS YOU...');
-        if (typeof SND !== 'undefined') { SND.playTone(200, 'sawtooth', 0.5, 0.05, 100); SND.playTone(150, 'square', 1.0, 0.03, 50); }
-        
-        const overlay = document.createElement('canvas');
-        overlay.id = 'matrixRain';
-        overlay.width = window.innerWidth;
-        overlay.height = window.innerHeight;
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;pointer-events:none;opacity:0.85;';
-        document.body.appendChild(overlay);
-        
-        const ctx = overlay.getContext('2d');
-        const cols = Math.floor(overlay.width / 14);
-        const drops = Array(cols).fill(1);
-        const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン01';
-        
-        const drawFrame = () => {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-            ctx.fillRect(0, 0, overlay.width, overlay.height);
-            ctx.fillStyle = '#0f0';
-            ctx.font = '12px monospace';
-            for (let i = 0; i < drops.length; i++) {
-                const ch = chars[Math.floor(Math.random() * chars.length)];
-                ctx.fillStyle = Math.random() > 0.9 ? '#fff' : '#0f0';
-                ctx.fillText(ch, i * 14, drops[i] * 14);
-                if (drops[i] * 14 > overlay.height && Math.random() > 0.975) drops[i] = 0;
-                drops[i]++;
-            }
-        };
-        
-        const matrixId = setInterval(drawFrame, 50);
-        setTimeout(() => {
-            clearInterval(matrixId);
-            overlay.remove();
-            this._matrixMode = false;
-        }, 10000);
-    },
-    
-    triggerCatMode() {
-        if (this._catMode) return;
-        this._catMode = true;
-        if (typeof UI !== 'undefined') UI.addToast('🐱 CATURDAY MODE ACTIVATED!');
-        if (typeof SND !== 'undefined') { SND.playTone(800, 'sine', 0.1, 0.04, 1200); SND.playTone(1000, 'triangle', 0.08, 0.03, 600); }
-        
-        // Store original emojis and swap to cats
-        const catEmojis = ['🐱', '😺', '😸', '😻', '🐈', '😼', '🙀', '😹', '😽', '😾'];
-        const origEmojis = {};
-        Object.keys(this.charRefs).forEach(id => {
-            const refs = this.charRefs[id];
-            if (refs && refs.emojiTxt) {
-                origEmojis[id] = refs.emojiTxt.text;
-                refs.emojiTxt.text = catEmojis[Math.floor(Math.random() * catEmojis.length)];
-            }
-        });
-        
-        // Restore after 30 seconds
-        setTimeout(() => {
-            Object.keys(origEmojis).forEach(id => {
-                const refs = this.charRefs[id];
-                if (refs && refs.emojiTxt) refs.emojiTxt.text = origEmojis[id];
-            });
-            this._catMode = false;
-            if (typeof UI !== 'undefined') UI.addToast('🐱 Cats have returned to their dimension.');
-        }, 30000);
-    },
+    // Easter eggs (initEasterEggs, triggerMatrixRain, triggerCatMode) → easter_eggs.js
+    // Persistence (save, load, saveSettings, startAutoScan, _postToWorker) → persistence.js
 
     getLabIcon(labId) {
         const pool = ['🚀', '🛰️', '⚡', '💡', '🔥', '⚙️', '🧬', '🧪', '🔭', '📡', '🕹️', '💎', '💠', '🔆', '🔑', '🌍', '💻'];
@@ -651,95 +546,6 @@ const G = {
         return canonical;
     },
     
-    save() {
-      const disc = this.models.filter(m => m._src);
-      let currentCamX = 0;
-      if (typeof Camera !== 'undefined') currentCamX = Camera.targetX;
-      else if (this.savedCamX !== undefined) currentCamX = this.savedCamX;
-
-      try { 
-          localStorage.setItem('sc_data', JSON.stringify({ 
-              apiProvider: this.apiProvider, 
-              modelId: this.modelId, 
-              authKey: this.authKey, 
-              finnhubKey: this.finnhubKey, 
-              autoScanMin: this.autoScanMin, 
-              discovered: disc, 
-              sound: typeof SND !== 'undefined' ? SND.enabled : true, 
-              achievements: this.achievements,
-              camX: currentCamX,
-              seasonalVisited: typeof Seasonal !== 'undefined' ? Seasonal._eventsVisited : {}
-          }));
-      } catch(e) {}
-    },
-    
-    load() {
-      try {
-        const raw = localStorage.getItem('sc_data');
-        if (!raw) return; 
-        const d = JSON.parse(raw);
-        if (d.apiProvider) this.apiProvider = d.apiProvider; 
-        if (d.modelId) this.modelId = d.modelId;
-        if (d.authKey) this.authKey = d.authKey; 
-        if (d.finnhubKey) this.finnhubKey = d.finnhubKey;
-        if (d.sound !== undefined && typeof SND !== 'undefined') SND.enabled = d.sound; 
-        if (d.autoScanMin) this.autoScanMin = d.autoScanMin;
-        if (d.achievements) this.achievements = d.achievements;
-        if (d.camX !== undefined) this.savedCamX = d.camX;
-        if (d.seasonalVisited && typeof Seasonal !== 'undefined') Seasonal._eventsVisited = d.seasonalVisited;
-        
-        if (d.discovered && d.discovered.length) {
-          const ids = new Set(this.models.map(m => m.id));
-          d.discovered.forEach(m => { 
-              if (!ids.has(m.id)) { 
-                  if (m.benchmarks) BM[m.id] = m.benchmarks; 
-                  m.lab = this.ensureLabExists(m.lab, m.region); 
-                  this.models.push(m); 
-                  ids.add(m.id); 
-              } 
-          });
-          if (typeof UI !== 'undefined') UI.addLog(`📂 Loaded ${d.discovered.length} discovered models.`);
-        }
-      } catch(e) {}
-    },
-    
-    saveSettings() {
-      this.apiProvider = document.getElementById('apiProviderSel').value; 
-      this.modelId = document.getElementById('modelIdInput').value; 
-      this.authKey = document.getElementById('authKeyInput').value; 
-      this.finnhubKey = document.getElementById('finnhubKeyInput').value; 
-      this.autoScanMin = parseInt(document.getElementById('autoScanSel').value) || 0;
-      this.save(); 
-      this.startAutoScan(); 
-      document.getElementById('settingsOv').classList.remove('open'); 
-      if (this.authKey && typeof API !== 'undefined') API.doScan();
-    },
-    
-    startAutoScan() {
-      if (this.autoScanId) clearInterval(this.autoScanId);
-      if (this.autoScanMin > 0 && this.authKey) { 
-          this.autoScanId = setInterval(() => { if(typeof API !== 'undefined') API.doScan(); }, this.autoScanMin * 60000); 
-          if (typeof UI !== 'undefined') UI.addLog(`🔄 Auto-scan: every ${this.autoScanMin}m`);
-      }
-    },
-  
-    // ─── COMPUTE WORKER: Post model data for off-thread aggregation ───
-    _postToWorker() {
-        if (!this._computeWorker) return;
-        try {
-            const models = [];
-            for (let i = 0; i < this.models.length; i++) {
-                const m = this.models[i];
-                models.push({ id: m.id, lab: m.lab, name: m.name, ret: m.ret, os: m.os, phase: m.phase, _src: m._src });
-            }
-            const labRegions = {};
-            for (const k in LABS) if (LABS[k]) labRegions[k] = LABS[k].region || 'eu';
-            this._computeWorker.postMessage({
-                type: 'crunch',
-                payload: { models, benchmarks: (typeof BM !== 'undefined' ? BM : {}), costs: (typeof COSTS !== 'undefined' ? COSTS : {}), labRegions }
-            });
-        } catch(ex) { /* serialization failed — will use inline fallback */ }
-    },
 
     evolveCity() {
       // Time-gate: don't rebuild more than once every 3 seconds
@@ -1264,157 +1070,7 @@ const G = {
       }
     },
 
-    // ═══════════════════════════════════════════════
-    //   MINIMAP
-    // ═══════════════════════════════════════════════
-    
-    _mmZones: [
-        { id: 'port',     emoji: '🚢', label: 'Port District',  match: b => b.id.startsWith('port_') },
-        { id: 'space',    emoji: '🚀', label: 'Space Zone',     match: b => b.type === 'launchpad' },
-        { id: 'frontier', emoji: '🌲', label: 'Frontier Pines', match: b => b.id === 'forest_space' },
-        { id: 'npc_housing', emoji: '🏬', label: 'Worker Housing', match: b => b.id.startsWith('npc_apt_') },
-        { id: 'dc',       emoji: '🖥️', label: 'Compute Dist.',  match: b => b.id.startsWith('dc_') || b.id.startsWith('fab_') || b.id === 'metro_dc' },
-        { id: 'res',      emoji: '🏠', label: 'Residential',    match: b => b.id.startsWith('res_') || b.id === 'metro_res' },
-        { id: 'university', emoji: '🎓', label: 'AI Academy',   match: b => b.type === 'university' },
-        { id: 'pine',     emoji: '🌲', label: 'Pine Reserve',   match: b => b.id === 'forest_0' },
-        { id: 'court',    emoji: '🏛️', label: 'AI Court',       match: b => b.type === 'court' },
-        { id: 'tech',     emoji: '🏢', label: 'Tech District',  match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'metro_dc' && b.type !== 'university' && b.type !== 'court' && b.type !== 'convention_center' },
-        { id: 'midline',  emoji: '🚇', label: 'Central Line',   match: b => b.id === 'metro_mid' },
-        { id: 'conference', emoji: '🎓', label: 'Conference',   match: b => b.id === 'convention_center' },
-        { id: 'metro',    emoji: '🚇', label: 'Metro East',     match: b => b.id === 'metro_east' },
-        { id: 'nightlife', emoji: '🍸', label: 'Nightlife',     match: b => b.id === 'neon_bar' },
-        { id: 'backbone', emoji: '🌐', label: 'The Backbone',  match: b => b.id.startsWith('backbone_') },
-        { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
-        { id: 'vcrow',    emoji: '💰', label: 'VC Row',          match: b => b.id.startsWith('vcrow_') },
-        { id: 'estates',  emoji: '🏡', label: "Billionaire's",  match: b => b.id.startsWith('house_') },
-        { id: 'power',   emoji: '⚡', label: 'Power Grid',    match: b => b.id.startsWith('power_') }
-    ],
-    
-    initMinimap() {
-        const mm = document.getElementById('minimap');
-        const zones = document.getElementById('mmZones');
-        const canvas = document.getElementById('mmCanvas');
-        if (!mm || !zones || !canvas) return;
-        
-        // Build zone quick-jump buttons
-        zones.innerHTML = '';
-        this._mmZones.forEach(z => {
-            if (!BLDS.some(z.match)) return; // hide button if no matching building exists
-            const btn = document.createElement('div');
-            btn.className = 'mm-zone' + (z.wide ? ' wide' : '');
-            btn.dataset.zone = z.id;
-            btn.textContent = `${z.emoji} ${z.label}`;
-            btn.onclick = () => this.jumpToZone(z);
-            zones.appendChild(btn);
-        });
-        
-        // Click-to-jump on the canvas
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const clickRatio = (e.clientX - rect.left) / rect.width;
-            const targetWorldX = clickRatio * this.cityW;
-            Camera.targetX = -targetWorldX + (this.vpW / 2) / Camera.zoom;
-            Camera.targetZoom = 1;
-            if (this.tracking) this.stopTracking();
-        });
-        
-        this._mmCanvas = canvas;
-        this._mmCtx = canvas.getContext('2d');
-    },
-    
-    jumpToZone(zone) {
-        const match = BLDS.find(zone.match);
-        if (!match) return;
-        const targetX = match.x + match.w / 2;
-        Camera.targetX = -targetX + (this.vpW / 2) / Camera.zoom;
-        Camera.targetZoom = 1;
-        if (this.tracking) this.stopTracking();
-        if (this.activeInterior) this.exitInterior();
-    },
-    
-    updateMinimap() {
-        const mm = document.getElementById('minimap');
-        if (!mm) return;
-        
-        // Hide during interiors and macro mode
-        if (this.activeInterior || this.viewMode === 'macro') {
-            mm.style.display = 'none';
-            return;
-        }
-        mm.style.display = '';
-        
-        // Skip canvas draw if collapsed
-        if (mm.classList.contains('collapsed')) return;
-        
-        const ctx = this._mmCtx;
-        const c = this._mmCanvas;
-        if (!ctx || !c) return;
-        
-        const cW = c.width;
-        const cH = c.height;
-        ctx.clearRect(0, 0, cW, cH);
-        
-        // Background
-        ctx.fillStyle = 'rgba(10,10,25,0.8)';
-        ctx.fillRect(0, 0, cW, cH);
-        
-        const scale = cW / Math.max(this.cityW, 1);
-        
-        // Draw zone color bands
-        const zoneColors = { port: '#0a1628', space: '#c2956a', frontier: '#1b4332', npc_housing: '#1a2030', res: '#334155', pine: '#1b4332', tech: '#2a2a42', metro: '#475569', nightlife: '#1a0a2e', backbone: '#0a1525', silicon: '#1b4332', estates: '#3d2514', power: '#1a1a10' };
-        
-        this._mmZones.forEach(z => {
-            let minX = Infinity, maxX = 0;
-            BLDS.forEach(b => {
-                if (z.match(b)) {
-                    if (b.x < minX) minX = b.x;
-                    if (b.x + b.w > maxX) maxX = b.x + b.w;
-                }
-            });
-            if (minX < Infinity) {
-                ctx.fillStyle = zoneColors[z.id] || '#222';
-                ctx.fillRect(minX * scale, 8, Math.max((maxX - minX) * scale, 3), cH - 16);
-            }
-        });
-        
-        // Draw buildings as thin lines
-        BLDS.forEach(b => {
-            const bx = b.x * scale;
-            const bw = Math.max(b.w * scale, 1);
-            const floors = b.dynamicFl || b.fl || 1;
-            const bh = Math.min(floors * 2, cH - 10);
-            
-            if (b.lab) {
-                const lab = LABS[b.lab];
-                ctx.fillStyle = lab ? lab.color : '#64748b';
-            } else if (b.type === 'launchpad') {
-                ctx.fillStyle = '#fc3d21';
-            } else {
-                ctx.fillStyle = '#445';
-            }
-            ctx.fillRect(bx, cH - 4 - bh, bw, bh);
-        });
-        
-        // Draw viewport indicator
-        const vpLeft = (-Camera.x) * scale;
-        const vpWidth = (this.vpW / Camera.zoom) * scale;
-        ctx.strokeStyle = 'rgba(34,211,238,0.7)';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(vpLeft, 1, vpWidth, cH - 2);
-        ctx.fillStyle = 'rgba(34,211,238,0.06)';
-        ctx.fillRect(vpLeft, 1, vpWidth, cH - 2);
-        
-        // Highlight active zone button
-        const camCenter = -Camera.x + (this.vpW / 2) / Camera.zoom;
-        document.querySelectorAll('.mm-zone').forEach(el => {
-            const zoneId = el.dataset.zone;
-            const z = this._mmZones.find(zz => zz.id === zoneId);
-            if (!z) return;
-            let minX = Infinity, maxX = 0;
-            BLDS.forEach(b => { if (z.match(b)) { if (b.x < minX) minX = b.x; if (b.x + b.w > maxX) maxX = b.x + b.w; }});
-            el.classList.toggle('active', camCenter >= minX && camCenter <= maxX);
-        });
-    },
+    // Minimap & macro view → macro_view.js (mixed in via Object.assign)
   
     init() {
       Object.keys(LABS).forEach(key => { 
@@ -1730,98 +1386,7 @@ const G = {
       this.app.ticker.add(() => this.loop()); 
     },
   
-    buildMacroLayer() {
-      this.macroLayer.removeChildren(); 
-      this.dataPackets = [];
-      this.macroNodes = []; 
-      this.pingRings = []; 
-      const cx = this.vpW / 2; 
-      const cy = this.vpH / 2;
-      
-      const grid = new PIXI.Graphics(); 
-      grid.lineStyle(1, 0x33334a, 0.3); 
-      for(let i=0; i<this.vpW; i+=50) { grid.moveTo(i, 0); grid.lineTo(i, this.vpH); } 
-      for(let i=0; i<this.vpH; i+=50) { grid.moveTo(0, i); grid.lineTo(this.vpW, i); } 
-      this.macroLayer.addChild(grid);
-      
-      const sgGfx = new PIXI.Graphics(); 
-      sgGfx.beginFill(0xffffff, 0.1);
-      sgGfx.drawCircle(cx, cy, 50); 
-      sgGfx.endFill(); 
-      sgGfx.beginFill(0xffffff, 0.5); 
-      sgGfx.drawCircle(cx, cy, 20); 
-      sgGfx.endFill(); 
-      this.macroLayer.addChild(sgGfx); 
-      this.centerNodeGfx = sgGfx; 
-      
-      const linesGfx = new PIXI.Graphics(); 
-      this.macroLayer.addChild(linesGfx);
-      
-      const rad = Math.min(cx, cy) * 0.65; 
-      const labsEntries = Object.entries(LABS); 
-      const angleStep = (Math.PI * 2) / labsEntries.length;
-      
-      labsEntries.forEach(([labId, lab], i) => {
-        const angle = i * angleStep; 
-        const nx = cx + Math.cos(angle) * rad; 
-        const ny = cy + Math.sin(angle) * rad; 
-        const col = parseInt(lab.color.slice(1), 16);
-        
-        linesGfx.lineStyle(2, col, 0.4); 
-        linesGfx.moveTo(nx, ny); 
-        linesGfx.lineTo(cx, cy); 
-        
-        const nodeCont = new PIXI.Container(); 
-        nodeCont.x = nx; 
-        nodeCont.y = ny;
-        
-        const clusterInfo = (typeof COMPUTE_DATA !== 'undefined' && COMPUTE_DATA.clusters) ? 
-                            (COMPUTE_DATA.clusters.find(c => c.lab === labId) || { name: "Remote Cluster", gpus: 0, type: "Unknown", location: "Unknown" }) :
-                            { name: "Remote Cluster", gpus: 0, type: "Unknown", location: "Unknown" };
-                            
-        if(clusterInfo.gpus > 0) { 
-            const subX = Math.cos(angle) * 60; 
-            const subY = Math.sin(angle) * 60; 
-            linesGfx.lineStyle(1, 0x22d3ee, 0.3); 
-            linesGfx.moveTo(nx, ny); 
-            linesGfx.lineTo(nx + subX, ny + subY); 
-            const sub = new PIXI.Graphics(); 
-            sub.beginFill(0x22d3ee); 
-            sub.drawCircle(nx + subX, ny + subY, 4); 
-            sub.endFill(); 
-            this.macroLayer.addChild(sub); 
-        }
-        
-        const nGfx = new PIXI.Graphics(); 
-        nGfx.beginFill(col, 0.2); 
-        nGfx.drawCircle(0, 0, 24); 
-        nGfx.endFill(); 
-        nGfx.beginFill(col, 0.8);
-        nGfx.drawCircle(0, 0, 12); 
-        nGfx.endFill(); 
-        nodeCont.addChild(nGfx);
-        
-        const lbl = new PIXI.Text(lab.name, { fontSize: 10, fill: 0xffffff, fontWeight: 'bold' }); 
-        lbl.anchor.set(0.5, 0.5);
-        lbl.y = 32; 
-        nodeCont.addChild(lbl);
-        
-        nodeCont.eventMode = 'static'; 
-        nodeCont.cursor = 'pointer';
-        nodeCont.on('pointerover', (e) => { 
-            nodeCont.scale.set(1.2); 
-            if (typeof UI !== 'undefined') UI.showTooltip(e, `${lab.name} Uplink`, `${clusterInfo.name}<br><span style="color:#4ade80">${(clusterInfo.gpus/1000).toFixed(0)}K GPUs</span>`, false); 
-        });
-        nodeCont.on('pointerout', () => { 
-            nodeCont.scale.set(1.0); 
-            if (typeof UI !== 'undefined') UI.hideTooltip(); 
-        });
-        this.macroLayer.addChild(nodeCont);
-      });
-      
-      this.packetGfx = new PIXI.Graphics(); 
-      this.macroLayer.addChild(this.packetGfx);
-    },
+    // buildMacroLayer → macro_view.js (mixed in via Object.assign)
 
     loop() {
       this.tick++;
@@ -1930,7 +1495,8 @@ const G = {
             const nowMs = Date.now();
             for (let i = 0; i < this.models.length; i++) {
                 const m = this.models[i];
-                if (!m.ret || new Date(m.ret).getTime() > nowMs) alive++;
+                if (!m._retMs && m.ret) m._retMs = new Date(m.ret).getTime();
+                if (!m.ret || m._retMs > nowMs) alive++;
                 if (m._src) disc++;
                 const ph = m.phase;
                 if (ph === 'rumored' || ph === 'pre_training' || ph === 'training') preT++;
@@ -1941,9 +1507,10 @@ const G = {
         }
         const wI = (typeof Environment !== 'undefined') ? (Environment.weather === 'rain' ? '🌧️' : Environment.weather === 'snow' ? '❄️' : Environment.weather === 'cherry' ? '🌸' : '') : '';
 
-        const nfoEl = document.getElementById('nfo');
+        if (!this._nfoEl) this._nfoEl = document.getElementById('nfo');
+        const nfoEl = this._nfoEl;
         if (nfoEl) {
-            if (!this._estateCount || this.tick % 600 === 0) { this._estateCount = typeof BLDS !== 'undefined' ? BLDS.filter(b => b.id.startsWith('house_')).length : 0; }
+            if (this._estateCount === undefined) { this._estateCount = typeof BLDS !== 'undefined' ? BLDS.filter(b => b.id.startsWith('house_')).length : 0; }
             const estateCount = this._estateCount;
             nfoEl.innerHTML = `<span title="Current time of day in Singularity City — ${lbl}">🕒 <span class="st">${ts}</span></span><span style="font-size:7px;color:var(--ac)" title="City is running live — all data updates in real time">● LIVE</span><span title="Active AI model citizens currently in the city">👥 <span class="st">${alive}</span></span><span title="${labCount} AI labs with districts in the city">🏢 <span class="st">${labCount}</span></span><span title="${estateCount} CEO/Founder estates on Billionaire's Row">🏛️ <span class="st">${estateCount}</span></span>${preT > 0 ? `<span title="Models currently in pre-training, training, or rumored phase">🔬 <span class="st" style="color:var(--pk)">${preT}</span></span>` : ''}<span title="${dead} retired or deprecated models (visible as ghosts)">👻 <span class="st">${dead}</span></span>${disc > 0 ? `<span title="${disc} models discovered via network scans by all players globally">🛰️ <span class="st" style="color:var(--cy)">${disc}</span></span>` : ''}${wI ? `<span title="Current weather: ${Environment.weather || 'clear'}">${wI}</span>` : ''}${this.autoScanMin > 0 ? `<span style="font-size:7px;color:var(--cy)" title="Auto-scan interval — scanning for new models every ${this.autoScanMin} minutes">🔄 ${this.autoScanMin}m</span>` : ''}`;
         }
@@ -1958,6 +1525,9 @@ const G = {
         if (typeof NOTIFY !== 'undefined') NOTIFY.send('New Model Born!', `${name} has arrived!`); 
     }
 };
+
+// Mix in extracted modules
+Object.assign(G, EasterEggs, Persistence, MacroView);
 
 (function() {
   const uiFix = document.createElement('style');
