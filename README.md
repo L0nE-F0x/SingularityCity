@@ -78,12 +78,6 @@ A globally synced, real-time pixel-art simulation where every AI model is a citi
 | Hosting | Netlify (static deploy via zip upload) |
 | Code | ~22K lines vanilla JavaScript, 40 files, zero frameworks |
 
-## Deploy
-
-1. Upload zip to [Netlify](https://app.netlify.com/drop)
-2. Set env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `FINNHUB_KEY`
-3. Done — no build step
-
 ## File Structure
 
 ```
