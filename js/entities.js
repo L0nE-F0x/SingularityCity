@@ -434,6 +434,13 @@ const Entities = {
                   }
               }
 
+              // CEO car is NEVER visible while their helicopter is active
+              const ceoHeli = Entities.heliRefs ? Entities.heliRefs[ceo.f.lab] : null;
+              if (ceoHeli && ceoHeli.state !== 'hidden') {
+                  ceo.carCont.visible = false;
+                  ceo.refCont.visible = false;
+              }
+
               // Hide CEO car in port/ocean zone
               const ceoInPort = ceo.logicalX > portMinX && ceo.logicalX < portMaxX;
               if (ceoInPort) { ceo.carCont.visible = false; ceo.refCont.visible = false; }
@@ -704,22 +711,30 @@ const Entities = {
                       heli.cont.y = heli.logicalY + (60 - heli.timer) * 0.3;
                       if (heli.timer <= 0) {
                           heli.state = 'grounded';
+                          // Helicopter disappears inside Silicon Woods (lands on interior helipad)
+                          heli.cont.visible = false;
+                          heli.cont.x = helipadX;
                           heli.cont.y = helipadY + 18;
                           // Clear _inHeli so CEO schedule can enter Silicon Woods
                           if (ceo) ceo._inHeli = false;
                       }
                       break;
-                      
+
                   case 'grounded':
-                      heli.cont.visible = true;
-                      heli.cont.x = helipadX;
-                      heli.cont.y = helipadY + 18;
+                      // Helicopter is parked INSIDE Silicon Woods — hidden from street view
+                      heli.cont.visible = false;
+                      heli.logicalX = helipadX;
+                      heli.logicalY = helipadY + 18;
                       // Wait for CEO to leave Silicon Woods
                       if (!ceo._heliTrip || ceo.bld !== 'forest_1') {
                           heli.state = 'takeoff';
                           heli.timer = 60;
                           heli.logicalX = helipadX;
                           heli.logicalY = helipadY + 18;
+                          // Helicopter reappears as it lifts off
+                          heli.cont.visible = true;
+                          heli.cont.x = helipadX;
+                          heli.cont.y = helipadY + 18;
                       }
                       break;
                       

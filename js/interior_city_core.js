@@ -478,6 +478,32 @@ const InteriorCity = {
                         
                         // NPC: Concierge
                         this.drawAvatar({ id: 'concierge', name: 'Concierge', isNPC: true, role: 'Concierge', phase: 'released', lab: 'other', desc: 'At your service.' }, this.startX + 160, fy + floorH - 4, floorCont, f, true);
+
+                        // Spawn visiting CEOs/Founders who flew in by helicopter
+                        if (G.ceoRefs) {
+                            Object.values(G.ceoRefs).forEach(ceoRef => {
+                                if (ceoRef.bld === bld.id) {
+                                    const ceoModel = { id: 'ceo_'+ceoRef.f.lab, name: ceoRef.f.name, lab: ceoRef.f.lab, phase: 'released', isCeo: true, founderData: ceoRef.f };
+                                    const cr = Math.random();
+                                    let rx, targetState;
+                                    if (cr < 0.25) {
+                                        rx = this.startX + this.bldW / 2 + 100 + Math.random() * 60;
+                                        targetState = 'sipping_whiskey';
+                                    } else if (cr < 0.50) {
+                                        rx = this.startX + this.bldW / 2 + 200 + Math.random() * 40;
+                                        targetState = 'putting';
+                                    } else if (cr < 0.75) {
+                                        rx = this.startX + this.bldW - 100 + Math.random() * 40;
+                                        targetState = 'soaking_hottub';
+                                    } else {
+                                        rx = this.startX + this.bldW / 2 - 20 + Math.random() * 40;
+                                        targetState = 'stargazing_firepit';
+                                    }
+                                    let av = this.drawAvatar(ceoModel, rx, fy + floorH - 4, floorCont, f, false, true);
+                                    av.state = targetState;
+                                }
+                            });
+                        }
                     } else if (floorTheme === 'launch_viewing') {
                         // ── Frontier Pines: Rocket Launch Viewing Area ──
                         // Left zone: Countdown board + Binoculars
