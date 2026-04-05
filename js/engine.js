@@ -1449,13 +1449,14 @@ const G = {
       
       this.initMinimap();
       this.initEasterEggs();
-      
+      if (typeof Debug !== 'undefined') Debug.init();
+
       window.addEventListener('beforeunload', () => {
           this.save();
           if (typeof Multiplayer !== 'undefined') Multiplayer.destroy();
       });
 
-      this.app.ticker.add(() => this.loop()); 
+      this.app.ticker.add(() => this.loop());
     },
   
     // buildMacroLayer → macro_view.js (mixed in via Object.assign)
@@ -1474,6 +1475,8 @@ const G = {
       // Minimap update every 10 frames
       if (this.tick % 10 === 0) this.updateMinimap();
       this.update();
+      // Debug overlay — cheap no-op when hidden, samples frame time when visible
+      if (typeof Debug !== 'undefined' && Debug.active) Debug.update();
     },
   
     update() {
