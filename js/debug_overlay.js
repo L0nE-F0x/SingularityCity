@@ -68,6 +68,7 @@ const Debug = {
             <div id="dbgMode">MODE: --</div>
             <div id="dbgCam">CAM: --</div>
             <div id="dbgCull">CULL: --</div>
+            <div id="dbgLazy">LZN: --</div>
             <div id="dbgTick">TICK: --</div>
             <div style="color:#6a6;font-size:9px;margin-top:6px;letter-spacing:0.5px">~ to toggle</div>
         `;
@@ -202,6 +203,13 @@ const Debug = {
             const pct = s.total > 0 ? Math.round((s.hidden / s.total) * 100) : 0;
             this.el.querySelector('#dbgCull').textContent =
                 `CULL: ${s.hidden}/${s.total} (${pct}%)`;
+        }
+
+        // Lazy zone boot stats (how many of the deferred zones have been visited yet)
+        if (typeof G !== 'undefined' && typeof G._lazyZoneStats === 'function') {
+            const lz = G._lazyZoneStats();
+            this.el.querySelector('#dbgLazy').textContent =
+                `LZN: ${lz.booted}/${lz.total}`;
         }
 
         // Engine tick

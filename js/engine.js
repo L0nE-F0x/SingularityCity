@@ -1343,26 +1343,64 @@ const G = {
           StreetVendors.init(this.charLayer);
       }
       
-      // ─── PORT ZONE: Ships + Ocean Life ───
-      if (typeof PortEnv !== 'undefined') {
-          PortEnv.buildShips(this.charLayer);
-          PortEnv.buildOceanLife(this.charLayer);
+      // ─── LAZY ZONE BOOT: Defer heavy visual animations until camera enters each zone ───
+      // Each *Env.buildAnimations() call spawns 50-120 PIXI.Graphics (pulses, LEDs, fog,
+      // particles). The player only sees one zone at a time, so firing all six at boot
+      // wastes ~400-600 sprite allocations + their texture uploads before the first frame
+      // is drawn. Instead we register each zone with an X range and a boot fn. The per-frame
+      // `_checkLazyZones()` pass fires the boot fn when the camera's visible world range
+      // (with one-viewport margin) first overlaps the zone bounds. After boot the zone's
+      // Env.update() takes over exactly as before.
+      this._lazyZones = [];
+      const self = this;
+      const registerLazy = (name, boundsFn, bootFn) => {
+          self._lazyZones.push({ name, boundsFn, bootFn, booted: false });
+      };
+
+      if (typeof PortEnv !== 'undefined' && typeof PortZone !== 'undefined') {
+          registerLazy('port',
+              () => {
+                  // Cover ocean + port buildings — buildOceanLife spawns fish across the
+                  // whole port building span, so wait until the camera is within that range.
+                  const pBlds = (typeof BLDS !== 'undefined') ? BLDS.filter(b => b.id && b.id.startsWith('port_')) : [];
+                  let x0 = (PortZone.oceanStartX || 0) - 200;
+                  let x1 = (PortZone.oceanEndX || 0) + 200;
+                  if (pBlds.length) {
+                      x0 = Math.min(x0, Math.min.apply(null, pBlds.map(b => b.x)) - 200);
+                      x1 = Math.max(x1, Math.max.apply(null, pBlds.map(b => b.x + b.w)) + 200);
+                  }
+                  return { x0, x1 };
+              },
+              () => { PortEnv.buildShips(self.charLayer); PortEnv.buildOceanLife(self.charLayer); });
       }
-      if (typeof PowerEnv !== 'undefined') {
-          PowerEnv.buildAnimations(this.charLayer);
+      if (typeof PowerEnv !== 'undefined' && typeof PowerZone !== 'undefined') {
+          registerLazy('power',
+              () => ({ x0: PowerZone.zoneStartX, x1: PowerZone.zoneEndX }),
+              () => PowerEnv.buildAnimations(self.charLayer));
       }
-      if (typeof VCRowEnv !== 'undefined') {
-          VCRowEnv.buildAnimations(this.charLayer);
+      if (typeof VCRowEnv !== 'undefined' && typeof VCRow !== 'undefined') {
+          registerLazy('vcrow',
+              () => ({ x0: VCRow.zoneStartX, x1: VCRow.zoneEndX }),
+              () => VCRowEnv.buildAnimations(self.charLayer));
       }
-      if (typeof BackboneEnv !== 'undefined') {
-          BackboneEnv.buildAnimations(this.charLayer);
+      if (typeof BackboneEnv !== 'undefined' && typeof BackboneZone !== 'undefined') {
+          registerLazy('backbone',
+              () => ({ x0: BackboneZone.zoneStartX, x1: BackboneZone.zoneEndX }),
+              () => BackboneEnv.buildAnimations(self.charLayer));
       }
-      if (typeof RoboticsEnv !== 'undefined') {
-          RoboticsEnv.buildAnimations(this.charLayer);
+      if (typeof RoboticsEnv !== 'undefined' && typeof RoboticsZone !== 'undefined') {
+          registerLazy('robotics',
+              () => ({ x0: RoboticsZone.zoneStartX, x1: RoboticsZone.zoneEndX }),
+              () => RoboticsEnv.buildAnimations(self.charLayer));
       }
-      if (typeof LongevityEnv !== 'undefined') {
-          LongevityEnv.buildAnimations(this.charLayer);
+      if (typeof LongevityEnv !== 'undefined' && typeof LongevityZone !== 'undefined') {
+          registerLazy('longevity',
+              () => ({ x0: LongevityZone.zoneStartX, x1: LongevityZone.zoneEndX }),
+              () => LongevityEnv.buildAnimations(self.charLayer));
       }
+
+      // VC Row cars and Space rockets are spawned immediately because they already have
+      // their own internal on/off logic and their count is small (<30 combined).
       if (typeof VCRow !== 'undefined' && this.carLayer) {
           VCRow.spawnCars(this.carLayer);
       }
@@ -1467,6 +1505,41 @@ const G = {
 
     // Off-screen cull stats (read by debug overlay)
     _cullStats: { chars: 0, cars: 0, vendors: 0, total: 0, hidden: 0 },
+
+    // Lazy zone boot — fires each zone's heavy buildAnimations() call only once the
+    // camera's visible world range (with one-viewport margin) first overlaps it.
+    // Called from update() every frame. Cheap linear scan of 6 entries.
+    _checkLazyZones() {
+      if (!this._lazyZones || !this._lazyZones.length || typeof Camera === 'undefined') return;
+      const zoom = Camera.zoom || 1;
+      const vpW = this.vpW || 800;
+      const worldLeft = -Camera.x;
+      const worldRight = worldLeft + vpW / zoom;
+      const margin = vpW / zoom; // pre-boot one viewport before it enters
+      const minX = worldLeft - margin;
+      const maxX = worldRight + margin;
+
+      for (let i = 0; i < this._lazyZones.length; i++) {
+          const z = this._lazyZones[i];
+          if (z.booted) continue;
+          let b;
+          try { b = z.boundsFn(); } catch (e) { continue; }
+          if (!b || !isFinite(b.x0) || !isFinite(b.x1)) continue;
+          // Overlap test: camera visible range overlaps zone X range
+          if (b.x1 >= minX && b.x0 <= maxX) {
+              try { z.bootFn(); } catch (e) { console.warn('Lazy zone boot failed:', z.name, e); }
+              z.booted = true;
+          }
+      }
+    },
+
+    // Debug helper: how many zones have booted
+    _lazyZoneStats() {
+      if (!this._lazyZones) return { booted: 0, total: 0 };
+      let booted = 0;
+      for (let i = 0; i < this._lazyZones.length; i++) if (this._lazyZones[i].booted) booted++;
+      return { booted, total: this._lazyZones.length };
+    },
 
     // Flip renderable=false on objects whose world X is outside the camera viewport.
     // Uses a horizontal-only check — the city is wide and flat, so vertical culling
@@ -1626,6 +1699,9 @@ const G = {
       // containers whose world X is outside the camera viewport. PIXI skips rendering
       // the entire subtree but transforms/state still update, so game logic is unaffected.
       this._cullOffScreen();
+
+      // Lazy zone boot — spawn each zone's visual animations on first approach
+      this._checkLazyZones();
 
       if (this.tick % 60 === 0) {
         // NOTE: Building sign/window occupancy updates are handled by Environment.update()
