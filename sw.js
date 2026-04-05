@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v226';
+const CACHE_NAME = 'singularity-city-v227';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -75,6 +75,7 @@ const CORE_ASSETS = [
     '/js/persistence.js',
     '/js/macro_view.js',
     '/js/debug_overlay.js',
+    '/js/bitmap_fonts.js',
     '/js/compute_worker.js',
     '/js/engine.js'
 ];
