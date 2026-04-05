@@ -87,6 +87,13 @@ const G = {
             this.bldById['visitor_monument'] = mon;
         }
 
+        // The Singularity City Times — weekly newspaper of record
+        if (!BLDS.find(b => b.id === 'times_hq')) {
+            const times = { id: 'times_hq', name: 'Singularity City Times', w: 150, x: 0, fl: 3, emoji: '📰', lab: null, desc: 'The city\u2019s weekly newspaper of record. Click to read this week\u2019s front page.' };
+            BLDS.push(times);
+            this.bldById['times_hq'] = times;
+        }
+
         let fCamp = BLDS.find(b => b.id === 'forest_0');
         if (!fCamp) {
             fCamp = { id: 'forest_0', name: 'Pine Reserve', w: 400, x: 1450, fl: 1, emoji: '🌲', lab: null, desc: 'A serene camping ground.' };
@@ -245,7 +252,7 @@ const G = {
         const isSpecialId = (id) => id.startsWith('res_') || id === 'metro_res' || id.startsWith('house_') ||
             id === 'metro_east' || id === 'metro_dc' || id === 'metro_mid' || id === 'metro_longevity' || id.startsWith('npc_apt_') ||
             id.startsWith('suburb_') ||
-            id === 'neon_bar' || id === 'visitor_monument' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
+            id === 'neon_bar' || id === 'visitor_monument' || id === 'times_hq' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
             id.startsWith('uni_') || id.startsWith('court_') || id === 'convention_center' || id.startsWith('backbone_');
 
         const techBldsList = BLDS.filter(b =>
@@ -326,7 +333,14 @@ const G = {
             vMon.x = currentX;
             currentX += vMon.w + 40;
         }
-        
+
+        // Singularity City Times HQ — weekly newspaper
+        const tHQ = BLDS.find(b => b.id === 'times_hq');
+        if (tHQ) {
+            tHQ.x = currentX;
+            currentX += tHQ.w + 40;
+        }
+
         // Neon Bar — nightlife strip
         const nBar = BLDS.find(b => b.id === 'neon_bar');
         if (nBar) {
@@ -1493,6 +1507,7 @@ const G = {
       this.initEasterEggs();
       if (typeof Debug !== 'undefined') Debug.init();
       if (typeof AutoTour !== 'undefined') AutoTour.init();
+      if (typeof Newspaper !== 'undefined') Newspaper.init();
 
       window.addEventListener('beforeunload', () => {
           this.save();
