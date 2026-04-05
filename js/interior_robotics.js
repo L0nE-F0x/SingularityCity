@@ -111,8 +111,10 @@ const InteriorRobotics = {
         this._spawnNPCs(this.scene, startX, bldW, baseY, floorH, numFloors, layout);
 
         // ─── Y-AXIS SCROLLING ───
+        // Note: `e` is a PIXI FederatedPointerEvent — its .target is a PIXI display
+        // object, not a DOM element, so we must not call .closest() on it. The exit
+        // button is a DOM element overlaid outside the canvas, so it can't fire here.
         this._onDown = (e) => {
-            if (e.target.closest('#btnExitInterior')) return;
             this.isDragging = true;
             this._startY = e.clientY;
             this._startSceneY = this.scene.y;
