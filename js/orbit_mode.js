@@ -22,12 +22,22 @@ const OrbitMode = {
     _orbitRings: null,
     _starField: null,
     _satLayer: null,
+    _viewGroup: null,       // zoomable/pannable container (earth, rings, satellites)
     _hudCont: null,
     _tooltip: null,
     _orbitTick: 0,
     _earthRadius: 0,
     _centerX: 0,
     _centerY: 0,
+    _viewScale: 1,
+    _viewMinScale: 0.6,
+    _viewMaxScale: 5,
+    _isPanning: false,
+    _panStartX: 0,
+    _panStartY: 0,
+    _viewStartX: 0,
+    _viewStartY: 0,
+    _selectedSprite: null,
 
     // Saved camera state
     _savedCamX: 0, _savedCamY: 0, _savedCamZoom: 1,
@@ -185,6 +195,12 @@ const OrbitMode = {
         this.layer.alpha = 0;
         this.active = true;
 
+        // (Re-)attach wheel zoom listener — removed on exit
+        if (!this._wheelHandler && G.app && G.app.view) {
+            this._wheelHandler = (ev) => this._onWheel(ev);
+            G.app.view.addEventListener('wheel', this._wheelHandler, { passive: false });
+        }
+
         this._showExitBtn();
 
         const topUI = document.querySelector('.top');
@@ -219,6 +235,11 @@ const OrbitMode = {
         this._transitioning = false;
         this._exiting = false;
         this._transitionProgress = 0;
+        // Reset zoom/pan state so next entry starts centered
+        this._viewScale = 1;
+        if (this._viewGroup) { this._viewGroup.scale.set(1); this._viewGroup.x = 0; this._viewGroup.y = 0; }
+        this._isPanning = false;
+        this._selectedSprite = null;
 
         if (this.layer) this.layer.visible = false;
 
@@ -244,6 +265,12 @@ const OrbitMode = {
             Camera.x = Camera.targetX;
             Camera.y = Camera.targetY;
             Camera.zoom = Camera.targetZoom;
+        }
+
+        // Detach wheel listener — will be re-attached on next enter()
+        if (this._wheelHandler && G.app && G.app.view) {
+            G.app.view.removeEventListener('wheel', this._wheelHandler);
+            this._wheelHandler = null;
         }
     },
 
@@ -282,22 +309,26 @@ const OrbitMode = {
         }
         this.layer.addChild(this._starField);
 
+        // ── Zoomable / pannable group: Earth + orbit rings + satellites ──
+        this._viewGroup = new PIXI.Container();
+        this.layer.addChild(this._viewGroup);
+
         // Orbit rings (dashed circles at different altitudes)
         this._orbitRings = new PIXI.Graphics();
         this._drawOrbitRings();
-        this.layer.addChild(this._orbitRings);
+        this._viewGroup.addChild(this._orbitRings);
 
         // Earth (top-down pixel art circle)
         this._earthCont = new PIXI.Container();
         this._drawEarth();
-        this.layer.addChild(this._earthCont);
+        this._viewGroup.addChild(this._earthCont);
 
         // Satellite layer
         this._satLayer = new PIXI.Container();
-        this.layer.addChild(this._satLayer);
+        this._viewGroup.addChild(this._satLayer);
         this._buildSatelliteSprites();
 
-        // HUD
+        // HUD (outside viewGroup — stays fixed on screen)
         this._hudCont = new PIXI.Container();
         this._buildHUD();
         this.layer.addChild(this._hudCont);
@@ -306,13 +337,21 @@ const OrbitMode = {
         this._tooltip = new PIXI.Container();
         this._tooltip.visible = false;
         this._tooltipBg = new PIXI.Graphics();
-        this._tooltipText = new PIXI.Text('', { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fill: '#ffffff', wordWrap: true, wordWrapWidth: 200 });
+        this._tooltipText = new PIXI.Text('', { fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fill: '#ffffff', wordWrap: true, wordWrapWidth: 240 });
         this._tooltip.addChild(this._tooltipBg, this._tooltipText);
         this.layer.addChild(this._tooltip);
 
-        // Tap interaction
+        // Interaction — click-to-select on satellites, drag-to-pan, wheel-to-zoom
         this.layer.eventMode = 'static';
-        this.layer.on('pointerdown', (e) => this._onTap(e));
+        this.layer.on('pointerdown', (e) => this._onPointerDown(e));
+        this.layer.on('pointermove', (e) => this._onPointerMove(e));
+        this.layer.on('pointerup', (e) => this._onPointerUp(e));
+        this.layer.on('pointerupoutside', (e) => this._onPointerUp(e));
+        // Wheel zoom — attach to canvas element
+        if (G.app && G.app.view) {
+            this._wheelHandler = (ev) => this._onWheel(ev);
+            G.app.view.addEventListener('wheel', this._wheelHandler, { passive: false });
+        }
 
         this._built = true;
     },
@@ -538,17 +577,28 @@ const OrbitMode = {
     // ─── HUD ───
     _buildHUD() {
         const W = G.vpW;
+        // Top padding pushes the title clear of browser chrome / Press Start 2P ascenders
+        const TOP_Y = 40;
+        const LEFT_X = 20;
+
+        // Panel backdrop so HUD text remains readable over stars
+        const panel = new PIXI.Graphics();
+        panel.beginFill(0x020614, 0.55);
+        panel.lineStyle(1, 0x1a3a5c, 0.6);
+        panel.drawRect(LEFT_X - 10, TOP_Y - 12, 260, 190);
+        panel.endFill();
+        this._hudCont.addChild(panel);
 
         const title = new PIXI.Text('ORBIT VIEW', {
             fontFamily: 'Press Start 2P, monospace', fontSize: 12, fill: '#66bbff', letterSpacing: 2
         });
-        title.x = 16; title.y = 16;
+        title.x = LEFT_X; title.y = TOP_Y;
         this._hudCont.addChild(title);
 
         this._satCountText = new PIXI.Text('', {
             fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fill: '#88aacc'
         });
-        this._satCountText.x = 16; this._satCountText.y = 36;
+        this._satCountText.x = LEFT_X; this._satCountText.y = TOP_Y + 22;
         this._hudCont.addChild(this._satCountText);
 
         // Location info
@@ -558,7 +608,7 @@ const OrbitMode = {
         const locText = new PIXI.Text(`Showing satellites near ${tzStr}`, {
             fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fill: '#4ade80'
         });
-        locText.x = 16; locText.y = 52;
+        locText.x = LEFT_X; locText.y = TOP_Y + 38;
         this._hudCont.addChild(locText);
 
         // Legend
@@ -574,53 +624,175 @@ const OrbitMode = {
             dot.beginFill(item.color);
             dot.drawRect(0, 0, 4, 4); // pixel square
             dot.endFill();
-            dot.x = 18; dot.y = 72 + i * 16;
+            dot.x = LEFT_X + 2; dot.y = TOP_Y + 58 + i * 16;
 
             const lbl = new PIXI.Text(item.label, {
                 fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: '#aabbcc'
             });
-            lbl.x = 28; lbl.y = 72 + i * 16 - 3;
+            lbl.x = LEFT_X + 12; lbl.y = TOP_Y + 58 + i * 16 - 3;
             this._hudCont.addChild(dot, lbl);
         });
+
+        // Controls hint at bottom of HUD
+        const hint = new PIXI.Text('Scroll to zoom  |  Drag to pan  |  Click satellite for info', {
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fill: '#667788'
+        });
+        hint.x = LEFT_X; hint.y = TOP_Y + 148;
+        this._hudCont.addChild(hint);
     },
 
-    // ─── TAP INTERACTION ───
-    _onTap(e) {
+    // ─── POINTER: pan (drag) + tap-to-select satellite ───
+    _onPointerDown(e) {
         if (!this.active || this._transitioning) return;
         const pos = e.data ? e.data.global : e.global;
         if (!pos) return;
+        this._panStartX = pos.x;
+        this._panStartY = pos.y;
+        this._viewStartX = this._viewGroup.x;
+        this._viewStartY = this._viewGroup.y;
+        this._panMoved = false;
+        this._isPanning = true;
+    },
 
-        let closest = null, closestDist = 15;
+    _onPointerMove(e) {
+        if (!this.active || this._transitioning) return;
+        if (!this._isPanning) return;
+        const pos = e.data ? e.data.global : e.global;
+        if (!pos) return;
+        const dx = pos.x - this._panStartX;
+        const dy = pos.y - this._panStartY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) this._panMoved = true;
+        this._viewGroup.x = this._viewStartX + dx;
+        this._viewGroup.y = this._viewStartY + dy;
+        // Hide tooltip while dragging
+        if (this._panMoved && this._tooltip) this._tooltip.visible = false;
+    },
+
+    _onPointerUp(e) {
+        if (!this.active || this._transitioning) return;
+        const wasDragging = this._isPanning && this._panMoved;
+        this._isPanning = false;
+        if (wasDragging) return; // drag ended — don't treat as click
+        const pos = e.data ? e.data.global : e.global;
+        if (!pos) return;
+        this._tryPickSatellite(pos);
+    },
+
+    _onWheel(ev) {
+        if (!this.active || this._transitioning) return;
+        ev.preventDefault();
+        const rect = G.app.view.getBoundingClientRect();
+        const mx = ev.clientX - rect.left;
+        const my = ev.clientY - rect.top;
+
+        // World point under the cursor BEFORE zoom
+        const worldX = (mx - this._viewGroup.x) / this._viewGroup.scale.x;
+        const worldY = (my - this._viewGroup.y) / this._viewGroup.scale.y;
+
+        // Scale factor
+        const step = ev.deltaY < 0 ? 1.2 : 1 / 1.2;
+        let newScale = this._viewScale * step;
+        newScale = Math.max(this._viewMinScale, Math.min(this._viewMaxScale, newScale));
+        this._viewScale = newScale;
+        this._viewGroup.scale.set(newScale);
+
+        // Re-anchor so the same world point stays under the cursor
+        this._viewGroup.x = mx - worldX * newScale;
+        this._viewGroup.y = my - worldY * newScale;
+
+        // Hide tooltip while zooming — positions will be stale
+        if (this._tooltip) this._tooltip.visible = false;
+    },
+
+    _tryPickSatellite(globalPos) {
+        // Convert global screen coords to viewGroup local coords
+        const local = this._viewGroup.toLocal(globalPos);
+        // Hit radius scales inversely with zoom so it stays ~comfortable on screen
+        const hitRadius = 20 / this._viewScale;
+        let closest = null, closestDist = hitRadius;
         this._satSprites.forEach(sp => {
-            if (sp.destroyed) return;
-            const dx = sp.x - pos.x;
-            const dy = sp.y - pos.y;
+            if (sp.destroyed || !sp.visible) return;
+            const dx = sp.x - local.x;
+            const dy = sp.y - local.y;
             const d = Math.sqrt(dx * dx + dy * dy);
             if (d < closestDist) { closestDist = d; closest = sp; }
         });
 
         if (closest && closest._sat) {
+            this._selectedSprite = closest;
             this._showTooltip(closest);
         } else {
+            this._selectedSprite = null;
             if (this._tooltip) this._tooltip.visible = false;
         }
     },
 
     _showTooltip(sprite) {
         const sat = sprite._sat;
-        const altStr = sat.altitude < 1000 ? `${Math.round(sat.altitude)}km` : `${(sat.altitude / 1000).toFixed(1)}K km`;
-        const speedKmS = (2 * Math.PI * (6371 + sat.altitude)) / (86400 / sat.meanMotion);
+        const R_EARTH = 6371;
+        const altStr = sat.altitude < 1000 ? `${Math.round(sat.altitude)} km` : `${(sat.altitude / 1000).toFixed(1)}K km`;
+        // Orbital mechanics derived from mean motion (rev/day)
+        const periodMin = sat.meanMotion > 0 ? (1440 / sat.meanMotion) : 0;
+        const periodStr = periodMin >= 60
+            ? `${(periodMin / 60).toFixed(1)} h`
+            : `${periodMin.toFixed(1)} min`;
+        const orbitalVel = (2 * Math.PI * (R_EARTH + sat.altitude) * sat.meanMotion) / 86400;
+        // Regime classification from altitude
+        let regime = 'LEO';
+        if (sat.altitude > 2000 && sat.altitude < 35000) regime = 'MEO';
+        else if (sat.altitude >= 35000) regime = 'GEO';
+        // Group metadata
+        const groupMeta = {
+            starlink: { op: 'SpaceX', purpose: 'Broadband internet', country: 'USA' },
+            oneweb: { op: 'OneWeb / Eutelsat', purpose: 'Broadband internet', country: 'UK' },
+            iss:    { op: 'NASA / Roscosmos / ESA / JAXA / CSA', purpose: 'Crewed space station', country: 'Intl.' },
+            gps:    { op: 'US Space Force', purpose: 'Positioning / navigation', country: 'USA' },
+            galileo:{ op: 'EU / ESA', purpose: 'Positioning / navigation', country: 'EU' },
+            other:  { op: '—', purpose: '—', country: '—' }
+        };
+        const meta = groupMeta[sat.group] || groupMeta.other;
 
-        this._tooltipText.text = `${sat.name}\nGroup: ${sat.group.toUpperCase()}\nAlt: ${altStr}\nIncl: ${sat.inclination.toFixed(1)}°\nSpeed: ${speedKmS.toFixed(1)} km/s\nNORAD: ${sat.noradId}`;
+        const lines = [
+            `▓ ${sat.name}`,
+            ``,
+            `Group:     ${sat.group.toUpperCase()}  (${regime})`,
+            `Operator:  ${meta.op}`,
+            `Country:   ${meta.country}`,
+            `Purpose:   ${meta.purpose}`,
+            ``,
+            `Altitude:  ${altStr}`,
+            `Incl:      ${sat.inclination.toFixed(2)}°`,
+            `Eccent:    ${sat.eccentricity.toFixed(5)}`,
+            `Period:    ${periodStr}`,
+            `Velocity:  ${orbitalVel.toFixed(2)} km/s`,
+            `Mean mot:  ${sat.meanMotion.toFixed(3)} rev/day`,
+            `NORAD ID:  ${sat.noradId}`
+        ];
+        this._tooltipText.text = lines.join('\n');
 
+        const w = this._tooltipText.width + 20;
+        const h = this._tooltipText.height + 20;
+        // Panel color varies by group
+        const accent = sprite._baseColor || 0x44aaff;
         this._tooltipBg.clear();
-        this._tooltipBg.beginFill(0x0a1628, 0.92);
-        this._tooltipBg.lineStyle(1, 0x44aaff, 0.6);
-        this._tooltipBg.drawRect(-8, -8, this._tooltipText.width + 16, this._tooltipText.height + 16);
+        this._tooltipBg.beginFill(0x020614, 0.95);
+        this._tooltipBg.lineStyle(1.5, accent, 0.9);
+        this._tooltipBg.drawRect(-10, -10, w, h);
+        this._tooltipBg.endFill();
+        // Accent top bar
+        this._tooltipBg.beginFill(accent, 0.22);
+        this._tooltipBg.drawRect(-10, -10, w, 16);
         this._tooltipBg.endFill();
 
-        this._tooltip.x = Math.min(sprite.x + 12, G.vpW - this._tooltipText.width - 30);
-        this._tooltip.y = Math.max(sprite.y - 20, 10);
+        // Place in global screen coords — convert sprite's local position via viewGroup
+        const g = this._viewGroup.toGlobal({ x: sprite.x, y: sprite.y });
+        let tx = g.x + 14;
+        let ty = g.y - 10;
+        if (tx + w > G.vpW - 10) tx = g.x - w - 14;
+        if (ty + h > G.vpH - 10) ty = G.vpH - h - 10;
+        if (ty < 10) ty = 10;
+        this._tooltip.x = tx;
+        this._tooltip.y = ty;
         this._tooltip.visible = true;
     },
 
@@ -690,6 +862,37 @@ const OrbitMode = {
                 sp.alpha = 0.8 + Math.sin(this._orbitTick * 0.08) * 0.2;
             }
         });
+
+        // Selection ring + live tooltip tracking
+        if (this._selectedSprite && !this._selectedSprite.destroyed && this._selectedSprite.visible) {
+            const sel = this._selectedSprite;
+            // Draw/refresh selection ring as a child overlay of the sat layer
+            if (!this._selRing) {
+                this._selRing = new PIXI.Graphics();
+                this._satLayer.addChild(this._selRing);
+            }
+            this._selRing.clear();
+            const pulse = 1 + Math.sin(this._orbitTick * 0.12) * 0.3;
+            this._selRing.lineStyle(1.5, sel._baseColor || 0xffffff, 0.9);
+            this._selRing.drawCircle(sel.x, sel.y, 8 + pulse * 3);
+            this._selRing.lineStyle(1, sel._baseColor || 0xffffff, 0.4);
+            this._selRing.drawCircle(sel.x, sel.y, 14 + pulse * 4);
+            // Re-position tooltip to follow the satellite
+            if (this._tooltip && this._tooltip.visible) {
+                const g = this._viewGroup.toGlobal({ x: sel.x, y: sel.y });
+                const w = (this._tooltipText ? this._tooltipText.width : 200) + 20;
+                const h = (this._tooltipText ? this._tooltipText.height : 100) + 20;
+                let tx = g.x + 14;
+                let ty = g.y - 10;
+                if (tx + w > G.vpW - 10) tx = g.x - w - 14;
+                if (ty + h > G.vpH - 10) ty = G.vpH - h - 10;
+                if (ty < 10) ty = 10;
+                this._tooltip.x = tx;
+                this._tooltip.y = ty;
+            }
+        } else if (this._selRing) {
+            this._selRing.clear();
+        }
 
         // Twinkle stars
         if (this._orbitTick % 3 === 0) {
