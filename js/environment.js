@@ -451,13 +451,24 @@ const Environment = {
               g.beginFill(0x22d3ee, 0.4); g.drawCircle(cx - 2, gy + 32, 1.2); g.endFill();
               g.beginFill(0x4ade80, 0.4); g.drawCircle(cx + 2, gy + 32, 1.2); g.endFill();
           });
-          // Deep earth below the tunnel cavity (gy+70 to gy+170 is left transparent for the metro tunnel)
-          g.beginFill(0x0a0f1a); g.drawRect(backboneStartX, gy + 170, bkw, 100); g.endFill();
-          // Additional deep fiber conduits (below the tunnel)
-          for (let di = 0; di < 6; di++) {
-              const dy = gy + 180 + di * 12;
+          // Slim dark band just below the tunnel cavity (tunnel is gy+70..gy+170).
+          // Below that we let the city-wide deep-earth + soil + water + sewer layers
+          // (drawn earlier via drawCityH at line 321/354-359) show through naturally,
+          // so water and sewage pipes connect to their counterparts on the other side.
+          g.beginFill(0x0a0f1a); g.drawRect(backboneStartX, gy + 170, bkw, 10); g.endFill();
+          // Thin fiber conduit accents in the deep-soil band (above water pipe at gy+220)
+          for (let di = 0; di < 3; di++) {
+              const dy = gy + 192 + di * 8;
               const col = cableCols[di % cableCols.length];
-              g.beginFill(col, 0.12); g.drawRect(backboneStartX, dy, bkw, 1); g.endFill();
+              g.beginFill(col, 0.18); g.drawRect(backboneStartX, dy, bkw, 1); g.endFill();
+          }
+          // Junction box + risers where Backbone joins the city utility trunks
+          // (normal city junction boxes skip this zone via inSpecialZone)
+          for (let jx = backboneStartX + 40; jx < backboneEndX; jx += 180) {
+              g.beginFill(0x334155); g.drawRect(jx, gy + 175, 12, 40); g.endFill();
+              g.beginFill(0x22d3ee, 0.5); g.drawCircle(jx + 6, gy + 178, 1.5); g.endFill();
+              g.beginFill(0x0ea5e9); g.drawRect(jx + 50, gy + 218, 8, 12); g.endFill();
+              g.beginFill(0xf59e0b); g.drawRect(jx + 100, gy + 233, 8, 16); g.endFill();
           }
       }
 
