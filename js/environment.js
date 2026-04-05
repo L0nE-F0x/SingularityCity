@@ -2331,6 +2331,8 @@ const Environment = {
         else sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
         if (this.weather === 'rain' && !night && dp > .3 && dp < .72) sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
         if (this.weather === 'snow') sky = 'linear-gradient(180deg,#1a1a2e,#2d3748 50%,#4a5568)';
+        // X-Ray mode: override sky with pure black so the neon overlay reads as night-on-black
+        if (typeof XRayMode !== 'undefined' && XRayMode.active) sky = '#02060a';
         if (sky !== this._lastSky) { this._lastSky = sky; vp.style.background = sky; }
     
         this.starsLayer.visible = night;
