@@ -58,9 +58,20 @@ const OrbitMode = {
         } catch (_) {}
 
         try {
+            // CelesTrak blocks browser-origin requests with 403, so on the
+            // deployed site we route through a Netlify redirect proxy that
+            // rewrites the request server-side. Local dev falls back to the
+            // direct URL (CelesTrak allows localhost in their CORS headers).
+            const isProd = typeof location !== 'undefined'
+                && location.hostname
+                && location.hostname !== 'localhost'
+                && location.hostname !== '127.0.0.1';
+            const base = isProd
+                ? '/api/celestrak/NORAD/elements/gp.php'
+                : 'https://celestrak.org/NORAD/elements/gp.php';
             const urls = [
-                'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=json',
-                'https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=json'
+                `${base}?GROUP=starlink&FORMAT=json`,
+                `${base}?GROUP=oneweb&FORMAT=json`
             ];
             const results = await Promise.allSettled(
                 urls.map(u => fetch(u, { signal: AbortSignal.timeout(12000) }).then(r => r.ok ? r.json() : []))
@@ -814,6 +825,9 @@ const OrbitMode = {
     // ─── FRAME UPDATE ───
     update() {
         if (!this.active && !this._transitioning) return;
+        // Guard: enter() sets _transitioning=true before awaiting fetchSatellites()
+        // and calling _build(), so this.layer may not exist yet on early frames.
+        if (!this.layer) return;
         this._orbitTick++;
 
         // Transition animation
