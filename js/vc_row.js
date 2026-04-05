@@ -13,6 +13,14 @@ const VCRow = {
         { id: 'vcrow_exchange',  name: 'AI Exchange',       w: 200, fl: 3, emoji: '📊', type: 'vcrow', desc: 'Real-time trading floor. Model valuations, compute futures, and API pricing derivatives.' },
     ],
 
+    SUBURB_BLDS: [
+        { id: 'suburb_1', name: 'Maple Crescent',   w: 150, fl: 2, emoji: '🏡', desc: 'Upper middle-class townhome. Home of a VC Partner. Picket fence, two-car garage, smart driveway.' },
+        { id: 'suburb_2', name: 'Cypress Drive',    w: 150, fl: 2, emoji: '🏡', desc: 'Brick-front Craftsman. Home of the Analyst. Home office with multi-monitor workstation.' },
+        { id: 'suburb_3', name: 'Oakwood Lane',     w: 150, fl: 2, emoji: '🏡', desc: 'Colonial townhouse. Home of the Startup Mentor. Fireplace, whiskey collection, pitch deck archive.' },
+        { id: 'suburb_4', name: 'Birch Hollow',     w: 150, fl: 2, emoji: '🏡', desc: 'Modern farmhouse. Home of the Investment Banker. Commutes to Titan Bank every dawn.' },
+        { id: 'suburb_5', name: 'Willow Terrace',   w: 150, fl: 2, emoji: '🏡', desc: 'Corner lot Tudor. Home of the Floor Trader. Three monitors above the kitchen island.' },
+    ],
+
     NPCS: [
         { id: 'npc_vc_partner',    name: 'VC Partner',     role: 'Venture Partner',     workplace: 'vcrow', color: '#4ade80', shift: 'day' },
         { id: 'npc_analyst_vc',    name: 'Analyst',        role: 'Financial Analyst',   workplace: 'vcrow', color: '#22d3ee', shift: 'day' },
@@ -53,6 +61,15 @@ const VCRow = {
             }
         });
 
+        // Middle-class suburbia for VC Row commuters
+        this.SUBURB_BLDS.forEach(def => {
+            if (!BLDS.find(b => b.id === def.id)) {
+                const bld = { ...def, x: 0, lab: null };
+                BLDS.push(bld);
+                G.bldById[def.id] = bld;
+            }
+        });
+
         // VC NPCs use cars, not walking — don't register with NPCHousing
 
         // Build scrolling deal ticker
@@ -68,6 +85,18 @@ const VCRow = {
         });
         this.zoneEndX = x + 40;
         return this.zoneEndX;
+    },
+
+    // Position suburb district (called separately from VC Row)
+    positionSuburbs(afterX) {
+        let x = afterX + 80;
+        this.suburbStartX = x;
+        this.SUBURB_BLDS.forEach(def => {
+            const bld = BLDS.find(b => b.id === def.id);
+            if (bld) { bld.x = x; x += bld.w + 30; }
+        });
+        this.suburbEndX = x + 60;
+        return this.suburbEndX;
     },
 
     _buildTicker() {
@@ -164,8 +193,9 @@ const VCRow = {
             carCont.zIndex = Math.round(G.groundY - 12);
             carLayer.addChild(carCont);
 
-            // Home and work positions
-            const homeBld = typeof NPCHousing !== 'undefined' ? BLDS.find(b => b.id === 'npc_apt_' + (1 + (i % 3))) : null;
+            // Home = a suburb townhome (one per VC NPC), work = VC Row
+            const suburbDef = this.SUBURB_BLDS[i % this.SUBURB_BLDS.length];
+            const homeBld = suburbDef ? BLDS.find(b => b.id === suburbDef.id) : null;
             const homeX = homeBld ? homeBld.x + homeBld.w / 2 : 200;
             const workBld = G.bldById['vcrow_titan'] || G.bldById['vcrow_apex'];
             const workX = workBld ? workBld.x + workBld.w / 2 + i * 40 : this.zoneStartX + 100;
@@ -175,7 +205,7 @@ const VCRow = {
             const shouldWork = dp > 0.33 && dp < 0.75;
 
             const workBldId = G.bldById['vcrow_titan'] ? 'vcrow_titan' : (G.bldById['vcrow_apex'] ? 'vcrow_apex' : null);
-            const homeBldId = homeBld ? homeBld.id : 'npc_apt_1';
+            const homeBldId = homeBld ? homeBld.id : (suburbDef ? suburbDef.id : 'suburb_1');
 
             // Click to select/track VC commuter
             carCont.eventMode = 'static';

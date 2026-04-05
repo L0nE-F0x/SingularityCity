@@ -1575,7 +1575,137 @@ const Environment = {
           // Shadow
           gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, 4, 5, h - 4); gfx.endFill();
           gfx.beginFill(0x000000, 0.15); gfx.drawRect(0, h - 2, b.w, 4); gfx.endFill();
-          
+
+        } else if (b.id.startsWith('suburb_')) {
+          // ── MIDDLE-CLASS SUBURBAN TOWNHOMES (VC Row commuter belt) ──
+          // Each building gets a signature palette so the block has variety
+          const idNum = parseInt(b.id.replace('suburb_', '')) || 1;
+          const palettes = [
+              { wall: 0xd4a574, trim: 0x8b5a2b, roof: 0x7c2d12, window: 0xfde68a, door: 0x5c3317 }, // warm tan
+              { wall: 0xe2e8f0, trim: 0x64748b, roof: 0x334155, window: 0xfef3c7, door: 0x1e3a5f }, // grey slate
+              { wall: 0xb8917a, trim: 0x6b4423, roof: 0x4a2c17, window: 0xfef08a, door: 0x3d2914 }, // brick
+              { wall: 0xfef3c7, trim: 0xa16207, roof: 0x78350f, window: 0xfde68a, door: 0x713f12 }, // cream
+              { wall: 0xc5e1c5, trim: 0x4a7c59, roof: 0x2d5a3f, window: 0xfde68a, door: 0x2d3d2d }  // sage green
+          ];
+          const p = palettes[(idNum - 1) % palettes.length];
+
+          // Front lawn base
+          gfx.beginFill(0x1b4332); gfx.drawRect(0, h - 6, b.w, 6); gfx.endFill();
+          gfx.beginFill(0x2d6a4f); gfx.drawRect(0, h - 4, b.w, 2); gfx.endFill();
+
+          // Picket fence
+          gfx.beginFill(0xf5f5dc);
+          for (let fx = 4; fx < b.w - 4; fx += 8) {
+              gfx.drawRect(fx, h - 12, 2, 8);
+              gfx.drawPolygon([fx - 1, h - 12, fx + 1, h - 14, fx + 3, h - 12]);
+          }
+          gfx.drawRect(2, h - 10, b.w - 4, 1);
+          gfx.endFill();
+
+          // Main house body (two-story)
+          const bodyH = h - 14;
+          const bodyTop = 14;
+          gfx.beginFill(p.wall); gfx.drawRect(10, bodyTop, b.w - 20, bodyH - bodyTop); gfx.endFill();
+          // Side shadow
+          gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w - 14, bodyTop, 4, bodyH - bodyTop); gfx.endFill();
+          // Trim corners
+          gfx.beginFill(p.trim);
+          gfx.drawRect(10, bodyTop, 3, bodyH - bodyTop);
+          gfx.drawRect(b.w - 13, bodyTop, 3, bodyH - bodyTop);
+          gfx.endFill();
+
+          // Gabled pitched roof
+          gfx.beginFill(p.roof);
+          gfx.drawPolygon([6, bodyTop + 2, b.w / 2, 0, b.w - 6, bodyTop + 2]);
+          gfx.endFill();
+          // Roof highlight
+          gfx.beginFill(0xffffff, 0.1);
+          gfx.drawPolygon([6, bodyTop + 2, b.w / 2, 2, b.w / 2, bodyTop + 2]);
+          gfx.endFill();
+          // Roof shingle lines
+          gfx.lineStyle(1, 0x000000, 0.25);
+          for (let ry = bodyTop; ry > 2; ry -= 4) {
+              const inset = (bodyTop - ry + 2) * ((b.w - 12) / 2) / bodyTop;
+              gfx.moveTo(6 + inset, ry); gfx.lineTo(b.w - 6 - inset, ry);
+          }
+          gfx.lineStyle(0);
+
+          // Chimney
+          gfx.beginFill(0x78716c); gfx.drawRect(b.w - 36, 4, 8, bodyTop - 4); gfx.endFill();
+          gfx.beginFill(0x44403c); gfx.drawRect(b.w - 37, 3, 10, 3); gfx.endFill();
+
+          // Attic gable window (circle)
+          gfx.beginFill(p.window, 0.8); gfx.drawCircle(b.w / 2, bodyTop - 6, 4); gfx.endFill();
+          gfx.lineStyle(1, p.trim, 0.8); gfx.drawCircle(b.w / 2, bodyTop - 6, 4);
+          gfx.moveTo(b.w / 2 - 4, bodyTop - 6); gfx.lineTo(b.w / 2 + 4, bodyTop - 6);
+          gfx.moveTo(b.w / 2, bodyTop - 10); gfx.lineTo(b.w / 2, bodyTop - 2);
+          gfx.lineStyle(0);
+
+          // Upper floor windows (2 across)
+          b._wins = [];
+          const upWinY = bodyTop + 8;
+          [0.28, 0.72].forEach(frac => {
+              const wx = Math.round(b.w * frac) - 7;
+              gfx.beginFill(p.trim); gfx.drawRect(wx - 1, upWinY - 1, 16, 14); gfx.endFill();
+              const lit = Math.random() > 0.5;
+              gfx.beginFill(lit ? p.window : 0x0a0a18, lit ? 0.85 : 1);
+              gfx.drawRect(wx, upWinY, 14, 12); gfx.endFill();
+              // Window mullions
+              gfx.lineStyle(1, p.trim, 0.8);
+              gfx.moveTo(wx + 7, upWinY); gfx.lineTo(wx + 7, upWinY + 12);
+              gfx.moveTo(wx, upWinY + 6); gfx.lineTo(wx + 14, upWinY + 6);
+              gfx.lineStyle(0);
+              // Shutters
+              gfx.beginFill(p.trim); gfx.drawRect(wx - 4, upWinY, 3, 12); gfx.drawRect(wx + 15, upWinY, 3, 12); gfx.endFill();
+              b._wins.push({ wx, wy: upWinY, lit });
+          });
+
+          // Ground floor: big front window (left) + door (center-right)
+          const gWinX = 18, gWinY = bodyTop + 30;
+          gfx.beginFill(p.trim); gfx.drawRect(gWinX - 2, gWinY - 2, 30, 20); gfx.endFill();
+          const gLit = Math.random() > 0.4;
+          gfx.beginFill(gLit ? p.window : 0x0a0a18, gLit ? 0.85 : 1); gfx.drawRect(gWinX, gWinY, 26, 16); gfx.endFill();
+          gfx.lineStyle(1, p.trim, 0.8);
+          gfx.moveTo(gWinX + 13, gWinY); gfx.lineTo(gWinX + 13, gWinY + 16);
+          gfx.moveTo(gWinX, gWinY + 8); gfx.lineTo(gWinX + 26, gWinY + 8);
+          gfx.lineStyle(0);
+          b._wins.push({ wx: gWinX, wy: gWinY, lit: gLit });
+
+          // Front door with small porch
+          const doorX = b.w - 38, doorY = h - 30;
+          gfx.beginFill(p.trim); gfx.drawRect(doorX - 2, doorY - 2, 16, 18); gfx.endFill();
+          gfx.beginFill(p.door); gfx.drawRect(doorX, doorY, 12, 16); gfx.endFill();
+          gfx.beginFill(0xfbbf24, 0.9); gfx.drawCircle(doorX + 9, doorY + 9, 1); gfx.endFill(); // knob
+          // Porch light glow
+          gfx.beginFill(0xfbbf24, 0.35); gfx.drawCircle(doorX + 6, doorY - 6, 5); gfx.endFill();
+          gfx.beginFill(0xfbbf24); gfx.drawCircle(doorX + 6, doorY - 6, 1.2); gfx.endFill();
+          // Porch step
+          gfx.beginFill(0x78716c); gfx.drawRect(doorX - 4, doorY + 16, 20, 3); gfx.endFill();
+
+          // Driveway + garage hint
+          gfx.beginFill(0x52525b); gfx.drawRect(b.w - 18, h - 10, 14, 10); gfx.endFill();
+          gfx.beginFill(0x3f3f46); gfx.drawRect(b.w - 18, h - 8, 14, 2); gfx.endFill();
+
+          // Small shrub by door
+          gfx.beginFill(0x166534); gfx.drawCircle(doorX - 6, h - 10, 3); gfx.endFill();
+          gfx.beginFill(0x14532d); gfx.drawCircle(doorX - 6, h - 11, 2); gfx.endFill();
+
+          // Tree on lawn
+          const treeX = 20;
+          gfx.beginFill(0x5c4033); gfx.drawRect(treeX, h - 20, 3, 14); gfx.endFill();
+          gfx.beginFill(0x166534); gfx.drawCircle(treeX + 1, h - 24, 7); gfx.endFill();
+          gfx.beginFill(0x15803d); gfx.drawCircle(treeX + 1, h - 25, 5); gfx.endFill();
+          gfx.beginFill(0x22c55e); gfx.drawCircle(treeX + 1, h - 26, 3); gfx.endFill();
+
+          // House number plaque
+          gfx.beginFill(0x1c1917); gfx.drawRect(doorX - 6, doorY - 14, 10, 5); gfx.endFill();
+          const plate = new PIXI.Text(String(100 + idNum * 4), { fontFamily: 'JetBrains Mono', fontSize: 4, fill: 0xf5f5f4 });
+          plate.anchor.set(0.5, 0.5); plate.x = doorX - 1; plate.y = doorY - 11;
+          container.addChild(plate);
+
+          // Overall shadow
+          gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, 4, 4, h - 4); gfx.endFill();
+
         } else if (b.type === 'university' && typeof UniversityEnv !== 'undefined') {
           // University buildings rendered by dedicated module (uses local coords: 0=top, h=ground)
           UniversityEnv.buildBuilding(gfx, b, h);
@@ -1841,7 +1971,7 @@ const Environment = {
         gfx.cacheAsBitmap = true;
 
         // ─── ROOFTOP HELIPAD for HQ buildings with founders ───
-        if (!b.id.startsWith('house_') && !b.id.startsWith('res_') && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'park' && b.id !== 'graveyard') {
+        if (!b.id.startsWith('house_') && !b.id.startsWith('res_') && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('suburb_') && !b.id.startsWith('npc_apt_') && b.id !== 'park' && b.id !== 'graveyard') {
             const hasFounder = G.ceoRefs && G.ceoRefs[b.lab];
             if (hasFounder) {
                 const hpGfx = new PIXI.Graphics();
@@ -1950,7 +2080,7 @@ const Environment = {
         if (b._wins) { b._wins.forEach(win => { const t = new PIXI.Text('', { fontSize: 8, fill: 0xffffff }); t.anchor.set(0.5, 0.5); t.x = win.wx + 6; t.y = win.wy + 5; t.visible = false; container.addChild(t); b._winTexts.push(t); });
         }
   
-        if (b.id !== 'park' && b.id !== 'graveyard' && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_')) {
+        if (b.id !== 'park' && b.id !== 'graveyard' && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('suburb_')) {
             const sign = new PIXI.Text(b.name, { fontFamily: 'Silkscreen', fontSize: 7, fill: 0x9898c0, align: 'center' });
             sign.anchor.set(0.5, 0); sign.x = b.w / 2; sign.y = h + 4;
             if (sign.width > b.w - 4) sign.scale.set((b.w - 4) / sign.width);
@@ -1983,7 +2113,7 @@ const Environment = {
         };
         // Auto-generate neon sign for any non-lab, non-special building
         let nc = neonConfig[b.id];
-        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('res_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park') {
+        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('suburb_') && !b.id.startsWith('res_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park') {
             nc = { text: (b.emoji || '🏢') + ' ' + (b.name || '').toUpperCase(), col: 0x6688aa, speed: 0.06, flicker: 0.2 };
         }
         if (nc) {

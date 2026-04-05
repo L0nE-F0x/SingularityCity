@@ -65,6 +65,13 @@ const G = {
             BLDS.push(mEast);
             this.bldById['metro_east'] = mEast;
         }
+
+        // Longevity Line — terminus station between Longevity Wing and Silicon Woods
+        if (!BLDS.find(b => b.id === 'metro_longevity')) {
+            const mLong = { id: 'metro_longevity', name: 'Longevity Line', w: 120, x: 0, fl: 1, emoji: '🚇', lab: null, desc: 'Terminus station serving Longevity Wing, Robotics Factory and Backbone workers.' };
+            BLDS.push(mLong);
+            this.bldById['metro_longevity'] = mLong;
+        }
         
         // Neon Bar — nightlife destination
         if (!BLDS.find(b => b.id === 'neon_bar')) {
@@ -236,7 +243,8 @@ const G = {
         // ─── TECH DISTRICT COMPACTION ───
         // Collect all tech buildings (lab HQs + social), sort by current x, reposition tightly
         const isSpecialId = (id) => id.startsWith('res_') || id === 'metro_res' || id.startsWith('house_') ||
-            id === 'metro_east' || id === 'metro_dc' || id === 'metro_mid' || id.startsWith('npc_apt_') ||
+            id === 'metro_east' || id === 'metro_dc' || id === 'metro_mid' || id === 'metro_longevity' || id.startsWith('npc_apt_') ||
+            id.startsWith('suburb_') ||
             id === 'neon_bar' || id === 'visitor_monument' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
             id.startsWith('uni_') || id.startsWith('court_') || id === 'convention_center' || id.startsWith('backbone_');
 
@@ -349,6 +357,19 @@ const G = {
             currentX = LongevityZone.positionZone(currentX);
         }
 
+        // Longevity Line — eastern terminus metro between Longevity Wing and Silicon Woods
+        const mLong = BLDS.find(b => b.id === 'metro_longevity');
+        if (mLong) {
+            currentX += 40;
+            mLong.x = currentX;
+            currentX += mLong.w + 40;
+        }
+
+        // ─── VC SUBURBIA: Middle-class townhomes between Longevity Line and Silicon Woods ───
+        if (typeof VCRow !== 'undefined' && VCRow.positionSuburbs) {
+            currentX = VCRow.positionSuburbs(currentX);
+        }
+
         let fSilicon = BLDS.find(b => b.id === 'forest_1');
         if (fSilicon) {
             fSilicon.x = currentX;
@@ -416,6 +437,7 @@ const G = {
         addZB('backbone', BLDS.filter(b => b.id.startsWith('backbone_')));
         addZB('robotics', BLDS.filter(b => b.id.startsWith('robotics_')));
         addZB('longevity', BLDS.filter(b => b.id.startsWith('longevity_')));
+        addZB('suburbia', BLDS.filter(b => b.id.startsWith('suburb_')));
         addZB('power', BLDS.filter(b => b.id.startsWith('power_')));
 
         BLDS.sort((a, b) => a.x - b.x);
@@ -486,7 +508,7 @@ const G = {
             if (!hasHQ && canonical !== 'other') {
                 const hash = Array.from(canonical).reduce((acc, char) => acc + char.charCodeAt(0), 0);
                 const newW = 140 + (hash % 60);
-                const techBlds = BLDS.filter(b => b.id !== 'forest_1' && b.id !== 'forest_0' && !b.id.startsWith('house_') && b.id !== 'metro_east');
+                const techBlds = BLDS.filter(b => b.id !== 'forest_1' && b.id !== 'forest_0' && !b.id.startsWith('house_') && !b.id.startsWith('suburb_') && b.id !== 'metro_east' && b.id !== 'metro_longevity');
                 const lastTech = techBlds[techBlds.length - 1];
                 const newX = lastTech ? (lastTech.x + lastTech.w + 80) : 100;
                 
@@ -532,7 +554,7 @@ const G = {
 
         LABS[canonical] = { name: niceName, color: color, icon: this.getLabIcon(canonical), ticker: null, region: finalRegion };
         
-        const techBlds = BLDS.filter(b => b.id !== 'forest_1' && b.id !== 'forest_0' && !b.id.startsWith('house_') && b.id !== 'metro_east');
+        const techBlds = BLDS.filter(b => b.id !== 'forest_1' && b.id !== 'forest_0' && !b.id.startsWith('house_') && !b.id.startsWith('suburb_') && b.id !== 'metro_east' && b.id !== 'metro_longevity');
         const lastTech = techBlds[techBlds.length - 1];
         const newX = lastTech ? (lastTech.x + lastTech.w + 80) : 100;
         const newW = 140 + (hash % 60); 

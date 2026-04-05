@@ -45,7 +45,10 @@ const NPCHousing = {
     buildings: [
         { id: 'npc_apt_1', name: 'Worker Block A',  w: 200, fl: 5, emoji: '🏬', desc: 'Affordable housing for city facility workers.' },
         { id: 'npc_apt_2', name: 'Worker Block B',  w: 180, fl: 4, emoji: '🏬', desc: 'Compact apartments for night-shift staff.' },
-        { id: 'npc_apt_3', name: 'Worker Block C',  w: 180, fl: 4, emoji: '🏬', desc: 'Staff quarters for space and tech workers.' }
+        { id: 'npc_apt_3', name: 'Worker Block C',  w: 180, fl: 4, emoji: '🏬', desc: 'Staff quarters for space and tech workers.' },
+        { id: 'npc_apt_4', name: 'Worker Block D',  w: 200, fl: 6, emoji: '🏬', desc: 'High-rise housing for Backbone and Robotics staff.' },
+        { id: 'npc_apt_5', name: 'Worker Block E',  w: 190, fl: 5, emoji: '🏬', desc: 'Lab housing for Longevity Wing researchers.' },
+        { id: 'npc_apt_6', name: 'Worker Block F',  w: 180, fl: 5, emoji: '🏬', desc: 'Mixed-use apartments for Power and Port workers.' }
     ],
 
     commuters: [],
@@ -102,13 +105,32 @@ const NPCHousing = {
         return { c, head, body, legL, legR, tag };
     },
 
+    _assignHomeBldId(npc, i) {
+        // Route NPCs to thematically-matched housing blocks so the eastern workers
+        // live closer to the new eastern metro station.
+        const wp = npc.workplace || '';
+        // East-side workers → blocks 4-6 (closest to the new Longevity metro)
+        if (wp.startsWith('backbone_') || wp.startsWith('robotics_')) {
+            return 'npc_apt_4';
+        }
+        if (wp.startsWith('longevity_')) {
+            return 'npc_apt_5';
+        }
+        if (wp.startsWith('power_') || wp === 'forest' || wp === 'port') {
+            return 'npc_apt_6';
+        }
+        // Everything else (DC, fab, HQ, space, museum, uni, court, etc) → blocks 1-3
+        return 'npc_apt_' + (1 + (i % 3));
+    },
+
     spawnCommuters(charLayer) {
         if (!charLayer || this.commuters.length > 0) return;
         const subset = this.REGISTRY;
         subset.forEach((npc, i) => {
             const av = this._drawAvatar(charLayer, npc);
-            const homeBld = BLDS.find(b => b.id === 'npc_apt_' + (1 + (i % 3)));
-            const homeX = homeBld ? homeBld.x + homeBld.w / 2 + ((i * 17) % (homeBld.w - 20)) - homeBld.w / 2 + 10 : 200;
+            const homeBldId = this._assignHomeBldId(npc, i);
+            const homeBld = BLDS.find(b => b.id === homeBldId);
+            const homeX = homeBld ? homeBld.x + 10 + ((i * 17) % Math.max(20, homeBld.w - 20)) : 200;
             av.c.x = homeX; av.c.y = G.groundY - 20; av.c.visible = true;
             // Initialize state based on current time of day
             const dp = G.getDayPhase();
@@ -119,7 +141,6 @@ const NPCHousing = {
             av.c.x = shouldWork ? workX : homeX;
             av.c.visible = !shouldWork;
             const workBldId = this._getWorkBld(npc);
-            const homeBldId = 'npc_apt_' + (1 + (i % 3));
             this.commuters.push({
                 npc, ...av, homeX,
                 state: initState, targetX: shouldWork ? workX : homeX,
@@ -179,7 +200,7 @@ const NPCHousing = {
 
     _getMetroStations() {
         const sx = (id) => { const b = G.bldById[id]; return b ? b.x + b.w / 2 : null; };
-        return [sx('metro_dc'), sx('metro_res'), sx('metro_hq'), sx('metro_mid'), sx('metro_east')].filter(x => x !== null);
+        return [sx('metro_dc'), sx('metro_res'), sx('metro_hq'), sx('metro_mid'), sx('metro_east'), sx('metro_longevity')].filter(x => x !== null);
     },
 
     _nearestStation(x, stations) {

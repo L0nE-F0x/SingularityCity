@@ -22,6 +22,8 @@ const MacroView = {
         { id: 'backbone', emoji: '🌐', label: 'The Backbone',  match: b => b.id.startsWith('backbone_') },
         { id: 'robotics', emoji: '🤖', label: 'Robotics Factory', match: b => b.id.startsWith('robotics_') },
         { id: 'longevity', emoji: '🧬', label: 'Longevity Wing', match: b => b.id.startsWith('longevity_') },
+        { id: 'longline', emoji: '🚇', label: 'Longevity Line', match: b => b.id === 'metro_longevity' },
+        { id: 'suburbia', emoji: '🏡', label: 'Suburbia',       match: b => b.id.startsWith('suburb_') },
         { id: 'silicon',  emoji: '🌲', label: 'Silicon Woods',  match: b => b.id === 'forest_1' },
         { id: 'vcrow',    emoji: '💰', label: 'VC Row',          match: b => b.id.startsWith('vcrow_') },
         { id: 'estates',  emoji: '🏡', label: "Billionaire's",  match: b => b.id.startsWith('house_') },
