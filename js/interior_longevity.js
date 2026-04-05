@@ -46,12 +46,16 @@ const InteriorLongevity = {
         const layout = this.layouts[bld.id];
         if (!layout) return;
 
-        const W = G.app.renderer.width;
-        const H = G.app.renderer.height;
+        // Use stage/viewport coords (G.vpW/G.vpH), NOT renderer.width/height
+        // which returns DPR-scaled pixel size and breaks layout on hi-DPR displays.
+        // This matches the pattern used by every other interior module.
+        const W = G.vpW;
+        const H = G.vpH;
         const floorH = 80;
         const roofH = 36;
         const numFloors = layout.floors.length;
-        const totalH = roofH + numFloors * floorH + 40;
+        // +1 for basement level
+        const totalH = roofH + (numFloors + 1) * floorH + 40;
         const startX = W * 0.12;
         const bldW = W * 0.76;
 
@@ -77,17 +81,20 @@ const InteriorLongevity = {
         roofTxt.y = roofH / 2;
         this.scene.addChild(roofTxt);
 
-        // ─── FLOORS ───
-        for (let f = 0; f < numFloors; f++) {
-            const fy = roofH + (numFloors - 1 - f) * floorH;
+        // ─── FLOORS (f = -1 is themed basement, f = 0..N-1 are normal floors) ───
+        for (let f = -1; f < numFloors; f++) {
+            const isBasement = f === -1;
+            const fy = isBasement
+                ? roofH + numFloors * floorH
+                : roofH + (numFloors - 1 - f) * floorH;
 
             // Floor slab
             const slab = new PIXI.Graphics();
-            slab.beginFill(0x111827);
+            slab.beginFill(isBasement ? 0x0a0f1a : 0x111827);
             slab.drawRect(startX, fy, bldW, floorH);
             slab.endFill();
             // Left & right walls
-            slab.beginFill(0x1e293b);
+            slab.beginFill(isBasement ? 0x1a2332 : 0x1e293b);
             slab.drawRect(startX - 6, fy, 6, floorH);
             slab.drawRect(startX + bldW, fy, 6, floorH);
             slab.endFill();
@@ -96,15 +103,15 @@ const InteriorLongevity = {
             slab.drawRect(startX, fy + floorH - 2, bldW, 2);
             slab.endFill();
             // Accent
-            slab.beginFill(layout.col, 0.15);
+            slab.beginFill(layout.col, isBasement ? 0.08 : 0.15);
             slab.drawRect(startX, fy, bldW, 2);
             slab.endFill();
             this.scene.addChild(slab);
 
             // Floor label
-            const floorName = layout.floors[f];
+            const floorName = isBasement ? 'B1 · ' + this._basementLabel(bld.id) : layout.floors[f];
             const label = new PIXI.Text(floorName, {
-                fontFamily: 'monospace', fontSize: 9, fill: 0x94a3b8
+                fontFamily: 'monospace', fontSize: 9, fill: isBasement ? 0x64748b : 0x94a3b8
             });
             label.x = startX + 8;
             label.y = fy + 5;
@@ -116,14 +123,19 @@ const InteriorLongevity = {
             propsContainer.x = startX;
             propsContainer.y = fy;
             this.scene.addChild(propsContainer);
-            this._buildFloorProps(propsContainer, floorName, bldW, floorH, layout.col, bld.id);
+            if (isBasement) {
+                this._buildBasementProps(propsContainer, bld.id, bldW, floorH, layout.col);
+            } else {
+                this._buildFloorProps(propsContainer, floorName, bldW, floorH, layout.col, bld.id);
+            }
         }
 
-        // ─── GROUND SECTION ───
-        const groundY = roofH + numFloors * floorH;
+        // ─── GROUND SECTION (below basement) ───
+        const surfaceY = roofH + numFloors * floorH;              // top of basement = street level
+        const belowBasementY = roofH + (numFloors + 1) * floorH;  // bottom of basement
         const ground = new PIXI.Graphics();
         ground.beginFill(0x064e3b, 0.3);
-        ground.drawRect(startX - 6, groundY, bldW + 12, 40);
+        ground.drawRect(startX - 6, belowBasementY, bldW + 12, 40);
         ground.endFill();
         this.scene.addChild(ground);
 
@@ -135,8 +147,13 @@ const InteriorLongevity = {
             dot.drawCircle(0, 0, 1.5);
             dot.endFill();
             dot.x = startX + 10 + i * ((bldW - 20) / 20);
-            dot.y = groundY + 20 + Math.sin(i * 0.6) * 8;
+            dot.y = belowBasementY + 20 + Math.sin(i * 0.6) * 8;
             this.scene.addChild(dot);
+        }
+
+        // ─── ZONE-AWARE UNDERGROUND (longevity is past metro terminus → east_rock zone) ───
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._drawZoneUnderground) {
+            InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
         }
 
         // ─── Spawn interior NPCs on every floor ───
@@ -161,6 +178,197 @@ const InteriorLongevity = {
         });
         layer.on('pointerup', () => { this.isDragging = false; });
         layer.on('pointerupoutside', () => { this.isDragging = false; });
+    },
+
+    _basementLabel(bldId) {
+        return {
+            'longevity_discovery': 'COMPOUND LIBRARY (-80°C)',
+            'longevity_trials':    'BIOHAZARD SAMPLE ARCHIVE',
+            'longevity_genomics':  'SEQUENCER COLD ROOM',
+            'longevity_cryo':      'VITRIFICATION VAULT (-196°C)'
+        }[bldId] || 'SUB-LEVEL';
+    },
+
+    _buildBasementProps(container, bldId, bldW, floorH, col) {
+        // Common concrete floor texture
+        const floor = new PIXI.Graphics();
+        floor.beginFill(0x0f172a, 0.6);
+        floor.drawRect(6, floorH - 10, bldW - 12, 8);
+        floor.endFill();
+        // Hazard stripe along front
+        for (let i = 0; i < Math.floor(bldW / 16); i++) {
+            floor.beginFill((i % 2 === 0) ? 0xfbbf24 : 0x1a1a2e, 0.4);
+            floor.drawRect(8 + i * 16, floorH - 3, 14, 2);
+            floor.endFill();
+        }
+        container.addChild(floor);
+
+        if (bldId === 'longevity_discovery') {
+            // -80°C compound library: freezer banks with frosted doors
+            for (let i = 0; i < 5; i++) {
+                const frz = new PIXI.Graphics();
+                frz.beginFill(0x1e293b);
+                frz.drawRect(0, 0, 44, 56);
+                frz.endFill();
+                // Frosted door
+                frz.beginFill(0xbfdbfe, 0.35);
+                frz.drawRect(3, 4, 38, 40);
+                frz.endFill();
+                // Temperature readout
+                frz.beginFill(0x0ea5e9, 0.9);
+                frz.drawRect(10, 46, 24, 6);
+                frz.endFill();
+                // Ice frost on edges
+                frz.beginFill(0xffffff, 0.4);
+                frz.drawRect(3, 4, 38, 2);
+                frz.drawRect(3, 42, 38, 2);
+                frz.endFill();
+                // Frost puff on top
+                frz.beginFill(0xe0f2fe, 0.25);
+                frz.drawCircle(22, -2, 8);
+                frz.endFill();
+                frz.x = 15 + i * ((bldW - 30) / 5);
+                frz.y = floorH - 66;
+                container.addChild(frz);
+            }
+            // Compound tray on wheeled cart
+            const cart = new PIXI.Graphics();
+            cart.beginFill(0x64748b);
+            cart.drawRect(0, 0, 50, 4);
+            cart.beginFill(0x374151);
+            cart.drawRect(4, 4, 6, 10);
+            cart.drawRect(40, 4, 6, 10);
+            cart.beginFill(0x22c55e, 0.6);
+            for (let i = 0; i < 5; i++) { cart.drawRect(4 + i * 8, -6, 5, 6); }
+            cart.endFill();
+            cart.x = bldW * 0.5 - 25;
+            cart.y = floorH - 20;
+            container.addChild(cart);
+        } else if (bldId === 'longevity_trials') {
+            // Biohazard sample archive: locked fridge rows + biohazard drums
+            for (let i = 0; i < 6; i++) {
+                const bin = new PIXI.Graphics();
+                bin.beginFill(0xfef3c7, 0.25);
+                bin.drawRect(0, 0, 22, 50);
+                bin.endFill();
+                bin.lineStyle(1, 0xf59e0b, 0.8);
+                bin.drawRect(0, 0, 22, 50);
+                bin.lineStyle(0);
+                // Biohazard symbol
+                bin.beginFill(0xf59e0b, 0.9);
+                bin.drawCircle(11, 14, 3);
+                bin.endFill();
+                bin.beginFill(0x1a1a2e);
+                bin.drawCircle(11, 14, 1.5);
+                bin.endFill();
+                // Sample tubes inside
+                for (let t = 0; t < 3; t++) {
+                    bin.beginFill(0xec4899, 0.7);
+                    bin.drawRect(4 + t * 6, 25, 3, 12);
+                    bin.endFill();
+                }
+                bin.x = 15 + i * ((bldW - 30) / 6);
+                bin.y = floorH - 60;
+                container.addChild(bin);
+            }
+            // Biohazard drum
+            const drum = new PIXI.Graphics();
+            drum.beginFill(0xf59e0b);
+            drum.drawRect(0, 0, 24, 32);
+            drum.beginFill(0x1a1a2e);
+            drum.drawCircle(12, 12, 5);
+            drum.endFill();
+            drum.x = bldW - 50;
+            drum.y = floorH - 42;
+            container.addChild(drum);
+        } else if (bldId === 'longevity_genomics') {
+            // Sequencer cold room: LN2 dewars + chilled sequencer racks
+            for (let i = 0; i < 3; i++) {
+                const dewar = new PIXI.Graphics();
+                // Silver cylindrical dewar
+                dewar.beginFill(0xcbd5e1);
+                dewar.drawRect(0, 6, 30, 50);
+                dewar.drawEllipse(15, 6, 15, 4);
+                dewar.endFill();
+                // LN2 vapor plume
+                dewar.beginFill(0xe0f2fe, 0.5);
+                dewar.drawCircle(15, 0, 7);
+                dewar.drawCircle(22, -3, 5);
+                dewar.endFill();
+                // Valve
+                dewar.beginFill(0xef4444);
+                dewar.drawRect(12, 14, 6, 4);
+                dewar.endFill();
+                // Label
+                dewar.beginFill(0x0f172a, 0.7);
+                dewar.drawRect(4, 28, 22, 10);
+                dewar.endFill();
+                dewar.x = 20 + i * 55;
+                dewar.y = floorH - 60;
+                container.addChild(dewar);
+            }
+            // Sequencer rack
+            const seq = new PIXI.Graphics();
+            seq.beginFill(0x1e293b);
+            seq.drawRect(0, 0, bldW * 0.4, 56);
+            seq.endFill();
+            for (let r = 0; r < 6; r++) {
+                seq.beginFill(0x8b5cf6, 0.7);
+                seq.drawRect(4, 4 + r * 8, bldW * 0.4 - 8, 4);
+                seq.endFill();
+                seq.beginFill(0x06b6d4, 0.9);
+                seq.drawCircle(bldW * 0.4 - 8, 6 + r * 8, 1.2);
+                seq.endFill();
+            }
+            seq.x = bldW * 0.55;
+            seq.y = floorH - 66;
+            container.addChild(seq);
+        } else if (bldId === 'longevity_cryo') {
+            // Vitrification tanks: vertical dewars holding patients at -196°C
+            for (let i = 0; i < 5; i++) {
+                const tank = new PIXI.Graphics();
+                // Tank body - chrome
+                tank.beginFill(0xcbd5e1);
+                tank.drawRoundedRect(0, 0, 36, 66, 4);
+                tank.endFill();
+                // Viewing port
+                tank.beginFill(0x0f172a);
+                tank.drawCircle(18, 18, 9);
+                tank.endFill();
+                tank.beginFill(0x67e8f9, 0.4);
+                tank.drawCircle(18, 18, 8);
+                tank.endFill();
+                // Frost around port
+                tank.beginFill(0xffffff, 0.3);
+                tank.drawCircle(18, 18, 9);
+                tank.endFill();
+                tank.beginFill(0x0f172a);
+                tank.drawCircle(18, 18, 7);
+                tank.endFill();
+                // Temperature display
+                tank.beginFill(0x67e8f9, 0.9);
+                tank.drawRect(8, 34, 20, 6);
+                tank.endFill();
+                // Valves
+                tank.beginFill(0xef4444);
+                tank.drawRect(4, 48, 4, 4);
+                tank.drawRect(28, 48, 4, 4);
+                tank.endFill();
+                // Ice puddle at base
+                tank.beginFill(0xe0f2fe, 0.3);
+                tank.drawEllipse(18, 70, 22, 4);
+                tank.endFill();
+                // LN2 vapor at top
+                tank.beginFill(0xe0f2fe, 0.35);
+                tank.drawCircle(10, -4, 6);
+                tank.drawCircle(22, -6, 7);
+                tank.drawCircle(28, -2, 5);
+                tank.endFill();
+                tank.x = 12 + i * ((bldW - 30) / 5);
+                tank.y = floorH - 74;
+                container.addChild(tank);
+            }
+        }
     },
 
     _buildFloorProps(container, floorName, bldW, floorH, col, bldId) {

@@ -45,7 +45,8 @@ const InteriorRobotics = {
         const startX = (W - bldW) / 2;
         const floors = layout.floors;
         const numFloors = floors.length;
-        this.totalH = numFloors * floorH + 60;
+        // Added ~220px for themed basement + zone underground stack below ground
+        this.totalH = numFloors * floorH + 60 + floorH + 220;
 
         this.scene = new PIXI.Container();
         layer.addChild(this.scene);
@@ -100,10 +101,43 @@ const InteriorRobotics = {
         roofText.y = roofY + 4;
         this.scene.addChild(roof, roofText);
 
-        // ─── GROUND ───
+        // ─── BASEMENT (B1) ───
+        const basementY = baseY;
+        const basementSlab = new PIXI.Graphics();
+        basementSlab.beginFill(0x0a0f1a);
+        basementSlab.drawRect(startX, basementY, bldW, floorH);
+        basementSlab.endFill();
+        basementSlab.lineStyle(1, layout.col, 0.1);
+        basementSlab.drawRect(startX, basementY, bldW, floorH);
+        basementSlab.beginFill(layout.col, 0.06);
+        basementSlab.drawRect(startX, basementY, bldW, 2);
+        basementSlab.endFill();
+        this.scene.addChild(basementSlab);
+
+        const basementLabel = new PIXI.Text('B1 · ' + this._basementLabel(bld.id), {
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 8,
+            fill: 0x64748b, letterSpacing: 1
+        });
+        basementLabel.x = startX + 8;
+        basementLabel.y = basementY + 4;
+        basementLabel.alpha = 0.7;
+        this.scene.addChild(basementLabel);
+
+        this._drawBasementProps(this.scene, startX, bldW, basementY, floorH, bld.id, layout.col);
+
+        // ─── ZONE-AWARE UNDERGROUND ───
+        // Robotics district is past the metro terminus → east_rock zone per _determineZone
+        const surfaceY = baseY;
+        const belowBasementY = baseY + floorH;
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._drawZoneUnderground) {
+            InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
+        }
+
+        // ─── GROUND (fills sides beyond the building footprint) ───
         const ground = new PIXI.Graphics();
         ground.beginFill(0x0a0a14);
-        ground.drawRect(0, baseY, W, H - baseY + 20);
+        ground.drawRect(0, baseY, startX, H - baseY + 20);
+        ground.drawRect(startX + bldW, baseY, W - (startX + bldW), H - baseY + 20);
         ground.endFill();
         this.scene.addChild(ground);
 
@@ -130,6 +164,232 @@ const InteriorRobotics = {
         layer.on('pointerdown', this._onDown);
         window.addEventListener('pointermove', this._onMove);
         window.addEventListener('pointerup', this._onUp);
+    },
+
+    _basementLabel(bldId) {
+        return {
+            'robotics_assembly': 'PARTS WAREHOUSE',
+            'robotics_testing':  'CRASH-TEST PIT',
+            'robotics_deploy':   'SHIPPING DOCK',
+            'robotics_rd':       'PROTOTYPE GRAVEYARD'
+        }[bldId] || 'SUB-LEVEL';
+    },
+
+    _drawBasementProps(cont, sx, bw, fy, fh, bldId, col) {
+        const g = new PIXI.Graphics();
+        // Concrete floor strip with hazard stripes
+        g.beginFill(0x0f172a, 0.6);
+        g.drawRect(sx + 6, fy + fh - 10, bw - 12, 8);
+        g.endFill();
+        for (let i = 0; i < Math.floor(bw / 18); i++) {
+            g.beginFill((i % 2 === 0) ? 0xfbbf24 : 0x1a1a2e, 0.35);
+            g.drawRect(sx + 8 + i * 18, fy + fh - 3, 16, 2);
+            g.endFill();
+        }
+        cont.addChild(g);
+
+        if (bldId === 'robotics_assembly') {
+            // Parts warehouse — tall racks with chassis / arms / wheels crates
+            for (let i = 0; i < 6; i++) {
+                const rack = new PIXI.Graphics();
+                rack.beginFill(0x374151);
+                rack.drawRect(0, 0, 52, fh - 18);
+                rack.endFill();
+                for (let shelf = 0; shelf < 4; shelf++) {
+                    const shY = 6 + shelf * 14;
+                    // Shelf plank
+                    rack.beginFill(0x64748b);
+                    rack.drawRect(2, shY, 48, 2);
+                    rack.endFill();
+                    // Parts boxes
+                    const partCol = [0xec4899, 0x06b6d4, 0xfbbf24, 0x8b5cf6][shelf];
+                    rack.beginFill(partCol, 0.5);
+                    rack.drawRect(4, shY - 10, 12, 10);
+                    rack.drawRect(20, shY - 8, 10, 8);
+                    rack.drawRect(34, shY - 11, 14, 11);
+                    rack.endFill();
+                }
+                rack.x = sx + 15 + i * ((bw - 30) / 6);
+                rack.y = fy + 10;
+                cont.addChild(rack);
+            }
+            // Forklift
+            const fl = new PIXI.Graphics();
+            fl.beginFill(0xfbbf24);
+            fl.drawRect(0, 18, 30, 16);
+            fl.endFill();
+            fl.beginFill(0x1a1a2e);
+            fl.drawCircle(6, 36, 4);
+            fl.drawCircle(26, 36, 4);
+            fl.endFill();
+            // Mast
+            fl.beginFill(0x334155);
+            fl.drawRect(28, 0, 3, 30);
+            fl.drawRect(34, 0, 3, 30);
+            // Forks
+            fl.drawRect(28, 30, 14, 2);
+            fl.endFill();
+            fl.x = sx + bw * 0.55;
+            fl.y = fy + fh - 38;
+            cont.addChild(fl);
+        } else if (bldId === 'robotics_testing') {
+            // Crash-test pit — padded walls, dummies, impact sled
+            // Padded walls
+            const pad = new PIXI.Graphics();
+            pad.beginFill(0xef4444, 0.3);
+            for (let i = 0; i < 12; i++) {
+                pad.drawRect(sx + 8 + i * ((bw - 16) / 12), fy + 10, ((bw - 16) / 12) - 2, 12);
+            }
+            pad.endFill();
+            cont.addChild(pad);
+            // Yellow impact track
+            const track = new PIXI.Graphics();
+            track.beginFill(0xfbbf24, 0.2);
+            track.drawRect(sx + 10, fy + fh - 22, bw - 20, 10);
+            track.endFill();
+            track.lineStyle(1, 0xfbbf24, 0.7);
+            for (let i = 0; i < 20; i++) {
+                track.moveTo(sx + 12 + i * ((bw - 24) / 20), fy + fh - 17);
+                track.lineTo(sx + 12 + i * ((bw - 24) / 20) + 6, fy + fh - 17);
+            }
+            track.lineStyle(0);
+            cont.addChild(track);
+            // Crash dummy robots in various poses
+            for (let i = 0; i < 4; i++) {
+                const d = new PIXI.Graphics();
+                d.beginFill(0xc0c0d0, 0.5);
+                d.drawRect(0, 0, 9, 8); // head
+                d.drawRect(-2, 8, 13, 16); // torso
+                d.endFill();
+                d.beginFill(0xef4444, 0.7);
+                d.drawRect(-2, 12, 13, 2); // red stripe
+                d.endFill();
+                d.beginFill(0x64748b);
+                d.drawRect(-1, 24, 4, 10);
+                d.drawRect(6, 24, 4, 10);
+                d.endFill();
+                // Randomly tilted
+                d.rotation = (i - 2) * 0.15;
+                d.x = sx + 30 + i * ((bw - 60) / 4);
+                d.y = fy + fh - 46;
+                cont.addChild(d);
+            }
+            // Impact sled
+            const sled = new PIXI.Graphics();
+            sled.beginFill(0x475569);
+            sled.drawRect(0, 0, 40, 14);
+            sled.endFill();
+            sled.beginFill(0xef4444);
+            sled.drawRect(36, 2, 6, 10);
+            sled.endFill();
+            sled.x = sx + 10;
+            sled.y = fy + fh - 22;
+            cont.addChild(sled);
+        } else if (bldId === 'robotics_deploy') {
+            // Shipping dock — loading bay doors, pallets stacked with shrink-wrapped robots, truck rear
+            // Roll-up door sections at back wall
+            const door = new PIXI.Graphics();
+            door.beginFill(0x334155);
+            for (let s = 0; s < 6; s++) {
+                door.drawRect(sx + 15, fy + 8 + s * 6, bw * 0.45, 4);
+            }
+            door.endFill();
+            door.lineStyle(2, 0x10b981, 0.4);
+            door.drawRect(sx + 12, fy + 6, bw * 0.45 + 6, 40);
+            door.lineStyle(0);
+            cont.addChild(door);
+            // Truck rear backed into dock
+            const truck = new PIXI.Graphics();
+            truck.beginFill(0x1e293b);
+            truck.drawRect(sx + bw * 0.6, fy + 10, bw * 0.35, fh - 28);
+            truck.endFill();
+            truck.beginFill(0x10b981, 0.3);
+            truck.drawRect(sx + bw * 0.62, fy + 14, 40, 20);
+            truck.endFill();
+            truck.beginFill(0x64748b);
+            truck.drawCircle(sx + bw * 0.65, fy + fh - 14, 5);
+            truck.drawCircle(sx + bw * 0.88, fy + fh - 14, 5);
+            truck.endFill();
+            cont.addChild(truck);
+            // Pallets of shrink-wrapped robots waiting to load
+            for (let i = 0; i < 4; i++) {
+                const p = new PIXI.Graphics();
+                // Pallet
+                p.beginFill(0x78350f);
+                p.drawRect(0, 22, 40, 6);
+                p.endFill();
+                // Shrink-wrapped stack
+                p.beginFill(0xbae6fd, 0.4);
+                p.drawRect(2, 0, 36, 22);
+                p.endFill();
+                // Robot silhouette through wrap
+                p.beginFill(0x64748b, 0.5);
+                p.drawRect(8, 4, 8, 6);
+                p.drawRect(5, 10, 14, 10);
+                p.endFill();
+                p.x = sx + 18 + i * 44;
+                p.y = fy + fh - 34;
+                cont.addChild(p);
+            }
+        } else if (bldId === 'robotics_rd') {
+            // Prototype graveyard — stacked failed prototypes, shelves of spare parts, whiteboard with sketches
+            // Whiteboard
+            const wb = new PIXI.Graphics();
+            wb.beginFill(0xf8fafc);
+            wb.drawRect(0, 0, 80, 36);
+            wb.endFill();
+            wb.lineStyle(1, 0x8b5cf6, 0.6);
+            wb.moveTo(8, 10); wb.lineTo(22, 20); wb.lineTo(18, 28); wb.lineTo(30, 30);
+            wb.moveTo(40, 8); wb.drawCircle(46, 14, 4);
+            wb.moveTo(55, 20); wb.lineTo(72, 20); wb.lineTo(68, 30);
+            wb.lineStyle(0);
+            wb.x = sx + 12;
+            wb.y = fy + 10;
+            cont.addChild(wb);
+            // Dismantled prototypes piled up
+            for (let i = 0; i < 5; i++) {
+                const proto = new PIXI.Graphics();
+                const tilt = (i - 2) * 0.25;
+                proto.beginFill(0x64748b, 0.5);
+                proto.drawRect(0, 0, 14, 12); // head
+                proto.endFill();
+                proto.beginFill(0x475569, 0.5);
+                proto.drawRect(-3, 12, 20, 20); // torso
+                proto.endFill();
+                // Exposed wires
+                proto.lineStyle(1, [0xef4444, 0xfbbf24, 0x22d3ee][i % 3], 0.7);
+                proto.moveTo(2, 32); proto.lineTo(5, 38);
+                proto.moveTo(8, 32); proto.lineTo(11, 40);
+                proto.lineStyle(0);
+                // Missing eye / cracked screen
+                proto.beginFill(0x0f172a);
+                proto.drawRect(2, 3, 4, 4);
+                proto.endFill();
+                proto.beginFill(0xef4444, 0.8);
+                proto.drawRect(8, 3, 4, 4);
+                proto.endFill();
+                proto.rotation = tilt;
+                proto.x = sx + 110 + i * 36;
+                proto.y = fy + fh - 44;
+                cont.addChild(proto);
+            }
+            // Spare parts shelves at far right
+            for (let shelf = 0; shelf < 3; shelf++) {
+                const sh = new PIXI.Graphics();
+                sh.beginFill(0x374151);
+                sh.drawRect(0, 0, 70, 3);
+                sh.endFill();
+                // Junk on shelf
+                for (let j = 0; j < 4; j++) {
+                    sh.beginFill([0x8b5cf6, 0xec4899, 0xfbbf24, 0x06b6d4][j], 0.4);
+                    sh.drawRect(4 + j * 16, -8, 10, 8);
+                    sh.endFill();
+                }
+                sh.x = sx + bw - 90;
+                sh.y = fy + 18 + shelf * 16;
+                cont.addChild(sh);
+            }
+        }
     },
 
     _drawFloorProps(cont, sx, bw, fy, fh, floorName, col, bldId) {

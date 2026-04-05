@@ -1003,6 +1003,32 @@ const G = {
             const refs = G.charRefs[this.tracking.id];
             if (!refs) return;
             entityBld = refs.bld; // null if on street, building id if inside
+
+            // Metro tracking: when the entity is in a metro state, pretend they're
+            // "inside" the nearest station so the tracking fade takes us into the
+            // metro station interior. Resolves to whichever station's x matches the
+            // current leg (or is nearest to refs.c.x if no active leg).
+            if (!entityBld && refs._metroState && refs._metroState !== 'none') {
+                let targetStationX = null;
+                if (refs._metroLegs && refs._currentLeg !== undefined) {
+                    targetStationX = refs._metroLegs[refs._currentLeg];
+                }
+                if (targetStationX == null && refs.c) targetStationX = refs.c.x;
+                const stationIds = ['metro_dc', 'metro_res', 'metro_hq', 'metro_mid', 'metro_east', 'metro_longevity'];
+                let bestId = null, bestDist = Infinity;
+                for (const sid of stationIds) {
+                    const sb = this.bldById[sid];
+                    if (!sb) continue;
+                    const sx = sb.x + sb.w / 2;
+                    const d = Math.abs(sx - targetStationX);
+                    if (d < bestDist) { bestDist = d; bestId = sid; }
+                }
+                // Only project into a station if the entity is close to one. While
+                // riding between stations we let the inside view continue showing
+                // the departure/arrival station (which one is closer wins), so the
+                // passenger stays visible the entire trip rather than flickering out.
+                if (bestId) entityBld = bestId;
+            }
         } else if (this.tracking.type === 'ceo') {
             const ceo = G.ceoRefs ? G.ceoRefs[this.tracking.lab] : null;
             if (!ceo) return;

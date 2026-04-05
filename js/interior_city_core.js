@@ -103,12 +103,10 @@ const InteriorCity = {
             voidMask.beginFill(0x2d1f0f);
             voidMask.drawRect(0, grassY + 20, G.vpW, 200);
             voidMask.endFill();
-        } else {
-            voidMask.beginFill(0x05050a);
-            voidMask.drawRect(0, this.totalH, G.vpW, 2000); 
-            voidMask.endFill();
+            this.scene.addChild(voidMask);
         }
-        this.scene.addChild(voidMask);
+        // Non-forest: skip the black voidMask — _drawZoneUnderground() will render
+        // proper zone-matched earth/cables/tunnel/ocean/silo/rock below the building.
 
         this.bldW = (isHQ || isForest) ? G.vpW : Math.min(G.vpW, 800);
         this.startX = (G.vpW - this.bldW) / 2;
@@ -321,20 +319,9 @@ const InteriorCity = {
             }
             
             if (isBasement) {
-                const parkingLines = new PIXI.Graphics();
-                parkingLines.lineStyle(2, 0xffffff, 0.4);
-                parkingLines.moveTo(this.startX + 150, fy + floorH - 4); 
-                parkingLines.lineTo(this.startX + 120, fy + floorH - 14);
-                parkingLines.moveTo(this.startX + 250, fy + floorH - 4); 
-                parkingLines.lineTo(this.startX + 220, fy + floorH - 14);
-                floorCont.addChild(parkingLines);
-                
-                if (isHQ && G.ceoRefs && G.ceoRefs[bld.lab]) {
-                    const ceoRef = G.ceoRefs[bld.lab];
-                    this.ceoCarGfx = this.drawCar(floorCont, this.startX + 180, fy + floorH - 4, colHex);
-                    this.ceoCarGfx.visible = (ceoRef.bld === bld.id);
-                }
-                
+                // Dispatch themed basement contents based on building type / lab.
+                // Replaces the old generic "2 parking lines + CEO car" basement.
+                this._drawThemedBasement(floorCont, bld, fy, floorH, colHex, shaftX, isHQ);
             } else if (f >= 0) {
                 let currX = this.startX + 80;
                 
@@ -835,6 +822,16 @@ const InteriorCity = {
             this.scene.addChild(elevatorContainer);
             this.initLift(elevatorContainer, bld.id, numFloors, floorH, shaftX + 15);
         }
+
+        // ─── ZONE-AWARE UNDERGROUND ───
+        // Draw earth/cables/metro tunnel/ocean/silo/rock below the basement,
+        // matching what the exterior view shows at this building's x-position.
+        // Forests handle their own earth via the forest rendering above.
+        if (!isForest) {
+            const surfaceY = roofH + numFloors * floorH;          // top of basement = street level
+            const belowBasementY = roofH + (numFloors + 1) * floorH; // bottom of basement
+            this._drawZoneUnderground(this.scene, bld, this.startX, this.bldW, surfaceY, belowBasementY, floorH);
+        }
         
         this.avatars.forEach(av => {
             if (av && av.cont) av.cont.zIndex = 100;
@@ -877,6 +874,1141 @@ const InteriorCity = {
         });
         window.addEventListener('pointermove', this.onMove); 
         window.addEventListener('pointerup', this.onUp);
+    },
+
+    // ══════════════════════════════════════════════════════════════════════
+    //   THEMED BASEMENTS — Replaces the generic "2 parking lines + CEO car"
+    //   with a unique, building-relevant basement for every building type.
+    //   HQs are themed per AI lab; public buildings by bld.id.
+    // ══════════════════════════════════════════════════════════════════════
+    _drawThemedBasement(floorCont, bld, fy, floorH, colHex, shaftX, isHQ) {
+        const floorY = fy + floorH - 4; // basement floor line
+
+        // ─── Public / social buildings ─── dispatch by bld.id
+        if (bld.id === 'cafe') {
+            this._drawCafeRoastery(floorCont, bld, fy, floorH);
+            return;
+        }
+        if (bld.id === 'gym') {
+            this._drawGymLockers(floorCont, bld, fy, floorH);
+            return;
+        }
+        if (bld.id === 'arena') {
+            this._drawArenaDojo(floorCont, bld, fy, floorH);
+            return;
+        }
+        if (bld.id === 'open_square' || bld.id === 'os_hub') {
+            this._drawOSServerVault(floorCont, bld, fy, floorH);
+            return;
+        }
+        if (bld.id === 'graveyard') {
+            this._drawGraveyardCrypt(floorCont, bld, fy, floorH);
+            return;
+        }
+
+        // ─── HQ labs ─── themed per bld.lab
+        if (isHQ) {
+            this._drawHQBasement(floorCont, bld, fy, floorH, colHex);
+            return;
+        }
+
+        // ─── Fallback: generic parking for anything else that falls through ───
+        const parkingLines = new PIXI.Graphics();
+        parkingLines.lineStyle(2, 0xffffff, 0.4);
+        parkingLines.moveTo(this.startX + 150, floorY);
+        parkingLines.lineTo(this.startX + 120, floorY - 10);
+        parkingLines.moveTo(this.startX + 250, floorY);
+        parkingLines.lineTo(this.startX + 220, floorY - 10);
+        floorCont.addChild(parkingLines);
+    },
+
+    // ─── CAFE: Coffee roastery + wine cellar ───
+    _drawCafeRoastery(cont, bld, fy, floorH) {
+        const fY = fy + floorH - 4;
+        const g = new PIXI.Graphics();
+        // Warm wood floor tint
+        g.beginFill(0x3a2518, 0.4); g.drawRect(this.startX, fy, this.usableW, floorH); g.endFill();
+        // Brick wall (back)
+        for (let by = fy + 4; by < fy + floorH - 12; by += 6) {
+            for (let bx = this.startX + 4; bx < this.startX + this.usableW - 4; bx += 14) {
+                g.beginFill(by % 12 === 0 ? 0x4a2818 : 0x3a1f10, 0.5);
+                g.drawRect(bx + (by % 12 === 0 ? 0 : 7), by, 12, 5);
+                g.endFill();
+            }
+        }
+        cont.addChild(g);
+
+        // Coffee roasting drum (left)
+        const roaster = new PIXI.Graphics();
+        roaster.beginFill(0x1f1f1f); roaster.drawRect(-22, -32, 44, 30); roaster.endFill(); // body
+        roaster.beginFill(0x78350f); roaster.drawCircle(0, -17, 11); roaster.endFill();     // drum
+        roaster.beginFill(0xfbbf24, 0.7); roaster.drawCircle(0, -17, 6); roaster.endFill(); // flame glow
+        roaster.beginFill(0x0f0f0f); roaster.drawRect(-20, -2, 8, 4); roaster.drawRect(12, -2, 8, 4); roaster.endFill(); // legs
+        roaster.beginFill(0x475569); roaster.drawRect(14, -32, 4, 12); roaster.endFill();   // exhaust pipe
+        roaster.x = this.startX + 70; roaster.y = fY;
+        cont.addChild(roaster);
+        this.indoorLights.push({ g: roaster, maxA: 0.9, type: 'fire' });
+
+        // Burlap sacks of coffee beans (mid)
+        for (let si = 0; si < 3; si++) {
+            const sack = new PIXI.Graphics();
+            sack.beginFill(0x78532a); sack.drawRoundedRect(-9, -16, 18, 16, 2); sack.endFill();
+            sack.beginFill(0x5a3d1c); sack.drawRect(-9, -16, 18, 3); sack.endFill(); // dark top
+            sack.beginFill(0x3a2510); sack.drawRect(-3, -16, 6, 2); sack.endFill();  // tie
+            // Stenciled text
+            sack.beginFill(0x1a0f05, 0.6); sack.drawRect(-6, -10, 12, 1); sack.drawRect(-6, -7, 10, 1); sack.endFill();
+            sack.x = this.startX + 130 + si * 22; sack.y = fY;
+            cont.addChild(sack);
+        }
+
+        // Oak wine barrels (right half — the "cellar" part)
+        for (let bi = 0; bi < 4; bi++) {
+            const barrel = new PIXI.Graphics();
+            barrel.beginFill(0x3d2010); barrel.drawEllipse(0, -12, 13, 14); barrel.endFill();
+            barrel.beginFill(0x5a3018); barrel.drawEllipse(0, -12, 10, 12); barrel.endFill();
+            // Metal bands
+            barrel.beginFill(0x64748b); barrel.drawRect(-13, -18, 26, 1.5); barrel.drawRect(-13, -12, 26, 1.5); barrel.drawRect(-13, -6, 26, 1.5); barrel.endFill();
+            // Bunghole
+            barrel.beginFill(0x1a0a04); barrel.drawCircle(0, -12, 1.2); barrel.endFill();
+            barrel.x = this.startX + 230 + (bi % 2) * 32; barrel.y = fY - (Math.floor(bi / 2) * 26);
+            cont.addChild(barrel);
+        }
+        // Stacked row behind them
+        const barrelRack = new PIXI.Graphics();
+        barrelRack.beginFill(0x2a1508); barrelRack.drawRect(this.startX + 218, fY - 54, 80, 2); barrelRack.endFill();
+        barrelRack.beginFill(0x2a1508); barrelRack.drawRect(this.startX + 218, fY - 28, 80, 2); barrelRack.endFill();
+        cont.addChild(barrelRack);
+
+        // Tasting bar counter (far right)
+        const counter = new PIXI.Graphics();
+        counter.beginFill(0x1a0d04); counter.drawRect(-30, -16, 60, 16); counter.endFill();
+        counter.beginFill(0x3a2010); counter.drawRect(-30, -16, 60, 3); counter.endFill(); // wood top
+        // Wine glasses
+        for (let gi = 0; gi < 3; gi++) {
+            counter.beginFill(0xfde68a, 0.4); counter.drawRect(-22 + gi * 14, -22, 3, 6); counter.endFill();
+            counter.beginFill(0xb91c1c, 0.6); counter.drawRect(-22 + gi * 14, -19, 3, 3); counter.endFill();
+        }
+        counter.x = this.startX + this.usableW - 80; counter.y = fY;
+        cont.addChild(counter);
+
+        // Hanging Edison bulbs
+        for (let li = 0; li < 5; li++) {
+            const bulb = new PIXI.Graphics();
+            bulb.beginFill(0xfbbf24, 0.8); bulb.drawCircle(0, 0, 2); bulb.endFill();
+            bulb.beginFill(0x78532a); bulb.drawRect(-0.5, -8, 1, 8); bulb.endFill();
+            bulb.x = this.startX + 40 + li * (this.usableW - 80) / 4; bulb.y = fy + 14;
+            cont.addChild(bulb);
+            this.indoorLights.push({ g: bulb, maxA: 0.9, type: 'fire' });
+        }
+
+        // Sign
+        if (typeof PIXI.Text !== 'undefined') {
+            const sign = new PIXI.Text('ROASTERY & CELLAR', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0xfbbf24, letterSpacing: 1 });
+            sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 6;
+            cont.addChild(sign);
+        }
+    },
+
+    // ─── GYM: Locker rooms + sauna ───
+    _drawGymLockers(cont, bld, fy, floorH) {
+        const fY = fy + floorH - 4;
+        const g = new PIXI.Graphics();
+        // Tile floor
+        g.beginFill(0x1a2a3a); g.drawRect(this.startX, fy, this.usableW, floorH); g.endFill();
+        for (let tx = this.startX; tx < this.startX + this.usableW; tx += 24) {
+            g.beginFill(0x0f1a2a); g.drawRect(tx, fy + floorH - 6, 24, 6); g.endFill();
+            g.beginFill(0x2a3a50, 0.4); g.drawRect(tx + 1, fy + floorH - 5, 22, 1); g.endFill();
+        }
+        cont.addChild(g);
+
+        // Locker bank (left half)
+        for (let li = 0; li < 8; li++) {
+            const locker = new PIXI.Graphics();
+            const lCol = li % 2 === 0 ? 0x0891b2 : 0x0e7490;
+            locker.beginFill(lCol); locker.drawRect(0, -48, 18, 48); locker.endFill();
+            locker.beginFill(0x06b6d4, 0.3); locker.drawRect(1, -47, 16, 2); locker.endFill(); // top highlight
+            // Handle
+            locker.beginFill(0xe0f2fe); locker.drawCircle(14, -22, 1.2); locker.endFill();
+            // Vents
+            for (let vi = 0; vi < 3; vi++) {
+                locker.beginFill(0x164e63); locker.drawRect(4 + vi * 4, -10, 2, 1); locker.endFill();
+            }
+            // Number
+            locker.beginFill(0x83e4fd, 0.8); locker.drawRect(6, -42, 6, 4); locker.endFill();
+            locker.x = this.startX + 30 + li * 20; locker.y = fY;
+            cont.addChild(locker);
+        }
+
+        // Benches
+        const bench = new PIXI.Graphics();
+        bench.beginFill(0x78532a); bench.drawRect(this.startX + 30, fY - 10, 160, 5); bench.endFill();
+        bench.beginFill(0x3a2510); bench.drawRect(this.startX + 34, fY - 5, 4, 5); bench.drawRect(this.startX + 178, fY - 5, 4, 5); bench.endFill();
+        cont.addChild(bench);
+
+        // Towel pile
+        const towels = new PIXI.Graphics();
+        towels.beginFill(0xf8fafc); towels.drawRect(this.startX + 210, fY - 20, 20, 5); towels.endFill();
+        towels.beginFill(0xe0f2fe); towels.drawRect(this.startX + 210, fY - 15, 20, 5); towels.endFill();
+        towels.beginFill(0xf8fafc); towels.drawRect(this.startX + 210, fY - 10, 20, 5); towels.endFill();
+        towels.beginFill(0xbae6fd); towels.drawRect(this.startX + 210, fY - 5, 20, 5); towels.endFill();
+        cont.addChild(towels);
+
+        // Sauna (right side, cedar)
+        const sauna = new PIXI.Graphics();
+        sauna.beginFill(0x7c3e1a); sauna.drawRect(this.startX + this.usableW - 140, fY - 55, 130, 55); sauna.endFill();
+        // Cedar plank lines
+        for (let py = fY - 50; py < fY; py += 5) {
+            sauna.beginFill(0x5a2a0f); sauna.drawRect(this.startX + this.usableW - 140, py, 130, 1); sauna.endFill();
+        }
+        // Glass door
+        sauna.beginFill(0x7dd3fc, 0.3); sauna.drawRect(this.startX + this.usableW - 90, fY - 45, 30, 45); sauna.endFill();
+        sauna.beginFill(0x0891b2); sauna.drawRect(this.startX + this.usableW - 64, fY - 28, 2, 4); sauna.endFill(); // handle
+        // Stones on heater
+        sauna.beginFill(0x1a1a1a); sauna.drawRect(this.startX + this.usableW - 132, fY - 22, 16, 16); sauna.endFill();
+        sauna.beginFill(0x475569); sauna.drawCircle(this.startX + this.usableW - 127, fY - 16, 2); sauna.drawCircle(this.startX + this.usableW - 120, fY - 14, 2); sauna.drawCircle(this.startX + this.usableW - 122, fY - 19, 1.5); sauna.endFill();
+        // Heat glow
+        sauna.beginFill(0xef4444, 0.3); sauna.drawRect(this.startX + this.usableW - 133, fY - 26, 18, 4); sauna.endFill();
+        // "SAUNA" sign
+        cont.addChild(sauna);
+        const saunaTxt = new PIXI.Text('SAUNA', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0xfb923c, fontWeight: 'bold' });
+        saunaTxt.anchor.set(0.5); saunaTxt.x = this.startX + this.usableW - 75; saunaTxt.y = fY - 60;
+        cont.addChild(saunaTxt);
+        this.indoorLights.push({ g: sauna, maxA: 0.8, type: 'fire' });
+    },
+
+    // ─── ARENA: Training dojo + fighter prep ───
+    _drawArenaDojo(cont, bld, fy, floorH) {
+        const fY = fy + floorH - 4;
+        const g = new PIXI.Graphics();
+        // Concrete floor
+        g.beginFill(0x1a1a1a); g.drawRect(this.startX, fy, this.usableW, floorH); g.endFill();
+        // Red mat area (center)
+        g.beginFill(0x7f1d1d); g.drawRect(this.startX + 80, fy + floorH - 8, this.usableW - 160, 8); g.endFill();
+        g.beginFill(0x450a0a); g.drawRect(this.startX + 80, fy + floorH - 8, this.usableW - 160, 1); g.endFill();
+        cont.addChild(g);
+
+        // Heavy bags hanging (left)
+        for (let bi = 0; bi < 3; bi++) {
+            const bag = new PIXI.Graphics();
+            // Chain
+            bag.beginFill(0x64748b); bag.drawRect(-1, -50, 2, 16); bag.endFill();
+            // Bag body
+            bag.beginFill(0x1e293b); bag.drawRoundedRect(-7, -34, 14, 32, 2); bag.endFill();
+            bag.beginFill(0x0f172a); bag.drawRect(-7, -34, 14, 3); bag.endFill(); // top cap
+            bag.beginFill(0xdc2626); bag.drawRect(-6, -18, 12, 2); bag.endFill(); // red accent stripe
+            bag.x = this.startX + 40 + bi * 32; bag.y = fY;
+            cont.addChild(bag);
+        }
+
+        // Weight rack (right of bags)
+        const rack = new PIXI.Graphics();
+        rack.beginFill(0x334155); rack.drawRect(this.startX + 150, fY - 38, 60, 3); rack.endFill(); // top bar
+        rack.beginFill(0x334155); rack.drawRect(this.startX + 150, fY - 12, 60, 3); rack.endFill(); // lower bar
+        rack.beginFill(0x475569); rack.drawRect(this.startX + 150, fY - 38, 3, 38); rack.drawRect(this.startX + 207, fY - 38, 3, 38); rack.endFill(); // posts
+        // Dumbbells
+        for (let di = 0; di < 5; di++) {
+            rack.beginFill(0x0f172a); rack.drawRect(this.startX + 156 + di * 10, fY - 35, 8, 3); rack.endFill();
+            rack.beginFill(0x1e293b); rack.drawCircle(this.startX + 156 + di * 10, fY - 33, 2); rack.drawCircle(this.startX + 164 + di * 10, fY - 33, 2); rack.endFill();
+        }
+        // Plate weights on lower bar
+        for (let pi = 0; pi < 4; pi++) {
+            rack.beginFill(0x0f172a); rack.drawCircle(this.startX + 160 + pi * 14, fY - 15, 4); rack.endFill();
+            rack.beginFill(0xdc2626); rack.drawCircle(this.startX + 160 + pi * 14, fY - 15, 2); rack.endFill();
+        }
+        cont.addChild(rack);
+
+        // Ice baths (cold plunge recovery)
+        for (let ii = 0; ii < 2; ii++) {
+            const bath = new PIXI.Graphics();
+            bath.beginFill(0x475569); bath.drawRect(-18, -18, 36, 18); bath.endFill();
+            bath.beginFill(0x7dd3fc, 0.6); bath.drawRect(-16, -16, 32, 14); bath.endFill();
+            // Ice cubes floating
+            bath.beginFill(0xf0f9ff, 0.8); bath.drawRect(-12, -14, 4, 3); bath.drawRect(-2, -12, 5, 3); bath.drawRect(8, -15, 4, 3); bath.endFill();
+            // Steam puff (cold mist)
+            bath.beginFill(0xffffff, 0.2); bath.drawCircle(0, -22, 6); bath.drawCircle(-6, -24, 4); bath.drawCircle(6, -24, 4); bath.endFill();
+            bath.x = this.startX + 240 + ii * 44; bath.y = fY;
+            cont.addChild(bath);
+        }
+
+        // Medic station (far right)
+        const medic = new PIXI.Graphics();
+        medic.beginFill(0xf8fafc); medic.drawRect(this.startX + this.usableW - 70, fY - 28, 50, 28); medic.endFill();
+        medic.beginFill(0xdc2626); medic.drawRect(this.startX + this.usableW - 49, fY - 24, 8, 3); medic.drawRect(this.startX + this.usableW - 46, fY - 27, 2, 9); medic.endFill(); // red cross
+        medic.beginFill(0x94a3b8); medic.drawRect(this.startX + this.usableW - 66, fY - 18, 42, 2); medic.endFill(); // shelf
+        medic.beginFill(0xef4444); medic.drawRect(this.startX + this.usableW - 62, fY - 16, 4, 6); medic.drawRect(this.startX + this.usableW - 54, fY - 16, 4, 6); medic.endFill(); // first-aid kits
+        medic.beginFill(0x1e293b); medic.drawRect(this.startX + this.usableW - 46, fY - 16, 4, 6); medic.endFill();
+        cont.addChild(medic);
+
+        // Hanging spotlight
+        const spot = new PIXI.Graphics();
+        spot.beginFill(0x1a1a1a); spot.drawRect(-6, 0, 12, 4); spot.endFill();
+        spot.beginFill(0xfbbf24, 0.3); spot.drawPolygon([-6, 4, 6, 4, 18, 60, -18, 60]); spot.endFill();
+        spot.x = this.startX + this.usableW / 2; spot.y = fy + 2;
+        cont.addChild(spot);
+        this.indoorLights.push({ g: spot, maxA: 0.6, type: 'ceiling' });
+    },
+
+    // ─── OPEN SQUARE / OS HUB: Server room + cable vault ───
+    _drawOSServerVault(cont, bld, fy, floorH) {
+        const fY = fy + floorH - 4;
+        const g = new PIXI.Graphics();
+        // Raised floor tint
+        g.beginFill(0x0a0a14); g.drawRect(this.startX, fy, this.usableW, floorH); g.endFill();
+        // Floor tile grid (raised floor for cable routing)
+        for (let tx = this.startX; tx < this.startX + this.usableW; tx += 20) {
+            g.beginFill(0x1a1a28, 0.4); g.drawRect(tx, fy + floorH - 6, 20, 1); g.endFill();
+            g.beginFill(0x0a0a18); g.drawRect(tx, fy + floorH - 4, 1, 4); g.endFill();
+        }
+        cont.addChild(g);
+
+        // Server rack rows
+        for (let r = 0; r < 2; r++) {
+            for (let ri = 0; ri < 5; ri++) {
+                const rack = new PIXI.Graphics();
+                rack.beginFill(0x1e293b); rack.drawRect(0, -44, 22, 44); rack.endFill();
+                rack.beginFill(0x0f172a); rack.drawRect(1, -43, 20, 42); rack.endFill();
+                // Blinking LEDs
+                for (let li = 0; li < 8; li++) {
+                    const col = [0x22c55e, 0xf59e0b, 0x22d3ee][li % 3];
+                    rack.beginFill(col, 0.8); rack.drawRect(3, -40 + li * 5, 2, 2); rack.endFill();
+                    rack.beginFill(0x475569); rack.drawRect(7, -40 + li * 5, 14, 1); rack.endFill();
+                }
+                // Top status
+                rack.beginFill(0x22c55e, 0.9); rack.drawRect(2, -43, 18, 1); rack.endFill();
+                rack.x = this.startX + 50 + ri * 30; rack.y = fY - r * 10;
+                cont.addChild(rack);
+                this.indoorLights.push({ g: rack, maxA: 0.9, type: 'server' });
+            }
+        }
+
+        // Patch panel on back wall
+        const panel = new PIXI.Graphics();
+        panel.beginFill(0x0f172a); panel.drawRect(this.startX + this.usableW - 110, fy + 10, 90, 36); panel.endFill();
+        panel.beginFill(0x1e293b); panel.drawRect(this.startX + this.usableW - 108, fy + 12, 86, 32); panel.endFill();
+        // Patch cables (colored loops)
+        const cableCols = [0x22d3ee, 0xef4444, 0x22c55e, 0xfbbf24, 0xa855f7, 0xec4899];
+        for (let ci = 0; ci < 12; ci++) {
+            const col = cableCols[ci % cableCols.length];
+            panel.lineStyle(1.5, col, 0.7);
+            panel.moveTo(this.startX + this.usableW - 105 + ci * 7, fy + 16);
+            panel.lineTo(this.startX + this.usableW - 105 + ci * 7 + 3, fy + 22);
+            panel.lineTo(this.startX + this.usableW - 105 + ci * 7, fy + 28);
+            panel.lineTo(this.startX + this.usableW - 105 + ci * 7 - 3, fy + 38);
+        }
+        panel.lineStyle(0);
+        cont.addChild(panel);
+
+        // "OPEN SOURCE CORE" sign
+        const sign = new PIXI.Text('OPEN SOURCE CORE', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x22c55e, fontWeight: 'bold', letterSpacing: 1 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // ─── GRAVEYARD: Crypt / memorial vault ───
+    _drawGraveyardCrypt(cont, bld, fy, floorH) {
+        const fY = fy + floorH - 4;
+        const g = new PIXI.Graphics();
+        // Stone floor
+        g.beginFill(0x1a1a1e); g.drawRect(this.startX, fy, this.usableW, floorH); g.endFill();
+        for (let bx = this.startX; bx < this.startX + this.usableW; bx += 28) {
+            for (let by = fy + 2; by < fy + floorH; by += 14) {
+                g.beginFill(0x0f0f12); g.drawRect(bx, by, 28, 1); g.endFill();
+                g.beginFill(0x0f0f12); g.drawRect(bx, by, 1, 14); g.endFill();
+            }
+        }
+        cont.addChild(g);
+
+        // Urn niches in back wall
+        for (let ni = 0; ni < 6; ni++) {
+            const niche = new PIXI.Graphics();
+            niche.beginFill(0x0a0a0e); niche.drawRect(0, -40, 24, 38); niche.endFill();
+            niche.beginFill(0x1e1e28); niche.drawRect(2, -38, 20, 34); niche.endFill();
+            // Urn
+            niche.beginFill(0x475569); niche.drawEllipse(12, -18, 6, 10); niche.endFill();
+            niche.beginFill(0x64748b); niche.drawRect(9, -28, 6, 2); niche.endFill(); // neck
+            niche.beginFill(0x94a3b8); niche.drawRect(7, -30, 10, 1); niche.endFill(); // rim
+            // Nameplate
+            niche.beginFill(0x3a3a44); niche.drawRect(4, -6, 16, 3); niche.endFill();
+            niche.x = this.startX + 30 + ni * 32; niche.y = fY;
+            cont.addChild(niche);
+        }
+
+        // Candles with flickering flames
+        for (let ci = 0; ci < 5; ci++) {
+            const candle = new PIXI.Graphics();
+            candle.beginFill(0xf8fafc); candle.drawRect(-1.5, -8, 3, 8); candle.endFill();
+            candle.beginFill(0xfbbf24, 0.9); candle.drawRect(-0.5, -12, 1, 4); candle.endFill();
+            candle.beginFill(0xfef3c7, 0.4); candle.drawCircle(0, -11, 3); candle.endFill();
+            candle.x = this.startX + 240 + ci * 28; candle.y = fY;
+            cont.addChild(candle);
+            this.indoorLights.push({ g: candle, maxA: 0.9, type: 'fire' });
+        }
+
+        // Memorial plaque (center)
+        const plaque = new PIXI.Graphics();
+        plaque.beginFill(0x1a1a24); plaque.drawRect(-40, -22, 80, 22); plaque.endFill();
+        plaque.beginFill(0x2a2a34); plaque.drawRect(-38, -20, 76, 18); plaque.endFill();
+        plaque.x = this.startX + this.usableW - 70; plaque.y = fY;
+        cont.addChild(plaque);
+        const plaqueTxt = new PIXI.Text('IN MEMORIAM', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x94a3b8, letterSpacing: 1 });
+        plaqueTxt.anchor.set(0.5); plaqueTxt.x = this.startX + this.usableW - 70; plaqueTxt.y = fY - 14;
+        cont.addChild(plaqueTxt);
+    },
+
+    // ─── HQ BASEMENT: Themed per AI lab ───
+    _drawHQBasement(cont, bld, fy, floorH, colHex) {
+        const fY = fy + floorH - 4;
+        const labId = bld.lab;
+
+        // Every HQ gets a concrete floor + low lighting as a base
+        const floor = new PIXI.Graphics();
+        floor.beginFill(0x0a0a12); floor.drawRect(this.startX, fy, this.usableW, floorH); floor.endFill();
+        cont.addChild(floor);
+
+        // Dispatch to lab theme
+        if (labId === 'openai') {
+            this._hqBunker_openai(cont, bld, fy, floorH, fY, colHex);
+        } else if (labId === 'anthropic') {
+            this._hqBunker_anthropic(cont, bld, fy, floorH, fY, colHex);
+        } else if (labId === 'google') {
+            this._hqBunker_google(cont, bld, fy, floorH, fY, colHex);
+        } else if (labId === 'meta') {
+            this._hqBunker_meta(cont, bld, fy, floorH, fY, colHex);
+        } else if (labId === 'xai') {
+            this._hqBunker_xai(cont, bld, fy, floorH, fY, colHex);
+        } else if (labId === 'mistral') {
+            this._hqBunker_mistral(cont, bld, fy, floorH, fY, colHex);
+        } else if (labId === 'deepseek') {
+            this._hqBunker_deepseek(cont, bld, fy, floorH, fY, colHex);
+        } else if (labId === 'alibaba') {
+            this._hqBunker_alibaba(cont, bld, fy, floorH, fY, colHex);
+        } else if (labId === 'nvidia') {
+            this._hqBunker_nvidia(cont, bld, fy, floorH, fY, colHex);
+        } else if (labId === 'microsoft') {
+            this._hqBunker_microsoft(cont, bld, fy, floorH, fY, colHex);
+        } else {
+            this._hqBunker_generic(cont, bld, fy, floorH, fY, colHex);
+        }
+
+        // All HQs keep the CEO parking spot (tracked by ceoRefs) on the right side
+        if (G.ceoRefs && G.ceoRefs[bld.lab]) {
+            const ceoRef = G.ceoRefs[bld.lab];
+            // Subtle parking floor paint at CEO spot
+            const spot = new PIXI.Graphics();
+            spot.lineStyle(1.5, 0xfbbf24, 0.3);
+            spot.drawRect(this.startX + this.usableW - 60, fY - 22, 52, 20);
+            spot.lineStyle(0);
+            cont.addChild(spot);
+            this.ceoCarGfx = this.drawCar(cont, this.startX + this.usableW - 34, fY, colHex);
+            this.ceoCarGfx.visible = (ceoRef.bld === bld.id);
+        }
+    },
+
+    // OpenAI: GPU cold storage bunker — H100 racks + LN2 + retinal scanner vault door
+    _hqBunker_openai(cont, bld, fy, floorH, fY, colHex) {
+        // Vault door (left)
+        const door = new PIXI.Graphics();
+        door.beginFill(0x334155); door.drawCircle(this.startX + 50, fY - 22, 20); door.endFill();
+        door.beginFill(0x1e293b); door.drawCircle(this.startX + 50, fY - 22, 17); door.endFill();
+        door.beginFill(0x475569); door.drawCircle(this.startX + 50, fY - 22, 6); door.endFill();
+        door.lineStyle(2, 0x64748b); door.drawCircle(this.startX + 50, fY - 22, 17); door.lineStyle(0);
+        // Retinal scanner
+        door.beginFill(0x0f172a); door.drawRect(this.startX + 72, fY - 30, 10, 14); door.endFill();
+        door.beginFill(0xef4444, 0.7); door.drawRect(this.startX + 74, fY - 26, 6, 6); door.endFill();
+        cont.addChild(door);
+
+        // H100 GPU rack rows
+        for (let ri = 0; ri < 6; ri++) {
+            const rack = new PIXI.Graphics();
+            rack.beginFill(0x1e293b); rack.drawRect(0, -46, 24, 46); rack.endFill();
+            // GPU slots
+            for (let gi = 0; gi < 8; gi++) {
+                rack.beginFill(0x0a0f1a); rack.drawRect(2, -44 + gi * 5, 20, 4); rack.endFill();
+                rack.beginFill(0x76b900); rack.drawRect(3, -43 + gi * 5, 2, 2); rack.endFill(); // NV green
+                rack.beginFill(0x22c55e, 0.7); rack.drawRect(18, -43 + gi * 5, 2, 1); rack.endFill();
+            }
+            rack.x = this.startX + 100 + ri * 32; rack.y = fY;
+            cont.addChild(rack);
+            this.indoorLights.push({ g: rack, maxA: 0.9, type: 'server' });
+        }
+
+        // LN2 cooling pipes overhead
+        const pipes = new PIXI.Graphics();
+        pipes.beginFill(0xcbd5e1); pipes.drawRect(this.startX + 90, fy + 8, 220, 3); pipes.endFill();
+        pipes.beginFill(0x7dd3fc, 0.5); pipes.drawRect(this.startX + 90, fy + 11, 220, 1); pipes.endFill();
+        // Frost droplets
+        for (let di = 0; di < 6; di++) {
+            pipes.beginFill(0xf0f9ff, 0.6); pipes.drawCircle(this.startX + 110 + di * 32, fy + 14, 1); pipes.endFill();
+        }
+        cont.addChild(pipes);
+
+        const sign = new PIXI.Text('GPU COLD VAULT', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x10a37f, fontWeight: 'bold', letterSpacing: 1 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // Anthropic: Constitutional archive vault — sealed tomes + red-team war room
+    _hqBunker_anthropic(cont, bld, fy, floorH, fY, colHex) {
+        // Archive bookshelves (left)
+        for (let si = 0; si < 4; si++) {
+            const shelf = new PIXI.Graphics();
+            shelf.beginFill(0x78532a); shelf.drawRect(0, -50, 60, 50); shelf.endFill();
+            shelf.beginFill(0x5a3018); shelf.drawRect(0, -50, 60, 2); shelf.drawRect(0, -34, 60, 2); shelf.drawRect(0, -18, 60, 2); shelf.drawRect(0, -2, 60, 2); shelf.endFill();
+            // Books (amber-toned, academic)
+            const bkCols = [0xd97706, 0xb45309, 0x78350f, 0x92400e, 0xa16207];
+            for (let bi = 0; bi < 10; bi++) {
+                shelf.beginFill(bkCols[bi % bkCols.length]); shelf.drawRect(2 + bi * 5.5, -48, 5, 14); shelf.endFill();
+                shelf.beginFill(bkCols[(bi + 2) % bkCols.length]); shelf.drawRect(2 + bi * 5.5, -32, 5, 14); shelf.endFill();
+                shelf.beginFill(bkCols[(bi + 3) % bkCols.length]); shelf.drawRect(2 + bi * 5.5, -16, 5, 14); shelf.endFill();
+            }
+            shelf.x = this.startX + 20 + si * 50; shelf.y = fY;
+            cont.addChild(shelf);
+        }
+
+        // Red-team war room (right half): round table + terminal screens
+        const table = new PIXI.Graphics();
+        table.beginFill(0x3a2510); table.drawEllipse(0, 0, 40, 14); table.endFill();
+        table.beginFill(0x5a3a20); table.drawEllipse(0, -2, 38, 12); table.endFill();
+        table.x = this.startX + this.usableW - 100; table.y = fY - 8;
+        cont.addChild(table);
+        // Terminal screens around table
+        for (let ti = 0; ti < 4; ti++) {
+            const screen = new PIXI.Graphics();
+            screen.beginFill(0x0f172a); screen.drawRect(-10, -12, 20, 12); screen.endFill();
+            const red = ti % 2 === 0;
+            screen.beginFill(red ? 0xef4444 : 0xd97706, 0.7); screen.drawRect(-8, -10, 16, 2); screen.endFill();
+            screen.beginFill(red ? 0xdc2626 : 0xb45309, 0.5); screen.drawRect(-8, -7, 12, 1); screen.drawRect(-8, -5, 10, 1); screen.drawRect(-8, -3, 14, 1); screen.endFill();
+            const angle = (ti / 4) * Math.PI * 2;
+            screen.x = this.startX + this.usableW - 100 + Math.cos(angle) * 35;
+            screen.y = fY - 8 + Math.sin(angle) * 18 - 8;
+            cont.addChild(screen);
+            this.indoorLights.push({ g: screen, maxA: 0.8, type: 'screen' });
+        }
+
+        const sign = new PIXI.Text('CONSTITUTIONAL ARCHIVE', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0xd97706, fontWeight: 'bold', letterSpacing: 1 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // Google: Knowledge graph cold storage — filing cabinets + TPU pods
+    _hqBunker_google(cont, bld, fy, floorH, fY, colHex) {
+        // Endless filing cabinets (left)
+        for (let ci = 0; ci < 7; ci++) {
+            const cab = new PIXI.Graphics();
+            const col = [0x4285f4, 0xea4335, 0xfbbc04, 0x34a853][ci % 4];
+            cab.beginFill(col); cab.drawRect(0, -44, 22, 44); cab.endFill();
+            cab.beginFill(0xf8fafc, 0.15); cab.drawRect(2, -42, 18, 2); cab.endFill();
+            // Drawer divisions
+            for (let di = 0; di < 4; di++) {
+                cab.beginFill(0x0f172a, 0.4); cab.drawRect(0, -44 + di * 11, 22, 1); cab.endFill();
+                cab.beginFill(0xf8fafc); cab.drawRect(9, -40 + di * 11, 4, 1); cab.endFill(); // handle
+            }
+            cab.x = this.startX + 30 + ci * 28; cab.y = fY;
+            cont.addChild(cab);
+        }
+
+        // TPU pod (right)
+        const tpu = new PIXI.Graphics();
+        tpu.beginFill(0x0f172a); tpu.drawRect(0, -50, 120, 50); tpu.endFill();
+        tpu.beginFill(0x1e293b); tpu.drawRect(2, -48, 116, 46); tpu.endFill();
+        // TPU chips
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 8; c++) {
+                tpu.beginFill(0x4285f4, 0.8); tpu.drawRect(8 + c * 14, -44 + r * 11, 10, 6); tpu.endFill();
+                tpu.beginFill(0xfbbc04, 0.9); tpu.drawCircle(13 + c * 14, -41 + r * 11, 0.8); tpu.endFill();
+            }
+        }
+        tpu.x = this.startX + this.usableW - 170; tpu.y = fY;
+        cont.addChild(tpu);
+        this.indoorLights.push({ g: tpu, maxA: 0.9, type: 'server' });
+        // "TPU" label
+        const tpuLbl = new PIXI.Text('TPU v5', { fontFamily: 'JetBrains Mono', fontSize: 5, fill: 0x4285f4 });
+        tpuLbl.anchor.set(0.5); tpuLbl.x = this.startX + this.usableW - 110; tpuLbl.y = fY - 55;
+        cont.addChild(tpuLbl);
+
+        const sign = new PIXI.Text('KNOWLEDGE GRAPH ARCHIVE', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x4285f4, fontWeight: 'bold', letterSpacing: 1 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // Meta: Open-weights library — torrent seed rack + Llama crates
+    _hqBunker_meta(cont, bld, fy, floorH, fY, colHex) {
+        // Torrent seed rack
+        const seed = new PIXI.Graphics();
+        seed.beginFill(0x1e293b); seed.drawRect(0, -50, 100, 50); seed.endFill();
+        seed.beginFill(0x0f172a); seed.drawRect(2, -48, 96, 46); seed.endFill();
+        // Upload progress bars
+        for (let r = 0; r < 6; r++) {
+            const progress = 0.4 + (r * 0.1);
+            seed.beginFill(0x1877f2, 0.3); seed.drawRect(6, -44 + r * 7, 88, 4); seed.endFill();
+            seed.beginFill(0x1877f2, 0.9); seed.drawRect(6, -44 + r * 7, 88 * progress, 4); seed.endFill();
+            seed.beginFill(0x22c55e); seed.drawCircle(3, -42 + r * 7, 1); seed.endFill();
+        }
+        seed.x = this.startX + 30; seed.y = fY;
+        cont.addChild(seed);
+        this.indoorLights.push({ g: seed, maxA: 0.9, type: 'screen' });
+
+        // Llama model crates (wood, stenciled)
+        for (let ci = 0; ci < 4; ci++) {
+            const crate = new PIXI.Graphics();
+            crate.beginFill(0x78532a); crate.drawRect(0, -26, 34, 26); crate.endFill();
+            crate.beginFill(0x5a3d1c); crate.drawRect(0, -26, 34, 2); crate.drawRect(0, -14, 34, 2); crate.endFill();
+            // Wood plank lines
+            for (let px = 6; px < 34; px += 8) {
+                crate.beginFill(0x3a2510, 0.4); crate.drawRect(px, -26, 1, 26); crate.endFill();
+            }
+            // Stencil
+            crate.beginFill(0xfbbf24, 0.8); crate.drawRect(4, -10, 26, 1); crate.drawRect(4, -8, 20, 1); crate.endFill();
+            crate.x = this.startX + 150 + (ci % 2) * 40; crate.y = fY - Math.floor(ci / 2) * 28;
+            cont.addChild(crate);
+        }
+
+        // VR headsets on shelf (right)
+        const shelf = new PIXI.Graphics();
+        shelf.beginFill(0x475569); shelf.drawRect(this.startX + this.usableW - 100, fY - 20, 80, 2); shelf.endFill();
+        for (let vi = 0; vi < 3; vi++) {
+            shelf.beginFill(0x1e293b); shelf.drawRect(this.startX + this.usableW - 92 + vi * 24, fY - 32, 18, 12); shelf.endFill();
+            shelf.beginFill(0x1877f2, 0.4); shelf.drawRect(this.startX + this.usableW - 90 + vi * 24, fY - 30, 14, 4); shelf.endFill();
+            shelf.beginFill(0x0f172a); shelf.drawRect(this.startX + this.usableW - 92 + vi * 24, fY - 34, 18, 2); shelf.endFill();
+        }
+        cont.addChild(shelf);
+
+        const sign = new PIXI.Text('OPEN WEIGHTS LIBRARY', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x1877f2, fontWeight: 'bold', letterSpacing: 1 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // xAI: Rocket-fuel substation — Elon memorabilia + Grok tokens
+    _hqBunker_xai(cont, bld, fy, floorH, fY, colHex) {
+        // Fuel tanks (left)
+        for (let ti = 0; ti < 3; ti++) {
+            const tank = new PIXI.Graphics();
+            tank.beginFill(0x1e293b); tank.drawEllipse(0, -14, 14, 6); tank.endFill(); // top
+            tank.beginFill(0x334155); tank.drawRect(-14, -14, 28, 30); tank.endFill(); // body
+            tank.beginFill(0x0f172a); tank.drawEllipse(0, 16, 14, 4); tank.endFill(); // bottom
+            // Warning stripe
+            tank.beginFill(0xfbbf24); tank.drawRect(-14, -4, 28, 3); tank.endFill();
+            tank.beginFill(0x0f172a); tank.drawRect(-14, -4, 28, 1); tank.endFill();
+            // Label
+            tank.beginFill(0xef4444, 0.8); tank.drawRect(-8, 2, 16, 3); tank.endFill();
+            tank.x = this.startX + 40 + ti * 40; tank.y = fY - 20;
+            cont.addChild(tank);
+        }
+
+        // Pipes running between tanks
+        const pipes = new PIXI.Graphics();
+        pipes.beginFill(0x64748b); pipes.drawRect(this.startX + 30, fY - 8, 120, 3); pipes.endFill();
+        pipes.beginFill(0x475569); pipes.drawRect(this.startX + 30, fY - 5, 120, 1); pipes.endFill();
+        cont.addChild(pipes);
+
+        // Starship model display (center)
+        const rocket = new PIXI.Graphics();
+        rocket.beginFill(0xcbd5e1); rocket.drawRect(-3, -46, 6, 40); rocket.endFill();
+        rocket.beginFill(0xe0e7ff); rocket.drawPolygon([-3, -46, 3, -46, 0, -54]); rocket.endFill();
+        rocket.beginFill(0x1e293b); rocket.drawRect(-4, -6, 8, 2); rocket.drawPolygon([-4, -6, -8, 0, -4, 0]); rocket.drawPolygon([4, -6, 8, 0, 4, 0]); rocket.endFill();
+        rocket.beginFill(0xef4444, 0.7); rocket.drawRect(-2, -2, 4, 6); rocket.endFill(); // exhaust glow
+        rocket.x = this.startX + this.usableW / 2; rocket.y = fY;
+        cont.addChild(rocket);
+        // Pedestal
+        const pedestal = new PIXI.Graphics();
+        pedestal.beginFill(0x1a1a1a); pedestal.drawRect(this.startX + this.usableW / 2 - 12, fY - 4, 24, 4); pedestal.endFill();
+        cont.addChild(pedestal);
+
+        // Grok token "tokens per second" counter
+        const counter = new PIXI.Graphics();
+        counter.beginFill(0x0f172a); counter.drawRect(this.startX + this.usableW - 80, fY - 30, 60, 28); counter.endFill();
+        counter.beginFill(0x000000); counter.drawRect(this.startX + this.usableW - 78, fY - 28, 56, 24); counter.endFill();
+        // Fake readout
+        counter.beginFill(0xfbbf24, 0.9); counter.drawRect(this.startX + this.usableW - 74, fY - 24, 48, 3); counter.endFill();
+        counter.beginFill(0xfbbf24, 0.6); counter.drawRect(this.startX + this.usableW - 74, fY - 18, 36, 2); counter.drawRect(this.startX + this.usableW - 74, fY - 14, 42, 2); counter.drawRect(this.startX + this.usableW - 74, fY - 10, 30, 2); counter.endFill();
+        cont.addChild(counter);
+        this.indoorLights.push({ g: counter, maxA: 0.9, type: 'screen' });
+
+        const sign = new PIXI.Text('XAI FUEL DEPOT', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0xfbbf24, fontWeight: 'bold', letterSpacing: 1 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // Mistral: French wine cave + model weights in oak barrels
+    _hqBunker_mistral(cont, bld, fy, floorH, fY, colHex) {
+        // Stone arch ceiling
+        const arch = new PIXI.Graphics();
+        arch.beginFill(0x3a3228); arch.drawRect(this.startX + 4, fy + 2, this.usableW - 8, 14); arch.endFill();
+        for (let ax = this.startX + 8; ax < this.startX + this.usableW - 8; ax += 18) {
+            arch.beginFill(0x1a1a1a, 0.4); arch.drawRect(ax, fy + 2, 1, 14); arch.endFill();
+        }
+        cont.addChild(arch);
+
+        // Oak barrel stacks (3 rows)
+        for (let r = 0; r < 3; r++) {
+            for (let bi = 0; bi < 6; bi++) {
+                const barrel = new PIXI.Graphics();
+                barrel.beginFill(0x3d2010); barrel.drawEllipse(0, 0, 14, 15); barrel.endFill();
+                barrel.beginFill(0x5a3018); barrel.drawEllipse(0, 0, 11, 13); barrel.endFill();
+                // Bands
+                barrel.beginFill(0x64748b); barrel.drawRect(-14, -7, 28, 1.5); barrel.drawRect(-14, 0, 28, 1.5); barrel.drawRect(-14, 7, 28, 1.5); barrel.endFill();
+                // Mistral logo (brand)
+                barrel.beginFill(0xff7000); barrel.drawRect(-4, -3, 8, 1); barrel.drawRect(-4, -1, 6, 1); barrel.drawRect(-4, 1, 8, 1); barrel.endFill();
+                barrel.x = this.startX + 50 + bi * 32;
+                barrel.y = fY - 14 - r * 24;
+                cont.addChild(barrel);
+            }
+            // Rack shelf
+            const rack = new PIXI.Graphics();
+            rack.beginFill(0x2a1508); rack.drawRect(this.startX + 30, fY - 2 - r * 24, 200, 2); rack.endFill();
+            cont.addChild(rack);
+        }
+
+        // Tasting table
+        const table = new PIXI.Graphics();
+        table.beginFill(0x1a0d04); table.drawRect(-30, -14, 60, 14); table.endFill();
+        table.beginFill(0x3a2010); table.drawRect(-30, -14, 60, 2); table.endFill();
+        // Glasses of red
+        for (let gi = 0; gi < 4; gi++) {
+            table.beginFill(0xfde68a, 0.3); table.drawRect(-22 + gi * 12, -20, 3, 6); table.endFill();
+            table.beginFill(0x7f1d1d); table.drawRect(-22 + gi * 12, -17, 3, 3); table.endFill();
+        }
+        table.x = this.startX + this.usableW - 80; table.y = fY;
+        cont.addChild(table);
+
+        // Hanging cellar lamp
+        const lamp = new PIXI.Graphics();
+        lamp.beginFill(0x1a1a1a); lamp.drawRect(-0.5, 0, 1, 10); lamp.endFill();
+        lamp.beginFill(0xfbbf24, 0.8); lamp.drawCircle(0, 14, 3); lamp.endFill();
+        lamp.beginFill(0xfef3c7, 0.3); lamp.drawCircle(0, 14, 6); lamp.endFill();
+        lamp.x = this.startX + this.usableW / 2; lamp.y = fy + 14;
+        cont.addChild(lamp);
+        this.indoorLights.push({ g: lamp, maxA: 0.8, type: 'fire' });
+
+        const sign = new PIXI.Text('LA CAVE DE MISTRAL', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0xff7000, fontWeight: 'bold', letterSpacing: 1 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // DeepSeek: Stealth minimalist basement — one lone rack + red lanterns
+    _hqBunker_deepseek(cont, bld, fy, floorH, fY, colHex) {
+        // Mostly empty space, polished floor
+        const sheen = new PIXI.Graphics();
+        sheen.beginFill(0x111118); sheen.drawRect(this.startX, fy, this.usableW, floorH); sheen.endFill();
+        sheen.beginFill(0x1e1e28, 0.6); sheen.drawRect(this.startX, fy + floorH - 10, this.usableW, 4); sheen.endFill();
+        cont.addChild(sheen);
+
+        // One lone server rack in center
+        const rack = new PIXI.Graphics();
+        rack.beginFill(0x1e293b); rack.drawRect(-14, -50, 28, 50); rack.endFill();
+        rack.beginFill(0x0f172a); rack.drawRect(-13, -49, 26, 48); rack.endFill();
+        // Minimal LEDs — just a few
+        rack.beginFill(0xef4444, 0.9); rack.drawRect(-10, -45, 2, 2); rack.endFill();
+        rack.beginFill(0x22c55e, 0.8); rack.drawRect(-10, -38, 2, 2); rack.endFill();
+        rack.beginFill(0xef4444, 0.9); rack.drawRect(-10, -20, 2, 2); rack.endFill();
+        rack.x = this.startX + this.usableW / 2; rack.y = fY;
+        cont.addChild(rack);
+        this.indoorLights.push({ g: rack, maxA: 0.7, type: 'server' });
+
+        // Red paper lanterns hanging (4)
+        for (let li = 0; li < 4; li++) {
+            const lantern = new PIXI.Graphics();
+            lantern.beginFill(0x1a1a1a); lantern.drawRect(-0.5, 0, 1, 12); lantern.endFill();
+            lantern.beginFill(0xdc2626); lantern.drawEllipse(0, 18, 6, 8); lantern.endFill();
+            lantern.beginFill(0xef4444, 0.5); lantern.drawEllipse(0, 18, 4, 6); lantern.endFill();
+            lantern.beginFill(0xfbbf24); lantern.drawRect(-0.5, 26, 1, 3); lantern.endFill(); // tassel
+            lantern.x = this.startX + 50 + li * ((this.usableW - 100) / 3);
+            lantern.y = fy + 10;
+            cont.addChild(lantern);
+            this.indoorLights.push({ g: lantern, maxA: 0.7, type: 'fire' });
+        }
+
+        // Subtle dragon mural on back wall
+        const mural = new PIXI.Graphics();
+        mural.beginFill(0x2a1018, 0.4);
+        for (let mx = this.startX + 40; mx < this.startX + this.usableW - 40; mx += 8) {
+            mural.drawCircle(mx, fy + 30 + Math.sin(mx * 0.1) * 6, 2);
+        }
+        mural.endFill();
+        cont.addChild(mural);
+
+        const sign = new PIXI.Text('深度求索', { fontFamily: 'sans-serif', fontSize: 8, fill: 0xef4444, fontWeight: 'bold', letterSpacing: 2 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // Alibaba: Silk road archive — jade model tablets + paper lanterns + abacus
+    _hqBunker_alibaba(cont, bld, fy, floorH, fY, colHex) {
+        // Wood floor
+        const wood = new PIXI.Graphics();
+        wood.beginFill(0x5a3018); wood.drawRect(this.startX, fy, this.usableW, floorH); wood.endFill();
+        for (let wx = this.startX; wx < this.startX + this.usableW; wx += 16) {
+            wood.beginFill(0x3a1f10, 0.5); wood.drawRect(wx, fy, 1, floorH); wood.endFill();
+        }
+        cont.addChild(wood);
+
+        // Jade tablets on display shelves
+        for (let r = 0; r < 3; r++) {
+            const shelf = new PIXI.Graphics();
+            shelf.beginFill(0x78350f); shelf.drawRect(this.startX + 30, fY - 18 - r * 20, 180, 2); shelf.endFill();
+            cont.addChild(shelf);
+            for (let ti = 0; ti < 6; ti++) {
+                const tablet = new PIXI.Graphics();
+                tablet.beginFill(0x065f46); tablet.drawRect(0, -14, 12, 14); tablet.endFill();
+                tablet.beginFill(0x10b981, 0.6); tablet.drawRect(1, -13, 10, 12); tablet.endFill();
+                // Character carving
+                tablet.beginFill(0x022c22); tablet.drawRect(3, -10, 6, 1); tablet.drawRect(3, -8, 4, 1); tablet.drawRect(3, -6, 6, 1); tablet.endFill();
+                tablet.x = this.startX + 38 + ti * 30;
+                tablet.y = fY - 18 - r * 20;
+                cont.addChild(tablet);
+            }
+        }
+
+        // Giant abacus (right)
+        const abacus = new PIXI.Graphics();
+        abacus.beginFill(0x78350f); abacus.drawRect(this.startX + this.usableW - 100, fY - 44, 80, 44); abacus.endFill();
+        abacus.beginFill(0x5a2a0a); abacus.drawRect(this.startX + this.usableW - 98, fY - 42, 76, 40); abacus.endFill();
+        // Rods + beads
+        for (let rod = 0; rod < 5; rod++) {
+            abacus.beginFill(0x92400e); abacus.drawRect(this.startX + this.usableW - 92 + rod * 15, fY - 40, 1, 36); abacus.endFill();
+            for (let bd = 0; bd < 7; bd++) {
+                abacus.beginFill(0xfbbf24); abacus.drawCircle(this.startX + this.usableW - 91.5 + rod * 15, fY - 38 + bd * 5, 1.5); abacus.endFill();
+            }
+        }
+        cont.addChild(abacus);
+
+        // Paper lanterns (orange-red)
+        for (let li = 0; li < 3; li++) {
+            const lantern = new PIXI.Graphics();
+            lantern.beginFill(0x1a1a1a); lantern.drawRect(-0.5, 0, 1, 10); lantern.endFill();
+            lantern.beginFill(0xf97316); lantern.drawEllipse(0, 15, 5, 7); lantern.endFill();
+            lantern.beginFill(0xfb923c, 0.6); lantern.drawEllipse(0, 15, 3, 5); lantern.endFill();
+            lantern.x = this.startX + 80 + li * 60; lantern.y = fy + 8;
+            cont.addChild(lantern);
+            this.indoorLights.push({ g: lantern, maxA: 0.8, type: 'fire' });
+        }
+
+        const sign = new PIXI.Text('丝绸之路档案', { fontFamily: 'sans-serif', fontSize: 7, fill: 0xf97316, fontWeight: 'bold', letterSpacing: 2 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // Nvidia: GPU foundry floor — silicon wafer bins + probe station
+    _hqBunker_nvidia(cont, bld, fy, floorH, fY, colHex) {
+        // Clean-room green tint floor
+        const floor = new PIXI.Graphics();
+        floor.beginFill(0x052e16, 0.5); floor.drawRect(this.startX, fy, this.usableW, floorH); floor.endFill();
+        cont.addChild(floor);
+
+        // Wafer storage bins (circular silicon wafers)
+        for (let bi = 0; bi < 4; bi++) {
+            const bin = new PIXI.Graphics();
+            bin.beginFill(0x1e293b); bin.drawRect(-18, -28, 36, 28); bin.endFill();
+            bin.beginFill(0x0f172a); bin.drawRect(-16, -26, 32, 24); bin.endFill();
+            // Wafers (edge-on stack)
+            for (let wi = 0; wi < 5; wi++) {
+                bin.beginFill(0x76b900, 0.7); bin.drawCircle(0, -22 + wi * 4, 12); bin.endFill();
+                bin.beginFill(0x4d7c0f, 0.6); bin.drawCircle(0, -22 + wi * 4, 10); bin.endFill();
+            }
+            bin.x = this.startX + 50 + bi * 50; bin.y = fY;
+            cont.addChild(bin);
+        }
+
+        // Probe station
+        const probe = new PIXI.Graphics();
+        probe.beginFill(0xcbd5e1); probe.drawRect(-30, -40, 60, 40); probe.endFill();
+        probe.beginFill(0xf1f5f9); probe.drawRect(-28, -38, 56, 36); probe.endFill();
+        probe.beginFill(0x0f172a); probe.drawRect(-20, -30, 40, 20); probe.endFill();
+        // Microscope arm
+        probe.beginFill(0x475569); probe.drawRect(-2, -38, 4, 18); probe.drawRect(-8, -22, 16, 4); probe.endFill();
+        probe.beginFill(0x76b900); probe.drawCircle(0, -18, 2); probe.endFill();
+        probe.x = this.startX + this.usableW - 90; probe.y = fY;
+        cont.addChild(probe);
+        this.indoorLights.push({ g: probe, maxA: 0.8, type: 'screen' });
+
+        const sign = new PIXI.Text('WAFER VAULT', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x76b900, fontWeight: 'bold', letterSpacing: 1 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // Microsoft: Azure cold storage — blue tape library + HoloLens display
+    _hqBunker_microsoft(cont, bld, fy, floorH, fY, colHex) {
+        // Tape library (LTO cassettes in rows)
+        for (let r = 0; r < 3; r++) {
+            for (let ti = 0; ti < 8; ti++) {
+                const tape = new PIXI.Graphics();
+                tape.beginFill(0x1e40af); tape.drawRect(0, -7, 22, 7); tape.endFill();
+                tape.beginFill(0x3b82f6); tape.drawRect(1, -6, 20, 2); tape.endFill();
+                tape.beginFill(0x0f172a); tape.drawCircle(6, -3, 1.5); tape.drawCircle(16, -3, 1.5); tape.endFill();
+                tape.beginFill(0xf8fafc, 0.6); tape.drawRect(4, -5, 14, 1); tape.endFill(); // label
+                tape.x = this.startX + 30 + ti * 26;
+                tape.y = fY - 8 - r * 10;
+                cont.addChild(tape);
+            }
+        }
+
+        // Tape shelves (support)
+        for (let r = 0; r < 3; r++) {
+            const shelf = new PIXI.Graphics();
+            shelf.beginFill(0x64748b); shelf.drawRect(this.startX + 25, fY - 1 - r * 10, 210, 2); shelf.endFill();
+            cont.addChild(shelf);
+        }
+
+        // HoloLens display case
+        const holo = new PIXI.Graphics();
+        holo.beginFill(0x1e293b); holo.drawRect(this.startX + this.usableW - 100, fY - 50, 80, 50); holo.endFill();
+        holo.beginFill(0x0f172a); holo.drawRect(this.startX + this.usableW - 98, fY - 48, 76, 46); holo.endFill();
+        holo.beginFill(0x7dd3fc, 0.3); holo.drawRect(this.startX + this.usableW - 96, fY - 46, 72, 42); holo.endFill();
+        // HoloLens headset silhouette
+        holo.beginFill(0x334155); holo.drawRoundedRect(this.startX + this.usableW - 85, fY - 32, 50, 10, 4); holo.endFill();
+        holo.beginFill(0x0ea5e9, 0.6); holo.drawRect(this.startX + this.usableW - 82, fY - 30, 44, 2); holo.endFill();
+        cont.addChild(holo);
+        this.indoorLights.push({ g: holo, maxA: 0.8, type: 'screen' });
+
+        const sign = new PIXI.Text('AZURE COLD TIER', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x0ea5e9, fontWeight: 'bold', letterSpacing: 1 });
+        sign.anchor.set(0.5, 0); sign.x = this.startX + this.usableW / 2; sign.y = fy + 4;
+        cont.addChild(sign);
+    },
+
+    // Generic fallback: parking + cold storage mix
+    _hqBunker_generic(cont, bld, fy, floorH, fY, colHex) {
+        // Parking lines on left half
+        const parking = new PIXI.Graphics();
+        parking.lineStyle(2, 0xffffff, 0.4);
+        parking.moveTo(this.startX + 80, fY); parking.lineTo(this.startX + 50, fY - 12);
+        parking.moveTo(this.startX + 130, fY); parking.lineTo(this.startX + 100, fY - 12);
+        parking.moveTo(this.startX + 180, fY); parking.lineTo(this.startX + 150, fY - 12);
+        parking.lineStyle(0);
+        cont.addChild(parking);
+
+        // Cold storage crates on right half
+        for (let ci = 0; ci < 4; ci++) {
+            const crate = new PIXI.Graphics();
+            crate.beginFill(0x1e293b); crate.drawRect(0, -22, 24, 22); crate.endFill();
+            crate.beginFill(0x334155); crate.drawRect(1, -21, 22, 2); crate.endFill();
+            crate.beginFill(colHex, 0.6); crate.drawRect(3, -15, 18, 2); crate.endFill();
+            // Frost
+            crate.beginFill(0xbfdbfe, 0.4); crate.drawRect(0, -22, 24, 1); crate.endFill();
+            crate.x = this.startX + 250 + (ci % 2) * 28;
+            crate.y = fY - Math.floor(ci / 2) * 24;
+            cont.addChild(crate);
+        }
+    },
+
+    // ══════════════════════════════════════════════════════════════════════
+    //   ZONE-AWARE UNDERGROUND
+    //   Draws the ground/earth/cables/tunnel/ocean/silo/rock layer below
+    //   the building basement, matching what the exterior view shows at
+    //   this building's map x-position.
+    // ══════════════════════════════════════════════════════════════════════
+    _drawZoneUnderground(scene, bld, startX, bldW, surfaceY, belowY, floorH) {
+        const vpW = G.vpW;
+        const zone = this._determineZone(bld);
+        const g = new PIXI.Graphics();
+
+        // ─── PORT ZONE: Deep ocean below basement ───
+        if (zone === 'port') {
+            // Deep ocean fill
+            g.beginFill(0x061220); g.drawRect(0, surfaceY, vpW, floorH + 300); g.endFill();
+            g.beginFill(0x081830, 0.8); g.drawRect(0, surfaceY, vpW, 40); g.endFill();
+            g.beginFill(0x0a2040, 0.5); g.drawRect(0, surfaceY + 40, vpW, 30); g.endFill();
+            // Sandy sea floor way down
+            g.beginFill(0x2a2218); g.drawRect(0, belowY + 120, vpW, 20); g.endFill();
+            g.beginFill(0x3a3228, 0.5); g.drawRect(0, belowY + 115, vpW, 5); g.endFill();
+            // Coral patches flanking the building
+            const coralCols = [0xff6b6b, 0xff9a76, 0xffd166, 0xa8e6cf, 0xf4845f, 0xf78ca0];
+            let coralSeed = (bld.x || 0) + 77;
+            const cr = () => { coralSeed = (coralSeed * 16807) % 2147483647; return (coralSeed - 1) / 2147483646; };
+            for (let cx = 10; cx < startX - 10; cx += 20 + cr() * 30) {
+                g.beginFill(coralCols[Math.floor(cr() * coralCols.length)], 0.5);
+                g.drawEllipse(cx, belowY + 110, 4 + cr() * 6, 4 + cr() * 4);
+                g.endFill();
+            }
+            for (let cx = startX + bldW + 10; cx < vpW - 10; cx += 20 + cr() * 30) {
+                g.beginFill(coralCols[Math.floor(cr() * coralCols.length)], 0.5);
+                g.drawEllipse(cx, belowY + 110, 4 + cr() * 6, 4 + cr() * 4);
+                g.endFill();
+            }
+            // Air bubbles (static, decorative)
+            for (let bi = 0; bi < 16; bi++) {
+                const bx = cr() * vpW;
+                const by = surfaceY + cr() * 180;
+                g.beginFill(0x88ccff, 0.2); g.drawCircle(bx, by, 1 + cr() * 2); g.endFill();
+            }
+            // Light rays from above
+            for (let ri = 0; ri < 3; ri++) {
+                const rx = 80 + ri * (vpW / 3);
+                g.beginFill(0x4488cc, 0.04);
+                g.moveTo(rx, surfaceY); g.lineTo(rx - 20, surfaceY + 180); g.lineTo(rx + 20, surfaceY + 180);
+                g.closePath(); g.endFill();
+            }
+            scene.addChild(g);
+            return;
+        }
+
+        // ─── SILO ZONE (Billionaire's Row houses) — Secure silo bunkers ───
+        if (zone === 'silo') {
+            // Dark bunker void outside the building
+            g.beginFill(0x0a0a0f); g.drawRect(0, surfaceY, startX, floorH + 240); g.endFill();
+            g.beginFill(0x0a0a0f); g.drawRect(startX + bldW, surfaceY, vpW - startX - bldW, floorH + 240); g.endFill();
+            // Bunker concrete walls
+            g.beginFill(0x1e293b); g.drawRect(6, surfaceY + 6, startX - 12, floorH + 228); g.endFill();
+            g.beginFill(0x1e293b); g.drawRect(startX + bldW + 6, surfaceY + 6, vpW - startX - bldW - 12, floorH + 228); g.endFill();
+            // Hazard stripe top
+            g.beginFill(0xfacc15); g.drawRect(6, surfaceY + 6, startX - 12, 5); g.endFill();
+            g.beginFill(0xfacc15); g.drawRect(startX + bldW + 6, surfaceY + 6, vpW - startX - bldW - 12, 5); g.endFill();
+            g.beginFill(0x000000);
+            for (let hx = 6; hx < startX - 12; hx += 14) { g.drawPolygon([hx, surfaceY+6, hx+7, surfaceY+6, hx+2, surfaceY+11, hx-5, surfaceY+11]); }
+            for (let hx = startX + bldW + 6; hx < vpW - 6; hx += 14) { g.drawPolygon([hx, surfaceY+6, hx+7, surfaceY+6, hx+2, surfaceY+11, hx-5, surfaceY+11]); }
+            g.endFill();
+            // Missile silo shafts in the flanking areas
+            for (let levelI = 0; levelI < 4; levelI++) {
+                const lvY = surfaceY + 30 + levelI * 55;
+                g.beginFill(0x334155); g.drawRect(6, lvY, startX - 12, 3); g.endFill();
+                g.beginFill(0x334155); g.drawRect(startX + bldW + 6, lvY, vpW - startX - bldW - 12, 3); g.endFill();
+                // Warning LEDs
+                for (let lx = 20; lx < startX - 20; lx += 30) {
+                    g.beginFill(0x10b981); g.drawCircle(lx, lvY - 6, 1.5); g.endFill();
+                }
+                for (let lx = startX + bldW + 20; lx < vpW - 20; lx += 30) {
+                    g.beginFill(0x10b981); g.drawCircle(lx, lvY - 6, 1.5); g.endFill();
+                }
+            }
+            scene.addChild(g);
+            return;
+        }
+
+        // ─── EAST ROCK (VC Row suburbs, Longevity, Robotics — past metro_longevity terminus) ───
+        // Solid rock/earth (no metro tunnel) matching environment.js:330-351
+        if (zone === 'east_rock') {
+            // Earth walls flanking the building at basement depth
+            g.beginFill(0x2a1a10); g.drawRect(0, surfaceY, startX, floorH); g.endFill();
+            g.beginFill(0x2a1a10); g.drawRect(startX + bldW, surfaceY, vpW - startX - bldW, floorH); g.endFill();
+            g.beginFill(0x3a2218); g.drawRect(0, surfaceY, startX, 6); g.endFill();
+            g.beginFill(0x3a2218); g.drawRect(startX + bldW, surfaceY, vpW - startX - bldW, 6); g.endFill();
+            // Grass trim at surface level
+            g.beginFill(0x2d5a3f); g.drawRect(0, surfaceY - 4, startX, 4); g.endFill();
+            g.beginFill(0x2d5a3f); g.drawRect(startX + bldW, surfaceY - 4, vpW - startX - bldW, 4); g.endFill();
+            // Deep rock fill below the basement
+            g.beginFill(0x2d1a11); g.drawRect(0, belowY, vpW, 300); g.endFill();
+            // Rock texture (seeded for stability)
+            let rockSeed = (bld.x || 0) + 99;
+            const rr = () => { rockSeed = (rockSeed * 16807) % 2147483647; return (rockSeed - 1) / 2147483646; };
+            for (let rx = 0; rx < vpW; rx += 12) {
+                for (let ry = belowY; ry < belowY + 280; ry += 12) {
+                    if (rr() > 0.4) {
+                        g.beginFill(rr() > 0.5 ? 0x3d261a : 0x1f100a, 0.8);
+                        g.drawRect(rx + rr() * 8, ry + rr() * 8, 2 + rr() * 4, 2 + rr() * 3);
+                        g.endFill();
+                    }
+                    if (rr() > 0.96) {
+                        // Gold/mineral vein flecks
+                        g.beginFill(rr() > 0.5 ? 0xb45309 : 0xfacc15, 0.6);
+                        g.drawRect(rx + rr() * 10, ry + rr() * 10, 1 + rr() * 2, 1);
+                        g.endFill();
+                    }
+                }
+            }
+            // Water pipe (shared city trunk, keeps running east)
+            g.beginFill(0x0369a1); g.drawRect(0, belowY + 100, vpW, 8); g.endFill();
+            g.beginFill(0x0284c7); g.drawRect(0, belowY + 102, vpW, 4); g.endFill();
+            // Sewer trunk
+            g.beginFill(0xb45309); g.drawRect(0, belowY + 115, vpW, 12); g.endFill();
+            g.beginFill(0xd97706); g.drawRect(0, belowY + 117, vpW, 8); g.endFill();
+            scene.addChild(g);
+            return;
+        }
+
+        // ─── DEFAULT: Full city stack (cables + tunnel + water + sewer + rock) ───
+        // Matches environment.js:284-367 — cable region, tunnel cavity, metro tunnel, pipes, rock.
+        // Earth walls flanking the building at basement depth
+        g.beginFill(0x2a2218); g.drawRect(0, surfaceY, startX - 2, floorH); g.endFill();
+        g.beginFill(0x2a2218); g.drawRect(startX + bldW + 2, surfaceY, vpW - startX - bldW - 2, floorH); g.endFill();
+        // Topsoil accent
+        g.beginFill(0x3a3020); g.drawRect(0, surfaceY, startX - 2, 6); g.endFill();
+        g.beginFill(0x3a3020); g.drawRect(startX + bldW + 2, surfaceY, vpW - startX - bldW - 2, 6); g.endFill();
+        // Grass strip at surface level
+        g.beginFill(0x2d5a3f); g.drawRect(0, surfaceY - 4, startX - 2, 4); g.endFill();
+        g.beginFill(0x2d5a3f); g.drawRect(startX + bldW + 2, surfaceY - 4, vpW - startX - bldW - 2, 4); g.endFill();
+
+        // Below the basement: the full fiber/tunnel/pipe stack
+        // Cable region (gy+35 to gy+65 in exterior world → first 30px below basement)
+        g.beginFill(0x0a0a0f); g.drawRect(0, belowY, vpW, 260); g.endFill();
+        // Colored fiber cables (25 lines)
+        const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
+        let cableSeed = (bld.x || 0) + 33;
+        const cr2 = () => { cableSeed = (cableSeed * 16807) % 2147483647; return (cableSeed - 1) / 2147483646; };
+        for (let ci = 0; ci < 20; ci++) {
+            const cy = belowY + 3 + cr2() * 28;
+            const col = cableCols[Math.floor(cr2() * cableCols.length)];
+            const alpha = 0.3 + cr2() * 0.5;
+            const thickness = 1 + cr2() * 1.5;
+            g.lineStyle(thickness, col, alpha);
+            g.moveTo(0, cy);
+            let curY = cy;
+            for (let cx = 0; cx < vpW; cx += 60) {
+                curY += (cr2() * 8 - 4);
+                if (curY < belowY + 3) curY = belowY + 3;
+                if (curY > belowY + 30) curY = belowY + 30;
+                g.lineTo(cx, curY);
+            }
+        }
+        g.lineStyle(0);
+        // Junction dots
+        for (let ji = 0; ji < 80; ji++) {
+            const jx = cr2() * vpW;
+            const jy = belowY + 3 + cr2() * 28;
+            g.beginFill(cableCols[Math.floor(cr2() * cableCols.length)], 0.5);
+            g.drawCircle(jx, jy, 1 + cr2() * 1);
+            g.endFill();
+        }
+
+        // Metro tunnel cavity (gy+70 to gy+170 exterior → belowY+30 to belowY+130)
+        // Leave mostly transparent to show depth; add a dark cavity fill with support pillars
+        g.beginFill(0x0a0a10, 0.85); g.drawRect(0, belowY + 30, vpW, 100); g.endFill();
+        // Support pillars every ~150px
+        for (let px = 40; px < vpW; px += 150) {
+            g.beginFill(0x1a1a24); g.drawRect(px, belowY + 35, 8, 90); g.endFill();
+            g.beginFill(0x2a2a3a); g.drawRect(px, belowY + 35, 2, 90); g.endFill();
+            // Red safety light
+            g.beginFill(0xef4444); g.drawCircle(px + 4, belowY + 50, 1.5); g.endFill();
+        }
+        // Metro tracks on tunnel floor
+        g.beginFill(0x2a2a3e); g.drawRect(0, belowY + 120, vpW, 10); g.endFill();
+        g.beginFill(0xfacc15); g.drawRect(0, belowY + 131, vpW, 1); g.endFill();
+        g.beginFill(0xd97706);
+        for (let tx = 0; tx < vpW; tx += 8) { g.drawRect(tx, belowY + 128, 4, 2); }
+        g.endFill();
+
+        // Deep earth / infrastructure layer (gy+170 down)
+        g.beginFill(0x0a0a0f); g.drawRect(0, belowY + 135, vpW, 30); g.endFill();
+
+        // Water pipe (gy+220 exterior → belowY + 180)
+        g.beginFill(0x0369a1); g.drawRect(0, belowY + 180, vpW, 8); g.endFill();
+        g.beginFill(0x0284c7); g.drawRect(0, belowY + 182, vpW, 4); g.endFill();
+
+        // Sewer trunk (gy+235 → belowY + 195)
+        g.beginFill(0xb45309); g.drawRect(0, belowY + 195, vpW, 12); g.endFill();
+        g.beginFill(0xd97706); g.drawRect(0, belowY + 197, vpW, 8); g.endFill();
+
+        // Junction boxes on utility trunks
+        for (let jx = 40; jx < vpW; jx += 180) {
+            g.beginFill(0x334155); g.drawRect(jx, belowY + 140, 12, 36); g.endFill();
+            g.beginFill(0x0ea5e9); g.drawRect(jx + 40, belowY + 183, 8, 10); g.endFill();
+            g.beginFill(0xf59e0b); g.drawRect(jx + 80, belowY + 198, 8, 14); g.endFill();
+        }
+
+        // Deep void fill
+        g.beginFill(0x050508); g.drawRect(0, belowY + 215, vpW, 500); g.endFill();
+
+        scene.addChild(g);
+    },
+
+    // Determine which underground zone this building belongs to based on its id/type
+    _determineZone(bld) {
+        if (!bld) return 'default';
+        if (bld.id && bld.id.startsWith('port_')) return 'port';
+        if (bld.id && bld.id.startsWith('house_')) return 'silo';
+        if (bld.type === 'vcrow') return 'east_rock';
+        if (bld.id && bld.id.startsWith('suburb_')) return 'east_rock';
+        if (bld.type === 'longevity') return 'east_rock';
+        if (bld.id && bld.id.startsWith('robotics_')) return 'east_rock';
+        return 'default';
     },
 
     onMove: (e) => {
