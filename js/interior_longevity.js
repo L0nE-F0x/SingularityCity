@@ -6,6 +6,10 @@
 const InteriorLongevity = {
     container: null,
     scene: null,
+    layer: null,
+    skyContainer: null,
+    starsLayer: null,
+    celestialGfx: null,
     isDragging: false,
     _startY: 0,
     _startSceneY: 0,
@@ -41,6 +45,7 @@ const InteriorLongevity = {
 
     build(bld, layer) {
         this.container = layer;
+        this.layer = layer;
         this.avatars = [];
         this.bubbles = [];
         const layout = this.layouts[bld.id];
@@ -58,6 +63,14 @@ const InteriorLongevity = {
         const totalH = roofH + (numFloors + 1) * floorH + 40;
         const startX = W * 0.12;
         const bldW = W * 0.76;
+
+        // ─── SKY LAYER (behind scene — DOM sky shows through window cutouts) ───
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._createSkyLayer) {
+            const sky = InteriorCity._createSkyLayer(layer, 70);
+            this.skyContainer = sky.skyContainer;
+            this.starsLayer = sky.starsLayer;
+            this.celestialGfx = sky.celestialGfx;
+        }
 
         // Scene container for scrolling
         this.scene = new PIXI.Container();
@@ -82,6 +95,13 @@ const InteriorLongevity = {
         this.scene.addChild(roofTxt);
 
         // ─── FLOORS (f = -1 is themed basement, f = 0..N-1 are normal floors) ───
+        // Window band constants for above-ground floors — sky shows through cutout
+        const winMarginX = 40;           // space on left/right of window band
+        const winY_off = 12;             // window top offset from slab top
+        const winH_px = floorH - 26;     // window height (leaves sill + header)
+        const mullionPitch = 56;         // pillar spacing
+        const mullionW = 6;
+
         for (let f = -1; f < numFloors; f++) {
             const isBasement = f === -1;
             const fy = isBasement
@@ -90,9 +110,34 @@ const InteriorLongevity = {
 
             // Floor slab
             const slab = new PIXI.Graphics();
-            slab.beginFill(isBasement ? 0x0a0f1a : 0x111827);
-            slab.drawRect(startX, fy, bldW, floorH);
-            slab.endFill();
+            if (isBasement) {
+                // Basement: solid wall, no window (it is underground)
+                slab.beginFill(0x0a0f1a);
+                slab.drawRect(startX, fy, bldW, floorH);
+                slab.endFill();
+            } else {
+                // Above-ground: punch a window cutout (DOM sky shows through)
+                const wallCol = 0x111827;
+                const winX = startX + winMarginX;
+                const winW = bldW - winMarginX * 2;
+                const winY = fy + winY_off;
+                InteriorCity._drawWallWithWindowCutout(
+                    slab, wallCol,
+                    startX, fy, bldW, floorH,
+                    winX, winY, winW, winH_px,
+                    mullionPitch, mullionW
+                );
+                // Window frame lines (stroked only — no fill)
+                slab.lineStyle(1.5, 0x1e293b, 0.9);
+                slab.drawRect(winX, winY, winW, winH_px);
+                slab.moveTo(winX, winY + winH_px * 0.5);
+                slab.lineTo(winX + winW, winY + winH_px * 0.5);
+                slab.lineStyle(0);
+                // Subtle tint over the window to hint at glazing (keeps sky readable)
+                slab.beginFill(layout.col, 0.05);
+                slab.drawRect(winX, winY, winW, winH_px);
+                slab.endFill();
+            }
             // Left & right walls
             slab.beginFill(isBasement ? 0x1a2332 : 0x1e293b);
             slab.drawRect(startX - 6, fy, 6, floorH);
@@ -990,12 +1035,21 @@ const InteriorLongevity = {
     },
 
     update() {
+        // Paint DOM sky gradient + celestial gfx + twinkle stars.
+        // Floors above-ground have window cutouts, so this sky shows through.
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._applyDynamicSky) {
+            InteriorCity._applyDynamicSky(this.celestialGfx, this.starsLayer);
+        }
         this.updateAvatars();
     },
 
     cleanup() {
         this.container = null;
+        this.layer = null;
         this.scene = null;
+        this.skyContainer = null;
+        this.starsLayer = null;
+        this.celestialGfx = null;
         this.isDragging = false;
         this.avatars = [];
         this.bubbles = [];

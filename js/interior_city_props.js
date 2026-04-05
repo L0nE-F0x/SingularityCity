@@ -105,6 +105,109 @@ const InteriorCityProps = {
         this.scene.addChild(roofCont);
     },
 
+    // ────────────────────────────────────────────────────────────────
+    //  SHARED SKY + CELESTIAL HELPERS (for all interior modules)
+    //  Call from your update() loop so viewport shows the DOM sky
+    //  through window cutouts, and the sun/moon/stars animate.
+    // ────────────────────────────────────────────────────────────────
+    _applyDynamicSky(celestialGfx, starsLayer) {
+        if (typeof G === 'undefined' || typeof G.getDayPhase !== 'function') return;
+        const dp = G.getDayPhase();
+        const night = dp > .83 || dp < .25;
+        const vp = document.getElementById('viewport');
+        let sky;
+        if (dp < .22) {
+            sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
+        } else if (dp < .30) {
+            const t = (dp - .22) / .08;
+            sky = `linear-gradient(180deg,rgb(${8 + t * 40 | 0},${10 + t * 30 | 0},${30 + t * 40 | 0}),rgb(${15 + t * 80 | 0},${15 + t * 50 | 0},${40 + t * 50 | 0}) 50%,rgb(${20 + t * 120 | 0},${20 + t * 80 | 0},${40 + t * 30 | 0}))`;
+        } else if (dp < .72) {
+            sky = 'linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)';
+        } else if (dp < .84) {
+            const t = (dp - .72) / .12;
+            sky = `linear-gradient(180deg,rgb(${45 + t * 30 | 0},${74 - t * 40 | 0},${122 - t * 60 | 0}),rgb(${90 + t * 80 | 0},${143 - t * 80 | 0},${187 - t * 100 | 0}) 50%,rgb(${135 + t * 60 | 0},${100 - t * 50 | 0},${50 - t * 10 | 0}))`;
+        } else {
+            sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
+        }
+        if (typeof Environment !== 'undefined' && Environment.weather === 'rain' && !night && dp > .3 && dp < .72) {
+            sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
+        }
+        if (typeof Environment !== 'undefined' && Environment.weather === 'snow') {
+            sky = 'linear-gradient(180deg,#1a1a2e,#2d3748 50%,#4a5568)';
+        }
+        if (vp) vp.style.background = sky;
+
+        if (celestialGfx) {
+            celestialGfx.clear();
+            if (night) {
+                const np = dp > 0.83 ? (dp - 0.83) / 0.42 : (dp + 0.17) / 0.42;
+                celestialGfx.beginFill(0xe8e8d0);
+                celestialGfx.drawCircle(G.vpW * np, 40 + Math.sin(np * Math.PI) * 120, 12);
+                celestialGfx.endFill();
+            } else {
+                const dayP = (dp - 0.25) / (0.83 - 0.25);
+                celestialGfx.beginFill(0xffe066);
+                celestialGfx.drawCircle(G.vpW * dayP, 40 + Math.sin(dayP * Math.PI) * 120, 15);
+                celestialGfx.endFill();
+            }
+        }
+        if (starsLayer) {
+            starsLayer.visible = night;
+            if (night) {
+                starsLayer.children.forEach(s => {
+                    s.alpha = .15 + Math.abs(Math.sin(G.tick * .03 + (s._phase || 0))) * .5;
+                });
+            }
+        }
+    },
+
+    // Build a skyContainer (stars + celestial gfx) and add it as the
+    // bottom-most layer of `layer`. Returns { skyContainer, starsLayer, celestialGfx }.
+    _createSkyLayer(layer, numStars = 70) {
+        const skyContainer = new PIXI.Container();
+        skyContainer.eventMode = 'none';
+        layer.addChild(skyContainer);
+        const starsLayer = new PIXI.Container();
+        for (let i = 0; i < numStars; i++) {
+            const s = new PIXI.Graphics();
+            s.beginFill(0xffffff);
+            s.drawCircle(0, 0, 0.5 + Math.random() * 1.2);
+            s.endFill();
+            s.x = Math.random() * G.vpW;
+            s.y = Math.random() * G.vpH * 0.5;
+            s._phase = Math.random() * Math.PI * 2;
+            starsLayer.addChild(s);
+        }
+        const celestialGfx = new PIXI.Graphics();
+        skyContainer.addChild(starsLayer, celestialGfx);
+        return { skyContainer, starsLayer, celestialGfx };
+    },
+
+    // Draws a solid wall rectangle with a rectangular window CUTOUT (no fill in the
+    // window region — so the DOM sky shows through the transparent canvas).
+    // winY/winH give the vertical band of the window; winX/winW give horizontal extent.
+    // mullionPitch=0 → single storefront pane. mullionPitch>0 → vertical pillars every N px.
+    _drawWallWithWindowCutout(gfx, wallCol, x, y, w, h, winX, winY, winW, winH, mullionPitch = 0, mullionW = 8) {
+        gfx.beginFill(wallCol);
+        // Top strip (above window)
+        if (winY > y) gfx.drawRect(x, y, w, winY - y);
+        // Bottom strip (below window)
+        if (y + h > winY + winH) gfx.drawRect(x, winY + winH, w, (y + h) - (winY + winH));
+        // Left side of window
+        if (winX > x) gfx.drawRect(x, winY, winX - x, winH);
+        // Right side of window
+        if (x + w > winX + winW) gfx.drawRect(winX + winW, winY, (x + w) - (winX + winW), winH);
+        // Mullion pillars between panes
+        if (mullionPitch > 0) {
+            let mx = winX + mullionPitch;
+            while (mx + mullionW <= winX + winW) {
+                gfx.drawRect(mx, winY, mullionW, winH);
+                mx += mullionPitch;
+            }
+        }
+        gfx.endFill();
+    },
+
     drawNegativeSpaceWall(gfx, wallColor, x, y, w, h, isCeo, windowX, windowW) {
         gfx.beginFill(wallColor);
         if (isCeo) {

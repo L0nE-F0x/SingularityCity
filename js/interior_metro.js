@@ -14,6 +14,9 @@ const InteriorMetroStation = {
     avatarPool: null, // Map<modelId, {cont, sprite, nameTxt, bubble}>
     trainGfx: null,
     _tunnelLightsCont: null,
+    skyContainer: null,
+    starsLayer: null,
+    celestialGfx: null,
     isDragging: false,
     _startY: 0,
     _startSceneY: 0,
@@ -43,6 +46,27 @@ const InteriorMetroStation = {
         this.scene = new PIXI.Container();
         layer.addChild(this.scene);
 
+        // ─── SKY LAYER (INSIDE scene so it scrolls off when viewing platforms) ───
+        // The DOM sky is still set on the viewport so any transparent region of the
+        // canvas shows it. Stars + sun/moon are attached to scene so they only appear
+        // over the hall/street strip, not over the underground platform when scrolled.
+        this.skyContainer = new PIXI.Container();
+        this.skyContainer.eventMode = 'none';
+        this.scene.addChild(this.skyContainer);
+        this.starsLayer = new PIXI.Container();
+        for (let i = 0; i < 40; i++) {
+            const s = new PIXI.Graphics();
+            s.beginFill(0xffffff);
+            s.drawCircle(0, 0, 0.5 + Math.random() * 1.2);
+            s.endFill();
+            s.x = Math.random() * W;
+            s.y = Math.random() * 30; // only in sky strip
+            s._phase = Math.random() * Math.PI * 2;
+            this.starsLayer.addChild(s);
+        }
+        this.celestialGfx = new PIXI.Graphics();
+        this.skyContainer.addChild(this.starsLayer, this.celestialGfx);
+
         // ─── Layout bands ───
         // 0..hallH             : sky / surface / ticket hall
         // hallH..platformTop   : stair shaft cut through rock
@@ -58,20 +82,17 @@ const InteriorMetroStation = {
         this.maxY = 0;
         this.minY = Math.min(0, H - totalH);
 
-        // ─── SKY / UP-TOP STRIP ───
-        const sky = new PIXI.Graphics();
-        sky.beginFill(0x0b1024);
-        sky.drawRect(0, 0, W, 30);
-        sky.endFill();
-        // Distant cityscape silhouette
-        sky.beginFill(0x1a2540, 0.6);
+        // ─── OPEN SKY STRIP (y=0..30) — no fill so DOM sky shows through ───
+        // Distant cityscape silhouette at the horizon
+        const skyline = new PIXI.Graphics();
+        skyline.beginFill(0x1a2540, 0.75);
         for (let i = 0; i < 20; i++) {
             const bx = i * (W / 20);
             const bh = 6 + ((i * 37) % 16);
-            sky.drawRect(bx, 30 - bh, (W / 20) - 2, bh);
+            skyline.drawRect(bx, 30 - bh, (W / 20) - 2, bh);
         }
-        sky.endFill();
-        this.scene.addChild(sky);
+        skyline.endFill();
+        this.scene.addChild(skyline);
 
         // ─── STREET / SIDEWALK LEVEL ───
         const street = new PIXI.Graphics();
@@ -87,43 +108,80 @@ const InteriorMetroStation = {
         street.endFill();
         this.scene.addChild(street);
 
-        // ─── TICKET HALL (enclosed interior from y=38 to y=hallH) ───
+        // ─── TICKET HALL (enclosed interior with storefront windows) ───
+        // The hall has punched-out windows on its upper portion showing the
+        // street/sky outside (negative-space wall pattern).
         const hallTop = 38;
         const hallBottom = hallH;
+        const hallH_total = hallBottom - hallTop;
         const hall = new PIXI.Graphics();
-        hall.beginFill(0xf5f5f5, 0.95);
-        hall.drawRect(40, hallTop, W - 80, hallBottom - hallTop);
+
+        // Hall layout bands:
+        //   header  (26px): sign strip — station name + subtitle stacked
+        //   window  (22px): storefront windows — sky shows through
+        //   ticket   (54px): ticket machines + turnstiles on hall floor
+        const hallX = 40, hallW = W - 80;
+        const headerH = 26;
+        const winY = hallTop + headerH;
+        const winH_px = 22;
+        const winX = hallX + 24;
+        const winW = hallW - 48;
+        const mullionPitch = 90;
+        const mullionW = 8;
+
+        // Draw the hall wall with a punched window cutout
+        InteriorCity._drawWallWithWindowCutout(
+            hall, 0xf5f5f5,
+            hallX, hallTop, hallW, hallH_total,
+            winX, winY, winW, winH_px,
+            mullionPitch, mullionW
+        );
+        // Header strip (above the windows) — themed accent band for the sign
+        hall.beginFill(theme.col, 0.18);
+        hall.drawRect(hallX, hallTop, hallW, headerH);
         hall.endFill();
-        // Wall trim matching line color
         hall.beginFill(theme.col, 0.85);
-        hall.drawRect(40, hallTop, W - 80, 4);
+        hall.drawRect(hallX, hallTop, hallW, 3);
+        hall.endFill();
+        // Window frames (stroked)
+        hall.lineStyle(1.5, 0x64748b, 0.9);
+        hall.drawRect(winX, winY, winW, winH_px);
+        hall.moveTo(winX, winY + winH_px * 0.55);
+        hall.lineTo(winX + winW, winY + winH_px * 0.55);
+        hall.lineStyle(0);
+        // Subtle window tint (very light to keep sky readable)
+        hall.beginFill(0xe0f2fe, 0.12);
+        hall.drawRect(winX, winY, winW, winH_px);
         hall.endFill();
         // Floor tiles
         hall.beginFill(0xe2e8f0);
-        hall.drawRect(40, hallBottom - 10, W - 80, 10);
+        hall.drawRect(hallX, hallBottom - 10, hallW, 10);
         hall.endFill();
         hall.beginFill(0xcbd5e1, 0.5);
         for (let tx = 50; tx < W - 50; tx += 24) hall.drawRect(tx, hallBottom - 10, 22, 1);
         hall.endFill();
         this.scene.addChild(hall);
 
-        // Station name mosaic on back wall
+        // Station name in the header strip (upper row, above the windows)
         const nameTxt = new PIXI.Text(theme.label, {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 14,
+            fontFamily: 'Press Start 2P, monospace', fontSize: 9,
             fill: theme.col, letterSpacing: 2
         });
         nameTxt.anchor.set(0.5, 0);
         nameTxt.x = W / 2;
-        nameTxt.y = hallTop + 18;
+        nameTxt.y = hallTop + 4;
+        if (nameTxt.width > hallW - 16) nameTxt.scale.set((hallW - 16) / nameTxt.width);
         this.scene.addChild(nameTxt);
 
+        // Subtitle in the header strip (lower row, still above the windows)
         const subTxt = new PIXI.Text(theme.sub, {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-            fill: 0x64748b
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 7,
+            fill: 0x475569
         });
         subTxt.anchor.set(0.5, 0);
         subTxt.x = W / 2;
-        subTxt.y = hallTop + 38;
+        subTxt.y = hallTop + 16;
+        if (subTxt.width > hallW - 16) subTxt.scale.set((hallW - 16) / subTxt.width);
         this.scene.addChild(subTxt);
 
         // Ticket machines along hall floor
@@ -518,6 +576,13 @@ const InteriorMetroStation = {
     update() {
         if (!this.scene || !this.bld || !this.avatarLayer) return;
 
+        // Paint DOM sky gradient so the ticket-hall storefront windows show the
+        // correct time-of-day sky. Skip celestial gfx (sun/moon would arc outside
+        // the 30px sky strip); only animate the star field.
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._applyDynamicSky) {
+            InteriorCity._applyDynamicSky(null, this.starsLayer);
+        }
+
         const stationX = this.bld.x + this.bld.w / 2;
         const W = G.vpW;
         const theme = this.STATION_THEME[this.bld.id] || { col: 0x22d3ee };
@@ -784,6 +849,9 @@ const InteriorMetroStation = {
         this.trainGfx = null;
         this._trainG = null;
         this._boardTxt = null;
+        this.skyContainer = null;
+        this.starsLayer = null;
+        this.celestialGfx = null;
         this.isDragging = false;
     }
 };

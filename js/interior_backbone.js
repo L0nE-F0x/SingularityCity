@@ -17,12 +17,13 @@ const InteriorBackbone = {
         this.bld = bld; this.layer = layer; this.layer.removeChildren();
         this.avatars = []; this.bubbles = []; this.indoorLights = [];
 
-        // Sky
-        this.skyContainer = new PIXI.Container(); this.layer.addChild(this.skyContainer);
-        this.starsLayer = new PIXI.Container();
-        for (let i = 0; i < 60; i++) { const s = new PIXI.Graphics(); s.beginFill(0xffffff); s.drawCircle(0,0,.5+Math.random()); s.endFill(); s.x=Math.random()*G.vpW; s.y=Math.random()*G.vpH*.4; s._phase=Math.random()*Math.PI*2; this.starsLayer.addChild(s); }
-        this.celestialGfx = new PIXI.Graphics();
-        this.skyContainer.addChild(this.starsLayer, this.celestialGfx);
+        // Sky — use shared helper for consistency with InteriorCity
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._createSkyLayer) {
+            const sky = InteriorCity._createSkyLayer(layer, 70);
+            this.skyContainer = sky.skyContainer;
+            this.starsLayer = sky.starsLayer;
+            this.celestialGfx = sky.celestialGfx;
+        }
         this.scene = new PIXI.Container(); this.layer.addChild(this.scene);
 
         const floorH = 80, startX = 60, bldW = G.vpW - 120;
@@ -56,28 +57,50 @@ const InteriorBackbone = {
         rc.addChild(lt); this.scene.addChild(rc);
 
         // Floors
+        const winMarginX = 50;
+        const winY_off = 16;
+        const winH_px = floorH - 28;
+        const mullionPitch = 60;
+        const mullionW = 6;
+
         for (let f = -1; f < numFloors; f++) {
             const fy = roofH + (numFloors-1-f) * floorH;
             const isB = f === -1;
             const floorName = isB ? layout.floors[0] : layout.floors[numFloors - 1 - f] || 'Operations';
             const rg = new PIXI.Graphics();
-            // Walls
+            // Side walls (columns)
             rg.beginFill(0x0a1020); rg.drawRect(startX-6, fy, 6, floorH); rg.drawRect(startX+bldW, fy, 6, floorH); rg.endFill();
             const wc = isB ? 0x080e18 : 0x0c1424;
-            rg.beginFill(wc); rg.drawRect(startX, fy, bldW, floorH); rg.endFill();
+            if (isB) {
+                // Basement: solid wall (underground)
+                rg.beginFill(wc); rg.drawRect(startX, fy, bldW, floorH); rg.endFill();
+            } else {
+                // Above-ground: punched window cutout — DOM sky shows through
+                const winX = startX + winMarginX;
+                const winW = bldW - winMarginX * 2;
+                const winY = fy + winY_off;
+                InteriorCity._drawWallWithWindowCutout(
+                    rg, wc,
+                    startX, fy, bldW, floorH,
+                    winX, winY, winW, winH_px,
+                    mullionPitch, mullionW
+                );
+                // Window frames (stroked only)
+                rg.lineStyle(1.5, 0x1a2a40, 0.9);
+                rg.drawRect(winX, winY, winW, winH_px);
+                rg.moveTo(winX, winY + winH_px * 0.5);
+                rg.lineTo(winX + winW, winY + winH_px * 0.5);
+                rg.lineStyle(0);
+                // Cyan glazing tint for backbone theme
+                rg.beginFill(layout.col, 0.04);
+                rg.drawRect(winX, winY, winW, winH_px);
+                rg.endFill();
+            }
             // Floor slab
             rg.beginFill(0x0a1018); rg.drawRect(startX, fy+floorH-6, bldW, 6); rg.endFill();
             rg.beginFill(0x1a2538); rg.drawRect(startX-6, fy+floorH-3, bldW+12, 3); rg.endFill();
             // Accent line (cyan glow at ceiling)
             rg.beginFill(layout.col, 0.08); rg.drawRect(startX, fy, bldW, 2); rg.endFill();
-            // Windows
-            if (!isB) {
-                let wx = startX + 50;
-                while (wx + 40 <= startX + bldW - 50) {
-                    rg.lineStyle(2, 0x1a2a40); rg.drawRect(wx, fy+20, 40, 32);
-                    rg.moveTo(wx+20,fy+20); rg.lineTo(wx+20,fy+52); rg.lineStyle(0); wx += 60;
-                }
-            }
             this.scene.addChild(rg);
             // Floor label
             const fl = new PIXI.Text(floorName.toUpperCase(), { fontFamily:'JetBrains Mono', fontSize:7, fill:layout.col, letterSpacing:2 });
@@ -509,11 +532,9 @@ const InteriorBackbone = {
     // ════════════════════════════════════════════════════
 
     update() {
-        // Animate stars
-        if (this.starsLayer && typeof G !== 'undefined') {
-            const dp = G.getDayPhase();
-            const isNight = dp > 0.83 || dp < 0.2;
-            this.starsLayer.alpha = isNight ? 0.8 : 0;
+        // Paint DOM sky gradient + celestial gfx + twinkle stars
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._applyDynamicSky) {
+            InteriorCity._applyDynamicSky(this.celestialGfx, this.starsLayer);
         }
         // Animate LEDs on war room screens (flicker effect)
         if (this.scene) {

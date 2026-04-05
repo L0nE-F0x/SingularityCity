@@ -5,6 +5,7 @@
 
 const InteriorRobotics = {
     scene: null, layer: null, bld: null, avatars: [], bubbles: [],
+    skyContainer: null, starsLayer: null, celestialGfx: null,
     isDragging: false, _startY: 0, _startSceneY: 0,
     minY: 0, maxY: 0, totalH: 0,
 
@@ -48,6 +49,14 @@ const InteriorRobotics = {
         // Added ~220px for themed basement + zone underground stack below ground
         this.totalH = numFloors * floorH + 60 + floorH + 220;
 
+        // ─── SKY LAYER (behind scene — DOM sky shows through window cutouts) ───
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._createSkyLayer) {
+            const sky = InteriorCity._createSkyLayer(layer, 70);
+            this.skyContainer = sky.skyContainer;
+            this.starsLayer = sky.starsLayer;
+            this.celestialGfx = sky.celestialGfx;
+        }
+
         this.scene = new PIXI.Container();
         layer.addChild(this.scene);
 
@@ -57,15 +66,39 @@ const InteriorRobotics = {
 
         const baseY = H - 30;
 
+        // Window band constants for punched-out cutouts
+        const winMarginX = 40;
+        const winY_off = 12;
+        const winH_px = floorH - 26;
+        const mullionPitch = 60;
+        const mullionW = 6;
+
         // ─── DRAW FLOORS ───
         for (let fi = 0; fi < numFloors; fi++) {
             const floorY = baseY - (fi + 1) * floorH;
             const floorName = floors[fi];
 
-            // Floor slab
+            // Floor slab with punched window cutout — DOM sky shows through
             const slab = new PIXI.Graphics();
-            slab.beginFill(0x0d1220);
-            slab.drawRect(startX, floorY, bldW, floorH);
+            const wallCol = 0x0d1220;
+            const winX = startX + winMarginX;
+            const winW = bldW - winMarginX * 2;
+            const winY = floorY + winY_off;
+            InteriorCity._drawWallWithWindowCutout(
+                slab, wallCol,
+                startX, floorY, bldW, floorH,
+                winX, winY, winW, winH_px,
+                mullionPitch, mullionW
+            );
+            // Window frame (stroked, no fill)
+            slab.lineStyle(1.5, 0x1e293b, 0.9);
+            slab.drawRect(winX, winY, winW, winH_px);
+            slab.moveTo(winX, winY + winH_px * 0.5);
+            slab.lineTo(winX + winW, winY + winH_px * 0.5);
+            slab.lineStyle(0);
+            // Subtle factory-tint glazing hint
+            slab.beginFill(layout.col, 0.04);
+            slab.drawRect(winX, winY, winW, winH_px);
             slab.endFill();
             // Floor border
             slab.lineStyle(1, layout.col, 0.15);
@@ -871,6 +904,15 @@ const InteriorRobotics = {
     },
 
     update() {
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._applyDynamicSky) {
+            InteriorCity._applyDynamicSky(this.celestialGfx, this.starsLayer);
+        }
         this.updateAvatars();
+    },
+
+    cleanup() {
+        this.skyContainer = null;
+        this.starsLayer = null;
+        this.celestialGfx = null;
     }
 };
