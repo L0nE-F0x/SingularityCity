@@ -5,7 +5,7 @@
 const Entities = {
     charLayer: null, carLayer: null, reflectionLayer: null, lightLayer: null,
     undergroundLayer: null, trainLayer: null,
-    trainWest: null, trainEast: null, trainMid: null, trainDC: null,
+    trainWest: null, trainEast: null, trainMid: null, trainDC: null, trainLongevity: null,
     dataCubes: [],
     heliRefs: {},
 
@@ -23,6 +23,7 @@ const Entities = {
             this.trainEast = trains.trainEast;
             this.trainMid = trains.trainMid;
             this.trainDC = trains.trainDC;
+            this.trainLongevity = trains.trainLongevity;
             this.metroRiderCont = trains.riderCont;
             this.stationVisuals = trains.stationVisuals;
             this.bunkerGfx = trains.bunkerGfx;
@@ -83,6 +84,7 @@ const Entities = {
         const mEastX = G.bldById['metro_east'] ? G.bldById['metro_east'].x + (G.bldById['metro_east'].w / 2) : 7000;
         const mDcX = G.bldById['metro_dc'] ? G.bldById['metro_dc'].x + (G.bldById['metro_dc'].w / 2) : null;
         const mMidX = G.bldById['metro_mid'] ? G.bldById['metro_mid'].x + (G.bldById['metro_mid'].w / 2) : null;
+        const mLongX = G.bldById['metro_longevity'] ? G.bldById['metro_longevity'].x + (G.bldById['metro_longevity'].w / 2) : null;
 
         // 1. Shift all station graphics to follow dynamically moving buildings
         if (this.stationVisuals) {
@@ -148,8 +150,18 @@ const Entities = {
             }
         }
 
+        if (this.trainLongevity && mLongX) {
+            this.trainLongevity.st1 = mEastX;
+            this.trainLongevity.st2 = mLongX;
+            if (this.trainLongevity.state === 'waiting') {
+                if (Math.abs(this.trainLongevity.x - this.trainLongevity.st1) < 100) this.trainLongevity.x = this.trainLongevity.st1;
+                else if (Math.abs(this.trainLongevity.x - this.trainLongevity.st2) < 100) this.trainLongevity.x = this.trainLongevity.st2;
+                this.trainLongevity.c.x = this.trainLongevity.x;
+            }
+        }
+
         // 4. Standard Train Logic Loop
-        [this.trainWest, this.trainEast, this.trainMid, this.trainDC].forEach(t => {
+        [this.trainWest, this.trainEast, this.trainMid, this.trainDC, this.trainLongevity].forEach(t => {
             if (!t) return;
             if (t.state === 'waiting') {
                 t.timer--;
@@ -959,13 +971,15 @@ const Entities = {
                 const mEastX = G.bldById['metro_east'] ? G.bldById['metro_east'].x + (G.bldById['metro_east'].w / 2) : 7000;
                 const mDcX = G.bldById['metro_dc'] ? G.bldById['metro_dc'].x + (G.bldById['metro_dc'].w / 2) : null;
                 const mMidX = G.bldById['metro_mid'] ? G.bldById['metro_mid'].x + (G.bldById['metro_mid'].w / 2) : null;
-                
-                // 4 regions: 0=DC/Space (left of res), 1=Residential, 2=Tech, 3=East
+                const mLongX = G.bldById['metro_longevity'] ? G.bldById['metro_longevity'].x + (G.bldById['metro_longevity'].w / 2) : null;
+
+                // 5 regions: 0=DC/Space (left of res), 1=Residential, 2=Tech, 3=East, 4=Longevity terminus
                 const getRegion = (x) => {
                     if (mDcX && x < (mDcX + mResX) / 2) return 0;
                     if (x < (mResX + mHqX) / 2) return 1;
                     if (mMidX && x < (mMidX + mEastX) / 2) return 2;
                     if (x < (mHqX + mEastX) / 2) return 2;
+                    if (mLongX && x > (mEastX + mLongX) / 2) return 4;
                     return 3;
                 };
 
@@ -975,13 +989,14 @@ const Entities = {
                     
                     if (myReg !== dstReg) {
                         // Build route through stations
-                        // Station order: metro_dc (0) → metro_res (1) → metro_hq (2) → metro_mid/metro_east (3)
+                        // Station order: metro_dc (0) → metro_res (1) → metro_hq (2) → metro_mid → metro_east (3) → metro_longevity (4)
                         const stations = [];
                         if (mDcX) stations.push({ reg: 0, x: mDcX });
                         stations.push({ reg: 1, x: mResX });
                         stations.push({ reg: 2, x: mHqX });
                         if (mMidX) stations.push({ reg: 2.5, x: mMidX }); // mid-tech
                         stations.push({ reg: 3, x: mEastX });
+                        if (mLongX) stations.push({ reg: 4, x: mLongX });
                         
                         // Find nearest station to current position and destination
                         const nearestStation = (x) => stations.reduce((best, s) => Math.abs(s.x - x) < Math.abs(best.x - x) ? s : best);
@@ -1020,6 +1035,7 @@ const Entities = {
                     else if (mMidX && ((s1 === mMidX && s2 === mEastX) || (s1 === mEastX && s2 === mMidX))) activeTrain = this.trainMid;
                     else if ((s1 === mHqX && s2 === mEastX) || (s1 === mEastX && s2 === mHqX)) activeTrain = this.trainEast;
                     else if (mDcX && ((s1 === mDcX && s2 === mResX) || (s1 === mResX && s2 === mDcX))) activeTrain = this.trainDC;
+                    else if (mLongX && ((s1 === mEastX && s2 === mLongX) || (s1 === mLongX && s2 === mEastX))) activeTrain = this.trainLongevity;
 
                     if (refs._metroState === 'entering') {
                         finalTargetX = s1;

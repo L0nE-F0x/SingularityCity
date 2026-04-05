@@ -25,6 +25,8 @@ const Interior = {
             this.activeModule = InteriorLegacy;
         } else if (bld.id.startsWith('npc_apt_') && typeof InteriorNPC !== 'undefined') {
             this.activeModule = InteriorNPC;
+        } else if (bld.id.startsWith('suburb_') && typeof InteriorNPC !== 'undefined') {
+            this.activeModule = InteriorNPC;
         } else if (bld.type === 'university' && typeof UniversityInterior !== 'undefined') {
             this.activeModule = UniversityInterior;
         } else if (bld.type === 'court' && typeof CourtInterior !== 'undefined') {

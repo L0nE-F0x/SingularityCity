@@ -27,9 +27,17 @@ const InteriorNPC = {
         const usableW = shaftX - startX - 20;
         const windowX = startX + 50, windowW = usableW - 80;
         
-        // Get residents for this building
-        const bldIdx = parseInt(bld.id.replace('npc_apt_', '')) - 1;
-        const residents = typeof NPCHousing !== 'undefined' ? NPCHousing.REGISTRY.filter((n, i) => i % 3 === bldIdx) : [];
+        // Get residents for this building.
+        // Worker blocks (npc_apt_*) use NPCHousing routing, suburban townhomes use VC Row NPCs.
+        let residents = [];
+        if (bld.id.startsWith('suburb_')) {
+            if (typeof VCRow !== 'undefined' && VCRow.SUBURB_BLDS) {
+                const idx = VCRow.SUBURB_BLDS.findIndex(s => s.id === bld.id);
+                if (idx >= 0 && VCRow.NPCS[idx]) residents = [VCRow.NPCS[idx]];
+            }
+        } else if (typeof NPCHousing !== 'undefined') {
+            residents = NPCHousing.REGISTRY.filter((n, i) => NPCHousing._assignHomeBldId(n, i) === bld.id);
+        }
         
         // ─── ROOF SIGN ───
         const rc = new PIXI.Container();

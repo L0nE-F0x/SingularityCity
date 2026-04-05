@@ -204,12 +204,14 @@ const EntitiesGfx = {
         let eastStation = G.bldById ? G.bldById['metro_east'] : null;
         let dcStation = G.bldById ? G.bldById['metro_dc'] : null;
         let midStation = G.bldById ? G.bldById['metro_mid'] : null;
+        let longStation = G.bldById ? G.bldById['metro_longevity'] : null;
 
         let mResX = resStation ? resStation.x + resStation.w / 2 : 1350;
         let mHqX = hqStation ? hqStation.x + hqStation.w / 2 : 4700;
         let mEastX = eastStation ? eastStation.x + eastStation.w / 2 : 7000;
         let mDcX = dcStation ? dcStation.x + dcStation.w / 2 : null;
-        let mMidX = midStation ? midStation.x + midStation.w / 2 : null; 
+        let mMidX = midStation ? midStation.x + midStation.w / 2 : null;
+        let mLongX = longStation ? longStation.x + longStation.w / 2 : null;
 
         // 1. Draw Massive Tunnel (oversized to survive any city expansion)
         const gfx = new PIXI.Graphics();
@@ -246,6 +248,7 @@ const EntitiesGfx = {
         ];
         if (mDcX) stationDefs.splice(0, 0, { x: mDcX, label: "COMPUTE DISTRICT", col: 0x06b6d4, bldId: 'metro_dc' });
         if (mMidX) stationDefs.splice(stationDefs.findIndex(s => s.label === "EASTERN HUB"), 0, { x: mMidX, label: "CENTRAL LINE", col: 0xf97316, bldId: 'metro_mid' });
+        if (mLongX) stationDefs.push({ x: mLongX, label: "LONGEVITY LINE", col: 0x22c55e, bldId: 'metro_longevity' });
         
         stationDefs.forEach((sd, idx) => {
             const sx = sd.x;
@@ -338,17 +341,18 @@ const EntitiesGfx = {
         const tE = mMidX ? this.createTrainObj(trainLayer, carLayer, mHqX, mMidX, 90, tunnelY) : this.createTrainObj(trainLayer, carLayer, mHqX, mEastX, 90, tunnelY);
         const tM = mMidX ? this.createTrainObj(trainLayer, carLayer, mMidX, mEastX, 45, tunnelY) : null;
         const tD = mDcX ? this.createTrainObj(trainLayer, carLayer, mDcX, mResX, 120, tunnelY) : null;
+        const tL = mLongX ? this.createTrainObj(trainLayer, carLayer, mEastX, mLongX, 60, tunnelY) : null;
 
         // Restructure trainLayer: bodies → riderCont → fronts
         // so metro riders render INSIDE the train (behind front panel)
         const riderCont = new PIXI.Container();
         riderCont.sortableChildren = true;
-        [tW, tE, tM, tD].forEach(t => { if (t) trainLayer.removeChild(t.front); });
+        [tW, tE, tM, tD, tL].forEach(t => { if (t) trainLayer.removeChild(t.front); });
         trainLayer.addChild(riderCont);
-        [tW, tE, tM, tD].forEach(t => { if (t) trainLayer.addChild(t.front); });
+        [tW, tE, tM, tD, tL].forEach(t => { if (t) trainLayer.addChild(t.front); });
 
         return {
-            trainWest: tW, trainEast: tE, trainMid: tM, trainDC: tD,
+            trainWest: tW, trainEast: tE, trainMid: tM, trainDC: tD, trainLongevity: tL,
             riderCont: riderCont,
             stationVisuals: stationVisuals,
             bunkerGfx: bunkerGfx,
