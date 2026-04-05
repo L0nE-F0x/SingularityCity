@@ -73,8 +73,22 @@ const OrbitMode = {
                 `${base}?GROUP=starlink&FORMAT=json`,
                 `${base}?GROUP=oneweb&FORMAT=json`
             ];
+            // Starlink's TLE file is large (~6k objects, several MB) so use a
+            // generous timeout. OneWeb is much smaller.
             const results = await Promise.allSettled(
-                urls.map(u => fetch(u, { signal: AbortSignal.timeout(12000) }).then(r => r.ok ? r.json() : []))
+                urls.map(async u => {
+                    try {
+                        const r = await fetch(u, { signal: AbortSignal.timeout(25000) });
+                        if (!r.ok) {
+                            console.warn(`[Orbit] ${u} → HTTP ${r.status}`);
+                            return [];
+                        }
+                        return await r.json();
+                    } catch (err) {
+                        console.warn(`[Orbit] ${u} failed:`, err.message);
+                        return [];
+                    }
+                })
             );
 
             let sats = [];
@@ -141,11 +155,18 @@ const OrbitMode = {
     },
 
     _parseSat(raw, group) {
+        // Kepler's 3rd law: semi-major axis (km) from mean motion (rev/day).
+        // a_km = (GM_earth * T² / 4π²)^(1/3) with T = 86400/mean_motion seconds
+        //      = 42241.08 / mean_motion^(2/3)
+        // (The previous constant 8,681,663.5 was off by ~206× and produced
+        //  absurd orbit radii that flung satellites far off-screen.)
+        const mm = raw.MEAN_MOTION;
+        const altitude = mm ? (42241.08 / Math.pow(mm, 2/3)) - 6371 : 550;
         return {
             name: raw.OBJECT_NAME || 'Unknown', group, noradId: raw.NORAD_CAT_ID || 0,
             inclination: raw.INCLINATION || 53, eccentricity: raw.ECCENTRICITY || 0.0001,
-            meanMotion: raw.MEAN_MOTION || 15.0,
-            altitude: raw.MEAN_MOTION ? (8681663.5 / Math.pow(raw.MEAN_MOTION, 2/3)) - 6371 : 550,
+            meanMotion: mm || 15.0,
+            altitude,
             phase: raw.MEAN_ANOMALY || Math.random() * 360,
             raan: raw.RA_OF_ASC_NODE || Math.random() * 360
         };
@@ -588,20 +609,24 @@ const OrbitMode = {
     // ─── HUD ───
     _buildHUD() {
         const W = G.vpW;
-        // Top padding pushes the title clear of browser chrome / Press Start 2P ascenders
-        const TOP_Y = 40;
+        // Top padding pushes the title clear of browser chrome. Press Start 2P
+        // ascenders also extend above the glyph bounds so the text style below
+        // adds `padding` to prevent the top pixels from being clipped out of
+        // the generated text texture.
+        const TOP_Y = 56;
         const LEFT_X = 20;
 
         // Panel backdrop so HUD text remains readable over stars
         const panel = new PIXI.Graphics();
         panel.beginFill(0x020614, 0.55);
         panel.lineStyle(1, 0x1a3a5c, 0.6);
-        panel.drawRect(LEFT_X - 10, TOP_Y - 12, 260, 190);
+        panel.drawRect(LEFT_X - 10, TOP_Y - 16, 280, 200);
         panel.endFill();
         this._hudCont.addChild(panel);
 
         const title = new PIXI.Text('ORBIT VIEW', {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 12, fill: '#66bbff', letterSpacing: 2
+            fontFamily: 'Press Start 2P, monospace', fontSize: 12, fill: '#66bbff',
+            letterSpacing: 2, padding: 6
         });
         title.x = LEFT_X; title.y = TOP_Y;
         this._hudCont.addChild(title);
