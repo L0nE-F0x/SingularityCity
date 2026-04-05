@@ -9,6 +9,8 @@ const InteriorLongevity = {
     isDragging: false,
     _startY: 0,
     _startSceneY: 0,
+    avatars: [],
+    bubbles: [],
 
     layouts: {
         'longevity_discovery': {
@@ -39,6 +41,8 @@ const InteriorLongevity = {
 
     build(bld, layer) {
         this.container = layer;
+        this.avatars = [];
+        this.bubbles = [];
         const layout = this.layouts[bld.id];
         if (!layout) return;
 
@@ -135,10 +139,8 @@ const InteriorLongevity = {
             this.scene.addChild(dot);
         }
 
-        // ─── Spawn interior NPCs ───
-        if (layout.npcs && typeof NPCHousing !== 'undefined') {
-            this._spawnInteriorNPCs(layout, numFloors, floorH, roofH, startX, bldW);
-        }
+        // ─── Spawn interior NPCs on every floor ───
+        this._spawnNPCs(this.scene, startX, bldW, roofH, floorH, numFloors, layout);
 
         // ─── Scrolling ───
         if (totalH > H) {
@@ -466,48 +468,328 @@ const InteriorLongevity = {
         }
     },
 
-    _spawnInteriorNPCs(layout, numFloors, floorH, roofH, startX, bldW) {
-        const dp = G.getDayPhase();
-        const isWorkHours = dp > 0.30 && dp < 0.75;
-        if (!isWorkHours && !layout.npcs.find(r => r === 'Preservation Ops')) return;
+    _spawnNPCs(cont, sx, bw, roofH, floorH, numFloors, layout) {
+        // Labs run around the clock (genomics pipelines, cryo techs on night shift, trial
+        // monitoring). Spawn NPCs on every floor regardless of hour.
+        for (let fi = 0; fi < numFloors; fi++) {
+            const fy = roofH + (numFloors - 1 - fi) * floorH;
+            const ny = fy + floorH - 8;
+            const floorName = layout.floors[fi];
+            const floorNpcs = this._getNPCsForFloor(floorName, layout, bw);
+            floorNpcs.forEach(def => {
+                this.drawNPC(cont, sx + def.xOff, ny, def.role, def.col, def.prop);
+            });
+        }
+    },
 
-        layout.npcs.forEach((role, idx) => {
-            const npcDef = LongevityZone.NPCS.find(n => n.role === role);
-            if (!npcDef) return;
+    // ════════════════════════════════════════════════════
+    //   FLOOR → NPC ASSIGNMENT
+    //   prop: 'clipboard' | 'goggles' | 'mask' | 'cryo' | null
+    // ════════════════════════════════════════════════════
 
-            const floorIdx = Math.min(idx, numFloors - 1);
-            const fy = roofH + (numFloors - 1 - floorIdx) * floorH;
+    _getNPCsForFloor(floorName, layout, bw) {
+        const fn = floorName.toLowerCase();
+        const col = layout.col;
 
-            const npc = new PIXI.Graphics();
-            const col = parseInt(npcDef.color.replace('#', ''), 16);
-            // Head
-            npc.beginFill(0xd4a574);
-            npc.drawCircle(0, -10, 3);
-            npc.endFill();
-            // Body
-            npc.beginFill(col);
-            npc.drawRect(-3, -7, 6, 8);
-            npc.endFill();
-            // Lab coat overlay
-            npc.beginFill(0xffffff, 0.3);
-            npc.drawRect(-3, -7, 6, 8);
-            npc.endFill();
-            // Legs
-            npc.beginFill(0x374151);
-            npc.drawRect(-2, 1, 2, 4);
-            npc.drawRect(1, 1, 2, 4);
-            npc.endFill();
+        if (fn.includes('synthesis') || fn.includes('compound')) {
+            return [
+                { role: 'Synthesis Tech',     col: 0x22c55e, xOff: bw * 0.25, prop: 'goggles' },
+                { role: 'Medicinal Chemist',  col: 0x06b6d4, xOff: bw * 0.55, prop: 'goggles' },
+                { role: 'Lab Assistant',      col: 0x84cc16, xOff: bw * 0.82, prop: 'clipboard' }
+            ];
+        } else if (fn.includes('screening') || fn.includes('molecular')) {
+            return [
+                { role: 'Screening Scientist', col: 0x22c55e, xOff: bw * 0.3,  prop: 'goggles' },
+                { role: 'HTS Operator',        col: 0x06b6d4, xOff: bw * 0.65, prop: 'goggles' }
+            ];
+        } else if (fn.includes('generative') || fn.includes('chemistry ai')) {
+            return [
+                { role: 'ML Engineer',     col: 0x3b82f6, xOff: bw * 0.3,  prop: null },
+                { role: 'Research Chemist', col: 0x22c55e, xOff: bw * 0.6,  prop: 'goggles' },
+                { role: 'Data Scientist',  col: 0x8b5cf6, xOff: bw * 0.85, prop: null }
+            ];
+        } else if (fn.includes('target')) {
+            return [
+                { role: 'Structural Bio',   col: 0x8b5cf6, xOff: bw * 0.3,  prop: null },
+                { role: 'Protein Modeler',  col: 0x06b6d4, xOff: bw * 0.7,  prop: null }
+            ];
+        } else if (fn.includes('lead optimization')) {
+            return [
+                { role: 'ADMET Analyst',    col: 0xfbbf24, xOff: bw * 0.3,  prop: 'clipboard' },
+                { role: 'Pharmacologist',   col: 0xec4899, xOff: bw * 0.7,  prop: 'goggles' }
+            ];
+        } else if (fn.includes('intake processing') || (fn.includes('processing') && fn.includes('intake'))) {
+            // Cryonics intake — cold chain, not clinical
+            return [
+                { role: 'Intake Specialist', col: 0x67e8f9, xOff: bw * 0.3, prop: 'mask' },
+                { role: 'Cryo Intake',       col: 0x06b6d4, xOff: bw * 0.7, prop: 'cryo' }
+            ];
+        } else if (fn.includes('patient') || fn.includes('intake')) {
+            return [
+                { role: 'Trial Coordinator', col: 0xec4899, xOff: bw * 0.25, prop: 'clipboard' },
+                { role: 'Intake Nurse',      col: 0xf43f5e, xOff: bw * 0.55, prop: 'mask' },
+                { role: 'Patient Advocate',  col: 0xf97316, xOff: bw * 0.82, prop: 'clipboard' }
+            ];
+        } else if (fn.includes('phase ii') || fn.includes('efficacy')) {
+            return [
+                { role: 'Biostatistician',  col: 0xfbbf24, xOff: bw * 0.3,  prop: null },
+                { role: 'Data Manager',     col: 0x3b82f6, xOff: bw * 0.7,  prop: 'clipboard' }
+            ];
+        } else if (fn.includes('phase i') || fn.includes('safety')) {
+            return [
+                { role: 'Clinical Monitor', col: 0xec4899, xOff: bw * 0.3,  prop: 'clipboard' },
+                { role: 'Safety Officer',   col: 0xef4444, xOff: bw * 0.65, prop: 'mask' }
+            ];
+        } else if (fn.includes('adaptive') || fn.includes('protocol')) {
+            return [
+                { role: 'Trial Manager',    col: 0xec4899, xOff: bw * 0.3,  prop: 'clipboard' },
+                { role: 'Protocol Eng',     col: 0x22c55e, xOff: bw * 0.7,  prop: null }
+            ];
+        } else if (fn.includes('sample prep')) {
+            return [
+                { role: 'Lab Tech',         col: 0x22c55e, xOff: bw * 0.3,  prop: 'goggles' },
+                { role: 'Sample Prepper',   col: 0x06b6d4, xOff: bw * 0.7,  prop: 'goggles' }
+            ];
+        } else if (fn.includes('sequencing') || fn.includes('arrays')) {
+            return [
+                { role: 'Sequencing Lead',  col: 0x8b5cf6, xOff: bw * 0.3,  prop: 'goggles' },
+                { role: 'Machine Tech',     col: 0xa855f7, xOff: bw * 0.65, prop: null }
+            ];
+        } else if (fn.includes('bioinformatics') || fn.includes('pipeline')) {
+            return [
+                { role: 'Bioinformatics Eng', col: 0x8b5cf6, xOff: bw * 0.3,  prop: null },
+                { role: 'Pipeline Dev',       col: 0x06b6d4, xOff: bw * 0.65, prop: null },
+                { role: 'Genomics Scientist', col: 0xa855f7, xOff: bw * 0.9,  prop: null }
+            ];
+        } else if (fn.includes('epigenome')) {
+            return [
+                { role: 'Epigenetics Lead', col: 0x8b5cf6, xOff: bw * 0.3,  prop: null },
+                { role: 'Methyl Analyst',   col: 0xa855f7, xOff: bw * 0.7,  prop: null }
+            ];
+        } else if (fn.includes('vitrification')) {
+            return [
+                { role: 'Cryo Technician',  col: 0x67e8f9, xOff: bw * 0.3,  prop: 'cryo' },
+                { role: 'Preservation Lead', col: 0x93c5fd, xOff: bw * 0.7, prop: 'cryo' }
+            ];
+        } else if (fn.includes('deep storage') || fn.includes('-196')) {
+            return [
+                { role: 'Vault Monitor',    col: 0x67e8f9, xOff: bw * 0.3,  prop: 'cryo' },
+                { role: 'Dewar Operator',   col: 0x93c5fd, xOff: bw * 0.7,  prop: 'cryo' }
+            ];
+        } else if (fn.includes('processing')) {
+            return [
+                { role: 'Intake Specialist', col: 0x67e8f9, xOff: bw * 0.3, prop: 'mask' },
+                { role: 'Cryo Intake',       col: 0x06b6d4, xOff: bw * 0.7, prop: 'cryo' }
+            ];
+        } else {
+            return [{ role: 'Researcher', col: col, xOff: bw * 0.5, prop: 'goggles' }];
+        }
+    },
 
-            npc.x = startX + 30 + idx * (bldW / (layout.npcs.length + 1));
-            npc.y = fy + floorH - 8;
-            npc.zIndex = 10;
-            this.scene.addChild(npc);
+    // ════════════════════════════════════════════════════
+    //   PIXEL ART NPC (standard avatar — lab coat + prop)
+    // ════════════════════════════════════════════════════
+
+    drawNPC(c, x, y, role, col, prop) {
+        const colHex = col || 0x22c55e;
+        const bw = 12, h = 28, headH = 10, bodyH = h - headH - 4, legH = 4, eyeS = 1;
+        const cont = new PIXI.Container();
+
+        const shadow = new PIXI.Graphics();
+        shadow.beginFill(0x000000, 0.25); shadow.drawEllipse(0, 2, bw * 0.6, 3); shadow.endFill();
+
+        const head = new PIXI.Graphics();
+        head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25); head.endFill();
+        head.beginFill(0x2c1810); head.drawCircle(-bw * 0.1, headH * 0.38, eyeS); head.drawCircle(bw * 0.1, headH * 0.38, eyeS); head.endFill();
+        head.beginFill(0x000000, 0.4); head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5); head.endFill();
+        // Hair cap (muted so lab coat reads as dominant)
+        head.beginFill(0x4b5563); head.drawRoundedRect(-bw * 0.4, -1, bw * 0.8, 2, 1); head.endFill();
+        // Prop on head / face
+        if (prop === 'goggles') {
+            head.beginFill(0x93c5fd, 0.75); head.drawRect(-bw * 0.4, headH * 0.25, bw * 0.8, 2.5); head.endFill();
+            head.beginFill(0x0f172a); head.drawRect(-bw * 0.15, headH * 0.25, 0.8, 2.5); head.endFill();
+        } else if (prop === 'mask') {
+            head.beginFill(0xf8fafc); head.drawRect(-bw * 0.4, headH * 0.55, bw * 0.8, 3); head.endFill();
+            head.beginFill(0xcbd5e1, 0.6); head.drawRect(-bw * 0.4, headH * 0.55, bw * 0.8, 1); head.endFill();
+        } else if (prop === 'cryo') {
+            // Cold-weather cap / balaclava hint
+            head.beginFill(0x60a5fa); head.drawRoundedRect(-bw * 0.42, -2, bw * 0.84, 4, 1); head.endFill();
+            head.beginFill(0xbfdbfe); head.drawRect(-bw * 0.42, 0, bw * 0.84, 1); head.endFill();
+        }
+        head.y = -h;
+
+        // Lab coat body (white), with role color as accent trim
+        const body = new PIXI.Graphics();
+        body.beginFill(0xf8fafc); body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1); body.endFill();
+        // Coat opening seam
+        body.beginFill(0xcbd5e1, 0.7); body.drawRect(-0.5, 0, 1, Math.max(bodyH, 4)); body.endFill();
+        // Role-color collar accent
+        body.beginFill(colHex); body.drawRect(-bw / 2, 0, bw, 1.5); body.endFill();
+        // Role-color pocket (left side)
+        body.beginFill(colHex, 0.6); body.drawRect(-bw * 0.4, Math.max(bodyH, 4) * 0.55, bw * 0.3, 1.5); body.endFill();
+        // Clipboard held in front (if assigned)
+        if (prop === 'clipboard') {
+            body.beginFill(0x78350f); body.drawRect(bw * 0.15, Math.max(bodyH, 4) * 0.3, bw * 0.35, bw * 0.45); body.endFill();
+            body.beginFill(0xfef3c7); body.drawRect(bw * 0.2, Math.max(bodyH, 4) * 0.35, bw * 0.25, bw * 0.35); body.endFill();
+            body.beginFill(0x475569); body.drawRect(bw * 0.22, Math.max(bodyH, 4) * 0.4, bw * 0.2, 0.5); body.endFill();
+            body.beginFill(0x475569); body.drawRect(bw * 0.22, Math.max(bodyH, 4) * 0.5, bw * 0.15, 0.5); body.endFill();
+        }
+        // Cryo gloves (blue hands)
+        if (prop === 'cryo') {
+            body.beginFill(0x60a5fa); body.drawRect(-bw * 0.55, Math.max(bodyH, 4) * 0.5, bw * 0.2, 2); body.endFill();
+            body.beginFill(0x60a5fa); body.drawRect(bw * 0.35, Math.max(bodyH, 4) * 0.5, bw * 0.2, 2); body.endFill();
+        }
+        body.y = -h + headH;
+
+        const lw = Math.max(2, bw * 0.25), lh = Math.max(legH, 2);
+        const legL = new PIXI.Graphics();
+        legL.beginFill(0x1e293b); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill(); legL.x = -bw * 0.15;
+        const legR = new PIXI.Graphics();
+        legR.beginFill(0x1e293b); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill(); legR.x = bw * 0.15;
+
+        const dot = new PIXI.Graphics();
+        dot.beginFill(colHex); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 6;
+
+        cont.addChild(shadow, legL, legR, body, head, dot);
+        cont.x = x; cont.y = y;
+
+        const txt = new PIXI.Text(role, { fontFamily: '"JetBrains Mono", monospace', fontSize: 6, fill: colHex });
+        txt.anchor.set(0.5, 1); txt.y = -h - 8;
+        cont.addChild(txt);
+
+        cont.eventMode = 'static'; cont.cursor = 'pointer';
+        cont.on('pointertap', () => { if (typeof UI !== 'undefined' && UI.addToast) UI.addToast(`${role} — Longevity Wing`); });
+
+        c.addChild(cont);
+
+        const agent = {
+            m: { id: 'longev_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true },
+            cont, head, body, legL, legR, dot, shadow, label: txt,
+            state: 'working', timer: 60 + Math.floor(Math.random() * 200),
+            deskX: x, floorY: y, targetX: x, speed: 0.7,
+            role, prop, _h: h
+        };
+        this.avatars.push(agent);
+        return agent;
+    },
+
+    // ════════════════════════════════════════════════════
+    //   NPC ANIMATION STATE MACHINE
+    // ════════════════════════════════════════════════════
+
+    updateAvatars() {
+        const LONGEVITY_MSGS = [
+            "Compound 447 active.", "IC50 reached.", "Trial arm B promising.",
+            "Genome aligned.", "Protein folded.", "Senolytic working.",
+            "ADMET profile clean.", "Vital signs stable.", "Sequencing 2.3B reads.",
+            "Methylation dropping.", "Cryo stable at -196°C.", "Autophagy induced.",
+            "Patient enrolled.", "Dose escalation OK.", "Epigenetic clock -0.4y.",
+            "Telomerase upregulated.", "Assay clean.", "Phase II looking good.",
+            "Dewar nominal.", "Vitrification complete.", "Methyl signature found."
+        ];
+
+        this.avatars.forEach(av => {
+            if (!av.cont || av.cont.destroyed) return;
+            av.timer--;
+
+            switch (av.state) {
+                case 'working': {
+                    av.head.y = -av._h + Math.sin(G.tick * 0.04 + av.deskX) * 0.5;
+                    av.body.y = -av._h + av._h * 0.36 + Math.abs(Math.sin(G.tick * 0.03 + av.deskX)) * 0.3;
+                    if (av.timer <= 0) {
+                        const r = Math.random();
+                        if (r < 0.3) {
+                            av.state = 'walking';
+                            av.targetX = av.deskX + (Math.random() - 0.5) * 120;
+                            av.targetX = Math.max(30, Math.min(G.vpW - 30, av.targetX));
+                        } else if (r < 0.5) {
+                            av.state = 'chatting';
+                            av.timer = 80 + Math.floor(Math.random() * 60);
+                            this.spawnBubble(av, LONGEVITY_MSGS[Math.floor(Math.random() * LONGEVITY_MSGS.length)]);
+                        } else {
+                            av.timer = 100 + Math.floor(Math.random() * 200);
+                            if (Math.random() < 0.22) {
+                                this.spawnBubble(av, LONGEVITY_MSGS[Math.floor(Math.random() * LONGEVITY_MSGS.length)]);
+                            }
+                        }
+                    }
+                    break;
+                }
+                case 'walking': {
+                    const dx = av.targetX - av.cont.x;
+                    if (Math.abs(dx) < 2) {
+                        av.cont.x = av.targetX;
+                        av.cont.scale.x = 1;
+                        if (av.label) av.label.scale.x = 1;
+                        if (av.dot) av.dot.scale.x = 1;
+                        av.state = 'working';
+                        av.timer = 100 + Math.floor(Math.random() * 200);
+                    } else {
+                        const dir = dx > 0 ? 1 : -1;
+                        av.cont.x += dir * av.speed;
+                        av.cont.scale.x = dir;
+                        if (av.label) av.label.scale.x = dir;
+                        if (av.dot) av.dot.scale.x = dir;
+                    }
+                    av.head.y = -av._h + Math.sin(G.tick * 0.2) * 1.5;
+                    av.body.y = -av._h + av._h * 0.36 + Math.abs(Math.sin(G.tick * 0.2)) * 1.5;
+                    av.legL.y = Math.sin(G.tick * 0.3) * 3;
+                    av.legR.y = -Math.sin(G.tick * 0.3) * 3;
+                    break;
+                }
+                case 'chatting': {
+                    av.head.y = -av._h + Math.sin(G.tick * 0.06) * 1;
+                    av.body.y = -av._h + av._h * 0.36;
+                    if (av.timer <= 0) {
+                        av.state = 'working';
+                        av.timer = 80 + Math.floor(Math.random() * 150);
+                    }
+                    break;
+                }
+            }
         });
+
+        // Update speech bubbles
+        for (let i = this.bubbles.length - 1; i >= 0; i--) {
+            const b = this.bubbles[i];
+            b.life--;
+            b.cont.y -= 0.15;
+            b.cont.alpha = Math.min(1, b.life / 20);
+            if (b.life <= 0) {
+                if (b.cont.parent) b.cont.parent.removeChild(b.cont);
+                b.cont.destroy({ children: true });
+                this.bubbles.splice(i, 1);
+            }
+        }
+    },
+
+    spawnBubble(av, msg) {
+        if (!this.scene || this.scene.destroyed) return;
+        const bCont = new PIXI.Container();
+        const txt = new PIXI.Text(msg, { fontFamily: '"JetBrains Mono", monospace', fontSize: 8, fill: 0x000000, fontWeight: 'bold' });
+        txt.anchor.set(0.5, 1); txt.y = -6;
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0xffffff);
+        bg.drawRoundedRect(-txt.width / 2 - 6, -txt.height - 10, txt.width + 12, txt.height + 8, 4);
+        bg.endFill();
+        bg.beginFill(0xffffff);
+        bg.moveTo(-4, -4); bg.lineTo(4, -4); bg.lineTo(0, 2); bg.endFill();
+        bCont.addChild(bg, txt);
+        bCont.x = av.cont.x;
+        bCont.y = av.cont.y - av._h - 10;
+        this.scene.addChild(bCont);
+        this.bubbles.push({ cont: bCont, life: 120 });
+    },
+
+    update() {
+        this.updateAvatars();
     },
 
     cleanup() {
         this.container = null;
         this.scene = null;
         this.isDragging = false;
+        this.avatars = [];
+        this.bubbles = [];
     }
 };
