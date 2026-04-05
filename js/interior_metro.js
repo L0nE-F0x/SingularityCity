@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   METRO STATION INTERIOR (v1.0.0)
-   Renders a station cross-section: ticket hall above + stairs + platform + tracks + tunnels.
+   METRO STATION INTERIOR (v1.1.0 — Exterior-matched visuals + real train sync)
+   Renders a station cross-section: ticket hall above + glass elevator shaft + platform + tracks + tunnels.
    Mirrors real-time state of avatars whose _metroLegs pass through this station, so when a
    tracked entity enters/waits/rides/exits the metro, the camera fade carries straight into
    this view with the same behavior visible from the inside.
@@ -235,69 +235,85 @@ const InteriorMetroStation = {
             this.scene.addChild(npc);
         }
 
-        // ─── CENTRAL ELEVATOR SHAFT (hallH → hallH + stairH) ───
-        // A single lift shaft down the middle replaces stairs/escalator.
-        const shaftLeft = W * 0.46;
-        const shaftRight = W * 0.54;
-        const shaftW = shaftRight - shaftLeft;
-        const shaftTop = hallBottom;
-        const shaftBottom = hallBottom + stairH;
+        // ─── EARTH/BEDROCK flanking the glass elevator shaft ───
+        // The hall→platform gap is filled with dark earth on either side of a
+        // central vertical glass lift shaft that matches the EXTERIOR station
+        // glass-front (0x22d3ee @ 0.1 fill, 0x22d3ee @ 0.4 stroke).
+        const shaftW = 60;                      // wider than exterior (which is 40) — scaled up
+        const shaftLeft = W / 2 - shaftW / 2;
+        const shaftRight = W / 2 + shaftW / 2;
+        const shaftTop = hallBottom;             // lift arrives level with hall floor
+        // shaftBottom is set after platFloorY is known — lift descends all the
+        // way to the platform deck so avatars step straight out onto it.
+        const platTop = hallBottom + stairH;
+        const platFloorY = platTop + 130;        // passenger deck Y (avatars stand here)
+        const shaftBottom = platFloorY;          // lift floor flush with platform deck
 
-        // Rock on either side of shaft
+        // Seeded rng for rock flecks + ballast
+        let rs = (bld.x || 0) + 101;
+        const rr = () => { rs = (rs * 16807) % 2147483647; return (rs - 1) / 2147483646; };
+
+        // Rock flanks (spans full hall→platform depth, cut around the glass shaft)
         const rock = new PIXI.Graphics();
         rock.beginFill(0x2a1a10);
-        rock.drawRect(0, shaftTop, shaftLeft, stairH);
-        rock.drawRect(shaftRight, shaftTop, W - shaftRight, stairH);
+        rock.drawRect(0, shaftTop, shaftLeft, shaftBottom - shaftTop);
+        rock.drawRect(shaftRight, shaftTop, W - shaftRight, shaftBottom - shaftTop);
         rock.endFill();
+        // Earth-to-station transition band
         rock.beginFill(0x3a2218);
         rock.drawRect(0, shaftTop, shaftLeft, 4);
         rock.drawRect(shaftRight, shaftTop, W - shaftRight, 4);
         rock.endFill();
         // Rock flecks
-        let rs = (bld.x || 0) + 101;
-        const rr = () => { rs = (rs * 16807) % 2147483647; return (rs - 1) / 2147483646; };
-        for (let i = 0; i < 160; i++) {
+        for (let i = 0; i < 260; i++) {
             const rx = rr() * W;
             if (rx > shaftLeft - 2 && rx < shaftRight + 2) continue;
             rock.beginFill(rr() > 0.5 ? 0x3d261a : 0x1f100a, 0.7);
-            rock.drawRect(rx, shaftTop + rr() * stairH, 2 + rr() * 3, 2);
+            rock.drawRect(rx, shaftTop + rr() * (shaftBottom - shaftTop), 2 + rr() * 3, 2);
             rock.endFill();
         }
         this.scene.addChild(rock);
 
-        // Shaft cavity (dark recessed column)
-        const shaft = new PIXI.Graphics();
-        shaft.beginFill(0x0a0a14);
-        shaft.drawRect(shaftLeft, shaftTop, shaftW, stairH);
-        shaft.endFill();
-        // Side walls + subtle inner trim
-        shaft.beginFill(0x1e293b);
-        shaft.drawRect(shaftLeft, shaftTop, 3, stairH);
-        shaft.drawRect(shaftRight - 3, shaftTop, 3, stairH);
-        shaft.endFill();
-        // Rails on the back of the cavity
-        shaft.beginFill(0x334155);
-        shaft.drawRect(shaftLeft + shaftW * 0.25, shaftTop + 4, 2, stairH - 8);
-        shaft.drawRect(shaftLeft + shaftW * 0.75 - 2, shaftTop + 4, 2, stairH - 8);
-        shaft.endFill();
-        // Counter-weight cable down one side
-        shaft.beginFill(0x475569);
-        shaft.drawRect(shaftLeft + shaftW * 0.5 - 1, shaftTop + 2, 2, stairH - 4);
-        shaft.endFill();
-        this.scene.addChild(shaft);
+        // ─── GLASS ELEVATOR SHAFT (matches exterior glassFront) ───
+        // Light cyan fill 0x22d3ee @ 0.1, cyan stroke 0x22d3ee @ 0.4, same as
+        // entities_gfx.js createStationVisuals glassFront.
+        const glassShaft = new PIXI.Graphics();
+        // Dark backing so the cyan tint reads as glass over deep interior
+        glassShaft.beginFill(0x050510, 0.85);
+        glassShaft.drawRect(shaftLeft + 2, shaftTop + 2, shaftW - 4, shaftBottom - shaftTop - 4);
+        glassShaft.endFill();
+        // Cyan glass tint
+        glassShaft.beginFill(0x22d3ee, 0.10);
+        glassShaft.drawRect(shaftLeft, shaftTop, shaftW, shaftBottom - shaftTop);
+        glassShaft.endFill();
+        // Cyan glass frame (matches exterior 2px stroke)
+        glassShaft.lineStyle(2, 0x22d3ee, 0.4);
+        glassShaft.drawRect(shaftLeft, shaftTop, shaftW, shaftBottom - shaftTop);
+        glassShaft.lineStyle(0);
+        // Subtle vertical divider down the middle (hints at the rails behind the glass)
+        glassShaft.beginFill(0x22d3ee, 0.15);
+        glassShaft.drawRect(shaftLeft + shaftW / 2 - 1, shaftTop + 4, 2, shaftBottom - shaftTop - 8);
+        glassShaft.endFill();
+        // Horizontal glass segment lines (~every 30px) to evoke a modular shaft
+        glassShaft.beginFill(0x22d3ee, 0.18);
+        for (let sy = shaftTop + 30; sy < shaftBottom - 6; sy += 30) {
+            glassShaft.drawRect(shaftLeft + 2, sy, shaftW - 4, 1);
+        }
+        glassShaft.endFill();
+        this.scene.addChild(glassShaft);
 
-        // Floor indicator (above shaft, in hall band) — illuminated panel
+        // Floor indicator above the shaft (top of hall band)
         const floorInd = new PIXI.Graphics();
         floorInd.beginFill(0x0f172a);
         floorInd.drawRect(shaftLeft - 2, shaftTop - 14, shaftW + 4, 12);
         floorInd.endFill();
-        floorInd.lineStyle(1, theme.col, 0.7);
+        floorInd.lineStyle(1, 0x22d3ee, 0.7);
         floorInd.drawRect(shaftLeft - 2, shaftTop - 14, shaftW + 4, 12);
         floorInd.lineStyle(0);
         this.scene.addChild(floorInd);
-        const floorTxt = new PIXI.Text('▼ LIFT', {
+        const floorTxt = new PIXI.Text('⇅ LIFT', {
             fontFamily: 'JetBrains Mono, monospace', fontSize: 7,
-            fill: theme.col
+            fill: 0x22d3ee
         });
         floorTxt.anchor.set(0.5, 0.5);
         floorTxt.x = (shaftLeft + shaftRight) / 2;
@@ -305,124 +321,120 @@ const InteriorMetroStation = {
         this.scene.addChild(floorTxt);
         this._liftFloorTxt = floorTxt;
 
-        // Elevator car (animated in update) — sits inside the shaft cavity
+        // ─── Elevator car ───
+        // Small grey platform (mirrors exterior createElevatorPlatform:
+        // fill 0x94a3b8, stroke 0x22d3ee @ 0.5). Scaled up a bit so multiple
+        // avatars can ride together visibly.
         const liftCar = new PIXI.Graphics();
-        const carW = shaftW - 10;
-        const carH = 48;
-        // Car body
-        liftCar.beginFill(0x1e293b);
+        const carW = shaftW - 14;
+        const carH = 6;
+        // Cable from top of shaft down to car
+        const cable = new PIXI.Graphics();
+        cable.beginFill(0x22d3ee, 0.35);
+        cable.drawRect((shaftLeft + shaftRight) / 2 - 1, shaftTop + 2, 2, 10);
+        cable.endFill();
+        this.scene.addChild(cable);
+        this._liftCable = cable;
+        // Platform plank
+        liftCar.beginFill(0x94a3b8);
         liftCar.drawRect(-carW / 2, -carH / 2, carW, carH);
         liftCar.endFill();
-        // Themed accent top & bottom
-        liftCar.beginFill(theme.col, 0.85);
-        liftCar.drawRect(-carW / 2, -carH / 2, carW, 2);
-        liftCar.drawRect(-carW / 2, carH / 2 - 2, carW, 2);
+        liftCar.lineStyle(1, 0x22d3ee, 0.6);
+        liftCar.drawRect(-carW / 2, -carH / 2, carW, carH);
+        liftCar.lineStyle(0);
+        // Deck highlight
+        liftCar.beginFill(0xe2e8f0, 0.6);
+        liftCar.drawRect(-carW / 2 + 1, -carH / 2 + 1, carW - 2, 1);
         liftCar.endFill();
-        // Interior light panel
-        liftCar.beginFill(0xfef3c7, 0.55);
-        liftCar.drawRect(-carW / 2 + 3, -carH / 2 + 4, carW - 6, 14);
-        liftCar.endFill();
-        // Door split (two sliding panels)
-        liftCar.beginFill(0x334155);
-        liftCar.drawRect(-carW / 2 + 3, -carH / 2 + 20, (carW - 6) / 2 - 1, carH - 26);
-        liftCar.drawRect(1, -carH / 2 + 20, (carW - 6) / 2 - 1, carH - 26);
-        liftCar.endFill();
-        // Door seam
-        liftCar.beginFill(theme.col, 0.6);
-        liftCar.drawRect(-1, -carH / 2 + 20, 2, carH - 26);
+        // Side guide rails (extend a bit above the plank for visual grip)
+        liftCar.beginFill(0x22d3ee, 0.5);
+        liftCar.drawRect(-carW / 2 - 1, -carH / 2 - 3, 2, carH + 6);
+        liftCar.drawRect(carW / 2 - 1, -carH / 2 - 3, 2, carH + 6);
         liftCar.endFill();
         liftCar.x = (shaftLeft + shaftRight) / 2;
-        liftCar.y = shaftTop + stairH / 2;
+        liftCar.y = shaftTop + 20;   // starts parked at top
         this.scene.addChild(liftCar);
         this._liftCar = liftCar;
         this._liftCarH = carH;
-        this._liftTop = { x: liftCar.x, y: shaftTop + carH / 2 + 2 };
-        this._liftBot = { x: liftCar.x, y: shaftBottom - carH / 2 - 2 };
+        // Avatars on the lift stand ON TOP of the plank (feet at plank top).
+        this._liftTop = { x: liftCar.x, y: shaftTop + 12 };
+        this._liftBot = { x: liftCar.x, y: shaftBottom - 2 };
 
-        // ─── PLATFORM LEVEL (shaftBottom → shaftBottom + platH) ───
-        // Reworked so the train arrives AT the platform (not below it) —
-        // the train body straddles the platform edge, exactly like the
-        // exterior station view.
-        const platTop = shaftBottom;
-        const platFloorY = platTop + 130;       // passenger deck Y (avatars stand here)
+        // ─── PLATFORM LEVEL (back wall + deck, matching EXTERIOR colors) ───
+        // Exterior back wall: 0x0a0a12 fill with 0x1e1e2f thin verticals every 20px,
+        // 0x11111a side pillars, 0x2a2a3e slab, 0xfacc15 yellow line, 0xd97706 sleepers.
+        const platW = W;                          // full interior width
+        const backWallH = platFloorY - platTop;   // from top of platform to deck
 
-        // Platform hall back wall — tiled wall rising BEHIND the platform deck.
-        // Full height from platTop to platFloorY so there is no dark gap
-        // between the tile wall and the passenger deck.
         const backWall = new PIXI.Graphics();
-        backWall.beginFill(0x0f172a);
-        backWall.drawRect(0, platTop, W, platFloorY - platTop);
+        backWall.beginFill(0x0a0a12);
+        backWall.drawRect(0, platTop, platW, backWallH);
         backWall.endFill();
-        // Tile courses
-        for (let ty = platTop + 12; ty < platFloorY - 6; ty += 16) {
-            backWall.beginFill(0x1e293b);
-            for (let tx = (ty % 32 === 0) ? 0 : 12; tx < W; tx += 24) {
-                backWall.drawRect(tx, ty, 22, 14);
-            }
-            backWall.endFill();
+        // Thin vertical courses (matches exterior pattern)
+        backWall.lineStyle(1, 0x1e1e2f, 0.5);
+        for (let wx = 0; wx <= platW; wx += 20) {
+            backWall.moveTo(wx, platTop);
+            backWall.lineTo(wx, platFloorY);
         }
+        backWall.lineStyle(0);
+        // Side pillars (darker) — scaled to interior viewport
+        backWall.beginFill(0x11111a);
+        backWall.drawRect(0, platTop, 30, backWallH);
+        backWall.drawRect(platW - 30, platTop, 30, backWallH);
+        backWall.endFill();
+        // Cut a "cavity" around the glass shaft so the glass reads as continuous
+        backWall.beginFill(0x050510);
+        backWall.drawRect(shaftLeft + 2, platTop, shaftW - 4, backWallH);
+        backWall.endFill();
         this.scene.addChild(backWall);
 
-        // Accent line color band at top of back wall
-        const accent = new PIXI.Graphics();
-        accent.beginFill(theme.col, 0.9);
-        accent.drawRect(0, platTop + 6, W, 3);
-        accent.endFill();
-        accent.beginFill(theme.col, 0.4);
-        accent.drawRect(0, platTop + 9, W, 1);
-        accent.endFill();
-        this.scene.addChild(accent);
+        // Neon sign backs (left and right) — same treatment as exterior
+        const signBg = new PIXI.Graphics();
+        const signXOff = shaftW / 2 + 80;
+        signBg.beginFill(0x05050a);
+        signBg.lineStyle(1, theme.col, 0.5);
+        signBg.drawRect(W / 2 - signXOff - 70, platTop + 20, 140, 16);
+        signBg.drawRect(W / 2 + signXOff - 70, platTop + 20, 140, 16);
+        signBg.endFill();
+        signBg.lineStyle(0);
+        this.scene.addChild(signBg);
+        const signL = new PIXI.Text(theme.label, {
+            fontFamily: 'Silkscreen, monospace', fontSize: 8, fill: theme.col,
+            dropShadow: true, dropShadowColor: theme.col, dropShadowBlur: 5, dropShadowDistance: 0
+        });
+        signL.anchor.set(0.5, 0.5);
+        signL.x = W / 2 - signXOff;
+        signL.y = platTop + 28;
+        this.scene.addChild(signL);
+        const signR = new PIXI.Text(theme.label, {
+            fontFamily: 'Silkscreen, monospace', fontSize: 8, fill: theme.col,
+            dropShadow: true, dropShadowColor: theme.col, dropShadowBlur: 5, dropShadowDistance: 0
+        });
+        signR.anchor.set(0.5, 0.5);
+        signR.x = W / 2 + signXOff;
+        signR.y = platTop + 28;
+        this.scene.addChild(signR);
 
-        // Platform concrete slab (the passenger deck avatars stand on)
+        // Platform deck slab (exterior: 0x2a2a3e, 15 tall)
         const slab = new PIXI.Graphics();
-        slab.beginFill(0x475569);
-        slab.drawRect(0, platFloorY, W, 6);
+        slab.beginFill(0x2a2a3e);
+        slab.drawRect(0, platFloorY, platW, 15);
         slab.endFill();
-        slab.beginFill(0x64748b);
-        slab.drawRect(0, platFloorY, W, 1);
+        // Yellow safety line (exterior: 0xfacc15 at deck+13, 2 tall)
+        slab.beginFill(0xfacc15);
+        slab.drawRect(0, platFloorY + 13, platW, 2);
         slab.endFill();
-        // Yellow safety stripe along the edge
-        slab.beginFill(0xfbbf24);
-        slab.drawRect(0, platFloorY + 6, W, 3);
-        slab.endFill();
-        slab.beginFill(0x1a1a2e);
-        for (let dx = 0; dx < W; dx += 12) slab.drawRect(dx, platFloorY + 6, 6, 3);
+        // Orange sleepers (exterior: 0xd97706 at deck+11, 4x2 every 6)
+        slab.beginFill(0xd97706);
+        for (let sx = 0; sx < platW; sx += 6) {
+            slab.drawRect(sx, platFloorY + 11, 4, 2);
+        }
         slab.endFill();
         this.scene.addChild(slab);
 
-        // Departure board
-        const board = new PIXI.Graphics();
-        board.beginFill(0x0a0a14);
-        board.drawRect(W * 0.35, platTop + 16, W * 0.3, 24);
-        board.endFill();
-        board.lineStyle(1, theme.col, 0.8);
-        board.drawRect(W * 0.35, platTop + 16, W * 0.3, 24);
-        board.lineStyle(0);
-        this.scene.addChild(board);
-        const boardTxt = new PIXI.Text('NEXT TRAIN · ARRIVING', {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 8,
-            fill: theme.col
-        });
-        boardTxt.anchor.set(0.5, 0.5);
-        boardTxt.x = W / 2;
-        boardTxt.y = platTop + 28;
-        this.scene.addChild(boardTxt);
-        this._boardTxt = boardTxt;
-
-        // Support pillars on platform
-        for (let px = 60; px < W - 40; px += 160) {
-            const col = new PIXI.Graphics();
-            col.beginFill(0x64748b);
-            col.drawRect(px, platTop + 12, 10, platFloorY - platTop - 12);
-            col.endFill();
-            col.beginFill(theme.col, 0.3);
-            col.drawRect(px, platTop + 12, 10, 3);
-            col.endFill();
-            this.scene.addChild(col);
-        }
-
-        // Benches along platform
+        // Benches along platform (skip the central shaft region)
         for (let bx = 120; bx < W - 120; bx += 220) {
+            if (bx > shaftLeft - 70 && bx < shaftRight + 10) continue;
             const bench = new PIXI.Graphics();
             bench.beginFill(0x78350f);
             bench.drawRect(0, 0, 60, 3);
@@ -436,53 +448,54 @@ const InteriorMetroStation = {
             this.scene.addChild(bench);
         }
 
-        // Store platform anchors
+        // Store platform anchors. Feet on the deck.
         this._platFloorY = platFloorY;
-        this._platStandY = platFloorY - 14; // avatars stand here
+        this._platStandY = platFloorY;
+        this._hallFloorY = hallBottom - 2;    // where avatars stand in the hall
 
-        // ─── TRACK BED + TRAIN CORRIDOR ───
-        // The train arrives AT the platform — train body straddles platFloorY
-        // so most of it is ABOVE the platform edge (visible over the deck),
-        // exactly like the exterior view where avatars board at grade.
-        const trainCenterY = platFloorY - 28;   // centerline well above the platform edge
-        const trainBodyH = 75;                  // matches exterior train height
-        const trackTop = trainCenterY - trainBodyH / 2;
+        // ─── TRACK BED + TRAIN CORRIDOR (matches exterior cross-section) ───
+        // Exterior: tunnelY = platformY + 8, train body spans tunnelY-35..tunnelY+30.
+        // So trainCenterY sits 8 px BELOW the avatar deck and the upper 27 px
+        // of the train body overlaps the deck — same overlap as outside.
+        const trainCenterY = platFloorY + 8;
+        const trainBodyH = 65;                  // exterior train body is 65 tall (65 + 10 skirt)
+        const trainTopY = trainCenterY - 35;
+        const trainBottomY = trainCenterY + 40; // includes skirt
         const trackBottom = platTop + platH - 10;
-        const trainBottomY = trainCenterY + trainBodyH / 2;
 
-        // Dark tunnel/back-of-track region — starts at the platform edge
-        // (just below the passenger slab) and extends down past the train.
-        const tbedTop = platFloorY + 9;
+        // Dark tunnel/back-of-track region — starts BELOW the slab and extends
+        // down to the deep earth line.
+        const tbedTop = platFloorY + 18;        // below the 15-tall slab + yellow line
         const tbed = new PIXI.Graphics();
         tbed.beginFill(0x050510);
         tbed.drawRect(0, tbedTop, W, trackBottom - tbedTop);
         tbed.endFill();
-        // Ballast texture beneath the train wheels
-        for (let i = 0; i < 100; i++) {
-            tbed.beginFill(0x1a1a24, 0.7);
-            tbed.drawRect(rr() * W, trainBottomY + rr() * (trackBottom - trainBottomY - 2), 2, 2);
-            tbed.endFill();
-        }
-        // Rails at wheel level (just below train bottom)
+        // Rails at wheel level (just below train skirt)
         const railY = trainBottomY - 4;
         tbed.beginFill(0xd4d4d4);
         tbed.drawRect(0, railY, W, 2);
         tbed.drawRect(0, railY + 10, W, 2);
         tbed.endFill();
-        // Sleepers between rails
+        // Track sleepers between rails (matches exterior underground gfx tones)
         tbed.beginFill(0x3a2218);
         for (let sx = 0; sx < W; sx += 20) tbed.drawRect(sx, railY - 2, 14, 16);
         tbed.endFill();
+        // Ballast speckle beneath the rails
+        for (let i = 0; i < 120; i++) {
+            tbed.beginFill(0x1a1a24, 0.7);
+            tbed.drawRect(rr() * W, railY + 14 + rr() * (trackBottom - railY - 16), 2, 2);
+            tbed.endFill();
+        }
         // Power rail (third rail) — subtle yellow line
         tbed.beginFill(0xfbbf24, 0.4);
         tbed.drawRect(0, trackBottom - 8, W, 2);
         tbed.endFill();
         this.scene.addChild(tbed);
 
-        // Tunnel mouth gradients — span the full train-band height so the
-        // train appears to emerge from the tunnel at the correct level.
-        const tunnelTop = trackTop;
-        const tunnelBottom = trackBottom;
+        // Tunnel mouths at viewport edges (span only the train body height so
+        // the train appears to emerge from them at the correct level).
+        const tunnelTop = trainTopY;
+        const tunnelBottom = trainBottomY;
         const tmouthL = new PIXI.Graphics();
         tmouthL.beginFill(0x000000, 0.9);
         tmouthL.drawRect(0, tunnelTop, 40, tunnelBottom - tunnelTop);
@@ -501,24 +514,13 @@ const InteriorMetroStation = {
         tmouthR.endFill();
         this.scene.addChild(tmouthR);
 
-        // Tunnel red safety lights (static strip) — up near the train roof line
-        const lights = new PIXI.Graphics();
-        lights.beginFill(0xef4444);
-        for (let lx = 20; lx < W; lx += 70) {
-            lights.drawCircle(lx, tunnelTop + 8, 2);
-        }
-        lights.endFill();
-        this.scene.addChild(lights);
-
         // Store track anchors
         this._trackY = trainCenterY;
         this._trainBodyH = trainBodyH;
-        this._trackTop = trackTop;
+        this._trackTop = trainTopY;
         this._trackBottom = trackBottom;
 
         // ─── DEEP EARTH STRATA (below tracks) ───
-        // Replaces the old blue/orange pipe bands (which read as a "blue void").
-        // Now just dark earth with rock flecks and small utility conduits.
         const deepTop = platTop + platH;
         const deep = new PIXI.Graphics();
         deep.beginFill(0x2a1a10);
@@ -601,47 +603,101 @@ const InteriorMetroStation = {
 
         const stationX = this.bld.x + this.bld.w / 2;
         const W = G.vpW;
-        const theme = this.STATION_THEME[this.bld.id] || { col: 0x22d3ee };
+        const tick = (typeof G !== 'undefined' && G.tick) || 0;
 
-        // ─── Animate lift car ───
-        // Slow vertical bounce between hall level (top of shaft) and platform level
-        // (bottom of shaft). Cycle is ~12s so it feels like a real elevator.
-        if (this._liftCar && this._liftTop && this._liftBot) {
-            const tick = (typeof G !== 'undefined' && G.tick) || 0;
-            const cycle = 720; // ~12s
-            const t = (tick % cycle) / cycle;
-            // Ease between top/bottom with dwell at each end
-            let p;
-            if (t < 0.1)      p = 0;                          // dwell top
-            else if (t < 0.5) p = (t - 0.1) / 0.4;             // descend
-            else if (t < 0.6) p = 1;                           // dwell bottom
-            else              p = 1 - (t - 0.6) / 0.4;         // ascend
-            this._liftCar.y = this._liftTop.y + p * (this._liftBot.y - this._liftTop.y);
-            if (this._liftFloorTxt) {
-                this._liftFloorTxt.text = p < 0.2 ? '▲ HALL' : p > 0.8 ? '▼ PLATFORM' : '⇅ LIFT';
-            }
-        }
-
-        // ─── Animate the single arriving train ───
-        // Exterior-style visual (matches createTrainObj in entities_gfx.js).
+        // ─── Draw ALL real exterior trains within interior viewport range ───
+        // Each train's interior center X is simply W/2 + (t.x - stationX), so
+        // when the outside train is at this station, it's perfectly centered
+        // in the interior view; as it rolls toward its next station, it slides
+        // out through the tunnel mouth at the exact same speed.
         const g = this._trainG;
         if (g) {
             g.clear();
             const trainCenterY = this._trackY;
-            const trainW = 360;  // exterior train width
-            const tick = (typeof G !== 'undefined' && G.tick) || 0;
-            const cycle = 720; // ~12s full cycle (arrive → dwell → depart)
-            const phase = (tick % cycle) / cycle;
+            const trainHalfW = 180;
+            const offscreenCut = W / 2 + trainHalfW + 10;
 
-            const cx = this._computeTrainCenterX(phase, trainW, W);
-            this._drawExteriorTrain(g, cx, trainCenterY, phase);
+            // Collect real trains from Entities (exterior module)
+            const trains = [];
+            if (typeof Entities !== 'undefined') {
+                if (Entities.trainWest)      trains.push(Entities.trainWest);
+                if (Entities.trainEast)      trains.push(Entities.trainEast);
+                if (Entities.trainMid)       trains.push(Entities.trainMid);
+                if (Entities.trainDC)        trains.push(Entities.trainDC);
+                if (Entities.trainLongevity) trains.push(Entities.trainLongevity);
+            }
 
-            // Update board text
-            if (this._boardTxt) {
-                if (phase < 0.35) this._boardTxt.text = 'NEXT TRAIN · ARRIVING';
-                else if (phase < 0.55) this._boardTxt.text = 'NEXT TRAIN · AT PLATFORM';
-                else if (phase < 0.75) this._boardTxt.text = 'NEXT TRAIN · DEPARTING';
-                else this._boardTxt.text = 'NEXT TRAIN · 1 MIN';
+            for (const t of trains) {
+                if (!t || t.st1 === undefined || t.st2 === undefined) continue;
+                // Only draw trains whose route touches this station
+                const servesThisStation =
+                    Math.abs(t.st1 - stationX) < 8 || Math.abs(t.st2 - stationX) < 8;
+                if (!servesThisStation) continue;
+
+                const cxOffset = t.x - stationX;
+                if (Math.abs(cxOffset) > offscreenCut) continue; // fully off-screen
+
+                const cx = W / 2 + cxOffset;
+                const bob = (t.state === 'moving') ? Math.sin(tick * 0.5) * 1.5 : 0;
+                const cy = trainCenterY + bob;
+                // At-station means x is close to the station (body centered)
+                const atStation = Math.abs(cxOffset) < 5;
+                this._drawExteriorTrain(g, cx, cy, atStation, t.dir);
+            }
+        }
+
+        // ─── Drive the LIFT based on actual avatars using it ───
+        // The exterior state machine drives refs._logicalY from ground level
+        // (~G.groundY - 20) down to platformY (~G.groundY + 112) over the
+        // 'entering' phase (and reverse for 'exiting'). We map that progress
+        // to the interior shaft so the lift car visibly carries the avatar.
+        const groundY = G.groundY || 0;
+        const surfaceY = groundY - 20;
+        const exteriorPlatY = groundY + 112;
+        const descentRange = exteriorPlatY - surfaceY;      // ~132
+        const shaftTopY = this._liftTop ? this._liftTop.y : 0;
+        const shaftBotY = this._liftBot ? this._liftBot.y : 0;
+        const shaftRange = shaftBotY - shaftTopY;
+
+        let liftTarget = shaftTopY; // default idle at hall floor
+        let liftActive = false;
+
+        if (G && G.charRefs && G.models) {
+            // First pass — find any avatar currently in the shaft, compute lift Y
+            for (let mi = 0; mi < G.models.length; mi++) {
+                const m = G.models[mi];
+                const refs = G.charRefs[m.id];
+                if (!refs) continue;
+                if (refs._metroState !== 'entering' && refs._metroState !== 'exiting') continue;
+                if (!refs._metroLegs) continue;
+                // Must be at THIS station in their leg schedule
+                const legX = refs._metroLegs[refs._currentLeg];
+                if (Math.abs(legX - stationX) > 8) continue;
+                // Compute how far they are along the descent
+                const ly = refs._logicalY != null ? refs._logicalY : surfaceY;
+                const progress = Math.max(0, Math.min(1, (ly - surfaceY) / descentRange));
+                liftTarget = shaftTopY + progress * shaftRange;
+                liftActive = true;
+                break; // first one drives the lift
+            }
+        }
+
+        if (this._liftCar) {
+            // Smoothly interpolate toward target so it moves elevator-like
+            const cur = this._liftCar.y;
+            this._liftCar.y = cur + (liftTarget - cur) * 0.25;
+            if (this._liftCable) {
+                // Cable visually extends from top of shaft to top of car
+                this._liftCable.clear();
+                this._liftCable.beginFill(0x22d3ee, 0.35);
+                this._liftCable.drawRect(this._liftCar.x - 1, shaftTopY - 12, 2, (this._liftCar.y - 3) - (shaftTopY - 12));
+                this._liftCable.endFill();
+            }
+            if (this._liftFloorTxt) {
+                const p = shaftRange > 0 ? (this._liftCar.y - shaftTopY) / shaftRange : 0;
+                this._liftFloorTxt.text = liftActive
+                    ? (p > 0.5 ? '▼ PLATFORM' : '▲ HALL')
+                    : '⇅ LIFT';
             }
         }
 
@@ -649,10 +705,8 @@ const InteriorMetroStation = {
         if (typeof G === 'undefined' || !G.charRefs || !G.models) return;
 
         const seen = new Set();
-        const W2 = G.vpW;
-        const platL = W2 * 0.12;
-        const platR = W2 * 0.88;
-        const platW = platR - platL;
+        const platStandY = this._platStandY;
+        const hallFloorY = this._hallFloorY || 127; // avatars stand on hall floor
 
         for (let mi = 0; mi < G.models.length; mi++) {
             const m = G.models[mi];
@@ -685,31 +739,53 @@ const InteriorMetroStation = {
 
             // Compute interior position based on state
             let ix, iy;
-            const spread = ((m.id.charCodeAt(0) * 31 + mi * 7) % Math.max(1, platW - 80)) - (platW - 80) / 2;
+            const spread = ((m.id.charCodeAt(0) * 31 + mi * 7) % 240) - 120;
 
             if (refs._metroState === 'entering' || refs._metroState === 'exiting') {
-                // Inside the elevator car — position matches animated lift Y
-                ix = this._liftCar ? this._liftCar.x : W2 / 2;
-                iy = this._liftCar ? this._liftCar.y : (this._liftTop.y + this._liftBot.y) / 2;
-            } else if (refs._metroState === 'waiting_train') {
-                // Standing on platform
-                ix = W2 / 2 + spread * 0.8;
-                iy = this._platStandY;
-            } else if (refs._metroState === 'riding') {
-                // Inside the train — use train body position (center of tracks for now)
-                if (passingThrough && !atThisStation) {
-                    // Zooming through — follow a moving x across the scene
-                    const tick = (typeof G !== 'undefined' && G.tick) || 0;
-                    const pass = ((tick + (mi * 17) % 100) % 300) / 300;
-                    ix = -80 + pass * (W2 + 160);
-                    iy = this._trackY - 4;
+                // Real descent progress drives BOTH the lift car and the avatar:
+                // - 0%   → in hall, walking toward shaft (y at hall floor)
+                // - 100% → on platform, walking out of shaft (y at platform)
+                // In between they ride the lift plank, feet at plank top.
+                const ly = refs._logicalY != null ? refs._logicalY : surfaceY;
+                const progress = Math.max(0, Math.min(1, (ly - surfaceY) / descentRange));
+                if (progress < 0.02) {
+                    // Hall phase — walking across hall toward shaft
+                    const dxExt = (refs.c && refs.c.x != null) ? (refs.c.x - stationX) : 0;
+                    const clampedDx = Math.max(-W / 2 + 80, Math.min(W / 2 - 80, dxExt));
+                    ix = W / 2 + clampedDx;
+                    iy = hallFloorY;
+                } else if (progress > 0.98) {
+                    // Just stepped onto the platform — spread out near shaft
+                    ix = W / 2 + spread * 0.3;
+                    iy = platStandY;
                 } else {
-                    ix = W2 / 2 + spread * 0.4;
-                    iy = this._trackY - 4;
+                    // Riding the lift plank
+                    ix = this._liftCar.x;
+                    iy = this._liftCar.y - 3; // feet on plank top
                 }
+            } else if (refs._metroState === 'waiting_train') {
+                // Standing on platform — fan out across the deck
+                ix = W / 2 + spread * 0.9;
+                iy = platStandY;
+            } else if (refs._metroState === 'riding') {
+                // Inside the train — use the riding train's actual position
+                let ridingX = null;
+                if (refs._ridingTrain && refs._ridingTrain.x != null) {
+                    ridingX = refs._ridingTrain.x;
+                }
+                if (ridingX == null) {
+                    ix = W / 2 + spread * 0.3;
+                } else {
+                    // Follow the train's interior center. rideOffset is capped ±150
+                    // to stay inside the 360-wide body. Use a deterministic spread.
+                    const rideOffset = Math.max(-140, Math.min(140, spread));
+                    ix = W / 2 + (ridingX - stationX) + rideOffset;
+                }
+                // Passengers sit in the upper half of the train body
+                iy = this._trackY - 8;
             } else {
-                ix = W2 / 2 + spread;
-                iy = this._platStandY;
+                ix = W / 2 + spread;
+                iy = platStandY;
             }
 
             // Get or create avatar display object
@@ -722,35 +798,25 @@ const InteriorMetroStation = {
             av.cont.x = ix;
             av.cont.y = iy;
             av.cont.visible = true;
+            av.cont.zIndex = Math.round(iy);
+
+            // Animate walking legs when in 'entering' or 'exiting' hall phase
+            const isWalking = (refs._metroState === 'entering' || refs._metroState === 'exiting');
+            if (av.legL && av.legR) {
+                const phase = isWalking ? Math.sin(tick * 0.25 + (m.id.charCodeAt(0) * 0.3)) : 0;
+                av.legL.x = -2.4 + phase * 1.2;
+                av.legR.x =  2.4 - phase * 1.2;
+            }
 
             // Highlight if this model is being tracked
             const isTracked = G.tracking && G.tracking.type === 'model' && G.tracking.id === m.id;
-            av.highlight.visible = !!isTracked;
+            if (av.highlight) av.highlight.visible = !!isTracked;
         }
 
         // Hide avatars that are no longer here
         this.avatarPool.forEach((av, id) => {
             if (!seen.has(id)) av.cont.visible = false;
         });
-    },
-
-    _computeTrainCenterX(phase, trainW, W) {
-        // Phase: 0..0.35  train slides in from the left tunnel to station center
-        //        0.35..0.65 dwelling at the station
-        //        0.65..1.0 departs toward the right tunnel
-        // Returns the train's CENTER x position.
-        const stationCx = W / 2;
-        const offscreenL = -trainW / 2 - 20;
-        const offscreenR = W + trainW / 2 + 20;
-        if (phase < 0.35) {
-            const t = phase / 0.35;
-            return offscreenL + t * (stationCx - offscreenL);
-        } else if (phase < 0.65) {
-            return stationCx;
-        } else {
-            const t = (phase - 0.65) / 0.35;
-            return stationCx + t * (offscreenR - stationCx);
-        }
     },
 
     // ─────────────────────────────────────────────────────────────
@@ -760,7 +826,7 @@ const InteriorMetroStation = {
     //  Dimensions: body 360×65 (y=-35..30), skirt 350×10 (y=30..40).
     //  Call with (cx, cy) = train center (horizontal midline).
     // ─────────────────────────────────────────────────────────────
-    _drawExteriorTrain(g, cx, cy, phase) {
+    _drawExteriorTrain(g, cx, cy, atStation, dir) {
         // ─ Body (tBg)
         g.beginFill(0x1e293b);
         g.drawRoundedRect(cx - 180, cy - 35, 360, 65, 8);
@@ -811,16 +877,19 @@ const InteriorMetroStation = {
         g.drawRect(cx - 180, cy - 20, 360, 16);
         g.endFill();
 
-        // ─ Headlights (red left, green right)
-        g.beginFill(0xef4444);
+        // ─ Headlights — follow travel direction (matches exterior live update)
+        const dirSign = dir || 1;
+        const leftCol  = dirSign > 0 ? 0xef4444 : 0x4ade80;
+        const rightCol = dirSign > 0 ? 0x4ade80 : 0xef4444;
+        g.beginFill(leftCol);
         g.drawCircle(cx - 175, cy, 4);
         g.endFill();
-        g.beginFill(0x4ade80);
+        g.beginFill(rightCol);
         g.drawCircle(cx + 175, cy, 4);
         g.endFill();
 
         // Door slit highlights when dwelling at the station
-        if (phase > 0.35 && phase < 0.65) {
+        if (atStation) {
             g.beginFill(0xfef08a, 0.4);
             for (const px of [-100, 0, 100]) {
                 g.drawRect(cx + px - 1, cy - 28, 1, 50);
@@ -833,40 +902,93 @@ const InteriorMetroStation = {
     _makeAvatarSprite(m) {
         const cont = new PIXI.Container();
 
-        // Highlight ring (visible when tracked)
+        // Lab suit color (note: real field is .color, not .col)
+        let suitHex = 0x22d3ee;
+        if (typeof LABS !== 'undefined' && LABS[m.lab]) {
+            const c = LABS[m.lab].color || LABS[m.lab].col;
+            if (typeof c === 'string') suitHex = parseInt(c.replace('#', '0x'));
+            else if (typeof c === 'number') suitHex = c;
+        }
+
+        // Exterior-matched proportions (from updateCharStateVisuals):
+        // bw=16, h=32, headH≈11, bodyH=h-headH-4=17, legH=4.
+        const bw = 16, h = 32, headH = 11, bodyH = h - headH - 4;
+        const skinCol = 0xfdd8b5;
+        const legCol = 0x3d2914;
+
+        // Shadow
+        const shadow = new PIXI.Graphics();
+        shadow.beginFill(0x000000, 0.25);
+        shadow.drawEllipse(0, 2, bw * 0.6, 3);
+        shadow.endFill();
+        cont.addChild(shadow);
+
+        // Highlight ring (behind body, visible when tracked)
         const highlight = new PIXI.Graphics();
         highlight.lineStyle(2, 0x22d3ee, 0.9);
-        highlight.drawCircle(0, -6, 10);
+        highlight.drawCircle(0, -h / 2, h * 0.65);
         highlight.visible = false;
         cont.addChild(highlight);
 
-        // Simple pixel avatar matching outside style
+        // Legs (positioned absolutely, bodyBottom = y=0)
+        const legL = new PIXI.Graphics();
+        legL.beginFill(legCol); legL.drawRect(-2, 0, 4, 4); legL.endFill();
+        legL.x = -bw * 0.15;
+        legL.y = -4;
+        cont.addChild(legL);
+        const legR = new PIXI.Graphics();
+        legR.beginFill(legCol); legR.drawRect(-2, 0, 4, 4); legR.endFill();
+        legR.x = bw * 0.15;
+        legR.y = -4;
+        cont.addChild(legR);
+
+        // Body (rounded rect in lab color)
         const body = new PIXI.Graphics();
-        const labCol = (typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].col) ? LABS[m.lab].col : 0x22d3ee;
-        // Head
-        body.beginFill(0xfbbf24);
-        body.drawRect(-3, -14, 6, 6);
+        body.beginFill(suitHex);
+        body.drawRoundedRect(-bw / 2, 0, bw, bodyH, bw * 0.1);
         body.endFill();
-        // Torso (lab color)
-        body.beginFill(typeof labCol === 'string' ? parseInt(labCol.replace('#', '0x')) : labCol);
-        body.drawRect(-4, -8, 8, 10);
+        // Subtle highlights
+        body.beginFill(0xffffff, 0.08);
+        body.drawRoundedRect(-bw / 2 + 2, bodyH * 0.55, bw - 4, 3, 2);
         body.endFill();
-        // Legs
-        body.beginFill(0x0f172a);
-        body.drawRect(-4, 2, 3, 6);
-        body.drawRect(1, 2, 3, 6);
-        body.endFill();
+        body.y = -h + headH;
         cont.addChild(body);
+
+        // Head
+        const head = new PIXI.Graphics();
+        head.beginFill(skinCol);
+        head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
+        head.endFill();
+        // Eyes
+        head.beginFill(0x2c1810);
+        head.drawCircle(-bw * 0.1, headH * 0.38, 1.2);
+        head.drawCircle( bw * 0.1, headH * 0.38, 1.2);
+        head.endFill();
+        // Mouth
+        head.beginFill(0x000000, 0.4);
+        head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
+        head.endFill();
+        head.y = -h;
+        cont.addChild(head);
+
+        // Status dot (lab color tag)
+        const dot = new PIXI.Graphics();
+        dot.beginFill(suitHex);
+        dot.drawCircle(0, 0, 2);
+        dot.endFill();
+        dot.y = -h - 6;
+        cont.addChild(dot);
 
         // Name label
         const nameTxt = new PIXI.Text(m.name ? m.name.split(' ')[0] : m.id, {
-            fontFamily: 'monospace', fontSize: 7, fill: 0xe2e8f0
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fill: 0xe2e8f0,
+            stroke: 0x000000, strokeThickness: 2
         });
         nameTxt.anchor.set(0.5, 1);
-        nameTxt.y = -18;
+        nameTxt.y = -h - 10;
         cont.addChild(nameTxt);
 
-        return { cont, body, nameTxt, highlight };
+        return { cont, body, head, legL, legR, dot, nameTxt, highlight };
     },
 
     cleanup() {
@@ -886,11 +1008,12 @@ const InteriorMetroStation = {
         this.bld = null;
         this.trainGfx = null;
         this._trainG = null;
-        this._boardTxt = null;
         this._liftCar = null;
+        this._liftCable = null;
         this._liftFloorTxt = null;
         this._liftTop = null;
         this._liftBot = null;
+        this._hallFloorY = null;
         this.skyContainer = null;
         this.starsLayer = null;
         this.celestialGfx = null;
