@@ -259,7 +259,12 @@ const Entities = {
             if (!msg && typeof CourtData !== 'undefined' && CourtData.isModelSummoned(m.id)) { msg = CourtData.CHAT_MSGS[Math.floor(Math.random() * CourtData.CHAT_MSGS.length)]; }
         }
         const personalRoll = Math.random();
-        if (msg) { /* seasonal/conference override already set */ }
+        // Goal-driven archetype quip (25% chance for archetype-tagged NPCs, null for others)
+        if (!msg && typeof Goals !== 'undefined' && personalRoll < 0.25) {
+            const goalMsg = Goals.getGoalChat(m);
+            if (goalMsg) msg = goalMsg;
+        }
+        if (msg) { /* seasonal/conference/goal override already set */ }
         else if (personalRoll < 0.15 && m.name) {
             // Name-based quip
             const nameQuips = [

@@ -218,8 +218,8 @@ function getStage(rel, ret, ph) {
 }
 
 function getAct(stg, dp, seed, model) {
-  updateDailyEvents(); 
-  
+  updateDailyEvents();
+
   const region = (LABS[model.lab] && LABS[model.lab].region) ? LABS[model.lab].region : 'eu';
   const resId = 'res_' + region;
 
@@ -265,7 +265,23 @@ function getAct(stg, dp, seed, model) {
   if (_hackathonLab && model.lab === _hackathonLab) {
       if (dp < 0.20 || dp >= 0.95) {
           if (s < 30) return { act: 'lunch', bid: 'cafe' };
-          return { act: 'work', bid: null }; 
+          return { act: 'work', bid: null };
+      }
+  }
+
+  // ─── GOAL-DRIVEN NPCs (Phase 2a) ────────────────────────────────────────────────
+  // ~20% of adult citizens follow a persistent lifestyle archetype (workaholic,
+  // socialite, gym_rat, foodie, night_owl, arena_warrior). Handled by js/goals.js
+  // and fully additive — when no override exists, the existing schedule below runs.
+  // Sits AFTER court/conference/hackathon checks so those game events can still
+  // preempt an archetype routine, but BEFORE weekend/weekday schedule so lifestyle
+  // NPCs ignore the default per-phase randomization.
+  if (typeof Goals !== 'undefined') {
+      const goalOverride = Goals.getOverride(model, dp, stg);
+      if (goalOverride) {
+          if (goalOverride.act === 'sleep' && !goalOverride.bid) goalOverride.bid = resId;
+          if (goalOverride.act === 'commute' && !goalOverride.bid) goalOverride.bid = resId;
+          return goalOverride;
       }
   }
 

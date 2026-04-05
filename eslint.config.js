@@ -156,6 +156,7 @@ export default [
                 XRayMode: 'writable',
                 Debug: 'writable', // debug/perf overlay
                 BitmapFonts: 'writable',
+                Goals: 'writable', // goal-driven NPC archetypes
 
                 // Data / constants declared at top level across many files
                 BLDS: 'writable',
