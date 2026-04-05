@@ -23,6 +23,7 @@
 const AutoTour = {
     active: false,
     _bootOk: false,
+    embedSticky: false,  // When true (embed mode) the tour ignores user input and never auto-exits.
 
     // Tuning
     IDLE_MS: 60000,      // 60 s of no input → auto-start
@@ -215,6 +216,8 @@ const AutoTour = {
 
     _onUserInput() {
         this._lastInputAt = performance.now();
+        // Embed mode: never exit the tour on user input — kiosks/iframes should loop forever.
+        if (this.embedSticky) return;
         if (this.active) this.stop('input');
     },
 
@@ -266,6 +269,13 @@ const AutoTour = {
 
     _showOverlay() {
         if (!this._overlayEl) return;
+        // In embed mode, suppress the "MOVE MOUSE OR PRESS T TO EXIT" hint since it doesn't apply.
+        if (this.embedSticky) {
+            const hint = this._overlayEl.querySelector('div:last-child');
+            if (hint && hint.textContent && hint.textContent.indexOf('MOVE MOUSE') !== -1) {
+                hint.style.display = 'none';
+            }
+        }
         this._overlayEl.style.opacity = '1';
     },
 
