@@ -69,6 +69,7 @@ const Debug = {
             <div id="dbgCam">CAM: --</div>
             <div id="dbgCull">CULL: --</div>
             <div id="dbgLazy">LZN: --</div>
+            <div id="dbgGoal">GOAL: --</div>
             <div id="dbgTick">TICK: --</div>
             <div style="color:#6a6;font-size:9px;margin-top:6px;letter-spacing:0.5px">~ to toggle</div>
         `;
@@ -210,6 +211,18 @@ const Debug = {
             const lz = G._lazyZoneStats();
             this.el.querySelector('#dbgLazy').textContent =
                 `LZN: ${lz.booted}/${lz.total}`;
+        }
+
+        // Goal-driven NPC counts (~20% of adult models get a lifestyle archetype)
+        if (typeof Goals !== 'undefined' && typeof Goals.stats === 'function') {
+            // Cache — stats walk every model, so only update every 60 text ticks (~60s)
+            if (!this._goalCache || this._textTick - this._goalCacheTick > 360) {
+                this._goalCache = Goals.stats();
+                this._goalCacheTick = this._textTick;
+            }
+            const gs = this._goalCache;
+            this.el.querySelector('#dbgGoal').textContent =
+                `GOAL: ${gs.withGoal}/${gs.total}`;
         }
 
         // Engine tick
