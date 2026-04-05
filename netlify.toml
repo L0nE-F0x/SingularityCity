@@ -23,6 +23,12 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/celestrak/*"
+  to = "https://celestrak.org/:splat"
+  status = 200
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]
