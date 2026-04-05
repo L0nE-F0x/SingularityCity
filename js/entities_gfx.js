@@ -542,7 +542,11 @@ const EntitiesGfx = {
         
         const chat = new PIXI.Container();
         const chatBg = new PIXI.Graphics();
-        const chatTxt = new PIXI.Text('', { fontFamily: 'JetBrains Mono', fontSize: 8, fill: 0x000000, fontWeight: 'bold' });
+        // BitmapText — the single highest-churn text in the game. Baked font in bitmap_fonts.js.
+        // Falls back to PIXI.Text if the bake failed (e.g. font not loaded yet).
+        const chatTxt = (typeof BitmapFonts !== 'undefined' && BitmapFonts.has('ChatBubble'))
+            ? new PIXI.BitmapText('', { fontName: 'ChatBubble', fontSize: 8 })
+            : new PIXI.Text('', { fontFamily: 'JetBrains Mono', fontSize: 8, fill: 0x000000, fontWeight: 'bold' });
         chatTxt.anchor.set(0.5, 1); chatTxt.y = -4;
         chat.addChild(chatBg, chatTxt);
         chat.visible = false;

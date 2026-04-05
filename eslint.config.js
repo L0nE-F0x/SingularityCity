@@ -154,7 +154,8 @@ export default [
                 VCRow: 'writable',
                 VCRowEnv: 'writable',
                 XRayMode: 'writable',
-                Debug: 'writable', // reserved for upcoming debug overlay
+                Debug: 'writable', // debug/perf overlay
+                BitmapFonts: 'writable',
 
                 // Data / constants declared at top level across many files
                 BLDS: 'writable',
@@ -238,7 +239,7 @@ export default [
     },
     {
         // Node scripts (if any land in tools/ or scripts/)
-        files: ['tools/**/*.js', 'scripts/**/*.js', '*.config.js', 'eslint.config.js'],
+        files: ['tools/**/*.js', 'tools/**/*.mjs', 'scripts/**/*.js', '*.config.js', 'eslint.config.js'],
         languageOptions: {
             sourceType: 'module',
             globals: {

@@ -1238,8 +1238,12 @@ const G = {
       // At 1.5x it drops to 2880x1620 (4.7M px/frame) — ~43% reduction with zero visible difference.
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       this.app = new PIXI.Application({ width: this.vpW, height: this.vpH, backgroundAlpha: 0, antialias: false, resolution: dpr, autoDensity: true });
-      vp.appendChild(this.app.view); 
+      vp.appendChild(this.app.view);
       this.app.view.style.touchAction = 'none';
+
+      // Bake bitmap fonts once — must happen before any in-world text is created.
+      // See js/bitmap_fonts.js for the list and rationale.
+      if (typeof BitmapFonts !== 'undefined') BitmapFonts.init();
 
       // ─── RESIZE HANDLER ───
       // groundY is a WORLD coordinate, not a screen coordinate.
