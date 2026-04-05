@@ -35,7 +35,8 @@ const XRayMode = {
         const wrap = document.getElementById('gameWrap');
         if (wrap) wrap.classList.add('xray-mode');
 
-        // Save & dim existing layers
+        // Save & fully HIDE existing world layers so X-Ray reads as a pure neon overlay
+        // on black (works regardless of day/night — no faded-daylight bleed-through).
         this._savedAlphas = {
             cloud: G.cloudLayer ? G.cloudLayer.alpha : 1,
             stars: G.starsLayer ? G.starsLayer.alpha : 1,
@@ -46,28 +47,34 @@ const XRayMode = {
             car: G.carLayer ? G.carLayer.alpha : 1,
             fx: G.fxGfx ? G.fxGfx.alpha : 1,
             reflection: G.reflectionLayer ? G.reflectionLayer.alpha : 1,
+            bld: G.bldLayer ? G.bldLayer.alpha : 1,
+            ground: G.groundGfx ? G.groundGfx.alpha : 1,
+            underground: G.undergroundLayer ? G.undergroundLayer.alpha : 1,
+            train: G.trainLayer ? G.trainLayer.alpha : 1,
         };
 
         if (G.cloudLayer) G.cloudLayer.alpha = 0;
-        if (G.starsLayer) G.starsLayer.alpha = 0.15;
+        if (G.starsLayer) G.starsLayer.alpha = 0;
         if (G.celestialGfx) G.celestialGfx.alpha = 0;
-        if (G.lightLayer) G.lightLayer.alpha = 0.1;
-        if (G.staticLightsGfx) G.staticLightsGfx.alpha = 0.1;
-        if (G.charLayer) G.charLayer.alpha = 0.08;
-        if (G.carLayer) G.carLayer.alpha = 0.05;
-        if (G.fxGfx) G.fxGfx.alpha = 0.1;
+        if (G.lightLayer) G.lightLayer.alpha = 0;
+        if (G.staticLightsGfx) G.staticLightsGfx.alpha = 0;
+        if (G.charLayer) G.charLayer.alpha = 0;
+        if (G.carLayer) G.carLayer.alpha = 0;
+        if (G.fxGfx) G.fxGfx.alpha = 0;
         if (G.reflectionLayer) G.reflectionLayer.alpha = 0;
-
-        // Dim building layer and tint
-        if (G.bldLayer) G.bldLayer.alpha = 0.15;
-        if (G.groundGfx) G.groundGfx.alpha = 0.2;
+        if (G.bldLayer) G.bldLayer.alpha = 0;
+        if (G.groundGfx) G.groundGfx.alpha = 0;
+        if (G.undergroundLayer) G.undergroundLayer.alpha = 0;
+        if (G.trainLayer) G.trainLayer.alpha = 0;
 
         // Build overlay
         this.overlay = new PIXI.Container();
         this.overlay.zIndex = 999;
         G.world.addChild(this.overlay);
 
+        this._buildBackdrop();
         this._buildGrid();
+        this._buildHorizon();
         this._buildWireframes();
         this._buildConnections();
         this._buildStatLabels();
@@ -87,17 +94,22 @@ const XRayMode = {
         if (wrap) wrap.classList.remove('xray-mode');
 
         // Restore layer alphas
-        if (G.cloudLayer) G.cloudLayer.alpha = this._savedAlphas.cloud || 1;
-        if (G.starsLayer) G.starsLayer.alpha = this._savedAlphas.stars || 1;
-        if (G.celestialGfx) G.celestialGfx.alpha = this._savedAlphas.celestial || 1;
-        if (G.lightLayer) G.lightLayer.alpha = this._savedAlphas.light || 1;
-        if (G.staticLightsGfx) G.staticLightsGfx.alpha = this._savedAlphas.staticLights || 1;
-        if (G.charLayer) G.charLayer.alpha = this._savedAlphas.char || 1;
-        if (G.carLayer) G.carLayer.alpha = this._savedAlphas.car || 1;
-        if (G.fxGfx) G.fxGfx.alpha = this._savedAlphas.fx || 1;
-        if (G.reflectionLayer) G.reflectionLayer.alpha = this._savedAlphas.reflection || 1;
-        if (G.bldLayer) G.bldLayer.alpha = 1;
-        if (G.groundGfx) G.groundGfx.alpha = 1;
+        const s = this._savedAlphas;
+        if (G.cloudLayer) G.cloudLayer.alpha = s.cloud != null ? s.cloud : 1;
+        if (G.starsLayer) G.starsLayer.alpha = s.stars != null ? s.stars : 1;
+        if (G.celestialGfx) G.celestialGfx.alpha = s.celestial != null ? s.celestial : 1;
+        if (G.lightLayer) G.lightLayer.alpha = s.light != null ? s.light : 1;
+        if (G.staticLightsGfx) G.staticLightsGfx.alpha = s.staticLights != null ? s.staticLights : 1;
+        if (G.charLayer) G.charLayer.alpha = s.char != null ? s.char : 1;
+        if (G.carLayer) G.carLayer.alpha = s.car != null ? s.car : 1;
+        if (G.fxGfx) G.fxGfx.alpha = s.fx != null ? s.fx : 1;
+        if (G.reflectionLayer) G.reflectionLayer.alpha = s.reflection != null ? s.reflection : 1;
+        if (G.bldLayer) G.bldLayer.alpha = s.bld != null ? s.bld : 1;
+        if (G.groundGfx) G.groundGfx.alpha = s.ground != null ? s.ground : 1;
+        if (G.undergroundLayer) G.undergroundLayer.alpha = s.underground != null ? s.underground : 1;
+        if (G.trainLayer) G.trainLayer.alpha = s.train != null ? s.train : 1;
+        // Force sky to re-apply on next environment update (skip-if-active path was taken)
+        if (typeof Environment !== 'undefined') Environment._lastSky = null;
 
         // Remove overlay
         if (this.overlay) {
@@ -117,30 +129,95 @@ const XRayMode = {
         console.log('🔬 X-Ray Mode deactivated');
     },
 
-    // ─── GRID: Subtle coordinate grid across the city ───
+    // ─── BACKDROP: Solid near-black rectangle covering the full world area ───
+    // Sits behind all overlay elements so any residual layer pixels are masked out.
+    _buildBackdrop() {
+        const bg = new PIXI.Graphics();
+        const cityW = G.cityW || G.getCityWidth();
+        // Cover well past the city edges in every direction (camera can roam/zoom)
+        bg.beginFill(0x02060a, 1);
+        bg.drawRect(-4000, -5000, cityW + 8000, 10000);
+        bg.endFill();
+        // Very subtle vertical gradient hint via thin translucent bands
+        bg.beginFill(0x031018, 0.5);
+        bg.drawRect(-4000, -5000, cityW + 8000, 4500); // upper "sky" band
+        bg.endFill();
+        this.overlay.addChild(bg);
+    },
+
+    // ─── GRID: Neon coordinate grid across the full scene (sky + ground) ───
     _buildGrid() {
         const g = new PIXI.Graphics();
         const gy = G.groundY;
         const cityW = G.cityW || G.getCityWidth();
+        const topY = gy - 1400;
+        const botY = gy + 400;
 
-        g.lineStyle(1, 0x00ff88, 0.06);
-        // Vertical lines every 200px
-        for (let x = 0; x < cityW; x += 200) {
-            g.moveTo(x, gy - 300);
-            g.lineTo(x, gy + 20);
+        // Fine grid — dim cyan/green
+        g.lineStyle(1, 0x00ff88, 0.05);
+        for (let x = 0; x < cityW; x += 120) {
+            g.moveTo(x, topY);
+            g.lineTo(x, botY);
         }
-        // Horizontal lines
-        for (let y = gy - 300; y <= gy + 20; y += 50) {
+        for (let y = topY; y <= botY; y += 60) {
             g.moveTo(0, y);
             g.lineTo(cityW, y);
         }
 
-        // Ground line highlight
-        g.lineStyle(2, 0x00ff88, 0.3);
-        g.moveTo(0, gy);
-        g.lineTo(cityW, gy);
+        // Major grid — every 600px, slightly brighter
+        g.lineStyle(1, 0x00ff88, 0.12);
+        for (let x = 0; x < cityW; x += 600) {
+            g.moveTo(x, topY);
+            g.lineTo(x, botY);
+        }
+        for (let y = topY; y <= botY; y += 300) {
+            g.moveTo(0, y);
+            g.lineTo(cityW, y);
+        }
 
         this._gridLines = g;
+        this.overlay.addChild(g);
+    },
+
+    // ─── HORIZON: Bright neon ground line + underground band ───
+    _buildHorizon() {
+        const g = new PIXI.Graphics();
+        const gy = G.groundY;
+        const cityW = G.cityW || G.getCityWidth();
+
+        // Bright ground line
+        g.lineStyle(2, 0x00ff88, 0.8);
+        g.moveTo(-2000, gy);
+        g.lineTo(cityW + 2000, gy);
+        // Glow echo below
+        g.lineStyle(4, 0x00ff88, 0.15);
+        g.moveTo(-2000, gy + 2);
+        g.lineTo(cityW + 2000, gy + 2);
+
+        // Subtle underground fill band (tunnel + pipes area)
+        g.beginFill(0x001a12, 0.5);
+        g.drawRect(-2000, gy + 4, cityW + 4000, 280);
+        g.endFill();
+
+        // Dotted secondary horizon (at tunnel depth)
+        g.lineStyle(1, 0x00ff88, 0.25);
+        for (let x = -2000; x < cityW + 2000; x += 12) {
+            g.moveTo(x, gy + 120);
+            g.lineTo(x + 6, gy + 120);
+        }
+        // Dotted water pipe depth
+        g.lineStyle(1, 0x06b6d4, 0.35);
+        for (let x = -2000; x < cityW + 2000; x += 14) {
+            g.moveTo(x, gy + 220);
+            g.lineTo(x + 7, gy + 220);
+        }
+        // Dotted sewer pipe depth
+        g.lineStyle(1, 0xf59e0b, 0.3);
+        for (let x = -2000; x < cityW + 2000; x += 14) {
+            g.moveTo(x, gy + 237);
+            g.lineTo(x + 7, gy + 237);
+        }
+
         this.overlay.addChild(g);
     },
 
@@ -155,13 +232,21 @@ const XRayMode = {
             const h = (b.fl || 2) * 18 + 24;
             const labColor = this._getLabColor(b);
 
-            // Wireframe outline
+            // Wireframe outline — solid fill first for silhouette, then bright neon stroke
             const wf = new PIXI.Graphics();
-            wf.lineStyle(1.5, labColor, 0.7);
+            // Soft inner fill so buildings read as solid dark shapes against the black
+            wf.beginFill(labColor, 0.08);
+            wf.drawRect(b.x, gy - h, b.w, h);
+            wf.endFill();
+            // Outer glow (thick, low alpha)
+            wf.lineStyle(4, labColor, 0.18);
+            wf.drawRect(b.x, gy - h, b.w, h);
+            // Main neon stroke
+            wf.lineStyle(1.5, labColor, 0.95);
             wf.drawRect(b.x, gy - h, b.w, h);
 
             // Floor lines
-            wf.lineStyle(0.5, labColor, 0.2);
+            wf.lineStyle(0.5, labColor, 0.35);
             for (let f = 1; f < (b.fl || 2); f++) {
                 const fy = gy - f * 18;
                 wf.moveTo(b.x, fy);
@@ -170,7 +255,7 @@ const XRayMode = {
 
             // Corner brackets (tech overlay feel)
             const bracketLen = Math.min(12, b.w * 0.15);
-            wf.lineStyle(2, labColor, 0.9);
+            wf.lineStyle(2, labColor, 1.0);
             // Top-left
             wf.moveTo(b.x, gy - h + bracketLen);
             wf.lineTo(b.x, gy - h);
@@ -229,7 +314,7 @@ const XRayMode = {
                 const dist = Math.abs(bx - ax);
                 const arcHeight = Math.min(dist * 0.15, 60);
 
-                g.lineStyle(1, col, 0.15);
+                g.lineStyle(1.2, col, 0.35);
                 g.moveTo(ax, gy - 5);
                 g.quadraticCurveTo(midX, gy - 5 - arcHeight, bx, gy - 5);
             }
@@ -255,7 +340,7 @@ const XRayMode = {
             for (let i = 0; i < zoneBlds.length - 1; i++) {
                 const a = zoneBlds[i];
                 const b = zoneBlds[i + 1];
-                g.lineStyle(1, col, 0.12);
+                g.lineStyle(1, col, 0.28);
                 g.moveTo(a.x + a.w / 2, gy - 5);
                 g.lineTo(b.x + b.w / 2, gy - 5);
                 this._spawnDataFlow(a, b, col);
@@ -354,15 +439,18 @@ const XRayMode = {
     // ─── SCAN LINE: Horizontal sweep effect ───
     _buildScanLine() {
         const sl = new PIXI.Graphics();
-        sl.beginFill(0x00ff88, 0.08);
-        sl.drawRect(-5000, 0, 80000, 3);
+        sl.beginFill(0x00ff88, 0.2);
+        sl.drawRect(-5000, 0, 80000, 2);
         sl.endFill();
         // Glow above
-        sl.beginFill(0x00ff88, 0.03);
-        sl.drawRect(-5000, -15, 80000, 15);
+        sl.beginFill(0x00ff88, 0.08);
+        sl.drawRect(-5000, -20, 80000, 20);
+        sl.endFill();
+        sl.beginFill(0x00ff88, 0.04);
+        sl.drawRect(-5000, -50, 80000, 30);
         sl.endFill();
         this._scanLine = sl;
-        this._scanY = G.groundY - 300;
+        this._scanY = G.groundY - 1000;
         sl.y = this._scanY;
         this.overlay.addChild(sl);
     },
@@ -402,10 +490,10 @@ const XRayMode = {
             ring.drawCircle(ring._cx, ring._cy, ring._radius * scale);
         });
 
-        // Scan line — sweep up and down
+        // Scan line — sweep up and down across the full neon grid
         if (this._scanLine) {
-            this._scanY += 0.5;
-            if (this._scanY > G.groundY + 20) this._scanY = G.groundY - 300;
+            this._scanY += 1.2;
+            if (this._scanY > G.groundY + 50) this._scanY = G.groundY - 1200;
             this._scanLine.y = this._scanY;
         }
     },
