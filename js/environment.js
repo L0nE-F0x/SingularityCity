@@ -451,11 +451,11 @@ const Environment = {
               g.beginFill(0x22d3ee, 0.4); g.drawCircle(cx - 2, gy + 32, 1.2); g.endFill();
               g.beginFill(0x4ade80, 0.4); g.drawCircle(cx + 2, gy + 32, 1.2); g.endFill();
           });
-          // Deep earth below
-          g.beginFill(0x0a0f1a); g.drawRect(backboneStartX, gy + 70, bkw, 100); g.endFill();
-          // Additional deep fiber conduits
+          // Deep earth below the tunnel cavity (gy+70 to gy+170 is left transparent for the metro tunnel)
+          g.beginFill(0x0a0f1a); g.drawRect(backboneStartX, gy + 170, bkw, 100); g.endFill();
+          // Additional deep fiber conduits (below the tunnel)
           for (let di = 0; di < 6; di++) {
-              const dy = gy + 80 + di * 12;
+              const dy = gy + 180 + di * 12;
               const col = cableCols[di % cableCols.length];
               g.beginFill(col, 0.12); g.drawRect(backboneStartX, dy, bkw, 1); g.endFill();
           }
