@@ -1465,6 +1465,71 @@ const G = {
   
     // buildMacroLayer → macro_view.js (mixed in via Object.assign)
 
+    // Off-screen cull stats (read by debug overlay)
+    _cullStats: { chars: 0, cars: 0, vendors: 0, total: 0, hidden: 0 },
+
+    // Flip renderable=false on objects whose world X is outside the camera viewport.
+    // Uses a horizontal-only check — the city is wide and flat, so vertical culling
+    // wouldn't save much. A margin of one viewport width on each side hides the cost
+    // of characters walking in at the edge.
+    _cullOffScreen() {
+      if (typeof Camera === 'undefined' || !this.world) return;
+      const zoom = Camera.zoom || 1;
+      const vpW = this.vpW || 800;
+      // Visible world X range (see camera.js: world.x = Camera.x * zoom)
+      const worldLeft = -Camera.x;
+      const worldRight = worldLeft + vpW / zoom;
+      const margin = vpW / zoom; // one viewport of padding either side
+      const minX = worldLeft - margin;
+      const maxX = worldRight + margin;
+
+      let cChars = 0, cCars = 0, cVend = 0, total = 0, hidden = 0;
+
+      // Characters
+      const refs = this.charRefs;
+      if (refs) {
+          for (const id in refs) {
+              const r = refs[id];
+              if (!r || !r.c) continue;
+              total++;
+              const onScreen = r.c.x >= minX && r.c.x <= maxX;
+              if (r.c.renderable !== onScreen) r.c.renderable = onScreen;
+              if (!onScreen) { cChars++; hidden++; }
+          }
+      }
+
+      // Cars (c.gfx is the sprite). Respect existing .visible flag — we only flip
+      // renderable, not visibility, so port/teleport logic continues to work.
+      if (this.cars && this.cars.length) {
+          for (let i = 0; i < this.cars.length; i++) {
+              const car = this.cars[i];
+              if (!car || !car.gfx) continue;
+              total++;
+              const onScreen = car.gfx.x >= minX && car.gfx.x <= maxX;
+              if (car.gfx.renderable !== onScreen) car.gfx.renderable = onScreen;
+              if (!onScreen) { cCars++; hidden++; }
+          }
+      }
+
+      // Street vendors (avatar + stall)
+      if (typeof StreetVendors !== 'undefined' && StreetVendors.vendors) {
+          const v = StreetVendors.vendors;
+          for (let i = 0; i < v.length; i++) {
+              const vm = v[i];
+              if (!vm || !vm.c) continue;
+              total++;
+              const onScreen = vm.c.x >= minX && vm.c.x <= maxX;
+              if (vm.c.renderable !== onScreen) vm.c.renderable = onScreen;
+              if (vm.stall && vm.stall.cont) vm.stall.cont.renderable = onScreen;
+              if (!onScreen) { cVend++; hidden++; }
+          }
+      }
+
+      const s = this._cullStats;
+      s.chars = cChars; s.cars = cCars; s.vendors = cVend;
+      s.total = total; s.hidden = hidden;
+    },
+
     loop() {
       this.tick++;
       if(this.viewMode === 'micro' && typeof Entities !== 'undefined') { 
@@ -1556,7 +1621,12 @@ const G = {
       if (typeof UniversityEnv !== 'undefined') UniversityEnv.update();
       if (typeof CourtData !== 'undefined') CourtData.update();
       if (typeof ConferenceData !== 'undefined') ConferenceData.update();
-  
+
+      // Off-screen cull pass — flip `renderable = false` on character/car/vendor
+      // containers whose world X is outside the camera viewport. PIXI skips rendering
+      // the entire subtree but transforms/state still update, so game logic is unaffected.
+      this._cullOffScreen();
+
       if (this.tick % 60 === 0) {
         // NOTE: Building sign/window occupancy updates are handled by Environment.update()
 
