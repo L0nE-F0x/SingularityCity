@@ -321,7 +321,11 @@ const Environment = {
       drawCityH(gy + 170, 100, 0x0a0a0f);
       
       let mEast = window.BLDS ? window.BLDS.find(b => b.id === 'metro_east') : null;
-      let tunnelEndX = mEast ? mEast.x + (mEast.w / 2) + 160 : G.cityW;
+      let mLong = window.BLDS ? window.BLDS.find(b => b.id === 'metro_longevity') : null;
+      // Extend tunnel to the easternmost station (metro_longevity if present)
+      let tunnelEndX = mLong ? mLong.x + (mLong.w / 2) + 160
+                      : mEast ? mEast.x + (mEast.w / 2) + 160
+                      : G.cityW;
 
       // Rock/earth fill AFTER the tunnel ends — covers gy+70 to gy+270 (stop before power zone)
       const rockEndX = G.cityW + 4000;
