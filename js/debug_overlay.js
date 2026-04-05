@@ -67,6 +67,7 @@ const Debug = {
             <div id="dbgMem" style="display:none">MEM: --</div>
             <div id="dbgMode">MODE: --</div>
             <div id="dbgCam">CAM: --</div>
+            <div id="dbgCull">CULL: --</div>
             <div id="dbgTick">TICK: --</div>
             <div style="color:#6a6;font-size:9px;margin-top:6px;letter-spacing:0.5px">~ to toggle</div>
         `;
@@ -123,14 +124,18 @@ const Debug = {
         const dt = now - this._lastFrameTime;
         this._lastFrameTime = now;
 
-        // Guard against tab-switch spikes — cap stored samples at 1s
-        const clamped = Math.min(dt, 1000);
-        this._samples.push(clamped);
-        if (this._samples.length > this._maxSamples) this._samples.shift();
+        // Filter background-tick pollution. When the tab is hidden, engine.js falls
+        // back to a setInterval(500) loop which would show up as giant frame times and
+        // wreck the rolling average. Anything ≥100ms is almost certainly a bg tick
+        // or a real stall — either way it's not a useful rAF sample.
+        if (dt < 100) {
+            this._samples.push(dt);
+            if (this._samples.length > this._maxSamples) this._samples.shift();
 
-        const fps = dt > 0 ? 1000 / dt : 0;
-        if (fps < this._fpsMin) this._fpsMin = fps;
-        if (fps > this._fpsMax) this._fpsMax = fps;
+            const fps = dt > 0 ? 1000 / dt : 0;
+            if (fps < this._fpsMin) this._fpsMin = fps;
+            if (fps > this._fpsMax) this._fpsMax = fps;
+        }
 
         // Draw the spark graph every frame (cheap — 220x38 canvas)
         this._drawGraph();
@@ -189,6 +194,14 @@ const Debug = {
         if (typeof Camera !== 'undefined') {
             this.el.querySelector('#dbgCam').textContent =
                 `CAM: ${Camera.x.toFixed(0)},${Camera.y.toFixed(0)} z${Camera.zoom.toFixed(2)}`;
+        }
+
+        // Cull stats (how many characters/cars/vendors the off-screen pass hid this frame)
+        if (typeof G !== 'undefined' && G._cullStats) {
+            const s = G._cullStats;
+            const pct = s.total > 0 ? Math.round((s.hidden / s.total) * 100) : 0;
+            this.el.querySelector('#dbgCull').textContent =
+                `CULL: ${s.hidden}/${s.total} (${pct}%)`;
         }
 
         // Engine tick
