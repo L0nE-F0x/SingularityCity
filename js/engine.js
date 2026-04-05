@@ -1211,7 +1211,11 @@ const G = {
       this.vpH = window.innerHeight;
       this.groundY = this.vpH - 56;
       
-      this.app = new PIXI.Application({ width: this.vpW, height: this.vpH, backgroundAlpha: 0, antialias: false, resolution: window.devicePixelRatio || 1, autoDensity: true });
+      // Cap DPR at 1.5 — pixel art looks identical above this, but render cost scales quadratically.
+      // At 2x DPR on a 1920x1080 desktop, internal buffer is 3840x2160 (8.3M px/frame).
+      // At 1.5x it drops to 2880x1620 (4.7M px/frame) — ~43% reduction with zero visible difference.
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      this.app = new PIXI.Application({ width: this.vpW, height: this.vpH, backgroundAlpha: 0, antialias: false, resolution: dpr, autoDensity: true });
       vp.appendChild(this.app.view); 
       this.app.view.style.touchAction = 'none';
 

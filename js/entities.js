@@ -901,16 +901,24 @@ const Entities = {
         if (typeof refs._metroState === 'undefined') refs._metroState = 'none';
         if (typeof refs._logicalY === 'undefined') refs._logicalY = G.groundY - 20;
 
-        // ─── VIEWPORT CULLING: Skip expensive updates for off-screen indoor characters ───
-        // Characters inside buildings (invisible) only need occasional checks
-        // Characters on metro or on-screen need full updates
+        // ─── VIEWPORT CULLING: Skip expensive updates for off-screen characters ───
+        // Only 'riding' metro state needs frame-perfect sync (position relative to train).
+        // All other states (walking, waiting_train, entering, exiting) can be culled when off-screen.
+        // Indoor (invisible) NPCs update every 120 frames; off-screen outdoor at ~10fps (every 6).
         const isOnScreen = refs.c.x >= camLeft && refs.c.x <= camRight;
-        const isOnMetro = refs._metroState !== 'none';
-        if (!isOnScreen && !isOnMetro && refs.bld !== null && refs.c.visible === false) {
-            // Off-screen + inside a building = skip all movement/animation
-            // Only check every 120 frames if they should leave
-            if (G.tick % 120 !== (i % 120)) return;
+        const isRiding = refs._metroState === 'riding';
+        if (!isOnScreen && !isRiding) {
+            if (refs.bld !== null && refs.c.visible === false) {
+                // Off-screen + inside a building — rarely update (every 120 frames)
+                if (G.tick % 120 !== (i % 120)) return;
+            } else {
+                // Off-screen + outdoor or at station — throttle to ~10fps
+                // Walking distance per update is unchanged; only frame cadence drops
+                if (G.tick % 6 !== (i % 6)) return;
+            }
         }
+        // Kept for downstream compatibility (line 1095 chat detection uses isOnScreen)
+        const isOnMetro = refs._metroState !== 'none';
 
         const bldSpread = Math.max(tBld.w - 10, 30); 
         const pseudoRandomOffset = ((i * 73) % bldSpread) - (bldSpread / 2);
@@ -1030,7 +1038,8 @@ const Entities = {
                         // If train is here, push non-boarding characters to back of platform
                         // so they don't overlap the train body visually
                         if (activeTrain && activeTrain.state === 'waiting' && Math.abs(activeTrain.x - s1) < 5) {
-                            if (activeTrain.passengers < 30) {
+                            // Cap raised from 30→80 to prevent rush-hour platform pile-up
+                            if (activeTrain.passengers < 80) {
                                 activeTrain.passengers++;
                                 refs._metroState = 'riding';
                                 refs._ridingTrain = activeTrain;
