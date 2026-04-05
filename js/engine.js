@@ -1451,8 +1451,6 @@ const G = {
       if (this.tracking) this.updateTracking();
       // Minimap update every 10 frames
       if (this.tick % 10 === 0) this.updateMinimap();
-      // BurnTracker — piggyback on main loop instead of independent rAF
-      if (typeof BurnTracker !== 'undefined' && BurnTracker.totalEl) BurnTracker.tick();
       this.update();
     },
   

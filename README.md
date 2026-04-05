@@ -135,7 +135,6 @@ js/
   npc_housing.js        — NPC registry & commuter system
   street_vendors.js     — Food cart NPCs
   multiplayer.js        — Ghost cursor multiplayer
-  burn_tracker.js       — Global API cost burn rate
   datacenter_data.js    — DC facility data
   seasonal.js           — Seasonal events (snow, fireworks, etc.)
   seasonal_env.js       — Seasonal environment effects
