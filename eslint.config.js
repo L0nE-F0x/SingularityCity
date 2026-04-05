@@ -157,6 +157,7 @@ export default [
                 Debug: 'writable', // debug/perf overlay
                 BitmapFonts: 'writable',
                 Goals: 'writable', // goal-driven NPC archetypes
+                AutoTour: 'writable', // idle screensaver / handsfree tour
 
                 // Data / constants declared at top level across many files
                 BLDS: 'writable',
