@@ -608,7 +608,6 @@ const OrbitMode = {
 
     // ─── HUD ───
     _buildHUD() {
-        const W = G.vpW;
         // Top padding pushes the title clear of browser chrome. Press Start 2P
         // ascenders also extend above the glyph bounds so the text style below
         // adds `padding` to prevent the top pixels from being clipped out of
