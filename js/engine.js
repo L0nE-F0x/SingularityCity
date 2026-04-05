@@ -1492,6 +1492,7 @@ const G = {
       this.initMinimap();
       this.initEasterEggs();
       if (typeof Debug !== 'undefined') Debug.init();
+      if (typeof AutoTour !== 'undefined') AutoTour.init();
 
       window.addEventListener('beforeunload', () => {
           this.save();
@@ -1622,6 +1623,10 @@ const G = {
     },
   
     update() {
+      // Auto-tour runs first so it can self-bail when a blocking mode activates.
+      // Cheap no-op when inactive (just an idle timer check).
+      if (typeof AutoTour !== 'undefined') AutoTour.update();
+
       // Orbit Mode runs independently — update even during transitions
       if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) {
           OrbitMode.update();
