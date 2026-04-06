@@ -95,9 +95,10 @@ const InteriorLongevity = {
         this.scene.addChild(roofTxt);
 
         // ─── ELEVATOR LAYOUT (defined early so floor props can use usableW) ───
-        const shaftW = 60;
-        const shaftX = startX + bldW - shaftW - 20;
-        const usableW = bldW - shaftW - 20;   // floor content stops before elevator shaft
+        // CityElevator shaft is 48px wide (doorWidth=24 each side of center).
+        // Place center so right edge of shaft = right edge of building wall.
+        const elevatorX = startX + bldW - 26;   // shaft right edge at startX+bldW-2
+        const usableW = bldW - 54;              // floor content stops 6px left of shaft
 
         // ─── FLOORS (f = -1 is themed basement, f = 0..N-1 are normal floors) ───
         // Window band constants for above-ground floors — sky shows through cutout
@@ -180,17 +181,6 @@ const InteriorLongevity = {
             }
         }
 
-        // ─── ELEVATOR SHAFT BACKGROUND (dark strip behind shaft, drawn on each floor) ───
-        const shaftBg = new PIXI.Graphics();
-        shaftBg.beginFill(0x0a0e1a, 0.9);
-        shaftBg.drawRect(startX + usableW, roofH, bldW - usableW, (numFloors + 1) * floorH);
-        shaftBg.endFill();
-        // Vertical divider line
-        shaftBg.beginFill(layout.col, 0.12);
-        shaftBg.drawRect(startX + usableW, roofH, 2, (numFloors + 1) * floorH);
-        shaftBg.endFill();
-        this.scene.addChild(shaftBg);
-
         // ─── GROUND SECTION (below basement) ───
         const surfaceY = roofH + numFloors * floorH;              // top of basement = street level
         const belowBasementY = roofH + (numFloors + 1) * floorH;  // bottom of basement
@@ -230,7 +220,7 @@ const InteriorLongevity = {
             em.endFill();
             ec.addChild(em);
             ec.mask = em;
-            this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
+            this._lift = new CityElevator(ec, numFloors, floorH, elevatorX);
         }
 
         // ─── Spawn interior NPCs (usableW keeps NPCs out of shaft zone) ───

@@ -82,9 +82,10 @@ const InteriorRobotics = {
         const mullionW = 6;
 
         // ─── ELEVATOR LAYOUT (defined early so floor props can use usableW) ───
-        const shaftW = 60;
-        const shaftX = startX + bldW - shaftW - 20;
-        const usableW = bldW - shaftW - 20;   // floor content stops before elevator shaft
+        // CityElevator shaft is 48px wide (doorWidth=24 each side of center).
+        // Place center so right edge of shaft = right edge of building wall.
+        const elevatorX = startX + bldW - 26;   // shaft right edge at startX+bldW-2
+        const usableW = bldW - 54;              // floor content stops 6px left of shaft
 
         // ─── DRAW FLOORS (top-down like Backbone/Longevity) ───
         // groundY = where the ground level sits in scene coords
@@ -164,17 +165,6 @@ const InteriorRobotics = {
         wallG.endFill();
         this.scene.addChild(wallG);
 
-        // ─── ELEVATOR SHAFT BACKGROUND (dark strip behind shaft, drawn on each floor) ───
-        const shaftBg = new PIXI.Graphics();
-        shaftBg.beginFill(0x0a0e1a, 0.9);
-        shaftBg.drawRect(startX + usableW, roofH, bldW - usableW, (numFloors + 1) * floorH);
-        shaftBg.endFill();
-        // Vertical divider line
-        shaftBg.beginFill(layout.col, 0.12);
-        shaftBg.drawRect(startX + usableW, roofH, 2, (numFloors + 1) * floorH);
-        shaftBg.endFill();
-        this.scene.addChild(shaftBg);
-
         // ─── GROUND (fills sides beyond the building footprint) ───
         const earth = new PIXI.Graphics();
         earth.beginFill(0x0a1020);
@@ -201,7 +191,7 @@ const InteriorRobotics = {
             em.endFill();
             ec.addChild(em);
             ec.mask = em;
-            this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
+            this._lift = new CityElevator(ec, numFloors, floorH, elevatorX);
         }
 
         // ─── SPAWN INTERIOR NPCs (usableW keeps NPCs out of shaft zone) ───
