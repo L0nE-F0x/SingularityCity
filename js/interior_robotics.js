@@ -158,6 +158,15 @@ const InteriorRobotics = {
 
         this._drawBasementProps(this.scene, startX, bldW, basementY, floorH, bld.id, layout.col);
 
+        // ─── ELEVATOR ───
+        const shaftX = startX + bldW - 40;
+        if (typeof CityElevator !== 'undefined') {
+            const ec = new PIXI.Container();
+            ec.y = baseY;
+            this.scene.addChild(ec);
+            this._lift = new CityElevator(ec, numFloors, floorH, shaftX - startX);
+        }
+
         // ─── ZONE-AWARE UNDERGROUND ───
         // Robotics district is past the metro terminus → east_rock zone per _determineZone
         const surfaceY = baseY;
@@ -178,23 +187,24 @@ const InteriorRobotics = {
         this._spawnNPCs(this.scene, startX, bldW, baseY, floorH, numFloors, layout);
 
         // ─── Y-AXIS SCROLLING ───
-        // Note: `e` is a PIXI FederatedPointerEvent — its .target is a PIXI display
-        // object, not a DOM element, so we must not call .closest() on it. The exit
-        // button is a DOM element overlaid outside the canvas, so it can't fire here.
+        this.layer.eventMode = 'static';
+        this.layer.cursor = 'grab';
+        this.layer.hitArea = new PIXI.Rectangle(0, 0, W, H);
+        if (this._onMove) window.removeEventListener('pointermove', this._onMove);
+        if (this._onUp) window.removeEventListener('pointerup', this._onUp);
         this._onDown = (e) => {
             this.isDragging = true;
             this._startY = e.clientY;
             this._startSceneY = this.scene.y;
+            this.layer.cursor = 'grabbing';
         };
         this._onMove = (e) => {
             if (!this.isDragging) return;
             const dy = e.clientY - this._startY;
             this.scene.y = Math.max(this.minY, Math.min(this.maxY, this._startSceneY + dy));
         };
-        this._onUp = () => { this.isDragging = false; };
-
-        layer.eventMode = 'static';
-        layer.on('pointerdown', this._onDown);
+        this._onUp = () => { this.isDragging = false; this.layer.cursor = 'grab'; };
+        this.layer.on('pointerdown', this._onDown);
         window.addEventListener('pointermove', this._onMove);
         window.addEventListener('pointerup', this._onUp);
     },
@@ -782,7 +792,18 @@ const InteriorRobotics = {
         cont.addChild(txt);
 
         cont.eventMode = 'static'; cont.cursor = 'pointer';
-        cont.on('pointertap', () => { if (typeof UI !== 'undefined' && UI.addToast) UI.addToast(`${role} — Robotics Factory`); });
+        cont.hitArea = new PIXI.Rectangle(-bw, -h - 12, bw * 2, h + 16);
+        cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined' && UI.selectModel) {
+                UI.selectModel({ id: 'robo_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true, _trackType: 'npc', role: role, lab: 'robotics', desc: role + '. Robotics Factory.' });
+            }
+        });
+        cont.on('pointerover', (e) => {
+            if (typeof UI !== 'undefined' && UI.showTooltip) UI.showTooltip(e, role, 'Robotics Factory');
+        });
+        cont.on('pointerout', () => {
+            if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
+        });
 
         c.addChild(cont);
 
@@ -908,11 +929,13 @@ const InteriorRobotics = {
             InteriorCity._applyDynamicSky(this.celestialGfx, this.starsLayer);
         }
         this.updateAvatars();
+        if (this._lift && !this._lift.destroyed) this._lift.update();
     },
 
     cleanup() {
         this.skyContainer = null;
         this.starsLayer = null;
         this.celestialGfx = null;
+        if (this._lift) { this._lift.destroy(); this._lift = null; }
     }
 };

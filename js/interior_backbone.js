@@ -42,7 +42,7 @@ const InteriorBackbone = {
         const layout = layouts[bld.id] || { floors: ['Operations'], roofLabel: bld.name.toUpperCase(), col: 0x22d3ee, npcs: [] };
         const numFloors = layout.floors.length;
         const roofH = 60;
-        this.totalH = roofH + (numFloors + 1) * floorH;
+        this.totalH = roofH + (numFloors + 1) * floorH + 220;
 
         // Roof sign
         const rc = new PIXI.Container();
@@ -116,7 +116,7 @@ const InteriorBackbone = {
             });
         }
 
-        // Earth + fiber cables below building
+        // ─── GROUND (fills sides beyond the building footprint) ───
         const groundY = roofH + numFloors * floorH;
         const earth = new PIXI.Graphics();
         earth.beginFill(0x0a1020); earth.drawRect(0, groundY, startX-6, floorH); earth.drawRect(startX+bldW+6, groundY, G.vpW-startX-bldW-6, floorH); earth.endFill();
@@ -124,27 +124,21 @@ const InteriorBackbone = {
         earth.beginFill(0x1a2a3a); earth.drawRect(0, groundY-2, startX-6, 4); earth.drawRect(startX+bldW+6, groundY-2, G.vpW-startX-bldW-6, 4); earth.endFill();
         this.scene.addChild(earth);
 
-        // Fiber cable trunk below
-        const vmY = roofH + (numFloors+1) * floorH;
-        const vm = new PIXI.Graphics();
-        vm.beginFill(0x060a12); vm.drawRect(0, vmY-4, G.vpW, 10); vm.endFill();
-        vm.beginFill(0x030610); vm.drawRect(0, vmY+6, G.vpW, 3000); vm.endFill();
-        // Dense fiber cables
-        const cc = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
-        for (let cy = vmY+12; cy < vmY+140; cy += 4) {
-            const col = cc[Math.floor(Math.random()*cc.length)];
-            vm.beginFill(col, 0.2+Math.random()*0.35);
-            vm.drawRect(0, cy+Math.random()*2, G.vpW, 1+Math.random()*2);
-            vm.endFill();
+        // ─── ZONE-AWARE UNDERGROUND ───
+        const surfaceY = groundY;
+        const belowBasementY = roofH + (numFloors + 1) * floorH;
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._drawZoneUnderground) {
+            InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
         }
-        // Vertical conduits
-        for (let px = 100; px < G.vpW; px += 120) {
-            vm.beginFill(0x111520); vm.drawRect(px, vmY+6, 16, 120); vm.endFill();
-            // Fiber glow inside conduit
-            vm.beginFill(cc[Math.floor(Math.random()*cc.length)], 0.15);
-            vm.drawRect(px+4, vmY+10, 8, 112); vm.endFill();
+
+        // ─── ELEVATOR ───
+        const shaftX = startX + bldW - 40;
+        if (typeof CityElevator !== 'undefined') {
+            const ec = new PIXI.Container();
+            ec.y = groundY;
+            this.scene.addChild(ec);
+            this._lift = new CityElevator(ec, numFloors, floorH, shaftX - startX);
         }
-        this.scene.addChild(vm);
 
         // Position + scroll
         const bp = 56;
@@ -152,6 +146,7 @@ const InteriorBackbone = {
         this.minY = this.scene.y - floorH * 3;
         this.maxY = this.scene.y + floorH * 3;
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
+        this.layer.hitArea = new PIXI.Rectangle(0, 0, G.vpW, G.vpH);
         window.removeEventListener('pointermove', this._onMove);
         window.removeEventListener('pointerup', this._onUp);
         this.layer.on('pointerdown', (e) => {
@@ -407,7 +402,18 @@ const InteriorBackbone = {
         cont.addChild(txt);
 
         cont.eventMode = 'static'; cont.cursor = 'pointer';
-        cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.addToast(`${role} — Backbone Infrastructure`); });
+        cont.hitArea = new PIXI.Rectangle(-bw, -h - 12, bw * 2, h + 16);
+        cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined' && UI.selectModel) {
+                UI.selectModel({ id: 'bb_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true, _trackType: 'npc', role: role, lab: 'backbone', desc: role + '. Backbone Infrastructure.' });
+            }
+        });
+        cont.on('pointerover', (e) => {
+            if (typeof UI !== 'undefined' && UI.showTooltip) UI.showTooltip(e, role, 'Backbone Infrastructure');
+        });
+        cont.on('pointerout', () => {
+            if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
+        });
 
         c.addChild(cont);
 
@@ -543,6 +549,7 @@ const InteriorBackbone = {
                 if (l._flicker) l.alpha = 0.3 + Math.sin(fc * 0.05 + l._phase) * 0.3;
             });
         }
+        if (this._lift && !this._lift.destroyed) this._lift.update();
         // Animate NPCs
         this.updateAvatars();
     }

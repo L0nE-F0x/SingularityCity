@@ -201,6 +201,15 @@ const InteriorLongevity = {
             InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
         }
 
+        // ─── ELEVATOR ───
+        const shaftX = startX + bldW - 40;
+        if (typeof CityElevator !== 'undefined') {
+            const ec = new PIXI.Container();
+            ec.y = surfaceY;
+            this.scene.addChild(ec);
+            this._lift = new CityElevator(ec, numFloors, floorH, shaftX - startX);
+        }
+
         // ─── Spawn interior NPCs on every floor ───
         this._spawnNPCs(this.scene, startX, bldW, roofH, floorH, numFloors, layout);
 
@@ -208,21 +217,28 @@ const InteriorLongevity = {
         if (totalH > H) {
             this.scene.y = H - totalH;
         }
+        this.minY = Math.min(0, -(totalH - H + 40));
+        this.maxY = 0;
 
-        layer.interactive = true;
-        layer.on('pointerdown', e => {
+        layer.eventMode = 'static';
+        layer.cursor = 'grab';
+        layer.hitArea = new PIXI.Rectangle(0, 0, W, H);
+        if (this._onMove) window.removeEventListener('pointermove', this._onMove);
+        if (this._onUp) window.removeEventListener('pointerup', this._onUp);
+        layer.on('pointerdown', (e) => {
             this.isDragging = true;
-            this._startY = e.data.global.y;
+            this._startY = e.clientY;
             this._startSceneY = this.scene.y;
+            layer.cursor = 'grabbing';
         });
-        layer.on('pointermove', e => {
+        this._onMove = (e) => {
             if (!this.isDragging) return;
-            const dy = e.data.global.y - this._startY;
-            const minY = H - totalH;
-            this.scene.y = Math.max(minY, Math.min(0, this._startSceneY + dy));
-        });
-        layer.on('pointerup', () => { this.isDragging = false; });
-        layer.on('pointerupoutside', () => { this.isDragging = false; });
+            const dy = e.clientY - this._startY;
+            this.scene.y = Math.max(this.minY, Math.min(this.maxY, this._startSceneY + dy));
+        };
+        this._onUp = () => { this.isDragging = false; layer.cursor = 'grab'; };
+        window.addEventListener('pointermove', this._onMove);
+        window.addEventListener('pointerup', this._onUp);
     },
 
     _basementLabel(bldId) {
@@ -911,7 +927,18 @@ const InteriorLongevity = {
         cont.addChild(txt);
 
         cont.eventMode = 'static'; cont.cursor = 'pointer';
-        cont.on('pointertap', () => { if (typeof UI !== 'undefined' && UI.addToast) UI.addToast(`${role} — Longevity Wing`); });
+        cont.hitArea = new PIXI.Rectangle(-bw, -h - 12, bw * 2, h + 16);
+        cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined' && UI.selectModel) {
+                UI.selectModel({ id: 'longev_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true, _trackType: 'npc', role: role, lab: 'longevity', desc: role + '. Longevity Research.' });
+            }
+        });
+        cont.on('pointerover', (e) => {
+            if (typeof UI !== 'undefined' && UI.showTooltip) UI.showTooltip(e, role, 'Longevity Research');
+        });
+        cont.on('pointerout', () => {
+            if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
+        });
 
         c.addChild(cont);
 
@@ -1040,10 +1067,12 @@ const InteriorLongevity = {
         if (typeof InteriorCity !== 'undefined' && InteriorCity._applyDynamicSky) {
             InteriorCity._applyDynamicSky(this.celestialGfx, this.starsLayer);
         }
+        if (this._lift && !this._lift.destroyed) this._lift.update();
         this.updateAvatars();
     },
 
     cleanup() {
+        if (this._lift) { this._lift.destroy(); this._lift = null; }
         this.container = null;
         this.layer = null;
         this.scene = null;
