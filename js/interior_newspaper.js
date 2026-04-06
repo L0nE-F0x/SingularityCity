@@ -196,7 +196,7 @@ const InteriorNewspaper = {
             if (f === 2) this._drawEditorFloor(floorCont, startX, usableW, fy, pY, floorH);
             else if (f === 1) this._drawNewsroomFloor(floorCont, startX, usableW, fy, pY, floorH);
             else if (f === 0) this._drawLobbyFloor(floorCont, startX, usableW, fy, pY, floorH);
-            // f === -1: basement left empty (utility space)
+            else if (f === -1) this._drawBasement(floorCont, startX, usableW, fy, pY, floorH);
         }
 
         // ─── ELEVATOR SHAFT + CAR ───
@@ -259,79 +259,220 @@ const InteriorNewspaper = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    //  UNDERGROUND LAYERS (earth, cables, pipes — matches city stack)
+    //  UNDERGROUND LAYERS — full city stack matching exterior/InteriorCity
     // ═══════════════════════════════════════════════════════════════
     _drawUnderground(startX, bldW, surfaceY, belowY, floorH, W) {
-        const ug = new PIXI.Graphics();
+        const g = new PIXI.Graphics();
 
         // Earth walls flanking the building at basement depth
-        ug.beginFill(0x2a2218);
-        ug.drawRect(0, surfaceY, startX - 2, floorH);
-        ug.drawRect(startX + bldW + 2, surfaceY, W - startX - bldW - 2, floorH);
-        ug.endFill();
+        g.beginFill(0x2a2218);
+        g.drawRect(0, surfaceY, startX - 2, floorH);
+        g.drawRect(startX + bldW + 2, surfaceY, W - startX - bldW - 2, floorH);
+        g.endFill();
+        // Topsoil accent
+        g.beginFill(0x3a3020);
+        g.drawRect(0, surfaceY, startX - 2, 6);
+        g.drawRect(startX + bldW + 2, surfaceY, W - startX - bldW - 2, 6);
+        g.endFill();
 
         // Grass/sidewalk trim at surface
-        ug.beginFill(0x2d5a3f);
-        ug.drawRect(0, surfaceY - 4, startX, 4);
-        ug.drawRect(startX + bldW, surfaceY - 4, W - startX - bldW, 4);
-        ug.endFill();
-        ug.beginFill(0x3a3a4a);
-        ug.drawRect(0, surfaceY - 2, startX, 2);
-        ug.drawRect(startX + bldW, surfaceY - 2, W - startX - bldW, 2);
-        ug.endFill();
+        g.beginFill(0x2d5a3f);
+        g.drawRect(0, surfaceY - 4, startX, 4);
+        g.drawRect(startX + bldW, surfaceY - 4, W - startX - bldW, 4);
+        g.endFill();
+        g.beginFill(0x3a3a4a);
+        g.drawRect(0, surfaceY - 2, startX, 2);
+        g.drawRect(startX + bldW, surfaceY - 2, W - startX - bldW, 2);
+        g.endFill();
 
-        // Deep rock below basement
-        ug.beginFill(0x1a1210);
-        ug.drawRect(0, belowY, W, 300);
-        ug.endFill();
+        // Below basement: full fiber/tunnel/pipe stack
+        g.beginFill(0x0a0a0f);
+        g.drawRect(0, belowY, W, 260);
+        g.endFill();
 
         // Foundation slab
-        ug.beginFill(0x2a2a34);
-        ug.drawRect(startX - 8, belowY, bldW + 16, 6);
-        ug.endFill();
+        g.beginFill(0x2a2a34);
+        g.drawRect(startX - 8, belowY, bldW + 16, 4);
+        g.endFill();
 
-        // Rock texture
-        let rs = 42;
-        const rr = () => { rs = (rs * 16807) % 2147483647; return (rs - 1) / 2147483646; };
-        for (let i = 0; i < 80; i++) {
-            ug.beginFill(rr() > 0.5 ? 0x2d1a11 : 0x1f100a, 0.6);
-            ug.drawRect(rr() * W, belowY + 8 + rr() * 100, 2 + rr() * 4, 2);
-            ug.endFill();
-        }
-
-        // Cable conduit zone
-        const cableY = belowY + 20;
-        ug.beginFill(0x0a0a0f, 0.7);
-        ug.drawRect(0, cableY, W, 25);
-        ug.endFill();
+        // ─── CABLE REGION (wavy lines + junction dots — matches exterior) ───
         const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
-        for (let ci = 0; ci < 14; ci++) {
-            const cy = cableY + 3 + rr() * 19;
-            const col = cableCols[Math.floor(rr() * cableCols.length)];
-            const cLen = 60 + rr() * 200;
-            const cx = rr() * (W - cLen);
-            ug.beginFill(col, 0.3 + rr() * 0.4);
-            ug.drawRect(cx, cy, cLen, 1 + rr() * 1.5);
-            ug.endFill();
+        let cr = 101;
+        const cr2 = () => { cr = (cr * 16807) % 2147483647; return (cr - 1) / 2147483646; };
+
+        for (let ci = 0; ci < 20; ci++) {
+            const cy = belowY + 3 + cr2() * 28;
+            const col = cableCols[Math.floor(cr2() * cableCols.length)];
+            const alpha = 0.3 + cr2() * 0.5;
+            const thickness = 1 + cr2() * 1.5;
+            g.lineStyle(thickness, col, alpha);
+            g.moveTo(0, cy);
+            let currentY = cy;
+            for (let cx = 0; cx < W; cx += 60) {
+                currentY += (cr2() * 8 - 4);
+                if (currentY < belowY + 3) currentY = belowY + 3;
+                if (currentY > belowY + 31) currentY = belowY + 31;
+                g.lineTo(cx, currentY);
+            }
+            g.lineTo(W, currentY);
+            g.lineStyle(0);
+        }
+        // Junction dots
+        for (let ji = 0; ji < 80; ji++) {
+            const jx = cr2() * W;
+            const jy = belowY + 3 + cr2() * 28;
+            g.beginFill(cableCols[Math.floor(cr2() * cableCols.length)], 0.5);
+            g.drawCircle(jx, jy, 1 + cr2() * 1);
+            g.endFill();
         }
 
-        // Water pipe
-        ug.beginFill(0x0369a1);
-        ug.drawRect(0, belowY + 60, W, 8);
-        ug.endFill();
-        ug.beginFill(0x0284c7, 0.5);
-        ug.drawRect(0, belowY + 60, W, 3);
-        ug.endFill();
+        // ─── METRO TUNNEL CAVITY ───
+        g.beginFill(0x0a0a10, 0.85);
+        g.drawRect(0, belowY + 30, W, 100);
+        g.endFill();
+        // Support pillars
+        for (let px = 40; px < W; px += 150) {
+            g.beginFill(0x1a1a24);
+            g.drawRect(px, belowY + 35, 8, 90);
+            g.endFill();
+            g.beginFill(0x2a2a3a);
+            g.drawRect(px, belowY + 35, 2, 90);
+            g.endFill();
+            g.beginFill(0xef4444);
+            g.drawCircle(px + 4, belowY + 50, 1.5);
+            g.endFill();
+        }
+        // Metro tracks on tunnel floor
+        g.beginFill(0x2a2a3e);
+        g.drawRect(0, belowY + 120, W, 10);
+        g.endFill();
+        g.beginFill(0xfacc15);
+        g.drawRect(0, belowY + 131, W, 1);
+        g.endFill();
+        // Cross ties
+        g.beginFill(0xd97706);
+        for (let tx = 0; tx < W; tx += 16) {
+            g.drawRect(tx, belowY + 122, 8, 6);
+        }
+        g.endFill();
 
-        // Sewer trunk
-        ug.beginFill(0x4a4a3a);
-        ug.drawRect(0, belowY + 75, W, 12);
-        ug.endFill();
-        ug.beginFill(0x3a3a2a);
-        ug.drawRect(0, belowY + 75, W, 3);
-        ug.endFill();
+        // ─── DEEP INFRASTRUCTURE LAYER ───
+        g.beginFill(0x0a0a0f);
+        g.drawRect(0, belowY + 135, W, 30);
+        g.endFill();
 
-        this.scene.addChild(ug);
+        // ─── WATER PIPE (matches exterior: 0x0369a1 + 0x0284c7) ───
+        g.beginFill(0x0369a1);
+        g.drawRect(0, belowY + 180, W, 8);
+        g.endFill();
+        g.beginFill(0x0284c7);
+        g.drawRect(0, belowY + 182, W, 4);
+        g.endFill();
+
+        // ─── SEWER TRUNK (matches exterior: 0xb45309 + 0xd97706) ───
+        g.beginFill(0xb45309);
+        g.drawRect(0, belowY + 195, W, 12);
+        g.endFill();
+        g.beginFill(0xd97706);
+        g.drawRect(0, belowY + 197, W, 8);
+        g.endFill();
+
+        // ─── JUNCTION BOXES ───
+        for (let jx = 40; jx < W; jx += 180) {
+            g.beginFill(0x334155);
+            g.drawRect(jx, belowY + 140, 12, 36);
+            g.endFill();
+            g.beginFill(0x0ea5e9);
+            g.drawRect(jx + 40, belowY + 183, 8, 10);
+            g.endFill();
+            g.beginFill(0xf59e0b);
+            g.drawRect(jx + 80, belowY + 198, 8, 14);
+            g.endFill();
+        }
+
+        // ─── DEEP VOID ───
+        g.beginFill(0x050508);
+        g.drawRect(0, belowY + 215, W, 500);
+        g.endFill();
+
+        this.scene.addChild(g);
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    //  BASEMENT — Archives & Storage
+    // ═══════════════════════════════════════════════════════════════
+    _drawBasement(cont, startX, usableW, fy, pY, floorH) {
+        const g = new PIXI.Graphics();
+
+        // Dark basement background
+        g.beginFill(0x0a0a10);
+        g.drawRect(startX, fy, usableW + 54, floorH);
+        g.endFill();
+        g.beginFill(0x121220);
+        g.drawRect(startX, fy, usableW + 54, floorH);
+        g.endFill();
+
+        // Filing cabinets (newspaper archives)
+        for (let i = 0; i < 5; i++) {
+            const cx = startX + 20 + i * 55;
+            g.beginFill(0x334155);
+            g.drawRect(cx, pY - 50, 30, 50);
+            g.endFill();
+            g.beginFill(0x475569);
+            g.drawRect(cx, pY - 50, 30, 3);
+            g.endFill();
+            // Drawer handles
+            for (let d = 0; d < 3; d++) {
+                g.beginFill(0x64748b);
+                g.drawRect(cx + 10, pY - 45 + d * 16, 10, 2);
+                g.endFill();
+            }
+            // Label
+            g.beginFill(0xfbbf24, 0.3);
+            g.drawRect(cx + 8, pY - 42, 14, 6);
+            g.endFill();
+        }
+
+        // Storage boxes
+        const boxCols = [0x78350f, 0x5c3a1e, 0x4a2e16];
+        for (let i = 0; i < 4; i++) {
+            const bx = startX + usableW - 100 + i * 22;
+            const bh = 14 + Math.floor(i * 3.7) % 8;
+            g.beginFill(boxCols[i % boxCols.length]);
+            g.drawRect(bx, pY - bh, 18, bh);
+            g.endFill();
+        }
+
+        // Bare hanging light bulb
+        g.beginFill(0x64748b);
+        g.drawRect(startX + usableW / 2, fy + 2, 1, 12);
+        g.endFill();
+        const bulbGlow = new PIXI.Graphics();
+        bulbGlow.beginFill(0xfbbf24, 0.06);
+        bulbGlow.drawCircle(startX + usableW / 2, fy + 18, 30);
+        bulbGlow.endFill();
+        cont.addChild(bulbGlow);
+        this.indoorLights.push({ g: bulbGlow, maxA: 0.08, type: 'warm' });
+        g.beginFill(0xfef3c7, 0.8);
+        g.drawCircle(startX + usableW / 2, fy + 16, 3);
+        g.endFill();
+
+        // Parking lines (shared pattern from InteriorCity basements)
+        g.beginFill(0xfacc15, 0.15);
+        for (let px = startX + 30; px < startX + usableW - 30; px += 80) {
+            g.drawRect(px, pY - 2, 40, 2);
+        }
+        g.endFill();
+
+        cont.addChild(g);
+
+        const label = new PIXI.Text('ARCHIVES', {
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 6,
+            fill: 0x64748b, letterSpacing: 1
+        });
+        label.x = startX + 8;
+        label.y = fy + 4;
+        cont.addChild(label);
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -760,19 +901,31 @@ const InteriorNewspaper = {
         const dp = G.getDayPhase();
         const night = dp > 0.83 || dp < 0.25;
 
-        // ─── Sky gradient (DOM background on layer) ───
-        if (this.layer && this.layer.parent) {
-            const el = G.app?.view?.parentElement;
-            if (el) {
-                if (night) {
-                    el.style.background = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
-                } else if (dp >= 0.30 && dp < 0.72) {
-                    el.style.background = 'linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)';
-                } else {
-                    // Dawn/dusk warm tones
-                    el.style.background = 'linear-gradient(180deg,#1a1a3e,#4a3a5a 50%,#8a6a40)';
-                }
+        // ─── Sky gradient (DOM background — exact match with InteriorCity) ───
+        const vp = document.getElementById('viewport');
+        if (vp) {
+            let sky;
+            if (dp < .22) {
+                sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
+            } else if (dp < .30) {
+                const t = (dp - .22) / .08;
+                sky = `linear-gradient(180deg,rgb(${8 + t * 40 | 0},${10 + t * 30 | 0},${30 + t * 40 | 0}),rgb(${15 + t * 80 | 0},${15 + t * 50 | 0},${40 + t * 50 | 0}) 50%,rgb(${20 + t * 120 | 0},${20 + t * 80 | 0},${40 + t * 30 | 0}))`;
+            } else if (dp < .72) {
+                sky = 'linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)';
+            } else if (dp < .84) {
+                const t = (dp - .72) / .12;
+                sky = `linear-gradient(180deg,rgb(${45 + t * 30 | 0},${74 - t * 40 | 0},${122 - t * 60 | 0}),rgb(${90 + t * 80 | 0},${143 - t * 80 | 0},${187 - t * 100 | 0}) 50%,rgb(${135 + t * 60 | 0},${100 - t * 50 | 0},${50 - t * 10 | 0}))`;
+            } else {
+                sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
             }
+            // Weather overrides (matches InteriorCity exactly)
+            if (typeof Environment !== 'undefined' && Environment.weather === 'rain' && !night && dp > .3 && dp < .72) {
+                sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
+            }
+            if (typeof Environment !== 'undefined' && Environment.weather === 'snow') {
+                sky = 'linear-gradient(180deg,#1a1a2e,#2d3748 50%,#4a5568)';
+            }
+            vp.style.background = sky;
         }
 
         // ─── Celestial body (moon/sun) ───
