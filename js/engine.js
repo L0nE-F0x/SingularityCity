@@ -1677,6 +1677,13 @@ const G = {
 
       if (this.activeInterior && typeof Interior !== 'undefined') {
           Interior.update();
+          // Metro station mirrors live trains & commuters — keep simulation running
+          if (Interior.activeModule && Interior.activeModule === (typeof InteriorMetroStation !== 'undefined' ? InteriorMetroStation : null)) {
+              const dp = this.getDayPhase();
+              const night = dp > .83 || dp < .25;
+              if (typeof Entities !== 'undefined') Entities.update(dp, night);
+              if (typeof NPCHousing !== 'undefined') NPCHousing.update(dp);
+          }
           return;
       }
 

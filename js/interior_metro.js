@@ -70,32 +70,57 @@ const InteriorMetroStation = {
         const totalH = hallH + stairH + platH + deepH;
 
         this.totalH = totalH;
-        this.maxY = 0;
+        this.maxY = 80;                       // allow scrolling up to see sky above roof
         this.minY = Math.min(0, H - totalH);
 
         // ─── STATION CANOPY / ROOF (y=0..30) ───
-        // Clean station entrance roof — flat canopy with support beams, not random blocks
         const canopy = new PIXI.Graphics();
-        // Main roof slab
-        canopy.beginFill(0x1e293b);
+        // Steel canopy structure — dark base
+        canopy.beginFill(0x0f172a);
         canopy.drawRect(0, 0, W, 30);
         canopy.endFill();
-        // Underside paneling
+        // Sloped overhang fascia
+        canopy.beginFill(0x1e293b);
+        canopy.drawRect(0, 0, W, 6);
+        canopy.endFill();
+        canopy.beginFill(theme.col, 0.6);
+        canopy.drawRect(0, 0, W, 3);   // coloured accent strip at top edge
+        canopy.endFill();
+        // Steel I-beam supports
         canopy.beginFill(0x334155);
-        canopy.drawRect(0, 26, W, 4);
-        canopy.endFill();
-        // Support beams at regular intervals
-        canopy.beginFill(0x475569);
-        for (let bx = 60; bx < W; bx += 100) {
-            canopy.drawRect(bx - 3, 10, 6, 20);
+        for (let bx = 40; bx < W; bx += 80) {
+            canopy.drawRect(bx - 2, 6, 4, 24);
+            canopy.drawRect(bx - 6, 6, 12, 3);   // top flange
+            canopy.drawRect(bx - 6, 27, 12, 3);   // bottom flange
         }
         canopy.endFill();
-        // Recessed light panels between beams
-        canopy.beginFill(0x94a3b8, 0.3);
-        for (let lx = 100; lx < W - 50; lx += 100) {
-            canopy.drawRect(lx, 18, 40, 6);
+        // Glass skylight panels between beams (semi-transparent)
+        for (let lx = 40; lx < W - 40; lx += 80) {
+            canopy.beginFill(0x94a3b8, 0.08);
+            canopy.drawRect(lx + 8, 8, 60, 18);
+            canopy.endFill();
+            canopy.lineStyle(1, 0x475569, 0.4);
+            canopy.drawRect(lx + 8, 8, 60, 18);
+            canopy.moveTo(lx + 38, 8);
+            canopy.lineTo(lx + 38, 26);
+            canopy.lineStyle(0);
         }
+        // Underside lip with warm LED strip
+        canopy.beginFill(0x1a2538);
+        canopy.drawRect(0, 28, W, 2);
         canopy.endFill();
+        canopy.beginFill(0xfbbf24, 0.25);
+        canopy.drawRect(0, 28, W, 1);
+        canopy.endFill();
+        // Station name on canopy
+        const canopyName = new PIXI.Text('M', {
+            fontFamily: 'Press Start 2P, monospace', fontSize: 14,
+            fill: theme.col, fontWeight: 'bold'
+        });
+        canopyName.anchor.set(0.5, 0.5);
+        canopyName.x = W / 2;
+        canopyName.y = 15;
+        canopy.addChild(canopyName);
         this.scene.addChild(canopy);
 
         // ─── STREET / SIDEWALK LEVEL ───
@@ -703,6 +728,9 @@ const InteriorMetroStation = {
         this.avatarLayer.sortableChildren = true;
         this.scene.addChild(this.avatarLayer);
 
+        // ─── METRO WORKER NPCs (always visible, 24/7 staff) ───
+        this._spawnStationWorkers(theme, W, hallTop, hallH, platTop, this._platStandY);
+
         // Initial position
         this.scene.y = 0;
 
@@ -1005,6 +1033,51 @@ const InteriorMetroStation = {
         this.avatarPool.forEach((av, id) => {
             if (!seen.has(id)) av.cont.visible = false;
         });
+    },
+
+    // ─────────────────────────────────────────────────────────────
+    //  STATION WORKER NPCs (24/7 night-shift crew — always visible)
+    // ─────────────────────────────────────────────────────────────
+    _spawnStationWorkers(theme, W, hallTop, hallH, platTop, platStandY) {
+        const workers = [
+            { role: 'Ticket Agent',      x: W * 0.22, y: hallTop + hallH - 14, col: 0x3b82f6 },
+            { role: 'Station Guard',     x: W * 0.78, y: hallTop + hallH - 14, col: 0xef4444 },
+            { role: 'Platform Attendant', x: W * 0.35, y: platStandY,          col: 0xfbbf24 },
+            { role: 'Maintenance Tech',  x: W * 0.65, y: platStandY,          col: 0x22c55e },
+            { role: 'Signal Operator',   x: W * 0.85, y: platStandY,          col: 0x06b6d4 },
+        ];
+        for (const w of workers) {
+            const g = new PIXI.Graphics();
+            // Body
+            g.beginFill(w.col, 0.85);
+            g.drawRect(-4, -16, 8, 12);
+            g.endFill();
+            // Head
+            g.beginFill(0xf0c8a0);
+            g.drawRect(-3, -22, 6, 6);
+            g.endFill();
+            // Hi-vis vest stripe
+            g.beginFill(0xfbbf24, 0.6);
+            g.drawRect(-4, -10, 8, 2);
+            g.endFill();
+            // Legs
+            g.beginFill(0x1e293b);
+            g.drawRect(-3, -4, 2, 4);
+            g.drawRect(1, -4, 2, 4);
+            g.endFill();
+            g.x = w.x;
+            g.y = w.y;
+            this.scene.addChild(g);
+            // Role label
+            const label = new PIXI.Text(w.role, {
+                fontFamily: 'monospace', fontSize: 6, fill: w.col,
+                stroke: 0x000000, strokeThickness: 2
+            });
+            label.anchor.set(0.5, 1);
+            label.x = w.x;
+            label.y = w.y - 24;
+            this.scene.addChild(label);
+        }
     },
 
     // ─────────────────────────────────────────────────────────────
