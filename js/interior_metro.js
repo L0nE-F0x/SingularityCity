@@ -716,17 +716,17 @@ const InteriorMetroStation = {
         }
         this.scene.addChild(deep);
 
-        // ─── TRAIN LAYER ───
+        // ─── AVATAR LAYER (behind train so arriving trains cover platform workers) ───
+        this.avatarLayer = new PIXI.Container();
+        this.avatarLayer.sortableChildren = true;
+        this.scene.addChild(this.avatarLayer);
+
+        // ─── TRAIN LAYER (on top — covers platform-level avatars when at station) ───
         this.trainGfx = new PIXI.Container();
         this.trainGfx.sortableChildren = true;
         this.scene.addChild(this.trainGfx);
         this._trainG = new PIXI.Graphics();
         this.trainGfx.addChild(this._trainG);
-
-        // ─── AVATAR LAYER ───
-        this.avatarLayer = new PIXI.Container();
-        this.avatarLayer.sortableChildren = true;
-        this.scene.addChild(this.avatarLayer);
 
         // ─── METRO WORKER NPCs (always visible, 24/7 staff) ───
         this._spawnStationWorkers(theme, W, hallTop, hallH, platTop, this._platStandY);
@@ -1088,18 +1088,17 @@ const InteriorMetroStation = {
         // Day shift (roughly 06:00–18:00) and night shift (18:00–06:00)
         // rotate just like every other zone's interior NPCs.
         const hallStandY = hallH - 2;          // feet on hall floor tiles (matches _hallFloorY)
-        const platBackY  = platStandY - 30;    // stand back from edge so trains don't overlap
         const DAY_WORKERS = [
-            { id: 'metro_ticket',    name: 'Ticket Agent',       role: 'Ticket Agent',       x: W * 0.22, y: hallStandY, col: 0x3b82f6 },
-            { id: 'metro_guard_d',   name: 'Station Guard',      role: 'Station Guard',      x: W * 0.78, y: hallStandY, col: 0xef4444 },
-            { id: 'metro_attend_d',  name: 'Platform Attendant', role: 'Platform Attendant',  x: W * 0.35, y: platBackY,  col: 0xfbbf24 },
-            { id: 'metro_dispatch',  name: 'Train Dispatcher',   role: 'Dispatcher',         x: W * 0.65, y: platBackY,  col: 0x22c55e },
-            { id: 'metro_info',      name: 'Info Desk',          role: 'Info Desk',          x: W * 0.50, y: hallStandY, col: 0x06b6d4 },
+            { id: 'metro_ticket',    name: 'Ticket Agent',       role: 'Ticket Agent',       x: W * 0.22, y: hallStandY,  col: 0x3b82f6 },
+            { id: 'metro_guard_d',   name: 'Station Guard',      role: 'Station Guard',      x: W * 0.78, y: hallStandY,  col: 0xef4444 },
+            { id: 'metro_attend_d',  name: 'Platform Attendant', role: 'Platform Attendant',  x: W * 0.35, y: platStandY, col: 0xfbbf24 },
+            { id: 'metro_dispatch',  name: 'Train Dispatcher',   role: 'Dispatcher',         x: W * 0.65, y: platStandY, col: 0x22c55e },
+            { id: 'metro_info',      name: 'Info Desk',          role: 'Info Desk',          x: W * 0.50, y: hallStandY,  col: 0x06b6d4 },
         ];
         const NIGHT_WORKERS = [
-            { id: 'metro_guard_n',   name: 'Night Guard',        role: 'Night Guard',        x: W * 0.75, y: hallStandY, col: 0xef4444 },
-            { id: 'metro_maint',     name: 'Maintenance Tech',   role: 'Maintenance',        x: W * 0.40, y: platBackY,  col: 0x22c55e },
-            { id: 'metro_signal',    name: 'Signal Operator',    role: 'Signal Ops',         x: W * 0.85, y: platBackY,  col: 0x06b6d4 },
+            { id: 'metro_guard_n',   name: 'Night Guard',        role: 'Night Guard',        x: W * 0.75, y: hallStandY,  col: 0xef4444 },
+            { id: 'metro_maint',     name: 'Maintenance Tech',   role: 'Maintenance',        x: W * 0.40, y: platStandY, col: 0x22c55e },
+            { id: 'metro_signal',    name: 'Signal Operator',    role: 'Signal Ops',         x: W * 0.85, y: platStandY, col: 0x06b6d4 },
         ];
         this._stationWorkers = { day: DAY_WORKERS, night: NIGHT_WORKERS };
         // Create avatar sprites for ALL workers (both shifts), hide inactive ones
