@@ -242,7 +242,7 @@ const Newspaper = {
     },
 
     // ──────────────────────────────────────────────────────────────────────────────────
-    // CONTENT GENERATION — all reads from live G state
+    // CONTENT GENERATION — real-world AI news from API feeds + RSS
     // ──────────────────────────────────────────────────────────────────────────────────
 
     _buildHTML() {
@@ -251,11 +251,11 @@ const Newspaper = {
         const issueNum = this._computeIssueNum(now);
         const weather = this._getWeatherText();
 
-        const top = this._getTopStory();
-        const launches = this._getRecentLaunches(4);
-        const obits = this._getRetired(3);
-        const labs = this._getLabStandings(5);
-        const benchLeader = this._getBenchLeader();
+        // Pull real-world news from API feeds
+        const headlines = this._getLiveHeadlines(8);
+        const papers = this._getArxivPapers(4);
+        const regulation = this._getRegulationNews(4);
+        const stocks = this._getStockTicker();
 
         let html = `<div id="newspaperPaper">`;
         html += `<button class="np-pdf" title="Print / save as PDF">🖨 SAVE AS PDF</button>`;
@@ -272,59 +272,77 @@ const Newspaper = {
             </div>
         </div>`;
 
-        // Top story
-        if (top) {
+        // ─── LEAD STORY (first real headline) ───
+        if (headlines.length > 0) {
+            const lead = headlines[0];
             html += `<div class="np-top-story">
-                <h2>${this._esc(top.headline)}</h2>
-                <div class="np-sub">By the City Desk · Filed from ${this._esc(top.labName)}</div>
-                <p>${this._esc(top.body)}</p>
+                <h2>${this._esc(lead.headline)}</h2>
+                <div class="np-sub">Source: ${this._esc(lead.source)} · <a href="${this._esc(lead.url)}" target="_blank" rel="noopener" style="color:#5a3e1a">Read full article →</a></div>
+            </div>`;
+        } else {
+            html += `<div class="np-top-story">
+                <h2>The Frontier Holds Steady</h2>
+                <div class="np-sub">News feeds are loading. Check back shortly.</div>
             </div>`;
         }
 
-        // Two-column grid: Launches | Lab Standings
+        // ─── TWO-COLUMN GRID ───
         html += `<div class="np-grid">`;
 
-        html += `<div class="np-section"><h3>📢 This Week's Releases</h3>`;
-        if (launches.length === 0) {
-            html += `<div class="np-item"><i>No new releases on record. The frontier is quiet.</i></div>`;
-        } else {
-            for (const l of launches) {
+        // Column 1: AI Industry Headlines
+        html += `<div class="np-section"><h3>📡 AI Industry Watch</h3>`;
+        if (headlines.length > 1) {
+            for (let i = 1; i < headlines.length; i++) {
+                const h = headlines[i];
                 html += `<div class="np-item">
-                    <b>${this._esc(l.name)}</b> — ${this._esc(l.desc)}
-                    <span class="np-byline">${this._esc(l.labName)} · ${l.os ? 'open-weights' : 'closed-weights'} · released ${l.rel}</span>
+                    <b><a href="${this._esc(h.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(h.headline)}</a></b>
+                    <span class="np-byline">${this._esc(h.source)}</span>
                 </div>`;
             }
+        } else {
+            html += `<div class="np-item"><i>RSS feeds loading — headlines will appear on next refresh.</i></div>`;
         }
         html += `</div>`;
 
-        html += `<div class="np-section"><h3>🏛 Lab Standings</h3>`;
-        labs.forEach((l, i) => {
-            html += `<div class="np-item"><span class="np-rank">${i + 1}.</span><b>${this._esc(l.name)}</b> — ${l.count} active model${l.count === 1 ? '' : 's'}<span class="np-byline">Flagship: ${this._esc(l.flagship)}</span></div>`;
-        });
-        if (benchLeader) {
-            html += `<div class="np-item" style="margin-top:10px;padding-top:6px;border-top:1px dashed #7a5a28">
-                <b>📊 Benchmark Leader:</b> ${this._esc(benchLeader.name)} (avg ${benchLeader.avg}%)
-                <span class="np-byline">${this._esc(benchLeader.labName)}</span>
-            </div>`;
+        // Column 2: Research Frontiers (arXiv)
+        html += `<div class="np-section"><h3>📄 Research Frontiers</h3>`;
+        if (papers.length > 0) {
+            for (const p of papers) {
+                html += `<div class="np-item">
+                    <b><a href="https://arxiv.org/abs/${this._esc(p.id)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(p.title)}</a></b>
+                    <span class="np-byline">arXiv: ${this._esc(p.id)} · ${this._esc(p.published)}</span>
+                </div>`;
+            }
+        } else {
+            html += `<div class="np-item"><i>arXiv feed loading — papers will appear shortly.</i></div>`;
         }
         html += `</div>`;
 
         html += `</div>`; // end grid
 
-        // Obituaries full width
-        html += `<div class="np-section" style="margin-top:16px"><h3>⚰ Obituaries — Models Retired</h3>`;
-        if (obits.length === 0) {
-            html += `<div class="np-item"><i>No retirements this cycle. All flagships remain in service.</i></div>`;
-        } else {
-            for (const o of obits) {
+        // ─── REGULATION & POLICY (full width) ───
+        html += `<div class="np-section" style="margin-top:16px"><h3>⚖ Regulation & Policy</h3>`;
+        if (regulation.length > 0) {
+            for (const r of regulation) {
                 html += `<div class="np-item">
-                    <b>${this._esc(o.name)}</b> — ${this._esc(o.labName)}, retired ${o.ret}.
-                    Survived by ${o.successor ? `<b>${this._esc(o.successor)}</b>` : 'the next generation'}.
-                    <span class="np-byline">${this._esc(o.desc || 'A pillar of its generation, now deprecated.')}</span>
+                    <b><a href="${this._esc(r.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(r.headline)}</a></b>
+                    <span class="np-byline">${this._esc(r.source)}</span>
                 </div>`;
             }
+        } else {
+            html += `<div class="np-item"><i>No regulation headlines this cycle. The policy desk is quiet.</i></div>`;
         }
         html += `</div>`;
+
+        // ─── MARKET TICKER (if stock data available) ───
+        if (stocks.length > 0) {
+            html += `<div class="np-section" style="margin-top:12px"><h3>📈 Market Ticker</h3>`;
+            html += `<div class="np-item" style="font-family:monospace;font-size:10px;line-height:1.8">`;
+            html += stocks.map(s =>
+                `<b>${this._esc(s.sym)}</b> $${this._esc(s.price)} <span style="color:${s.color}">${this._esc(s.change)}</span>`
+            ).join(' · ');
+            html += `</div></div>`;
+        }
 
         // Classifieds
         html += this._buildClassifieds();
@@ -332,7 +350,7 @@ const Newspaper = {
         // Colophon
         html += `<div class="np-colophon">
             THE SINGULARITY CITY TIMES is printed daily at the Times HQ downtown.
-            All data scraped live from the city's public record.
+            News sourced live from TechCrunch, The Verge, VentureBeat, Ars Technica & arXiv.
             Editor-in-Chief: The Autonomous Bureau · Design: The Neon Atelier
             <br>— Press <b>Save as PDF</b> above to archive this issue —
         </div>`;
@@ -360,119 +378,33 @@ const Newspaper = {
         return map[weather] || 'FAIR SKIES';
     },
 
-    _getLabName(labKey) {
-        if (typeof LABS !== 'undefined' && LABS[labKey] && LABS[labKey].name) return LABS[labKey].name;
-        return labKey ? labKey.charAt(0).toUpperCase() + labKey.slice(1) : 'Unknown Lab';
+    // ─── Real-world news from API feeds ───
+
+    _getLiveHeadlines(n) {
+        if (typeof API === 'undefined' || !API.liveNews || API.liveNews.length === 0) return [];
+        return API.liveNews.slice(0, n);
     },
 
-    _getTopStory() {
-        if (typeof G === 'undefined' || !G.models) return null;
-        // Find the highest-avg-benchmark model released in the last 60 days — the "top story"
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 60);
-        let best = null;
-        let bestAvg = 0;
-        for (const m of G.models) {
-            if (!m.rel || m.ret) continue;
-            const rd = new Date(m.rel);
-            if (isNaN(rd) || rd < cutoff) continue;
-            const avg = (typeof avgBM === 'function') ? avgBM(m.id) : null;
-            if (avg !== null && avg > bestAvg) {
-                best = m;
-                bestAvg = avg;
-            }
-        }
-        // Fallback: highest-scoring model of all time
-        if (!best) {
-            for (const m of G.models) {
-                if (m.ret) continue;
-                const avg = (typeof avgBM === 'function') ? avgBM(m.id) : null;
-                if (avg !== null && avg > bestAvg) { best = m; bestAvg = avg; }
-            }
-        }
-        if (!best) return null;
-
-        const labName = this._getLabName(best.lab);
-        const headline = `${best.name} Redraws the Benchmark Ceiling`;
-        const body =
-            `In a development that has sent ripples across Singularity City, ${labName}'s flagship ${best.name} ` +
-            `has posted an average benchmark score of ${bestAvg}%, cementing its place at the top of this week's leaderboard. ` +
-            (best.desc ? `${best.desc.charAt(0).toUpperCase() + best.desc.slice(1)}. ` : '') +
-            (best.tal ? `Analysts cite its specialty in ${best.tal} as the decisive factor. ` : '') +
-            `The ${best.os ? 'open-weights release' : 'closed-weights deployment'} ` +
-            `is already reshaping strategic calculations across the frontier districts. ` +
-            `Commuters at AI Academy, The Neon Bar and the Leaderboard Monument were overheard ` +
-            `discussing the implications well into the evening shift.`;
-
-        return { headline, body, labName };
+    _getArxivPapers(n) {
+        if (typeof API === 'undefined' || !API.arxivPapers || API.arxivPapers.length === 0) return [];
+        return API.arxivPapers.slice(0, n);
     },
 
-    _getRecentLaunches(n) {
-        if (typeof G === 'undefined' || !G.models) return [];
-        const withRel = G.models.filter(m => m.rel && !m.ret);
-        withRel.sort((a, b) => (a.rel < b.rel ? 1 : -1));
-        return withRel.slice(0, n).map(m => ({
-            name: m.name,
-            desc: m.desc || 'A new entrant in the race for artificial general intelligence.',
-            labName: this._getLabName(m.lab),
-            rel: m.rel,
-            os: !!m.os,
+    _getRegulationNews(n) {
+        if (typeof API === 'undefined' || !API.regulationNews || API.regulationNews.length === 0) return [];
+        return API.regulationNews.slice(0, n);
+    },
+
+    _getStockTicker() {
+        if (typeof API === 'undefined' || !API.stockPrices) return [];
+        const entries = Object.entries(API.stockPrices);
+        if (entries.length === 0) return [];
+        return entries.slice(0, 10).map(([sym, data]) => ({
+            sym,
+            price: data.price,
+            change: data.change,
+            color: data.color || '#666',
         }));
-    },
-
-    _getRetired(n) {
-        if (typeof G === 'undefined' || !G.models) return [];
-        const retired = G.models.filter(m => m.ret);
-        retired.sort((a, b) => (a.ret < b.ret ? 1 : -1));
-        // Simple successor heuristic: next active model from same lab
-        const pickSuccessor = (lab) => {
-            const alive = G.models.filter(m => m.lab === lab && !m.ret);
-            if (!alive.length) return null;
-            alive.sort((a, b) => (a.rel < b.rel ? 1 : -1));
-            return alive[0].name;
-        };
-        return retired.slice(0, n).map(m => ({
-            name: m.name,
-            labName: this._getLabName(m.lab),
-            ret: m.ret,
-            desc: m.desc,
-            successor: pickSuccessor(m.lab),
-        }));
-    },
-
-    _getLabStandings(n) {
-        if (typeof G === 'undefined' || !G.models) return [];
-        const perLab = {};
-        for (const m of G.models) {
-            if (m.ret) continue;
-            if (!perLab[m.lab]) perLab[m.lab] = { count: 0, flagship: null, flagshipAvg: -1 };
-            perLab[m.lab].count++;
-            const avg = (typeof avgBM === 'function') ? avgBM(m.id) : null;
-            if (avg !== null && avg > perLab[m.lab].flagshipAvg) {
-                perLab[m.lab].flagship = m.name;
-                perLab[m.lab].flagshipAvg = avg;
-            }
-        }
-        const entries = Object.entries(perLab).map(([lab, v]) => ({
-            name: this._getLabName(lab),
-            count: v.count,
-            flagship: v.flagship || 'Undisclosed',
-        }));
-        entries.sort((a, b) => b.count - a.count);
-        return entries.slice(0, n);
-    },
-
-    _getBenchLeader() {
-        if (typeof G === 'undefined' || !G.models) return null;
-        let best = null;
-        let bestAvg = 0;
-        for (const m of G.models) {
-            if (m.ret) continue;
-            const avg = (typeof avgBM === 'function') ? avgBM(m.id) : null;
-            if (avg !== null && avg > bestAvg) { best = m; bestAvg = avg; }
-        }
-        if (!best) return null;
-        return { name: best.name, avg: bestAvg, labName: this._getLabName(best.lab) };
     },
 
     _buildClassifieds() {

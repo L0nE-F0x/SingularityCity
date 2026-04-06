@@ -43,6 +43,8 @@ const Interior = {
             this.activeModule = InteriorLongevity;
         } else if (bld.id && bld.id.startsWith('metro_') && typeof InteriorMetroStation !== 'undefined') {
             this.activeModule = InteriorMetroStation;
+        } else if (bld.id === 'times_hq' && typeof InteriorNewspaper !== 'undefined') {
+            this.activeModule = InteriorNewspaper;
         } else {
             this.activeModule = InteriorCity;
         }

@@ -159,6 +159,7 @@ export default [
                 Goals: 'writable', // goal-driven NPC archetypes
                 AutoTour: 'writable', // idle screensaver / handsfree tour
                 Newspaper: 'writable', // Singularity City Times weekly paper
+                InteriorNewspaper: 'writable', // Times HQ interior
 
                 // Data / constants declared at top level across many files
                 BLDS: 'writable',

@@ -2180,8 +2180,6 @@ const Environment = {
         container.on('pointertap', () => {
             if (b.id.startsWith('port_') && typeof PortEnv !== 'undefined') {
                 PortEnv.showManifest();
-            } else if (b.id === 'times_hq' && typeof Newspaper !== 'undefined') {
-                Newspaper.open();
             } else if (typeof UI !== 'undefined') {
                 UI.selectBld(b);
             }
