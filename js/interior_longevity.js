@@ -202,12 +202,12 @@ const InteriorLongevity = {
         }
 
         // ─── ELEVATOR ───
-        const shaftX = startX + bldW - 40;
+        const shaftX = startX + bldW - 50 - 20;
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
-            ec.y = surfaceY;
+            ec.y = roofH + (numFloors - 1) * floorH + floorH;  // ground floor bottom
             this.scene.addChild(ec);
-            this._lift = new CityElevator(ec, numFloors, floorH, shaftX - startX);
+            this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
         }
 
         // ─── Spawn interior NPCs on every floor ───

@@ -60,9 +60,11 @@ const InteriorRobotics = {
         this.scene = new PIXI.Container();
         layer.addChild(this.scene);
 
-        // Scrollable offset
-        this.maxY = 0;
-        this.minY = Math.min(0, -(this.totalH - H + 40));
+        // Scrollable offset — position scene so ground floor is near bottom of viewport
+        const bp = 56;
+        this.scene.y = H - bp - this.totalH + floorH;
+        this.minY = this.scene.y - floorH * 3;
+        this.maxY = this.scene.y + floorH * 3;
 
         const baseY = H - 30;
 
@@ -159,12 +161,12 @@ const InteriorRobotics = {
         this._drawBasementProps(this.scene, startX, bldW, basementY, floorH, bld.id, layout.col);
 
         // ─── ELEVATOR ───
-        const shaftX = startX + bldW - 40;
+        const shaftX = startX + bldW - 50 - 20;
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
-            ec.y = baseY;
+            ec.y = baseY - floorH;  // ground floor bottom (CityElevator draws upward from here)
             this.scene.addChild(ec);
-            this._lift = new CityElevator(ec, numFloors, floorH, shaftX - startX);
+            this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
         }
 
         // ─── ZONE-AWARE UNDERGROUND ───
