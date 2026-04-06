@@ -131,9 +131,8 @@ const InteriorBackbone = {
             InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
         }
 
-        // ─── ELEVATOR (matches InteriorCity: shaftW=60, offset 20) ───
-        const shaftW = 60;
-        const shaftX = startX + bldW - shaftW - 20;
+        // ─── ELEVATOR (flush against right wall) ───
+        const elevatorX = startX + bldW - 26;  // shaft right edge 2px from wall
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
             ec.y = groundY;  // ground floor bottom (CityElevator draws upward)
@@ -146,7 +145,7 @@ const InteriorBackbone = {
             em.endFill();
             ec.addChild(em);
             ec.mask = em;
-            this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
+            this._lift = new CityElevator(ec, numFloors, floorH, elevatorX);
         }
 
         // Position + scroll
