@@ -132,12 +132,12 @@ const InteriorBackbone = {
         }
 
         // ─── ELEVATOR ───
-        const shaftX = startX + bldW - 40;
+        const shaftX = startX + bldW - 50 - 20;
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
-            ec.y = groundY;
+            ec.y = groundY;  // ground floor bottom (CityElevator draws upward)
             this.scene.addChild(ec);
-            this._lift = new CityElevator(ec, numFloors, floorH, shaftX - startX);
+            this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
         }
 
         // Position + scroll
