@@ -1,9 +1,8 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   METRO STATION INTERIOR (v1.2.0 — Full polish, working scroll, proper NPCs, deep strata)
+   METRO STATION INTERIOR (v1.3.0 — Real entity mirroring, worker NPCs, trackable)
    Renders a station cross-section: ticket hall above + glass elevator shaft + platform + tracks + tunnels.
-   Mirrors real-time state of avatars whose _metroLegs pass through this station, so when a
-   tracked entity enters/waits/rides/exits the metro, the camera fade carries straight into
-   this view with the same behavior visible from the inside.
+   Mirrors real-time state of BOTH AI models (G.models/charRefs) AND worker NPCs
+   (NPCHousing.commuters) so every entity using this station is visible inside.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const InteriorMetroStation = {
@@ -23,8 +22,6 @@ const InteriorMetroStation = {
     _startSceneY: 0,
     minY: 0,
     maxY: 0,
-    _hallNPCs: null,
-
     STATION_THEME: {
         'metro_dc':        { col: 0x06b6d4, label: 'COMPUTE DISTRICT',   sub: 'Line 1 · Westbound Terminus' },
         'metro_res':       { col: 0x38bdf8, label: 'RESIDENTIAL SECTOR', sub: 'Line 1 · Residential' },
@@ -38,7 +35,6 @@ const InteriorMetroStation = {
         this.bld = bld;
         this.layer = layer;
         this.avatarPool = new Map();
-        this._hallNPCs = [];
         layer.removeChildren();
 
         const W = G.vpW, H = G.vpH;
@@ -223,42 +219,10 @@ const InteriorMetroStation = {
             this.scene.addChild(ts);
         }
 
-        // ─── Decorative commuter NPCs (proper pixel-art, animated) ───
-        const npcColors = [0x3b82f6, 0xec4899, 0xfbbf24, 0x22c55e, 0x8b5cf6, 0xef4444, 0x06b6d4, 0xf97316];
-        const npcNames = ['Commuter', 'Tourist', 'Worker', 'Student', 'Traveler', 'Local', 'Visitor', 'Resident'];
-        for (let i = 0; i < 8; i++) {
-            const npc = this._makeDecorativeNPC(npcColors[i % npcColors.length], npcNames[i]);
-            const baseX = 80 + i * ((W - 160) / 8) + ((i * 13) % 15);
-            npc.cont.x = baseX;
-            npc.cont.y = hallBottom - 2;
-            npc._baseX = baseX;
-            npc._wanderDir = (i % 2 === 0) ? 1 : -1;
-            npc._wanderSpeed = 0.15 + (i * 0.03);
-            npc._wanderRange = 30 + (i * 5) % 20;
-            npc._phase = i * 0.7;
-            npc._location = 'hall';
-            this.scene.addChild(npc.cont);
-            this._hallNPCs.push(npc);
-        }
-        // Platform NPCs (waiting passengers)
+        // ─── EARTH/BEDROCK flanking the glass elevator shaft ───
         const platTop = hallBottom + stairH;
         const platFloorY = platTop + 130;
-        for (let i = 0; i < 6; i++) {
-            const npc = this._makeDecorativeNPC(npcColors[(i + 3) % npcColors.length], npcNames[(i + 3) % npcNames.length]);
-            const baseX = 100 + i * ((W - 200) / 6);
-            npc.cont.x = baseX;
-            npc.cont.y = platFloorY;
-            npc._baseX = baseX;
-            npc._wanderDir = (i % 2 === 0) ? 1 : -1;
-            npc._wanderSpeed = 0.08 + (i * 0.02);
-            npc._wanderRange = 15;
-            npc._phase = i * 1.1;
-            npc._location = 'platform';
-            this.scene.addChild(npc.cont);
-            this._hallNPCs.push(npc);
-        }
 
-        // ─── EARTH/BEDROCK flanking the glass elevator shaft ───
         const shaftW = 60;
         const shaftLeft = W / 2 - shaftW / 2;
         const shaftRight = W / 2 + shaftW / 2;
@@ -783,26 +747,6 @@ const InteriorMetroStation = {
         const W = G.vpW;
         const tick = (typeof G !== 'undefined' && G.tick) || 0;
 
-        // ─── Animate decorative NPCs ───
-        if (this._hallNPCs) {
-            for (const npc of this._hallNPCs) {
-                // Wander back and forth
-                npc._phase += 0.016;
-                const dx = Math.sin(npc._phase * npc._wanderSpeed * 2) * npc._wanderRange;
-                npc.cont.x = npc._baseX + dx;
-                // Walking leg animation
-                const isMoving = Math.abs(Math.cos(npc._phase * npc._wanderSpeed * 2)) > 0.15;
-                if (npc.legL && npc.legR) {
-                    const phase = isMoving ? Math.sin(tick * 0.25 + npc._phase * 10) : 0;
-                    npc.legL.x = -2.4 + phase * 1.2;
-                    npc.legR.x = 2.4 - phase * 1.2;
-                }
-                // Face direction of travel
-                const facingRight = Math.cos(npc._phase * npc._wanderSpeed * 2) > 0;
-                npc.cont.scale.x = facingRight ? 1 : -1;
-            }
-        }
-
         // ─── Draw real exterior trains ───
         const g = this._trainG;
         if (g) {
@@ -976,6 +920,73 @@ const InteriorMetroStation = {
             if (av.highlight) av.highlight.visible = !!isTracked;
         }
 
+        // ─── Mirror worker NPCs (NPCHousing commuters) using this station ───
+        if (typeof NPCHousing !== 'undefined' && NPCHousing.commuters) {
+            for (const cm of NPCHousing.commuters) {
+                if (!cm || !cm.npc) continue;
+                const st = cm.state;
+                if (st !== 'walk_to_metro' && st !== 'riding_metro' && st !== 'walk_from_metro') continue;
+
+                // Is this commuter using THIS station?
+                const entryMatch = cm._metroEntryX != null && Math.abs(cm._metroEntryX - stationX) < 8;
+                const exitMatch = cm._metroExitX != null && Math.abs(cm._metroExitX - stationX) < 8;
+                if (!entryMatch && !exitMatch) continue;
+
+                const npcId = 'npc_' + cm.npc.id;
+                seen.add(npcId);
+
+                let ix, iy;
+                if (st === 'walk_to_metro' && entryMatch) {
+                    // Walking toward this station's entrance — show in hall
+                    const dxExt = cm.c.x - stationX;
+                    ix = W / 2 + Math.max(-W / 2 + 80, Math.min(W / 2 - 80, dxExt));
+                    iy = hallFloorY;
+                } else if (st === 'riding_metro') {
+                    // Underground — show waiting on platform
+                    const spread = ((cm.npc.id.charCodeAt(0) * 31) % 200) - 100;
+                    ix = W / 2 + spread * 0.8;
+                    iy = platStandY;
+                } else if (st === 'walk_from_metro' && exitMatch) {
+                    // Exiting at this station — show in hall walking away
+                    const dxExt = cm.c.x - stationX;
+                    ix = W / 2 + Math.max(-W / 2 + 80, Math.min(W / 2 - 80, dxExt));
+                    iy = hallFloorY;
+                } else {
+                    continue;
+                }
+
+                let av = this.avatarPool.get(npcId);
+                if (!av) {
+                    // Build avatar using NPC data
+                    const fakeModel = {
+                        id: cm.npc.id,
+                        name: cm.npc.name,
+                        lab: 'other',
+                        _npcColor: cm.npc.color
+                    };
+                    av = this._makeAvatarSprite(fakeModel);
+                    this.avatarLayer.addChild(av.cont);
+                    this.avatarPool.set(npcId, av);
+                }
+                av.cont.x = ix;
+                av.cont.y = iy;
+                av.cont.visible = true;
+                av.cont.zIndex = Math.round(iy);
+
+                // Leg animation when walking
+                const isWalking = (st === 'walk_to_metro' || st === 'walk_from_metro');
+                if (av.legL && av.legR) {
+                    const phase = isWalking ? Math.sin(tick * 0.25 + (cm.npc.id.charCodeAt(0) * 0.3)) : 0;
+                    av.legL.x = -2.4 + phase * 1.2;
+                    av.legR.x = 2.4 - phase * 1.2;
+                }
+
+                // Highlight if tracked
+                const isTracked = G.tracking && G.tracking.type === 'npc' && G.tracking.id === cm.npc.id;
+                if (av.highlight) av.highlight.visible = !!isTracked;
+            }
+        }
+
         this.avatarPool.forEach((av, id) => {
             if (!seen.has(id)) av.cont.visible = false;
         });
@@ -1053,76 +1064,16 @@ const InteriorMetroStation = {
         }
     },
 
-    // ─────────────────────────────────────────────────────────────
-    //  DECORATIVE NPC (commuters/staff — proper pixel-art)
-    // ─────────────────────────────────────────────────────────────
-    _makeDecorativeNPC(suitHex, name) {
-        const cont = new PIXI.Container();
-        const bw = 16, h = 32, headH = 11, bodyH = h - headH - 4;
-        const skinCol = 0xfdd8b5;
-        const legCol = 0x3d2914;
-
-        // Shadow
-        const shadow = new PIXI.Graphics();
-        shadow.beginFill(0x000000, 0.2);
-        shadow.drawEllipse(0, 2, bw * 0.5, 2.5);
-        shadow.endFill();
-        cont.addChild(shadow);
-
-        // Legs
-        const legL = new PIXI.Graphics();
-        legL.beginFill(legCol); legL.drawRect(-2, 0, 4, 4); legL.endFill();
-        legL.x = -bw * 0.15;
-        legL.y = -4;
-        cont.addChild(legL);
-        const legR = new PIXI.Graphics();
-        legR.beginFill(legCol); legR.drawRect(-2, 0, 4, 4); legR.endFill();
-        legR.x = bw * 0.15;
-        legR.y = -4;
-        cont.addChild(legR);
-
-        // Body
-        const body = new PIXI.Graphics();
-        body.beginFill(suitHex);
-        body.drawRoundedRect(-bw / 2, 0, bw, bodyH, bw * 0.1);
-        body.endFill();
-        body.beginFill(0xffffff, 0.08);
-        body.drawRoundedRect(-bw / 2 + 2, bodyH * 0.55, bw - 4, 3, 2);
-        body.endFill();
-        body.y = -h + headH;
-        cont.addChild(body);
-
-        // Head
-        const head = new PIXI.Graphics();
-        head.beginFill(skinCol);
-        head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
-        head.endFill();
-        head.beginFill(0x2c1810);
-        head.drawCircle(-bw * 0.1, headH * 0.38, 1.2);
-        head.drawCircle( bw * 0.1, headH * 0.38, 1.2);
-        head.endFill();
-        head.beginFill(0x000000, 0.4);
-        head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
-        head.endFill();
-        head.y = -h;
-        cont.addChild(head);
-
-        // Status dot
-        const dot = new PIXI.Graphics();
-        dot.beginFill(suitHex);
-        dot.drawCircle(0, 0, 2);
-        dot.endFill();
-        dot.y = -h - 6;
-        cont.addChild(dot);
-
-        return { cont, body, head, legL, legR, dot };
-    },
-
     _makeAvatarSprite(m) {
         const cont = new PIXI.Container();
 
         let suitHex = 0x22d3ee;
-        if (typeof LABS !== 'undefined' && LABS[m.lab]) {
+        // Worker NPCs pass their color via _npcColor
+        if (m._npcColor) {
+            const c = m._npcColor;
+            if (typeof c === 'string') suitHex = parseInt(c.replace('#', ''), 16);
+            else if (typeof c === 'number') suitHex = c;
+        } else if (typeof LABS !== 'undefined' && LABS[m.lab]) {
             const c = LABS[m.lab].color || LABS[m.lab].col;
             if (typeof c === 'string') suitHex = parseInt(c.replace('#', '0x'));
             else if (typeof c === 'number') suitHex = c;
@@ -1206,7 +1157,6 @@ const InteriorMetroStation = {
             this.avatarPool.clear();
         }
         this.avatarPool = null;
-        this._hallNPCs = null;
         this.scene = null;
         this.layer = null;
         this.bld = null;
