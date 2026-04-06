@@ -81,6 +81,11 @@ const InteriorRobotics = {
         const mullionPitch = 60;
         const mullionW = 6;
 
+        // ─── ELEVATOR LAYOUT (defined early so floor props can use usableW) ───
+        const shaftW = 60;
+        const shaftX = startX + bldW - shaftW - 20;
+        const usableW = bldW - shaftW - 20;   // floor content stops before elevator shaft
+
         // ─── DRAW FLOORS (top-down like Backbone/Longevity) ───
         // groundY = where the ground level sits in scene coords
         const groundY = roofH + numFloors * floorH;
@@ -145,9 +150,9 @@ const InteriorRobotics = {
 
             // Floor-specific props
             if (isBasement) {
-                this._drawBasementProps(this.scene, startX, bldW, fy, floorH, bld.id, layout.col);
+                this._drawBasementProps(this.scene, startX, usableW, fy, floorH, bld.id, layout.col);
             } else {
-                this._drawFloorProps(this.scene, startX, bldW, fy, floorH, floors[f], layout.col, bld.id);
+                this._drawFloorProps(this.scene, startX, usableW, fy, floorH, floors[f], layout.col, bld.id);
             }
         }
 
@@ -158,6 +163,17 @@ const InteriorRobotics = {
         wallG.drawRect(startX + bldW, roofH, 6, (numFloors + 1) * floorH);
         wallG.endFill();
         this.scene.addChild(wallG);
+
+        // ─── ELEVATOR SHAFT BACKGROUND (dark strip behind shaft, drawn on each floor) ───
+        const shaftBg = new PIXI.Graphics();
+        shaftBg.beginFill(0x0a0e1a, 0.9);
+        shaftBg.drawRect(startX + usableW, roofH, bldW - usableW, (numFloors + 1) * floorH);
+        shaftBg.endFill();
+        // Vertical divider line
+        shaftBg.beginFill(layout.col, 0.12);
+        shaftBg.drawRect(startX + usableW, roofH, 2, (numFloors + 1) * floorH);
+        shaftBg.endFill();
+        this.scene.addChild(shaftBg);
 
         // ─── GROUND (fills sides beyond the building footprint) ───
         const earth = new PIXI.Graphics();
@@ -174,9 +190,7 @@ const InteriorRobotics = {
             InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
         }
 
-        // ─── ELEVATOR (matches InteriorCity: shaftW=60, offset 20) ───
-        const shaftW = 60;
-        const shaftX = startX + bldW - shaftW - 20;
+        // ─── ELEVATOR (shaftW/shaftX defined above with usableW) ───
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
             ec.y = groundY;  // ground floor bottom (CityElevator draws upward)
@@ -190,8 +204,8 @@ const InteriorRobotics = {
             this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
         }
 
-        // ─── SPAWN INTERIOR NPCs (baseY = groundY for top-down layout) ───
-        this._spawnNPCs(this.scene, startX, bldW, baseY, floorH, numFloors, layout);
+        // ─── SPAWN INTERIOR NPCs (usableW keeps NPCs out of shaft zone) ───
+        this._spawnNPCs(this.scene, startX, usableW, baseY, floorH, numFloors, layout);
 
         // ─── SCROLL (identical to Backbone) ───
         const bp = 56;

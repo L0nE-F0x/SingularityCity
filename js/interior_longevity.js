@@ -94,6 +94,11 @@ const InteriorLongevity = {
         roofTxt.y = roofH / 2;
         this.scene.addChild(roofTxt);
 
+        // ─── ELEVATOR LAYOUT (defined early so floor props can use usableW) ───
+        const shaftW = 60;
+        const shaftX = startX + bldW - shaftW - 20;
+        const usableW = bldW - shaftW - 20;   // floor content stops before elevator shaft
+
         // ─── FLOORS (f = -1 is themed basement, f = 0..N-1 are normal floors) ───
         // Window band constants for above-ground floors — sky shows through cutout
         const winMarginX = 40;           // space on left/right of window band
@@ -169,11 +174,22 @@ const InteriorLongevity = {
             propsContainer.y = fy;
             this.scene.addChild(propsContainer);
             if (isBasement) {
-                this._buildBasementProps(propsContainer, bld.id, bldW, floorH, layout.col);
+                this._buildBasementProps(propsContainer, bld.id, usableW, floorH, layout.col);
             } else {
-                this._buildFloorProps(propsContainer, floorName, bldW, floorH, layout.col, bld.id);
+                this._buildFloorProps(propsContainer, floorName, usableW, floorH, layout.col, bld.id);
             }
         }
+
+        // ─── ELEVATOR SHAFT BACKGROUND (dark strip behind shaft, drawn on each floor) ───
+        const shaftBg = new PIXI.Graphics();
+        shaftBg.beginFill(0x0a0e1a, 0.9);
+        shaftBg.drawRect(startX + usableW, roofH, bldW - usableW, (numFloors + 1) * floorH);
+        shaftBg.endFill();
+        // Vertical divider line
+        shaftBg.beginFill(layout.col, 0.12);
+        shaftBg.drawRect(startX + usableW, roofH, 2, (numFloors + 1) * floorH);
+        shaftBg.endFill();
+        this.scene.addChild(shaftBg);
 
         // ─── GROUND SECTION (below basement) ───
         const surfaceY = roofH + numFloors * floorH;              // top of basement = street level
@@ -201,9 +217,7 @@ const InteriorLongevity = {
             InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
         }
 
-        // ─── ELEVATOR (matches InteriorCity: shaftW=60, offset 20) ───
-        const shaftW = 60;
-        const shaftX = startX + bldW - shaftW - 20;
+        // ─── ELEVATOR (shaftW/shaftX defined above with usableW) ───
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
             ec.y = surfaceY;  // ground floor bottom (CityElevator draws upward)
@@ -219,8 +233,8 @@ const InteriorLongevity = {
             this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
         }
 
-        // ─── Spawn interior NPCs on every floor ───
-        this._spawnNPCs(this.scene, startX, bldW, roofH, floorH, numFloors, layout);
+        // ─── Spawn interior NPCs (usableW keeps NPCs out of shaft zone) ───
+        this._spawnNPCs(this.scene, startX, usableW, roofH, floorH, numFloors, layout);
 
         // ─── Scrolling — use same proven pattern as Backbone/VCRow ───
         const bp = 56;
