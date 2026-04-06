@@ -284,7 +284,7 @@ const Camera = {
         }
     },
 
-    /* ── Desktop-only zoom ± pill (sits just left of minimap) ─ */
+    /* ── Desktop-only horizontal zoom ± pill (left of minimap) ─ */
     _buildZoomButtons() {
         // Skip on mobile / narrow screens — pinch-to-zoom handles it
         if (window.innerWidth < 769) return;
@@ -297,12 +297,13 @@ const Camera = {
             'right:308px',
             'z-index:100',
             'display:flex',
-            'flex-direction:column',
-            'border-radius:14px',
+            'flex-direction:row',
+            'align-items:center',
+            'border-radius:10px',
             'overflow:hidden',
             'background:rgba(6,6,16,0.92)',
             'border:1px solid var(--bd,#1e293b)',
-            'box-shadow:0 4px 20px rgba(0,0,0,0.5)',
+            'box-shadow:0 2px 12px rgba(0,0,0,0.4)',
             'backdrop-filter:blur(6px)',
             '-webkit-backdrop-filter:blur(6px)',
             'pointer-events:all',
@@ -313,13 +314,13 @@ const Camera = {
             const b = document.createElement('button');
             b.textContent = label;
             b.style.cssText = [
-                'width:28px',
-                'height:28px',
+                'width:22px',
+                'height:20px',
                 'background:transparent',
                 'border:none',
                 'color:#8ba4b8',
                 'font-family:"JetBrains Mono",monospace',
-                'font-size:16px',
+                'font-size:13px',
                 'font-weight:bold',
                 'cursor:pointer',
                 'display:flex',
@@ -344,17 +345,16 @@ const Camera = {
             return b;
         };
 
-        const zoomIn = mkBtn('+', 0.10);
-        const sep = document.createElement('div');
-        sep.style.cssText = 'height:1px;background:var(--bd,#1e293b);margin:0 4px;';
         const zoomOut = mkBtn('−', -0.10);
+        const sep = document.createElement('div');
+        sep.style.cssText = 'width:1px;height:12px;background:var(--bd,#1e293b);';
+        const zoomIn = mkBtn('+', 0.10);
 
-        pill.appendChild(zoomIn);
-        pill.appendChild(sep);
         pill.appendChild(zoomOut);
+        pill.appendChild(sep);
+        pill.appendChild(zoomIn);
         document.body.appendChild(pill);
 
-        // Hide during interiors, macro mode, orbit, etc.
         this._zoomPill = pill;
     },
 
