@@ -1,7 +1,9 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   X-RAY MODE (v1.0.0 — Data Spine Diagnostic Overlay)
+   X-RAY MODE (v2.0.0 — Data Spine Diagnostic Overlay)
    Strips away city visuals to reveal pure data flows, network connections, building stats,
    and inter-lab relationships as a dark hacker/terminal aesthetic.
+   v2: Correct dynamic building heights, population heat fills, benchmark bars, model counts,
+       animated vertical data streams inside tall buildings, live HUD legend.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const XRayMode = {
@@ -15,9 +17,21 @@ const XRayMode = {
     _pulseRings: [],       // Pulse rings at building bases
     _scanLine: null,       // Horizontal scan line effect
     _scanY: 0,
+    _dataStreams: [],       // Vertical data streams inside buildings
+    _hud: null,            // HUD container (fixed on screen)
 
     // Saved layer alphas for restoration
     _savedAlphas: {},
+
+    // ─── Height helper — matches environment.js exactly ───
+    _getBldH(b) {
+        const floors = b.dynamicFl || b.fl || 2;
+        return floors * 18 + 24;
+    },
+
+    _getBldFloors(b) {
+        return b.dynamicFl || b.fl || 2;
+    },
 
     toggle() {
         if (this.active) this.exit();
@@ -79,6 +93,7 @@ const XRayMode = {
         this._buildConnections();
         this._buildStatLabels();
         this._buildScanLine();
+        this._buildHUD();
 
         console.log('🔬 X-Ray Mode activated');
     },
@@ -118,10 +133,18 @@ const XRayMode = {
             this.overlay = null;
         }
 
+        // Remove HUD
+        if (this._hud) {
+            if (this._hud.parent) this._hud.parent.removeChild(this._hud);
+            this._hud.destroy({ children: true });
+            this._hud = null;
+        }
+
         this._dataFlows = [];
         this._statLabels = [];
         this._wireframes = [];
         this._pulseRings = [];
+        this._dataStreams = [];
         this._gridLines = null;
         this._connectionLines = null;
         this._scanLine = null;
@@ -130,22 +153,19 @@ const XRayMode = {
     },
 
     // ─── BACKDROP: Solid near-black rectangle covering the full world area ───
-    // Sits behind all overlay elements so any residual layer pixels are masked out.
     _buildBackdrop() {
         const bg = new PIXI.Graphics();
         const cityW = G.cityW || G.getCityWidth();
-        // Cover well past the city edges in every direction (camera can roam/zoom)
         bg.beginFill(0x02060a, 1);
         bg.drawRect(-4000, -5000, cityW + 8000, 10000);
         bg.endFill();
-        // Very subtle vertical gradient hint via thin translucent bands
         bg.beginFill(0x031018, 0.5);
-        bg.drawRect(-4000, -5000, cityW + 8000, 4500); // upper "sky" band
+        bg.drawRect(-4000, -5000, cityW + 8000, 4500);
         bg.endFill();
         this.overlay.addChild(bg);
     },
 
-    // ─── GRID: Neon coordinate grid across the full scene (sky + ground) ───
+    // ─── GRID: Neon coordinate grid across the full scene ───
     _buildGrid() {
         const g = new PIXI.Graphics();
         const gy = G.groundY;
@@ -153,26 +173,19 @@ const XRayMode = {
         const topY = gy - 1400;
         const botY = gy + 400;
 
-        // Fine grid — dim cyan/green
         g.lineStyle(1, 0x00ff88, 0.05);
         for (let x = 0; x < cityW; x += 120) {
-            g.moveTo(x, topY);
-            g.lineTo(x, botY);
+            g.moveTo(x, topY); g.lineTo(x, botY);
         }
         for (let y = topY; y <= botY; y += 60) {
-            g.moveTo(0, y);
-            g.lineTo(cityW, y);
+            g.moveTo(0, y); g.lineTo(cityW, y);
         }
-
-        // Major grid — every 600px, slightly brighter
         g.lineStyle(1, 0x00ff88, 0.12);
         for (let x = 0; x < cityW; x += 600) {
-            g.moveTo(x, topY);
-            g.lineTo(x, botY);
+            g.moveTo(x, topY); g.lineTo(x, botY);
         }
         for (let y = topY; y <= botY; y += 300) {
-            g.moveTo(0, y);
-            g.lineTo(cityW, y);
+            g.moveTo(0, y); g.lineTo(cityW, y);
         }
 
         this._gridLines = g;
@@ -185,60 +198,62 @@ const XRayMode = {
         const gy = G.groundY;
         const cityW = G.cityW || G.getCityWidth();
 
-        // Bright ground line
         g.lineStyle(2, 0x00ff88, 0.8);
-        g.moveTo(-2000, gy);
-        g.lineTo(cityW + 2000, gy);
-        // Glow echo below
+        g.moveTo(-2000, gy); g.lineTo(cityW + 2000, gy);
         g.lineStyle(4, 0x00ff88, 0.15);
-        g.moveTo(-2000, gy + 2);
-        g.lineTo(cityW + 2000, gy + 2);
+        g.moveTo(-2000, gy + 2); g.lineTo(cityW + 2000, gy + 2);
 
-        // Subtle underground fill band (tunnel + pipes area)
         g.beginFill(0x001a12, 0.5);
         g.drawRect(-2000, gy + 4, cityW + 4000, 280);
         g.endFill();
 
-        // Dotted secondary horizon (at tunnel depth)
+        // Dotted depth horizons
         g.lineStyle(1, 0x00ff88, 0.25);
         for (let x = -2000; x < cityW + 2000; x += 12) {
-            g.moveTo(x, gy + 120);
-            g.lineTo(x + 6, gy + 120);
+            g.moveTo(x, gy + 120); g.lineTo(x + 6, gy + 120);
         }
-        // Dotted water pipe depth
         g.lineStyle(1, 0x06b6d4, 0.35);
         for (let x = -2000; x < cityW + 2000; x += 14) {
-            g.moveTo(x, gy + 220);
-            g.lineTo(x + 7, gy + 220);
+            g.moveTo(x, gy + 220); g.lineTo(x + 7, gy + 220);
         }
-        // Dotted sewer pipe depth
         g.lineStyle(1, 0xf59e0b, 0.3);
         for (let x = -2000; x < cityW + 2000; x += 14) {
-            g.moveTo(x, gy + 237);
-            g.lineTo(x + 7, gy + 237);
+            g.moveTo(x, gy + 237); g.lineTo(x + 7, gy + 237);
         }
 
         this.overlay.addChild(g);
     },
 
-    // ─── WIREFRAMES: Neon outlines of all buildings ───
+    // ─── WIREFRAMES: Neon outlines of all buildings (using DYNAMIC height) ───
     _buildWireframes() {
         this._wireframes = [];
         this._pulseRings = [];
+        this._dataStreams = [];
         const gy = G.groundY;
 
         BLDS.forEach(b => {
             if (!b.w || b.w < 10) return;
-            const h = (b.fl || 2) * 18 + 24;
+            const h = this._getBldH(b);
+            const floors = this._getBldFloors(b);
             const labColor = this._getLabColor(b);
 
-            // Wireframe outline — solid fill first for silhouette, then bright neon stroke
             const wf = new PIXI.Graphics();
-            // Soft inner fill so buildings read as solid dark shapes against the black
-            wf.beginFill(labColor, 0.08);
+
+            // ─── Population heat fill (taller fill = more models) ───
+            const pop = this._getBldPop(b);
+            if (pop > 0) {
+                const heatPct = Math.min(1, pop / Math.max(1, floors * 4));
+                const heatH = h * heatPct;
+                wf.beginFill(labColor, 0.04 + heatPct * 0.12);
+                wf.drawRect(b.x, gy - heatH, b.w, heatH);
+                wf.endFill();
+            }
+
+            // Soft inner fill
+            wf.beginFill(labColor, 0.06);
             wf.drawRect(b.x, gy - h, b.w, h);
             wf.endFill();
-            // Outer glow (thick, low alpha)
+            // Outer glow
             wf.lineStyle(4, labColor, 0.18);
             wf.drawRect(b.x, gy - h, b.w, h);
             // Main neon stroke
@@ -246,35 +261,52 @@ const XRayMode = {
             wf.drawRect(b.x, gy - h, b.w, h);
 
             // Floor lines
-            wf.lineStyle(0.5, labColor, 0.35);
-            for (let f = 1; f < (b.fl || 2); f++) {
+            wf.lineStyle(0.5, labColor, 0.25);
+            for (let f = 1; f < floors; f++) {
                 const fy = gy - f * 18;
-                wf.moveTo(b.x, fy);
-                wf.lineTo(b.x + b.w, fy);
+                wf.moveTo(b.x, fy); wf.lineTo(b.x + b.w, fy);
             }
 
-            // Corner brackets (tech overlay feel)
+            // Corner brackets
             const bracketLen = Math.min(12, b.w * 0.15);
             wf.lineStyle(2, labColor, 1.0);
-            // Top-left
-            wf.moveTo(b.x, gy - h + bracketLen);
-            wf.lineTo(b.x, gy - h);
-            wf.lineTo(b.x + bracketLen, gy - h);
-            // Top-right
-            wf.moveTo(b.x + b.w - bracketLen, gy - h);
-            wf.lineTo(b.x + b.w, gy - h);
-            wf.lineTo(b.x + b.w, gy - h + bracketLen);
-            // Bottom-left
-            wf.moveTo(b.x, gy - bracketLen);
-            wf.lineTo(b.x, gy);
-            wf.lineTo(b.x + bracketLen, gy);
-            // Bottom-right
-            wf.moveTo(b.x + b.w - bracketLen, gy);
-            wf.lineTo(b.x + b.w, gy);
-            wf.lineTo(b.x + b.w, gy - bracketLen);
+            wf.moveTo(b.x, gy - h + bracketLen); wf.lineTo(b.x, gy - h); wf.lineTo(b.x + bracketLen, gy - h);
+            wf.moveTo(b.x + b.w - bracketLen, gy - h); wf.lineTo(b.x + b.w, gy - h); wf.lineTo(b.x + b.w, gy - h + bracketLen);
+            wf.moveTo(b.x, gy - bracketLen); wf.lineTo(b.x, gy); wf.lineTo(b.x + bracketLen, gy);
+            wf.moveTo(b.x + b.w - bracketLen, gy); wf.lineTo(b.x + b.w, gy); wf.lineTo(b.x + b.w, gy - bracketLen);
+
+            // ─── Benchmark score bar (left edge, inside building) ───
+            const bmScore = this._getBldBenchmark(b);
+            if (bmScore > 0) {
+                const barMaxH = h - 6;
+                const barH = (bmScore / 100) * barMaxH;
+                wf.beginFill(0x22d3ee, 0.15);
+                wf.drawRect(b.x + 2, gy - barH - 3, 4, barH);
+                wf.endFill();
+                wf.beginFill(0x22d3ee, 0.5);
+                wf.drawRect(b.x + 2, gy - barH - 3, 4, Math.min(6, barH));
+                wf.endFill();
+            }
 
             this.overlay.addChild(wf);
             this._wireframes.push(wf);
+
+            // ─── Animated vertical data streams (inside tall buildings) ───
+            if (floors >= 5 && b.w >= 40) {
+                const streamCount = Math.min(4, Math.floor(b.w / 40));
+                for (let si = 0; si < streamCount; si++) {
+                    const sx = b.x + b.w * (0.2 + si * 0.6 / Math.max(1, streamCount - 1));
+                    const stream = new PIXI.Graphics();
+                    stream._bx = sx;
+                    stream._topY = gy - h + 4;
+                    stream._botY = gy - 4;
+                    stream._col = labColor;
+                    stream._phase = Math.random() * h;
+                    stream._speed = 0.5 + Math.random() * 1.0;
+                    this.overlay.addChild(stream);
+                    this._dataStreams.push(stream);
+                }
+            }
 
             // Pulse ring at building base
             const ring = new PIXI.Graphics();
@@ -307,9 +339,9 @@ const XRayMode = {
 
             for (let i = 0; i < blds.length - 1; i++) {
                 const a = blds[i];
-                const b = blds[i + 1];
+                const bld = blds[i + 1];
                 const ax = a.x + a.w / 2;
-                const bx = b.x + b.w / 2;
+                const bx = bld.x + bld.w / 2;
                 const midX = (ax + bx) / 2;
                 const dist = Math.abs(bx - ax);
                 const arcHeight = Math.min(dist * 0.15, 60);
@@ -319,7 +351,6 @@ const XRayMode = {
                 g.quadraticCurveTo(midX, gy - 5 - arcHeight, bx, gy - 5);
             }
 
-            // Spawn data flow packets between connected buildings
             if (blds.length >= 2) {
                 for (let i = 0; i < Math.min(blds.length - 1, 3); i++) {
                     this._spawnDataFlow(blds[i], blds[i + 1], col);
@@ -339,11 +370,11 @@ const XRayMode = {
             const zoneBlds = BLDS.filter(b => b.id.startsWith(prefix));
             for (let i = 0; i < zoneBlds.length - 1; i++) {
                 const a = zoneBlds[i];
-                const b = zoneBlds[i + 1];
+                const bld = zoneBlds[i + 1];
                 g.lineStyle(1, col, 0.28);
                 g.moveTo(a.x + a.w / 2, gy - 5);
-                g.lineTo(b.x + b.w / 2, gy - 5);
-                this._spawnDataFlow(a, b, col);
+                g.lineTo(bld.x + bld.w / 2, gy - 5);
+                this._spawnDataFlow(a, bld, col);
             }
         });
 
@@ -357,7 +388,6 @@ const XRayMode = {
         packet.beginFill(col, 0.8);
         packet.drawCircle(0, 0, 2);
         packet.endFill();
-        // Glow ring
         packet.lineStyle(1, col, 0.3);
         packet.drawCircle(0, 0, 4);
 
@@ -370,7 +400,7 @@ const XRayMode = {
         packet._bx = bx;
         packet._arcHeight = arcHeight;
         packet._baseY = gy - 5;
-        packet._t = Math.random(); // progress 0-1
+        packet._t = Math.random();
         packet._speed = 0.003 + Math.random() * 0.004;
         packet._dir = Math.random() > 0.5 ? 1 : -1;
 
@@ -387,25 +417,35 @@ const XRayMode = {
 
         BLDS.forEach(b => {
             if (!b.w || b.w < 30) return;
-            const h = (b.fl || 2) * 18 + 24;
+            const h = this._getBldH(b);
+            const floors = this._getBldFloors(b);
             const labColor = this._getLabColor(b);
             const hexStr = '#' + labColor.toString(16).padStart(6, '0');
 
-            // Building ID label
-            const idLabel = new PIXI.Text(b.id, {
+            // Building name (use readable name, fallback to id)
+            const displayName = b.name || b.id;
+            const idLabel = new PIXI.Text(displayName, {
                 fontFamily: 'monospace', fontSize: 7, fill: hexStr, fontWeight: 'bold'
             });
             idLabel.anchor.set(0.5, 1);
             idLabel.x = b.x + b.w / 2;
-            idLabel.y = gy - h - 18;
+            idLabel.y = gy - h - 20;
+            // Scale down if too wide for the building
+            if (idLabel.width > b.w + 20) idLabel.scale.set((b.w + 20) / idLabel.width);
             this.overlay.addChild(idLabel);
+            this._statLabels.push(idLabel);
 
-            // Stats line
+            // Stats line: floors | population | benchmark
             const stats = [];
-            if (b.lab) stats.push(b.lab.toUpperCase());
-            if (b.fl) stats.push(b.fl + 'F');
-            if (b.type) stats.push(b.type);
-            if (b.dcData) stats.push(b.dcData.status || 'active');
+            stats.push(floors + 'F');
+            const pop = this._getBldPop(b);
+            if (pop > 0) stats.push(pop + (b.lab ? ' models' : ' pop'));
+            const bm = this._getBldBenchmark(b);
+            if (bm > 0) stats.push('BM:' + bm.toFixed(0));
+            if (b.lab) {
+                const labInfo = typeof LABS !== 'undefined' && LABS[b.lab];
+                if (labInfo && labInfo.region) stats.push(labInfo.region.toUpperCase());
+            }
 
             if (stats.length > 0) {
                 const statLine = new PIXI.Text(stats.join(' | '), {
@@ -413,26 +453,34 @@ const XRayMode = {
                 });
                 statLine.anchor.set(0.5, 1);
                 statLine.x = b.x + b.w / 2;
-                statLine.y = gy - h - 8;
+                statLine.y = gy - h - 10;
+                if (statLine.width > b.w + 20) statLine.scale.set((b.w + 20) / statLine.width);
                 this.overlay.addChild(statLine);
                 this._statLabels.push(statLine);
             }
 
-            // Vertical data bar (height = relative floors)
-            const maxFl = 50; // normalize against
-            const barH = Math.min(h, ((b.fl || 2) / maxFl) * 80);
-            const bar = new PIXI.Graphics();
-            bar.beginFill(labColor, 0.25);
-            bar.drawRect(0, 0, 3, barH);
-            bar.endFill();
-            bar.beginFill(labColor, 0.6);
-            bar.drawRect(0, 0, 3, barH * 0.3); // highlight top
-            bar.endFill();
-            bar.x = b.x + b.w + 4;
-            bar.y = gy - barH;
-            this.overlay.addChild(bar);
+            // ─── Model count badge (circle with number, top-right of building) ───
+            if (pop > 0 && b.w >= 40) {
+                const badge = new PIXI.Graphics();
+                const badgeX = b.x + b.w - 1;
+                const badgeY = gy - h + 1;
+                const badgeR = Math.max(7, Math.min(12, pop * 0.6));
+                badge.beginFill(0x000000, 0.7);
+                badge.drawCircle(badgeX, badgeY, badgeR + 1);
+                badge.endFill();
+                badge.lineStyle(1.5, labColor, 0.9);
+                badge.drawCircle(badgeX, badgeY, badgeR);
+                this.overlay.addChild(badge);
 
-            this._statLabels.push(idLabel);
+                const countTxt = new PIXI.Text(String(pop), {
+                    fontFamily: 'monospace', fontSize: pop >= 10 ? 6 : 7, fill: hexStr, fontWeight: 'bold'
+                });
+                countTxt.anchor.set(0.5, 0.5);
+                countTxt.x = badgeX;
+                countTxt.y = badgeY;
+                this.overlay.addChild(countTxt);
+                this._statLabels.push(countTxt);
+            }
         });
     },
 
@@ -442,7 +490,6 @@ const XRayMode = {
         sl.beginFill(0x00ff88, 0.2);
         sl.drawRect(-5000, 0, 80000, 2);
         sl.endFill();
-        // Glow above
         sl.beginFill(0x00ff88, 0.08);
         sl.drawRect(-5000, -20, 80000, 20);
         sl.endFill();
@@ -453,6 +500,111 @@ const XRayMode = {
         this._scanY = G.groundY - 1000;
         sl.y = this._scanY;
         this.overlay.addChild(sl);
+    },
+
+    // ─── HUD: Fixed on-screen legend + live stats ───
+    _buildHUD() {
+        this._hud = new PIXI.Container();
+        this._hud.zIndex = 1000;
+        // Add to stage (not world) so it stays fixed on screen
+        G.app.stage.addChild(this._hud);
+
+        const pad = 10;
+        const lineH = 13;
+        let y = pad;
+
+        // Title
+        const title = new PIXI.Text('X-RAY DIAGNOSTIC', {
+            fontFamily: 'monospace', fontSize: 9, fill: 0x00ff88, fontWeight: 'bold', letterSpacing: 2
+        });
+        title.x = pad; title.y = y;
+        this._hud.addChild(title);
+        y += lineH + 4;
+
+        // Separator
+        const sep = new PIXI.Graphics();
+        sep.beginFill(0x00ff88, 0.3); sep.drawRect(pad, y, 130, 1); sep.endFill();
+        this._hud.addChild(sep);
+        y += 6;
+
+        // Live stats (updated each frame)
+        const models = G.models || [];
+        const alive = models.filter(m => !m.ret || new Date(m.ret) > new Date()).length;
+        const labCount = typeof LABS !== 'undefined' ? Object.keys(LABS).length : 0;
+        const bldCount = BLDS.length;
+
+        const statLines = [
+            { label: 'MODELS', val: alive + ' / ' + models.length, col: 0x22d3ee },
+            { label: 'LABS', val: String(labCount), col: 0xfbbf24 },
+            { label: 'BUILDINGS', val: String(bldCount), col: 0x00ff88 },
+        ];
+
+        // Add benchmark leader if available
+        if (typeof BM !== 'undefined') {
+            let topElo = 0, topName = '';
+            models.forEach(m => {
+                const elo = BM[m.id]?.ELO || 0;
+                if (elo > topElo) { topElo = elo; topName = m.name; }
+            });
+            if (topName) {
+                statLines.push({ label: 'TOP ELO', val: topName.split(' ')[0] + ' ' + topElo.toFixed(0), col: 0xef4444 });
+            }
+        }
+
+        // Day phase
+        const dp = G.getDayPhase();
+        const hours = Math.floor(dp * 24);
+        const mins = Math.floor((dp * 24 - hours) * 60);
+        statLines.push({ label: 'TIME', val: String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0'), col: 0x64748b });
+
+        statLines.forEach(s => {
+            const lbl = new PIXI.Text(s.label, {
+                fontFamily: 'monospace', fontSize: 7, fill: 0x475569
+            });
+            lbl.x = pad; lbl.y = y;
+            this._hud.addChild(lbl);
+
+            const val = new PIXI.Text(s.val, {
+                fontFamily: 'monospace', fontSize: 7, fill: s.col, fontWeight: 'bold'
+            });
+            val.anchor.set(1, 0);
+            val.x = pad + 138; val.y = y;
+            this._hud.addChild(val);
+            y += lineH;
+        });
+
+        y += 4;
+        const sep2 = new PIXI.Graphics();
+        sep2.beginFill(0x00ff88, 0.3); sep2.drawRect(pad, y, 130, 1); sep2.endFill();
+        this._hud.addChild(sep2);
+        y += 6;
+
+        // Legend
+        const legendItems = [
+            { col: 0x22d3ee, label: 'Benchmark Bar' },
+            { col: 0x00ff88, label: 'Population Heat' },
+            { col: 0xfbbf24, label: 'Data Flow' },
+        ];
+        legendItems.forEach(item => {
+            const dot = new PIXI.Graphics();
+            dot.beginFill(item.col, 0.9); dot.drawCircle(pad + 4, y + 4, 3); dot.endFill();
+            this._hud.addChild(dot);
+            const txt = new PIXI.Text(item.label, {
+                fontFamily: 'monospace', fontSize: 6, fill: 0x94a3b8
+            });
+            txt.x = pad + 12; txt.y = y;
+            this._hud.addChild(txt);
+            y += lineH - 2;
+        });
+
+        // Background panel
+        const panel = new PIXI.Graphics();
+        panel.beginFill(0x020a0f, 0.85);
+        panel.drawRoundedRect(pad - 4, pad - 4, 150, y - pad + 8, 4);
+        panel.endFill();
+        panel.lineStyle(1, 0x00ff88, 0.3);
+        panel.drawRoundedRect(pad - 4, pad - 4, 150, y - pad + 8, 4);
+        this._hud.addChildAt(panel, 0);
     },
 
     // ─── UPDATE: Called every frame from engine ───
@@ -468,7 +620,6 @@ const XRayMode = {
             if (p._t < 0) { p._t = 1; }
 
             const t = p._t;
-            // Quadratic bezier interpolation
             const ax = p._ax;
             const bx = p._bx;
             const midX = (ax + bx) / 2;
@@ -476,7 +627,7 @@ const XRayMode = {
             const y = (1 - t) * (1 - t) * p._baseY + 2 * (1 - t) * t * (p._baseY - p._arcHeight) + t * t * p._baseY;
             p.x = x;
             p.y = y;
-            p.alpha = 0.4 + Math.sin(t * Math.PI) * 0.6; // brightest at midpoint
+            p.alpha = 0.4 + Math.sin(t * Math.PI) * 0.6;
         });
 
         // Pulse rings — breathing effect
@@ -490,7 +641,27 @@ const XRayMode = {
             ring.drawCircle(ring._cx, ring._cy, ring._radius * scale);
         });
 
-        // Scan line — sweep up and down across the full neon grid
+        // Vertical data streams inside tall buildings
+        this._dataStreams.forEach(s => {
+            if (!s || s.destroyed) return;
+            s.clear();
+            s._phase += s._speed;
+            const streamH = s._botY - s._topY;
+            if (streamH <= 0) return;
+            // Draw falling dots
+            for (let di = 0; di < 5; di++) {
+                const dotY = s._topY + ((s._phase + di * streamH / 5) % streamH);
+                const a = 0.15 + Math.sin(fc * 0.05 + di * 1.3) * 0.15;
+                s.beginFill(s._col, a);
+                s.drawCircle(s._bx, dotY, 1);
+                s.endFill();
+            }
+            // Dim vertical line
+            s.lineStyle(0.5, s._col, 0.06);
+            s.moveTo(s._bx, s._topY); s.lineTo(s._bx, s._botY);
+        });
+
+        // Scan line — sweep up and down
         if (this._scanLine) {
             this._scanY += 1.2;
             if (this._scanY > G.groundY + 50) this._scanY = G.groundY - 1200;
@@ -498,12 +669,48 @@ const XRayMode = {
         }
     },
 
-    // ─── HELPERS ───
+    // ─── DATA HELPERS ───
+    _getBldPop(b) {
+        if (!G.models) return 0;
+        if (b.lab) {
+            return G.models.filter(m => m.lab === b.lab && (!m.ret || new Date(m.ret) > new Date())).length;
+        }
+        if (b.id.startsWith('res_')) {
+            const region = b.id.split('_')[1] || 'eu';
+            return G.models.filter(m => {
+                if (m.ret && new Date(m.ret) <= new Date()) return false;
+                const r = (typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region : 'eu';
+                return r === region;
+            }).length;
+        }
+        return 0;
+    },
+
+    _getBldBenchmark(b) {
+        if (!b.lab || typeof BM === 'undefined' || !G.models) return 0;
+        let best = 0;
+        G.models.forEach(m => {
+            if (m.lab !== b.lab) return;
+            if (m.ret && new Date(m.ret) <= new Date()) return;
+            const elo = BM[m.id]?.ELO || 0;
+            if (elo > best) best = elo;
+            if (best === 0) {
+                const bms = BM[m.id] || {};
+                const vals = Object.values(bms).filter(v => typeof v === 'number' && v > 0);
+                if (vals.length > 0) {
+                    const avg = vals.reduce((a, c) => a + c, 0) / vals.length;
+                    if (avg > best) best = avg;
+                }
+            }
+        });
+        return best;
+    },
+
+    // ─── COLOR HELPERS ───
     _getLabColor(bld) {
         if (bld.lab && typeof LABS !== 'undefined' && LABS[bld.lab]) {
             return parseInt(LABS[bld.lab].color.replace('#', ''), 16) || 0x00ff88;
         }
-        // Zone-specific colors
         if (bld.type === 'robotics') return 0xf59e0b;
         if (bld.type === 'longevity') return 0x22c55e;
         if (bld.type === 'backbone') return 0x06b6d4;
@@ -516,7 +723,7 @@ const XRayMode = {
         if (bld.id.startsWith('vcrow_')) return 0x10b981;
         if (bld.id.startsWith('house_')) return 0xa855f7;
         if (bld.id.startsWith('res_')) return 0x64748b;
-        return 0x00ff88; // default matrix green
+        return 0x00ff88;
     },
 
     _getLabColorFromId(labId) {
