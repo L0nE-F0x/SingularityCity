@@ -1,106 +1,137 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   AUTO-TOUR / SCREENSAVER MODE (v1.0.0 — Phase 2b)
+   AUTO-TOUR / SCREENSAVER MODE (v2.0.0 — Cinematic Overhaul)
    ────────────────────────────────────────────────────────────────────────────────────────────────
-   Idle-triggered hands-free camera tour that cycles through 8 landmark stops across the city.
-   Designed for kiosk/demo use and ambient "set it and forget it" viewing.
+   Randomised, activity-aware, cinematic camera tour with interior visits.
+   Designed to look like a beautiful living screensaver on a second monitor.
 
    Behaviour
-     • After `IDLE_MS` of no user input (pointer/wheel/key/touch), the tour auto-starts.
-     • Camera glides to the first stop, holds for `HOLD_MS`, glides to the next — repeat forever.
-     • Any real input cancels the tour and restores manual control.
-     • `T` key toggles the tour on/off manually.
-     • Refuses to start during: orbit mode, interior mode, macro view, tracking, X-ray,
-       or while any modal overlay / pointer-events element is the active element.
-
-   Implementation
-     • Drives the camera purely via `Camera.targetX` / `Camera.targetZoom`. The existing
-       lerp in `Camera.update()` handles smoothing, so no new easing code is needed.
-     • Stops are rebuilt lazily on first start from `G.bldById` — if a landmark is missing
-       the stop is skipped. If fewer than 3 stops survive, the tour aborts and logs a warning.
-     • The DOM overlay is a tiny bottom-center banner that fades in when active. No PIXI.
+     • After `IDLE_MS` of no user input the tour auto-starts (or press T).
+     • Each stop is chosen randomly from a large pool of city landmarks, labs,
+       zones, and interiors — weighted by category:
+         40 % — HIGH-ACTIVITY hot-spots  (busiest buildings right now)
+         30 % — SCENIC / CINEMATIC       (wide panoramas, space zone, parks)
+         20 % — INTERIOR DIVE            (enter a random building's interior)
+         10 % — TRACKING FOLLOW          (follow a random walking model)
+     • Variable dwell times, zoom levels, and gentle slow-pan drift per stop.
+     • Tiny pill-shaped HUD indicator (top-right) so the view stays unobstructed.
+     • Any real input cancels the tour.  T toggles manually.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const AutoTour = {
     active: false,
     _bootOk: false,
-    embedSticky: false,  // When true (embed mode) the tour ignores user input and never auto-exits.
+    embedSticky: false,
 
-    // Tuning
-    IDLE_MS: 60000,      // 60 s of no input → auto-start
-    HOLD_MS: 7000,       // dwell time at each stop (camera.js lerps during this window too)
-    MIN_STOPS: 3,        // abort start if fewer landmarks than this resolve
+    /* ── Tuning ───────────────────────────────────────────────── */
+    IDLE_MS:  60000,
+    HOLD_MS_MIN: 6000,
+    HOLD_MS_MAX: 14000,
+    INTERIOR_HOLD_MS: 12000,
+    TRACK_HOLD_MS: 10000,
+    MIN_STOPS: 3,
 
-    // Tour stops — filled on first start. Each entry:
-    //   { bldId, label, zoom, yOffset, xOffset }
-    // `zoom` is the target Camera.zoom (1.0 = default). `yOffset` nudges camera up so the
-    // landmark's label area sits mid-screen rather than at the extreme bottom.
-    _stopDefs: [
-        { bldId: 'mission_control',   label: 'Space Port',         zoom: 1.00, yOffset: -40 },
-        { bldId: 'metro_dc',          label: 'Compute District',   zoom: 1.10, yOffset: -20 },
-        { bldId: 'uni_main',          label: 'AI Academy',         zoom: 1.15, yOffset: -20 },
-        { bldId: 'court_hearing',     label: 'AI Court',           zoom: 1.20, yOffset: -10 },
-        { bldId: 'bld_1',             label: 'Legacy Systems',     zoom: 1.10, yOffset: -30 },
-        { bldId: 'park',              label: 'Leaderboard Park',   zoom: 1.15, yOffset: -20 },
-        { bldId: 'arena',             label: 'LMSYS Arena',        zoom: 1.10, yOffset: -20 },
-        { bldId: 'visitor_monument',  label: 'Visitor Monument',   zoom: 1.25, yOffset:  -5 },
-        { bldId: 'metro_longevity',   label: 'Longevity Wing',     zoom: 1.10, yOffset: -20 },
+    /* ── Category weights (must sum to 1.0) ──────────────────── */
+    W_ACTIVITY: 0.40,
+    W_SCENIC:   0.30,
+    W_INTERIOR: 0.20,
+    W_TRACKING: 0.10,
+
+    /* ── Scenic panorama stops (wide shots of beautiful zones) ─ */
+    _scenicDefs: [
+        { bldId: 'mission_control',   label: 'Space Port',        zoom: 0.75, yOffset: -60,  pan: 0.15 },
+        { bldId: 'pad_spacex',        label: 'SpaceX Launch Pad',  zoom: 0.90, yOffset: -40,  pan: 0.10 },
+        { bldId: 'park',              label: 'Leaderboard Park',   zoom: 1.10, yOffset: -20,  pan: 0.08 },
+        { bldId: 'arena',             label: 'LMSYS Arena',        zoom: 1.00, yOffset: -25,  pan: 0.10 },
+        { bldId: 'visitor_monument',  label: 'Visitor Monument',   zoom: 1.20, yOffset:  -5,  pan: 0.05 },
+        { bldId: 'neon_bar',          label: 'Neon Nightlife',     zoom: 1.05, yOffset: -20,  pan: 0.12 },
+        { bldId: 'forest_0',          label: 'Pine Reserve',       zoom: 0.85, yOffset: -30,  pan: 0.18 },
+        { bldId: 'power_solar',       label: 'Solar Array',        zoom: 0.80, yOffset: -40,  pan: 0.15 },
+        { bldId: 'power_nuclear',     label: 'Nuclear Plant',      zoom: 0.90, yOffset: -30,  pan: 0.10 },
+        { bldId: 'port_authority',    label: 'Trade Port',         zoom: 0.80, yOffset: -35,  pan: 0.18 },
+        { bldId: 'graveyard',         label: 'Model Graveyard',    zoom: 1.10, yOffset: -15,  pan: 0.06 },
+        { bldId: 'convention_center', label: 'Conference Center',  zoom: 0.95, yOffset: -25,  pan: 0.12 },
+        { bldId: 'court_hearing',     label: 'AI Court',           zoom: 1.10, yOffset: -15,  pan: 0.08 },
+        { bldId: 'uni_main',          label: 'AI Academy',         zoom: 1.00, yOffset: -25,  pan: 0.10 },
+        { bldId: 'metro_mid',         label: 'Central Metro',      zoom: 1.05, yOffset: -20,  pan: 0.08 },
+        { bldId: 'backbone_ixp',      label: 'Internet Exchange',  zoom: 0.90, yOffset: -30,  pan: 0.12 },
+        { bldId: 'robotics_assembly', label: 'Robotics Factory',   zoom: 0.90, yOffset: -25,  pan: 0.14 },
+        { bldId: 'longevity_discovery',label:'Longevity Wing',     zoom: 0.95, yOffset: -20,  pan: 0.10 },
+        { bldId: 'times_hq',          label: 'Newspaper HQ',      zoom: 1.10, yOffset: -15,  pan: 0.06 },
     ],
-    _stops: [],           // resolved stops with concrete x/y/zoom
 
-    // Runtime state
+    /* ── Buildings eligible for interior visits ───────────────── */
+    _interiorBldIds: [
+        'neon_bar', 'bld_1', 'convention_center', 'times_hq',
+        'uni_main', 'uni_lab', 'uni_library',
+        'court_hearing', 'court_senate',
+        'dc_xai_memphis', 'dc_google_dalles', 'dc_stargate', 'dc_aws_virginia',
+        'metro_east', 'metro_mid', 'metro_dc',
+        'vcrow_apex', 'vcrow_titan',
+        'robotics_assembly', 'robotics_testing',
+        'longevity_discovery', 'longevity_genomics',
+        'backbone_ixp',
+        'power_nuclear', 'power_solar',
+        'res_us', 'res_eu', 'res_cn',
+    ],
+
+    /* ── Runtime state ────────────────────────────────────────── */
     _idx: 0,
     _stopStartedAt: 0,
+    _currentHoldMs: 7000,
     _lastInputAt: 0,
     _overlayEl: null,
     _labelEl: null,
-    _savedZoom: 1,        // camera zoom at the moment we took control
+    _savedZoom: 1,
     _savedTargetX: 0,
     _savedTargetY: 0,
+    _recentStops: [],       // last N stop IDs to avoid repeats
+    _currentMode: 'scenic', // 'activity' | 'scenic' | 'interior' | 'tracking'
+    _panDrift: 0,           // pixels/frame horizontal drift for cinematic feel
+    _panDir: 1,             // 1 or -1
+    _isInsideBuilding: false,
+    _trackingModelId: null,
 
+    /* ═══════════════════════════════════════════════════════════ */
     init() {
         if (this._bootOk) return;
         this._bootOk = true;
         this._lastInputAt = performance.now();
 
-        // Build the DOM overlay once — hidden until active
+        /* ── Tiny pill overlay — top-right, unobtrusive ─────── */
         const el = document.createElement('div');
         el.id = 'autoTourOverlay';
         el.style.cssText = [
             'position:fixed',
-            'left:50%',
-            'bottom:96px',
-            'transform:translateX(-50%)',
+            'top:12px',
+            'right:12px',
             'z-index:99998',
-            'padding:10px 18px',
-            'background:rgba(0,0,0,0.72)',
-            'border:1px solid rgba(120,220,255,0.45)',
-            'border-radius:6px',
-            'color:#9fd',
-            'font:12px/1.5 "Press Start 2P", "Courier New", monospace',
+            'padding:5px 12px',
+            'background:rgba(0,0,0,0.55)',
+            'border:1px solid rgba(120,220,255,0.3)',
+            'border-radius:20px',
+            'color:#8df',
+            'font:8px/1.4 "Press Start 2P","Courier New",monospace',
             'letter-spacing:0.5px',
-            'text-shadow:0 0 4px rgba(120,220,255,0.6)',
+            'text-shadow:0 0 4px rgba(120,220,255,0.4)',
             'pointer-events:none',
             'opacity:0',
             'transition:opacity 400ms ease',
-            'text-align:center',
             'user-select:none',
-            'backdrop-filter:blur(3px)',
-            '-webkit-backdrop-filter:blur(3px)',
+            'backdrop-filter:blur(2px)',
+            '-webkit-backdrop-filter:blur(2px)',
+            'white-space:nowrap',
         ].join(';');
         el.innerHTML =
-            '<div style="color:#8df;font-size:10px;margin-bottom:4px">◆ AUTO-TOUR</div>' +
-            '<div id="autoTourLabel" style="color:#cfe;font-size:11px">—</div>' +
-            '<div style="color:#69c;font-size:8px;margin-top:5px;letter-spacing:1px">MOVE MOUSE OR PRESS T TO EXIT</div>';
+            '<span style="color:#9fd;margin-right:6px">◆</span>' +
+            '<span id="autoTourLabel" style="color:#cfe">AUTO-TOUR</span>';
         document.body.appendChild(el);
         this._overlayEl = el;
         this._labelEl = el.querySelector('#autoTourLabel');
 
-        // Input listeners — any genuine input bumps the idle timer AND cancels an active tour.
-        // Use capture phase so we see the event even if downstream handlers stop propagation.
+        /* ── Input listeners ────────────────────────────────── */
         const bump = () => this._onUserInput();
         window.addEventListener('pointerdown', bump, true);
         window.addEventListener('pointermove', (e) => {
-            // Ignore micro-jitter (< 3px) so a resting hand doesn't keep the tour paused
             if (this._lastMoveX === undefined) { this._lastMoveX = e.clientX; this._lastMoveY = e.clientY; return; }
             const dx = e.clientX - this._lastMoveX;
             const dy = e.clientY - this._lastMoveY;
@@ -112,22 +143,19 @@ const AutoTour = {
         window.addEventListener('wheel', bump, { capture: true, passive: true });
         window.addEventListener('touchstart', bump, { capture: true, passive: true });
         window.addEventListener('keydown', (e) => {
-            // Manual toggle on T
             if ((e.key === 't' || e.key === 'T') &&
                 !(e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable))) {
                 e.preventDefault();
                 this.toggle();
                 return;
             }
-            // Any other key just counts as input
             bump();
         }, true);
     },
 
-    // Called from engine.update() once per frame
+    /* ═══════════════════════════════════════════════════════════ */
     update() {
         if (!this._bootOk) return;
-
         const now = performance.now();
 
         if (this.active) {
@@ -135,7 +163,7 @@ const AutoTour = {
             return;
         }
 
-        // Idle watchdog — if enough quiet time has passed and we're in a safe state, start
+        // Idle watchdog
         if (now - this._lastInputAt >= this.IDLE_MS && this._canStart()) {
             this.start();
         }
@@ -148,9 +176,7 @@ const AutoTour = {
         if (G.tracking) return false;
         if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) return false;
         if (typeof XRayMode !== 'undefined' && XRayMode.active) return false;
-        // Don't auto-start while an overlay/modal is open (ov = overlay panels, modal = bigger dialogs)
         if (document.querySelector('.ov.open, .modal.open, #settingsPanel.open')) return false;
-        // Don't auto-start during initial boot sequence
         if (typeof G !== 'undefined' && G.tick < 120) return false;
         return true;
     },
@@ -159,56 +185,47 @@ const AutoTour = {
         if (this.active) this.stop('toggle');
         else {
             if (!this._canStart()) {
-                // Nudge the user so they understand why T did nothing
-                if (typeof UI !== 'undefined' && UI.addToast) {
-                    UI.addToast('Auto-tour unavailable in this mode');
-                }
+                if (typeof UI !== 'undefined' && UI.addToast) UI.addToast('Auto-tour unavailable in this mode');
                 return;
             }
             this.start();
         }
     },
 
+    /* ═══════════════════════════════════════════════════════════ */
     start() {
         if (this.active) return;
-        // Self-gate — never start in a blocking mode, even if called directly
         if (!this._canStart()) return;
-
-        // Build/refresh stops from live BLDS — skip any landmarks that don't exist
-        this._stops = this._resolveStops();
-        if (this._stops.length < this.MIN_STOPS) {
-            console.warn('[AutoTour] Not enough landmarks resolved:', this._stops.length);
-            return;
-        }
-
-        // Find the nearest stop to the current camera x so the first transition is short.
-        const camCenterX = -Camera.x + (G.vpW / 2) / Camera.zoom;
-        let bestIdx = 0;
-        let bestDist = Infinity;
-        for (let i = 0; i < this._stops.length; i++) {
-            const d = Math.abs(this._stops[i].worldX - camCenterX);
-            if (d < bestDist) { bestDist = d; bestIdx = i; }
-        }
-        // Start one *before* the nearest so the first visible transition is forward motion
-        this._idx = (bestIdx - 1 + this._stops.length) % this._stops.length;
 
         this._savedZoom = Camera.targetZoom;
         this._savedTargetX = Camera.targetX;
         this._savedTargetY = Camera.targetY;
+        this._recentStops = [];
+        this._isInsideBuilding = false;
+        this._trackingModelId = null;
 
         this.active = true;
         this._stopStartedAt = performance.now();
-        this._advance(); // immediately queue the first destination
+        this._pickAndAdvance();
         this._showOverlay();
     },
 
     stop(reason) {
         if (!this.active) return;
         this.active = false;
+
+        // If we're inside a building, exit first
+        if (this._isInsideBuilding && G.activeInterior) {
+            this._exitInterior();
+        }
+
+        // If we were tracking, stop
+        if (this._trackingModelId && G.tracking) {
+            G.stopTracking();
+            this._trackingModelId = null;
+        }
+
         this._hideOverlay();
-        // Release camera control gracefully — keep current position but restore user zoom if it
-        // drifted far from the original. We intentionally don't snap back; the user should see
-        // where the tour ended so they can resume navigating from there.
         if (reason === 'toggle' && this._savedZoom) {
             Camera.targetZoom = this._savedZoom;
         }
@@ -216,66 +233,252 @@ const AutoTour = {
 
     _onUserInput() {
         this._lastInputAt = performance.now();
-        // Embed mode: never exit the tour on user input — kiosks/iframes should loop forever.
         if (this.embedSticky) return;
         if (this.active) this.stop('input');
     },
 
+    /* ═══════════════════════════════════════════════════════════ */
     _tickActive(now) {
-        // Safety — bail out if the player entered a blocking mode while the tour was running
-        if (!this._canStart()) {
-            this.stop('mode-change');
-            return;
+        // Safety — bail if we entered a blocking mode
+        if (G.viewMode === 'macro') { this.stop('mode-change'); return; }
+        if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) { this.stop('mode-change'); return; }
+        if (typeof XRayMode !== 'undefined' && XRayMode.active) { this.stop('mode-change'); return; }
+
+        // Apply gentle horizontal drift for cinematic panning (exterior only)
+        if (!this._isInsideBuilding && !this._trackingModelId && this._panDrift) {
+            Camera.targetX += this._panDrift * this._panDir;
         }
 
-        // Advance to next stop when hold time elapsed
-        if (now - this._stopStartedAt >= this.HOLD_MS) {
-            this._idx = (this._idx + 1) % this._stops.length;
-            this._advance();
+        // Advance when hold time elapsed
+        if (now - this._stopStartedAt >= this._currentHoldMs) {
+            // If inside a building, exit first before next stop
+            if (this._isInsideBuilding) {
+                this._exitInterior();
+                this._isInsideBuilding = false;
+                // Small pause after exiting to let the city render
+                this._stopStartedAt = now;
+                this._currentHoldMs = 1500;
+                return;
+            }
+            // If tracking, stop tracking
+            if (this._trackingModelId) {
+                if (G.tracking) G.stopTracking();
+                this._trackingModelId = null;
+                this._stopStartedAt = now;
+                this._currentHoldMs = 1000;
+                return;
+            }
+            this._pickAndAdvance();
             this._stopStartedAt = now;
         }
     },
 
-    // Push the current stop's target into Camera. Camera.update()'s lerp handles the glide.
-    _advance() {
-        const s = this._stops[this._idx];
-        if (!s) return;
-        // Center the landmark horizontally on the screen
-        Camera.targetX = -(s.worldX) + (G.vpW / 2) / s.zoom;
-        // Slight upward tilt so the label/rooftop sits in the upper-middle third
-        const groundAnchor = G.groundY * (1 / s.zoom - 1);
-        Camera.targetY = groundAnchor + (s.yOffset || 0);
-        Camera.targetZoom = s.zoom;
-        // Update the overlay label
-        if (this._labelEl) this._labelEl.textContent = s.label;
-    },
+    /* ═══════════════════════════════════════════════════════════ */
+    /*  STOP SELECTION — weighted random by category              */
+    /* ═══════════════════════════════════════════════════════════ */
+    _pickAndAdvance() {
+        const roll = Math.random();
+        let mode;
+        if (roll < this.W_ACTIVITY) mode = 'activity';
+        else if (roll < this.W_ACTIVITY + this.W_SCENIC) mode = 'scenic';
+        else if (roll < this.W_ACTIVITY + this.W_SCENIC + this.W_INTERIOR) mode = 'interior';
+        else mode = 'tracking';
 
-    _resolveStops() {
-        const out = [];
-        if (typeof G === 'undefined' || !G.bldById) return out;
-        for (const def of this._stopDefs) {
-            const b = G.bldById[def.bldId];
-            if (!b) continue;
-            out.push({
-                bldId: def.bldId,
-                label: def.label,
-                worldX: b.x + b.w / 2 + (def.xOffset || 0),
-                zoom: def.zoom || 1.0,
-                yOffset: def.yOffset || 0,
-            });
+        this._currentMode = mode;
+
+        switch (mode) {
+            case 'activity': this._advanceActivity(); break;
+            case 'scenic':   this._advanceScenic();   break;
+            case 'interior': this._advanceInterior(); break;
+            case 'tracking': this._advanceTracking(); break;
         }
-        return out;
     },
 
-    _showOverlay() {
-        if (!this._overlayEl) return;
-        // In embed mode, suppress the "MOVE MOUSE OR PRESS T TO EXIT" hint since it doesn't apply.
-        if (this.embedSticky) {
-            const hint = this._overlayEl.querySelector('div:last-child');
-            if (hint && hint.textContent && hint.textContent.indexOf('MOVE MOUSE') !== -1) {
-                hint.style.display = 'none';
+    /* ── ACTIVITY: find the busiest buildings and visit one ──── */
+    _advanceActivity() {
+        if (typeof G === 'undefined' || !G.models || !G.charRefs || !G.bldById) {
+            this._advanceScenic(); return;
+        }
+
+        // Count population per building
+        const pop = {};
+        const now = Date.now();
+        for (const m of G.models) {
+            if (m.ret && new Date(m.ret).getTime() <= now) continue;
+            const refs = G.charRefs[m.id];
+            if (!refs || !refs.bld) continue;
+            pop[refs.bld] = (pop[refs.bld] || 0) + 1;
+        }
+
+        // Sort buildings by population, pick from top 10
+        const entries = Object.entries(pop)
+            .filter(([id]) => G.bldById[id] && !this._recentStops.includes(id))
+            .sort((a, b) => b[1] - a[1]);
+
+        if (entries.length === 0) { this._advanceScenic(); return; }
+
+        const topN = entries.slice(0, Math.min(10, entries.length));
+        const pick = topN[Math.floor(Math.random() * topN.length)];
+        const bldId = pick[0];
+        const count = pick[1];
+        const b = G.bldById[bldId];
+
+        this._addRecent(bldId);
+
+        // Dynamic zoom — busier buildings get slightly tighter shot
+        const zoom = count > 30 ? 1.30 : count > 15 ? 1.15 : 1.00;
+        const holdMs = this.HOLD_MS_MIN + Math.random() * (this.HOLD_MS_MAX - this.HOLD_MS_MIN);
+        this._currentHoldMs = holdMs;
+
+        // Gentle pan drift
+        this._panDrift = 0.06 + Math.random() * 0.10;
+        this._panDir = Math.random() < 0.5 ? 1 : -1;
+
+        const worldX = b.x + b.w / 2;
+        Camera.targetX = -(worldX) + (G.vpW / 2) / zoom;
+        const groundAnchor = G.groundY * (1 / zoom - 1);
+        Camera.targetY = groundAnchor + (-20);
+        Camera.targetZoom = zoom;
+
+        const label = (b.lab ? b.lab.toUpperCase() + ' HQ' : b.label || b.id) + ' (' + count + ' active)';
+        this._setLabel(label);
+    },
+
+    /* ── SCENIC: pick a random panoramic shot ──────────────── */
+    _advanceScenic() {
+        // Filter to only existing buildings, exclude recent
+        const avail = this._scenicDefs.filter(d =>
+            G.bldById && G.bldById[d.bldId] && !this._recentStops.includes(d.bldId)
+        );
+
+        if (avail.length === 0) {
+            // Reset recents if we've exhausted everything
+            this._recentStops = [];
+            const fallback = this._scenicDefs.filter(d => G.bldById && G.bldById[d.bldId]);
+            if (fallback.length === 0) return;
+            this._advanceScenic();
+            return;
+        }
+
+        const def = avail[Math.floor(Math.random() * avail.length)];
+        const b = G.bldById[def.bldId];
+        this._addRecent(def.bldId);
+
+        const holdMs = this.HOLD_MS_MIN + Math.random() * (this.HOLD_MS_MAX - this.HOLD_MS_MIN);
+        this._currentHoldMs = holdMs;
+
+        // Cinematic drift
+        this._panDrift = def.pan || 0.10;
+        this._panDir = Math.random() < 0.5 ? 1 : -1;
+
+        const worldX = b.x + b.w / 2;
+        Camera.targetX = -(worldX) + (G.vpW / 2) / def.zoom;
+        const groundAnchor = G.groundY * (1 / def.zoom - 1);
+        Camera.targetY = groundAnchor + (def.yOffset || 0);
+        Camera.targetZoom = def.zoom;
+
+        this._setLabel(def.label);
+    },
+
+    /* ── INTERIOR: enter a random building ─────────────────── */
+    _advanceInterior() {
+        if (typeof G === 'undefined' || !G.bldById || G.activeInterior) {
+            this._advanceScenic(); return;
+        }
+
+        // Filter to existing, non-recent buildings
+        const avail = this._interiorBldIds.filter(id =>
+            G.bldById[id] && !this._recentStops.includes(id)
+        );
+
+        if (avail.length === 0) { this._advanceScenic(); return; }
+
+        const bldId = avail[Math.floor(Math.random() * avail.length)];
+        const b = G.bldById[bldId];
+        this._addRecent(bldId);
+
+        // First pan to the building
+        const worldX = b.x + b.w / 2;
+        Camera.targetX = -(worldX) + (G.vpW / 2) / 1.1;
+        const groundAnchor = G.groundY * (1 / 1.1 - 1);
+        Camera.targetY = groundAnchor + (-15);
+        Camera.targetZoom = 1.1;
+        this._panDrift = 0;
+
+        const label = b.lab ? b.lab.toUpperCase() + ' — Inside' : (b.label || bldId) + ' — Inside';
+        this._setLabel(label);
+
+        // Enter interior after a brief pause to let pan complete
+        this._currentHoldMs = this.INTERIOR_HOLD_MS;
+        setTimeout(() => {
+            if (!this.active) return;
+            if (G.activeInterior) return;
+            // Use the transition-based entry for smooth fade
+            if (typeof G !== 'undefined' && G._transitionEnter) {
+                G._transitionEnter(b);
+            } else if (typeof G !== 'undefined' && G.enterInterior) {
+                G.enterInterior(b);
+            }
+            this._isInsideBuilding = true;
+        }, 1800);
+    },
+
+    /* ── TRACKING: follow a random walking model ───────────── */
+    _advanceTracking() {
+        if (typeof G === 'undefined' || !G.models || !G.charRefs) {
+            this._advanceScenic(); return;
+        }
+
+        // Find models that are currently walking outside (visible, no building)
+        const now = Date.now();
+        const walkers = G.models.filter(m => {
+            if (m.ret && new Date(m.ret).getTime() <= now) return false;
+            const refs = G.charRefs[m.id];
+            if (!refs || !refs.c) return false;
+            if (refs.bld) return false;
+            if (!refs.c.visible) return false;
+            return true;
+        });
+
+        if (walkers.length === 0) { this._advanceActivity(); return; }
+
+        const model = walkers[Math.floor(Math.random() * walkers.length)];
+
+        // Use the game's built-in tracking system
+        G.tracking = { type: 'model', id: model.id, lab: model.lab };
+        this._trackingModelId = model.id;
+        this._panDrift = 0;
+        this._currentHoldMs = this.TRACK_HOLD_MS;
+
+        const label = 'Following ' + (model.name || model.id);
+        this._setLabel(label);
+    },
+
+    /* ═══════════════════════════════════════════════════════════ */
+    _exitInterior() {
+        if (typeof G !== 'undefined' && G.activeInterior) {
+            if (G._transitionExit) {
+                G._transitionExit();
+            } else if (G._performExitInterior) {
+                G._performExitInterior();
             }
         }
+        this._isInsideBuilding = false;
+    },
+
+    _addRecent(id) {
+        this._recentStops.push(id);
+        // Keep a rolling window so we don't repeat the last 8 stops
+        if (this._recentStops.length > 8) this._recentStops.shift();
+    },
+
+    _setLabel(text) {
+        if (this._labelEl) this._labelEl.textContent = text;
+    },
+
+    /* ═══════════════════════════════════════════════════════════ */
+    _showOverlay() {
+        if (!this._overlayEl) return;
         this._overlayEl.style.opacity = '1';
     },
 
