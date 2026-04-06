@@ -260,59 +260,174 @@ const InteriorRes = {
                     }
                 }
             } 
-            // ─── ESTATE LIVING & OFFICE FLOORS (varied by style) ───
+            // ─── ESTATE LIVING & OFFICE FLOORS (CEO personality-themed) ───
             else if (isEstate) {
+                const sy = fy + floorH - 4; // standing Y
+                const sx = this.startX;     // left edge
+                const lab_id = bld.lab;
+
                 if (f === 0) {
-                    // Ground floor — Living area + style-specific features
-                    this.drawLivingArea(floorCont, this.startX + 130, fy + floorH - 4, 2);
-                    
-                    if (estateStyle === 'brutalist') {
-                        this.drawKitchen(floorCont, this.startX + 320, fy + floorH - 4, 'us', 2);
-                        this.drawRing(floorCont, this.startX + 500, fy + floorH - 4);
-                        this.drawTrophyCase(floorCont, this.startX + 600, fy + floorH - 4, colHex);
-                    } else if (estateStyle === 'penthouse') {
-                        this.drawGrandPiano(floorCont, this.startX + 330, fy + floorH - 4);
-                        this.drawWineRack(floorCont, this.startX + 500, fy + floorH - 4);
-                        this.drawPottedPlant(floorCont, this.startX + 560, fy + floorH - 4, 2);
-                    } else if (estateStyle === 'villa') {
-                        this.drawKitchen(floorCont, this.startX + 330, fy + floorH - 4, 'us', 2);
-                        this.drawArcadeCabinet(floorCont, this.startX + 490, fy + floorH - 4);
-                        this.drawPottedPlant(floorCont, this.startX + 560, fy + floorH - 4, 3);
-                    } else if (estateStyle === 'colonial') {
-                        this.drawFireplace(floorCont, this.startX + 330, fy + floorH - 4);
-                        this.drawKitchen(floorCont, this.startX + 490, fy + floorH - 4, 'us', 1);
-                        this.drawPottedPlant(floorCont, this.startX + 600, fy + floorH - 4, 1);
+                    // ─── GROUND FLOOR — uniquely themed per CEO ───
+                    if (lab_id === 'xai') {
+                        // Elon Musk — Industrial tech baron: MMA octagon, rocket model, trophy case, gaming
+                        this.drawMMAOctagon(floorCont, sx + 140, sy);
+                        this.drawRocketModel(floorCont, sx + 260, sy);
+                        this.drawTrophyCase(floorCont, sx + 340, sy, colHex);
+                        this.drawArcadeCabinet(floorCont, sx + 440, sy);
+                        this.drawLivingArea(floorCont, sx + 550, sy, 2);
+                    } else if (lab_id === 'openai') {
+                        // Sam Altman — Silicon Valley minimalist: grand piano, meditation, indoor garden, whiteboard
+                        this.drawGrandPiano(floorCont, sx + 100, sy);
+                        this.drawMeditationCorner(floorCont, sx + 220, sy);
+                        this.drawIndoorGarden(floorCont, sx + 340, sy);
+                        this.drawWhiteboard(floorCont, sx + 460, sy);
+                        this.drawLivingArea(floorCont, sx + 580, sy, 2);
+                    } else if (lab_id === 'anthropic') {
+                        // Dario Amodei — Academic retreat: massive bookshelf, chess area, telescope, plants
+                        this.drawBookshelfWall(floorCont, sx + 120, sy, 90);
+                        this.drawPoolTable(floorCont, sx + 270, sy);
+                        this.drawTelescope(floorCont, sx + 380, sy);
+                        this.drawPottedPlant(floorCont, sx + 440, sy, 2);
+                        this.drawLivingArea(floorCont, sx + 550, sy, 2);
+                        this.drawPottedPlant(floorCont, sx + 630, sy, 1);
+                    } else if (lab_id === 'google') {
+                        // Sundar Pichai — Family modern: cricket bat, kitchen, plants, meditation
+                        this.drawCricketBat(floorCont, sx + 80, sy);
+                        this.drawKitchen(floorCont, sx + 180, sy, 'us', 2);
+                        this.drawLivingArea(floorCont, sx + 310, sy, 2);
+                        this.drawMeditationCorner(floorCont, sx + 440, sy);
+                        this.drawPottedPlant(floorCont, sx + 520, sy, 1);
+                        this.drawBookshelfWall(floorCont, sx + 600, sy, 60);
+                    } else if (lab_id === 'meta') {
+                        // Mark Zuckerberg — Island warrior: MMA octagon, surfboard, VR display, tiki bar
+                        this.drawMMAOctagon(floorCont, sx + 140, sy);
+                        this.drawSurfboard(floorCont, sx + 260, sy);
+                        this.drawVRHeadsetDisplay(floorCont, sx + 330, sy);
+                        this.drawHomeBar(floorCont, sx + 450, sy);
+                        this.drawLivingArea(floorCont, sx + 580, sy, 3);
+                    } else if (lab_id === 'microsoft') {
+                        // Satya Nadella — Thoughtful leader: library wall, cricket, meditation, art
+                        this.drawBookshelfWall(floorCont, sx + 110, sy, 100);
+                        this.drawCricketBat(floorCont, sx + 230, sy);
+                        this.drawMeditationCorner(floorCont, sx + 330, sy);
+                        this.drawLivingArea(floorCont, sx + 470, sy, 2);
+                        this.drawPottedPlant(floorCont, sx + 580, sy, 2);
+                        this.drawFireplace(floorCont, sx + 630, sy);
+                    } else if (lab_id === 'nvidia') {
+                        // Jensen Huang — Leather jacket legend: jacket display, cooking station, GPU showcase, karaoke
+                        this.drawLeatherJacketDisplay(floorCont, sx + 100, sy, colHex);
+                        this.drawCookingStation(floorCont, sx + 220, sy);
+                        this.drawGPUShowcase(floorCont, sx + 360, sy, colHex);
+                        this.drawHomeBar(floorCont, sx + 480, sy);
+                        this.drawLivingArea(floorCont, sx + 600, sy, 2);
+                    } else if (lab_id === 'amazon') {
+                        // Jeff Bezos — Space cowboy: telescope, rocket model, gym, pool table
+                        this.drawTelescope(floorCont, sx + 100, sy);
+                        this.drawRocketModel(floorCont, sx + 200, sy);
+                        this.drawGymCorner(floorCont, sx + 320, sy);
+                        this.drawPoolTable(floorCont, sx + 480, sy);
+                        this.drawLivingArea(floorCont, sx + 600, sy, 1);
+                    } else if (lab_id === 'apple') {
+                        // Tim Cook — Zen minimalist: meditation, standing desk, gym, indoor garden
+                        this.drawMeditationCorner(floorCont, sx + 120, sy);
+                        this.drawGymCorner(floorCont, sx + 280, sy);
+                        this.drawIndoorGarden(floorCont, sx + 440, sy);
+                        this.drawLivingArea(floorCont, sx + 580, sy, 2);
+                    } else if (lab_id === 'ibm') {
+                        // IBM — Corporate classic: fireplace, bookshelf, pool table, bar
+                        this.drawFireplace(floorCont, sx + 120, sy);
+                        this.drawBookshelfWall(floorCont, sx + 260, sy, 80);
+                        this.drawPoolTable(floorCont, sx + 420, sy);
+                        this.drawHomeBar(floorCont, sx + 570, sy);
                     } else if (estateStyle === 'chateau') {
-                        this.drawKitchen(floorCont, this.startX + 330, fy + floorH - 4, 'eu', 2);
-                        this.drawWineRack(floorCont, this.startX + 500, fy + floorH - 4);
-                        this.drawPottedPlant(floorCont, this.startX + 560, fy + floorH - 4, 2);
+                        // European founders: wine, piano, fireplace, garden
+                        this.drawGrandPiano(floorCont, sx + 110, sy);
+                        this.drawFireplace(floorCont, sx + 260, sy);
+                        this.drawWineRack(floorCont, sx + 380, sy);
+                        this.drawLivingArea(floorCont, sx + 500, sy, 2);
+                        this.drawPottedPlant(floorCont, sx + 600, sy, 2);
                     } else if (estateStyle === 'pagoda') {
-                        this.drawKitchen(floorCont, this.startX + 330, fy + floorH - 4, 'cn', 2);
-                        this.drawBonsaiTree(floorCont, this.startX + 500, fy + floorH - 4);
-                        this.drawScrollArt(floorCont, this.startX + 560, fy + floorH - 4);
+                        // Chinese founders: bonsai, scroll art, kitchen, meditation
+                        this.drawBonsaiTree(floorCont, sx + 100, sy);
+                        this.drawScrollArt(floorCont, sx + 180, sy);
+                        this.drawKitchen(floorCont, sx + 300, sy, 'cn', 2);
+                        this.drawMeditationCorner(floorCont, sx + 440, sy);
+                        this.drawLivingArea(floorCont, sx + 570, sy, 2);
                     } else {
-                        this.drawKitchen(floorCont, this.startX + 330, fy + floorH - 4, 'eu', 2);
-                        this.drawArcadeCabinet(floorCont, this.startX + 500, fy + floorH - 4);
+                        // Generic modern estate
+                        this.drawLivingArea(floorCont, sx + 130, sy, 2);
+                        this.drawKitchen(floorCont, sx + 300, sy, 'eu', 2);
+                        this.drawArcadeCabinet(floorCont, sx + 440, sy);
+                        this.drawPottedPlant(floorCont, sx + 540, sy, 1);
                     }
                 } else if (f === 1) {
-                    // Upper floor — Bedroom + office + style-specific accent
-                    this.drawLuxuryBed(floorCont, this.startX + 160, fy + floorH - 4, colHex);
-                    this.drawBossDesk(floorCont, this.startX + 340, fy + floorH - 4, colHex);
-                    this.drawChair(floorCont, this.startX + 305, fy + floorH - 4);
+                    // ─── UPPER FLOOR — bedroom + office + personality accent ───
+                    this.drawLuxuryBed(floorCont, sx + 160, sy, colHex);
+                    this.drawNightstand(floorCont, sx + 120, sy, 2);
 
-                    if (estateStyle === 'brutalist') {
-                        this.drawTrophyCase(floorCont, this.startX + 500, fy + floorH - 4, colHex);
-                    } else if (estateStyle === 'penthouse') {
-                        this.drawWineRack(floorCont, this.startX + 500, fy + floorH - 4);
-                    } else if (estateStyle === 'colonial') {
-                        this.drawFireplace(floorCont, this.startX + 500, fy + floorH - 4);
+                    if (lab_id === 'xai') {
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawTrophyCase(floorCont, sx + 460, sy, colHex);
+                        this.drawRocketModel(floorCont, sx + 560, sy);
+                    } else if (lab_id === 'openai') {
+                        this.drawStandingDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawWhiteboard(floorCont, sx + 460, sy);
+                        this.drawWineRack(floorCont, sx + 580, sy);
+                    } else if (lab_id === 'anthropic') {
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawBookshelfWall(floorCont, sx + 480, sy, 70);
+                        this.drawPottedPlant(floorCont, sx + 580, sy, 2);
+                        this.drawPottedPlant(floorCont, sx + 620, sy, 1);
+                    } else if (lab_id === 'google') {
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawBookshelfWall(floorCont, sx + 480, sy, 60);
+                        this.drawPottedPlant(floorCont, sx + 580, sy, 1);
+                    } else if (lab_id === 'meta') {
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawVRHeadsetDisplay(floorCont, sx + 460, sy);
+                        this.drawSurfboard(floorCont, sx + 560, sy);
+                    } else if (lab_id === 'microsoft') {
+                        this.drawStandingDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawBookshelfWall(floorCont, sx + 470, sy, 70);
+                        this.drawPottedPlant(floorCont, sx + 580, sy, 2);
+                    } else if (lab_id === 'nvidia') {
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawLeatherJacketDisplay(floorCont, sx + 470, sy, colHex);
+                        this.drawGPUShowcase(floorCont, sx + 580, sy, colHex);
+                    } else if (lab_id === 'amazon') {
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawTelescope(floorCont, sx + 470, sy);
+                        this.drawTrophyCase(floorCont, sx + 580, sy, colHex);
+                    } else if (lab_id === 'apple') {
+                        this.drawStandingDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawMeditationCorner(floorCont, sx + 470, sy);
+                        this.drawIndoorGarden(floorCont, sx + 580, sy);
+                    } else if (lab_id === 'ibm') {
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawFireplace(floorCont, sx + 480, sy);
+                        this.drawBookshelfWall(floorCont, sx + 600, sy, 50);
                     } else if (estateStyle === 'chateau') {
-                        this.drawWineRack(floorCont, this.startX + 500, fy + floorH - 4);
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawWineRack(floorCont, sx + 480, sy);
+                        this.drawFireplace(floorCont, sx + 580, sy);
                     } else if (estateStyle === 'pagoda') {
-                        this.drawBonsaiTree(floorCont, this.startX + 480, fy + floorH - 4);
-                        this.drawScrollArt(floorCont, this.startX + 550, fy + floorH - 4);
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawBonsaiTree(floorCont, sx + 480, sy);
+                        this.drawScrollArt(floorCont, sx + 560, sy);
                     } else {
-                        this.drawGeckoTerrarium(floorCont, this.startX + 500, fy + floorH - 4);
+                        this.drawBossDesk(floorCont, sx + 320, sy, colHex);
+                        this.drawChair(floorCont, sx + 285, sy);
+                        this.drawGeckoTerrarium(floorCont, sx + 480, sy);
+                        this.drawPottedPlant(floorCont, sx + 560, sy, 1);
                     }
                 }
 

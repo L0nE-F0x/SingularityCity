@@ -610,6 +610,349 @@ const InteriorResProps = {
         c.addChild(g);
     },
 
+    // ─── CEO PERSONALITY-THEMED PROPS ───
+
+    drawMMAOctagon(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Platform
+        g.beginFill(0x1a1a2e); g.drawRect(x - 50, y - 6, 100, 6); g.endFill();
+        // Canvas mat
+        g.beginFill(0x2d2d4d); g.drawRect(x - 45, y - 8, 90, 4); g.endFill();
+        // Cage posts
+        g.beginFill(0x64748b); g.drawRect(x - 48, y - 44, 4, 40); g.drawRect(x + 44, y - 44, 4, 40); g.endFill();
+        // Cage mesh (horizontal wires)
+        g.lineStyle(1, 0x94a3b8, 0.4);
+        for (let wy = y - 40; wy < y - 10; wy += 6) { g.moveTo(x - 46, wy); g.lineTo(x + 46, wy); }
+        g.lineStyle(0);
+        // Corner pads
+        g.beginFill(0xef4444); g.drawRect(x - 48, y - 44, 6, 6); g.drawRect(x + 42, y - 44, 6, 6); g.endFill();
+        // "UFC" label on mat
+        g.beginFill(0xef4444, 0.3); g.drawRect(x - 12, y - 7, 24, 2); g.endFill();
+        c.addChild(g);
+    },
+
+    drawSurfboard(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Wall-mounted surfboard (angled)
+        g.beginFill(0x0ea5e9);
+        g.drawPolygon([x - 3, y - 55, x + 3, y - 55, x + 5, y - 8, x + 2, y, x - 2, y, x - 5, y - 8]);
+        g.endFill();
+        // Stripe
+        g.beginFill(0xfbbf24); g.drawRect(x - 2, y - 45, 4, 30); g.endFill();
+        // Fin
+        g.beginFill(0x0369a1); g.drawPolygon([x - 1, y - 6, x + 4, y - 2, x - 1, y - 2]); g.endFill();
+        // Wall mount brackets
+        g.beginFill(0x64748b); g.drawRect(x - 8, y - 40, 3, 6); g.drawRect(x - 8, y - 20, 3, 6); g.endFill();
+        c.addChild(g);
+    },
+
+    drawVRHeadsetDisplay(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Display pedestal
+        g.beginFill(0x1e293b); g.drawRect(x - 12, y - 8, 24, 8); g.endFill();
+        g.beginFill(0x0f172a); g.drawRect(x - 8, y - 10, 16, 4); g.endFill();
+        // VR headset
+        g.beginFill(0x334155); g.drawRoundedRect(x - 10, y - 22, 20, 12, 3); g.endFill();
+        g.beginFill(0x0ea5e9, 0.4); g.drawRect(x - 8, y - 20, 7, 8); g.drawRect(x + 1, y - 20, 7, 8); g.endFill();
+        // Strap
+        g.lineStyle(2, 0x475569); g.moveTo(x - 10, y - 16); g.lineTo(x - 14, y - 20); g.moveTo(x + 10, y - 16); g.lineTo(x + 14, y - 20); g.lineStyle(0);
+        const glow = new PIXI.Graphics(); glow.eventMode = 'none';
+        glow.beginFill(0x0ea5e9, 0.15); glow.drawCircle(x, y - 16, 18); glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD; c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.2, type: 'screen' });
+    },
+
+    drawTelescope(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Tripod legs
+        g.beginFill(0x64748b);
+        g.drawPolygon([x - 2, y - 30, x - 14, y, x - 10, y]); // left leg
+        g.drawPolygon([x + 2, y - 30, x + 14, y, x + 10, y]); // right leg
+        g.drawPolygon([x - 1, y - 30, x + 4, y, x + 8, y]);   // back leg
+        g.endFill();
+        // Telescope tube (angled upward)
+        g.beginFill(0x1e293b); g.drawPolygon([x - 4, y - 32, x + 20, y - 48, x + 22, y - 44, x - 2, y - 28]); g.endFill();
+        // Lens
+        g.beginFill(0x38bdf8, 0.6); g.drawCircle(x + 22, y - 46, 3); g.endFill();
+        // Eyepiece
+        g.beginFill(0x475569); g.drawRect(x - 6, y - 34, 4, 4); g.endFill();
+        c.addChild(g);
+    },
+
+    drawLeatherJacketDisplay(c, x, y, col) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Glass display case
+        g.beginFill(0x1e293b); g.drawRect(x - 16, y - 50, 32, 50); g.endFill();
+        g.lineStyle(1, 0x38bdf8, 0.2); g.drawRect(x - 16, y - 50, 32, 50); g.lineStyle(0);
+        // Jacket silhouette
+        g.beginFill(0x111111);
+        g.drawPolygon([x - 10, y - 42, x - 6, y - 44, x, y - 40, x + 6, y - 44, x + 10, y - 42, x + 12, y - 14, x - 12, y - 14]);
+        g.endFill();
+        // Collar
+        g.beginFill(0x1a1a1a); g.drawPolygon([x - 6, y - 44, x, y - 40, x + 6, y - 44, x + 4, y - 46, x, y - 43, x - 4, y - 46]); g.endFill();
+        // Zipper line
+        g.beginFill(0x64748b); g.drawRect(x - 1, y - 40, 2, 26); g.endFill();
+        // Spotlight
+        const glow = new PIXI.Graphics(); glow.eventMode = 'none';
+        glow.beginFill(col || 0xfbbf24, 0.06); glow.drawCircle(x, y - 30, 22); glow.endFill();
+        c.addChild(g, glow);
+    },
+
+    drawBookshelfWall(c, x, y, w) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        const shelfW = w || 80;
+        // Wooden frame
+        g.beginFill(0x5c3a1e); g.drawRect(x - shelfW / 2, y - 55, shelfW, 55); g.endFill();
+        g.beginFill(0x4a2e16); g.drawRect(x - shelfW / 2 + 2, y - 53, shelfW - 4, 51); g.endFill();
+        // Shelves with books
+        const bookCols = [0x3b82f6, 0xef4444, 0x22c55e, 0xfbbf24, 0xa855f7, 0x06b6d4, 0xf97316, 0xec4899];
+        for (let sy = y - 50; sy < y - 5; sy += 14) {
+            g.beginFill(0x5c3a1e); g.drawRect(x - shelfW / 2 + 2, sy + 11, shelfW - 4, 2); g.endFill();
+            for (let bx = x - shelfW / 2 + 5; bx < x + shelfW / 2 - 5; bx += 5) {
+                const bh = 8 + Math.floor((bx * 7 + sy * 3) % 4);
+                g.beginFill(bookCols[(bx * 3 + sy) % bookCols.length], 0.8);
+                g.drawRect(bx, sy + 11 - bh, 3, bh);
+                g.endFill();
+            }
+        }
+        c.addChild(g);
+    },
+
+    drawMeditationCorner(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Tatami/mat
+        g.beginFill(0x92400e, 0.4); g.drawEllipse(x, y - 2, 22, 6); g.endFill();
+        // Meditation cushion (zafu)
+        g.beginFill(0x7c3aed); g.drawEllipse(x, y - 6, 10, 4); g.endFill();
+        g.beginFill(0x6d28d9); g.drawEllipse(x, y - 8, 8, 3); g.endFill();
+        // Incense holder
+        g.beginFill(0x78350f); g.drawRect(x + 18, y - 4, 6, 4); g.endFill();
+        // Smoke wisps
+        g.lineStyle(1, 0x94a3b8, 0.3);
+        g.moveTo(x + 21, y - 6); g.quadraticCurveTo(x + 23, y - 16, x + 19, y - 24);
+        g.moveTo(x + 21, y - 6); g.quadraticCurveTo(x + 18, y - 14, x + 22, y - 22);
+        g.lineStyle(0);
+        // Candle
+        g.beginFill(0xfef3c7); g.drawRect(x - 20, y - 8, 4, 8); g.endFill();
+        g.beginFill(0xfbbf24); g.drawPolygon([x - 20, y - 8, x - 18, y - 14, x - 16, y - 8]); g.endFill();
+        const glow = new PIXI.Graphics(); glow.eventMode = 'none';
+        glow.beginFill(0xfbbf24, 0.06); glow.drawCircle(x - 18, y - 10, 16); glow.endFill();
+        c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.08, type: 'fire' });
+    },
+
+    drawRocketModel(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Pedestal
+        g.beginFill(0x1e293b); g.drawRect(x - 10, y - 6, 20, 6); g.endFill();
+        g.beginFill(0x334155); g.drawRect(x - 12, y - 8, 24, 4); g.endFill();
+        // Rocket body
+        g.beginFill(0xf1f5f9); g.drawRect(x - 4, y - 42, 8, 34); g.endFill();
+        // Nose cone
+        g.beginFill(0xf1f5f9); g.drawPolygon([x - 4, y - 42, x, y - 52, x + 4, y - 42]); g.endFill();
+        // Window
+        g.beginFill(0x0ea5e9); g.drawCircle(x, y - 36, 2); g.endFill();
+        // Fins
+        g.beginFill(0x64748b);
+        g.drawPolygon([x - 4, y - 12, x - 10, y - 8, x - 4, y - 20]);
+        g.drawPolygon([x + 4, y - 12, x + 10, y - 8, x + 4, y - 20]);
+        g.endFill();
+        // Exhaust glow
+        g.beginFill(0xf97316, 0.4); g.drawPolygon([x - 3, y - 8, x, y - 2, x + 3, y - 8]); g.endFill();
+        c.addChild(g);
+    },
+
+    drawCookingStation(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Counter
+        g.beginFill(0x334155); g.drawRect(x - 30, y - 16, 60, 16); g.endFill();
+        g.beginFill(0xf1f5f9); g.drawRect(x - 32, y - 16, 64, 3); g.endFill();
+        // Stove burners
+        g.beginFill(0x111111); g.drawCircle(x - 12, y - 16, 6); g.drawCircle(x + 12, y - 16, 6); g.endFill();
+        g.beginFill(0xef4444, 0.5); g.drawCircle(x - 12, y - 16, 3); g.endFill();
+        // Pot
+        g.beginFill(0x64748b); g.drawRect(x + 6, y - 26, 14, 10); g.endFill();
+        g.beginFill(0x94a3b8); g.drawRect(x + 4, y - 26, 18, 2); g.endFill();
+        // Steam
+        g.lineStyle(1, 0xffffff, 0.2);
+        g.moveTo(x + 10, y - 28); g.quadraticCurveTo(x + 8, y - 36, x + 12, y - 42);
+        g.moveTo(x + 16, y - 28); g.quadraticCurveTo(x + 18, y - 34, x + 14, y - 40);
+        g.lineStyle(0);
+        // Hanging utensils
+        g.beginFill(0x94a3b8);
+        g.drawRect(x - 24, y - 40, 1, 12); g.drawRect(x - 20, y - 38, 1, 10); g.drawRect(x - 16, y - 42, 1, 14);
+        g.endFill();
+        // Knife block
+        g.beginFill(0x5c3a1e); g.drawRect(x + 22, y - 24, 8, 8); g.endFill();
+        g.beginFill(0x94a3b8); g.drawRect(x + 24, y - 30, 1, 8); g.drawRect(x + 27, y - 28, 1, 6); g.endFill();
+        c.addChild(g);
+    },
+
+    drawGPUShowcase(c, x, y, col) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Glass display case
+        g.beginFill(0x0f172a); g.drawRect(x - 22, y - 45, 44, 45); g.endFill();
+        g.lineStyle(1, col || 0x76b900, 0.3); g.drawRect(x - 22, y - 45, 44, 45); g.lineStyle(0);
+        // GPU cards (stacked)
+        for (let i = 0; i < 4; i++) {
+            const gy2 = y - 38 + i * 9;
+            g.beginFill(0x1e293b); g.drawRect(x - 16, gy2, 32, 7); g.endFill();
+            g.beginFill(col || 0x76b900, 0.6); g.drawRect(x - 14, gy2 + 1, 8, 5); g.endFill();
+            // Heat pipes
+            g.beginFill(0x64748b); g.drawRect(x + 2, gy2 + 2, 12, 1); g.drawRect(x + 2, gy2 + 4, 12, 1); g.endFill();
+            // LED
+            g.beginFill(col || 0x76b900); g.drawCircle(x + 16, gy2 + 3, 1); g.endFill();
+        }
+        const glow = new PIXI.Graphics(); glow.eventMode = 'none';
+        glow.beginFill(col || 0x76b900, 0.06); glow.drawRect(x - 22, y - 45, 44, 45); glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD; c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.1, type: 'screen' });
+    },
+
+    drawGymCorner(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Bench press
+        g.beginFill(0x1e293b); g.drawRect(x - 20, y - 8, 40, 4); g.endFill(); // bench
+        g.beginFill(0x334155); g.drawRect(x - 22, y - 4, 4, 4); g.drawRect(x + 18, y - 4, 4, 4); g.endFill(); // legs
+        // Barbell rack
+        g.beginFill(0x64748b); g.drawRect(x - 24, y - 30, 4, 26); g.drawRect(x + 20, y - 30, 4, 26); g.endFill();
+        // Barbell
+        g.beginFill(0x94a3b8); g.drawRect(x - 28, y - 28, 56, 2); g.endFill();
+        // Weight plates
+        g.beginFill(0x1e293b); g.drawRect(x - 30, y - 32, 6, 10); g.drawRect(x + 24, y - 32, 6, 10); g.endFill();
+        // Dumbbells on floor
+        g.beginFill(0x64748b); g.drawRect(x + 30, y - 4, 14, 3); g.endFill();
+        g.beginFill(0x1e293b); g.drawRect(x + 28, y - 6, 4, 6); g.drawRect(x + 42, y - 6, 4, 6); g.endFill();
+        c.addChild(g);
+    },
+
+    drawPoolTable(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Table legs
+        g.beginFill(0x5c3a1e); g.drawRect(x - 38, y - 4, 4, 4); g.drawRect(x + 34, y - 4, 4, 4); g.endFill();
+        // Table body
+        g.beginFill(0x5c3a1e); g.drawRect(x - 40, y - 12, 80, 8); g.endFill();
+        // Green felt
+        g.beginFill(0x166534); g.drawRect(x - 36, y - 14, 72, 6); g.endFill();
+        // Rails
+        g.beginFill(0x4a2e16); g.drawRect(x - 38, y - 16, 76, 2); g.endFill();
+        // Corner pockets
+        g.beginFill(0x000000); g.drawCircle(x - 35, y - 13, 2); g.drawCircle(x + 35, y - 13, 2); g.endFill();
+        // Balls
+        g.beginFill(0xffffff); g.drawCircle(x - 10, y - 12, 1.5); g.endFill();
+        g.beginFill(0xef4444); g.drawCircle(x + 8, y - 11, 1.5); g.endFill();
+        g.beginFill(0xfbbf24); g.drawCircle(x + 12, y - 12, 1.5); g.endFill();
+        g.beginFill(0x3b82f6); g.drawCircle(x + 10, y - 13, 1.5); g.endFill();
+        c.addChild(g);
+    },
+
+    drawHomeBar(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Bar counter
+        g.beginFill(0x5c3a1e); g.drawRect(x - 30, y - 18, 60, 18); g.endFill();
+        g.beginFill(0x78350f); g.drawRect(x - 32, y - 20, 64, 4); g.endFill();
+        // Back shelf with bottles
+        g.beginFill(0x3a2a18); g.drawRect(x - 28, y - 48, 56, 28); g.endFill();
+        const bottleCols = [0x22c55e, 0xfbbf24, 0xef4444, 0x3b82f6, 0xa855f7, 0xffffff];
+        for (let i = 0; i < 8; i++) {
+            const bx = x - 24 + i * 7;
+            g.beginFill(bottleCols[i % bottleCols.length], 0.7);
+            g.drawRect(bx, y - 44, 4, 16);
+            g.endFill();
+            g.beginFill(bottleCols[i % bottleCols.length], 0.5);
+            g.drawRect(bx + 1, y - 48, 2, 4);
+            g.endFill();
+        }
+        // Shelf
+        g.beginFill(0x5c3a1e); g.drawRect(x - 28, y - 28, 56, 2); g.endFill();
+        // Glasses on lower shelf
+        for (let i = 0; i < 4; i++) {
+            g.beginFill(0xffffff, 0.3); g.drawRect(x - 22 + i * 12, y - 26, 4, 6); g.endFill();
+        }
+        // Bar stools
+        g.beginFill(0x1e293b); g.drawCircle(x - 16, y - 4, 5); g.drawCircle(x + 16, y - 4, 5); g.endFill();
+        g.beginFill(0x334155); g.drawRect(x - 17, y - 2, 2, 2); g.drawRect(x + 15, y - 2, 2, 2); g.endFill();
+        c.addChild(g);
+    },
+
+    drawCricketBat(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Wall-mounted cricket bat (vertical)
+        g.beginFill(0xd4a574); g.drawRect(x - 4, y - 48, 8, 30); g.endFill(); // blade
+        g.beginFill(0xc2956b); g.drawRect(x - 3, y - 18, 6, 14); g.endFill(); // handle
+        g.beginFill(0x78350f); g.drawRect(x - 2, y - 16, 4, 10); g.endFill(); // grip
+        // Cricket ball beside it
+        g.beginFill(0xdc2626); g.drawCircle(x + 14, y - 6, 4); g.endFill();
+        g.lineStyle(1, 0xfef3c7, 0.6); g.moveTo(x + 11, y - 6); g.lineTo(x + 17, y - 6); g.lineStyle(0);
+        // Mount bracket
+        g.beginFill(0x64748b); g.drawRect(x - 6, y - 40, 2, 6); g.drawRect(x - 6, y - 24, 2, 6); g.endFill();
+        c.addChild(g);
+    },
+
+    drawStandingDesk(c, x, y, col) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Tall desk frame
+        g.beginFill(0x475569); g.drawRect(x - 22, y - 2, 4, 2); g.drawRect(x + 18, y - 2, 4, 2); g.endFill(); // feet
+        g.beginFill(0x64748b); g.drawRect(x - 20, y - 28, 4, 26); g.drawRect(x + 16, y - 28, 4, 26); g.endFill(); // legs
+        // Desktop
+        g.beginFill(0x1e293b); g.drawRect(x - 24, y - 30, 48, 4); g.endFill();
+        // Monitor (tall mounted)
+        g.beginFill(0x0f172a); g.drawRect(x - 10, y - 46, 20, 14); g.endFill();
+        g.beginFill(col || 0x22d3ee); g.drawRect(x - 8, y - 44, 16, 10); g.endFill();
+        // Keyboard
+        g.beginFill(0x334155); g.drawRect(x - 8, y - 28, 16, 2); g.endFill();
+        const glow = new PIXI.Graphics(); glow.eventMode = 'none';
+        glow.beginFill(col || 0x22d3ee, 0.15); glow.drawRect(x - 8, y - 44, 16, 10); glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD; c.addChild(g, glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.3, type: 'screen' });
+    },
+
+    drawWhiteboard(c, x, y, w) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        const bw = w || 60;
+        // Board
+        g.beginFill(0xf1f5f9); g.drawRect(x - bw / 2, y - 40, bw, 30); g.endFill();
+        g.lineStyle(1, 0x94a3b8, 0.4); g.drawRect(x - bw / 2, y - 40, bw, 30); g.lineStyle(0);
+        // Scribbles
+        g.lineStyle(2, 0x3b82f6, 0.4);
+        g.moveTo(x - bw / 2 + 6, y - 34); g.lineTo(x - 4, y - 30); g.lineTo(x + 10, y - 36);
+        g.lineStyle(1, 0xef4444, 0.3);
+        g.moveTo(x - 10, y - 22); g.lineTo(x + bw / 2 - 8, y - 18);
+        g.lineStyle(1, 0x22c55e, 0.3);
+        g.moveTo(x - bw / 2 + 8, y - 16); g.lineTo(x + 6, y - 20);
+        g.lineStyle(0);
+        // Tray
+        g.beginFill(0x94a3b8); g.drawRect(x - bw / 2, y - 10, bw, 3); g.endFill();
+        // Markers
+        g.beginFill(0xef4444); g.drawRect(x - 8, y - 12, 6, 2); g.endFill();
+        g.beginFill(0x3b82f6); g.drawRect(x + 2, y - 12, 6, 2); g.endFill();
+        c.addChild(g);
+    },
+
+    drawIndoorGarden(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Planter box
+        g.beginFill(0x5c3a1e); g.drawRect(x - 30, y - 6, 60, 6); g.endFill();
+        g.beginFill(0x3a2a18); g.drawRect(x - 28, y - 4, 56, 2); g.endFill();
+        // Soil
+        g.beginFill(0x2a1e10); g.drawRect(x - 28, y - 8, 56, 4); g.endFill();
+        // Plants (varied shapes)
+        const plantCols = [0x22c55e, 0x16a34a, 0x15803d, 0x166534, 0x4ade80];
+        for (let i = 0; i < 6; i++) {
+            const px = x - 22 + i * 9;
+            const ph = 10 + (i * 7) % 12;
+            g.beginFill(plantCols[i % plantCols.length]);
+            g.drawPolygon([px - 2, y - 8, px, y - 8 - ph, px + 2, y - 8]);
+            if (i % 2 === 0) g.drawCircle(px, y - 10 - ph / 2, 4);
+            g.endFill();
+        }
+        c.addChild(g);
+    },
+
     drawSiloInterior(c, x, y, w, floorH, col) {
         const g = new PIXI.Graphics(); g.eventMode = 'none';
         // Reinforced concrete walls
