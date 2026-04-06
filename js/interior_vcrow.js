@@ -90,7 +90,7 @@ const InteriorVCRow = {
         for (let f = -1; f < numFloors; f++) {
             const fy = roofH + (numFloors - 1 - f) * floorH;
             const isBasement = f === -1;
-            const theme = isBasement ? 'basement' : themes[numFloors - 1 - f];
+            const theme = isBasement ? 'basement' : themes[f];
 
             // Walls
             const rg = new PIXI.Graphics();
@@ -168,8 +168,8 @@ const InteriorVCRow = {
                     ? this.NPCS[theme].filter(n => n.name === 'Security' || n.name === 'Guard')
                     : this.NPCS[theme];
                 npcs.forEach((npc, ni) => {
-                    const nx = startX + 80 + ni * (bldW - 160) / Math.max(1, npcs.length - 1);
-                    this._npc(fc, nx, pY, npc.name, npc.color);
+                    const nx = startX + 60 + ni * (usableW - 80) / Math.max(1, npcs.length - 1);
+                    this._npc(fc, nx, pY, npc.name, npc.color, startX + 15, shaftX - 15);
                 });
             }
         }
@@ -230,6 +230,7 @@ const InteriorVCRow = {
 
         // Drag scroll
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
+        this.layer.hitArea = new PIXI.Rectangle(0, 0, G.vpW, G.vpH);
         window.removeEventListener('pointermove', this._onMove); window.removeEventListener('pointerup', this._onUp);
         this.layer.on('pointerdown', (e) => { this.isDragging = true; this._startY = e.clientY; this._startSceneY = this.scene.y; this.layer.cursor = 'grabbing'; });
         this._onMove = (e) => { if (!InteriorVCRow.isDragging || !InteriorVCRow.scene || InteriorVCRow.scene.destroyed) return; let ny = InteriorVCRow._startSceneY + (e.clientY - InteriorVCRow._startY); ny = Math.max(InteriorVCRow.minY, Math.min(ny, InteriorVCRow.maxY)); InteriorVCRow.scene.y = ny; };
@@ -284,73 +285,117 @@ const InteriorVCRow = {
 
     _drawReception(c, sx, bw, pY, fy, fh, accent) {
         this._lbl(c, sx + bw / 2, fy + 8, 'RECEPTION', accent);
-        // Marble floor effect
-        const mg = new PIXI.Graphics(); mg.eventMode = 'none';
-        mg.beginFill(0x1a1a28, 0.5); mg.drawRect(sx, pY - 4, bw, 4); mg.endFill();
-        mg.beginFill(accent, 0.04); mg.drawRect(sx, pY - 2, bw, 2); mg.endFill();
-        c.addChild(mg);
-        // Reception desk
-        const dw = bw * 0.35;
-        const dx = sx + bw / 2 - dw / 2;
-        const dg = new PIXI.Graphics(); dg.eventMode = 'none';
-        dg.beginFill(0x1a1a2a); dg.drawRoundedRect(dx, pY - 22, dw, 22, 3); dg.endFill();
-        dg.beginFill(accent, 0.12); dg.drawRect(dx + 4, pY - 20, dw - 8, 2); dg.endFill();
-        // Logo panel
-        dg.beginFill(0x111118); dg.drawRect(dx + dw / 2 - 20, pY - 18, 40, 12); dg.endFill();
-        dg.beginFill(accent, 0.3); dg.drawRect(dx + dw / 2 - 16, pY - 15, 32, 6); dg.endFill();
-        c.addChild(dg);
-        // Monitor on desk
-        this._monitor(c, dx + dw / 2, pY - 22, accent);
-        // Sofa seating area
-        for (const off of [sx + 30, sx + bw - 90]) {
-            const sf = new PIXI.Graphics(); sf.eventMode = 'none';
-            sf.beginFill(0x222240); sf.drawRoundedRect(off, pY - 16, 50, 12, 3); sf.endFill();
-            sf.beginFill(0x2a2a50); sf.drawRoundedRect(off - 4, pY - 20, 8, 20, 2); sf.drawRoundedRect(off + 46, pY - 20, 8, 20, 2); sf.endFill();
-            c.addChild(sf);
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Marble floor with accent inlay
+        g.beginFill(0x1a1a28, 0.5); g.drawRect(sx, pY - 4, bw, 4); g.endFill();
+        g.beginFill(accent, 0.04); g.drawRect(sx, pY - 2, bw, 2); g.endFill();
+        // Floor inlay pattern
+        for (let ix = sx + 40; ix < sx + bw - 40; ix += 30) {
+            g.beginFill(accent, 0.03); g.drawRect(ix, pY - 4, 20, 4); g.endFill();
         }
-        // Potted plants
-        this._plant(c, sx + 20, pY);
-        this._plant(c, sx + bw - 30, pY);
+        // Reception desk — curved front, marble-topped
+        const dw = bw * 0.38;
+        const dx = sx + bw / 2 - dw / 2;
+        g.beginFill(0x1a1a2a); g.drawRoundedRect(dx, pY - 24, dw, 24, 4); g.endFill();
+        g.beginFill(0x222238); g.drawRect(dx + 3, pY - 22, dw - 6, 2); g.endFill();
+        g.beginFill(accent, 0.15); g.drawRect(dx, pY - 24, dw, 3); g.endFill();
+        // Logo backlit panel on desk front
+        g.beginFill(0x0a0a14); g.drawRoundedRect(dx + dw / 2 - 25, pY - 18, 50, 14, 2); g.endFill();
+        g.beginFill(accent, 0.25); g.drawRoundedRect(dx + dw / 2 - 22, pY - 15, 44, 8, 2); g.endFill();
+        // Accent glow behind logo
+        g.beginFill(accent, 0.04); g.drawRoundedRect(dx + dw / 2 - 30, pY - 20, 60, 18, 3); g.endFill();
+        c.addChild(g);
+        // Dual monitors on desk
+        this._monitor(c, dx + 20, pY - 24, accent);
+        this._monitor(c, dx + dw - 20, pY - 24, accent);
+        // Phone on desk
+        const ph = new PIXI.Graphics(); ph.eventMode = 'none';
+        ph.beginFill(0x333344); ph.drawRect(dx + dw / 2 + 12, pY - 22, 8, 5); ph.endFill();
+        ph.beginFill(0x444458); ph.drawRect(dx + dw / 2 + 13, pY - 20, 6, 2); ph.endFill();
+        c.addChild(ph);
+        // Waiting area — L-shaped sofas with coffee table
+        for (const off of [sx + 25, sx + bw - 110]) {
+            const sf = new PIXI.Graphics(); sf.eventMode = 'none';
+            sf.beginFill(0x222240); sf.drawRoundedRect(off, pY - 16, 60, 12, 3); sf.endFill();
+            sf.beginFill(0x2a2a50); sf.drawRoundedRect(off - 4, pY - 20, 8, 20, 2); sf.drawRoundedRect(off + 56, pY - 20, 8, 20, 2); sf.endFill();
+            // Cushion details
+            sf.beginFill(0x2e2e55, 0.5); sf.drawRect(off + 6, pY - 14, 20, 8); sf.drawRect(off + 30, pY - 14, 20, 8); sf.endFill();
+            c.addChild(sf);
+            // Coffee table in front
+            const ct = new PIXI.Graphics(); ct.eventMode = 'none';
+            ct.beginFill(0x1a1a2a); ct.drawRect(off + 12, pY - 8, 36, 6); ct.endFill();
+            ct.beginFill(accent, 0.06); ct.drawRect(off + 14, pY - 6, 32, 2); ct.endFill();
+            // Magazine on table
+            ct.beginFill(0xffffff, 0.08); ct.drawRect(off + 18, pY - 7, 8, 4); ct.endFill();
+            c.addChild(ct);
+        }
+        // Company logo on back wall
+        const wl = new PIXI.Graphics(); wl.eventMode = 'none';
+        wl.beginFill(accent, 0.06); wl.drawCircle(sx + bw / 2, fy + 30, 12); wl.endFill();
+        wl.beginFill(accent, 0.12); wl.drawCircle(sx + bw / 2, fy + 30, 8); wl.endFill();
+        wl.beginFill(accent, 0.2); wl.drawCircle(sx + bw / 2, fy + 30, 4); wl.endFill();
+        c.addChild(wl);
+        // Potted plants flanking entry
+        this._plant(c, sx + 15, pY);
+        this._plant(c, sx + bw - 25, pY);
     },
 
     _drawDealRoom(c, sx, bw, pY, fy, fh, accent) {
         this._lbl(c, sx + bw / 2, fy + 8, 'DEAL ROOM', accent);
-        // Large conference table
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Polished conference table — dark walnut
         const tw = bw * 0.5, tx = sx + bw / 2 - tw / 2;
-        const tg = new PIXI.Graphics(); tg.eventMode = 'none';
-        tg.beginFill(0x1a1a2a); tg.drawRoundedRect(tx, pY - 18, tw, 14, 3); tg.endFill();
-        tg.beginFill(0x222240); tg.drawRoundedRect(tx + 2, pY - 16, tw - 4, 10, 2); tg.endFill();
-        c.addChild(tg);
-        // Chairs around table
-        for (let cx = tx + 15; cx < tx + tw - 10; cx += 25) {
-            const ch = new PIXI.Graphics(); ch.eventMode = 'none';
-            ch.beginFill(0x333350); ch.drawRoundedRect(cx, pY - 24, 10, 8, 2); ch.endFill();
-            ch.beginFill(0x333350); ch.drawRect(cx + 3, pY - 3, 4, 3); ch.endFill();
-            c.addChild(ch);
+        g.beginFill(0x2a1a10); g.drawRoundedRect(tx, pY - 18, tw, 14, 4); g.endFill();
+        g.beginFill(0x3a2a18); g.drawRoundedRect(tx + 3, pY - 16, tw - 6, 10, 2); g.endFill();
+        // Table reflection highlight
+        g.beginFill(0xffffff, 0.03); g.drawRect(tx + 10, pY - 15, tw - 20, 3); g.endFill();
+        // Chairs around table — leather executive chairs
+        for (let cx = tx + 12; cx < tx + tw - 10; cx += 22) {
+            g.beginFill(0x222240); g.drawRoundedRect(cx, pY - 26, 12, 10, 3); g.endFill();
+            g.beginFill(0x333358); g.drawRoundedRect(cx + 1, pY - 24, 10, 4, 2); g.endFill();
+            g.beginFill(0x222240); g.drawRect(cx + 4, pY - 3, 4, 3); g.endFill();
         }
-        // Deal board on wall
-        const dbx = sx + 30, dby = fy + 14;
+        // Term sheet documents + pens
+        for (let dx = tx + 15; dx < tx + tw - 20; dx += 28) {
+            g.beginFill(0xffffff, 0.12); g.drawRect(dx, pY - 15, 8, 10); g.endFill();
+            g.beginFill(accent, 0.2); g.drawRect(dx + 1, pY - 13, 6, 1); g.drawRect(dx + 1, pY - 10, 4, 1); g.drawRect(dx + 1, pY - 8, 5, 1); g.endFill();
+            // Pen
+            g.beginFill(0x1a1a28); g.drawRect(dx + 10, pY - 12, 1, 8); g.endFill();
+        }
+        // Water carafe + glasses
+        g.beginFill(0x93c5fd, 0.15); g.drawRect(tx + tw / 2 - 3, pY - 16, 6, 8); g.endFill();
+        g.beginFill(0xffffff, 0.1); g.drawRect(tx + tw / 2 + 6, pY - 13, 3, 5); g.drawRect(tx + tw / 2 - 10, pY - 13, 3, 5); g.endFill();
+        c.addChild(g);
+        // Deal pipeline board on left wall — Kanban-style
+        const dbx = sx + 20, dby = fy + 12;
+        const dbW = bw * 0.28, dbH = 36;
         const db = new PIXI.Graphics(); db.eventMode = 'none';
-        db.beginFill(0x0a0a14); db.drawRect(dbx, dby, bw * 0.25, 30); db.endFill();
-        db.beginFill(accent, 0.08); db.drawRect(dbx + 2, dby + 2, bw * 0.25 - 4, 26); db.endFill();
+        db.beginFill(0x0a0a14); db.drawRect(dbx, dby, dbW, dbH); db.endFill();
+        // Column headers: Pipeline | Due Diligence | Term Sheet | Closed
+        const cols = ['Pipeline', 'DD', 'Terms', 'Closed'];
+        const colW = (dbW - 8) / cols.length;
+        for (let ci = 0; ci < cols.length; ci++) {
+            const cx = dbx + 4 + ci * colW;
+            db.beginFill(accent, 0.08); db.drawRect(cx, dby + 2, colW - 2, 6); db.endFill();
+            // Deal cards
+            const numCards = 1 + Math.floor(Math.random() * 3);
+            for (let card = 0; card < numCards; card++) {
+                const isGreen = ci === 3 || Math.random() > 0.3;
+                db.beginFill(isGreen ? 0x4ade80 : 0xfbbf24, 0.3);
+                db.drawRoundedRect(cx + 1, dby + 10 + card * 7, colW - 4, 5, 1);
+                db.endFill();
+            }
+            // Column separator
+            if (ci > 0) { db.beginFill(0x333344, 0.3); db.drawRect(cx - 1, dby + 2, 1, dbH - 4); db.endFill(); }
+        }
         c.addChild(db);
-        // Ticker lines on board
-        for (let ly = dby + 6; ly < dby + 26; ly += 5) {
-            const isGreen = Math.random() > 0.35;
-            const ln = new PIXI.Graphics(); ln.eventMode = 'none';
-            ln.beginFill(isGreen ? 0x4ade80 : 0xef4444, 0.5);
-            ln.drawRect(dbx + 6, ly, 20 + Math.random() * 40, 2); ln.endFill();
-            c.addChild(ln);
-        }
-        // Wall screen (right)
-        this._wallScreen(c, sx + bw - 100, fy + 14, 60, 30, accent);
-        // Documents on table
-        for (let dx = tx + 10; dx < tx + tw - 20; dx += 30) {
-            const doc = new PIXI.Graphics(); doc.eventMode = 'none';
-            doc.beginFill(0xffffff, 0.15); doc.drawRect(dx, pY - 16, 8, 10); doc.endFill();
-            doc.beginFill(accent, 0.2); doc.drawRect(dx + 1, pY - 14, 6, 1); doc.drawRect(dx + 1, pY - 11, 4, 1); doc.endFill();
-            c.addChild(doc);
-        }
+        // Large presentation screen on right wall
+        this._wallScreen(c, sx + bw - 110, fy + 12, 75, 34, accent);
+        // Video conferencing camera above screen
+        const cam = new PIXI.Graphics(); cam.eventMode = 'none';
+        cam.beginFill(0x333344); cam.drawRect(sx + bw - 80, fy + 10, 12, 4); cam.endFill();
+        cam.beginFill(0x4ade80, 0.5); cam.drawCircle(sx + bw - 74, fy + 10, 1.5); cam.endFill();
+        c.addChild(cam);
     },
 
     _drawPartnerOffices(c, sx, bw, pY, fy, fh, accent) {
@@ -465,32 +510,58 @@ const InteriorVCRow = {
 
     _drawTradingFloor(c, sx, bw, pY, fy, fh, accent) {
         this._lbl(c, sx + bw / 2, fy + 8, 'TRADING FLOOR', 0xef4444);
-        // Rows of trading desks with screens
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Trading desk pods — curved arrangements
         for (let row = 0; row < 2; row++) {
-            const ry = pY - 6 - row * 22;
-            for (let dx = sx + 30; dx < sx + bw - 60; dx += 65) {
-                const dg = new PIXI.Graphics(); dg.eventMode = 'none';
-                dg.beginFill(0x1a1a2a); dg.drawRect(dx, ry - 10, 50, 10); dg.endFill();
-                c.addChild(dg);
-                // Dual monitors
-                this._monitor(c, dx + 12, ry - 10, 0x4ade80);
-                this._monitor(c, dx + 32, ry - 10, 0xef4444);
+            const ry = pY - 6 - row * 24;
+            for (let dx = sx + 25; dx < sx + bw - 80; dx += 60) {
+                // Desk
+                g.beginFill(0x1a1a2a); g.drawRoundedRect(dx, ry - 10, 45, 10, 2); g.endFill();
+                g.beginFill(0x222238); g.drawRect(dx + 2, ry - 8, 41, 2); g.endFill();
+                // Phone/intercom
+                g.beginFill(0x333344); g.drawRect(dx + 38, ry - 8, 5, 4); g.endFill();
             }
         }
-        // Overhead ticker board
-        const tkW = bw * 0.7;
+        c.addChild(g);
+        // Monitors on desks (separate for glow animation)
+        for (let row = 0; row < 2; row++) {
+            const ry = pY - 6 - row * 24;
+            for (let dx = sx + 25; dx < sx + bw - 80; dx += 60) {
+                this._monitor(c, dx + 10, ry - 10, 0x4ade80);
+                this._monitor(c, dx + 26, ry - 10, 0xef4444);
+            }
+        }
+        // Overhead multi-panel ticker board
+        const tkW = bw * 0.75;
         const tkX = sx + bw / 2 - tkW / 2;
         const tkG = new PIXI.Graphics(); tkG.eventMode = 'none';
-        tkG.beginFill(0x0a0a14); tkG.drawRect(tkX, fy + 12, tkW, 14); tkG.endFill();
-        // Ticker symbols
-        const syms = ['GPT +4.2%', 'CLDE -1.1%', 'XAI +7.8%', 'MSTRL +2.3%', 'INFL -3.4%'];
+        tkG.beginFill(0x0a0a14); tkG.drawRect(tkX, fy + 10, tkW, 16); tkG.endFill();
+        tkG.beginFill(0x111120); tkG.drawRect(tkX + 1, fy + 11, tkW - 2, 14); tkG.endFill();
+        // Ticker symbols with mini charts
+        const syms = ['GPT +4.2%', 'CLDE -1.1%', 'XAI +7.8%', 'MSTRL +2.3%', 'INFL -3.4%', 'NVDA +1.9%'];
+        const symW = (tkW - 8) / syms.length;
         for (let i = 0; i < syms.length; i++) {
             const isUp = syms[i].includes('+');
-            tkG.beginFill(isUp ? 0x4ade80 : 0xef4444, 0.6);
-            tkG.drawRect(tkX + 4 + i * (tkW / syms.length), fy + 14, tkW / syms.length - 8, 10); tkG.endFill();
+            const col = isUp ? 0x4ade80 : 0xef4444;
+            const sx2 = tkX + 4 + i * symW;
+            tkG.beginFill(col, 0.5); tkG.drawRect(sx2, fy + 12, symW - 4, 4); tkG.endFill();
+            // Mini sparkline
+            tkG.beginFill(col, 0.3);
+            for (let px = 0; px < 6; px++) {
+                const h = 2 + Math.random() * 5;
+                tkG.drawRect(sx2 + px * ((symW - 6) / 6), fy + 22 - h, (symW - 6) / 6 - 1, h);
+            }
+            tkG.endFill();
         }
         c.addChild(tkG);
         this.indoorLights.push({ g: tkG, maxA: 0.7, type: 'ticker' });
+        // Clock on wall
+        const clk = new PIXI.Graphics(); clk.eventMode = 'none';
+        clk.beginFill(0x222230); clk.drawCircle(sx + bw - 40, fy + 20, 8); clk.endFill();
+        clk.beginFill(0x0a0a14); clk.drawCircle(sx + bw - 40, fy + 20, 6); clk.endFill();
+        clk.beginFill(0xef4444, 0.6); clk.drawRect(sx + bw - 40, fy + 15, 1, 5); clk.endFill();
+        clk.beginFill(0xffffff, 0.4); clk.drawRect(sx + bw - 43, fy + 20, 4, 1); clk.endFill();
+        c.addChild(clk);
     },
 
     _drawCoworking(c, sx, bw, pY, fy, fh, accent) {
@@ -693,15 +764,20 @@ const InteriorVCRow = {
         t.anchor.set(0.5, 0); t.x = x; t.y = y; t.zIndex = 10; c.addChild(t);
     },
 
-    _npc(c, x, y, name, col) {
+    _npc(c, x, y, name, col, wallLeft, wallRight) {
         const cont = new PIXI.Container(); cont.x = x; cont.y = y; cont.zIndex = 5;
         const bw = 16, h = 32;
         const sh = new PIXI.Graphics(); sh.beginFill(0x000000, 0.25); sh.drawEllipse(0, 2, bw * 0.6, 3); sh.endFill();
         const legL = new PIXI.Graphics(); legL.beginFill(0x1a1a28); legL.drawRect(-2, 0, 3, 4); legL.endFill(); legL.x = -bw * 0.15;
         const legR = new PIXI.Graphics(); legR.beginFill(0x1a1a28); legR.drawRect(-1, 0, 3, 4); legR.endFill(); legR.x = bw * 0.15;
         const body = new PIXI.Graphics(); body.beginFill(col); body.drawRoundedRect(-bw / 2, -h + 11, bw, 16, 2); body.endFill();
+        // Tie / lapel accent
+        body.beginFill(0x0f0f18); body.drawRect(-1, -h + 12, 2, 8); body.endFill();
         const head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, 11, 3); head.endFill();
-        head.beginFill(0x2c1810); head.drawCircle(-bw * 0.1, 4, 1); head.drawCircle(bw * 0.1, 4, 1); head.endFill(); head.y = -h;
+        head.beginFill(0x2c1810); head.drawCircle(-bw * 0.1, 4, 1); head.drawCircle(bw * 0.1, 4, 1); head.endFill();
+        // Hair
+        head.beginFill(0x1a1008); head.drawRoundedRect(-bw * 0.42, -1, bw * 0.84, 4, 2); head.endFill();
+        head.y = -h;
         const dot = new PIXI.Graphics(); dot.beginFill(col); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 5;
         const tx = new PIXI.Text(name, { fontFamily: 'JetBrains Mono', fontSize: 7, fill: col, fontWeight: 'bold' });
         tx.anchor.set(0.5, 1); tx.y = -h - 8;
@@ -711,8 +787,13 @@ const InteriorVCRow = {
         const bldName = this.bld ? this.bld.name : 'VC Row';
         const vcNpcId = 'npc_vc_' + name.toLowerCase().replace(/\s/g, '_');
         cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel({ id: vcNpcId, name, isNPC: true, _trackType: 'vc_commuter', role: name, lab: 'other', desc: name + ' at ' + bldName + '. Part of the financial district workforce.' }); });
+        cont.on('pointerover', (e) => { if (typeof UI !== 'undefined' && UI.showTooltip) UI.showTooltip(e, name, bldName); });
+        cont.on('pointerout', () => { if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip(); });
         c.addChild(cont);
-        const vcAv = { cont, head, body, legL, legR, _minX: x - 30, _maxX: x + 30, _phase: Math.random() * Math.PI * 2, _walkTimer: 0, _walkDir: 0 };
+        // Clamp walk bounds to building interior walls (before elevator shaft)
+        const minX = Math.max(wallLeft || (x - 30), x - 50);
+        const maxX = Math.min(wallRight || (x + 30), x + 50);
+        const vcAv = { cont, head, body, legL, legR, _minX: minX, _maxX: maxX, _phase: Math.random() * Math.PI * 2, _walkTimer: 0, _walkDir: 0, _deskX: x };
         if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
             const hl = G._addTrackHighlight(cont, { id: vcNpcId }, false);
             if (hl) { vcAv._trackGlow = hl.glow; vcAv._trackArrow = hl.arrow; }
@@ -810,17 +891,42 @@ const InteriorVCRow = {
             else l.g.alpha = l.maxA * (0.7 + Math.sin(G.tick * 0.02) * 0.3);
         });
 
-        // NPC wander
+        // NPC state machine: idle at desk → walk short distance → return
         this.avatars.forEach((av, ci) => {
             if (!av.cont || av.cont.destroyed) return;
             if (av._trackGlow) { av._trackGlow.alpha = 0.25 + Math.sin(G.tick * 0.1) * 0.15; if (av._trackArrow) av._trackArrow.y = Math.sin(G.tick * 0.15) * 3 - 2; }
+            const state = av._state || 'idle';
             av._walkTimer = (av._walkTimer || 0) - 1;
-            if (av._walkTimer <= 0) { av._walkDir = (Math.random() > 0.5) ? 1 : -1; av._walkTimer = 60 + Math.random() * 120; }
-            const nx = av.cont.x + av._walkDir * 0.3;
-            if (nx > av._minX && nx < av._maxX) av.cont.x = nx;
-            if (av.head) av.head.y = -32 + Math.sin(G.tick * 0.15 + av._phase) * 1.5;
-            if (av.legL) av.legL.y = Math.sin(G.tick * 0.2 + ci) * 3;
-            if (av.legR) av.legR.y = -Math.sin(G.tick * 0.2 + ci) * 3;
+
+            if (state === 'idle') {
+                // Subtle head bob while working
+                if (av.head) av.head.y = -32 + Math.sin(G.tick * 0.04 + av._phase) * 0.5;
+                if (av.body) av.body.rotation = Math.sin(G.tick * 0.03 + av._phase * 2) * 0.015;
+                av.legL.y = 0; av.legR.y = 0;
+                if (av._walkTimer <= 0) {
+                    // Pick a nearby target within bounds
+                    const range = Math.min(40, (av._maxX - av._minX) * 0.4);
+                    av._targetX = av.cont.x + (Math.random() - 0.5) * range;
+                    av._targetX = Math.max(av._minX, Math.min(av._maxX, av._targetX));
+                    av._state = 'walking';
+                    av._walkTimer = 120 + Math.random() * 180;
+                }
+            } else if (state === 'walking') {
+                const dx = av._targetX - av.cont.x;
+                if (Math.abs(dx) < 1.5) {
+                    av.cont.x = av._targetX;
+                    av._state = 'idle';
+                    av._walkTimer = 80 + Math.random() * 200;
+                    av.cont.scale.x = 1;
+                } else {
+                    const dir = dx > 0 ? 1 : -1;
+                    av.cont.x += dir * 0.4;
+                    av.cont.scale.x = dir;
+                    if (av.head) av.head.y = -32 + Math.sin(G.tick * 0.2 + av._phase) * 1.2;
+                    if (av.legL) av.legL.y = Math.sin(G.tick * 0.25 + ci) * 2.5;
+                    if (av.legR) av.legR.y = -Math.sin(G.tick * 0.25 + ci) * 2.5;
+                }
+            }
         });
     }
 };
