@@ -3,7 +3,7 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const Entities = {
-    charLayer: null, carLayer: null, reflectionLayer: null, lightLayer: null,
+    charLayer: null, carLayer: null, reflectionLayer: null, lightLayer: null, _headlightAlpha: 0,
     undergroundLayer: null, trainLayer: null,
     trainWest: null, trainEast: null, trainMid: null, trainDC: null, trainLongevity: null,
     dataCubes: [],
@@ -309,6 +309,11 @@ const Entities = {
     },
 
     update(dp, night) {
+      // Headlight alpha — on at night or during rain/snow, off otherwise
+      const badWeather = typeof Environment !== 'undefined' && (Environment.weather === 'rain' || Environment.weather === 'snow');
+      const headlightTarget = night ? 1 : (badWeather ? 0.5 : 0);
+      this._headlightAlpha += (headlightTarget - this._headlightAlpha) * 0.05;
+
       // Port zone bounds — cached (only changes on city rebuild)
       if (!this._portBoundsCache || this._portBoundsCity !== G.cityW) {
           const pb = BLDS ? BLDS.filter(b => b.id.startsWith('port_')) : [];
@@ -473,7 +478,7 @@ const Entities = {
                   ceo.refCont.scale.x = ceo.dir;
                   ceo.refCont.scale.y = -1;
 
-                  ceo.beam.alpha = this.lightLayer.alpha;
+                  ceo.beam.alpha = this._headlightAlpha;
               }
           });
       }
@@ -807,8 +812,8 @@ const Entities = {
         if (c._delivering && c._stops && c._stops.length > 0) {
             if (c._waitTimer > 0) {
                 c._waitTimer--;
-                // Idle at stop: flash headlights gently
-                if (c.beam) c.beam.alpha = (G.tick % 40 < 20) ? 0.2 : 0.05;
+                // Idle at stop: flash headlights gently (only at night or bad weather)
+                if (c.beam) c.beam.alpha = this._headlightAlpha > 0.01 ? ((G.tick % 40 < 20) ? 0.2 : 0.05) : 0;
                 return true;
             }
             const target = c._stops[c._stopIdx];
@@ -832,7 +837,7 @@ const Entities = {
             c.gfx.x += c.dir * c.speed;
         }
         if (c.ref) c.ref.x = c.gfx.x;
-        if (c.beam && !c._waitTimer) c.beam.alpha = this.lightLayer.alpha;
+        if (c.beam && !c._waitTimer) c.beam.alpha = this._headlightAlpha;
         const laneY = c.dir > 0 ? 26 : 12; c.gfx.y = G.groundY + laneY;
         if (c.ref) c.ref.y = c.gfx.y;
         // Hide in port/ocean zone (unless delivering TO port)

@@ -6,13 +6,12 @@ const EntitiesGfx = {
     initCEO(f, carLayer, reflectionLayer) {
         const colHex = parseInt((LABS[f.lab] || LABS.other || {color: '#64748b'}).color.slice(1), 16);
         
-        const drawBody = (g) => { 
-            g.beginFill(colHex); g.drawRoundedRect(-22, -18, 44, 18, 4); g.endFill(); 
-            g.beginFill(colHex, 0.8); g.drawRoundedRect(-12, -28, 24, 12, 4); g.endFill(); 
-            g.beginFill(0x333333); g.drawCircle(-12, -1, 4); g.drawCircle(12, -1, 4); g.endFill(); 
-            g.beginFill(0xffffff, 1.0); g.drawRect(20, -8, 4, 6); g.endFill(); 
-            g.beginFill(0xff3333, 1.0); g.drawRect(-26, -10, 4, 4); g.endFill(); 
-            g.beginFill(0xffffee, 0.15); g.drawPolygon([24, -8, 120, -2, 120, 20, 24, 0]); g.endFill(); 
+        const drawBody = (g) => {
+            g.beginFill(colHex); g.drawRoundedRect(-22, -18, 44, 18, 4); g.endFill();
+            g.beginFill(colHex, 0.8); g.drawRoundedRect(-12, -28, 24, 12, 4); g.endFill();
+            g.beginFill(0x333333); g.drawCircle(-12, -1, 4); g.drawCircle(12, -1, 4); g.endFill();
+            g.beginFill(0xffffff, 1.0); g.drawRect(20, -8, 4, 6); g.endFill();
+            g.beginFill(0xff3333, 1.0); g.drawRect(-26, -10, 4, 4); g.endFill();
         };
 
         const carCont = new PIXI.Container(); 
