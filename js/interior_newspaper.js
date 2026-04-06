@@ -878,18 +878,10 @@ const InteriorNewspaper = {
         dot.y = -h - 6;
         cont.addChild(dot);
 
-        const nameTxt = new PIXI.Text(m.role || m.name, {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 7,
-            fill: 0xffffff, stroke: 0x000000, strokeThickness: 2
-        });
-        nameTxt.anchor.set(0.5, 1);
-        nameTxt.y = -h - 10;
-        cont.addChild(nameTxt);
-
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
 
-        return { cont, body, head, legL, legR, dot, nameTxt, highlight };
+        return { cont, body, head, legL, legR, dot, highlight };
     },
 
     // ═══════════════════════════════════════════════════════════════

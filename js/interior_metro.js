@@ -1266,14 +1266,6 @@ const InteriorMetroStation = {
         dot.y = -h - 6;
         cont.addChild(dot);
 
-        const nameTxt = new PIXI.Text(m.name ? m.name.split(' ')[0] : m.id, {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fill: 0xe2e8f0,
-            stroke: 0x000000, strokeThickness: 2
-        });
-        nameTxt.anchor.set(0.5, 1);
-        nameTxt.y = -h - 10;
-        cont.addChild(nameTxt);
-
         // Click/hover handlers — same as exterior NPCs
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
@@ -1295,7 +1287,7 @@ const InteriorMetroStation = {
             if (typeof UI !== 'undefined') UI.hideTooltip();
         });
 
-        return { cont, body, head, legL, legR, dot, nameTxt, highlight };
+        return { cont, body, head, legL, legR, dot, highlight };
     },
 
     cleanup() {
