@@ -1030,53 +1030,93 @@ const InteriorMetroStation = {
             }
         }
 
+        // ─── Station worker shift visibility + idle animation ───
+        const dp = G.getDayPhase();
+        const isNightShift = dp > 0.83 || dp < 0.25;
+        const activeShift = isNightShift
+            ? (this._stationWorkers ? this._stationWorkers.night : [])
+            : (this._stationWorkers ? this._stationWorkers.day : []);
+        const inactiveShift = isNightShift
+            ? (this._stationWorkers ? this._stationWorkers.day : [])
+            : (this._stationWorkers ? this._stationWorkers.night : []);
+
+        // Show active shift workers, hide inactive ones
+        for (const w of activeShift) {
+            const key = 'worker_' + w.id;
+            seen.add(key);
+            const av = this.avatarPool.get(key);
+            if (!av) continue;
+            av.cont.visible = true;
+            // Idle patrol: wander near their post, then return
+            av._walkTimer--;
+            if (av._walkTimer <= 0) {
+                av._walkTarget = av._deskX + (Math.random() - 0.5) * av._walkRange * 2;
+                av._walkTimer = 150 + Math.floor(Math.random() * 300);
+            }
+            const dx = av._walkTarget - av.cont.x;
+            if (Math.abs(dx) > 1) {
+                av.cont.x += Math.sign(dx) * av._speed;
+                // Walking leg animation
+                if (av.legL && av.legR) {
+                    const phase = Math.sin(tick * 0.25 + w.id.charCodeAt(0) * 0.3);
+                    av.legL.x = -2.4 + phase * 1.2;
+                    av.legR.x =  2.4 - phase * 1.2;
+                }
+            } else {
+                // Idle sway
+                if (av.legL && av.legR) { av.legL.x = -2.4; av.legR.x = 2.4; }
+                if (av.body) av.body.rotation = Math.sin(tick * 0.04 + w.id.charCodeAt(0) * 0.5) * 0.02;
+            }
+            av.cont.zIndex = Math.round(av.cont.y);
+        }
+        for (const w of inactiveShift) {
+            const key = 'worker_' + w.id;
+            const av = this.avatarPool.get(key);
+            if (av) av.cont.visible = false;
+        }
+
+        // Hide commuter/model avatars no longer present
         this.avatarPool.forEach((av, id) => {
             if (!seen.has(id)) av.cont.visible = false;
         });
     },
 
     // ─────────────────────────────────────────────────────────────
-    //  STATION WORKER NPCs (24/7 night-shift crew — always visible)
+    //  STATION WORKER NPCs (day/night shift rotation like all zones)
     // ─────────────────────────────────────────────────────────────
     _spawnStationWorkers(theme, W, hallTop, hallH, platTop, platStandY) {
-        const workers = [
-            { role: 'Ticket Agent',      x: W * 0.22, y: hallTop + hallH - 14, col: 0x3b82f6 },
-            { role: 'Station Guard',     x: W * 0.78, y: hallTop + hallH - 14, col: 0xef4444 },
-            { role: 'Platform Attendant', x: W * 0.35, y: platStandY,          col: 0xfbbf24 },
-            { role: 'Maintenance Tech',  x: W * 0.65, y: platStandY,          col: 0x22c55e },
-            { role: 'Signal Operator',   x: W * 0.85, y: platStandY,          col: 0x06b6d4 },
+        // Day shift (roughly 06:00–18:00) and night shift (18:00–06:00)
+        // rotate just like every other zone's interior NPCs.
+        const DAY_WORKERS = [
+            { id: 'metro_ticket',    name: 'Ticket Agent',       role: 'Ticket Agent',       x: W * 0.22, y: hallTop + hallH - 14, col: 0x3b82f6 },
+            { id: 'metro_guard_d',   name: 'Station Guard',      role: 'Station Guard',      x: W * 0.78, y: hallTop + hallH - 14, col: 0xef4444 },
+            { id: 'metro_attend_d',  name: 'Platform Attendant', role: 'Platform Attendant',  x: W * 0.35, y: platStandY,          col: 0xfbbf24 },
+            { id: 'metro_dispatch',  name: 'Train Dispatcher',   role: 'Dispatcher',         x: W * 0.65, y: platStandY,          col: 0x22c55e },
+            { id: 'metro_info',      name: 'Info Desk',          role: 'Info Desk',          x: W * 0.50, y: hallTop + hallH - 14, col: 0x06b6d4 },
         ];
-        for (const w of workers) {
-            const g = new PIXI.Graphics();
-            // Body
-            g.beginFill(w.col, 0.85);
-            g.drawRect(-4, -16, 8, 12);
-            g.endFill();
-            // Head
-            g.beginFill(0xf0c8a0);
-            g.drawRect(-3, -22, 6, 6);
-            g.endFill();
-            // Hi-vis vest stripe
-            g.beginFill(0xfbbf24, 0.6);
-            g.drawRect(-4, -10, 8, 2);
-            g.endFill();
-            // Legs
-            g.beginFill(0x1e293b);
-            g.drawRect(-3, -4, 2, 4);
-            g.drawRect(1, -4, 2, 4);
-            g.endFill();
-            g.x = w.x;
-            g.y = w.y;
-            this.scene.addChild(g);
-            // Role label
-            const label = new PIXI.Text(w.role, {
-                fontFamily: 'monospace', fontSize: 6, fill: w.col,
-                stroke: 0x000000, strokeThickness: 2
-            });
-            label.anchor.set(0.5, 1);
-            label.x = w.x;
-            label.y = w.y - 24;
-            this.scene.addChild(label);
+        const NIGHT_WORKERS = [
+            { id: 'metro_guard_n',   name: 'Night Guard',        role: 'Night Guard',        x: W * 0.75, y: hallTop + hallH - 14, col: 0xef4444 },
+            { id: 'metro_maint',     name: 'Maintenance Tech',   role: 'Maintenance',        x: W * 0.40, y: platStandY,          col: 0x22c55e },
+            { id: 'metro_signal',    name: 'Signal Operator',    role: 'Signal Ops',         x: W * 0.85, y: platStandY,          col: 0x06b6d4 },
+        ];
+        this._stationWorkers = { day: DAY_WORKERS, night: NIGHT_WORKERS };
+        // Create avatar sprites for ALL workers (both shifts), hide inactive ones
+        for (const list of [DAY_WORKERS, NIGHT_WORKERS]) {
+            for (const w of list) {
+                const fakeModel = { id: w.id, name: w.name, lab: 'other', role: w.role, _npcColor: w.col };
+                const av = this._makeAvatarSprite(fakeModel);
+                av.cont.x = w.x;
+                av.cont.y = w.y;
+                av._isStationWorker = true;
+                av._deskX = w.x;
+                av._floorY = w.y;
+                av._speed = 0.5 + Math.random() * 0.3;
+                av._walkTarget = w.x;
+                av._walkTimer = 120 + Math.floor(Math.random() * 300);
+                av._walkRange = 40;
+                this.avatarLayer.addChild(av.cont);
+                this.avatarPool.set('worker_' + w.id, av);
+            }
         }
     },
 
