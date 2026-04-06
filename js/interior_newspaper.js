@@ -3,7 +3,8 @@
    ────────────────────────────────────────────────────────────────────────────────────────────────
    3-floor building: Lobby + Printing Press (ground), Newsroom (2nd), Editor's Office (3rd).
    Clickable printing press on the ground floor opens the newspaper overlay.
-   Day/night shift rotation with animated NPC avatars (Editors, Reporters, Photographers, etc.).
+   Day/night shift rotation with animated NPC avatars.
+   Matches the visual style of all other interiors: sky + window cutouts + underground layers.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const InteriorNewspaper = {
@@ -12,6 +13,9 @@ const InteriorNewspaper = {
     bld: null,
     avatarLayer: null,
     avatarPool: null,
+    skyContainer: null,
+    starsLayer: null,
+    celestialGfx: null,
     _lift: null,
     _staff: null,
     indoorLights: [],
@@ -32,11 +36,13 @@ const InteriorNewspaper = {
         const W = G.vpW;
         const numFloors = 3;
         const floorH = 80;
-        const roofH = 35;
-        const bldW = Math.min(W * 0.85, 600);
+        const roofH = 80;
+        const bldW = Math.min(W, 800);
         const startX = Math.round((W - bldW) / 2);
-        const totalH = roofH + numFloors * floorH + 15;
+        const totalH = roofH + (numFloors + 1) * floorH; // +1 for basement
         this.totalH = totalH;
+        this.bldW = bldW;
+        this.startX = startX;
         this.maxY = 80;
         this.minY = Math.min(0, G.vpH - totalH);
 
@@ -44,32 +50,50 @@ const InteriorNewspaper = {
         this.scene = new PIXI.Container();
         layer.addChild(this.scene);
 
-        // ─── SKY BACKDROP ───
-        const sky = new PIXI.Graphics();
-        sky.beginFill(0x1a1a2e);
-        sky.drawRect(0, 0, W, roofH + 10);
-        sky.endFill();
-        this.scene.addChild(sky);
+        // ─── SKY LAYER (stars + celestial body — same pattern as InteriorCity) ───
+        this.skyContainer = new PIXI.Container();
+        this.skyContainer.eventMode = 'none';
+        this.scene.addChild(this.skyContainer);
+
+        this.starsLayer = new PIXI.Container();
+        for (let i = 0; i < 80; i++) {
+            const s = new PIXI.Graphics();
+            s.beginFill(0xffffff);
+            s.drawCircle(0, 0, 0.5 + Math.random() * 1.2);
+            s.endFill();
+            s.x = Math.random() * W;
+            s.y = Math.random() * roofH;
+            s._phase = Math.random() * Math.PI * 2;
+            this.starsLayer.addChild(s);
+        }
+        this.celestialGfx = new PIXI.Graphics();
+        this.skyContainer.addChild(this.starsLayer, this.celestialGfx);
+
+        // ─── ELEVATOR LAYOUT ───
+        const shaftW = 60;
+        const shaftX = startX + bldW - shaftW - 20;
+        const elevatorX = startX + bldW - 26;
+        const usableW = bldW - shaftW - 20;
 
         // ─── ROOF / PARAPET ───
         const roof = new PIXI.Graphics();
         roof.beginFill(0x3a2a18);
-        roof.drawRect(startX - 4, roofH - 18, bldW + 8, 20);
+        roof.drawRect(startX, roofH - 18, bldW, 20);
         roof.endFill();
         roof.beginFill(0x4a3828);
-        roof.drawRect(startX - 6, roofH - 20, bldW + 12, 4);
+        roof.drawRect(startX - 4, roofH - 20, bldW + 8, 4);
         roof.endFill();
         // Sign backplate
         roof.beginFill(0x0f172a);
-        roof.drawRect(startX + bldW / 2 - 90, roofH - 16, 180, 12);
+        roof.drawRect(startX + bldW / 2 - 100, roofH - 16, 200, 12);
         roof.endFill();
         roof.beginFill(0xfbbf24, 0.15);
-        roof.drawRect(startX + bldW / 2 - 90, roofH - 16, 180, 12);
+        roof.drawRect(startX + bldW / 2 - 100, roofH - 16, 200, 12);
         roof.endFill();
         this.scene.addChild(roof);
 
         const signTxt = new PIXI.Text('SINGULARITY CITY TIMES', {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 6,
+            fontFamily: 'Press Start 2P, monospace', fontSize: 7,
             fill: 0xfbbf24, letterSpacing: 1
         });
         signTxt.anchor.set(0.5, 0.5);
@@ -77,31 +101,26 @@ const InteriorNewspaper = {
         signTxt.y = roofH - 10;
         this.scene.addChild(signTxt);
 
-        // Rooftop satellite dish + antenna
+        // Satellite dish + antenna
         const antenna = new PIXI.Graphics();
         antenna.beginFill(0x64748b);
-        antenna.drawRect(startX + bldW - 45, roofH - 34, 3, 16);
+        antenna.drawRect(startX + bldW - 50, roofH - 34, 3, 16);
         antenna.endFill();
         antenna.beginFill(0x94a3b8);
-        antenna.drawEllipse(startX + bldW - 43, roofH - 36, 8, 5);
+        antenna.drawEllipse(startX + bldW - 48, roofH - 36, 8, 5);
         antenna.endFill();
-        antenna.beginFill(0x1a1a2e);
-        antenna.drawEllipse(startX + bldW - 43, roofH - 36, 5, 3);
+        antenna.beginFill(0x22d3ee, 0.4);
+        antenna.drawEllipse(startX + bldW - 48, roofH - 36, 5, 3);
         antenna.endFill();
-        // Blinking red light
         antenna.beginFill(0xef4444);
-        antenna.drawCircle(startX + bldW - 43, roofH - 42, 1.5);
+        antenna.drawCircle(startX + bldW - 48, roofH - 42, 1.5);
         antenna.endFill();
         this.scene.addChild(antenna);
         this._antennaLight = antenna;
 
-        // ─── ELEVATOR LAYOUT ───
-        const elevatorX = startX + bldW - 26;
-        const usableW = bldW - 54;
-
-        // ─── FLOORS ───
+        // ─── FLOORS (top to bottom, including basement) ───
         const floors = {};
-        for (let f = numFloors - 1; f >= 0; f--) {
+        for (let f = numFloors - 1; f >= -1; f--) {
             const fy = roofH + (numFloors - 1 - f) * floorH;
             const floorCont = new PIXI.Container();
             floorCont.sortableChildren = true;
@@ -110,61 +129,79 @@ const InteriorNewspaper = {
             const pY = fy + floorH - 4; // standing Y
             floors[f] = { fy, pY, cont: floorCont };
 
-            // ─── STRUCTURE: wall, floor, ceiling ───
-            const fg = new PIXI.Graphics();
-            const wallCol = f === 2 ? 0x2a2218 : f === 1 ? 0x1e1e2e : 0x222230;
-            fg.beginFill(wallCol);
-            fg.drawRect(startX, fy, bldW, floorH);
-            fg.endFill();
-            // Floor tiles
-            fg.beginFill(f === 0 ? 0x3a3a4a : 0x2d2d3d);
-            fg.drawRect(startX, pY, usableW, 4);
-            fg.endFill();
-            // Ceiling line
-            fg.beginFill(0x4a4a5a, 0.4);
-            fg.drawRect(startX, fy, usableW, 2);
-            fg.endFill();
-            floorCont.addChild(fg);
+            // ─── WALL WITH WINDOW CUTOUTS (shows sky through) ───
+            const wallCol = f === 2 ? 0x2a2218 : f === 1 ? 0x1e1e2e : f === 0 ? 0x222230 : 0x1a1a24;
+            const rg = new PIXI.Graphics();
 
-            // ─── WINDOWS ───
-            const winG = new PIXI.Graphics();
-            for (let wx = startX + 30; wx < startX + usableW - 20; wx += 110) {
-                winG.beginFill(0x1a1a2e, 0.25);
-                winG.drawRect(wx, fy + 8, 32, 26);
-                winG.endFill();
-                winG.lineStyle(1, 0x64748b, 0.4);
-                winG.drawRect(wx, fy + 8, 32, 26);
-                winG.moveTo(wx + 16, fy + 8);
-                winG.lineTo(wx + 16, fy + 34);
-                winG.lineStyle(0);
+            if (f >= 0) {
+                // Window band: horizontal strip across the wall
+                const winY = fy + 8;
+                const winH = 26;
+                const winX = startX + 20;
+                const winW = usableW - 20;
+                const mullionPitch = 90;
+                const mullionW = 8;
+
+                InteriorCity._drawWallWithWindowCutout(
+                    rg, wallCol,
+                    startX, fy, bldW, floorH,
+                    winX, winY, winW, winH,
+                    mullionPitch, mullionW
+                );
+
+                // Window frame outlines
+                rg.lineStyle(1, 0x64748b, 0.4);
+                rg.drawRect(winX, winY, winW, winH);
+                rg.lineStyle(0);
+
+                // Horizontal sash across mid-window
+                rg.beginFill(wallCol);
+                rg.drawRect(winX, winY + winH * 0.55, winW, 2);
+                rg.endFill();
+            } else {
+                // Basement: solid wall, no windows
+                rg.beginFill(wallCol);
+                rg.drawRect(startX, fy, bldW, floorH);
+                rg.endFill();
             }
-            floorCont.addChild(winG);
+
+            // Floor tiles
+            rg.beginFill(f === 0 ? 0x3a3a4a : f === -1 ? 0x2a2a2a : 0x2d2d3d);
+            rg.drawRect(startX, pY, bldW, 4);
+            rg.endFill();
+            // Ceiling accent line
+            rg.beginFill(0x4a4a5a, 0.4);
+            rg.drawRect(startX, fy, bldW, 2);
+            rg.endFill();
+            floorCont.addChild(rg);
 
             // ─── CEILING LIGHTS ───
-            const lights = new PIXI.Graphics();
-            for (let lx = startX + 50; lx < startX + usableW - 20; lx += 120) {
-                lights.beginFill(0xfef3c7, 0.6);
-                lights.drawRect(lx - 12, fy + 2, 24, 2);
-                lights.endFill();
-                // Glow cone
-                const glow = new PIXI.Graphics();
-                glow.beginFill(0xfbbf24, 0.04);
-                glow.drawPolygon([lx - 8, fy + 4, lx + 8, fy + 4, lx + 30, pY - 4, lx - 30, pY - 4]);
-                glow.endFill();
-                floorCont.addChild(glow);
-                this.indoorLights.push({ g: glow, maxA: 0.06, type: 'warm' });
+            if (f >= 0) {
+                for (let lx = startX + 50; lx < startX + usableW - 20; lx += 120) {
+                    const fixture = new PIXI.Graphics();
+                    fixture.beginFill(0xfef3c7, 0.6);
+                    fixture.drawRect(lx - 12, fy + 2, 24, 2);
+                    fixture.endFill();
+                    floorCont.addChild(fixture);
+                    const glow = new PIXI.Graphics();
+                    glow.beginFill(0xfbbf24, 0.04);
+                    glow.drawPolygon([lx - 8, fy + 4, lx + 8, fy + 4, lx + 30, pY - 4, lx - 30, pY - 4]);
+                    glow.endFill();
+                    floorCont.addChild(glow);
+                    this.indoorLights.push({ g: glow, maxA: 0.06, type: 'warm' });
+                }
             }
-            floorCont.addChild(lights);
 
             // ─── FLOOR-SPECIFIC PROPS ───
             if (f === 2) this._drawEditorFloor(floorCont, startX, usableW, fy, pY, floorH);
             else if (f === 1) this._drawNewsroomFloor(floorCont, startX, usableW, fy, pY, floorH);
-            else this._drawLobbyFloor(floorCont, startX, usableW, fy, pY, floorH);
+            else if (f === 0) this._drawLobbyFloor(floorCont, startX, usableW, fy, pY, floorH);
+            // f === -1: basement left empty (utility space)
         }
 
         // ─── ELEVATOR SHAFT + CAR ───
         const shaftBg = new PIXI.Graphics();
-        for (let f = 0; f < numFloors; f++) {
+        for (let f = -1; f < numFloors; f++) {
             const fy = roofH + (numFloors - 1 - f) * floorH;
             shaftBg.beginFill(0x0a0a14);
             shaftBg.drawRect(elevatorX - 24, fy, 48, floorH);
@@ -176,26 +213,20 @@ const InteriorNewspaper = {
         this.scene.addChild(shaftBg);
 
         const ec = new PIXI.Container();
-        ec.y = roofH + (numFloors - 1) * floorH + floorH;
+        ec.y = roofH + numFloors * floorH + floorH;
         this.scene.addChild(ec);
         const em = new PIXI.Graphics();
         em.beginFill(0xffffff);
-        em.drawRect(startX, roofH, bldW, numFloors * floorH);
+        em.drawRect(startX, roofH, bldW, (numFloors + 1) * floorH);
         em.endFill();
         this.scene.addChild(em);
         ec.mask = em;
         this._lift = new CityElevator(ec, numFloors, floorH, elevatorX);
 
-        // ─── UNDERGROUND SLAB ───
-        const ugY = roofH + numFloors * floorH;
-        const ug = new PIXI.Graphics();
-        ug.beginFill(0x1a1a24);
-        ug.drawRect(startX - 10, ugY, bldW + 20, 15);
-        ug.endFill();
-        ug.beginFill(0x2a2a34);
-        ug.drawRect(startX - 10, ugY, bldW + 20, 3);
-        ug.endFill();
-        this.scene.addChild(ug);
+        // ─── UNDERGROUND LAYERS (earth, pipes, rock — matches other interiors) ───
+        const surfaceY = roofH + numFloors * floorH;
+        const belowY = roofH + (numFloors + 1) * floorH;
+        this._drawUnderground(startX, bldW, surfaceY, belowY, floorH, W);
 
         // ─── AVATAR LAYER ───
         this.avatarLayer = new PIXI.Container();
@@ -206,7 +237,10 @@ const InteriorNewspaper = {
         this._spawnStaff(startX, usableW, floors);
 
         // ─── INITIAL POSITION + SCROLL HANDLERS ───
-        this.scene.y = G.vpH - totalH + 20;
+        const bottomPad = 40;
+        this.scene.y = G.vpH - bottomPad - totalH + floorH;
+        this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - bottomPad - totalH - floorH);
+        this.maxY = Math.max(this.scene.y + floorH * 3, G.vpH - bottomPad);
         this._noYScroll = false;
         this.layer.eventMode = 'static';
         this.layer.cursor = 'grab';
@@ -222,6 +256,82 @@ const InteriorNewspaper = {
         });
         window.addEventListener('pointermove', this.onMove);
         window.addEventListener('pointerup', this.onUp);
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    //  UNDERGROUND LAYERS (earth, cables, pipes — matches city stack)
+    // ═══════════════════════════════════════════════════════════════
+    _drawUnderground(startX, bldW, surfaceY, belowY, floorH, W) {
+        const ug = new PIXI.Graphics();
+
+        // Earth walls flanking the building at basement depth
+        ug.beginFill(0x2a2218);
+        ug.drawRect(0, surfaceY, startX - 2, floorH);
+        ug.drawRect(startX + bldW + 2, surfaceY, W - startX - bldW - 2, floorH);
+        ug.endFill();
+
+        // Grass/sidewalk trim at surface
+        ug.beginFill(0x2d5a3f);
+        ug.drawRect(0, surfaceY - 4, startX, 4);
+        ug.drawRect(startX + bldW, surfaceY - 4, W - startX - bldW, 4);
+        ug.endFill();
+        ug.beginFill(0x3a3a4a);
+        ug.drawRect(0, surfaceY - 2, startX, 2);
+        ug.drawRect(startX + bldW, surfaceY - 2, W - startX - bldW, 2);
+        ug.endFill();
+
+        // Deep rock below basement
+        ug.beginFill(0x1a1210);
+        ug.drawRect(0, belowY, W, 300);
+        ug.endFill();
+
+        // Foundation slab
+        ug.beginFill(0x2a2a34);
+        ug.drawRect(startX - 8, belowY, bldW + 16, 6);
+        ug.endFill();
+
+        // Rock texture
+        let rs = 42;
+        const rr = () => { rs = (rs * 16807) % 2147483647; return (rs - 1) / 2147483646; };
+        for (let i = 0; i < 80; i++) {
+            ug.beginFill(rr() > 0.5 ? 0x2d1a11 : 0x1f100a, 0.6);
+            ug.drawRect(rr() * W, belowY + 8 + rr() * 100, 2 + rr() * 4, 2);
+            ug.endFill();
+        }
+
+        // Cable conduit zone
+        const cableY = belowY + 20;
+        ug.beginFill(0x0a0a0f, 0.7);
+        ug.drawRect(0, cableY, W, 25);
+        ug.endFill();
+        const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
+        for (let ci = 0; ci < 14; ci++) {
+            const cy = cableY + 3 + rr() * 19;
+            const col = cableCols[Math.floor(rr() * cableCols.length)];
+            const cLen = 60 + rr() * 200;
+            const cx = rr() * (W - cLen);
+            ug.beginFill(col, 0.3 + rr() * 0.4);
+            ug.drawRect(cx, cy, cLen, 1 + rr() * 1.5);
+            ug.endFill();
+        }
+
+        // Water pipe
+        ug.beginFill(0x0369a1);
+        ug.drawRect(0, belowY + 60, W, 8);
+        ug.endFill();
+        ug.beginFill(0x0284c7, 0.5);
+        ug.drawRect(0, belowY + 60, W, 3);
+        ug.endFill();
+
+        // Sewer trunk
+        ug.beginFill(0x4a4a3a);
+        ug.drawRect(0, belowY + 75, W, 12);
+        ug.endFill();
+        ug.beginFill(0x3a3a2a);
+        ug.drawRect(0, belowY + 75, W, 3);
+        ug.endFill();
+
+        this.scene.addChild(ug);
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -261,14 +371,12 @@ const InteriorNewspaper = {
         // Bookshelf against back wall
         const shelfX = startX + usableW - 70;
         g.beginFill(0x5c3a1e);
-        g.drawRect(shelfX, fy + 10, 50, floorH - 14);
+        g.drawRect(shelfX, fy + 36, 50, pY - fy - 36);
         g.endFill();
-        // Shelves
-        for (let sy = fy + 22; sy < pY - 8; sy += 16) {
+        for (let sy = fy + 48; sy < pY - 8; sy += 16) {
             g.beginFill(0x4a2e16);
             g.drawRect(shelfX + 2, sy, 46, 2);
             g.endFill();
-            // Books
             for (let bx = shelfX + 4; bx < shelfX + 46; bx += 6) {
                 const bookCol = [0x3b82f6, 0xef4444, 0x22c55e, 0xfbbf24, 0xa855f7, 0x06b6d4][Math.floor(Math.random() * 6)];
                 g.beginFill(bookCol, 0.7);
@@ -278,17 +386,15 @@ const InteriorNewspaper = {
         }
 
         // Framed front page on wall
-        const frameX = startX + usableW / 2 - 10;
+        const frameX = startX + usableW / 2;
         g.beginFill(0x5c3a1e);
-        g.drawRect(frameX, fy + 12, 24, 30);
+        g.drawRect(frameX, fy + 38, 24, 30);
         g.endFill();
         g.beginFill(0xf4ecd6);
-        g.drawRect(frameX + 2, fy + 14, 20, 26);
+        g.drawRect(frameX + 2, fy + 40, 20, 26);
         g.endFill();
         g.beginFill(0x1a1308, 0.3);
-        for (let ly = fy + 18; ly < fy + 38; ly += 4) {
-            g.drawRect(frameX + 4, ly, 16, 1);
-        }
+        for (let ly = fy + 44; ly < fy + 64; ly += 4) g.drawRect(frameX + 4, ly, 16, 1);
         g.endFill();
 
         // Potted plant
@@ -302,15 +408,13 @@ const InteriorNewspaper = {
         g.drawCircle(startX + 22, pY - 20, 5);
         g.endFill();
 
-        // Floor label
         cont.addChild(g);
         const label = new PIXI.Text('EDITOR\'S OFFICE', {
             fontFamily: 'JetBrains Mono, monospace', fontSize: 6,
-            fill: 0x64748b, letterSpacing: 1
+            fill: 0x94a3b8, letterSpacing: 1
         });
-        label.anchor.set(0, 0);
         label.x = startX + 8;
-        label.y = fy + 4;
+        label.y = fy + 36;
         cont.addChild(label);
     },
 
@@ -320,14 +424,12 @@ const InteriorNewspaper = {
     _drawNewsroomFloor(cont, startX, usableW, fy, pY, floorH) {
         const g = new PIXI.Graphics();
 
-        // Row of reporter desks with PCs
+        // Reporter desks with PCs
         for (let i = 0; i < 4; i++) {
             const dx = startX + 30 + i * (usableW / 4.5);
-            // Desk
             g.beginFill(0x3a3a4a);
             g.drawRect(dx, pY - 14, 30, 14);
             g.endFill();
-            // Monitor
             g.beginFill(0x0f172a);
             g.drawRect(dx + 8, pY - 26, 14, 12);
             g.endFill();
@@ -340,71 +442,65 @@ const InteriorNewspaper = {
             this.indoorLights.push({ g: glow, maxA: 0.4, type: 'screen' });
         }
 
-        // Bulletin board on back wall
-        const bbX = startX + usableW - 60;
+        // Bulletin board
+        const bbX = startX + usableW - 55;
         g.beginFill(0x78350f);
-        g.drawRect(bbX, fy + 10, 45, 35);
+        g.drawRect(bbX, fy + 38, 40, 30);
         g.endFill();
         g.beginFill(0x92400e);
-        g.drawRect(bbX + 2, fy + 12, 41, 31);
+        g.drawRect(bbX + 2, fy + 40, 36, 26);
         g.endFill();
-        // Pinned papers
         const pinCols = [0xf4ecd6, 0xfef3c7, 0xfde68a, 0xffffff];
         for (let pi = 0; pi < 6; pi++) {
-            const px = bbX + 4 + (pi % 3) * 13;
-            const py = fy + 14 + Math.floor(pi / 3) * 15;
+            const px = bbX + 4 + (pi % 3) * 11;
+            const py = fy + 42 + Math.floor(pi / 3) * 13;
             g.beginFill(pinCols[pi % pinCols.length], 0.8);
-            g.drawRect(px, py, 10, 12);
+            g.drawRect(px, py, 8, 10);
             g.endFill();
             g.beginFill(0xef4444);
-            g.drawCircle(px + 5, py, 1.5);
+            g.drawCircle(px + 4, py, 1.5);
             g.endFill();
         }
 
-        // "BREAKING NEWS" monitor on wall
+        // "BREAKING NEWS" wall monitor
         const bnX = startX + usableW / 2 - 25;
         g.beginFill(0x0f172a);
-        g.drawRect(bnX, fy + 10, 50, 28);
+        g.drawRect(bnX, fy + 38, 50, 28);
         g.endFill();
         g.beginFill(0x1e293b);
-        g.drawRect(bnX + 2, fy + 12, 46, 24);
+        g.drawRect(bnX + 2, fy + 40, 46, 24);
         g.endFill();
         const bnGlow = new PIXI.Graphics();
         bnGlow.beginFill(0xef4444, 0.3);
-        bnGlow.drawRect(bnX + 4, fy + 14, 42, 20);
+        bnGlow.drawRect(bnX + 4, fy + 42, 42, 20);
         bnGlow.endFill();
         bnGlow.blendMode = PIXI.BLEND_MODES.ADD;
         cont.addChild(bnGlow);
         this.indoorLights.push({ g: bnGlow, maxA: 0.35, type: 'screen' });
 
         const bnText = new PIXI.Text('BREAKING', {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 5,
-            fill: 0xef4444
+            fontFamily: 'Press Start 2P, monospace', fontSize: 5, fill: 0xef4444
         });
         bnText.anchor.set(0.5, 0.5);
         bnText.x = bnX + 25;
-        bnText.y = fy + 24;
+        bnText.y = fy + 52;
         cont.addChild(bnText);
 
         // Coffee machine
-        const cmX = startX + 15;
         g.beginFill(0x1e293b);
-        g.drawRect(cmX, pY - 20, 14, 20);
+        g.drawRect(startX + 15, pY - 20, 14, 20);
         g.endFill();
         g.beginFill(0xef4444, 0.6);
-        g.drawCircle(cmX + 7, pY - 14, 2);
+        g.drawCircle(startX + 22, pY - 14, 2);
         g.endFill();
 
         cont.addChild(g);
-
-        // Floor label
         const label = new PIXI.Text('NEWSROOM', {
             fontFamily: 'JetBrains Mono, monospace', fontSize: 6,
-            fill: 0x64748b, letterSpacing: 1
+            fill: 0x94a3b8, letterSpacing: 1
         });
-        label.anchor.set(0, 0);
         label.x = startX + 8;
-        label.y = fy + 4;
+        label.y = fy + 36;
         cont.addChild(label);
     },
 
@@ -422,7 +518,6 @@ const InteriorNewspaper = {
         g.beginFill(0x4a2e16);
         g.drawRect(rxX, pY - 18, 60, 3);
         g.endFill();
-        // Small monitor at reception
         g.beginFill(0x0f172a);
         g.drawRect(rxX + 22, pY - 30, 14, 12);
         g.endFill();
@@ -440,7 +535,6 @@ const InteriorNewspaper = {
         const pressH = 50;
         const pressY = pY - pressH;
 
-        // Press body
         g.beginFill(0x1e293b);
         g.drawRect(pressX, pressY, pressW, pressH);
         g.endFill();
@@ -458,23 +552,22 @@ const InteriorNewspaper = {
         g.drawCircle(pressX + 45, pressY + 20, 4);
         g.drawCircle(pressX + 70, pressY + 20, 4);
         g.endFill();
-        // Paper feed (output tray)
+        // Paper output
         g.beginFill(0xf4ecd6, 0.7);
         g.drawRect(pressX + pressW - 5, pressY + 30, 18, 2);
         g.drawRect(pressX + pressW - 3, pressY + 33, 14, 2);
         g.drawRect(pressX + pressW - 1, pressY + 36, 10, 2);
         g.endFill();
-        // Status lights on press
+        // Status lights
         g.beginFill(0x22c55e);
         g.drawCircle(pressX + 10, pressY + 8, 2);
         g.endFill();
         g.beginFill(0xfbbf24);
         g.drawCircle(pressX + 18, pressY + 8, 2);
         g.endFill();
-
         cont.addChild(g);
 
-        // Press glow (animated)
+        // Press glow
         const pressGlow = new PIXI.Graphics();
         pressGlow.beginFill(0xfbbf24, 0.08);
         pressGlow.drawRect(pressX - 4, pressY - 4, pressW + 8, pressH + 8);
@@ -483,9 +576,9 @@ const InteriorNewspaper = {
         cont.addChild(pressGlow);
         this.indoorLights.push({ g: pressGlow, maxA: 0.12, type: 'warm' });
 
-        // Interactive click zone over the press
+        // Click zone
         const pressHit = new PIXI.Graphics();
-        pressHit.beginFill(0xffffff, 0.001); // Nearly invisible but clickable
+        pressHit.beginFill(0xffffff, 0.001);
         pressHit.drawRect(pressX - 4, pressY - 4, pressW + 8, pressH + 8);
         pressHit.endFill();
         pressHit.eventMode = 'static';
@@ -495,7 +588,6 @@ const InteriorNewspaper = {
         });
         cont.addChild(pressHit);
 
-        // "READ TODAY'S EDITION" label under press
         const pressLabel = new PIXI.Text('CLICK PRESS TO READ', {
             fontFamily: 'Press Start 2P, monospace', fontSize: 5,
             fill: 0xfbbf24, letterSpacing: 0.5
@@ -506,7 +598,7 @@ const InteriorNewspaper = {
         cont.addChild(pressLabel);
         this._pressLabel = pressLabel;
 
-        // Newspaper stacks on floor
+        // Newspaper stacks
         for (let si = 0; si < 3; si++) {
             const sx = pressX + pressW + 18 + si * 12;
             const stackG = new PIXI.Graphics();
@@ -519,23 +611,22 @@ const InteriorNewspaper = {
         }
 
         // Delivery dolly
-        const dollyX = startX + 15;
-        g.beginFill(0x64748b);
-        g.drawRect(dollyX, pY - 6, 18, 2);
-        g.endFill();
-        g.beginFill(0x475569);
-        g.drawCircle(dollyX + 4, pY, 3);
-        g.drawCircle(dollyX + 14, pY, 3);
-        g.endFill();
+        const dollyG = new PIXI.Graphics();
+        dollyG.beginFill(0x64748b);
+        dollyG.drawRect(startX + 15, pY - 6, 18, 2);
+        dollyG.endFill();
+        dollyG.beginFill(0x475569);
+        dollyG.drawCircle(startX + 19, pY, 3);
+        dollyG.drawCircle(startX + 29, pY, 3);
+        dollyG.endFill();
+        cont.addChild(dollyG);
 
-        // Floor label
         const label = new PIXI.Text('LOBBY & PRESS ROOM', {
             fontFamily: 'JetBrains Mono, monospace', fontSize: 6,
-            fill: 0x64748b, letterSpacing: 1
+            fill: 0x94a3b8, letterSpacing: 1
         });
-        label.anchor.set(0, 0);
         label.x = startX + 8;
-        label.y = fy + 4;
+        label.y = fy + 36;
         cont.addChild(label);
     },
 
@@ -585,54 +676,38 @@ const InteriorNewspaper = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    //  AVATAR SPRITE FACTORY (same pattern as Metro station)
+    //  AVATAR SPRITE FACTORY
     // ═══════════════════════════════════════════════════════════════
     _makeAvatarSprite(m) {
         const cont = new PIXI.Container();
-
         let suitHex = 0x22d3ee;
         if (m._npcColor) {
             suitHex = typeof m._npcColor === 'number' ? m._npcColor : parseInt(String(m._npcColor).replace('#', ''), 16);
-        } else if (typeof LABS !== 'undefined' && LABS[m.lab]) {
-            const c = LABS[m.lab].color || LABS[m.lab].col;
-            suitHex = typeof c === 'string' ? parseInt(c.replace('#', ''), 16) : (typeof c === 'number' ? c : 0x22d3ee);
         }
 
         const bw = 16, h = 32, headH = 11, bodyH = h - headH - 4;
-        const skinCol = 0xfdd8b5;
-        const legCol = 0x3d2914;
 
-        // Shadow
         const shadow = new PIXI.Graphics();
         shadow.beginFill(0x000000, 0.25);
         shadow.drawEllipse(0, 2, bw * 0.6, 3);
         shadow.endFill();
         cont.addChild(shadow);
 
-        // Highlight ring (for tracking)
         const highlight = new PIXI.Graphics();
         highlight.lineStyle(2, 0x22d3ee, 0.9);
         highlight.drawCircle(0, -h / 2, h * 0.65);
         highlight.visible = false;
         cont.addChild(highlight);
 
-        // Legs
         const legL = new PIXI.Graphics();
-        legL.beginFill(legCol);
-        legL.drawRect(-2, 0, 4, 4);
-        legL.endFill();
-        legL.x = -bw * 0.15;
-        legL.y = -4;
+        legL.beginFill(0x3d2914); legL.drawRect(-2, 0, 4, 4); legL.endFill();
+        legL.x = -bw * 0.15; legL.y = -4;
         cont.addChild(legL);
         const legR = new PIXI.Graphics();
-        legR.beginFill(legCol);
-        legR.drawRect(-2, 0, 4, 4);
-        legR.endFill();
-        legR.x = bw * 0.15;
-        legR.y = -4;
+        legR.beginFill(0x3d2914); legR.drawRect(-2, 0, 4, 4); legR.endFill();
+        legR.x = bw * 0.15; legR.y = -4;
         cont.addChild(legR);
 
-        // Body
         const body = new PIXI.Graphics();
         body.beginFill(suitHex);
         body.drawRoundedRect(-bw / 2, 0, bw, bodyH, bw * 0.1);
@@ -643,9 +718,8 @@ const InteriorNewspaper = {
         body.y = -h + headH;
         cont.addChild(body);
 
-        // Head
         const head = new PIXI.Graphics();
-        head.beginFill(skinCol);
+        head.beginFill(0xfdd8b5);
         head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
         head.endFill();
         head.beginFill(0x2c1810);
@@ -658,47 +732,78 @@ const InteriorNewspaper = {
         head.y = -h;
         cont.addChild(head);
 
-        // Status dot
         const dot = new PIXI.Graphics();
-        dot.beginFill(suitHex);
-        dot.drawCircle(0, 0, 2);
-        dot.endFill();
+        dot.beginFill(suitHex); dot.drawCircle(0, 0, 2); dot.endFill();
         dot.y = -h - 6;
         cont.addChild(dot);
 
-        // Name tag
         const nameTxt = new PIXI.Text(m.role || m.name, {
             fontFamily: 'JetBrains Mono, monospace', fontSize: 7,
-            fill: 0xffffff,
-            stroke: 0x000000, strokeThickness: 2
+            fill: 0xffffff, stroke: 0x000000, strokeThickness: 2
         });
         nameTxt.anchor.set(0.5, 1);
         nameTxt.y = -h - 10;
         cont.addChild(nameTxt);
 
-        // Click handler
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
-        cont.on('pointertap', () => {
-            if (typeof UI !== 'undefined' && UI.showNPCInfo) {
-                UI.showNPCInfo({ name: m.name, role: m.role, building: 'Singularity City Times' });
-            }
-        });
 
         return { cont, body, head, legL, legR, dot, nameTxt, highlight };
     },
 
     // ═══════════════════════════════════════════════════════════════
-    //  UPDATE — shift visibility + idle patrol animation
+    //  UPDATE — sky, shifts, patrol, lights
     // ═══════════════════════════════════════════════════════════════
     update() {
         if (!this.scene || !this.bld || !this.avatarPool) return;
-
         const tick = G.tick || 0;
+        const dp = G.getDayPhase();
+        const night = dp > 0.83 || dp < 0.25;
+
+        // ─── Sky gradient (DOM background on layer) ───
+        if (this.layer && this.layer.parent) {
+            const el = G.app?.view?.parentElement;
+            if (el) {
+                if (night) {
+                    el.style.background = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
+                } else if (dp >= 0.30 && dp < 0.72) {
+                    el.style.background = 'linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)';
+                } else {
+                    // Dawn/dusk warm tones
+                    el.style.background = 'linear-gradient(180deg,#1a1a3e,#4a3a5a 50%,#8a6a40)';
+                }
+            }
+        }
+
+        // ─── Celestial body (moon/sun) ───
+        if (this.celestialGfx) {
+            this.celestialGfx.clear();
+            const W = G.vpW;
+            if (night) {
+                let np = dp > 0.83 ? (dp - 0.83) / 0.42 : (dp + 0.17) / 0.42;
+                this.celestialGfx.beginFill(0xe8e8d0);
+                this.celestialGfx.drawCircle(W * np, 40 + Math.sin(np * Math.PI) * 30, 12);
+                this.celestialGfx.endFill();
+            } else {
+                let dayP = (dp - 0.25) / (0.83 - 0.25);
+                this.celestialGfx.beginFill(0xffe066);
+                this.celestialGfx.drawCircle(W * dayP, 40 + Math.sin(dayP * Math.PI) * 30, 15);
+                this.celestialGfx.endFill();
+            }
+        }
+
+        // ─── Stars twinkling ───
+        if (this.starsLayer) {
+            this.starsLayer.visible = night;
+            if (night) {
+                this.starsLayer.children.forEach(s => {
+                    s.alpha = 0.15 + Math.abs(Math.sin(tick * 0.03 + s._phase)) * 0.5;
+                });
+            }
+        }
 
         // ─── Day/night shift rotation ───
-        const dp = G.getDayPhase();
-        const isNightShift = dp > 0.83 || dp < 0.25;
+        const isNightShift = night;
         const activeShift = isNightShift
             ? (this._staff ? this._staff.night : [])
             : (this._staff ? this._staff.day : []);
@@ -706,14 +811,10 @@ const InteriorNewspaper = {
             ? (this._staff ? this._staff.day : [])
             : (this._staff ? this._staff.night : []);
 
-        // Show active shift workers with idle patrol animation
         for (const w of activeShift) {
-            const key = 'staff_' + w.id;
-            const av = this.avatarPool.get(key);
+            const av = this.avatarPool.get('staff_' + w.id);
             if (!av) continue;
             av.cont.visible = true;
-
-            // Idle patrol: wander near their desk, then return
             av._walkTimer--;
             if (av._walkTimer <= 0) {
                 av._walkTarget = av._deskX + (Math.random() - 0.5) * av._walkRange * 2;
@@ -722,43 +823,32 @@ const InteriorNewspaper = {
             const dx = av._walkTarget - av.cont.x;
             if (Math.abs(dx) > 1) {
                 av.cont.x += Math.sign(dx) * av._speed;
-                // Walking leg animation
                 if (av.legL && av.legR) {
                     const phase = Math.sin(tick * 0.25 + (w.id.charCodeAt(3) || 0) * 0.3);
                     av.legL.x = -2.4 + phase * 1.2;
                     av.legR.x = 2.4 - phase * 1.2;
                 }
             } else {
-                // Idle stance
                 if (av.legL && av.legR) { av.legL.x = -2.4; av.legR.x = 2.4; }
                 if (av.body) av.body.rotation = Math.sin(tick * 0.04 + (w.id.charCodeAt(3) || 0) * 0.5) * 0.02;
             }
             av.cont.zIndex = Math.round(av.cont.y);
         }
-
-        // Hide inactive shift
         for (const w of inactiveShift) {
-            const key = 'staff_' + w.id;
-            const av = this.avatarPool.get(key);
+            const av = this.avatarPool.get('staff_' + w.id);
             if (av) av.cont.visible = false;
         }
 
-        // ─── Animate indoor lights ───
+        // ─── Indoor lights ───
         for (const l of this.indoorLights) {
             if (!l.g || l.g.destroyed) continue;
             const flicker = 0.85 + Math.sin(tick * 0.08 + (l.g.x || 0) * 0.1) * 0.15;
-            l.g.alpha = l.maxA * flicker * (isNightShift ? 1.2 : 0.6);
+            l.g.alpha = l.maxA * flicker * (night ? 1.2 : 0.6);
         }
 
-        // ─── Blink antenna light ───
-        if (this._antennaLight) {
-            this._antennaLight.alpha = Math.sin(tick * 0.15) > 0 ? 1 : 0.3;
-        }
-
-        // ─── Pulse press label ───
-        if (this._pressLabel) {
-            this._pressLabel.alpha = 0.5 + Math.sin(tick * 0.08) * 0.4;
-        }
+        // ─── Antenna blink + press label pulse ───
+        if (this._antennaLight) this._antennaLight.alpha = Math.sin(tick * 0.15) > 0 ? 1 : 0.3;
+        if (this._pressLabel) this._pressLabel.alpha = 0.5 + Math.sin(tick * 0.08) * 0.4;
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -786,5 +876,8 @@ const InteriorNewspaper = {
         this._antennaLight = null;
         this._pressLabel = null;
         this.indoorLights = [];
+        this.skyContainer = null;
+        this.starsLayer = null;
+        this.celestialGfx = null;
     },
 };
