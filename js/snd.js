@@ -164,145 +164,73 @@ const SND = {
         else if (bldId && bldId.startsWith('metro_')) env = 'metro';
         else if (bldId && bldId !== 'outside') env = 'hq';
 
-        // Helper to spawn continuous ambient drones
-        const createDrone = (freq, type, vol, lfoRate) => {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            const filter = this.ctx.createBiquadFilter();
-            
-            osc.type = type;
-            osc.frequency.value = freq;
-            
-            filter.type = 'lowpass';
-            filter.frequency.value = freq * 3; // Take the edge off
-
-            gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(vol, now + 2.0); // 2 second crossfade
-            
-            if (lfoRate) {
-                const lfo = this.ctx.createOscillator();
-                const lfoGain = this.ctx.createGain();
-                lfo.type = 'sine';
-                lfo.frequency.value = lfoRate;
-                lfoGain.gain.value = vol * 0.3; // 30% modulation depth
-                lfo.connect(lfoGain);
-                lfoGain.connect(gain.gain);
-                lfo.start();
-                this.ambientNodes.push({ osc: lfo, gain: lfoGain }); 
-            }
-
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(this.ambientGain);
-            osc.start();
-            this.ambientNodes.push({ osc, gain });
-        };
-
-        // 3. Build the soundscape based on location
+        // 3. Build the soundscape based on location (interval-based ambient effects only)
         if (env === 'outside') {
-            // Warm city evening — soft low pad, occasional distant life
-            createDrone(55, 'sine', 0.06, 0.05);        // gentle city hum
-            createDrone(82.5, 'sine', 0.025, 0.03);     // fifth harmonic warmth
-            
-            // Occasional soft wind gust + distant chime
+            // City — occasional distant wind chime
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
-                const r = Math.random();
-                if (r < 0.08) {
-                    // Distant wind chime — pentatonic note
+                if (Math.random() < 0.08) {
                     const notes = [523, 587, 659, 784, 880];
                     this.playTone(notes[Math.floor(Math.random()*5)], 'sine', 0.3, 0.006, null);
-                } else if (r < 0.12) {
-                    // Soft distant horn/hum
-                    this.playTone(220 + Math.random()*40, 'triangle', 0.4, 0.004);
                 }
             }, 3000);
-        } 
+        }
         else if (env === 'estate') {
-            // Luxury lounge — warm evolving pad, soft arpeggiated notes
-            createDrone(65.41, 'sine', 0.04, 0.02);     // C2 — barely audible foundation
-            createDrone(98.00, 'sine', 0.025, 0.015);    // G2 — perfect fifth warmth
-            
-            // Slow gentle arpeggio cycling through Cmaj7 (like a music box)
+            // Luxury lounge — slow gentle arpeggio (like a music box)
             let noteIdx = 0;
-            const chordNotes = [261.6, 329.6, 392.0, 493.9, 523.3, 493.9, 392.0, 329.6]; // C4 E4 G4 B4 C5 (up and back)
+            const chordNotes = [261.6, 329.6, 392.0, 493.9, 523.3, 493.9, 392.0, 329.6];
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 const freq = chordNotes[noteIdx % chordNotes.length];
                 this.playTone(freq, 'sine', 0.25, 0.008);
-                // Soft octave echo
                 setTimeout(() => this.playTone(freq * 2, 'sine', 0.15, 0.004), 150);
                 noteIdx++;
             }, 2800);
-        } 
+        }
         else if (env === 'ai_housing') {
-            // Cozy apartment — quiet warmth, soft ticking presence
-            createDrone(55, 'sine', 0.03, 0.02);         // room tone
-            createDrone(110, 'triangle', 0.01, 0.01);     // subtle harmonic
-            
-            // Gentle clock tick + occasional settling creak
+            // Cozy apartment — gentle clock tick + occasional settling creak
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.4) {
-                    // Soft clock tick
                     this.playTone(2200, 'sine', 0.015, 0.004);
                 } else if (Math.random() < 0.08) {
-                    // House settle — low creak
                     this.playTone(80 + Math.random()*40, 'triangle', 0.2, 0.006);
                 }
             }, 1200);
-        } 
+        }
         else if (env === 'hq') {
-            // Data center — clean low hum, rhythmic soft keypresses, gentle notification pings
-            createDrone(60, 'sine', 0.04, 0);             // steady 60Hz hum
-            createDrone(120, 'sine', 0.015, 0);            // second harmonic
-            
-            // Soft rhythmic typing + occasional pleasant ping
+            // HQ — soft rhythmic typing + occasional notification ping
             let typeBeat = 0;
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 typeBeat++;
                 if (typeBeat % 3 === 0 && Math.random() < 0.3) {
-                    // Soft keyboard click (high-pass filtered tick)
                     this.playTone(4000 + Math.random()*2000, 'sine', 0.008, 0.003);
                 }
                 if (typeBeat % 12 === 0 && Math.random() < 0.2) {
-                    // Pleasant notification — major third interval
                     this.playTone(880, 'sine', 0.08, 0.006);
                     setTimeout(() => this.playTone(1109, 'sine', 0.06, 0.005), 80);
                 }
                 if (typeBeat % 20 === 0 && Math.random() < 0.15) {
-                    // Soft data chirp — descending
                     this.playTone(1200, 'sine', 0.06, 0.004, 800);
                 }
             }, 400);
-        } 
+        }
         else if (env === 'metro') {
-            // Underground station — deep rumble, periodic distant train
-            createDrone(40, 'sine', 0.08, 0.03);           // tunnel resonance
-            createDrone(60, 'triangle', 0.03, 0.02);        // structural hum
-            
-            // Periodic distant train + PA chime
+            // Underground station — periodic distant train + PA chime
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.1) {
-                    // Distant train pass — rising then falling
                     this.playTone(80, 'sawtooth', 0.5, 0.008, 120);
                     setTimeout(() => this.playTone(120, 'sawtooth', 0.4, 0.006, 60), 300);
                 } else if (Math.random() < 0.06) {
-                    // PA system chime — two-tone
                     this.playTone(659, 'sine', 0.12, 0.008);
                     setTimeout(() => this.playTone(523, 'sine', 0.12, 0.008), 200);
                 }
             }, 2500);
         }
         else if (env === 'holomap') {
-            // Deep-space ambient — ethereal drone + cosmic pings
-            createDrone(45, 'sine', 0.08, 0.03);          // subspace rumble
-            createDrone(90, 'triangle', 0.03, 0.05);       // harmonic shimmer
-            createDrone(135, 'sine', 0.02, 0.02);          // distant chord
-
-            // Cosmic pings — pentatonic, gentle
+            // Deep-space — cosmic pings
             this.ambientInterval = setInterval(() => {
                 if (this._sfxEnabled && Math.random() < 0.2) {
                     const cosmicNotes = [440, 523, 659, 784, 880, 1047, 1319];
@@ -314,9 +242,7 @@ const SND = {
 
         // ─── ZONE-BASED OUTDOOR AMBIENTS ───
         else if (env === 'port') {
-            // Harbor — deep ocean swell, seagull cries, distant foghorn
-            createDrone(42, 'sine', 0.07, 0.08);
-            createDrone(63, 'sine', 0.03, 0.04);
+            // Harbor — seagull cries, distant foghorn
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 const r = Math.random();
@@ -325,9 +251,7 @@ const SND = {
             }, 3000);
         }
         else if (env === 'desert') {
-            // Arid launch zone — dry wind, distant metallic clanks
-            createDrone(35, 'sine', 0.05, 0.12);
-            createDrone(70, 'triangle', 0.02, 0.06);
+            // Arid launch zone — distant metallic clanks
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.06) this.playTone(3000 + Math.random() * 1500, 'square', 0.02, 0.004);
@@ -335,9 +259,7 @@ const SND = {
             }, 2500);
         }
         else if (env === 'forest') {
-            // Nature preserve — warm earth pad, birdsong, leaf rustle
-            createDrone(65, 'sine', 0.04, 0.03);
-            createDrone(130, 'sine', 0.015, 0.02);
+            // Nature preserve — birdsong, leaf rustle
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 const r = Math.random();
@@ -348,9 +270,7 @@ const SND = {
             }, 2000);
         }
         else if (env === 'npc_housing' || env === 'residential') {
-            // Quiet neighborhood — soft hum, distant traffic, door close
-            createDrone(50, 'sine', 0.04, 0.03);
-            createDrone(75, 'sine', 0.02, 0.02);
+            // Quiet neighborhood — distant traffic, door close
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.06) this.playTone(150 + Math.random() * 50, 'triangle', 0.3, 0.003, 100);
@@ -358,10 +278,7 @@ const SND = {
             }, 2500);
         }
         else if (env === 'compute') {
-            // Data center corridor — heavy server hum, cooling fans, data chirps
-            createDrone(60, 'sine', 0.06, 0);
-            createDrone(120, 'sine', 0.03, 0);
-            createDrone(180, 'sine', 0.015, 0);
+            // Data center corridor — cooling fans, data chirps
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.2) this.playTone(800 + Math.random() * 400, 'sine', 0.1, 0.003, 600);
@@ -369,9 +286,7 @@ const SND = {
             }, 800);
         }
         else if (env === 'university') {
-            // Academic campus — soft warmth, page turns, chalk taps
-            createDrone(55, 'sine', 0.03, 0.02);
-            createDrone(110, 'sine', 0.015, 0.015);
+            // Academic campus — page turns, chalk taps
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.08) this.playTone(4000, 'sine', 0.02, 0.003, 2000);
@@ -379,9 +294,7 @@ const SND = {
             }, 1800);
         }
         else if (env === 'court') {
-            // Formal judicial — somber drone, occasional gavel
-            createDrone(50, 'sine', 0.03, 0.01);
-            createDrone(100, 'sine', 0.015, 0.01);
+            // Formal judicial — occasional gavel
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.04) {
@@ -391,29 +304,22 @@ const SND = {
             }, 3000);
         }
         else if (env === 'vcrow') {
-            // Financial district — sophisticated hum, ticker beeps, deal bells
-            createDrone(55, 'sine', 0.04, 0.02);
-            createDrone(110, 'sine', 0.02, 0.015);
+            // Financial district — ticker beeps, deal bells
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 const r = Math.random();
                 if (r < 0.08) {
-                    // Ticker beep
                     this.playTone(1200, 'sine', 0.03, 0.005);
                 } else if (r < 0.12) {
-                    // Soft keyboard click
                     this.playTone(3500 + Math.random() * 1500, 'sine', 0.01, 0.003);
                 } else if (r < 0.14) {
-                    // Deal bell — ascending chime
                     this.playTone(660, 'sine', 0.08, 0.006);
                     setTimeout(() => this.playTone(880, 'sine', 0.06, 0.005), 80);
                 }
             }, 1200);
         }
         else if (env === 'nightlife') {
-            // Neon strip — muffled bass, neon buzz, glass clinks
-            createDrone(45, 'sine', 0.08, 0.15);
-            createDrone(90, 'triangle', 0.03, 0.1);
+            // Neon strip — muffled bass hits, glass clinks
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.1) this.playTone(120, 'sawtooth', 0.06, 0.004);
@@ -421,9 +327,7 @@ const SND = {
             }, 1500);
         }
         else if (env === 'estates') {
-            // Billionaire's Row — quiet luxury, birdsong, distant fountain
-            createDrone(55, 'sine', 0.03, 0.02);
-            createDrone(82, 'sine', 0.015, 0.015);
+            // Billionaire's Row — birdsong, distant fountain
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.1) {
@@ -433,10 +337,7 @@ const SND = {
             }, 2500);
         }
         else if (env === 'power') {
-            // Power grid — transformer hum, electrical crackle
-            createDrone(60, 'sawtooth', 0.04, 0);
-            createDrone(120, 'sawtooth', 0.02, 0);
-            createDrone(50, 'sine', 0.05, 0.04);
+            // Power grid — electrical crackle
             this.ambientInterval = setInterval(() => {
                 if (!this._sfxEnabled) return;
                 if (Math.random() < 0.08) this.playTone(8000, 'sawtooth', 0.02, 0.005, 2000);
