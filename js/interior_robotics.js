@@ -160,12 +160,21 @@ const InteriorRobotics = {
 
         this._drawBasementProps(this.scene, startX, bldW, basementY, floorH, bld.id, layout.col);
 
-        // ─── ELEVATOR ───
-        const shaftX = startX + bldW - 50 - 20;
+        // ─── ELEVATOR (matches InteriorCity: shaftW=60, offset 20) ───
+        const shaftW = 60;
+        const shaftX = startX + bldW - shaftW - 20;
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
             ec.y = baseY;  // ground floor bottom (CityElevator draws upward)
             this.scene.addChild(ec);
+            // Mask: clip elevator to building bounds so shaft doesn't extend
+            // past the right wall or below the ground floor
+            const em = new PIXI.Graphics();
+            em.beginFill(0xffffff);
+            em.drawRect(startX, -numFloors * floorH, bldW, (numFloors + 1) * floorH);
+            em.endFill();
+            ec.addChild(em);
+            ec.mask = em;
             this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
         }
 
