@@ -294,7 +294,7 @@ const Camera = {
         pill.style.cssText = [
             'position:fixed',
             'bottom:44px',
-            'right:308px',
+            'right:100px',
             'z-index:100',
             'display:flex',
             'flex-direction:row',
@@ -308,6 +308,7 @@ const Camera = {
             '-webkit-backdrop-filter:blur(6px)',
             'pointer-events:all',
             'user-select:none',
+            'transition:right 0.3s ease',
         ].join(';');
 
         const mkBtn = (label, delta) => {
@@ -365,6 +366,12 @@ const Camera = {
             || (typeof OrbitMode !== 'undefined' && OrbitMode.active)
             || (typeof XRayMode !== 'undefined' && XRayMode.active);
         this._zoomPill.style.display = hide ? 'none' : 'flex';
+        if (!hide) {
+            // Stick to the left edge of the minimap (gap 6px)
+            const mm = document.getElementById('minimap');
+            const mmW = mm && mm.classList.contains('collapsed') ? 80 : 290;
+            this._zoomPill.style.right = (12 + mmW + 6) + 'px';
+        }
     }
 };
 
