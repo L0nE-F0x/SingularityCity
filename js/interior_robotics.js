@@ -46,8 +46,9 @@ const InteriorRobotics = {
         const startX = (W - bldW) / 2;
         const floors = layout.floors;
         const numFloors = floors.length;
-        // Added ~220px for themed basement + zone underground stack below ground
-        this.totalH = numFloors * floorH + 60 + floorH + 220;
+        const roofH = 60;
+        // totalH: roof + floors + basement + underground
+        this.totalH = roofH + (numFloors + 1) * floorH + 220;
 
         // ─── SKY LAYER (behind scene — DOM sky shows through window cutouts) ───
         if (typeof InteriorCity !== 'undefined' && InteriorCity._createSkyLayer) {
@@ -60,13 +61,18 @@ const InteriorRobotics = {
         this.scene = new PIXI.Container();
         layer.addChild(this.scene);
 
-        // Scrollable offset — use same proven pattern as Backbone/VCRow
-        const bp = 56;
-        this.scene.y = H - bp - this.totalH + floorH;
-        this.minY = this.scene.y - floorH * 3;
-        this.maxY = this.scene.y + floorH * 3;
-
-        const baseY = H - 30;
+        // ─── ROOF (scene-relative: starts at y=0, roofH tall) ───
+        const roof = new PIXI.Graphics();
+        roof.beginFill(layout.col, 0.15);
+        roof.drawRect(startX, roofH - 20, bldW, 20);
+        roof.endFill();
+        const roofText = new PIXI.Text(layout.roofLabel, {
+            fontFamily: 'Press Start 2P, monospace', fontSize: 9,
+            fill: layout.col, letterSpacing: 2
+        });
+        roofText.x = startX + bldW / 2 - roofText.width / 2;
+        roofText.y = roofH - 16;
+        this.scene.addChild(roof, roofText);
 
         // Window band constants for punched-out cutouts
         const winMarginX = 40;
@@ -75,100 +81,106 @@ const InteriorRobotics = {
         const mullionPitch = 60;
         const mullionW = 6;
 
-        // ─── DRAW FLOORS ───
-        for (let fi = 0; fi < numFloors; fi++) {
-            const floorY = baseY - (fi + 1) * floorH;
-            const floorName = floors[fi];
+        // ─── DRAW FLOORS (top-down like Backbone/Longevity) ───
+        // groundY = where the ground level sits in scene coords
+        const groundY = roofH + numFloors * floorH;
+        // baseY used by _spawnNPCs / _drawBasementProps (= ground level)
+        const baseY = groundY;
 
-            // Floor slab with punched window cutout — DOM sky shows through
+        for (let f = -1; f < numFloors; f++) {
+            const isBasement = f === -1;
+            const fy = isBasement
+                ? roofH + numFloors * floorH          // basement below ground
+                : roofH + (numFloors - 1 - f) * floorH; // floors drawn top-down
+            // floors[4]=Chassis at top (f=4→fy=roofH), floors[0]=Finished at bottom (f=0→fy=roofH+4*fH)
+            const floorName = isBasement ? 'B1 · ' + this._basementLabel(bld.id)
+                                         : floors[f] || 'Operations';
+
             const slab = new PIXI.Graphics();
-            const wallCol = 0x0d1220;
-            const winX = startX + winMarginX;
-            const winW = bldW - winMarginX * 2;
-            const winY = floorY + winY_off;
-            InteriorCity._drawWallWithWindowCutout(
-                slab, wallCol,
-                startX, floorY, bldW, floorH,
-                winX, winY, winW, winH_px,
-                mullionPitch, mullionW
-            );
-            // Window frame (stroked, no fill)
-            slab.lineStyle(1.5, 0x1e293b, 0.9);
-            slab.drawRect(winX, winY, winW, winH_px);
-            slab.moveTo(winX, winY + winH_px * 0.5);
-            slab.lineTo(winX + winW, winY + winH_px * 0.5);
-            slab.lineStyle(0);
-            // Subtle factory-tint glazing hint
-            slab.beginFill(layout.col, 0.04);
-            slab.drawRect(winX, winY, winW, winH_px);
-            slab.endFill();
-            // Floor border
-            slab.lineStyle(1, layout.col, 0.15);
-            slab.drawRect(startX, floorY, bldW, floorH);
+            if (isBasement) {
+                // Basement: solid wall (underground)
+                slab.beginFill(0x0a0f1a);
+                slab.drawRect(startX, fy, bldW, floorH);
+                slab.endFill();
+                slab.lineStyle(1, layout.col, 0.1);
+                slab.drawRect(startX, fy, bldW, floorH);
+                slab.beginFill(layout.col, 0.06);
+                slab.drawRect(startX, fy, bldW, 2);
+                slab.endFill();
+            } else {
+                // Above-ground: punched window cutout — DOM sky shows through
+                const wallCol = 0x0d1220;
+                const winX = startX + winMarginX;
+                const winW = bldW - winMarginX * 2;
+                const winY = fy + winY_off;
+                InteriorCity._drawWallWithWindowCutout(
+                    slab, wallCol,
+                    startX, fy, bldW, floorH,
+                    winX, winY, winW, winH_px,
+                    mullionPitch, mullionW
+                );
+                slab.lineStyle(1.5, 0x1e293b, 0.9);
+                slab.drawRect(winX, winY, winW, winH_px);
+                slab.moveTo(winX, winY + winH_px * 0.5);
+                slab.lineTo(winX + winW, winY + winH_px * 0.5);
+                slab.lineStyle(0);
+                slab.beginFill(layout.col, 0.04);
+                slab.drawRect(winX, winY, winW, winH_px);
+                slab.endFill();
+            }
+            // Floor slab
+            slab.beginFill(0x0a1018); slab.drawRect(startX, fy + floorH - 6, bldW, 6); slab.endFill();
+            slab.beginFill(layout.col, 0.08); slab.drawRect(startX, fy, bldW, 2); slab.endFill();
+            this.scene.addChild(slab);
 
             // Floor label
             const label = new PIXI.Text(floorName.toUpperCase(), {
                 fontFamily: 'JetBrains Mono, monospace', fontSize: 8,
-                fill: layout.col, letterSpacing: 1
+                fill: isBasement ? 0x64748b : layout.col, letterSpacing: 1
             });
             label.x = startX + 8;
-            label.y = floorY + 4;
-            label.alpha = 0.6;
-
-            this.scene.addChild(slab, label);
+            label.y = fy + 4;
+            label.alpha = isBasement ? 0.7 : 0.6;
+            this.scene.addChild(label);
 
             // Floor-specific props
-            this._drawFloorProps(this.scene, startX, bldW, floorY, floorH, floorName, layout.col, bld.id);
+            if (isBasement) {
+                this._drawBasementProps(this.scene, startX, bldW, fy, floorH, bld.id, layout.col);
+            } else {
+                this._drawFloorProps(this.scene, startX, bldW, fy, floorH, floors[f], layout.col, bld.id);
+            }
         }
 
-        // ─── ROOF ───
-        const roofY = baseY - numFloors * floorH - 20;
-        const roof = new PIXI.Graphics();
-        roof.beginFill(layout.col, 0.15);
-        roof.drawRect(startX, roofY, bldW, 20);
-        roof.endFill();
+        // Side walls (columns)
+        const wallG = new PIXI.Graphics();
+        wallG.beginFill(0x0a1020);
+        wallG.drawRect(startX - 6, roofH, 6, (numFloors + 1) * floorH);
+        wallG.drawRect(startX + bldW, roofH, 6, (numFloors + 1) * floorH);
+        wallG.endFill();
+        this.scene.addChild(wallG);
 
-        const roofText = new PIXI.Text(layout.roofLabel, {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 9,
-            fill: layout.col, letterSpacing: 2
-        });
-        roofText.x = startX + bldW / 2 - roofText.width / 2;
-        roofText.y = roofY + 4;
-        this.scene.addChild(roof, roofText);
+        // ─── GROUND (fills sides beyond the building footprint) ───
+        const earth = new PIXI.Graphics();
+        earth.beginFill(0x0a1020);
+        earth.drawRect(0, groundY, startX - 6, floorH);
+        earth.drawRect(startX + bldW + 6, groundY, W - startX - bldW - 6, floorH);
+        earth.endFill();
+        this.scene.addChild(earth);
 
-        // ─── BASEMENT (B1) ───
-        const basementY = baseY;
-        const basementSlab = new PIXI.Graphics();
-        basementSlab.beginFill(0x0a0f1a);
-        basementSlab.drawRect(startX, basementY, bldW, floorH);
-        basementSlab.endFill();
-        basementSlab.lineStyle(1, layout.col, 0.1);
-        basementSlab.drawRect(startX, basementY, bldW, floorH);
-        basementSlab.beginFill(layout.col, 0.06);
-        basementSlab.drawRect(startX, basementY, bldW, 2);
-        basementSlab.endFill();
-        this.scene.addChild(basementSlab);
-
-        const basementLabel = new PIXI.Text('B1 · ' + this._basementLabel(bld.id), {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 8,
-            fill: 0x64748b, letterSpacing: 1
-        });
-        basementLabel.x = startX + 8;
-        basementLabel.y = basementY + 4;
-        basementLabel.alpha = 0.7;
-        this.scene.addChild(basementLabel);
-
-        this._drawBasementProps(this.scene, startX, bldW, basementY, floorH, bld.id, layout.col);
+        // ─── ZONE-AWARE UNDERGROUND ───
+        const surfaceY = groundY;
+        const belowBasementY = roofH + (numFloors + 1) * floorH;
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._drawZoneUnderground) {
+            InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
+        }
 
         // ─── ELEVATOR (matches InteriorCity: shaftW=60, offset 20) ───
         const shaftW = 60;
         const shaftX = startX + bldW - shaftW - 20;
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
-            ec.y = baseY;  // ground floor bottom (CityElevator draws upward)
+            ec.y = groundY;  // ground floor bottom (CityElevator draws upward)
             this.scene.addChild(ec);
-            // Mask: clip elevator to building bounds so shaft doesn't extend
-            // past the right wall or below the ground floor
             const em = new PIXI.Graphics();
             em.beginFill(0xffffff);
             em.drawRect(startX, -numFloors * floorH, bldW, (numFloors + 1) * floorH);
@@ -178,44 +190,32 @@ const InteriorRobotics = {
             this._lift = new CityElevator(ec, numFloors, floorH, shaftX + 15);
         }
 
-        // ─── ZONE-AWARE UNDERGROUND ───
-        // Robotics district is past the metro terminus → east_rock zone per _determineZone
-        const surfaceY = baseY;
-        const belowBasementY = baseY + floorH;
-        if (typeof InteriorCity !== 'undefined' && InteriorCity._drawZoneUnderground) {
-            InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
-        }
-
-        // ─── GROUND (fills sides beyond the building footprint) ───
-        const ground = new PIXI.Graphics();
-        ground.beginFill(0x0a0a14);
-        ground.drawRect(0, baseY, startX, H - baseY + 20);
-        ground.drawRect(startX + bldW, baseY, W - (startX + bldW), H - baseY + 20);
-        ground.endFill();
-        this.scene.addChild(ground);
-
-        // ─── SPAWN INTERIOR NPCs ───
+        // ─── SPAWN INTERIOR NPCs (baseY = groundY for top-down layout) ───
         this._spawnNPCs(this.scene, startX, bldW, baseY, floorH, numFloors, layout);
 
-        // ─── Y-AXIS SCROLLING ───
-        this.layer.eventMode = 'static';
-        this.layer.cursor = 'grab';
+        // ─── SCROLL (identical to Backbone) ───
+        const bp = 56;
+        this.scene.y = H - bp - this.totalH + floorH;
+        this.minY = this.scene.y - floorH * 3;
+        this.maxY = this.scene.y + floorH * 3;
+        this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
         this.layer.hitArea = new PIXI.Rectangle(0, 0, W, H);
-        if (this._onMove) window.removeEventListener('pointermove', this._onMove);
-        if (this._onUp) window.removeEventListener('pointerup', this._onUp);
-        this._onDown = (e) => {
-            this.isDragging = true;
-            this._startY = e.clientY;
-            this._startSceneY = this.scene.y;
-            this.layer.cursor = 'grabbing';
-        };
+        window.removeEventListener('pointermove', this._onMove);
+        window.removeEventListener('pointerup', this._onUp);
+        this.layer.on('pointerdown', (e) => {
+            this.isDragging = true; this._startY = e.clientY;
+            this._startSceneY = this.scene.y; this.layer.cursor = 'grabbing';
+        });
         this._onMove = (e) => {
-            if (!this.isDragging) return;
-            const dy = e.clientY - this._startY;
-            this.scene.y = Math.max(this.minY, Math.min(this.maxY, this._startSceneY + dy));
+            if (!InteriorRobotics.isDragging || !InteriorRobotics.scene || InteriorRobotics.scene.destroyed) return;
+            let ny = InteriorRobotics._startSceneY + (e.clientY - InteriorRobotics._startY);
+            ny = Math.max(InteriorRobotics.minY, Math.min(ny, InteriorRobotics.maxY));
+            InteriorRobotics.scene.y = ny;
         };
-        this._onUp = () => { this.isDragging = false; this.layer.cursor = 'grab'; };
-        this.layer.on('pointerdown', this._onDown);
+        this._onUp = () => {
+            InteriorRobotics.isDragging = false;
+            if (InteriorRobotics.layer) InteriorRobotics.layer.cursor = 'grab';
+        };
         window.addEventListener('pointermove', this._onMove);
         window.addEventListener('pointerup', this._onUp);
     },

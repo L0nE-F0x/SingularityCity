@@ -59,8 +59,8 @@ const InteriorLongevity = {
         const floorH = 80;
         const roofH = 36;
         const numFloors = layout.floors.length;
-        // +1 for basement level
-        const totalH = roofH + (numFloors + 1) * floorH + 40;
+        // +1 for basement, +220 for zone underground (matches Backbone)
+        const totalH = roofH + (numFloors + 1) * floorH + 220;
         const startX = W * 0.12;
         const bldW = W * 0.76;
 
@@ -234,17 +234,19 @@ const InteriorLongevity = {
         if (this._onMove) window.removeEventListener('pointermove', this._onMove);
         if (this._onUp) window.removeEventListener('pointerup', this._onUp);
         layer.on('pointerdown', (e) => {
-            this.isDragging = true;
-            this._startY = e.clientY;
-            this._startSceneY = this.scene.y;
-            layer.cursor = 'grabbing';
+            this.isDragging = true; this._startY = e.clientY;
+            this._startSceneY = this.scene.y; layer.cursor = 'grabbing';
         });
         this._onMove = (e) => {
-            if (!this.isDragging) return;
-            const dy = e.clientY - this._startY;
-            this.scene.y = Math.max(this.minY, Math.min(this.maxY, this._startSceneY + dy));
+            if (!InteriorLongevity.isDragging || !InteriorLongevity.scene || InteriorLongevity.scene.destroyed) return;
+            let ny = InteriorLongevity._startSceneY + (e.clientY - InteriorLongevity._startY);
+            ny = Math.max(InteriorLongevity.minY, Math.min(ny, InteriorLongevity.maxY));
+            InteriorLongevity.scene.y = ny;
         };
-        this._onUp = () => { this.isDragging = false; layer.cursor = 'grab'; };
+        this._onUp = () => {
+            InteriorLongevity.isDragging = false;
+            if (InteriorLongevity.layer) InteriorLongevity.layer.cursor = 'grab';
+        };
         window.addEventListener('pointermove', this._onMove);
         window.addEventListener('pointerup', this._onUp);
     },
