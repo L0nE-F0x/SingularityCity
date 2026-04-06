@@ -23,7 +23,10 @@ const Camera = {
         window.addEventListener('pointermove', this.onMove.bind(this));
         window.addEventListener('pointerup', this.onUp.bind(this));
         vp.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
-        
+
+        // Desktop-only zoom buttons (pill to the left of minimap)
+        this._buildZoomButtons();
+
         // Mobile pinch-to-zoom
         this._pinchDist = 0;
         vp.addEventListener('touchstart', (e) => {
@@ -128,6 +131,9 @@ const Camera = {
 
     update() {
         if (typeof G === 'undefined') return;
+
+        // ─── Zoom pill visibility ───
+        if (G.tick % 15 === 0) this._updateZoomPill();
 
         // ─── INERTIA: apply momentum from drag release ───
         if (!this.isDragging && (Math.abs(this._momentumX) > 0.1 || Math.abs(this._momentumY) > 0.1)) {
@@ -276,5 +282,89 @@ const Camera = {
             // Store for external use (minimap, etc)
             this._vpCompensation = vpCompensation;
         }
+    },
+
+    /* ── Desktop-only zoom ± pill (sits just left of minimap) ─ */
+    _buildZoomButtons() {
+        // Skip on mobile / narrow screens — pinch-to-zoom handles it
+        if (window.innerWidth < 769) return;
+
+        const pill = document.createElement('div');
+        pill.id = 'zoomPill';
+        pill.style.cssText = [
+            'position:fixed',
+            'bottom:44px',
+            'right:308px',
+            'z-index:100',
+            'display:flex',
+            'flex-direction:column',
+            'border-radius:14px',
+            'overflow:hidden',
+            'background:rgba(6,6,16,0.92)',
+            'border:1px solid var(--bd,#1e293b)',
+            'box-shadow:0 4px 20px rgba(0,0,0,0.5)',
+            'backdrop-filter:blur(6px)',
+            '-webkit-backdrop-filter:blur(6px)',
+            'pointer-events:all',
+            'user-select:none',
+        ].join(';');
+
+        const mkBtn = (label, delta) => {
+            const b = document.createElement('button');
+            b.textContent = label;
+            b.style.cssText = [
+                'width:28px',
+                'height:28px',
+                'background:transparent',
+                'border:none',
+                'color:#8ba4b8',
+                'font-family:"JetBrains Mono",monospace',
+                'font-size:16px',
+                'font-weight:bold',
+                'cursor:pointer',
+                'display:flex',
+                'align-items:center',
+                'justify-content:center',
+                'transition:color 0.15s,background 0.15s',
+                'line-height:1',
+                'padding:0',
+            ].join(';');
+            b.addEventListener('mouseenter', () => { b.style.color = '#fff'; b.style.background = 'rgba(255,255,255,0.08)'; });
+            b.addEventListener('mouseleave', () => { b.style.color = '#8ba4b8'; b.style.background = 'transparent'; });
+
+            let holdTimer = null;
+            const step = () => {
+                this.targetZoom = Math.max(0.5, Math.min(3, this.targetZoom + delta));
+            };
+            const startHold = () => { step(); holdTimer = setInterval(step, 100); };
+            const stopHold = () => { if (holdTimer) { clearInterval(holdTimer); holdTimer = null; } };
+            b.addEventListener('pointerdown', (e) => { e.preventDefault(); startHold(); });
+            b.addEventListener('pointerup', stopHold);
+            b.addEventListener('pointerleave', stopHold);
+            return b;
+        };
+
+        const zoomIn = mkBtn('+', 0.10);
+        const sep = document.createElement('div');
+        sep.style.cssText = 'height:1px;background:var(--bd,#1e293b);margin:0 4px;';
+        const zoomOut = mkBtn('−', -0.10);
+
+        pill.appendChild(zoomIn);
+        pill.appendChild(sep);
+        pill.appendChild(zoomOut);
+        document.body.appendChild(pill);
+
+        // Hide during interiors, macro mode, orbit, etc.
+        this._zoomPill = pill;
+    },
+
+    /** Called from engine.update() or self — hide pill when inappropriate */
+    _updateZoomPill() {
+        if (!this._zoomPill) return;
+        const hide = (typeof G !== 'undefined' && (G.activeInterior || G.viewMode === 'macro'))
+            || (typeof OrbitMode !== 'undefined' && OrbitMode.active)
+            || (typeof XRayMode !== 'undefined' && XRayMode.active);
+        this._zoomPill.style.display = hide ? 'none' : 'flex';
     }
 };
+
