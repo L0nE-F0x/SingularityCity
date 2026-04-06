@@ -200,6 +200,7 @@ const AutoTour = {
         this._savedZoom = Camera.targetZoom;
         this._savedTargetX = Camera.targetX;
         this._savedTargetY = Camera.targetY;
+        this._userZoom = Camera.targetZoom; // preserve user's zoom level
         this._recentStops = [];
         this._isInsideBuilding = false;
         this._trackingModelId = null;
@@ -243,6 +244,11 @@ const AutoTour = {
         if (G.viewMode === 'macro') { this.stop('mode-change'); return; }
         if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) { this.stop('mode-change'); return; }
         if (typeof XRayMode !== 'undefined' && XRayMode.active) { this.stop('mode-change'); return; }
+
+        // Keep zoom locked to the user's level (camera tracking overrides it each frame)
+        if (this._userZoom && this._trackingModelId) {
+            Camera.targetZoom = this._userZoom;
+        }
 
         // Apply gentle horizontal drift for cinematic panning (exterior only)
         if (!this._isInsideBuilding && !this._trackingModelId && this._panDrift) {
@@ -334,11 +340,12 @@ const AutoTour = {
         this._panDrift = 0.06 + Math.random() * 0.10;
         this._panDir = Math.random() < 0.5 ? 1 : -1;
 
+        const z = this._userZoom || 1;
         const worldX = b.x + b.w / 2;
-        Camera.targetX = -(worldX) + (G.vpW / 2) / zoom;
-        const groundAnchor = G.groundY * (1 / zoom - 1);
+        Camera.targetX = -(worldX) + (G.vpW / 2) / z;
+        const groundAnchor = G.groundY * (1 / z - 1);
         Camera.targetY = groundAnchor + (-20);
-        Camera.targetZoom = zoom;
+        Camera.targetZoom = z;
 
         const label = (b.lab ? b.lab.toUpperCase() + ' HQ' : b.label || b.id) + ' (' + count + ' active)';
         this._setLabel(label);
@@ -371,11 +378,12 @@ const AutoTour = {
         this._panDrift = def.pan || 0.10;
         this._panDir = Math.random() < 0.5 ? 1 : -1;
 
+        const z = this._userZoom || 1;
         const worldX = b.x + b.w / 2;
-        Camera.targetX = -(worldX) + (G.vpW / 2) / def.zoom;
-        const groundAnchor = G.groundY * (1 / def.zoom - 1);
+        Camera.targetX = -(worldX) + (G.vpW / 2) / z;
+        const groundAnchor = G.groundY * (1 / z - 1);
         Camera.targetY = groundAnchor + (def.yOffset || 0);
-        Camera.targetZoom = def.zoom;
+        Camera.targetZoom = z;
 
         this._setLabel(def.label);
     },
@@ -398,11 +406,12 @@ const AutoTour = {
         this._addRecent(bldId);
 
         // First pan to the building
+        const z = this._userZoom || 1;
         const worldX = b.x + b.w / 2;
-        Camera.targetX = -(worldX) + (G.vpW / 2) / 1.1;
-        const groundAnchor = G.groundY * (1 / 1.1 - 1);
+        Camera.targetX = -(worldX) + (G.vpW / 2) / z;
+        const groundAnchor = G.groundY * (1 / z - 1);
         Camera.targetY = groundAnchor + (-15);
-        Camera.targetZoom = 1.1;
+        Camera.targetZoom = z;
         this._panDrift = 0;
 
         const label = b.lab ? b.lab.toUpperCase() + ' — Inside' : (b.label || bldId) + ' — Inside';
