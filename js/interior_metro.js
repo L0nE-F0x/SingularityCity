@@ -73,16 +73,30 @@ const InteriorMetroStation = {
         this.maxY = 0;
         this.minY = Math.min(0, H - totalH);
 
-        // ─── OPEN SKY STRIP (y=0..30) ───
-        const skyline = new PIXI.Graphics();
-        skyline.beginFill(0x1a2540, 0.75);
-        for (let i = 0; i < 20; i++) {
-            const bx = i * (W / 20);
-            const bh = 6 + ((i * 37) % 16);
-            skyline.drawRect(bx, 30 - bh, (W / 20) - 2, bh);
+        // ─── STATION CANOPY / ROOF (y=0..30) ───
+        // Clean station entrance roof — flat canopy with support beams, not random blocks
+        const canopy = new PIXI.Graphics();
+        // Main roof slab
+        canopy.beginFill(0x1e293b);
+        canopy.drawRect(0, 0, W, 30);
+        canopy.endFill();
+        // Underside paneling
+        canopy.beginFill(0x334155);
+        canopy.drawRect(0, 26, W, 4);
+        canopy.endFill();
+        // Support beams at regular intervals
+        canopy.beginFill(0x475569);
+        for (let bx = 60; bx < W; bx += 100) {
+            canopy.drawRect(bx - 3, 10, 6, 20);
         }
-        skyline.endFill();
-        this.scene.addChild(skyline);
+        canopy.endFill();
+        // Recessed light panels between beams
+        canopy.beginFill(0x94a3b8, 0.3);
+        for (let lx = 100; lx < W - 50; lx += 100) {
+            canopy.drawRect(lx, 18, 40, 6);
+        }
+        canopy.endFill();
+        this.scene.addChild(canopy);
 
         // ─── STREET / SIDEWALK LEVEL ───
         const street = new PIXI.Graphics();
@@ -256,6 +270,25 @@ const InteriorMetroStation = {
             if (rx > shaftLeft - 5 && rx < shaftRight + 5) continue;
             rock.beginFill(rr() > 0.5 ? 0xb45309 : 0xfacc15, 0.3);
             rock.drawRect(rx, shaftTop + rr() * (shaftBottom - shaftTop), 1 + rr() * 3, 1);
+            rock.endFill();
+        }
+        // Cable conduit zone running through the rock (matches exterior: cables sit above the metro tunnel)
+        const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
+        const cableZoneY = shaftTop + 10;
+        const cableZoneH = 25;
+        rock.beginFill(0x0a0a0f, 0.7);
+        rock.drawRect(0, cableZoneY, shaftLeft - 2, cableZoneH);
+        rock.drawRect(shaftRight + 2, cableZoneY, W - shaftRight - 2, cableZoneH);
+        rock.endFill();
+        for (let ci = 0; ci < 18; ci++) {
+            const cy = cableZoneY + 3 + rr() * (cableZoneH - 6);
+            const col = cableCols[Math.floor(rr() * cableCols.length)];
+            const cLen = 40 + rr() * 120;
+            const cx = rr() * (W - cLen);
+            // Skip shaft region
+            if (cx + cLen > shaftLeft && cx < shaftRight) continue;
+            rock.beginFill(col, 0.3 + rr() * 0.4);
+            rock.drawRect(cx, cy, cLen, 1 + rr() * 1.5);
             rock.endFill();
         }
         this.scene.addChild(rock);
@@ -587,99 +620,73 @@ const InteriorMetroStation = {
         this._trackTop = trainTopY;
         this._trackBottom = trackBottom;
 
-        // ─── DEEP STRATA (full city stack below tracks) ───
+        // ─── DEEP STRATA (below tracks — matches exterior layer order) ───
+        // Exterior order below metro tunnel: earth → water pipe → sewer → rock → deep void
+        // (Cables are ABOVE the platform in the rock section, not down here)
         const deepTop = platTop + platH;
         const deep = new PIXI.Graphics();
 
-        // Solid dark base fill to prevent any bleed-through
+        // Solid dark base fill to prevent bleed-through
         deep.beginFill(0x050508);
         deep.drawRect(0, deepTop, W, deepH + 100);
         deep.endFill();
 
-        // Layer 1: Dark rock transition (0-20px)
+        // Layer 1: Earth transition (0-40px)
         deep.beginFill(0x2a1a10);
-        deep.drawRect(0, deepTop, W, 20);
+        deep.drawRect(0, deepTop, W, 40);
+        deep.endFill();
+        deep.beginFill(0x3a2218);
+        deep.drawRect(0, deepTop, W, 3);
         deep.endFill();
 
-        // Layer 2: Cable conduit zone (20-50px) — colored cables
-        deep.beginFill(0x0a0a0f);
-        deep.drawRect(0, deepTop + 20, W, 30);
-        deep.endFill();
-        const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
-        for (let ci = 0; ci < 20; ci++) {
-            const cy = deepTop + 23 + rr() * 24;
-            const col = cableCols[Math.floor(rr() * cableCols.length)];
-            deep.beginFill(col, 0.3 + rr() * 0.4);
-            const cableLen = 40 + rr() * 120;
-            deep.drawRect(rr() * (W - cableLen), cy, cableLen, 1 + rr() * 1.5);
-            deep.endFill();
-        }
-
-        // Layer 3: Water main (55-65px)
+        // Layer 2: Water main (50-58px)
         deep.beginFill(0x0369a1);
-        deep.drawRect(0, deepTop + 55, W, 8);
+        deep.drawRect(0, deepTop + 50, W, 8);
         deep.endFill();
         deep.beginFill(0x0284c7);
-        deep.drawRect(0, deepTop + 57, W, 4);
+        deep.drawRect(0, deepTop + 52, W, 4);
         deep.endFill();
-        // Pipe joints
         for (let px = 80; px < W; px += 200) {
             deep.beginFill(0x0ea5e9, 0.5);
-            deep.drawRect(px, deepTop + 53, 12, 12);
+            deep.drawRect(px, deepTop + 48, 12, 12);
             deep.endFill();
         }
 
-        // Layer 4: Sewer trunk (75-90px)
-        deep.beginFill(0x78350f);
-        deep.drawRect(0, deepTop + 75, W, 15);
-        deep.endFill();
+        // Layer 3: Sewer trunk (70-82px)
         deep.beginFill(0xb45309);
-        deep.drawRect(0, deepTop + 78, W, 8);
+        deep.drawRect(0, deepTop + 70, W, 12);
+        deep.endFill();
+        deep.beginFill(0xd97706);
+        deep.drawRect(0, deepTop + 72, W, 8);
         deep.endFill();
 
-        // Layer 5: Rock strata with mineral veins (100-200px)
+        // Layer 4: Rock strata (95-220px)
         deep.beginFill(0x2d1a11);
-        deep.drawRect(0, deepTop + 100, W, 100);
+        deep.drawRect(0, deepTop + 95, W, 125);
         deep.endFill();
-        // Strata bands
         deep.beginFill(0x1f100a, 0.6);
-        deep.drawRect(0, deepTop + 120, W, 4);
+        deep.drawRect(0, deepTop + 115, W, 4);
         deep.drawRect(0, deepTop + 155, W, 3);
-        deep.drawRect(0, deepTop + 185, W, 5);
+        deep.drawRect(0, deepTop + 195, W, 5);
         deep.endFill();
-        // Rock flecks
-        for (let i = 0; i < 200; i++) {
+        for (let i = 0; i < 180; i++) {
             deep.beginFill(rr() > 0.5 ? 0x3d261a : 0x1f100a, 0.7);
-            deep.drawRect(rr() * W, deepTop + 100 + rr() * 100, 2 + rr() * 3, 2);
+            deep.drawRect(rr() * W, deepTop + 95 + rr() * 125, 2 + rr() * 3, 2);
             deep.endFill();
         }
-        // Gold/mineral flecks
-        for (let i = 0; i < 20; i++) {
-            deep.beginFill(rr() > 0.5 ? 0xb45309 : 0xfacc15, 0.5);
-            deep.drawRect(rr() * W, deepTop + 110 + rr() * 80, 1 + rr() * 2, 1);
+        for (let i = 0; i < 15; i++) {
+            deep.beginFill(rr() > 0.5 ? 0xb45309 : 0xfacc15, 0.4);
+            deep.drawRect(rr() * W, deepTop + 100 + rr() * 110, 1 + rr() * 2, 1);
             deep.endFill();
         }
 
-        // Layer 6: Deep bedrock void (200px+)
+        // Layer 5: Deep void (220px+)
         deep.beginFill(0x050508);
-        deep.drawRect(0, deepTop + 200, W, deepH - 200 + 100);
+        deep.drawRect(0, deepTop + 220, W, deepH - 220 + 100);
         deep.endFill();
-        // Sparse deep rock flecks
-        for (let i = 0; i < 60; i++) {
-            deep.beginFill(0x1a100a, 0.5);
-            deep.drawRect(rr() * W, deepTop + 200 + rr() * 90, 2 + rr() * 4, 2);
-            deep.endFill();
-        }
-
-        // Utility pipes
-        for (let i = 0; i < 4; i++) {
-            const px = 60 + i * (W / 4);
-            const py = deepTop + 40 + (i % 2) * 45;
-            deep.beginFill(0x475569);
-            deep.drawRect(px, py, 24, 5);
-            deep.endFill();
-            deep.beginFill(0x64748b);
-            deep.drawRect(px, py, 24, 1);
+        for (let i = 0; i < 40; i++) {
+            deep.beginFill(0x1a100a, 0.4);
+            deep.drawRect(rr() * W, deepTop + 220 + rr() * 70, 2 + rr() * 4, 2);
             deep.endFill();
         }
         this.scene.addChild(deep);
@@ -703,6 +710,7 @@ const InteriorMetroStation = {
         this._noYScroll = false;
         this.layer.eventMode = 'static';
         this.layer.cursor = 'grab';
+        this.layer.hitArea = new PIXI.Rectangle(0, 0, W, H);
         // Remove any stale listeners
         if (this._onMove) window.removeEventListener('pointermove', this._onMove);
         if (this._onUp) window.removeEventListener('pointerup', this._onUp);
@@ -915,6 +923,10 @@ const InteriorMetroStation = {
                 av.legL.x = -2.4 + phase * 1.2;
                 av.legR.x =  2.4 - phase * 1.2;
             }
+            // Subtle idle sway for standing/waiting avatars
+            if (!isWalking && av.body) {
+                av.body.rotation = Math.sin(tick * 0.04 + m.id.charCodeAt(0) * 0.5) * 0.02;
+            }
 
             const isTracked = G.tracking && G.tracking.type === 'model' && G.tracking.id === m.id;
             if (av.highlight) av.highlight.visible = !!isTracked;
@@ -979,6 +991,9 @@ const InteriorMetroStation = {
                     const phase = isWalking ? Math.sin(tick * 0.25 + (cm.npc.id.charCodeAt(0) * 0.3)) : 0;
                     av.legL.x = -2.4 + phase * 1.2;
                     av.legR.x = 2.4 - phase * 1.2;
+                }
+                if (!isWalking && av.body) {
+                    av.body.rotation = Math.sin(tick * 0.04 + cm.npc.id.charCodeAt(0) * 0.5) * 0.02;
                 }
 
                 // Highlight if tracked
@@ -1144,6 +1159,27 @@ const InteriorMetroStation = {
         nameTxt.anchor.set(0.5, 1);
         nameTxt.y = -h - 10;
         cont.addChild(nameTxt);
+
+        // Click/hover handlers — same as exterior NPCs
+        cont.eventMode = 'static';
+        cont.cursor = 'pointer';
+        cont.hitArea = new PIXI.Rectangle(-bw, -h - 12, bw * 2, h + 16);
+        const isNPC = !!m._npcColor;
+        cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined') {
+                if (isNPC) {
+                    UI.selectModel({ id: m.id, name: m.name, isNPC: true, _trackType: 'npc', role: m.role || 'Worker', lab: 'other', desc: (m.role || 'Worker') + '. Commuting via metro.' });
+                } else {
+                    UI.selectModel(m);
+                }
+            }
+        });
+        cont.on('pointerover', (e) => {
+            if (typeof UI !== 'undefined') UI.showTooltip(e, m.name || m.id, isNPC ? (m.role || 'Worker NPC') : (m.lab || ''));
+        });
+        cont.on('pointerout', () => {
+            if (typeof UI !== 'undefined') UI.hideTooltip();
+        });
 
         return { cont, body, head, legL, legR, dot, nameTxt, highlight };
     },
