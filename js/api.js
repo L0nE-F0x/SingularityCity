@@ -1074,7 +1074,7 @@ const API = {
         const r = await fetch(url, {
             method: 'POST',
             body: 'data=' + encodeURIComponent(query),
-            signal: AbortSignal.timeout(35000)
+            signal: AbortSignal.timeout(90000)
         });
         if (r.status === 429) throw new Error('rate-limited');
         if (r.status === 504) throw new Error('server-busy');
@@ -1091,7 +1091,7 @@ const API = {
         let plantCount = 0;
         let totalMW = 0;
 
-        // Process a batch of OSM elements
+        // Process a batch of OSM elements, tagging each with a region label
         const processElements = (elements, regionLabel) => {
             elements.forEach(el => {
                 const tags = el.tags || {};
@@ -1117,37 +1117,46 @@ const API = {
             });
         };
 
-        console.log('⚡ Fetching global power grid from OpenStreetMap...');
-        let successCount = 0;
+        // Classify an element into a region by lat/lon
+        const classifyRegion = (el) => {
+            const lat = el.lat ?? el.center?.lat ?? 0;
+            const lon = el.lon ?? el.center?.lon ?? 0;
+            for (const [south, west, north, east, label] of this._GRID_REGIONS) {
+                if (lat >= south && lat <= north && lon >= west && lon <= east) return label;
+            }
+            return 'Other';
+        };
 
-        // Query each region sequentially to stay within rate limits
-        for (const [south, west, north, east, label] of this._GRID_REGIONS) {
-            const query = `[out:json][timeout:30];
-(
-  node["power"="plant"](${south},${west},${north},${east});
-  way["power"="plant"](${south},${west},${north},${east});
-  relation["power"="plant"](${south},${west},${north},${east});
-);
-out tags;`;
+        console.log('⚡ Fetching global power grid from OpenStreetMap…');
+
+        // Build ONE combined Overpass query for all regions (avoids 429 rate limits)
+        const bboxUnion = this._GRID_REGIONS.map(([s, w, n, e]) =>
+            `  node["power"="plant"](${s},${w},${n},${e});\n  way["power"="plant"](${s},${w},${n},${e});`
+        ).join('\n');
+
+        const query = `[out:json][timeout:120];\n(\n${bboxUnion}\n);\nout tags center;`;
+
+        let success = false;
+
+        // Try primary endpoint, then fallback
+        for (let ep = 0; ep < this._OVERPASS_ENDPOINTS.length && !success; ep++) {
             try {
-                const data = await this._queryOverpass(query, 0);
-                processElements(data.elements || [], label);
-                successCount++;
-                if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${label} — ${(data.elements || []).length} plants`);
+                const data = await this._queryOverpass(query, ep);
+                const elements = data.elements || [];
+                elements.forEach(el => processElements([el], classifyRegion(el)));
+                success = true;
+                if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${elements.length} power plants mapped globally`);
             } catch (e) {
-                // Try fallback endpoint
-                try {
-                    const data = await this._queryOverpass(query, 1);
-                    processElements(data.elements || [], label);
-                    successCount++;
-                } catch (_e2) {
-                    console.warn(`[Grid] ${label} failed:`, e.message);
+                console.debug(`[Grid] Endpoint ${ep} failed: ${e.message}`);
+                // Small delay before trying fallback
+                if (ep < this._OVERPASS_ENDPOINTS.length - 1) {
+                    await new Promise(r => setTimeout(r, 2000));
                 }
             }
         }
 
-        if (successCount === 0) {
-            console.warn('⚡ Grid: all regions failed, keeping simulated data');
+        if (!success) {
+            console.warn('⚡ Grid: all endpoints failed, keeping simulated data');
             return;
         }
 
@@ -1178,7 +1187,7 @@ out tags;`;
             fossilMW,
             renewPct,
             fossilPct,
-            regionsScanned: successCount,
+            regionsScanned: Object.keys(byRegion).length,
             regionsTotal: this._GRID_REGIONS.length,
         };
         this._gridTs = Date.now();
