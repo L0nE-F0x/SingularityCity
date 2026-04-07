@@ -1481,7 +1481,7 @@ const G = {
 
       // Kardashev Scale — build HUD gauge after initial data loads
       if (typeof Kardashev !== 'undefined') {
-          setTimeout(() => { const K = window.Kardashev; if (K) { K.calculate(); K.buildHUD(); K.updateHUD(); } }, 8000);
+          setTimeout(() => { if (typeof Kardashev !== 'undefined') { Kardashev.calculate(); Kardashev.buildHUD(); Kardashev.updateHUD(); } }, 8000);
       }
       
       if (typeof API !== 'undefined') {
@@ -1758,7 +1758,7 @@ const G = {
               UniversityEnv: typeof UniversityEnv !== 'undefined' ? UniversityEnv : null,
               CourtData: typeof CourtData !== 'undefined' ? CourtData : null,
               ConferenceData: typeof ConferenceData !== 'undefined' ? ConferenceData : null,
-              Kardashev: window.Kardashev || null,
+              Kardashev: typeof Kardashev !== 'undefined' ? Kardashev : null,
           };
       }
       const S = this._subsys;

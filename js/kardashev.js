@@ -191,7 +191,7 @@ const Kardashev = {
 
         const el = document.createElement('div');
         el.id = 'kardashevHUD';
-        el.style.cssText = 'position:fixed;bottom:40px;left:12px;z-index:800;cursor:pointer;user-select:none;transition:opacity 0.3s ease;';
+        el.style.cssText = 'position:fixed;bottom:40px;right:316px;z-index:800;cursor:pointer;user-select:none;transition:opacity 0.3s ease;';
         el.onclick = () => this.showPanel();
 
         // SVG arc gauge

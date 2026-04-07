@@ -1351,7 +1351,7 @@ out tags;`;
             const isVerified = this._verifiedModelNames.has(normName) || this._verifiedModelNames.has(fuzzyName);
             // Not being verified is not an automatic rejection, but flag it
             if (!isVerified) {
-                console.warn(`⚠️ [Verify] ${m.name} not found in ZeroEval/HuggingFace registry — allowing with caution`);
+                console.debug(`⚠️ [Verify] ${m.name} not found in ZeroEval/HuggingFace registry — allowing with caution`);
             }
         }
 
