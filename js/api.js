@@ -179,7 +179,25 @@ const API = {
                 const existingMap = new Map(G.models.map(m => [m.id, m]));
                 let added = 0;
                 
+                // Build verification registry before processing cloud models
+                if (!this._verifiedModelNames) this._buildVerifiedRegistry();
+                let rejected = 0;
+
                 data.forEach(m => {
+                    // Verify cloud models too — purge hallucinated data from DB
+                    const verification = this._verifyModel(m);
+                    if (!verification.ok) {
+                        console.warn(`🚫 [Cloud] REJECTED "${m.name}": ${verification.reason}`);
+                        rejected++;
+                        // Delete hallucinated model from Supabase
+                        if (this.supabase) {
+                            this.supabase.from('models').delete().eq('id', m.id).then(({error}) => {
+                                if (!error) console.log(`🗑️ [Cloud] Purged hallucinated model "${m.name}" from database`);
+                            });
+                        }
+                        return;
+                    }
+
                     if (m.benchmarks) {
                         if (!window.BM) window.BM = {};
                         if (!window.BM[m.id]) window.BM[m.id] = {};
@@ -187,7 +205,7 @@ const API = {
                             window.BM[m.id][k.toUpperCase()] = m.benchmarks[k];
                         });
                     }
-                    
+
                     if (m.cost_input != null && m.cost_out != null) {
                         if (!window.COSTS) window.COSTS = {};
                         window.COSTS[m.id] = { input: parseFloat(m.cost_input), output: parseFloat(m.cost_out) };
@@ -196,18 +214,19 @@ const API = {
                         if (!window.CTX) window.CTX = {};
                         window.CTX[m.id] = parseInt(m.ctx);
                     }
-                    
+
                     // PASS REGION INTO ENGINE DYNAMICALLY
                     m.lab = G.ensureLabExists(m.lab, m.region);
 
                     if (!existingMap.has(m.id)) {
                         G.models.push(m);
-                        if (typeof Entities !== 'undefined') Entities.createChar(m); 
+                        if (typeof Entities !== 'undefined') Entities.createChar(m);
                         added++;
                     } else {
-                        Object.assign(existingMap.get(m.id), m); 
+                        Object.assign(existingMap.get(m.id), m);
                     }
                 });
+                if (rejected > 0) console.log(`🚫 [Cloud] Rejected and purged ${rejected} hallucinated models from database`);
                 
                 if (added > 0) {
                     if (typeof UI !== 'undefined') UI.addLog(`☁️ Synced ${added} models from global database.`);
@@ -930,6 +949,119 @@ const API = {
       }
     },
   
+    // ═══════════════════════════════════════════════════════════════
+    //   MODEL VERIFICATION — Reject hallucinated/impossible models
+    // ═══════════════════════════════════════════════════════════════
+
+    // Known maximum version numbers per model family (update as new models release)
+    _maxKnownVersions: {
+        'gemini': 3.1, 'gpt': 4.1, 'claude': 4, 'llama': 4, 'grok': 4,
+        'phi': 4, 'mistral': 3, 'deepseek': 3, 'qwen': 3, 'palm': 2,
+        'bard': 1, 'ernie': 5, 'glm': 5, 'command': 2, 'nova': 2,
+        'nemotron': 1, 'codestral': 1
+    },
+
+    _verifyModel(m) {
+        // Returns { ok: true } or { ok: false, reason: "..." }
+        if (!m.name || !m.lab) return { ok: false, reason: 'Missing name or lab' };
+
+        const name = m.name.toLowerCase();
+        const today = new Date().toISOString().split('T')[0];
+        const relDate = m.released || m.rel; // Handle both DB and local formats
+
+        // 1. Reject future release dates
+        if (relDate && relDate > today) {
+            return { ok: false, reason: `Future release date: ${relDate}` };
+        }
+
+        // 2. Reject impossibly old release dates for new models
+        if (relDate && relDate < '2017-01-01') {
+            return { ok: false, reason: `Implausibly old release date: ${relDate}` };
+        }
+
+        // 3. Check version numbers against known maximums
+        for (const [family, maxVer] of Object.entries(this._maxKnownVersions)) {
+            // Match patterns like "gemini 8", "gpt-6", "claude 5" etc.
+            const verMatch = name.match(new RegExp(`${family}[\\s\\-_]*([\\d]+(?:\\.[\\d]+)?)`));
+            if (verMatch) {
+                const ver = parseFloat(verMatch[1]);
+                // Allow up to maxVer + 1 for genuinely rumored next-gen, reject anything beyond
+                if (ver > maxVer + 1) {
+                    return { ok: false, reason: `Version ${ver} exceeds max known ${family} version ${maxVer}` };
+                }
+            }
+        }
+
+        // 4. Reject benchmark scores that are impossible (>100 for percentage-based)
+        if (m.benchmarks) {
+            for (const [k, v] of Object.entries(m.benchmarks)) {
+                if (k !== 'ELO' && (v > 100 || v < 0)) {
+                    return { ok: false, reason: `Impossible benchmark ${k}=${v}` };
+                }
+                if (k === 'ELO' && (v < 500 || v > 2500)) {
+                    return { ok: false, reason: `Impossible ELO=${v}` };
+                }
+            }
+        }
+
+        // 5. Reject absurd pricing (>$1000 per 1M tokens)
+        if (m.cost_input != null && m.cost_input > 1000) {
+            return { ok: false, reason: `Absurd input pricing: $${m.cost_input}/1M` };
+        }
+        if (m.cost_out != null && m.cost_out > 1000) {
+            return { ok: false, reason: `Absurd output pricing: $${m.cost_out}/1M` };
+        }
+
+        // 6. Cross-reference against verified sources if available
+        // Models from ZeroEval/HuggingFace are trusted; LLM-sourced models get extra scrutiny
+        if (this._verifiedModelNames && this._verifiedModelNames.size > 0) {
+            const normName = name.replace(/[^a-z0-9]/g, '');
+            const fuzzyName = normName.replace(/\d{6,}/g, '').replace(/\d+$/, '');
+            const isVerified = this._verifiedModelNames.has(normName) || this._verifiedModelNames.has(fuzzyName);
+            // Not being verified is not an automatic rejection, but flag it
+            if (!isVerified) {
+                console.warn(`⚠️ [Verify] ${m.name} not found in ZeroEval/HuggingFace registry — allowing with caution`);
+            }
+        }
+
+        return { ok: true };
+    },
+
+    // Build verified model registry from ZeroEval and HuggingFace data
+    _buildVerifiedRegistry() {
+        this._verifiedModelNames = new Set();
+        // Add all models already in G.models that came from trusted sources
+        for (const m of G.models) {
+            if (m._src === 'zeroeval' || m._src === 'huggingface') {
+                const norm = m.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                this._verifiedModelNames.add(norm);
+            }
+        }
+        // Also add all flagship models we know are real
+        const knownReal = [
+            'claude opus 4', 'claude sonnet 4', 'claude sonnet 4.6', 'claude haiku 4',
+            'claude 3.5 sonnet', 'claude 3.5 haiku', 'claude 3 opus',
+            'gpt-4o', 'gpt-4o mini', 'gpt-4.1', 'gpt-4.1 mini', 'gpt-4.1 nano',
+            'o1', 'o1-mini', 'o1-pro', 'o3', 'o3-mini', 'o4-mini',
+            'gemini 2.5 pro', 'gemini 2.5 flash', 'gemini 2.0 flash',
+            'gemini 1.5 pro', 'gemini 1.5 flash', 'gemini 3.1',
+            'grok 3', 'grok 3 mini', 'grok 4',
+            'llama 4 scout', 'llama 4 maverick', 'llama 3.3', 'llama 3.1',
+            'deepseek-r1', 'deepseek-v3', 'deepseek-r2',
+            'qwen3', 'qwen2.5', 'qwen2.5-max', 'qwq',
+            'phi-4', 'phi-4-mini', 'phi-3',
+            'mistral large', 'mistral medium', 'codestral',
+            'command r+', 'command r', 'command a',
+            'nova pro', 'nova premier', 'nova lite',
+            'nemotron ultra', 'llama-3.1-nemotron-ultra',
+            'yi-lightning', 'ernie 4.5', 'glm-4'
+        ];
+        for (const name of knownReal) {
+            this._verifiedModelNames.add(name.toLowerCase().replace(/[^a-z0-9]/g, ''));
+        }
+        console.log(`✅ [Verify] Built registry with ${this._verifiedModelNames.size} verified model names`);
+    },
+
     async doScan() {
       if (this._scanning) return;
       this._scanning = true;
@@ -945,6 +1077,9 @@ const API = {
       if(typeof UI !== 'undefined') UI.addLog(`🛰️ Scanning via ${G.apiProvider}...`);
       if(typeof SND !== 'undefined') SND.scan();
       G.unlockAchieve('first_scan');
+
+      // Build verified model registry for cross-referencing scan results
+      this._buildVerifiedRegistry();
       
       try {
         if (!this.supabase && G.supabaseUrl && G.supabaseKey) {
@@ -1022,6 +1157,7 @@ const API = {
                 const prompt = `This is an analytical data request. Find exactly 4 REAL, existing AI models. Focus: ${focusCategory}.
 
 ⚠️ RECENCY IS THE #1 PRIORITY. We need the LATEST models from 2025-2026 FIRST. Older models can come later.
+⚠️ TODAY IS ${new Date().toISOString().split('T')[0]}. Do NOT return any model with a release date AFTER today.
 
 MISSING FLAGSHIPS — These specific cutting-edge models are NOT yet in our database and should be prioritized:
 ${flagshipGap || 'All major flagships tracked!'}
@@ -1032,14 +1168,21 @@ CONTEXT:
 - EXISTING MODELS (do NOT duplicate): ${allModelNames}
 - EXISTING LAB IDs: ${existingLabs}. Use exact lab IDs.
 
-CRITICAL INSTRUCTIONS:
-1. **FIND THE NEWEST MODELS FIRST.** If Claude Opus 4 or Grok 3 or Gemini 2.5 Pro is in the MISSING FLAGSHIPS list above, those MUST be returned before any older or niche models. The user needs cutting-edge models urgently.
-2. Use the model's FULL official name (e.g. "Claude Opus 4", not just "Claude 4"; "Grok 3 Mini" not "Grok-mini").
-3. For any lab in the "MISSING a founder/CEO" list, include "founder_name" (e.g. Dario Amodei for Anthropic, Sam Altman for OpenAI, Elon Musk for xAI).
-4. Use 100% accurate, factual, real-world data. Do not hallucinate.
-5. "phase": "released" for launched models, "rumored" ONLY for genuinely unconfirmed models.
-6. Include accurate benchmarks, pricing (cost_input/cost_out per 1M tokens USD), and context window (ctx in tokens).
-7. "released" date must be the actual public release date in YYYY-MM-DD format.
+CRITICAL ACCURACY RULES — VIOLATIONS WILL CORRUPT A PUBLIC DATABASE:
+1. ONLY return models that have been OFFICIALLY ANNOUNCED by the lab with a public blog post, API endpoint, or press release.
+2. Do NOT invent, extrapolate, or speculate about future model versions. For example:
+   - If the latest known Gemini is 2.5, do NOT return "Gemini 3", "Gemini 4", "Gemini 8 Ultra", etc.
+   - If the latest known GPT is 4.1, do NOT return "GPT-5", "GPT-6", etc.
+   - If the latest known Claude is Opus 4, do NOT return "Claude 5", "Claude 6", etc.
+   - If the latest known Llama is 4, do NOT return "Llama 5", "Llama 6", etc.
+3. Version numbers must match real, publicly documented versions. If unsure, SKIP that model entirely.
+4. Release dates must be real dates when the model became publicly available. If unsure, use null.
+5. Benchmarks must be from official papers or leaderboards (e.g. LMSYS, ZeroEval). If unsure, omit the benchmark.
+6. "phase": "released" for launched models, "rumored" ONLY for models officially teased/leaked by the lab itself.
+7. Use the model's FULL official name (e.g. "Claude Opus 4", not just "Claude 4"; "Grok 3 Mini" not "Grok-mini").
+8. For any lab in the "MISSING a founder/CEO" list, include "founder_name" (e.g. Dario Amodei for Anthropic, Sam Altman for OpenAI, Elon Musk for xAI).
+9. Include accurate pricing (cost_input/cost_out per 1M tokens USD) and context window (ctx in tokens).
+10. If you are not 100% certain a model exists, DO NOT include it. Return fewer than 4 models if needed.
 
 JSON (no markdown):
 {"models":[{"id":"model_id","name":"Full Model Name","lab":"lab_id","region":"us","founder_name":"CEO Name or null","released":"2025-01-01","retired":null,"phase":"released","os":false,"desc":"Summary.","personality":"Helpful","talent":"Coding","favSpot":"Server Room","benchmarks":{"MMLU":90,"HumanEval":85,"MATH":75,"GPQA":55},"arch":{"params":"200B","type":"Dense","tokens":"15T","compute":"1e25 FLOPs"},"ctx":200000,"cost_input":3.0,"cost_out":15.0}],"retirements":[],"elo_updates":[],"events":[],"lineage_updates":[]}`;
@@ -1051,31 +1194,31 @@ JSON (no markdown):
                   hd['x-api-key'] = G.authKey;
                   hd['anthropic-version'] = '2023-06-01'; 
                   hd['anthropic-dangerously-allow-browser'] = 'true';
-                  pl = { model: G.modelId || 'claude-3-5-sonnet-20240620', max_tokens: 8192, system: 'You are a real-time AI industry data API. Respond strictly in minified JSON format. No markdown. Only use real, verified data. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API as of today is "released", NOT "rumored".', messages: [{ role: 'user', content: prompt }] };
+                  pl = { model: G.modelId || 'claude-3-5-sonnet-20240620', max_tokens: 8192, system: 'You are a real-time AI industry data API. Respond strictly in minified JSON format. No markdown. Only use real, verified data. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API as of today is "released", NOT "rumored". CRITICAL: Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.', messages: [{ role: 'user', content: prompt }] };
                 } else if (G.apiProvider === 'google') {
                   const targetModel = G.modelId || 'gemini-2.5-flash';
                   url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${G.authKey}`;
                   pl = { 
-                      systemInstruction: { parts: [{ text: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only output real-world data. Do not truncate. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API today is "released", NOT "rumored".' }] }, 
+                      systemInstruction: { parts: [{ text: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only output real-world data. Do not truncate. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API today is "released", NOT "rumored". CRITICAL: Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.' }] },
                       contents: [{ parts: [{ text: prompt }] }], 
-                      generationConfig: { temperature: 0.7, maxOutputTokens: 32768, responseMimeType: "application/json" }
+                      generationConfig: { temperature: 0.1, maxOutputTokens: 32768, responseMimeType: "application/json" }
                   };
                 } else if (G.apiProvider === 'xai') {
                   url = 'https://api.x.ai/v1/chat/completions';
                   hd['Authorization'] = `Bearer ${G.authKey}`;
                   pl = { 
-                      model: G.modelId || 'grok-3-latest', 
-                      temperature: 0.7, 
-                      max_tokens: 8192, 
+                      model: G.modelId || 'grok-3-latest',
+                      temperature: 0.1,
+                      max_tokens: 8192,
                       messages: [
-                          { role: 'system', content: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only use real, verified data. Today is ' + new Date().toISOString().split('T')[0] + '. CRITICAL: Any model that is publicly available via API as of today MUST have phase "released", NOT "rumored". Grok 4 is released. Claude Opus 4 is released. GPT-4.1 is released. If you are unsure whether a model is released, default to "released" if it has been publicly announced with API access.' }, 
+                          { role: 'system', content: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only use real, verified data. Today is ' + new Date().toISOString().split('T')[0] + '. CRITICAL: Any model that is publicly available via API as of today MUST have phase "released", NOT "rumored". Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.' },
                           { role: 'user', content: prompt }
                       ] 
                   };
                 } else {
                   url = 'https://api.openai.com/v1/chat/completions';
                   hd['Authorization'] = `Bearer ${G.authKey}`;
-                  pl = { model: G.modelId || 'gpt-4o', temperature: 0.7, max_tokens: 8192, messages: [{ role: 'system', content: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only use real data. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API today is "released", NOT "rumored".' }, { role: 'user', content: prompt }] };
+                  pl = { model: G.modelId || 'gpt-4o', temperature: 0.1, max_tokens: 8192, messages: [{ role: 'system', content: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only use real data. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API today is "released", NOT "rumored". CRITICAL: Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.' }, { role: 'user', content: prompt }] };
                 }
           
                 console.log(`📡 [SCAN] Provider: ${G.apiProvider}, Model: ${G.modelId || 'default'}, Prompt chars: ${prompt.length}, Models in dedup list: ${G.models.length}`);
@@ -1237,13 +1380,21 @@ JSON (no markdown):
                     }
                     continue;
                 }
-                
+
+                // ─── VERIFICATION GATE: Reject hallucinated/impossible models ───
+                const verification = this._verifyModel(m);
+                if (!verification.ok) {
+                    console.warn(`🚫 [Verify] REJECTED "${m.name}": ${verification.reason}`);
+                    if (typeof UI !== 'undefined') UI.addLog(`🚫 Rejected "${m.name}": ${verification.reason}`);
+                    continue;
+                }
+
                 if (m.benchmarks) {
                     if (!window.BM) window.BM = {};
                     window.BM[m.id] = {};
                     Object.keys(m.benchmarks).forEach(k => window.BM[m.id][k.toUpperCase()] = m.benchmarks[k]);
                 }
-                
+
                 if (m.cost_input != null && m.cost_out != null) {
                     if (!window.COSTS) window.COSTS = {};
                     window.COSTS[m.id] = { input: parseFloat(m.cost_input), output: parseFloat(m.cost_out) };
@@ -1252,12 +1403,12 @@ JSON (no markdown):
                     if (!window.CTX) window.CTX = {};
                     window.CTX[m.id] = parseInt(m.ctx);
                 }
-                
-                const nm = { 
-                    id: m.id, name: m.name, lab: m.lab, rel: m.released, ret: m.retired || null, 
-                    phase: m.phase || 'released', os: m.os || false, desc: m.desc || 'A new citizen!', 
-                    per: m.personality || 'Fresh face', tal: m.talent || 'Being new', fav: m.favSpot || 'Town Square', 
-                    _src: true, benchmarks: m.benchmarks, arch: m.arch,
+
+                const nm = {
+                    id: m.id, name: m.name, lab: m.lab, rel: m.released, ret: m.retired || null,
+                    phase: m.phase || 'released', os: m.os || false, desc: m.desc || 'A new citizen!',
+                    per: m.personality || 'Fresh face', tal: m.talent || 'Being new', fav: m.favSpot || 'Town Square',
+                    _src: 'llm_scan', benchmarks: m.benchmarks, arch: m.arch,
                     ctx: m.ctx || null, cost_input: m.cost_input || 0, cost_out: m.cost_out || 0
                 };
                 
@@ -1509,6 +1660,73 @@ JSON (no markdown):
       this._scanning = false;
     },
     
+    // ═══════════════════════════════════════════════════════════════
+    //   DATABASE PURGE — Remove hallucinated models from Supabase
+    //   Call via console: API.purgeHallucinations()
+    // ═══════════════════════════════════════════════════════════════
+
+    async purgeHallucinations() {
+        if (!this.supabase) { console.error('No Supabase connection'); return; }
+        if (!this._verifiedModelNames) this._buildVerifiedRegistry();
+
+        console.log('🧹 [Purge] Scanning database for hallucinated models...');
+        if (typeof UI !== 'undefined') UI.addLog('🧹 Scanning for hallucinated data...');
+
+        try {
+            const { data, error } = await this.supabase.from('models').select('id, name, lab, released, phase, benchmarks, cost_input, cost_out');
+            if (error) throw error;
+            if (!data) return;
+
+            let purged = 0;
+            const toDelete = [];
+
+            for (const m of data) {
+                const result = this._verifyModel(m);
+                if (!result.ok) {
+                    console.log(`🗑️ [Purge] "${m.name}" — ${result.reason}`);
+                    toDelete.push(m.id);
+                    purged++;
+                }
+            }
+
+            if (toDelete.length > 0) {
+                // Delete in batches of 50
+                for (let i = 0; i < toDelete.length; i += 50) {
+                    const batch = toDelete.slice(i, i + 50);
+                    const { error: delErr } = await this.supabase.from('models').delete().in('id', batch);
+                    if (delErr) console.error(`[Purge] Batch delete error:`, delErr);
+                }
+            }
+
+            // Also purge from local G.models
+            const localBefore = G.models.length;
+            G.models = G.models.filter(m => {
+                const result = this._verifyModel(m);
+                if (!result.ok) {
+                    console.log(`🗑️ [Purge Local] "${m.name}" — ${result.reason}`);
+                    // Remove character sprite
+                    if (typeof Entities !== 'undefined' && G.charRefs && G.charRefs[m.id]) {
+                        const refs = G.charRefs[m.id];
+                        if (refs.c && refs.c.parent) refs.c.parent.removeChild(refs.c);
+                        delete G.charRefs[m.id];
+                    }
+                    return false;
+                }
+                return true;
+            });
+            const localPurged = localBefore - G.models.length;
+
+            console.log(`🧹 [Purge] Complete: ${purged} removed from cloud, ${localPurged} from local`);
+            if (typeof UI !== 'undefined') UI.addLog(`🧹 Purged ${purged} hallucinated models from cloud, ${localPurged} from local`);
+            if (typeof UI !== 'undefined') UI.addToast(`🧹 Cleaned ${purged + localPurged} hallucinated models!`);
+
+            G.save();
+            G.evolveCity();
+        } catch (e) {
+            console.error('🧹 [Purge] Error:', e);
+        }
+    },
+
     async syncBuildingPositions() {
         if (!this.supabase) return;
         try {
