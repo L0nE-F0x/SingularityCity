@@ -854,28 +854,66 @@ const Entities = {
       });
       
       const occ = {}; if (!G.familyDestinations) G.familyDestinations = {}; if (!G.lastBlock) G.lastBlock = -1;
-      
+
       // Viewport culling boundaries (with generous margin)
       const camLeft = -Camera.x - 400;
       const camRight = -Camera.x + G.vpW / Camera.zoom + 400;
-      
-      G.models.forEach((m, i) => {
+
+      // ─── PERF: for-loop avoids closure allocation per model (500+ iterations/frame) ───
+      const models = G.models;
+      const modelsLen = models.length;
+      const charRefs = G.charRefs;
+      const tick = G.tick;
+      const groundY = G.groundY;
+      const bldById = G.bldById;
+      const bldsByLab = G.bldsByLab;
+      const chatBubbles = G.chatBubbles;
+      const hasEnv = typeof Environment !== 'undefined';
+      const envWeather = hasEnv ? Environment.weather : null;
+      const hasPers = typeof Personality !== 'undefined';
+
+      // ─── PERF: Hoist metro station lookups (same for every entity) ───
+      const _mRes = bldById['metro_res'];
+      const _mHq = bldById['metro_hq'];
+      const _mEast = bldById['metro_east'];
+      const _mDc = bldById['metro_dc'];
+      const _mMid = bldById['metro_mid'];
+      const _mLong = bldById['metro_longevity'];
+      const mResX = _mRes ? _mRes.x + (_mRes.w / 2) : 1350;
+      const mHqX = _mHq ? _mHq.x + (_mHq.w / 2) : 4700;
+      const mEastX = _mEast ? _mEast.x + (_mEast.w / 2) : 7000;
+      const mDcX = _mDc ? _mDc.x + (_mDc.w / 2) : null;
+      const mMidX = _mMid ? _mMid.x + (_mMid.w / 2) : null;
+      const mLongX = _mLong ? _mLong.x + (_mLong.w / 2) : null;
+
+      // 5 regions: 0=DC/Space (left of res), 1=Residential, 2=Tech, 3=East, 4=Longevity terminus
+      const getRegion = (x) => {
+          if (mDcX && x < (mDcX + mResX) / 2) return 0;
+          if (x < (mResX + mHqX) / 2) return 1;
+          if (mMidX && x < (mMidX + mEastX) / 2) return 2;
+          if (x < (mHqX + mEastX) / 2) return 2;
+          if (mLongX && x > (mEastX + mLongX) / 2) return 4;
+          return 3;
+      };
+
+      for (let i = 0; i < modelsLen; i++) {
+        const m = models[i];
         // Cache stage/act — only recalculate once per second (60 frames)
-        if (!m._cachedTick || G.tick - m._cachedTick >= 60) {
+        if (!m._cachedTick || tick - m._cachedTick >= 60) {
             m._cachedStg = getStage(m.rel, m.ret, m.phase);
             m._cachedSd = STAGES[m._cachedStg];
             const result = getAct(m._cachedStg, dp, i, m);
             m._cachedAct = result.act;
             m._cachedBid = result.bid;
-            m._cachedTick = G.tick;
+            m._cachedTick = tick;
         }
         const stg = m._cachedStg; const sd = m._cachedSd; const sc = sd.size; 
         const act = m._cachedAct; const bid = m._cachedBid;
         
         const ai = (typeof ACTS !== 'undefined' && ACTS[act]) ? ACTS[act] : ((typeof ACTS !== 'undefined' && ACTS['work']) ? ACTS['work'] : { indoor: true, icon: '💻', label: 'Processing' });
         
-        let defaultHq = (G.bldsByLab[m.lab] || []).find(x => !x.id.startsWith('house_')) || (G.bldsByLab[m.lab] || [])[0];
-        let tBld = bid ? G.bldById[bid] : defaultHq || G.bldById['uni_dorm'];
+        let defaultHq = (bldsByLab[m.lab] || []).find(x => !x.id.startsWith('house_')) || (bldsByLab[m.lab] || [])[0];
+        let tBld = bid ? bldById[bid] : defaultHq || bldById['uni_dorm'];
         const isSocial = act === 'lunch' || act === 'socialize' || act === 'play' || act === 'benchmark' || act === 'share' || act === 'train' || act === 'arena'; const block = Math.floor(dp * 24);
   
         if (isSocial && !night) {
@@ -901,27 +939,27 @@ const Entities = {
                   }
               } 
           }
-          if (m._sid) { const o = G.bldById[m._sid]; if (o) tBld = o; }
+          if (m._sid) { const o = bldById[m._sid]; if (o) tBld = o; }
         } else m._sb = -1;
-        
+
         if (tBld && tBld.id === 'park') {
-            tBld = G.bldById['open_square'] || G.bldById['cafe'] || defaultHq;
+            tBld = bldById['open_square'] || bldById['cafe'] || defaultHq;
             m._sid = tBld ? tBld.id : null;
         }
 
         if (!tBld && BLDS && BLDS.length > 0) tBld = BLDS[0];
-        if (!tBld) return; 
-  
+        if (!tBld) continue;
+
         const isIn = ai.indoor; const isR = stg === 'retired';
         const isRm = stg === 'rumored';
         if (isIn && !isR) { if (!occ[tBld.id]) occ[tBld.id] = [];
         occ[tBld.id].push({ name: m.name, lab: m.lab, act }); }
-  
-        const refs = G.charRefs[m.id];
-        if (!refs) return;
-        
+
+        const refs = charRefs[m.id];
+        if (!refs) continue;
+
         if (typeof refs._metroState === 'undefined') refs._metroState = 'none';
-        if (typeof refs._logicalY === 'undefined') refs._logicalY = G.groundY - 20;
+        if (typeof refs._logicalY === 'undefined') refs._logicalY = groundY - 20;
 
         // ─── VIEWPORT CULLING: Skip expensive updates for off-screen characters ───
         // Only 'riding' metro state needs frame-perfect sync (position relative to train).
@@ -932,11 +970,11 @@ const Entities = {
         if (!isOnScreen && !isRiding) {
             if (refs.bld !== null && refs.c.visible === false) {
                 // Off-screen + inside a building — rarely update (every 120 frames)
-                if (G.tick % 120 !== (i % 120)) return;
+                if (tick % 120 !== (i % 120)) continue;
             } else {
                 // Off-screen + outdoor or at station — throttle to ~10fps
                 // Walking distance per update is unchanged; only frame cadence drops
-                if (G.tick % 6 !== (i % 6)) return;
+                if (tick % 6 !== (i % 6)) continue;
             }
         }
         // Kept for downstream compatibility (line 1095 chat detection uses isOnScreen)
@@ -948,7 +986,7 @@ const Entities = {
 
         if (!refs._initPos) {
             refs.c.x = buildingTargetX;
-            refs._logicalY = G.groundY - 20;
+            refs._logicalY = groundY - 20;
             refs._initPos = true;
             refs._metroState = 'none';
             refs._metroLegs = null;
@@ -961,7 +999,7 @@ const Entities = {
             if (isInside) {
                 refs.wantsToLeave = true;
                 if (G.activeInterior !== refs.bld) {
-                    const b = G.bldById[refs.bld];
+                    const b = bldById[refs.bld];
                     if (b) refs.c.x = b.x + (b.w / 2);
                     refs.bld = null;
                     refs.wantsToLeave = false;
@@ -973,25 +1011,8 @@ const Entities = {
                 refs.c.visible = true;
                 
                 let finalTargetX = buildingTargetX;
-                let finalTargetY = G.groundY - 20;
-                let freezeX = false; 
-
-                const mResX = G.bldById['metro_res'] ? G.bldById['metro_res'].x + (G.bldById['metro_res'].w / 2) : 1350;
-                const mHqX = G.bldById['metro_hq'] ? G.bldById['metro_hq'].x + (G.bldById['metro_hq'].w / 2) : 4700;
-                const mEastX = G.bldById['metro_east'] ? G.bldById['metro_east'].x + (G.bldById['metro_east'].w / 2) : 7000;
-                const mDcX = G.bldById['metro_dc'] ? G.bldById['metro_dc'].x + (G.bldById['metro_dc'].w / 2) : null;
-                const mMidX = G.bldById['metro_mid'] ? G.bldById['metro_mid'].x + (G.bldById['metro_mid'].w / 2) : null;
-                const mLongX = G.bldById['metro_longevity'] ? G.bldById['metro_longevity'].x + (G.bldById['metro_longevity'].w / 2) : null;
-
-                // 5 regions: 0=DC/Space (left of res), 1=Residential, 2=Tech, 3=East, 4=Longevity terminus
-                const getRegion = (x) => {
-                    if (mDcX && x < (mDcX + mResX) / 2) return 0;
-                    if (x < (mResX + mHqX) / 2) return 1;
-                    if (mMidX && x < (mMidX + mEastX) / 2) return 2;
-                    if (x < (mHqX + mEastX) / 2) return 2;
-                    if (mLongX && x > (mEastX + mLongX) / 2) return 4;
-                    return 3;
-                };
+                let finalTargetY = groundY - 20;
+                let freezeX = false;
 
                 if (refs._metroState === 'none' && !refs._metroLegs && !isR) {
                     let myReg = getRegion(refs.c.x);
@@ -1033,7 +1054,7 @@ const Entities = {
 
                 const platformMaxSpread = 120;
                 const stationSpread = Math.max(-platformMaxSpread, Math.min(platformMaxSpread, pseudoRandomOffset * 1.2)); 
-                const platformY = G.groundY + 112; 
+                const platformY = groundY + 112;
 
                 if (refs._metroLegs && refs._metroLegs.length > 0) {
                     let s1 = refs._metroLegs[refs._currentLeg];
@@ -1055,7 +1076,7 @@ const Entities = {
                             finalTargetY = platformY;
                             if (refs._logicalY >= platformY - 5) refs._metroState = 'waiting_train';
                         } else {
-                            finalTargetY = G.groundY - 20; 
+                            finalTargetY = groundY - 20;
                         }
                     } else if (refs._metroState === 'waiting_train') {
                         finalTargetX = s1 + stationSpread;
@@ -1099,7 +1120,7 @@ const Entities = {
                     } else if (refs._metroState === 'exiting') {
                         let currentStationX = refs._metroLegs[refs._currentLeg];
                         finalTargetX = currentStationX;
-                        finalTargetY = G.groundY - 20;
+                        finalTargetY = groundY - 20;
                         refs.c.x = currentStationX;
                         freezeX = true; 
                         if (refs._logicalY <= finalTargetY + 5) {
@@ -1127,20 +1148,20 @@ const Entities = {
                         refs.elev.visible = false;
                     }
 
-                    if (!isR && refs._streetState === 'walking' && isOnScreen && G.tick % 30 === (i % 30)) {
+                    if (!isR && refs._streetState === 'walking' && isOnScreen && tick % 30 === (i % 30)) {
                         const myId = m.id;
                         const myX = refs.c.x;
                         // Only search a limited window of models, not all 730
                         let partnerObj = null;
-                        for (let si = Math.max(0, i - 25); si < Math.min(G.models.length, i + 25); si++) {
-                            const otherM = G.models[si];
+                        for (let si = Math.max(0, i - 25); si < Math.min(modelsLen, i + 25); si++) {
+                            const otherM = models[si];
                             if (otherM.id === myId) continue;
-                            const otherRefs = G.charRefs[otherM.id];
+                            const otherRefs = charRefs[otherM.id];
                             if (!otherRefs || !otherRefs.c.visible || otherRefs._streetState !== 'walking' || otherRefs._chatTimer > 0) continue;
                             if (Math.abs(otherRefs.c.x - myX) < 30) { partnerObj = otherM; break; }
                         }
                         if (partnerObj && Math.random() < 0.05) {
-                            const partnerRefs = G.charRefs[partnerObj.id];
+                            const partnerRefs = charRefs[partnerObj.id];
                             refs._streetState = 'chatting';
                             partnerRefs._streetState = 'chatting';
                             refs._chatTimer = 180 + Math.random() * 120;
@@ -1148,8 +1169,8 @@ const Entities = {
                             refs.c.scale.x = Math.sign(partnerRefs.c.x - refs.c.x) || 1;
                             partnerRefs.c.scale.x = Math.sign(refs.c.x - partnerRefs.c.x) || -1;
                             const streetTopics = ["Going to HQ?", "Did you see the benchmarks?", "Market is volatile.", "I need an update.", "Heading to the cafe."];
-                            G.chatBubbles[m.id] = { msg: streetTopics[Math.floor(Math.random() * streetTopics.length)], expire: G.tick + 100 };
-                            setTimeout(() => { 
+                            chatBubbles[m.id] = { msg: streetTopics[Math.floor(Math.random() * streetTopics.length)], expire: tick + 100 };
+                            setTimeout(() => {
                                 if (!G.activeInterior && partnerRefs._streetState === 'chatting') {
                                     const replies = ["Yeah.", "I know right?", "See you later.", "Compute is scarce.", "Indeed."];
                                     G.chatBubbles[partnerObj.id] = { msg: replies[Math.floor(Math.random() * replies.length)], expire: G.tick + 100 };
@@ -1159,37 +1180,37 @@ const Entities = {
                     }
 
                     let wobble = 0;
-                    const weatherSpeedMod = (typeof Environment !== 'undefined' && Environment.weather === 'snow') ? 0.6 : 1;
+                    const weatherSpeedMod = envWeather === 'snow' ? 0.6 : 1;
                     const pScale = refs.paramScale || 1.0;
-                    const personalitySpd = (typeof Personality !== 'undefined') ? Personality.getSpeedMod(m) : 1;
+                    const personalitySpd = hasPers ? Personality.getSpeedMod(m) : 1;
                     const pSpeedMod = (1.4 - (pScale * 0.3)) * personalitySpd;
 
                     if (refs._metroState === 'none' && !refs._metroLegs) {
-                        const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (typeof Environment !== 'undefined' && Environment.weather === 'rain' && act === 'commute' ? 1.5 : 1);
-                        const wAmt = (act === 'commute' ? (typeof Environment !== 'undefined' && Environment.weather === 'rain' ? 120 : 80) : (isSocial ? 50 : 20)) * pScale;
-                        wobble = Math.sin(i * 1.7 + G.tick * ws) * wAmt;
+                        const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (envWeather === 'rain' && act === 'commute' ? 1.5 : 1);
+                        const wAmt = (act === 'commute' ? (envWeather === 'rain' ? 120 : 80) : (isSocial ? 50 : 20)) * pScale;
+                        wobble = Math.sin(i * 1.7 + tick * ws) * wAmt;
                     }
 
                     const currentTargetX = finalTargetX + wobble;
                     const distX = currentTargetX - refs.c.x;
                     
                     let currentDir = 1;
-                    let bobY = isR ? (Math.sin(G.tick * 0.05 + i) * 8 + 15) : (Math.sin(G.tick * 0.06) * 2);
-                    let legA = isR ? 0 : Math.sin(G.tick * .12 * weatherSpeedMod * pSpeedMod) * 2 * pScale;
+                    let bobY = isR ? (Math.sin(tick * 0.05 + i) * 8 + 15) : (Math.sin(tick * 0.06) * 2);
+                    let legA = isR ? 0 : Math.sin(tick * .12 * weatherSpeedMod * pSpeedMod) * 2 * pScale;
                     let depthOffset = (i * 37) % 24;
                     if (refs._metroState !== 'none' && refs._metroState !== 'riding') {
-                        depthOffset = (i * 37) % 6; 
+                        depthOffset = (i * 37) % 6;
                     }
 
                     let isSitting = false;
 
                     if (refs._metroState === 'riding') {
                         currentDir = refs._ridingTrain ? refs._ridingTrain.dir : 1;
-                        bobY = 0; 
+                        bobY = 0;
                         legA = 0;
-                        depthOffset = 0; 
+                        depthOffset = 0;
                         isSitting = true;
-                        refs._logicalY = G.groundY + 120 + 4; 
+                        refs._logicalY = groundY + 120 + 4;
                     } else if (refs._streetState === 'chatting') {
                         refs._chatTimer--;
                         if (refs._chatTimer <= 0) {
@@ -1197,42 +1218,44 @@ const Entities = {
                             refs._chatTimer = 100;
                         }
                         currentDir = refs.c.scale.x;
-                        bobY = Math.sin(G.tick * 0.02 + i) * 1;
-                        legA = 0; 
+                        bobY = Math.sin(tick * 0.02 + i) * 1;
+                        legA = 0;
                     } else {
                         const walkSpeed = sd.speed * weatherSpeedMod * pSpeedMod * (act === 'commute' ? 1.5 : 1);
-                        
+
                         if (!freezeX) {
                             if (Math.abs(distX) > walkSpeed) {
                                 refs.c.x += Math.sign(distX) * walkSpeed;
                                 currentDir = Math.sign(distX);
-                                legA = isR ? 0 : Math.sin(G.tick * 0.15 * weatherSpeedMod * pSpeedMod) * 2 * pScale; 
+                                legA = isR ? 0 : Math.sin(tick * 0.15 * weatherSpeedMod * pSpeedMod) * 2 * pScale;
                             } else {
                                 refs.c.x = currentTargetX;
                                 currentDir = Math.sign(distX) || 1;
                                 if (wobble !== 0) {
-                                    const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (typeof Environment !== 'undefined' && Environment.weather === 'rain' && act === 'commute' ? 1.5 : 1);
-                                    currentDir = Math.cos(i * 1.7 + G.tick * ws) > 0 ? 1 : -1;
+                                    const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (envWeather === 'rain' && act === 'commute' ? 1.5 : 1);
+                                    currentDir = Math.cos(i * 1.7 + tick * ws) > 0 ? 1 : -1;
                                 }
                             }
                         }
 
                         const distY = finalTargetY - refs._logicalY;
                         if (Math.abs(distY) > 3) {
-                            refs._logicalY += Math.sign(distY) * 3; 
-                            bobY = 0; legA = 0; 
+                            refs._logicalY += Math.sign(distY) * 3;
+                            bobY = 0; legA = 0;
                         } else {
-                            refs._logicalY = finalTargetY; 
+                            refs._logicalY = finalTargetY;
                         }
                     }
-                    
+
                     refs.c.y = refs._logicalY - bobY + depthOffset;
                     refs.c.scale.x = currentDir;
-                    refs.c.zIndex = Math.round(refs.c.y);
+                    // Only update zIndex when y actually changed (avoids marking container sort-dirty)
+                    const newZ = Math.round(refs.c.y);
+                    if (refs.c.zIndex !== newZ) refs.c.zIndex = newZ;
                     // Layer-swap: move to metroRiderCont when underground so models render
                     // behind groundGfx (only visible through tunnel cavity) and INSIDE trains
                     // (riderCont sits between train body and front panel in trainLayer)
-                    const isUnderground = refs._metroState !== 'none' && refs._logicalY > G.groundY;
+                    const isUnderground = refs._metroState !== 'none' && refs._logicalY > groundY;
                     const riderLayer = this.metroRiderCont || this.trainLayer;
                     if (isUnderground && !refs._inTrainLayer) {
                         riderLayer.addChild(refs.c);
@@ -1266,43 +1289,44 @@ const Entities = {
                         refs.head.y = -h;
                     }
                     
-                    refs.c.alpha = isR ? (0.35 + Math.abs(Math.sin(G.tick * 0.03 + i)) * 0.45) : isRm ? .55 : 1;
-                    refs.c.blendMode = isR ? PIXI.BLEND_MODES.ADD : PIXI.BLEND_MODES.NORMAL;
+                    refs.c.alpha = isR ? (0.35 + Math.abs(Math.sin(tick * 0.03 + i)) * 0.45) : isRm ? .55 : 1;
+                    if (isR) { if (refs.c.blendMode !== PIXI.BLEND_MODES.ADD) refs.c.blendMode = PIXI.BLEND_MODES.ADD; }
+                    else { if (refs.c.blendMode !== PIXI.BLEND_MODES.NORMAL) refs.c.blendMode = PIXI.BLEND_MODES.NORMAL; }
                     // Ghost glow pulse
                     if (isR && refs.ghostGlow && refs.ghostGlow.visible) {
-                        refs.ghostGlow.alpha = 0.08 + Math.abs(Math.sin(G.tick * 0.025 + i * 0.7)) * 0.12;
+                        refs.ghostGlow.alpha = 0.08 + Math.abs(Math.sin(tick * 0.025 + i * 0.7)) * 0.12;
                     }
-                    
+
                     if (refs.isMoE && refs.c.visible && refs._metroState === 'none' && !isR) {
                         refs.ghostL.visible = true;
                         refs.ghostR.visible = true;
                         const bw = Math.round(16 * sc * pScale);
-                        const splitAmt = Math.abs(distX) > 0.5 ? (bw * 0.7) : (bw * 0.2); 
-                        
-                        refs.ghostL.x = -splitAmt + Math.sin(G.tick * 0.1 + i) * 3;
-                        refs.ghostR.x = splitAmt + Math.cos(G.tick * 0.1 + i) * 3;
-                        refs.ghostL.alpha = 0.4 + Math.sin(G.tick * 0.05 + i) * 0.2;
-                        refs.ghostR.alpha = 0.4 + Math.cos(G.tick * 0.05 + i) * 0.2;
-                        
-                        refs.ghostL.y = refs.body.y + Math.sin(G.tick * 0.2) * 2;
-                        refs.ghostR.y = refs.body.y + Math.cos(G.tick * 0.2) * 2;
+                        const splitAmt = Math.abs(distX) > 0.5 ? (bw * 0.7) : (bw * 0.2);
+
+                        refs.ghostL.x = -splitAmt + Math.sin(tick * 0.1 + i) * 3;
+                        refs.ghostR.x = splitAmt + Math.cos(tick * 0.1 + i) * 3;
+                        refs.ghostL.alpha = 0.4 + Math.sin(tick * 0.05 + i) * 0.2;
+                        refs.ghostR.alpha = 0.4 + Math.cos(tick * 0.05 + i) * 0.2;
+
+                        refs.ghostL.y = refs.body.y + Math.sin(tick * 0.2) * 2;
+                        refs.ghostR.y = refs.body.y + Math.cos(tick * 0.2) * 2;
                     } else {
                         refs.ghostL.visible = false;
                         refs.ghostR.visible = false;
                     }
-                    
+
                     const isOutside = !isIn && !isR && refs._metroState === 'none' && refs.c.visible;
-                    
-                    if (isOutside && typeof Environment !== 'undefined' && Environment.weather === 'rain') {
+
+                    if (isOutside && envWeather === 'rain') {
                         refs.umbrella.visible = true;
-                        refs.umbrella.rotation = (currentDir === 1 ? 0.1 : -0.1) + Math.sin(G.tick * 0.1 + i) * 0.05;
+                        refs.umbrella.rotation = (currentDir === 1 ? 0.1 : -0.1) + Math.sin(tick * 0.1 + i) * 0.05;
                     } else {
                         refs.umbrella.visible = false;
                     }
 
                     if (!m.os && isOutside && act === 'commute') {
                         refs.briefcase.visible = true;
-                        refs.briefcase.rotation = Math.sin(G.tick * 0.15 * (1.4 - (pScale*0.3))) * 0.2;
+                        refs.briefcase.rotation = Math.sin(tick * 0.15 * (1.4 - (pScale*0.3))) * 0.2;
                     } else {
                         refs.briefcase.visible = false;
                     }
@@ -1322,17 +1346,17 @@ const Entities = {
             EntitiesGfx.spawnDataCube(m, refs, this.charLayer, this.dataCubes);
         }
 
-        const bub = G.chatBubbles[m.id];
-        const hasBub = bub && bub.expire > G.tick;
-        if (hasBub && refs._chatMsg !== bub.msg) { 
+        const bub = chatBubbles[m.id];
+        const hasBub = bub && bub.expire > tick;
+        if (hasBub && refs._chatMsg !== bub.msg) {
             EntitiesGfx.updateChatBubbleVisuals(refs, bub.msg);
-            refs.chat.visible = true; 
-            refs.chat.y = -32 * sc * (refs.paramScale||1) - 14; 
+            refs.chat.visible = true;
+            refs.chat.y = -32 * sc * (refs.paramScale||1) - 14;
             refs._chatMsg = bub.msg;
-        } else if (!hasBub && refs._chatMsg) { 
+        } else if (!hasBub && refs._chatMsg) {
             refs.chat.visible = false;
-            refs._chatMsg = null; 
-            delete G.chatBubbles[m.id]; 
+            refs._chatMsg = null;
+            delete chatBubbles[m.id];
         }
         
         refs.chat.scale.x = refs.c.scale.x > 0 ? 1 : -1;
@@ -1344,7 +1368,7 @@ const Entities = {
             const colHex = parseInt(lab.color.slice(1), 16);
             EntitiesGfx.updateCharStateVisuals(m, refs, stg, isR, isRm, sc, sd, colHex);
         }
-      });
+      }
       
       if (this.dataCubes) {
           for (let i = this.dataCubes.length - 1; i >= 0; i--) {

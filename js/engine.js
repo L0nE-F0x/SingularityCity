@@ -1718,40 +1718,71 @@ const G = {
           SND.setAmbient(zone);
       }
 
+      // Cull BEFORE entity updates — renderable flags let entities.js skip more work
+      this._cullOffScreen();
+
       const dp = this.getDayPhase();
-      const night = dp > .83 || dp < .25; 
+      const night = dp > .83 || dp < .25;
       const targetLightAlpha = night ? 1 : 0;
       this.lightLayer.alpha += (targetLightAlpha - this.lightLayer.alpha) * 0.05;
 
-      let occ = {};
-      if (typeof Entities !== 'undefined') occ = Entities.update(dp, night);
-      if (typeof Environment !== 'undefined') Environment.update(dp, night, occ);
-      if (typeof SpaceEntities !== 'undefined') SpaceEntities.update();
-      if (typeof NPCHousing !== 'undefined') NPCHousing.update(dp);
-      if (typeof StreetVendors !== 'undefined') StreetVendors.update(dp);
-      if (typeof PortEnv !== 'undefined') PortEnv.update();
-      if (typeof PowerEnv !== 'undefined') PowerEnv.update();
-      if (typeof VCRowEnv !== 'undefined') VCRowEnv.update();
-      if (typeof BackboneEnv !== 'undefined') BackboneEnv.update();
-      if (typeof BackboneZone !== 'undefined') BackboneZone.update();
-      if (typeof RoboticsEnv !== 'undefined') RoboticsEnv.update();
-      if (typeof RoboticsZone !== 'undefined') RoboticsZone.update();
-      if (typeof LongevityEnv !== 'undefined') LongevityEnv.update();
-      if (typeof LongevityZone !== 'undefined') LongevityZone.update();
-      if (typeof XRayMode !== 'undefined') XRayMode.update();
-      if (typeof VCRow !== 'undefined') { VCRow.update(); VCRow.updateCommuters(dp); }
-      if (typeof Multiplayer !== 'undefined') Multiplayer.update();
-      if (typeof SeasonalEnv !== 'undefined') SeasonalEnv.update();
-      if (typeof Aurora !== 'undefined') Aurora.draw(night);
-      if (typeof UniversityData !== 'undefined') UniversityData.update();
-      if (typeof UniversityEnv !== 'undefined') UniversityEnv.update();
-      if (typeof CourtData !== 'undefined') CourtData.update();
-      if (typeof ConferenceData !== 'undefined') ConferenceData.update();
+      // ─── Cache subsystem references once (avoids ~30 typeof checks per frame) ───
+      if (!this._subsys) {
+          this._subsys = {
+              Entities: typeof Entities !== 'undefined' ? Entities : null,
+              Environment: typeof Environment !== 'undefined' ? Environment : null,
+              SpaceEntities: typeof SpaceEntities !== 'undefined' ? SpaceEntities : null,
+              NPCHousing: typeof NPCHousing !== 'undefined' ? NPCHousing : null,
+              StreetVendors: typeof StreetVendors !== 'undefined' ? StreetVendors : null,
+              PortEnv: typeof PortEnv !== 'undefined' ? PortEnv : null,
+              PowerEnv: typeof PowerEnv !== 'undefined' ? PowerEnv : null,
+              VCRowEnv: typeof VCRowEnv !== 'undefined' ? VCRowEnv : null,
+              BackboneEnv: typeof BackboneEnv !== 'undefined' ? BackboneEnv : null,
+              BackboneZone: typeof BackboneZone !== 'undefined' ? BackboneZone : null,
+              RoboticsEnv: typeof RoboticsEnv !== 'undefined' ? RoboticsEnv : null,
+              RoboticsZone: typeof RoboticsZone !== 'undefined' ? RoboticsZone : null,
+              LongevityEnv: typeof LongevityEnv !== 'undefined' ? LongevityEnv : null,
+              LongevityZone: typeof LongevityZone !== 'undefined' ? LongevityZone : null,
+              XRayMode: typeof XRayMode !== 'undefined' ? XRayMode : null,
+              VCRow: typeof VCRow !== 'undefined' ? VCRow : null,
+              Multiplayer: typeof Multiplayer !== 'undefined' ? Multiplayer : null,
+              SeasonalEnv: typeof SeasonalEnv !== 'undefined' ? SeasonalEnv : null,
+              Aurora: typeof Aurora !== 'undefined' ? Aurora : null,
+              UniversityData: typeof UniversityData !== 'undefined' ? UniversityData : null,
+              UniversityEnv: typeof UniversityEnv !== 'undefined' ? UniversityEnv : null,
+              CourtData: typeof CourtData !== 'undefined' ? CourtData : null,
+              ConferenceData: typeof ConferenceData !== 'undefined' ? ConferenceData : null,
+          };
+      }
+      const S = this._subsys;
 
-      // Off-screen cull pass — flip `renderable = false` on character/car/vendor
-      // containers whose world X is outside the camera viewport. PIXI skips rendering
-      // the entire subtree but transforms/state still update, so game logic is unaffected.
-      this._cullOffScreen();
+      let occ = {};
+      if (S.Entities) occ = S.Entities.update(dp, night);
+      if (S.Environment) S.Environment.update(dp, night, occ);
+      if (S.SpaceEntities) S.SpaceEntities.update();
+      if (S.NPCHousing) S.NPCHousing.update(dp);
+      if (S.StreetVendors) S.StreetVendors.update(dp);
+      if (S.PortEnv) S.PortEnv.update();
+      // Throttle purely-visual zone envs to every other frame (smooth at 30fps)
+      if (this.tick % 2 === 0) {
+          if (S.PowerEnv) S.PowerEnv.update();
+          if (S.BackboneEnv) S.BackboneEnv.update();
+          if (S.LongevityEnv) S.LongevityEnv.update();
+      }
+      if (S.VCRowEnv) S.VCRowEnv.update();
+      if (S.BackboneZone) S.BackboneZone.update();
+      if (S.RoboticsEnv) S.RoboticsEnv.update();
+      if (S.RoboticsZone) S.RoboticsZone.update();
+      if (S.LongevityZone) S.LongevityZone.update();
+      if (S.XRayMode) S.XRayMode.update();
+      if (S.VCRow) { S.VCRow.update(); S.VCRow.updateCommuters(dp); }
+      if (S.Multiplayer) S.Multiplayer.update();
+      if (S.SeasonalEnv) S.SeasonalEnv.update();
+      if (S.Aurora) S.Aurora.draw(night);
+      if (S.UniversityData) S.UniversityData.update();
+      if (S.UniversityEnv) S.UniversityEnv.update();
+      if (S.CourtData) S.CourtData.update();
+      if (S.ConferenceData) S.ConferenceData.update();
 
       // Lazy zone boot — spawn each zone's visual animations on first approach
       this._checkLazyZones();

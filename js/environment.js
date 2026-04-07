@@ -29,15 +29,36 @@ const Environment = {
 
     buildStars() {
       this.starsLayer.removeChildren();
-      for (let i = 0; i < 100; i++) { 
-        const s = new PIXI.Graphics();
-        const sz = .5 + Math.random() * 1.5; 
-        s.beginFill(0xffffff); s.drawCircle(0, 0, sz); s.endFill(); 
-        s.x = Math.random() * G.cityW;
-        s.y = Math.random() * G.vpH * .5; 
-        s.alpha = .15 + Math.random() * .5;
-        s._phase = Math.random() * Math.PI * 2; 
-        this.starsLayer.addChild(s); 
+      // Store star data for twinkling without 100 individual Graphics objects
+      this._starData = [];
+      for (let i = 0; i < 100; i++) {
+        this._starData.push({
+            x: Math.random() * G.cityW,
+            y: Math.random() * G.vpH * .5,
+            sz: .5 + Math.random() * 1.5,
+            phase: Math.random() * Math.PI * 2,
+            baseAlpha: .15 + Math.random() * .5
+        });
+      }
+      // Single Graphics object draws all stars
+      this._starsGfx = new PIXI.Graphics();
+      this._drawStars();
+      this.starsLayer.addChild(this._starsGfx);
+    },
+
+    _drawStars(tick) {
+      const g = this._starsGfx;
+      if (!g) return;
+      g.clear();
+      const stars = this._starData;
+      if (!stars) return;
+      const t = tick || 0;
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        const a = t > 0 ? (.15 + Math.abs(Math.sin(t * .03 + s.phase)) * .5) : s.baseAlpha;
+        g.beginFill(0xffffff, a);
+        g.drawCircle(s.x, s.y, s.sz);
+        g.endFill();
       }
     },
 
@@ -2255,62 +2276,78 @@ const Environment = {
       const g = this.fxGfx; g.clear(); const vw = G.vpW, vh = G.vpH, wx = -G.world.x;
       const wy = -(G.world.y || 0); // vertical camera offset in world coords
       const desert = this._getDesertRange();
-      
+      const tick = G.tick;
+      const ds = desert ? desert.start : 0;
+      const de = desert ? desert.end : 0;
+
       // ─── CITY WEATHER (skip desert zone) ───
       if (this.weather === 'rain') {
         while (this.rainDrops.length < 150) this.rainDrops.push({ x: wx + Math.random() * vw, y: Math.random() * vh, s: 4 + Math.random() * 4 });
-        g.lineStyle(1, 0x88bbdd, 0.3); 
-        this.rainDrops.forEach(d => { 
-            d.y += d.s; d.x -= 0.8; 
+        g.lineStyle(1, 0x88bbdd, 0.3);
+        const drops = this.rainDrops;
+        for (let i = 0; i < drops.length; i++) {
+            const d = drops[i];
+            d.y += d.s; d.x -= 0.8;
             if (d.y > vh) { d.y = -10; d.x = wx + Math.random() * vw; }
-            // Skip particles that fall in the desert zone
-            if (desert && d.x >= desert.start && d.x <= desert.end) return;
-            g.moveTo(d.x, d.y); g.lineTo(d.x - 1.5, d.y + 14); 
-        });
+            if (desert && d.x >= ds && d.x <= de) continue;
+            g.moveTo(d.x, d.y); g.lineTo(d.x - 1.5, d.y + 14);
+        }
       } else if (this.weather === 'snow') {
         while (this.snowFlakes.length < 120) this.snowFlakes.push({ x: wx + Math.random() * vw, y: Math.random() * vh, s: 0.5 + Math.random() * 1.2, r: 1 + Math.random() * 2, dx: Math.random() * 0.5 - 0.25 });
-        this.snowFlakes.forEach(d => { 
-            d.y += d.s; d.x += d.dx + Math.sin(G.tick * 0.02 + d.r) * 0.3; 
-            if (d.y > vh) { d.y = -5; d.x = wx + Math.random() * vw; } 
-            if (desert && d.x >= desert.start && d.x <= desert.end) return;
-            g.beginFill(0xffffff, 0.5); g.drawCircle(d.x, d.y, d.r); g.endFill(); 
-        });
+        // Batch: single beginFill for all snowflakes (same color/alpha)
+        g.beginFill(0xffffff, 0.5);
+        const flakes = this.snowFlakes;
+        for (let i = 0; i < flakes.length; i++) {
+            const d = flakes[i];
+            d.y += d.s; d.x += d.dx + Math.sin(tick * 0.02 + d.r) * 0.3;
+            if (d.y > vh) { d.y = -5; d.x = wx + Math.random() * vw; }
+            if (desert && d.x >= ds && d.x <= de) continue;
+            g.drawCircle(d.x, d.y, d.r);
+        }
+        g.endFill();
       } else if (this.weather === 'cherry') {
         while (this.petals.length < 60) this.petals.push({ x: wx + Math.random() * vw, y: Math.random() * vh, s: 0.3 + Math.random() * 0.8, r: Math.random() * Math.PI, rot: Math.random() * 0.02 });
-        this.petals.forEach(d => { 
-            d.y += d.s; d.x += Math.sin(d.r += d.rot) * 0.5; 
-            if (d.y > vh) { d.y = -8; d.x = wx + Math.random() * vw; } 
-            if (desert && d.x >= desert.start && d.x <= desert.end) return;
-            g.beginFill(0xffb7c5, 0.5); g.drawEllipse(d.x, d.y, 3, 1.5); g.endFill(); 
-        });
+        // Batch: single beginFill for all petals
+        g.beginFill(0xffb7c5, 0.5);
+        const petals = this.petals;
+        for (let i = 0; i < petals.length; i++) {
+            const d = petals[i];
+            d.y += d.s; d.x += Math.sin(d.r += d.rot) * 0.5;
+            if (d.y > vh) { d.y = -8; d.x = wx + Math.random() * vw; }
+            if (desert && d.x >= ds && d.x <= de) continue;
+            g.drawEllipse(d.x, d.y, 3, 1.5);
+        }
+        g.endFill();
       }
-      
+
       // ─── DESERT WEATHER (sandstorm — only in desert zone) ───
       if (this.desertWeather === 'sandstorm' && desert) {
         while (this.sandParticles.length < 100) {
-            this.sandParticles.push({ 
-                x: desert.start + Math.random() * (desert.end - desert.start), 
-                y: wy + Math.random() * vh, 
+            this.sandParticles.push({
+                x: desert.start + Math.random() * (desert.end - desert.start),
+                y: wy + Math.random() * vh,
                 s: 3 + Math.random() * 5,
                 vy: (Math.random() - 0.3) * 2,
                 size: 1 + Math.random() * 3,
                 alpha: 0.1 + Math.random() * 0.4
             });
         }
-        this.sandParticles.forEach(d => { 
-            d.x += d.s; 
-            d.y += d.vy + Math.sin(G.tick * 0.03 + d.x * 0.01) * 0.5;
+        const sandP = this.sandParticles;
+        for (let i = 0; i < sandP.length; i++) {
+            const d = sandP[i];
+            d.x += d.s;
+            d.y += d.vy + Math.sin(tick * 0.03 + d.x * 0.01) * 0.5;
             // Wrap within desert zone
             if (d.x > desert.end) { d.x = desert.start; d.y = wy + Math.random() * vh; }
             if (d.y > wy + vh) d.y = wy - 5;
             if (d.y < wy - 10) d.y = wy + vh;
-            g.beginFill(0xd4a574, d.alpha); 
-            g.drawEllipse(d.x, d.y, d.size * 2, d.size * 0.6); 
-            g.endFill(); 
-        });
-        
+            g.beginFill(0xd4a574, d.alpha);
+            g.drawEllipse(d.x, d.y, d.size * 2, d.size * 0.6);
+            g.endFill();
+        }
+
         // Sandstorm haze overlay (darkens the desert) — covers full visible area
-        g.beginFill(0xc2956a, 0.06 + Math.sin(G.tick * 0.01) * 0.02);
+        g.beginFill(0xc2956a, 0.06 + Math.sin(tick * 0.01) * 0.02);
         g.drawRect(desert.start, wy - 200, desert.end - desert.start, vh + 400);
         g.endFill();
       }
@@ -2336,7 +2373,7 @@ const Environment = {
         if (sky !== this._lastSky) { this._lastSky = sky; vp.style.background = sky; }
     
         this.starsLayer.visible = night;
-        if (night && G.tick % 4 === 0) this.starsLayer.children.forEach(s => { s.alpha = .15 + Math.abs(Math.sin(G.tick * .03 + s._phase)) * .5; });
+        if (night && G.tick % 8 === 0) this._drawStars(G.tick);
         const cel = this.celestialGfx;
         const isGoldenHour = (dp >= 0.72 && dp < 0.84) || (dp >= 0.22 && dp < 0.30);
         // Throttle celestial redraws to every 3rd frame (sun moves slowly)
@@ -2387,7 +2424,20 @@ const Environment = {
         }
         } // end celestial throttle
 
-        if (G.tick % 2 === 0) this.cloudLayer.children.forEach(c => { c.x = c._bx + Math.sin(G.tick * (c._drift || .003) + c._i) * 40; const ca = (this.weather === 'rain' || this.weather === 'snow') ? .30 : .10 + Math.sin(G.tick * 0.001 + c._i) * 0.03; c.alpha = isGoldenHour ? ca + 0.08 : ca; c.tint = isGoldenHour ? 0xffcc88 : 0xffffff; });
+        if (G.tick % 2 === 0) {
+            const clouds = this.cloudLayer.children;
+            const cLen = clouds.length;
+            const _tk = G.tick;
+            const cloudAlphaBase = (this.weather === 'rain' || this.weather === 'snow') ? .30 : -1;
+            const cloudTint = isGoldenHour ? 0xffcc88 : 0xffffff;
+            for (let ci = 0; ci < cLen; ci++) {
+                const c = clouds[ci];
+                c.x = c._bx + Math.sin(_tk * (c._drift || .003) + c._i) * 40;
+                const ca = cloudAlphaBase >= 0 ? cloudAlphaBase : .10 + Math.sin(_tk * 0.001 + c._i) * 0.03;
+                c.alpha = isGoldenHour ? ca + 0.08 : ca;
+                if (c.tint !== cloudTint) c.tint = cloudTint;
+            }
+        }
         if (G.viewMode === 'micro') { this.updateWeather(); this.updateDesertWeather(); } this.drawWeather(); let targetRefAlpha = 0;
         if (night) { if (this.weather === 'rain') targetRefAlpha = 0.95; else if (this.weather === 'snow') targetRefAlpha = 0.5;
         else targetRefAlpha = 0.35; } else { if (this.weather === 'rain') targetRefAlpha = 0.4;
@@ -2434,25 +2484,30 @@ const Environment = {
                 }
             });
         }
-        // Per-frame: only cheap alpha animations (visibility-culled)
+        // ─── SINGLE UNIFIED BLDS PASS — merged from 4 separate forEach loops ───
         const camL = typeof Camera !== 'undefined' ? -Camera.x - 200 : 0;
         const camR = -Camera.x + G.vpW / (Camera.zoom || 1) + 200;
+        const tick = G.tick;
+        const doOcc = tick % 60 === 0;
+        const bldLen = BLDS.length;
 
-        // ─── CONTAINER VISIBILITY CULLING — tell PixiJS to skip rendering off-screen buildings ───
-        BLDS.forEach(b => {
-            if (!b._container) return;
-            const vis = !(b.x + b.w < camL || b.x > camR);
-            if (b._container.visible !== vis) b._container.visible = vis;
-        });
+        for (let bi = 0; bi < bldLen; bi++) {
+            const b = BLDS[bi];
+            const bRight = b.x + b.w;
+            const onScreen = !(bRight < camL || b.x > camR);
 
-        BLDS.forEach(b => {
-            // Skip buildings that are off-screen
-            if (b.x + b.w < camL || b.x > camR) return;
+            // Container visibility culling
+            if (b._container) {
+                if (b._container.visible !== onScreen) b._container.visible = onScreen;
+            }
+
+            if (!onScreen) continue;
+
             // Neon signs: always visible, flicker at night only
             if (b._neonCont) {
                 b._neonCont.visible = true;
                 if (night) {
-                    const t = G.tick * b._neonSpeed;
+                    const t = tick * b._neonSpeed;
                     const base = 0.7 + Math.sin(t) * 0.2;
                     const buzz = Math.random() < b._neonFlicker ? (Math.random() * 0.4 - 0.2) : 0;
                     const flick = Math.max(0.3, Math.min(1.0, base + buzz));
@@ -2466,77 +2521,49 @@ const Environment = {
             }
             // Lab board alpha pulse (cheap)
             if (b._boardTxt && night) {
-                b._boardTxt.alpha = 0.85 + Math.sin(G.tick * 0.04) * 0.15;
+                b._boardTxt.alpha = 0.85 + Math.sin(tick * 0.04) * 0.15;
             }
             // Metro sign alpha pulse
             if (b._metroSign && night) {
-                b._metroSign.alpha = 0.85 + Math.sin(G.tick * 0.05) * 0.15;
+                b._metroSign.alpha = 0.85 + Math.sin(tick * 0.05) * 0.15;
             }
             // Station sign alpha pulse
             if (b._stationSign && night) {
-                b._stationSign.alpha = 0.8 + Math.sin(G.tick * 0.05) * 0.2;
+                b._stationSign.alpha = 0.8 + Math.sin(tick * 0.05) * 0.2;
             }
             // DC/Fab sign alpha pulse
             if (b._dcSign && night) {
-                b._dcSign.alpha = 0.85 + Math.sin(G.tick * 0.04) * 0.15;
+                b._dcSign.alpha = 0.85 + Math.sin(tick * 0.04) * 0.15;
             }
             // Visitor monument capstone pulse
             if (b._capGlow) {
-                b._capGlow.alpha = 0.06 + Math.sin(G.tick * 0.03) * 0.04;
+                b._capGlow.alpha = 0.06 + Math.sin(tick * 0.03) * 0.04;
             }
             // Graveyard eternal flame flicker
             if (b._flame) {
-                b._flame.alpha = 0.6 + Math.sin(G.tick * 0.1) * 0.2 + Math.random() * 0.15;
-                b._flame.scale.set(0.9 + Math.sin(G.tick * 0.15) * 0.15, 0.85 + Math.sin(G.tick * 0.12) * 0.2);
+                b._flame.alpha = 0.6 + Math.sin(tick * 0.1) * 0.2 + Math.random() * 0.15;
+                b._flame.scale.set(0.9 + Math.sin(tick * 0.15) * 0.15, 0.85 + Math.sin(tick * 0.12) * 0.2);
             }
-        });
-        
-        if (G.tick % 60 === 0) { 
-            BLDS.forEach(b => { 
-                const list = occ[b.id] || []; const ct = list.length; 
-                if (b._sign && b._sign.text !== undefined) { 
-                    if (ct > 0) b._sign.text = `${b.name} [${ct}]`; else b._sign.text = b.name; b._sign.scale.set(1); 
-                    if (b._sign.width > b.w - 4) b._sign.scale.set((b.w - 4) / b._sign.width); 
-                } 
-                if (b._winFaces && b._wins) { 
-                    b._winFaces.clear(); b._wins.forEach((win, wi) => { 
-                        if (wi < ct) { 
-                            b._winFaces.beginFill(0xffffff, 0.9); b._winFaces.drawRect(win.wx, win.wy, 12, 10); b._winFaces.endFill(); b._winFaces.beginFill(0xffeaa7, 0.15); b._winFaces.drawRect(win.wx - 1, win.wy - 1, 14, 12); b._winFaces.endFill(); 
-                        } 
-                    }); 
-                    if (b._winTexts) { 
-                        b._winTexts.forEach((t, wi) => { 
-                            if (wi < ct) { 
-                                const occ_item = list[wi]; const ai = ACTS[occ_item?.act]; t.text = ai ? ai.icon : '💻'; t.visible = true; 
-                            } else { 
-                                t.visible = false; 
-                            } 
-                        }); 
-                    } 
-                } 
-            });
-            if (G.bloomFilter) { 
-                const targetBloom = night ? 1.8 : 0.8; G.bloomFilter.bloomScale += (targetBloom - G.bloomFilter.bloomScale) * 0.05;
-            } 
-        } 
-        
-        BLDS.forEach(b => {
-            if (b.x + b.w < camL || b.x > camR) return;
+
+            // Beacon/crown animation
             if (b._beacon && b._beacon.beam && !b._beacon.beam.destroyed) {
-                b._beacon.beam.alpha = 0.7 + Math.sin(G.tick * 0.1) * 0.3;
+                b._beacon.beam.alpha = 0.7 + Math.sin(tick * 0.1) * 0.3;
                 if (b._beacon.crown && !b._beacon.crown.destroyed) {
-                    b._beacon.crown.scale.set(1 + Math.sin(G.tick * 0.05) * 0.1); b._beacon.crown.y = -120 + Math.sin(G.tick * 0.08) * 5;
+                    b._beacon.crown.scale.set(1 + Math.sin(tick * 0.05) * 0.1);
+                    b._beacon.crown.y = -120 + Math.sin(tick * 0.08) * 5;
                 }
             }
+            // Stock ticker scroll
             if (b._stockTicker && b._tickerW && !b._stockTicker.destroyed) {
                 b._stockTicker.x -= 0.6;
                 if (b._stockTicker.x + b._stockTicker.width < 0) {
                     b._stockTicker.x = b._tickerW;
                 }
-                if (G.tick % 60 === 0 && typeof API !== 'undefined' && API.stockPrices && API.stockPrices[b._tickerSym]) {
+                if (doOcc && typeof API !== 'undefined' && API.stockPrices && API.stockPrices[b._tickerSym]) {
                     const sd = API.stockPrices[b._tickerSym]; b._stockTicker.text = `${b._tickerSym} $${sd.price} [${sd.change}]`; b._stockTicker.style.fill = sd.color; b._stockTicker.style.stroke = sd.color; b._stockTicker.style.dropShadow = true; b._stockTicker.style.dropShadowColor = sd.color; b._stockTicker.style.dropShadowBlur = 10;
                 }
             }
+            // VC ticker scroll
             if (b._vcTicker && b._vcTickerW && !b._vcTicker.destroyed) {
                 b._vcTicker.x -= 0.6;
                 if (b._vcTicker.x + b._vcTicker.width < 0) {
@@ -2544,6 +2571,7 @@ const Environment = {
                     b._vcTicker.x = b._vcTickerW;
                 }
             }
+            // Backbone ticker scroll
             if (b._bkTicker && b._bkTickerW && !b._bkTicker.destroyed) {
                 b._bkTicker.x -= 0.5;
                 if (b._bkTicker.x + b._bkTicker.width < 0) {
@@ -2551,7 +2579,42 @@ const Environment = {
                     b._bkTicker.x = b._bkTickerW;
                 }
             }
-        });
+
+            // Occupancy updates (every 60 frames)
+            if (doOcc) {
+                const list = occ[b.id] || []; const ct = list.length;
+                if (b._sign && b._sign.text !== undefined) {
+                    if (ct > 0) b._sign.text = `${b.name} [${ct}]`; else b._sign.text = b.name; b._sign.scale.set(1);
+                    if (b._sign.width > b.w - 4) b._sign.scale.set((b.w - 4) / b._sign.width);
+                }
+                if (b._winFaces && b._wins) {
+                    b._winFaces.clear();
+                    const wins = b._wins;
+                    const wLen = wins.length;
+                    for (let wi = 0; wi < wLen; wi++) {
+                        if (wi < ct) {
+                            const win = wins[wi];
+                            b._winFaces.beginFill(0xffffff, 0.9); b._winFaces.drawRect(win.wx, win.wy, 12, 10); b._winFaces.endFill();
+                            b._winFaces.beginFill(0xffeaa7, 0.15); b._winFaces.drawRect(win.wx - 1, win.wy - 1, 14, 12); b._winFaces.endFill();
+                        }
+                    }
+                    if (b._winTexts) {
+                        const wtLen = b._winTexts.length;
+                        for (let wi = 0; wi < wtLen; wi++) {
+                            const t = b._winTexts[wi];
+                            if (wi < ct) {
+                                const occ_item = list[wi]; const ai = ACTS[occ_item?.act]; t.text = ai ? ai.icon : '💻'; t.visible = true;
+                            } else {
+                                t.visible = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (doOcc && G.bloomFilter) {
+            const targetBloom = night ? 1.8 : 0.8; G.bloomFilter.bloomScale += (targetBloom - G.bloomFilter.bloomScale) * 0.05;
+        }
         
         if (G.tick % 120 === 0) { 
             const park = G.bldById['park'];
