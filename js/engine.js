@@ -1478,6 +1478,11 @@ const G = {
               Camera.targetX = this.savedCamX;
           }
       }
+
+      // Kardashev Scale — build HUD gauge after initial data loads
+      if (typeof Kardashev !== 'undefined') {
+          setTimeout(() => { const K = window.Kardashev; if (K) { K.calculate(); K.buildHUD(); K.updateHUD(); } }, 8000);
+      }
       
       if (typeof API !== 'undefined') {
           API.fetchLiveNews();
@@ -1753,6 +1758,7 @@ const G = {
               UniversityEnv: typeof UniversityEnv !== 'undefined' ? UniversityEnv : null,
               CourtData: typeof CourtData !== 'undefined' ? CourtData : null,
               ConferenceData: typeof ConferenceData !== 'undefined' ? ConferenceData : null,
+              Kardashev: window.Kardashev || null,
           };
       }
       const S = this._subsys;
@@ -1784,6 +1790,7 @@ const G = {
       if (S.UniversityEnv) S.UniversityEnv.update();
       if (S.CourtData) S.CourtData.update();
       if (S.ConferenceData) S.ConferenceData.update();
+      if (S.Kardashev) S.Kardashev.tick();
 
       // Lazy zone boot — spawn each zone's visual animations on first approach
       this._checkLazyZones();
