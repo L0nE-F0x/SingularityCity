@@ -1021,7 +1021,7 @@ const API = {
         }
     },
 
-    // ═══ GLOBAL POWER GRID — via Netlify serverless proxy (queries Overpass API server-side) ═══
+    // ═══ GLOBAL POWER GRID — Supabase (auto-refreshed weekly) + static fallback ═══
     _gridData: null,
     _gridTs: 0,
 
@@ -1031,16 +1031,37 @@ const API = {
 
         console.log('⚡ Loading global power grid data…');
 
+        // Try Supabase first (auto-refreshed weekly by scheduled function)
         try {
-            const r = await fetch('/data/global-grid.json', { signal: AbortSignal.timeout(15000) });
+            const sbUrl = G.supabaseUrl;
+            const sbKey = G.supabaseKey;
+            if (sbUrl && sbKey) {
+                const r = await fetch(
+                    `${sbUrl}/rest/v1/grid_data?id=eq.global&select=data,updated_at`,
+                    { headers: { 'apikey': sbKey }, signal: AbortSignal.timeout(8000) }
+                );
+                if (r.ok) {
+                    const rows = await r.json();
+                    if (rows.length > 0 && rows[0].data) {
+                        this._gridData = rows[0].data;
+                        this._gridData._updatedAt = rows[0].updated_at;
+                        this._gridTs = Date.now();
+                        console.log(`⚡ Global grid (live): ${this._gridData.plantCount.toLocaleString()} plants, ${Math.round(this._gridData.totalMW / 1000).toLocaleString()} GW, ${this._gridData.renewPct}% renewable`);
+                        if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${this._gridData.plantCount.toLocaleString()} plants across ${this._gridData.regionsScanned} regions (live data)`);
+                        return;
+                    }
+                }
+            }
+        } catch (_e) { /* fall through to static */ }
+
+        // Fallback: static bundled dataset
+        try {
+            const r = await fetch('/data/global-grid.json', { signal: AbortSignal.timeout(10000) });
             if (!r.ok) throw new Error('http-' + r.status);
-            const data = await r.json();
-
-            this._gridData = data;
+            this._gridData = await r.json();
             this._gridTs = Date.now();
-
-            if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${data.plantCount.toLocaleString()} power plants across ${data.regionsScanned} regions`);
-            console.log(`⚡ Global grid: ${data.plantCount.toLocaleString()} plants, ${Math.round(data.totalMW / 1000).toLocaleString()} GW, ${data.renewPct.toFixed(1)}% renewable`);
+            console.log(`⚡ Global grid (static): ${this._gridData.plantCount.toLocaleString()} plants, ${Math.round(this._gridData.totalMW / 1000).toLocaleString()} GW, ${this._gridData.renewPct}% renewable`);
+            if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${this._gridData.plantCount.toLocaleString()} power plants across ${this._gridData.regionsScanned} regions`);
         } catch (e) {
             console.debug('⚡ Grid data load failed:', e.message);
         }
