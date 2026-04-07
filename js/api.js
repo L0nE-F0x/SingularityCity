@@ -1021,54 +1021,6 @@ const API = {
         }
     },
 
-    // ═══ LIVE GRID DATA — UK Carbon Intensity API (free, no key, CORS-enabled) ═══
-    _liveGrid: null,
-    _liveGridTs: 0,
-
-    async fetchGridData() {
-        try {
-            const [genRes, intRes] = await Promise.all([
-                fetch('https://api.carbonintensity.org.uk/generation', { signal: AbortSignal.timeout(8000) }),
-                fetch('https://api.carbonintensity.org.uk/intensity',  { signal: AbortSignal.timeout(8000) })
-            ]);
-            if (!genRes.ok || !intRes.ok) return;
-            const gen = await genRes.json();
-            const intensity = await intRes.json();
-            const mix = gen?.data?.generationmix;
-            const ci  = intensity?.data?.[0]?.intensity;
-            if (!Array.isArray(mix)) return;
-
-            // Build lookup: fuel → percentage
-            const byFuel = {};
-            mix.forEach(m => { byFuel[m.fuel] = m.perc; });
-
-            // Map to game sources + extras
-            const mapped = [
-                { fuel: 'nuclear', emoji: '☢️',  name: 'Nuclear',  perc: byFuel.nuclear || 0, type: 'baseload',  color: '#22d3ee' },
-                { fuel: 'wind',    emoji: '💨',  name: 'Wind',     perc: byFuel.wind    || 0, type: 'renewable', color: '#4ade80' },
-                { fuel: 'solar',   emoji: '☀️',  name: 'Solar',    perc: byFuel.solar   || 0, type: 'renewable', color: '#fbbf24' },
-                { fuel: 'hydro',   emoji: '🌊',  name: 'Hydro',    perc: byFuel.hydro   || 0, type: 'renewable', color: '#06b6d4' },
-                { fuel: 'gas',     emoji: '🔥',  name: 'Gas',      perc: byFuel.gas     || 0, type: 'fossil',    color: '#f97316' },
-                { fuel: 'coal',    emoji: '🏭',  name: 'Coal',     perc: byFuel.coal    || 0, type: 'fossil',    color: '#94a3b8' },
-                { fuel: 'biomass', emoji: '🌿',  name: 'Biomass',  perc: byFuel.biomass || 0, type: 'renewable', color: '#a3e635' },
-                { fuel: 'imports', emoji: '🔌',  name: 'Imports',  perc: byFuel.imports || 0, type: 'other',     color: '#a78bfa' },
-            ];
-            // Filter out zero sources
-            const active = mapped.filter(m => m.perc > 0);
-
-            this._liveGrid = {
-                mix: active,
-                from: gen.data.from,
-                to: gen.data.to,
-                intensity: ci ? { forecast: ci.forecast, actual: ci.actual, index: ci.index } : null,
-                renewable: (byFuel.wind || 0) + (byFuel.solar || 0) + (byFuel.hydro || 0) + (byFuel.biomass || 0),
-                fossil: (byFuel.gas || 0) + (byFuel.coal || 0),
-            };
-            this._liveGridTs = Date.now();
-            console.log(`⚡ Live grid: ${active.length} sources, ${this._liveGrid.renewable.toFixed(1)}% renewable, CO₂ ${ci?.actual || '?'} gCO₂/kWh`);
-        } catch (e) { console.warn('[Grid API]', e.message); }
-    },
-
     _chatHistory: [],
 
     _mdToHtml(md) {
@@ -1854,8 +1806,7 @@ JSON (no markdown):
             this.fetchSupplyChain(),
             this.fetchRegulationNews(),
             this.fetchArxivPapers(),
-            this.fetchAIEvents(),
-            this.fetchGridData()
+            this.fetchAIEvents()
         ]).then(() => console.log('📡 Live data refresh complete'));
 
       } catch(e) {

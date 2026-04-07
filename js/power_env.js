@@ -96,7 +96,7 @@ const PowerEnv = {
         });
     },
 
-    // ─── POWER GRID PANEL (v2.0 — live data from UK Carbon Intensity API) ───
+    // ─── POWER GRID PANEL ───
     showGridPanel() {
         const p = document.getElementById('infoPanel');
         if (!p || typeof PowerZone === 'undefined') return;
@@ -111,74 +111,9 @@ const PowerEnv = {
 
         let html = '<button class="ipanel-x" onclick="UI.closePanel()">✕</button>';
         html += '<div style="text-align:center;margin-bottom:12px"><span style="font-size:20px">⚡</span><br><span style="color:var(--cy);font-size:11px;letter-spacing:2px">POWER GRID STATUS</span></div>';
-
-        // ─── LIVE GRID DATA (UK Carbon Intensity API) ───
-        const live = typeof API !== 'undefined' ? API._liveGrid : null;
-        if (live && live.mix.length > 0) {
-            const ageMin = Math.round((Date.now() - API._liveGridTs) / 60000);
-            const ciIdx = live.intensity?.index || '';
-            const ciActual = live.intensity?.actual;
-            const ciCol = ciIdx === 'very low' || ciIdx === 'low' ? '#4ade80' : ciIdx === 'moderate' ? '#facc15' : '#ef4444';
-            const renewPct = live.renewable.toFixed(1);
-            const fossilPct = live.fossil.toFixed(1);
-
-            html += '<div style="background:linear-gradient(135deg,rgba(34,211,238,0.06),transparent);border:1px solid #22d3ee33;border-radius:8px;padding:10px;margin-bottom:10px">';
-            html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
-            html += '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:7px;background:#22d3ee;color:#000;padding:2px 6px;border-radius:10px;font-weight:bold;animation:pulse 2s infinite">● LIVE</span><span style="font-size:10px;color:#fff;font-weight:bold">UK National Grid</span></div>';
-            html += '<div style="font-size:7px;color:var(--t3)">' + (ageMin < 1 ? 'just now' : ageMin + 'm ago') + '</div></div>';
-
-            // Carbon intensity badge
-            if (ciActual != null) {
-                html += '<div style="display:flex;gap:6px;margin-bottom:8px">';
-                html += '<div style="flex:1;background:var(--cd);border:1px solid var(--bd);border-radius:4px;padding:6px;text-align:center">';
-                html += '<div style="font-size:7px;color:var(--t3);margin-bottom:2px">CO₂ INTENSITY</div>';
-                html += '<div style="font-size:14px;font-weight:bold;color:' + ciCol + '">' + ciActual + '</div>';
-                html += '<div style="font-size:7px;color:var(--t3)">gCO₂/kWh · <span style="color:' + ciCol + ';text-transform:uppercase;font-weight:bold">' + ciIdx + '</span></div></div>';
-                html += '<div style="flex:1;background:var(--cd);border:1px solid var(--bd);border-radius:4px;padding:6px;text-align:center">';
-                html += '<div style="font-size:7px;color:var(--t3);margin-bottom:2px">RENEWABLE</div>';
-                html += '<div style="font-size:14px;font-weight:bold;color:#4ade80">' + renewPct + '%</div>';
-                html += '<div style="font-size:7px;color:var(--t3)">fossil: ' + fossilPct + '%</div></div></div>';
-            }
-
-            // Live generation mix — horizontal stacked bar
-            html += '<div style="display:flex;height:18px;border-radius:4px;overflow:hidden;margin-bottom:6px">';
-            live.mix.forEach(m => {
-                if (m.perc < 0.5) return;
-                html += '<div style="width:' + m.perc + '%;background:' + m.color + ';display:flex;align-items:center;justify-content:center;min-width:12px" title="' + m.name + ' ' + m.perc + '%">';
-                html += '<span style="font-size:6px;color:#000;font-weight:bold">' + (m.perc >= 5 ? Math.round(m.perc) : '') + '</span></div>';
-            });
-            html += '</div>';
-
-            // Live source table
-            html += '<table style="width:100%;border-collapse:collapse;font-size:8px;font-family:\'JetBrains Mono\',monospace">';
-            html += '<tr style="color:var(--t3);border-bottom:1px solid var(--bd)"><th style="text-align:left;padding:3px">Source</th><th style="text-align:right;padding:3px">Share</th><th style="text-align:left;padding:3px">Mix</th><th style="text-align:center;padding:3px">Type</th></tr>';
-            live.mix.forEach(m => {
-                const typeCol = m.type === 'renewable' ? '#4ade80' : m.type === 'baseload' ? '#22d3ee' : m.type === 'fossil' ? '#f59e0b' : '#a78bfa';
-                html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.03)">';
-                html += '<td style="padding:3px">' + m.emoji + ' ' + m.name + '</td>';
-                html += '<td style="text-align:right;padding:3px;color:#fff;font-weight:bold">' + m.perc.toFixed(1) + '%</td>';
-                html += '<td style="padding:3px;width:40%"><div style="background:rgba(255,255,255,0.06);border-radius:2px;height:6px;overflow:hidden"><div style="width:' + m.perc + '%;height:100%;background:' + m.color + ';border-radius:2px"></div></div></td>';
-                html += '<td style="text-align:center;padding:3px"><span style="color:' + typeCol + ';font-size:6px;font-weight:bold">' + m.type.toUpperCase() + '</span></td></tr>';
-            });
-            html += '</table>';
-
-            // Time window
-            const from = live.from ? new Date(live.from).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
-            const to = live.to ? new Date(live.to).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
-            html += '<div style="text-align:right;font-size:6px;color:var(--t3);margin-top:4px">Data: ' + from + '–' + to + ' UTC · <a href="https://carbonintensity.org.uk" target="_blank" style="color:#22d3ee;text-decoration:none">carbonintensity.org.uk</a></div>';
-            html += '</div>';
-
-            // Divider
-            html += '<div style="text-align:center;font-size:7px;color:var(--t3);margin:6px 0;border-top:1px dashed var(--bd);padding-top:6px">🎮 IN-GAME SIMULATION</div>';
-        } else {
-            // No live data — show loading hint
-            html += '<div style="text-align:center;font-size:7px;color:var(--t3);margin-bottom:8px;padding:4px;background:var(--cd);border:1px solid var(--bd);border-radius:4px">📡 Live grid data loading… <span style="cursor:pointer;color:var(--cy);text-decoration:underline" onclick="if(typeof API!==\'undefined\')API.fetchGridData().then(()=>PowerEnv.showGridPanel())">retry</span></div>';
-        }
-
-        // ─── IN-GAME SIMULATION ───
         // Balance meter
         html += '<div style="background:var(--cd);border:1px solid var(--bd);border-radius:6px;padding:8px;margin-bottom:10px;text-align:center">';
-        html += '<div style="font-size:9px;color:var(--t3);margin-bottom:4px">CITY GRID BALANCE</div>';
+        html += '<div style="font-size:9px;color:var(--t3);margin-bottom:4px">GRID BALANCE</div>';
         html += '<div style="display:flex;align-items:center;justify-content:center;gap:8px">';
         html += '<span style="font-size:16px;color:' + balCol + '">' + balIcon + '</span>';
         html += '<span style="font-size:14px;color:#fff;font-weight:bold">' + supply.toLocaleString() + ' MW</span>';
