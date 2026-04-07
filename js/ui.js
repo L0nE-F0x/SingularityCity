@@ -253,7 +253,6 @@ const UI = {
       const dp = G.getDayPhase(); 
       const { act } = getAct(stg, dp, idx, m); 
       const ai = ACTS[act] || {icon: '💻', verb: 'processing', label: 'Processing'};
-      const avg = typeof avgBM === 'function' ? avgBM(m.id) : 0;
       const p = document.getElementById('infoPanel');
       p.className = 'ipanel open'; p.style.animation = 'none'; p.offsetHeight;
       p.style.animation = 'pi .25s ease';
@@ -892,22 +891,97 @@ const UI = {
     },
   
     showFamilyTree() {
-      G.unlockAchieve('family_view'); document.getElementById('familyOv').classList.add('open'); const pan = document.getElementById('familyPan');
-      let h = `<button class="ipanel-x" onclick="document.getElementById('familyOv').classList.remove('open')">✕</button><div class="ov-title">🧬 MODEL FAMILY TREES</div><div style="max-height:65vh;overflow-y:auto">`;
-      Object.entries(FAMILIES).forEach(([lk, edges]) => {
-        const lab = LABS[lk]; if (!lab) return;
-        h += `<div style="margin-bottom:16px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;padding:12px"><div style="font-size:10px;font-weight:bold;color:${lab.color};margin-bottom:10px">${lab.name}</div>`;
-        const nodes = new Set(); edges.forEach(e => { nodes.add(e.id); e.children.forEach(c => nodes.add(c)); });
-        const roots = [...nodes].filter(n => !edges.some(e => e.children.includes(n)));
-        const render = (id, d) => {
-          const m = G.models.find(x => x.id === id); if (!m) return ''; const s = getStage(m.rel, m.ret, m.phase); const avg = typeof avgBM === 'function' ? avgBM(m.id) : 0;
-          let o = `<div style="margin-left:${d * 20}px;display:flex;align-items:center;gap:6px;padding:4px 8px;margin-bottom:3px;border-left:2px solid ${lab.color}44;cursor:pointer;border-radius:0 4px 4px 0;background:var(--sf)" onclick="document.getElementById('familyOv').classList.remove('open');UI.selectModel(G.models.find(x=>x.id==='${id}'))">
-            ${d > 0 ? '<span style="color:var(--t3)">└</span>' : ''}<span>${STAGES[s].emoji}</span><span style="font-size:9px;font-weight:700">${escapeHTML(m.name)}</span><span style="font-size:7px;color:var(--t3)">${new Date(m.rel).getFullYear()}</span>${avg ? `<span style="font-size:8px;font-weight:700;color:${avg > 80 ? '#4ade80' : '#facc15'}">${avg}%</span>` : ''}</div>`;
-          const edge = edges.find(e => e.id === id); if (edge) edge.children.forEach(c => { o += render(c, d + 1); });
+      G.unlockAchieve('family_view');
+      document.getElementById('familyOv').classList.add('open');
+      const pan = document.getElementById('familyPan');
+
+      // Count total families for header stat
+      const labKeys = Object.keys(FAMILIES || {}).filter(lk => LABS[lk]);
+
+      let h = `<button class="ipanel-x" onclick="document.getElementById('familyOv').classList.remove('open')">✕</button>
+        <div class="ov-title">🧬 MODEL LINEAGE</div>
+        <div style="font-size:8px;color:var(--t3);text-align:center;margin-bottom:12px">${labKeys.length} labs with tracked model lineage</div>
+        <div style="max-height:62vh;overflow-y:auto;padding-right:4px">`;
+
+      labKeys.forEach(lk => {
+        const edges = FAMILIES[lk];
+        const lab = LABS[lk];
+        if (!lab || !edges || !edges.length) return;
+
+        // Build node set & find roots
+        const nodes = new Set();
+        edges.forEach(e => { nodes.add(e.id); if (e.children) e.children.forEach(c => nodes.add(c)); });
+        const childSet = new Set();
+        edges.forEach(e => { if (e.children) e.children.forEach(c => childSet.add(c)); });
+        const roots = [...nodes].filter(n => !childSet.has(n));
+        if (roots.length === 0) return;
+
+        // Count models in this tree
+        let treeCount = 0;
+        nodes.forEach(n => { if (G.models.find(x => x.id === n)) treeCount++; });
+
+        h += `<div style="margin-bottom:14px;background:var(--cd);border:1px solid ${lab.color}33;border-radius:8px;overflow:hidden">`;
+        // Lab header bar
+        h += `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:${lab.color}11;border-bottom:1px solid ${lab.color}22">
+          <span style="font-size:14px">${lab.icon || '🏢'}</span>
+          <span style="font-size:10px;font-weight:bold;color:${lab.color};flex:1">${lab.name}</span>
+          <span style="font-size:7px;color:var(--t3);background:var(--cd);padding:2px 8px;border-radius:10px">${treeCount} models</span>
+        </div>`;
+        h += `<div style="padding:10px 14px">`;
+
+        const render = (id, depth, isLast) => {
+          const m = G.models.find(x => x.id === id);
+          if (!m) return '';
+          const s = getStage(m.rel, m.ret, m.phase);
+          const avg = typeof avgBM === 'function' ? avgBM(m.id) : 0;
+          const year = new Date(m.rel).getFullYear();
+          const edge = edges.find(e => e.id === id);
+          const children = edge ? edge.children.filter(c => G.models.find(x => x.id === c)) : [];
+          const isRoot = depth === 0;
+          const retired = m.ret && new Date(m.ret).getTime() <= Date.now();
+
+          // Connector lines
+          let connector = '';
+          if (!isRoot) {
+            connector = `<div style="display:flex;align-items:center;width:20px;flex-shrink:0">
+              <div style="width:10px;height:1px;background:${lab.color}55"></div>
+              <div style="width:4px;height:4px;border-radius:50%;background:${lab.color};flex-shrink:0"></div>
+            </div>`;
+          }
+
+          // Benchmark bar
+          let bmBar = '';
+          if (avg) {
+            const barCol = avg > 85 ? '#4ade80' : avg > 65 ? '#facc15' : '#f97316';
+            bmBar = `<div style="width:40px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-left:auto;flex-shrink:0">
+              <div style="width:${avg}%;height:100%;background:${barCol};border-radius:2px"></div>
+            </div>
+            <span style="font-size:7px;color:${barCol};font-weight:bold;min-width:24px;text-align:right">${avg}%</span>`;
+          }
+
+          let o = `<div style="display:flex;align-items:center;margin-left:${depth * 24}px;margin-bottom:2px">
+            ${connector}
+            <div style="display:flex;align-items:center;gap:5px;flex:1;padding:5px 10px;background:var(--sf);border:1px solid ${retired ? 'var(--bd)' : lab.color + '22'};border-radius:6px;cursor:pointer;transition:border-color 0.15s,background 0.15s;${retired ? 'opacity:0.5;' : ''}"
+                 onmouseenter="this.style.borderColor='${lab.color}';this.style.background='${lab.color}11'"
+                 onmouseleave="this.style.borderColor='${retired ? 'var(--bd)' : lab.color + '22'}';this.style.background='var(--sf)'"
+                 onclick="document.getElementById('familyOv').classList.remove('open');UI.selectModel(G.models.find(x=>x.id==='${id}'))">
+              <span style="font-size:11px">${STAGES[s].emoji}</span>
+              <span style="font-size:9px;font-weight:700;color:${retired ? 'var(--t3)' : '#fff'}">${escapeHTML(m.name)}</span>
+              <span style="font-size:7px;color:var(--t3);background:var(--cd);padding:1px 5px;border-radius:3px">${year}</span>
+              ${children.length > 0 ? `<span style="font-size:6px;color:${lab.color};margin-left:2px">▸ ${children.length}</span>` : ''}
+              ${bmBar}
+            </div>
+          </div>`;
+
+          // Render children with vertical connector
+          children.forEach((c, i) => { o += render(c, depth + 1, i === children.length - 1); });
           return o;
         };
-        roots.forEach(r => { h += render(r, 0); }); h += '</div>';
+
+        roots.forEach(r => { h += render(r, 0, true); });
+        h += '</div></div>';
       });
+
       h += '</div>';
       pan.innerHTML = h;
     },
@@ -951,7 +1025,8 @@ const UI = {
             </div>`;
 
       h += `<div class="arch-title" style="margin-top:0;">⚠️ Critical Bottlenecks</div><div style="margin-bottom:16px">`;
-      SUPPLY_CHAIN.bottlenecks.forEach(b => {
+      (SUPPLY_CHAIN.bottlenecks || []).forEach(b => {
+          if (!b || !b.name) return;
           h += `<div style="margin-top:8px">
                   <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:4px">
                       <span style="color:var(--t1)">${b.name}</span>
@@ -965,7 +1040,8 @@ const UI = {
       h += `</div>`;
 
       h += `<div class="arch-title">🚀 AI Accelerator Pipeline (2026)</div><div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">`;
-      SUPPLY_CHAIN.accelerators.forEach(a => {
+      (SUPPLY_CHAIN.accelerators || []).forEach(a => {
+          if (!a || !a.name) return;
           const isRubin = a.name.includes("Rubin");
           h += `<div style="padding:10px;background:var(--sf);border:1px solid ${isRubin ? '#22d3ee55' : 'var(--bd)'};border-radius:4px; ${isRubin ? 'box-shadow: inset 0 0 15px rgba(34,211,238,0.1)' : ''}">
                   <div style="display:flex;justify-content:space-between;margin-bottom:6px">
@@ -981,17 +1057,21 @@ const UI = {
       h += `</div>`;
 
       h += `<div class="arch-title">🔬 Foundry & Lithography Wars</div>`;
-      h += `<div style="padding:10px;background:var(--cd);border:1px dashed #f9731655;border-radius:4px;margin-bottom:8px">
-                <div style="font-size:10px;font-weight:bold;color:#f97316;margin-bottom:4px">${SUPPLY_CHAIN.lithography.asml_high_na.name}</div>
-                <div style="font-size:8px;color:var(--t2);margin-bottom:8px">${SUPPLY_CHAIN.lithography.asml_high_na.desc} (Unit Cost: ${SUPPLY_CHAIN.lithography.asml_high_na.cost})</div>
+      const _hna = SUPPLY_CHAIN.lithography?.asml_high_na;
+      if (_hna && _hna.name) {
+          h += `<div style="padding:10px;background:var(--cd);border:1px dashed #f9731655;border-radius:4px;margin-bottom:8px">
+                <div style="font-size:10px;font-weight:bold;color:#f97316;margin-bottom:4px">${_hna.name}</div>
+                <div style="font-size:8px;color:var(--t2);margin-bottom:8px">${_hna.desc} (Unit Cost: ${_hna.cost})</div>
                 <div style="display:flex;justify-content:space-between;font-size:8px;background:var(--sf);padding:6px;border-radius:4px;">
-                    <span style="color:var(--t1)">Intel: <b style="color:#4ade80">${SUPPLY_CHAIN.lithography.asml_high_na.deployed.intel}</b> units</span>
-                    <span style="color:var(--t1)">Samsung: <b style="color:#4ade80">${SUPPLY_CHAIN.lithography.asml_high_na.deployed.samsung}</b> units</span>
-                    <span style="color:var(--t1)">TSMC: <b style="color:#ef4444">${SUPPLY_CHAIN.lithography.asml_high_na.deployed.tsmc}</b> units <span style="color:var(--t3)">(Using Low-NA)</span></span>
+                    <span style="color:var(--t1)">Intel: <b style="color:#4ade80">${_hna.deployed?.intel ?? '?'}</b> units</span>
+                    <span style="color:var(--t1)">Samsung: <b style="color:#4ade80">${_hna.deployed?.samsung ?? '?'}</b> units</span>
+                    <span style="color:var(--t1)">TSMC: <b style="color:#ef4444">${_hna.deployed?.tsmc ?? 0}</b> units <span style="color:var(--t3)">(Using Low-NA)</span></span>
                 </div>
             </div>`;
+      }
             
-      SUPPLY_CHAIN.foundries.forEach(f => {
+      (SUPPLY_CHAIN.foundries || []).forEach(f => {
+          if (!f || !f.name) return;
           h += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--sf);border:1px solid var(--bd);border-radius:4px;margin-bottom:4px">
                   <div>
                       <div style="font-size:10px;font-weight:bold;color:var(--t1)">${f.name} <span style="color:var(--cy);font-weight:normal;margin-left:4px;">${f.node}</span></div>
@@ -1133,7 +1213,21 @@ const UI = {
   
     showAnalyst() {
       document.getElementById('analystOv').classList.add('open'); const pan = document.getElementById('analystPan');
-      pan.innerHTML = `<button class="ipanel-x" onclick="document.getElementById('analystOv').classList.remove('open')">✕</button><div class="ov-title">🤖 AI ANALYST</div><div style="margin-bottom:12px;font-size:9px;color:var(--t3);text-align:center">Ask about the AI landscape using your API key</div><div id="analystChat" style="max-height:45vh;overflow-y:auto;margin-bottom:12px;padding:8px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;min-height:100px"><div style="font-size:9px;color:var(--t3);text-align:center;padding:20px">Ask me anything...</div></div><div style="display:flex;gap:6px"><input type="text" id="analystInput" placeholder="e.g. Best model for coding?" class="sel-input" style="margin:0;flex:1" onkeydown="if(event.key==='Enter')API.askAnalyst()"><button class="btn" style="padding:8px 14px" onclick="API.askAnalyst()">Ask</button></div>`;
+      const providerName = { xai: 'Grok', openai: 'ChatGPT', anthropic: 'Claude', google: 'Gemini' }[G.apiProvider] || 'AI';
+      const hasKey = !!G.authKey;
+      pan.innerHTML = `<button class="ipanel-x" onclick="document.getElementById('analystOv').classList.remove('open')">✕</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="ov-title" style="margin:0">🤖 ${providerName}</div>
+          <div style="font-size:7px;color:var(--t3)">${G.modelId || 'default'} · <span style="color:${hasKey ? '#4ade80' : '#ef4444'}">${hasKey ? 'KEY SET' : 'NO KEY'}</span></div>
+        </div>
+        <div id="analystChat" style="height:55vh;overflow-y:auto;margin-bottom:10px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px">
+          ${hasKey ? '<div style="font-size:9px;color:var(--t3);text-align:center;padding:40px 20px">Ask anything — this is a full conversation with ' + providerName + '.<br><span style="color:var(--t3);font-size:7px;margin-top:8px;display:block">Multi-turn chat with conversation history. Uses your API key.</span></div>' : '<div style="font-size:9px;color:#ef4444;text-align:center;padding:40px 20px">No API key set.<br><span style="color:var(--t3);font-size:7px;margin-top:8px;display:block">Go to ⚙️ Settings to add your API key.</span></div>'}
+        </div>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="analystInput" placeholder="Message ${providerName}..." class="sel-input" style="margin:0;flex:1" onkeydown="if(event.key==='Enter'&&!event.shiftKey)API.askAnalyst()">
+          <button class="btn" style="padding:8px 14px" onclick="API.askAnalyst()">Send</button>
+          <button class="btn" style="padding:8px 10px;color:var(--t3);font-size:7px" onclick="API._chatHistory=[];document.getElementById('analystChat').innerHTML='<div style=\\'font-size:9px;color:var(--t3);text-align:center;padding:40px 20px\\'>Conversation cleared.</div>'" title="Clear chat">Clear</button>
+        </div>`;
     },
   
     showSettings() {

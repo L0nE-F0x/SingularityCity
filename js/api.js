@@ -364,7 +364,7 @@ const API = {
             if (!Array.isArray(models)) return;
             
             const existingNames = new Set(G.models.map(m => m.name.toLowerCase().replace(/[^a-z0-9]/g, '')));
-            const existingIds = new Set(G.models.map(m => m.id.toLowerCase().replace(/[^a-z0-9]/g, '')));
+            const _existingIds = new Set(G.models.map(m => m.id.toLowerCase().replace(/[^a-z0-9]/g, '')));
             
             // Fuzzy name normalizer — strips version dates like "20250514", trailing numbers
             const fuzzyNorm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\d{6,}/g, '').replace(/\d+$/,'');
@@ -628,8 +628,16 @@ const API = {
             if (typeof SUPPLY_CHAIN !== 'undefined') {
                 const cats = { bottleneck: [], accelerator: [], foundry: [] };
                 data.forEach(row => {
-                    if (cats[row.category]) cats[row.category].push(row.data);
-                    else if (row.category === 'lithography') SUPPLY_CHAIN.lithography = { asml_high_na: row.data };
+                    if (!row.data || typeof row.data !== 'object') return;
+                    if (row.category === 'lithography' && row.data.name) {
+                        SUPPLY_CHAIN.lithography = { asml_high_na: row.data };
+                    } else if (row.category === 'bottleneck' && row.data.name && row.data.load != null) {
+                        cats.bottleneck.push(row.data);
+                    } else if (row.category === 'accelerator' && row.data.name) {
+                        cats.accelerator.push(row.data);
+                    } else if (row.category === 'foundry' && row.data.name) {
+                        cats.foundry.push(row.data);
+                    }
                 });
                 if (cats.bottleneck.length) SUPPLY_CHAIN.bottlenecks = cats.bottleneck;
                 if (cats.accelerator.length) SUPPLY_CHAIN.accelerators = cats.accelerator;
@@ -851,6 +859,132 @@ const API = {
         }
     },
 
+    // ═══ AI EVENTS CALENDAR — auto-populate from tech event RSS feeds ═══
+    async fetchAIEvents() {
+        const feeds = [
+            { url: 'https://techcrunch.com/category/artificial-intelligence/feed/', source: 'TechCrunch' },
+            { url: 'https://venturebeat.com/category/ai/feed/', source: 'VentureBeat' },
+        ];
+
+        // Keywords that indicate an event/conference/summit (not just news articles)
+        const eventKeywords = /\b(conference|summit|workshop|hackathon|symposium|keynote|demo day|launch event|developer day|devday|I\/O|Build|WWDC|re:Invent|Ignite|Connect|NeurIPS|ICML|ICLR|CVPR|AAAI|SIGMOD|KDD|NAACL|ACL|EMNLP|CoRL|RSS\b|IJCAI|ECCV|ICCV|WSDM|GTC|Microsoft Build|Google I\/O|Apple WWDC|AWS re:Invent|Dreamforce|CES\s+\d{4}|MWC\s+\d{4})\b/i;
+
+        const existing = new Set((window.AI_EVENTS || []).map(e => e.name));
+        let added = 0;
+
+        for (const feed of feeds) {
+            try {
+                const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`, { signal: AbortSignal.timeout(8000) });
+                if (!r.ok) continue;
+                const json = await r.json();
+                if (!json.items) continue;
+
+                for (const item of json.items) {
+                    if (!eventKeywords.test(item.title)) continue;
+                    const name = item.title.replace(/<[^>]*>/g, '').trim();
+                    if (existing.has(name) || name.length > 120) continue;
+
+                    // Try to extract a date from the item
+                    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+                    // For event announcements, the event itself is usually in the future
+                    // Use publication date as fallback — if it mentions a specific date in the title, prefer that
+                    const dateMatch = item.title.match(/(\w+ \d{1,2}(?:[-–]\d{1,2})?,?\s*\d{4})/);
+                    let eventDate = pubDate;
+                    if (dateMatch) {
+                        const parsed = new Date(dateMatch[1].replace(/[-–]\d{1,2}/, ''));
+                        if (!isNaN(parsed.getTime())) eventDate = parsed;
+                    }
+
+                    const desc = (item.description || '').replace(/<[^>]*>/g, '').trim().slice(0, 140);
+                    const ev = {
+                        name,
+                        date: eventDate.toISOString().split('T')[0],
+                        desc: desc || `Via ${feed.source}`,
+                        type: 'conference'
+                    };
+
+                    if (!window.AI_EVENTS) window.AI_EVENTS = [];
+                    window.AI_EVENTS.push(ev);
+                    existing.add(name);
+                    added++;
+
+                    // Persist to Supabase
+                    if (this.supabase) {
+                        this.supabase.from('ai_events').insert(ev).then(({ error }) => {
+                            if (!error) console.log(`[Calendar] Saved event from RSS: ${name}`);
+                        });
+                    }
+                }
+            } catch (e) { /* silent — RSS feeds sometimes fail */ }
+        }
+
+        // Also use the LLM scan to ask for upcoming events if API key is set
+        if (added === 0 && G.authKey && this._chatHistory !== undefined) {
+            await this._fetchEventsFromLLM();
+        }
+
+        if (added > 0) {
+            console.log(`📅 Calendar: ${added} new AI events discovered from RSS`);
+            if (typeof UI !== 'undefined') UI.addToast(`📅 Found ${added} new AI events!`);
+        }
+    },
+
+    async _fetchEventsFromLLM() {
+        if (!G.authKey) return;
+        try {
+            const prompt = `List 15 major upcoming AI/ML conferences, summits, and tech events for the remainder of 2025 and early 2026. Include real events only with accurate dates. Return ONLY a JSON array, no other text. Format: [{"name":"Event Name","date":"YYYY-MM-DD","desc":"Short description","type":"conference"}]`;
+            let url, hd = { 'Content-Type': 'application/json' }, pl;
+
+            if (G.apiProvider === 'anthropic') {
+                url = 'https://api.anthropic.com/v1/messages';
+                hd['x-api-key'] = G.authKey; hd['anthropic-version'] = '2023-06-01'; hd['anthropic-dangerously-allow-browser'] = 'true';
+                pl = { model: G.modelId || 'claude-sonnet-4-20250514', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
+            } else if (G.apiProvider === 'google') {
+                url = `https://generativelanguage.googleapis.com/v1beta/models/${G.modelId || 'gemini-2.5-flash'}:generateContent?key=${G.authKey}`;
+                pl = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 2048 } };
+            } else if (G.apiProvider === 'xai') {
+                url = 'https://api.x.ai/v1/chat/completions';
+                hd['Authorization'] = `Bearer ${G.authKey}`;
+                pl = { model: G.modelId || 'grok-3-latest', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
+            } else {
+                url = 'https://api.openai.com/v1/chat/completions';
+                hd['Authorization'] = `Bearer ${G.authKey}`;
+                pl = { model: G.modelId || 'gpt-4o', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
+            }
+
+            const r = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl) });
+            const d = await r.json();
+
+            let txt = '';
+            if (G.apiProvider === 'anthropic') txt = d.content?.[0]?.text || '';
+            else if (G.apiProvider === 'google') txt = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            else txt = d.choices?.[0]?.message?.content || '';
+
+            // Extract JSON array from response
+            const match = txt.match(/\[[\s\S]*\]/);
+            if (!match) return;
+            const events = JSON.parse(match[0]);
+            const existing = new Set((window.AI_EVENTS || []).map(e => e.name));
+            let added = 0;
+
+            for (const ev of events) {
+                if (!ev.name || !ev.date || existing.has(ev.name)) continue;
+                if (!window.AI_EVENTS) window.AI_EVENTS = [];
+                window.AI_EVENTS.push(ev);
+                existing.add(ev.name);
+                added++;
+                if (this.supabase) {
+                    this.supabase.from('ai_events').insert(ev).then(() => {});
+                }
+            }
+
+            if (added > 0) {
+                console.log(`📅 Calendar: ${added} events seeded from LLM`);
+                if (typeof UI !== 'undefined') UI.addToast(`📅 Discovered ${added} upcoming AI events!`);
+            }
+        } catch (e) { console.warn('[Calendar LLM]', e.message); }
+    },
+
     // ═══ NETWORK STATUS — cloud provider incidents + internet health for The Backbone ═══
     async fetchNetworkStatus() {
         const feeds = [
@@ -887,65 +1021,92 @@ const API = {
         }
     },
 
+    _chatHistory: [],
+
+    _mdToHtml(md) {
+        return md
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre style="background:rgba(0,0,0,0.4);padding:8px;border-radius:4px;overflow-x:auto;font-size:8px;margin:6px 0;border:1px solid var(--bd)"><code>$2</code></pre>')
+            .replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.3);padding:1px 4px;border-radius:3px;font-size:8px">$1</code>')
+            .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+            .replace(/\*(.+?)\*/g, '<i>$1</i>')
+            .replace(/^### (.+)$/gm, '<div style="font-size:10px;font-weight:bold;color:var(--ac);margin:8px 0 4px">$1</div>')
+            .replace(/^## (.+)$/gm, '<div style="font-size:11px;font-weight:bold;color:var(--cy);margin:8px 0 4px">$1</div>')
+            .replace(/^# (.+)$/gm, '<div style="font-size:12px;font-weight:bold;color:#fff;margin:8px 0 4px">$1</div>')
+            .replace(/^[-*] (.+)$/gm, '<div style="padding-left:12px">• $1</div>')
+            .replace(/^\d+\. (.+)$/gm, '<div style="padding-left:12px">$&</div>')
+            .replace(/\n{2,}/g, '<br><br>')
+            .replace(/\n/g, '<br>');
+    },
+
     async askAnalyst() {
       const input = document.getElementById('analystInput');
       if (!input) return;
       const q = input.value.trim();
       if (!q) return;
-      if (!G.authKey) { if(typeof UI !== 'undefined') UI.addToast('❌ Set API key in Settings.'); return; }
-  
-      const safeQ = q.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      if (!G.authKey) { if(typeof UI !== 'undefined') UI.addToast('❌ Set API key in Settings first.'); return; }
 
+      const safeQ = q.replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const chat = document.getElementById('analystChat');
       if (!chat) return;
-      
-      chat.innerHTML += `<div style="text-align:right;margin-bottom:8px"><span style="background:var(--ac);color:#000;padding:4px 10px;border-radius:8px 8px 0 8px;font-size:9px">${safeQ}</span></div><div id="aL" style="font-size:9px;color:var(--cy)">🤔 Thinking...</div>`;
+
+      // Clear welcome message on first use
+      if (this._chatHistory.length === 0) chat.innerHTML = '';
+
+      chat.innerHTML += `<div style="text-align:right;margin-bottom:10px"><span style="background:var(--ac);color:#000;padding:6px 12px;border-radius:12px 12px 2px 12px;font-size:9px;display:inline-block;max-width:80%;line-height:1.5">${safeQ}</span></div>`;
+      chat.innerHTML += `<div id="aL" style="font-size:9px;color:var(--cy);padding:8px">Thinking...</div>`;
       input.value = '';
       chat.scrollTop = chat.scrollHeight;
-  
-      const ctx = `You are an AI analyst. Model data: ${JSON.stringify(G.models.slice(0, 25).map(m => ({ n: m.name, l: m.lab, p: m.phase, elo: window.BM && window.BM[m.id]?.ELO }))) }. Answer concisely.`;
-  
+
+      // Add to conversation history
+      this._chatHistory.push({ role: 'user', content: q });
+
+      // System prompt with live city context
+      const sysPrompt = `You are a helpful AI assistant embedded in Singularity City — a real-time simulation of the AI industry. You can answer any question the user asks, on any topic. You have access to some live city data for context but you are not limited to discussing it. Be conversational and helpful. Current city data: ${G.models ? G.models.length : 0} AI models tracked across ${Object.keys(LABS || {}).length} labs.`;
+
       try {
         let url, hd = { 'Content-Type': 'application/json' }, pl;
+
         if (G.apiProvider === 'anthropic') {
-          url = 'https://api.anthropic.com/v1/messages'; 
-          hd['x-api-key'] = G.authKey; 
-          hd['anthropic-version'] = '2023-06-01'; 
+          url = 'https://api.anthropic.com/v1/messages';
+          hd['x-api-key'] = G.authKey;
+          hd['anthropic-version'] = '2023-06-01';
           hd['anthropic-dangerously-allow-browser'] = 'true';
-          pl = { model: G.modelId || 'claude-3-5-sonnet-20240620', max_tokens: 4096, system: ctx, messages: [{ role: 'user', content: q }] };
+          pl = { model: G.modelId || 'claude-sonnet-4-20250514', max_tokens: 4096, system: sysPrompt, messages: this._chatHistory };
         } else if (G.apiProvider === 'google') {
           url = `https://generativelanguage.googleapis.com/v1beta/models/${G.modelId || 'gemini-2.5-flash'}:generateContent?key=${G.authKey}`;
-          pl = { systemInstruction: { parts: [{ text: ctx }] }, contents: [{ parts: [{ text: q }] }], generationConfig: { maxOutputTokens: 4096 } };
+          const contents = this._chatHistory.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+          pl = { systemInstruction: { parts: [{ text: sysPrompt }] }, contents, generationConfig: { maxOutputTokens: 4096 } };
         } else if (G.apiProvider === 'xai') {
           url = 'https://api.x.ai/v1/chat/completions';
           hd['Authorization'] = `Bearer ${G.authKey}`;
-          pl = { model: G.modelId || 'grok-3-latest', max_tokens: 4096, messages: [{ role: 'system', content: ctx }, { role: 'user', content: q }] };
+          pl = { model: G.modelId || 'grok-3-latest', max_tokens: 4096, messages: [{ role: 'system', content: sysPrompt }, ...this._chatHistory] };
         } else {
-          url = 'https://api.openai.com/v1/chat/completions'; 
+          url = 'https://api.openai.com/v1/chat/completions';
           hd['Authorization'] = `Bearer ${G.authKey}`;
-          pl = { model: G.modelId || 'gpt-4o', max_tokens: 4096, messages: [{ role: 'system', content: ctx }, { role: 'user', content: q }] };
+          pl = { model: G.modelId || 'gpt-4o', max_tokens: 4096, messages: [{ role: 'system', content: sysPrompt }, ...this._chatHistory] };
         }
-  
+
         const r = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl) });
         const d = await r.json();
-  
-        let txt = '';
-        if (G.apiProvider === 'anthropic') txt = d.content?.[0]?.text || 'No response';
-        else if (G.apiProvider === 'google') txt = d.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
-        else txt = d.choices?.[0]?.message?.content || 'No response';
-        
-        const safeTxt = txt.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+        let txt = '';
+        if (G.apiProvider === 'anthropic') txt = d.content?.[0]?.text || d.error?.message || 'No response';
+        else if (G.apiProvider === 'google') txt = d.candidates?.[0]?.content?.parts?.[0]?.text || d.error?.message || 'No response';
+        else txt = d.choices?.[0]?.message?.content || d.error?.message || 'No response';
+
+        // Add assistant response to history
+        this._chatHistory.push({ role: 'assistant', content: txt });
+
+        const rendered = this._mdToHtml(txt);
         document.getElementById('aL')?.remove();
-        chat.innerHTML += `<div style="margin-bottom:8px"><span style="background:var(--sf);border:1px solid var(--bd);padding:8px 12px;border-radius:0 8px 8px 8px;font-size:9px;display:inline-block;color:var(--t2);line-height:1.6;max-width:90%">${safeTxt}</span></div>`;
+        chat.innerHTML += `<div style="margin-bottom:10px"><div style="background:var(--sf);border:1px solid var(--bd);padding:10px 14px;border-radius:2px 12px 12px 12px;font-size:9px;display:inline-block;color:var(--t2);line-height:1.7;max-width:90%">${rendered}</div></div>`;
         chat.scrollTop = chat.scrollHeight;
       } catch(e) {
+        // Remove failed message from history
+        this._chatHistory.pop();
         const l = document.getElementById('aL');
-        if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
-            if (l) l.innerHTML = `❌ Network Error: Failed to connect to API provider. Retrying later usually works.`;
-        } else {
-            if (l) l.innerHTML = `❌ ${e.message}`;
-        }
+        if (l) l.innerHTML = `<span style="color:#ef4444">❌ ${e.message.includes('Failed to fetch') ? 'Network error — check your connection and try again.' : e.message}</span>`;
       }
     },
   
@@ -1644,7 +1805,8 @@ JSON (no markdown):
             this.fetchVCFunding(),
             this.fetchSupplyChain(),
             this.fetchRegulationNews(),
-            this.fetchArxivPapers()
+            this.fetchArxivPapers(),
+            this.fetchAIEvents()
         ]).then(() => console.log('📡 Live data refresh complete'));
 
       } catch(e) {
@@ -1760,7 +1922,7 @@ const VisitorTracker = {
                 localStorage.setItem('sc_visitor_id', vid);
             }
             // Call RPC to record visit and get counts
-            const { data, error } = await API.supabase.rpc('record_visit', { p_visitor_id: vid });
+            const { data, error: _visitErr } = await API.supabase.rpc('record_visit', { p_visitor_id: vid });
             if (data && data.length > 0) {
                 this.uniqueVisitors = data[0].unique_visitors || 0;
                 this.totalVisits = data[0].total_visits || 0;

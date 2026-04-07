@@ -777,7 +777,6 @@ const G = {
     },
 
     _performExitInterior() {
-        const prevId = this.activeInterior;
         this.activeInterior = null;
 
         if (typeof SND !== 'undefined') SND.setAmbient('outside');
@@ -1517,6 +1516,7 @@ const G = {
           setTimeout(() => API.fetchVCDealsRSS(), 22000);            // RSS VC deal headlines
           setTimeout(() => API.fetchSupplyChainNews(), 26000);       // RSS semiconductor news
           setTimeout(() => API.fetchNetworkStatus(), 30000);         // Cloud status for Backbone
+          setTimeout(() => API.fetchAIEvents(), 34000);              // AI events calendar from RSS + LLM
           setInterval(() => API.fetchVCFunding(), 30 * 60 * 1000);        // every 30 min
           setInterval(() => API.fetchSupplyChain(), 60 * 60 * 1000);      // every hour
           setInterval(() => API.fetchRegulationNews(), 15 * 60 * 1000);   // every 15 min
@@ -1678,7 +1678,7 @@ const G = {
       if (this.activeInterior && typeof Interior !== 'undefined') {
           Interior.update();
           // Metro station mirrors live trains & commuters — keep simulation running
-          if (Interior.activeModule && Interior.activeModule === (typeof InteriorMetroStation !== 'undefined' ? InteriorMetroStation : null)) {
+          if (Interior.activeModule && Interior.activeModule === (window.InteriorMetroStation || null)) {
               const dp = this.getDayPhase();
               const night = dp > .83 || dp < .25;
               if (typeof Entities !== 'undefined') Entities.update(dp, night);
