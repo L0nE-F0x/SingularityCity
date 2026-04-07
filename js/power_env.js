@@ -96,11 +96,91 @@ const PowerEnv = {
         });
     },
 
-    // ─── POWER GRID PANEL ───
+    // ─── POWER GRID PANEL (v3.0 — live global data from OSM Overpass + city sim fallback) ───
     showGridPanel() {
         const p = document.getElementById('infoPanel');
         if (!p || typeof PowerZone === 'undefined') return;
         const pz = PowerZone;
+        const live = typeof API !== 'undefined' ? API._gridData : null;
+
+        let html = '<button class="ipanel-x" onclick="UI.closePanel()">✕</button>';
+        html += '<div style="text-align:center;margin-bottom:12px"><span style="font-size:20px">⚡</span><br><span style="color:var(--cy);font-size:11px;letter-spacing:2px">POWER GRID STATUS</span></div>';
+
+        // ─── REAL-WORLD GLOBAL GRID (from Overpass) ───
+        if (live && live.sources.length > 0) {
+            const ageH = Math.round((Date.now() - API._gridTs) / 3600000);
+            const twGW = (live.totalMW / 1000).toFixed(1);
+            const renewTypes = new Set(['Solar', 'Wind', 'Hydro', 'Biomass', 'Geothermal', 'Tidal']);
+
+            html += '<div style="background:linear-gradient(135deg,rgba(34,211,238,0.06),transparent);border:1px solid #22d3ee33;border-radius:8px;padding:10px;margin-bottom:10px">';
+            // Header
+            html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+            html += '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:7px;background:#22d3ee;color:#000;padding:2px 6px;border-radius:10px;font-weight:bold">REAL-WORLD</span><span style="font-size:10px;color:#fff;font-weight:bold">Global Power Grid</span></div>';
+            html += '<div style="font-size:7px;color:var(--t3)">' + live.regionsScanned + '/' + live.regionsTotal + ' regions · ' + (ageH < 1 ? '<1h ago' : ageH + 'h ago') + '</div></div>';
+
+            // Summary cards
+            html += '<div style="display:flex;gap:6px;margin-bottom:8px">';
+            html += '<div style="flex:1;background:var(--cd);border:1px solid var(--bd);border-radius:4px;padding:6px;text-align:center">';
+            html += '<div style="font-size:7px;color:var(--t3);margin-bottom:2px">PLANTS MAPPED</div>';
+            html += '<div style="font-size:14px;font-weight:bold;color:#fff">' + live.plantCount.toLocaleString() + '</div>';
+            html += '<div style="font-size:7px;color:var(--t3)">' + live.sources.length + ' source types</div></div>';
+            html += '<div style="flex:1;background:var(--cd);border:1px solid var(--bd);border-radius:4px;padding:6px;text-align:center">';
+            html += '<div style="font-size:7px;color:var(--t3);margin-bottom:2px">TOTAL CAPACITY</div>';
+            html += '<div style="font-size:14px;font-weight:bold;color:#22d3ee">' + twGW + ' GW</div>';
+            html += '<div style="font-size:7px;color:var(--t3)">' + Math.round(live.totalMW).toLocaleString() + ' MW</div></div>';
+            html += '<div style="flex:1;background:var(--cd);border:1px solid var(--bd);border-radius:4px;padding:6px;text-align:center">';
+            html += '<div style="font-size:7px;color:var(--t3);margin-bottom:2px">RENEWABLE</div>';
+            html += '<div style="font-size:14px;font-weight:bold;color:#4ade80">' + live.renewPct.toFixed(1) + '%</div>';
+            html += '<div style="font-size:7px;color:var(--t3)">fossil: ' + live.fossilPct.toFixed(1) + '%</div></div></div>';
+
+            // Stacked bar chart
+            html += '<div style="display:flex;height:18px;border-radius:4px;overflow:hidden;margin-bottom:6px">';
+            live.sources.forEach(s => {
+                const pct = live.totalMW > 0 ? (s.totalMW / live.totalMW) * 100 : 0;
+                if (pct < 0.5) return;
+                html += '<div style="width:' + pct + '%;background:' + s.color + ';display:flex;align-items:center;justify-content:center;min-width:12px" title="' + s.type + ' ' + pct.toFixed(1) + '%">';
+                html += '<span style="font-size:6px;color:#000;font-weight:bold">' + (pct >= 5 ? Math.round(pct) : '') + '</span></div>';
+            });
+            html += '</div>';
+
+            // Source table
+            html += '<table style="width:100%;border-collapse:collapse;font-size:8px;font-family:\'JetBrains Mono\',monospace">';
+            html += '<tr style="color:var(--t3);border-bottom:1px solid var(--bd)"><th style="text-align:left;padding:3px">Source</th><th style="text-align:right;padding:3px">Plants</th><th style="text-align:right;padding:3px">Capacity</th><th style="text-align:left;padding:3px;width:30%">Share</th></tr>';
+            live.sources.forEach(s => {
+                const pct = live.totalMW > 0 ? (s.totalMW / live.totalMW) * 100 : 0;
+                const gwStr = s.totalMW >= 1000 ? (s.totalMW / 1000).toFixed(1) + ' GW' : Math.round(s.totalMW) + ' MW';
+                const isRenew = renewTypes.has(s.type);
+                html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.03)">';
+                html += '<td style="padding:3px">' + s.emoji + ' ' + s.type + '</td>';
+                html += '<td style="text-align:right;padding:3px;color:var(--t3)">' + s.count.toLocaleString() + '</td>';
+                html += '<td style="text-align:right;padding:3px;color:' + (isRenew ? '#4ade80' : '#fff') + ';font-weight:bold">' + gwStr + '</td>';
+                html += '<td style="padding:3px"><div style="background:rgba(255,255,255,0.06);border-radius:2px;height:6px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + s.color + ';border-radius:2px"></div></div></td></tr>';
+            });
+            html += '</table>';
+
+            // Regional breakdown
+            if (live.byRegion.length > 0) {
+                html += '<div style="margin-top:8px;font-size:7px;color:var(--t3)">';
+                html += '<b style="color:var(--t2)">BY REGION:</b><br>';
+                live.byRegion.forEach(r => {
+                    const gwStr = r.totalMW >= 1000 ? (r.totalMW / 1000).toFixed(1) + ' GW' : Math.round(r.totalMW) + ' MW';
+                    html += r.region + ': ' + r.count.toLocaleString() + ' plants · ' + gwStr + '<br>';
+                });
+                html += '</div>';
+            }
+
+            // Attribution
+            html += '<div style="text-align:right;font-size:6px;color:var(--t3);margin-top:4px">Data: <a href="https://www.openstreetmap.org" target="_blank" style="color:#22d3ee;text-decoration:none">OpenStreetMap</a> via Overpass API · <a href="https://openinframap.org" target="_blank" style="color:#22d3ee;text-decoration:none">OpenInfraMap</a></div>';
+            html += '</div>';
+
+            // Divider
+            html += '<div style="text-align:center;font-size:7px;color:var(--t3);margin:6px 0;border-top:1px dashed var(--bd);padding-top:6px">🎮 SINGULARITY CITY GRID</div>';
+        } else {
+            // Loading or failed — show retry
+            html += '<div style="text-align:center;font-size:7px;color:var(--t3);margin-bottom:8px;padding:6px;background:var(--cd);border:1px solid var(--bd);border-radius:4px">🌍 Global grid data loading from OpenStreetMap… <span style="cursor:pointer;color:var(--cy);text-decoration:underline" onclick="if(typeof API!==\'undefined\')API.fetchGlobalGrid().then(()=>PowerEnv.showGridPanel())">retry</span></div>';
+        }
+
+        // ─── IN-GAME CITY SIMULATION ───
         const supply = pz.getTotalSupply();
         const demand = pz.getTotalDemand();
         const balance = supply - demand;
@@ -109,11 +189,8 @@ const PowerEnv = {
         const balLabel = balance >= 0 ? 'SURPLUS' : 'DEFICIT';
         const pct = demand > 0 ? Math.round((supply / demand) * 100) : 100;
 
-        let html = '<button class="ipanel-x" onclick="UI.closePanel()">✕</button>';
-        html += '<div style="text-align:center;margin-bottom:12px"><span style="font-size:20px">⚡</span><br><span style="color:var(--cy);font-size:11px;letter-spacing:2px">POWER GRID STATUS</span></div>';
-        // Balance meter
         html += '<div style="background:var(--cd);border:1px solid var(--bd);border-radius:6px;padding:8px;margin-bottom:10px;text-align:center">';
-        html += '<div style="font-size:9px;color:var(--t3);margin-bottom:4px">GRID BALANCE</div>';
+        html += '<div style="font-size:9px;color:var(--t3);margin-bottom:4px">CITY GRID BALANCE</div>';
         html += '<div style="display:flex;align-items:center;justify-content:center;gap:8px">';
         html += '<span style="font-size:16px;color:' + balCol + '">' + balIcon + '</span>';
         html += '<span style="font-size:14px;color:#fff;font-weight:bold">' + supply.toLocaleString() + ' MW</span>';
@@ -139,7 +216,6 @@ const PowerEnv = {
             html += '<td style="text-align:center;padding:4px"><span style="color:' + typeCol + ';font-size:7px;font-weight:bold">' + s.type.toUpperCase() + '</span></td></tr>';
         });
         html += '</table>';
-        // Demand breakdown
         let dcDemand = 0;
         if (typeof DC_FACILITIES !== 'undefined') DC_FACILITIES.forEach(dc => { if (dc.power_mw) dcDemand += dc.power_mw; });
         html += '<div style="margin-top:8px;padding:6px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;font-size:7px;color:var(--t3)">';

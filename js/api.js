@@ -1021,6 +1021,171 @@ const API = {
         }
     },
 
+    // ═══ GLOBAL POWER GRID — OpenStreetMap Overpass API (free, no key, CORS-enabled) ═══
+    _gridData: null,
+    _gridTs: 0,
+    _OVERPASS_ENDPOINTS: [
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.private.coffee/api/interpreter'
+    ],
+
+    // Regional bounding boxes: [south, west, north, east, label]
+    _GRID_REGIONS: [
+        [24, -130, 50, -60,  'North America'],
+        [35,  -12, 62,  30,  'Europe'],
+        [10,   60, 55, 145,  'Asia-Pacific'],
+        [-35, -75, 12, -34,  'South America'],
+        [-38, 112, -10, 155, 'Australia'],
+        [20,   30, 42,  60,  'Middle East'],
+        [-35,  10, 38,  52,  'Africa'],
+    ],
+
+    _parseMW(str) {
+        if (!str) return 0;
+        const m = str.match(/([\d.,]+)\s*(GW|MW|kW|W)\b/i);
+        if (!m) return 0;
+        let v = parseFloat(m[1].replace(/,/g, ''));
+        const u = m[2].toUpperCase();
+        if (u === 'GW') v *= 1000;
+        if (u === 'KW') v /= 1000;
+        if (u === 'W')  v /= 1e6;
+        return v;
+    },
+
+    _classifySource(src) {
+        if (!src) return { type: 'unknown', emoji: '❓', color: '#64748b' };
+        const s = src.toLowerCase();
+        if (s.includes('solar'))                                       return { type: 'Solar',    emoji: '☀️',  color: '#fbbf24' };
+        if (s.includes('wind'))                                        return { type: 'Wind',     emoji: '💨',  color: '#4ade80' };
+        if (s.includes('nuclear'))                                     return { type: 'Nuclear',  emoji: '☢️',  color: '#22d3ee' };
+        if (s.includes('hydro') || s.includes('water'))                return { type: 'Hydro',    emoji: '🌊',  color: '#06b6d4' };
+        if (s.includes('coal') || s.includes('lignite'))               return { type: 'Coal',     emoji: '🏭',  color: '#94a3b8' };
+        if (s.includes('gas') && !s.includes('biogas'))                return { type: 'Gas',      emoji: '🔥',  color: '#f97316' };
+        if (s.includes('oil') || s.includes('diesel'))                 return { type: 'Oil',      emoji: '🛢️',  color: '#78716c' };
+        if (s.includes('biomass') || s.includes('biofuel') || s.includes('biogas') || s.includes('wood')) return { type: 'Biomass', emoji: '🌿', color: '#a3e635' };
+        if (s.includes('waste'))                                       return { type: 'Waste',    emoji: '♻️',  color: '#a78bfa' };
+        if (s.includes('geothermal'))                                  return { type: 'Geothermal', emoji: '🌋', color: '#ef4444' };
+        if (s.includes('tidal') || s.includes('wave'))                 return { type: 'Tidal',    emoji: '🌊',  color: '#0ea5e9' };
+        return { type: 'Other', emoji: '⚡', color: '#64748b' };
+    },
+
+    async _queryOverpass(query, endpointIdx) {
+        const url = this._OVERPASS_ENDPOINTS[endpointIdx || 0];
+        const r = await fetch(url, {
+            method: 'POST',
+            body: 'data=' + encodeURIComponent(query),
+            signal: AbortSignal.timeout(35000)
+        });
+        if (r.status === 429) throw new Error('rate-limited');
+        if (r.status === 504) throw new Error('server-busy');
+        if (!r.ok) throw new Error('http-' + r.status);
+        return r.json();
+    },
+
+    async fetchGlobalGrid() {
+        // Skip if already fetched this session (data changes slowly)
+        if (this._gridData && (Date.now() - this._gridTs) < 6 * 3600 * 1000) return;
+
+        const bySource = {};   // type → { count, totalMW, plants: [] }
+        const byRegion = {};   // regionLabel → { count, totalMW }
+        let plantCount = 0;
+        let totalMW = 0;
+
+        // Process a batch of OSM elements
+        const processElements = (elements, regionLabel) => {
+            elements.forEach(el => {
+                const tags = el.tags || {};
+                const src = tags['plant:source'] || tags['generator:source'] || '';
+                const mwStr = tags['plant:output:electricity'] || tags['generator:output:electricity'] || '';
+                const mw = this._parseMW(mwStr);
+                const name = tags.name || tags.operator || '';
+                const cls = this._classifySource(src);
+
+                if (!bySource[cls.type]) bySource[cls.type] = { count: 0, totalMW: 0, emoji: cls.emoji, color: cls.color, plants: [] };
+                bySource[cls.type].count++;
+                bySource[cls.type].totalMW += mw;
+                if (mw >= 100 && bySource[cls.type].plants.length < 5) {
+                    bySource[cls.type].plants.push({ name: name || cls.type + ' plant', mw });
+                }
+
+                if (!byRegion[regionLabel]) byRegion[regionLabel] = { count: 0, totalMW: 0 };
+                byRegion[regionLabel].count++;
+                byRegion[regionLabel].totalMW += mw;
+
+                plantCount++;
+                totalMW += mw;
+            });
+        };
+
+        console.log('⚡ Fetching global power grid from OpenStreetMap...');
+        let successCount = 0;
+
+        // Query each region sequentially to stay within rate limits
+        for (const [south, west, north, east, label] of this._GRID_REGIONS) {
+            const query = `[out:json][timeout:30];
+(
+  node["power"="plant"](${south},${west},${north},${east});
+  way["power"="plant"](${south},${west},${north},${east});
+  relation["power"="plant"](${south},${west},${north},${east});
+);
+out tags;`;
+            try {
+                const data = await this._queryOverpass(query, 0);
+                processElements(data.elements || [], label);
+                successCount++;
+                if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${label} — ${(data.elements || []).length} plants`);
+            } catch (e) {
+                // Try fallback endpoint
+                try {
+                    const data = await this._queryOverpass(query, 1);
+                    processElements(data.elements || [], label);
+                    successCount++;
+                } catch (_e2) {
+                    console.warn(`[Grid] ${label} failed:`, e.message);
+                }
+            }
+        }
+
+        if (successCount === 0) {
+            console.warn('⚡ Grid: all regions failed, keeping simulated data');
+            return;
+        }
+
+        // Sort sources by total MW descending
+        const sorted = Object.entries(bySource)
+            .map(([type, d]) => ({ type, ...d }))
+            .sort((a, b) => b.totalMW - a.totalMW);
+
+        // Calculate renewable vs fossil percentages
+        const renewTypes = new Set(['Solar', 'Wind', 'Hydro', 'Biomass', 'Geothermal', 'Tidal']);
+        const fossilTypes = new Set(['Coal', 'Gas', 'Oil']);
+        let renewMW = 0, fossilMW = 0;
+        sorted.forEach(s => {
+            if (renewTypes.has(s.type)) renewMW += s.totalMW;
+            if (fossilTypes.has(s.type)) fossilMW += s.totalMW;
+        });
+        const renewPct = totalMW > 0 ? (renewMW / totalMW) * 100 : 0;
+        const fossilPct = totalMW > 0 ? (fossilMW / totalMW) * 100 : 0;
+
+        this._gridData = {
+            sources: sorted,
+            byRegion: Object.entries(byRegion)
+                .map(([region, d]) => ({ region, ...d }))
+                .sort((a, b) => b.totalMW - a.totalMW),
+            plantCount,
+            totalMW,
+            renewMW,
+            fossilMW,
+            renewPct,
+            fossilPct,
+            regionsScanned: successCount,
+            regionsTotal: this._GRID_REGIONS.length,
+        };
+        this._gridTs = Date.now();
+
+        console.log(`⚡ Global grid: ${plantCount} plants, ${Math.round(totalMW).toLocaleString()} MW total, ${renewPct.toFixed(1)}% renewable (${successCount}/${this._GRID_REGIONS.length} regions)`);
+    },
+
     _chatHistory: [],
 
     _mdToHtml(md) {

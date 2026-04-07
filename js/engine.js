@@ -1517,6 +1517,7 @@ const G = {
           setTimeout(() => API.fetchSupplyChainNews(), 26000);       // RSS semiconductor news
           setTimeout(() => API.fetchNetworkStatus(), 30000);         // Cloud status for Backbone
           setTimeout(() => API.fetchAIEvents(), 34000);              // AI events calendar from RSS + LLM
+          setTimeout(() => API.fetchGlobalGrid(), 40000);              // Global power grid from OSM Overpass
           setInterval(() => API.fetchVCFunding(), 30 * 60 * 1000);        // every 30 min
           setInterval(() => API.fetchSupplyChain(), 60 * 60 * 1000);      // every hour
           setInterval(() => API.fetchRegulationNews(), 15 * 60 * 1000);   // every 15 min
