@@ -981,10 +981,15 @@ const API = {
 
         // 3. Check version numbers against known maximums
         for (const [family, maxVer] of Object.entries(this._maxKnownVersions)) {
-            // Match patterns like "gemini 8", "gpt-6", "claude 5" etc.
-            const verMatch = name.match(new RegExp(`${family}[\\s\\-_]*([\\d]+(?:\\.[\\d]+)?)`));
+            // Match version patterns like "gemini 3", "gpt-4.1", "claude 4" etc.
+            // Capture the number AND one trailing letter to detect param counts (e.g., "7B")
+            const verMatch = name.match(new RegExp(`${family}[\\s\\-_]*([\\d]+(?:\\.[\\d]+)?)\\s*([a-z]?)`, 'i'));
             if (verMatch) {
                 const ver = parseFloat(verMatch[1]);
+                const suffix = (verMatch[2] || '').toLowerCase();
+                // Skip parameter counts: numbers followed by 'b' (e.g., "7B", "70B", "13B")
+                // These are model sizes in billions of parameters, not version numbers
+                if (suffix === 'b') continue;
                 // Allow up to maxVer + 1 for genuinely rumored next-gen, reject anything beyond
                 if (ver > maxVer + 1) {
                     return { ok: false, reason: `Version ${ver} exceeds max known ${family} version ${maxVer}` };
