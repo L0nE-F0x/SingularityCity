@@ -1029,21 +1029,20 @@ const API = {
         // Skip if already fetched this session (data changes slowly)
         if (this._gridData && (Date.now() - this._gridTs) < 6 * 3600 * 1000) return;
 
-        console.log('⚡ Fetching global power grid via serverless proxy…');
+        console.log('⚡ Loading global power grid data…');
 
         try {
-            const r = await fetch('/api/grid-data', { signal: AbortSignal.timeout(130000) });
+            const r = await fetch('/data/global-grid.json', { signal: AbortSignal.timeout(15000) });
             if (!r.ok) throw new Error('http-' + r.status);
             const data = await r.json();
-            if (data.error) throw new Error(data.error);
 
             this._gridData = data;
             this._gridTs = Date.now();
 
-            if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${data.plantCount} power plants mapped globally`);
-            console.log(`⚡ Global grid: ${data.plantCount} plants, ${Math.round(data.totalMW).toLocaleString()} MW, ${data.renewPct.toFixed(1)}% renewable`);
+            if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${data.plantCount.toLocaleString()} power plants across ${data.regionsScanned} regions`);
+            console.log(`⚡ Global grid: ${data.plantCount.toLocaleString()} plants, ${Math.round(data.totalMW / 1000).toLocaleString()} GW, ${data.renewPct.toFixed(1)}% renewable`);
         } catch (e) {
-            console.debug('⚡ Grid fetch failed:', e.message);
+            console.debug('⚡ Grid data load failed:', e.message);
         }
     },
 
