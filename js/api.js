@@ -1673,7 +1673,7 @@ JSON (no markdown):
         if (typeof UI !== 'undefined') UI.addLog('🧹 Scanning for hallucinated data...');
 
         try {
-            const { data, error } = await this.supabase.from('models').select('id, name, lab, released, phase, benchmarks, cost_input, cost_out');
+            const { data, error } = await this.supabase.from('models').select('id, name, lab, rel, phase, benchmarks, cost_input, cost_out');
             if (error) throw error;
             if (!data) return;
 
