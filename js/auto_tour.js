@@ -23,7 +23,7 @@ const AutoTour = {
     embedSticky: false,
 
     /* ── Tuning ───────────────────────────────────────────────── */
-    IDLE_MS:  60000,
+    IDLE_MS:  180000,
     HOLD_MS_MIN: 6000,
     HOLD_MS_MAX: 14000,
     INTERIOR_HOLD_MS: 12000,
