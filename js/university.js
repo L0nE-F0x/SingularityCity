@@ -248,6 +248,15 @@ const UniversityEnv = {
                     g.endFill();
                 }
             }
+            // Occupancy window tracking (bottom-up)
+            bld._wins = [];
+            for (let row = (bld.fl - 2); row >= 0; row--) {
+                for (let wi = 0; wi < 4; wi++) {
+                    const wx = 20 + wi * (bw - 40) / 3;
+                    const wy = 15 + row * 22;
+                    bld._wins.push({ wx: wx - 2, wy: wy + 2 });
+                }
+            }
 
         } else if (bld.id === 'uni_library') {
             g.beginFill(0x6a5a4a);
@@ -284,6 +293,15 @@ const UniversityEnv = {
             g.beginFill(0x444466);
             g.drawRect(bw / 2 - 10, h - 18, 20, 18);
             g.endFill();
+            // Occupancy window tracking (bottom-up)
+            bld._wins = [];
+            for (let row = bld.fl - 1; row >= 0; row--) {
+                for (let wi = 0; wi < 6; wi++) {
+                    const wx = 10 + wi * (bw - 20) / 6;
+                    const wy = 8 + row * 22;
+                    bld._wins.push({ wx, wy });
+                }
+            }
 
         } else if (bld.id === 'uni_lab') {
             g.beginFill(0x2a3a4a);
@@ -306,6 +324,15 @@ const UniversityEnv = {
             g.beginFill(0x226688);
             g.drawRect(bw / 2 - 12, h - 20, 24, 20);
             g.endFill();
+            // Occupancy window tracking (bottom-up)
+            bld._wins = [];
+            for (let row = bld.fl - 1; row >= 0; row--) {
+                for (let pi = 0; pi < 4; pi++) {
+                    const px = 6 + pi * (bw - 12) / 4;
+                    const py = 4 + row * 22;
+                    bld._wins.push({ wx: px + 5, wy: py + 4 });
+                }
+            }
         }
         // Shadow
         g.beginFill(0x000000, 0.15); g.drawRect(0, h - 2, bw, 4); g.endFill();

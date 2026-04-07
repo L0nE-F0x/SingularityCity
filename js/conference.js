@@ -165,7 +165,8 @@ const ConferenceEnv = {
         g.drawEllipse(bw / 2, -4, bw * 0.2, 5);
         g.endFill();
         // Glowing windows
-        for (let row = 0; row < 2; row++) {
+        bld._wins = [];
+        for (let row = 1; row >= 0; row--) {
             for (let col2 = 0; col2 < 5; col2++) {
                 const wx = 12 + col2 * (bw - 24) / 5;
                 const wy = h * 0.65 + row * 16;
@@ -175,6 +176,7 @@ const ConferenceEnv = {
                 g.beginFill(0xffcc66, 0.15);
                 g.drawRect(wx + 1, wy + 1, 16, 8);
                 g.endFill();
+                bld._wins.push({ wx: wx + 3, wy: Math.round(wy) });
             }
         }
         // Spotlights

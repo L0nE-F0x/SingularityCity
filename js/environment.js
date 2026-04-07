@@ -757,6 +757,7 @@ const Environment = {
               b._bkTickerW = null;
               b._winFaces = null;
               b._winTexts = null;
+              b._wins = null;
               b._sign = null;
           });
       }
@@ -1595,7 +1596,13 @@ const Environment = {
                   if (lit) { gfx.beginFill(0xfbbf24, 0.5); } else { gfx.beginFill(0x0a0a18); }
                   gfx.drawRect(wx, wy, 12, 10); gfx.endFill();
                   gfx.lineStyle(1, 0x334155, 0.3); gfx.drawRect(wx, wy, 12, 10); gfx.lineStyle(0);
-                  b._wins.push({ wx, wy, lit });
+              }
+          }
+          // Build _wins BOTTOM-UP so occupancy emojis fill from ground level
+          for (let f = floors - 1; f >= 0; f--) {
+              for (let c2 = 0; c2 < cols; c2++) {
+                  const wx = 12 + c2 * 20, wy = 6 + f * 18;
+                  b._wins.push({ wx, wy });
               }
           }
           // Door
@@ -1680,6 +1687,7 @@ const Environment = {
           // Upper floor windows (2 across)
           b._wins = [];
           const upWinY = bodyTop + 8;
+          const _upWins = [];
           [0.28, 0.72].forEach(frac => {
               const wx = Math.round(b.w * frac) - 7;
               gfx.beginFill(p.trim); gfx.drawRect(wx - 1, upWinY - 1, 16, 14); gfx.endFill();
@@ -1693,7 +1701,7 @@ const Environment = {
               gfx.lineStyle(0);
               // Shutters
               gfx.beginFill(p.trim); gfx.drawRect(wx - 4, upWinY, 3, 12); gfx.drawRect(wx + 15, upWinY, 3, 12); gfx.endFill();
-              b._wins.push({ wx, wy: upWinY, lit });
+              _upWins.push({ wx, wy: upWinY });
           });
 
           // Ground floor: big front window (left) + door (center-right)
@@ -1705,7 +1713,9 @@ const Environment = {
           gfx.moveTo(gWinX + 13, gWinY); gfx.lineTo(gWinX + 13, gWinY + 16);
           gfx.moveTo(gWinX, gWinY + 8); gfx.lineTo(gWinX + 26, gWinY + 8);
           gfx.lineStyle(0);
-          b._wins.push({ wx: gWinX, wy: gWinY, lit: gLit });
+          // _wins: ground floor first (bottom-up), then upper windows
+          b._wins.push({ wx: gWinX, wy: gWinY });
+          _upWins.forEach(w => b._wins.push(w));
 
           // Front door with small porch
           const doorX = b.w - 38, doorY = h - 30;
@@ -1755,14 +1765,15 @@ const Environment = {
           ConferenceEnv.buildBuilding(gfx, b, h);
 
         } else if (b.id.startsWith('res_')) {
-          gfx.beginFill(0x1e1e2f); gfx.drawRect(0, 0, b.w, h); gfx.endFill(); 
-          
-          gfx.beginFill(0x2a2a40); 
+          gfx.beginFill(0x1e1e2f); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
+
+          gfx.beginFill(0x2a2a40);
           gfx.drawRect(0, 0, b.w, 14);
           gfx.drawRect(0, 0, 8, h);
-          gfx.drawRect(b.w - 8, 0, 8, h); 
-          gfx.endFill(); 
-          
+          gfx.drawRect(b.w - 8, 0, 8, h);
+          gfx.endFill();
+
+          b._wins = [];
           const cols = Math.floor((b.w - 16) / 24);
           const rows = floors;
           for (let f = 0; f < rows; f++) {
@@ -1770,14 +1781,22 @@ const Environment = {
                   if (f === rows - 1 && (c === Math.floor(cols/2) || c === Math.floor(cols/2)-1)) continue;
                   const wx = 16 + c * 24, wy = 20 + f * 18;
                   const lit = Math.random() > 0.4;
-                  
+
                   gfx.beginFill(0x05050a, 0.8); gfx.drawRect(wx - 1, wy - 1, 14, 12); gfx.endFill();
                   gfx.beginFill(lit ? 0xeab308 : 0x111122, lit ? 0.7 : 1);
                   gfx.drawRect(wx, wy, 12, 10); gfx.endFill();
-                  
+
                   if (lit) {
                       gfx.beginFill(0xeab308, 0.15); gfx.drawRect(wx - 2, wy - 2, 16, 14); gfx.endFill();
                   }
+              }
+          }
+          // Build _wins BOTTOM-UP so occupancy emojis fill from ground level
+          for (let f = rows - 1; f >= 0; f--) {
+              for (let c = 0; c < cols; c++) {
+                  if (f === rows - 1 && (c === Math.floor(cols/2) || c === Math.floor(cols/2)-1)) continue;
+                  const wx = 16 + c * 24, wy = 20 + f * 18;
+                  b._wins.push({ wx, wy });
               }
           }
           
@@ -1921,10 +1940,12 @@ const Environment = {
           gfx.beginFill(0xff69b4, 0.3); gfx.drawRect(2, 10, 2, h - 20); gfx.endFill();
           gfx.beginFill(0x00ffff, 0.3); gfx.drawRect(b.w - 4, 10, 2, h - 20); gfx.endFill();
           // Windows with colored glow (bar interior visible)
+          b._wins = [];
           for (let wx = 15; wx < b.w - 20; wx += 28) {
               gfx.beginFill(0x000000); gfx.drawRect(wx, h * 0.3, 20, 22); gfx.endFill();
               const wCol = [0xff00ff, 0x00ffff, 0xff6b9d, 0xa855f7][Math.floor(wx / 28) % 4];
               gfx.beginFill(wCol, 0.25); gfx.drawRect(wx + 1, h * 0.3 + 1, 18, 20); gfx.endFill();
+              b._wins.push({ wx: wx + 4, wy: Math.round(h * 0.3) + 5 });
           }
           // Stage area (ground floor)
           gfx.beginFill(0x2a1040); gfx.drawRect(b.w / 2 - 25, h - 28, 50, 28); gfx.endFill();
@@ -1970,11 +1991,12 @@ const Environment = {
           b._wins = [];
           b._winTexts = [];
 
+          // Draw windows top-down (visual rendering order)
           for (let f = 0; f < floors; f++) for (let c = 0; c < cols; c++) {
             const lit = Math.random() > .35;
             const wx = 10 + c * 24, wy = 20 + f * 18;
             if (f === floors - 1 && wx + 12 > doorL && wx < doorR) continue;
-            
+
             gfx.beginFill(0x000000, 0.15);
             gfx.drawRect(wx - 1, wy - 1, 14, 12); gfx.endFill();
             if (lit) { gfx.beginFill(0xffffff, 0.9); } else { gfx.beginFill(0x0a0a18);
@@ -1985,7 +2007,13 @@ const Environment = {
             gfx.beginFill(colHex, 0.12); gfx.drawRect(wx, wy + 4, 12, 1); gfx.endFill();
             gfx.beginFill(colHex, 0.12);
             gfx.drawRect(wx + 5, wy, 1, 10); gfx.endFill();
-            b._wins.push({ wx, wy, lit });
+          }
+          // Build _wins array BOTTOM-UP so occupancy emojis fill from ground
+          // level where the camera sits, instead of from the roof (often off-screen)
+          for (let f = floors - 1; f >= 0; f--) for (let c = 0; c < cols; c++) {
+            const wx = 10 + c * 24, wy = 20 + f * 18;
+            if (f === floors - 1 && wx + 12 > doorL && wx < doorR) continue;
+            b._wins.push({ wx, wy });
           }
 
           gfx.beginFill(0x0a0a18);

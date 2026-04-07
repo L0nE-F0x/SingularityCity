@@ -261,11 +261,13 @@ const CourtEnv = {
             g.beginFill(0x3a3028);
             g.drawRect(bw / 2 - 12, h - 22, 24, 22);
             g.endFill();
+            bld._wins = [];
             for (let wi = 0; wi < 3; wi++) {
                 const wx = 15 + wi * (bw - 30) / 3;
                 g.beginFill(0xffeecc, 0.3);
                 g.drawRect(wx + 5, 20, 16, 20);
                 g.endFill();
+                bld._wins.push({ wx: wx + 7, wy: 25 });
             }
         }
         g.beginFill(0x000000, 0.15); g.drawRect(0, h - 2, bw, 4); g.endFill();
