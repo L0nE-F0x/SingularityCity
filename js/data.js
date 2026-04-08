@@ -270,6 +270,12 @@ function getAct(stg, dp, seed, model) {
       }
   }
 
+  // ─── UNDERGROUND MODELS — visit Black Market during evening/night ───
+  if (model._underground && G.bldById && G.bldById['black_market']) {
+      if ((dp > 0.80 || dp < 0.15) && s < 40) return { act: 'nightlife', bid: 'black_market' };
+      if (dp >= 0.72 && dp < 0.80 && s < 20) return { act: 'nightlife', bid: 'black_market' };
+  }
+
   // ─── GOAL-DRIVEN NPCs (Phase 2a) ────────────────────────────────────────────────
   // ~20% of adult citizens follow a persistent lifestyle archetype (workaholic,
   // socialite, gym_rat, foodie, night_owl, arena_warrior). Handled by js/goals.js

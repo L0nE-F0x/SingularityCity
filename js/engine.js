@@ -774,7 +774,7 @@ const G = {
             exitBtn = document.createElement('button');
             exitBtn.id = 'btnExitInterior';
             exitBtn.innerHTML = '🚪 EXIT BUILDING';
-            exitBtn.style.cssText = 'position:absolute; top:0px; right:20px; z-index:9999; background:#f43f5e; color:#fff; border:none; border-bottom: 3px solid #be123c; padding:12px 20px; border-radius:0 0 6px 6px; cursor:pointer; font-size:12px; font-weight:bold; font-family:"Press Start 2P", monospace; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: background 0.2s;';
+            exitBtn.style.cssText = 'position:fixed; top:0px; right:20px; z-index:9999; background:#f43f5e; color:#fff; border:none; border-bottom: 3px solid #be123c; padding:12px 20px; border-radius:0 0 6px 6px; cursor:pointer; font-size:12px; font-weight:bold; font-family:"Press Start 2P", monospace; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: background 0.2s;';
             exitBtn.onmouseover = () => { exitBtn.style.background = '#e11d48'; };
             exitBtn.onmouseout = () => { exitBtn.style.background = '#f43f5e'; };
             exitBtn.onclick = () => { if(typeof SND !== 'undefined') SND.uiClick(); this.exitInterior(); };
@@ -786,6 +786,10 @@ const G = {
         if (topUI) topUI.style.display = 'none';
         const infoPanel = document.getElementById('infoPanel');
         if (infoPanel) infoPanel.classList.remove('open');
+        // Hide tooltip and Kardashev HUD
+        if (typeof UI !== 'undefined') UI.hideTooltip();
+        const kHud = document.getElementById('kardashevHUD');
+        if (kHud) { kHud.style.opacity = '0'; kHud.style.pointerEvents = 'none'; }
     },
 
     exitInterior() {
@@ -1707,6 +1711,9 @@ const G = {
 
       if (this.activeInterior && typeof Interior !== 'undefined') {
           Interior.update();
+          // Hide HUD elements that shouldn't show during interior mode
+          if (typeof Kardashev !== 'undefined') Kardashev.tick();
+          if (typeof Camera !== 'undefined' && Camera._updateZoomPill) Camera._updateZoomPill();
           // Metro station mirrors live trains & commuters — keep simulation running
           if (Interior.activeModule && Interior.activeModule === (window.InteriorMetroStation || null)) {
               const dp = this.getDayPhase();

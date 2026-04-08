@@ -19,6 +19,8 @@ const Interior = {
             this.activeModule = InteriorDC;
         } else if (bld.id === 'neon_bar' && typeof InteriorBar !== 'undefined') {
             this.activeModule = InteriorBar;
+        } else if (bld.id === 'black_market' && typeof InteriorBlackMarket !== 'undefined') {
+            this.activeModule = InteriorBlackMarket;
         } else if (bld.id.startsWith('power_') && typeof InteriorPower !== 'undefined') {
             this.activeModule = InteriorPower;
         } else if (bld.id === 'bld_1' && typeof InteriorLegacy !== 'undefined') {
