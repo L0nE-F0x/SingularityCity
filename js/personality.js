@@ -92,7 +92,7 @@ const Personality = {
 
         if (currentAct === 'lunch' || currentAct === 'socialize') {
             if (dom === 'coding' && Math.random() < t.coding) return 'gym';        // coders hit the gym
-            if (dom === 'creative' && Math.random() < t.creative) return 'park';    // creatives go to the park
+            if (dom === 'creative' && Math.random() < t.creative) return Math.random() < 0.6 ? 'city_park' : 'park'; // creatives love the park
             if (dom === 'social' && Math.random() < t.social) return 'cafe';        // social models love the cafe
             if (dom === 'analytical' && Math.random() < t.analytical) return 'uni_library'; // analysts study
         }

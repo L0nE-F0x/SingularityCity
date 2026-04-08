@@ -69,10 +69,10 @@ const Goals = {
             schedule: (dp) => {
                 if (dp < 0.30) return { act: 'sleep', bid: null };
                 if (dp < 0.38) return { act: 'lunch', bid: 'cafe' };          // late breakfast
-                if (dp < 0.48) return { act: 'socialize', bid: 'park' };      // stroll
+                if (dp < 0.48) return { act: 'socialize', bid: 'city_park' };  // stroll in the park
                 if (dp < 0.58) return { act: 'lunch', bid: 'cafe' };          // long lunch
                 if (dp < 0.68) return { act: 'socialize', bid: 'open_square' };
-                if (dp < 0.78) return { act: 'socialize', bid: 'park' };
+                if (dp < 0.78) return { act: 'socialize', bid: 'city_park' };
                 if (dp < 0.95) return { act: 'nightlife', bid: 'neon_bar' };  // bar until close
                 return { act: 'sleep', bid: null };
             },
@@ -148,7 +148,7 @@ const Goals = {
                 if (dp < 0.50) return { act: 'sleep', bid: null };            // sleeps through mornings
                 if (dp < 0.62) return { act: 'lunch', bid: 'cafe' };          // late breakfast
                 if (dp < 0.72) return { act: 'work', bid: null };             // short work block
-                if (dp < 0.82) return { act: 'socialize', bid: 'park' };      // golden hour
+                if (dp < 0.82) return { act: 'socialize', bid: 'city_park' };  // golden hour
                 if (dp < 0.92) return { act: 'nightlife', bid: 'neon_bar' };
                 return { act: 'arena', bid: 'arena' };                         // 4am arena grind
             },

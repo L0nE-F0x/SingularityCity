@@ -2,7 +2,7 @@
 
 **The entire AI industry — alive in your browser.**
 
-A globally synced, real-time pixel-art simulation where every AI model is a citizen, every lab is a district, and every benchmark, launch, and price war happens in real time. Built with PixiJS 7, Three.js r128, and vanilla JS — zero bundler, ~60 JS files, ~32K lines.
+A globally synced, real-time pixel-art simulation where every AI model is a citizen, every lab is a district, and every benchmark, launch, and price war happens in real time. Built with PixiJS 7, Three.js r128, and vanilla JS — zero bundler, ~70 JS files, ~35K lines.
 
 🌐 **[Play Live](https://singularitycity.net)** · 📰 **[Read the Paper](https://singularitycity.net)** · 🖼️ **[Embed it](https://singularitycity.net/embed.html)**
 
@@ -38,7 +38,7 @@ Drop a live view of Singularity City into any page with an iframe. The embed aut
 - **One-click PDF export** via browser print — perfect for archiving or sharing
 
 ### 🎬 Auto-Tour / Screensaver Mode
-- **9 landmark stops** — Space Port, Compute District, AI Academy, AI Court, Legacy Systems, Leaderboard Park, LMSYS Arena, Visitor Monument, Longevity Wing
+- **20 landmark stops** — Space Port, Leaderboard Park, LMSYS Arena, Visitor Monument, Neon Bar, Pine Reserve, Solar Array, Nuclear Plant, Trade Port, Graveyard, Conference Center, AI Court, Central Park, AI Academy, Central Metro, Internet Exchange, Robotics Factory, Longevity Wing, Newspaper HQ, The Underground
 - **Triggers on 60s idle** or press **`T`** to toggle manually
 - **Smooth camera glides** via the existing lerp — no jumps
 - **Kiosk-safe** — embed mode makes the tour sticky so it never stops on input
@@ -95,6 +95,65 @@ Drop a live view of Singularity City into any page with an iframe. The embed aut
 - **Visual effects** — coordinate grid, pulse rings, sweeping scan line
 - **Terminal aesthetic** — city dims to 8-15% opacity for dark hacker feel
 
+### 🌳 Central Park
+- **500px green space** between AI Court and Tech District
+- **Central fountain** with animated water spray particles (gravity + drift)
+- **6 oak & maple trees** — procedural canopies with seasonal color support
+- **4 park benches**, flower beds, cobblestone paths, lamp posts with night glow
+- **Decorative pond** with cattails and ripple effects
+- **Picket fence** around the perimeter — NPCs route here for lunch & weekends
+
+### 🐦 Bird Flocks
+- **Max 3 flocks of 6 birds** (15-24 sprites) — safe for 60fps
+- **V-formation flying** from off-screen, targeting park trees & forest
+- **State machine**: flying → landing → perched → scattering → dead
+- **Scatter on approach** — birds flee when camera center is within 30% of viewport
+- **Wing animation** — flapping during flight, folded when perched
+- **Every-other-frame updates** for performance
+
+### 📈 Global AI Index
+- **Composite 0-1000 score** displayed on a highway billboard with steel supports
+- **6 weighted components**: benchmark ceiling (25%), population (15%), lab diversity (15%), open-source ratio (10%), compute capacity (20%), velocity (15%)
+- **Color-coded zones**: red (0-200), yellow (200-500), green (500-800), blue (800+)
+- **Sparkline history**, all-time high indicator, smooth score animation
+- **Recalculates every 300 ticks** from live model/benchmark/DC data
+
+### 🚚 Supply Chain
+- **6 resource types**: H100 GPUs, B200 GPUs, helium, HBM memory, coolant systems, electricity
+- **Port → Data Center delivery**: cargo ships dock and fill stockpiles, trucks carry resources to DCs
+- **Animated truck sprites** with cab, trailer, wheels, and cargo emoji
+- **Consumption model**: DCs drain inventory scaled by operational facility count
+- **Shortage effects**: DCs dim when stock < 30%, flicker when < 60%
+
+### 💼 VC Deal Flow
+- **Animated funding rounds** — VC partners travel to lab HQs for deals
+- **Handshake animations** on deal close with money burst particles
+- **Deal ticker** integration with existing VC Row zone
+- **State machine**: spawning → traveling → meeting → celebrating → done
+
+### 📄 Research Paper Tracker
+- **Live arXiv API** — fetches 30 latest cs.AI/cs.LG/cs.CL papers
+- **Lab keyword matching** — routes papers to correct lab HQs (12 labs supported)
+- **Envelope delivery animation** — floating descent with sway, landing flash
+- **15 fallback papers** when arXiv is unreachable
+- **Delivers every 600 ticks**, cycles through paper queue
+
+### 🕶️ The Underground (Black Market)
+- **Hidden zone** after Neon Bar — dark alley aesthetic with neon accents
+- **3-tier detection** for jailbroken/uncensored models:
+  - T1: Name-pattern keywords (uncensored, abliterated, unfiltered, etc.)
+  - T2: Curated notorious models (Dolphin, WizardLM-Uncensored, MythoMax, etc.)
+  - T3: Derivative detection (open-source + known base + different lab)
+- **Dumpster entrance** with clickable hitzone → "shadow_market" achievement
+- **Vendor stalls** with colored goods, brick walls, wanted poster, exposed pipes
+- **Raid events**: periodic safety inspector warnings with scatter/resume cycle
+
+### 👶 NPC Aging Visuals
+- **Baby stage**: larger eyes with sparkle highlights, pacifier, onesie with buttons
+- **Kid stage**: baseball cap, t-shirt + shorts, smaller cyan dot
+- **Rumored models**: floating question mark above head (purple)
+- Visual shifts beyond size — each stage has distinct clothing, skin tone, and proportions
+
 ### 🌌 3D Holomap · 🚇 Metro (4 lines) · 🏠 NPC Housing (44 NPCs) · 🍸 Neon Bar · 🏛️ Billionaire's Row · 🚀 Space Zone · 👻 AI Graveyard · 📊 12 Data Panels · 🔊 Audio · 🏆 21 Achievements · 🌐 The Backbone · 💰 VC Row
 
 ---
@@ -127,11 +186,11 @@ Session 15 (v225-v233) shipped a full perf pass:
 | Rendering | PixiJS 7.3.2 (2D city) + Three.js r128 (3D Holomap) |
 | Fonts | PIXI BitmapText for high-frequency text (chat bubbles, HUD) |
 | Audio | Web Audio API (procedural oscillator synthesis) |
-| Data | 5 live API pipelines (HuggingFace, Google AI, ZeroEval, Launch Library 2, news RSS) + CelesTrak satellite API + Finnhub commodities |
+| Data | 6 live API pipelines (HuggingFace, Google AI, ZeroEval, Launch Library 2, news RSS, arXiv) + CelesTrak satellite API + Finnhub commodities |
 | Backend | Supabase (cross-player cloud sync) |
 | Hosting | Netlify (auto-deploy on push to main) |
 | Tooling | ESLint flat config + Prettier + editorconfig |
-| Code | ~32K lines vanilla JavaScript, ~60 files, zero bundler |
+| Code | ~35K lines vanilla JavaScript, ~70 files, zero bundler |
 
 ## Development
 
@@ -142,7 +201,7 @@ cd SingularityCity
 npx http-server -p 5500   # or: python -m http.server 5500
 
 # Bump cache versions after code changes
-node tools/cachebust.mjs 234        # rewrites ?v= on local script tags
+node tools/cachebust.mjs 291        # rewrites ?v= on local script tags
 # Then manually bump CACHE_NAME in sw.js to match
 
 # Lint
@@ -233,8 +292,16 @@ js/
   debug_overlay.js      — Debug module: FPS/drawCalls/sprites overlay (~ hotkey)
   bitmap_fonts.js       — BitmapFonts module: lazy PIXI.BitmapFont.from() wrapper
   goals.js              — Goals module: archetype NPC routines (~20% opt-in)
-  auto_tour.js          — AutoTour module: 9-landmark idle screensaver (+ embedSticky)
+  auto_tour.js          — AutoTour module: 20-landmark idle screensaver (+ embedSticky)
   newspaper.js          — Newspaper module: weekly Singularity City Times + PDF
+
+  # Session 16 — 8-feature expansion (v290-v291)
+  city_park.js          — Central Park: fountain, trees, benches, pond, lamp posts
+  bird_flocks.js        — Procedural V-formation birds with landing & scatter
+  ai_index.js           — Global AI Index: composite 0-1000 score billboard
+  supply_chain.js       — Port→DC supply chain: trucks, inventory, shortage effects
+  research_papers.js    — arXiv API paper delivery to lab HQs
+  black_market.js       — Underground zone for jailbroken models (3-tier detection)
 ```
 
 ## License

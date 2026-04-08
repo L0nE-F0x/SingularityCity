@@ -84,7 +84,8 @@ const ACHIEVEMENTS = {
     'stargazer': { name: 'Stargazer', desc: 'Witness an aurora borealis or comet.', icon: '✨' },
     'holiday_spirit': { name: 'Holiday Spirit', desc: 'Visit during 3+ seasonal events.', icon: '🎄' },
     'peer_reviewed': { name: 'Peer Reviewed', desc: 'Visit a conference during session week.', icon: '🎓' },
-    'graduation_day': { name: 'Graduation Day', desc: 'Witness a model graduate from AI Academy.', icon: '🎓' }
+    'graduation_day': { name: 'Graduation Day', desc: 'Witness a model graduate from AI Academy.', icon: '🎓' },
+    'shadow_market': { name: 'Shadow Market', desc: 'Discover the hidden entrance to The Underground.', icon: '🕶️' }
 };
 
 const STAGES = { baby: { label: 'Pre-Training', size: .6, headR: .6, speed: .5, emoji: '👶' }, kid: { label: 'Training/RLHF', size: .8, headR: .5, speed: .8, emoji: '🧒' }, adult: { label: 'Released', size: 1, headR: .4, speed: 1.2, emoji: '🧑' }, retired: { label: 'Retired', size: 1, headR: .4, speed: .4, emoji: '👻' }, rumored: { label: 'Rumored', size: .9, headR: .45, speed: 1.5, emoji: '🔮' } };
@@ -289,11 +290,12 @@ function getAct(stg, dp, seed, model) {
   if (_isWeekend) {
       if (dp < 0.35 || dp > 0.90) return { act: 'sleep', bid: resId };
       if (dp >= 0.35 && dp < 0.90) {
-          if (s < 20) return { act: 'play', bid: resId };
-          if (s < 40) return { act: 'socialize', bid: 'park' };
+          if (s < 15) return { act: 'play', bid: resId };
+          if (s < 30) return { act: 'socialize', bid: 'park' };
+          if (s < 45) return { act: 'socialize', bid: 'city_park' };
           if (s < 60) return { act: 'lunch', bid: 'cafe' };
-          if (s < 80) return { act: 'arena', bid: 'arena' };
-          if (s < 90 && model.os) return { act: 'share', bid: 'open_square' };
+          if (s < 75) return { act: 'arena', bid: 'arena' };
+          if (s < 88 && model.os) return { act: 'share', bid: 'open_square' };
           return { act: 'train', bid: 'gym' };
       }
   }
@@ -319,8 +321,9 @@ function getAct(stg, dp, seed, model) {
   if (dp >= .45 && dp < .55) {
       const traitBid = (typeof Personality !== 'undefined') ? Personality.getBuildingBias(model, 'lunch', dp) : null;
       if (traitBid) return { act: 'lunch', bid: traitBid };
-      if (s < 40) return { act: 'lunch', bid: 'cafe' };
-      if (s < 65) return { act: 'socialize', bid: 'park' };
+      if (s < 35) return { act: 'lunch', bid: 'cafe' };
+      if (s < 55) return { act: 'socialize', bid: 'park' };
+      if (s < 70) return { act: 'socialize', bid: 'city_park' };
       return { act: 'work', bid: null };
   }
 
@@ -330,7 +333,7 @@ function getAct(stg, dp, seed, model) {
   // 15:36–17:17  Late afternoon — open source devs share, some leave early
   if (dp >= .65 && dp < .72) {
       if (model.os && s < 30) return { act: 'share', bid: 'open_square' };
-      if (s < 15) return { act: 'socialize', bid: 'park' };
+      if (s < 15) return { act: 'socialize', bid: s % 2 === 0 ? 'park' : 'city_park' };
       return { act: 'work', bid: null };
   }
 
@@ -338,8 +341,9 @@ function getAct(stg, dp, seed, model) {
   if (dp >= .72 && dp < .80) {
       const traitBid = (typeof Personality !== 'undefined') ? Personality.getBuildingBias(model, 'play', dp) : null;
       if (traitBid) return { act: s < 50 ? 'arena' : 'socialize', bid: traitBid };
-      if (s < 20) return { act: 'arena', bid: 'arena' };
-      if (s < 40) return { act: 'socialize', bid: 'park' };
+      if (s < 18) return { act: 'arena', bid: 'arena' };
+      if (s < 32) return { act: 'socialize', bid: 'park' };
+      if (s < 44) return { act: 'socialize', bid: 'city_park' };
       if (s < 55) return { act: 'nightlife', bid: 'neon_bar' };
       // Staggered early leavers
       const earlyLeave = 0.72 + (s / 100) * 0.08;

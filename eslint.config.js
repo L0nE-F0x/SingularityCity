@@ -160,6 +160,13 @@ export default [
                 AutoTour: 'writable', // idle screensaver / handsfree tour
                 Newspaper: 'writable', // Singularity City Times weekly paper
                 InteriorNewspaper: 'writable', // Times HQ interior
+                CityPark: 'writable', // Central Park green space
+                BirdFlocks: 'writable', // Procedural bird formations
+                AIIndex: 'writable', // Global AI Index billboard
+                SupplyChain: 'writable', // Port→DC delivery system
+                ResearchPapers: 'writable', // arXiv paper delivery
+                BlackMarket: 'writable', // Underground jailbroken models zone
+                Kardashev: 'writable', // Kardashev compute scale
 
                 // Data / constants declared at top level across many files
                 BLDS: 'writable',

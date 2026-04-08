@@ -253,7 +253,7 @@ const G = {
             id === 'metro_east' || id === 'metro_dc' || id === 'metro_mid' || id === 'metro_longevity' || id.startsWith('npc_apt_') ||
             id.startsWith('suburb_') ||
             id === 'neon_bar' || id === 'visitor_monument' || id === 'times_hq' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
-            id.startsWith('uni_') || id.startsWith('court_') || id === 'convention_center' || id.startsWith('backbone_');
+            id.startsWith('uni_') || id.startsWith('court_') || id === 'city_park' || id === 'ai_index' || id === 'black_market' || id === 'convention_center' || id.startsWith('backbone_');
 
         const techBldsList = BLDS.filter(b =>
             !isSpecialId(b.id) && !isDcBld(b) && !isSpaceOrForestSep(b)
@@ -277,7 +277,12 @@ const G = {
         if (typeof CourtData !== 'undefined' && CourtData.BLDS.length > 0) {
             techStartX = CourtData.positionZone(techStartX);
         }
-        
+
+        // ─── CENTRAL PARK: Green space between Court and Tech District ───
+        if (typeof CityPark !== 'undefined' && CityPark.BLDS.length > 0) {
+            techStartX = CityPark.positionZone(techStartX);
+        }
+
         // Compact tech buildings with consistent 50px gaps
         let techX = techStartX;
         techBldsList.forEach(b => {
@@ -327,6 +332,11 @@ const G = {
             currentX += convBld.w + 50;
         }
 
+        // ─── GLOBAL AI INDEX: Billboard after Convention Center ───
+        if (typeof AIIndex !== 'undefined' && AIIndex.BLDS.length > 0) {
+            currentX = AIIndex.positionZone(currentX);
+        }
+
         // Visitor Monument — public obelisk
         const vMon = BLDS.find(b => b.id === 'visitor_monument');
         if (vMon) {
@@ -347,7 +357,12 @@ const G = {
             nBar.x = currentX;
             currentX += nBar.w + 40;
         }
-        
+
+        // ─── BLACK MARKET: Hidden underground zone after Neon Bar ───
+        if (typeof BlackMarket !== 'undefined' && BlackMarket.BLDS.length > 0) {
+            currentX = BlackMarket.positionZone(currentX);
+        }
+
         let mEast = BLDS.find(b => b.id === 'metro_east');
         if (mEast) {
             mEast.x = currentX;
@@ -444,8 +459,10 @@ const G = {
         addZB('university', BLDS.filter(b => b.id.startsWith('uni_')));
         if (fCamp) addZB('forest', [fCamp]);
         addZB('court', BLDS.filter(b => b.id.startsWith('court_')));
+        addZB('city_park', BLDS.filter(b => b.id === 'city_park'));
         addZB('vcrow', BLDS.filter(b => b.id.startsWith('vcrow_')));
         if (nBar) addZB('nightlife', [nBar]);
+        addZB('black_market', BLDS.filter(b => b.id === 'black_market'));
         if (fSilicon) addZB('forest', [fSilicon]);
         addZB('estates', BLDS.filter(b => b.id.startsWith('house_')));
         addZB('backbone', BLDS.filter(b => b.id.startsWith('backbone_')));
@@ -1176,7 +1193,7 @@ const G = {
               origSelect.call(UI, b);
               setTimeout(() => {
                   const p = document.getElementById('infoPanel');
-                  if (p && b && b.id !== 'park' && b.id !== 'graveyard' && b.id !== 'visitor_monument') {
+                  if (p && b && b.id !== 'park' && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market') {
                       const titleArea = p.querySelector('.ipanel-name') || p.querySelector('.ipanel-title');
                       if (!document.getElementById('btnInside')) {
                           const btn = document.createElement('button');
@@ -1241,6 +1258,12 @@ const G = {
       if (typeof Seasonal !== 'undefined') Seasonal.init();
       if (typeof UniversityData !== 'undefined') UniversityData.init();
       if (typeof CourtData !== 'undefined') CourtData.init();
+      if (typeof CityPark !== 'undefined') CityPark.init();
+      if (typeof BirdFlocks !== 'undefined' && this.charLayer) BirdFlocks.init(this.charLayer);
+      if (typeof AIIndex !== 'undefined') AIIndex.init();
+      if (typeof SupplyChain !== 'undefined' && this.carLayer) SupplyChain.init(this.carLayer);
+      if (typeof ResearchPapers !== 'undefined' && this.charLayer) ResearchPapers.init(this.charLayer);
+      if (typeof BlackMarket !== 'undefined') BlackMarket.init();
       if (typeof ConferenceData !== 'undefined') ConferenceData.init();
       if (typeof VCRow !== 'undefined') VCRow.init();
       if (typeof BackboneZone !== 'undefined') BackboneZone.init();
@@ -1250,7 +1273,7 @@ const G = {
       this.recalculateZoning(); 
       
       
-      this.socialSpots = BLDS.filter(b => ['cafe', 'open_square', 'gym', 'arena', 'forest_0'].includes(b.id));
+      this.socialSpots = BLDS.filter(b => ['cafe', 'open_square', 'gym', 'arena', 'forest_0', 'city_park'].includes(b.id));
       
       // Add Frontier Pines as a social destination when a launch is within 2 hours
       if (typeof SpaceData !== 'undefined' && SpaceData.launches && SpaceData.launches.length > 0) {
@@ -1757,6 +1780,12 @@ const G = {
               UniversityData: typeof UniversityData !== 'undefined' ? UniversityData : null,
               UniversityEnv: typeof UniversityEnv !== 'undefined' ? UniversityEnv : null,
               CourtData: typeof CourtData !== 'undefined' ? CourtData : null,
+              CityPark: typeof CityPark !== 'undefined' ? CityPark : null,
+              BirdFlocks: typeof BirdFlocks !== 'undefined' ? BirdFlocks : null,
+              AIIndex: typeof AIIndex !== 'undefined' ? AIIndex : null,
+              SupplyChain: typeof SupplyChain !== 'undefined' ? SupplyChain : null,
+              ResearchPapers: typeof ResearchPapers !== 'undefined' ? ResearchPapers : null,
+              BlackMarket: typeof BlackMarket !== 'undefined' ? BlackMarket : null,
               ConferenceData: typeof ConferenceData !== 'undefined' ? ConferenceData : null,
               Kardashev: typeof Kardashev !== 'undefined' ? Kardashev : null,
           };
@@ -1770,6 +1799,7 @@ const G = {
       if (S.NPCHousing) S.NPCHousing.update(dp);
       if (S.StreetVendors) S.StreetVendors.update(dp);
       if (S.PortEnv) S.PortEnv.update();
+      if (S.SupplyChain) S.SupplyChain.update();
       // Throttle purely-visual zone envs to every other frame (smooth at 30fps)
       if (this.tick % 2 === 0) {
           if (S.PowerEnv) S.PowerEnv.update();
@@ -1789,8 +1819,13 @@ const G = {
       if (S.UniversityData) S.UniversityData.update();
       if (S.UniversityEnv) S.UniversityEnv.update();
       if (S.CourtData) S.CourtData.update();
+      if (S.CityPark) S.CityPark.update();
+      if (this.tick % 2 === 0 && S.BirdFlocks) S.BirdFlocks.update(); // every other frame for perf
       if (S.ConferenceData) S.ConferenceData.update();
       if (S.Kardashev) S.Kardashev.tick();
+      if (S.AIIndex) S.AIIndex.tick();
+      if (S.ResearchPapers) S.ResearchPapers.update();
+      if (S.BlackMarket) S.BlackMarket.update();
 
       // Lazy zone boot — spawn each zone's visual animations on first approach
       this._checkLazyZones();

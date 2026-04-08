@@ -649,25 +649,99 @@ const EntitiesGfx = {
         
         refs.shadow.clear(); refs.shadow.beginFill(0x000000, 0.25); refs.shadow.drawEllipse(0, 2, bw * 0.6, 3); refs.shadow.endFill();
         refs.head.clear();
-        refs.head.beginFill(skinCol, isR ? .3 : isRm ? .5 : 1);
+        // ─── AGE-SPECIFIC SKIN TONES ───
+        const babySkin = 0xffe4c4;  // rosier/pinker for babies
+        const kidSkin  = 0xfde0b8;  // slightly warmer for kids
+        const ageSkin = isR ? 0xb8c0cc : isRm ? 0x8b5cf6 : stg === 'baby' ? babySkin : stg === 'kid' ? kidSkin : 0xfdd8b5;
+        refs.head.beginFill(ageSkin, isR ? .3 : isRm ? .5 : 1);
         refs.head.drawRoundedRect(-bw * .4, 0, bw * .8, headH, headH * .25); refs.head.endFill();
-        refs.head.beginFill(isR ? 0xaaccff : isRm ? 0xa78bfa : 0x2c1810); refs.head.drawCircle(-bw * .1, headH * .38, isR ? eyeS * 1.5 : eyeS);
-        refs.head.drawCircle(bw * .1, headH * .38, isR ? eyeS * 1.5 : eyeS); refs.head.endFill(); 
-        refs.head.beginFill(0x000000, 0.4); refs.head.drawRect(-bw * .08, headH * .6, bw * .16, 1.5);
-        refs.head.endFill();
-        refs.head.y = -h;
-        
-        if (refs._metroState !== 'riding') {
-            refs.body.clear(); refs.body.beginFill(suitCol, isR ? .4 : isRm ? .4 : 1);
-            refs.body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * .1); refs.body.endFill(); refs.body.y = -h + headH;
+        // Eyes — babies get bigger, rounder eyes; kids get standard
+        const ageEyeS = stg === 'baby' ? eyeS * 1.4 : eyeS;
+        const eyeCol = isR ? 0xaaccff : isRm ? 0xa78bfa : stg === 'baby' ? 0x1a1a2e : 0x2c1810;
+        refs.head.beginFill(eyeCol); refs.head.drawCircle(-bw * .12, headH * .38, isR ? eyeS * 1.5 : ageEyeS);
+        refs.head.drawCircle(bw * .12, headH * .38, isR ? eyeS * 1.5 : ageEyeS); refs.head.endFill();
+        // Baby eye highlights (cute sparkle)
+        if (stg === 'baby') {
+            refs.head.beginFill(0xffffff, 0.7); refs.head.drawCircle(-bw * .12 + 1, headH * .35, ageEyeS * 0.4);
+            refs.head.drawCircle(bw * .12 + 1, headH * .35, ageEyeS * 0.4); refs.head.endFill();
         }
-        
+        // Mouth — babies get a small 'o', kids get a smile, adults get neutral line
+        if (stg === 'baby') {
+            refs.head.beginFill(0xdd8888, 0.6); refs.head.drawCircle(0, headH * .65, bw * .06); refs.head.endFill();
+        } else {
+            refs.head.beginFill(0x000000, 0.4); refs.head.drawRect(-bw * .08, headH * .6, bw * .16, 1.5); refs.head.endFill();
+        }
+        // ─── BABY ACCESSORIES: Pacifier + tuft of hair ───
+        if (stg === 'baby') {
+            // Tuft of hair on top
+            refs.head.beginFill(eyeCol, 0.7);
+            refs.head.drawEllipse(-bw * .1, -1, bw * .12, 3);
+            refs.head.drawEllipse(bw * .05, -2, bw * .10, 2.5);
+            refs.head.endFill();
+            // Pacifier
+            refs.head.beginFill(0xff88aa, 0.8); refs.head.drawCircle(0, headH * .72, bw * .1); refs.head.endFill();
+            refs.head.beginFill(0xffaacc, 0.9); refs.head.drawCircle(0, headH * .72, bw * .06); refs.head.endFill();
+        }
+        // ─── KID ACCESSORIES: Baseball cap ───
+        if (stg === 'kid') {
+            // Cap brim
+            refs.head.beginFill(suitCol, 0.9);
+            refs.head.drawRect(-bw * .45, -1, bw * .9, 3);
+            refs.head.endFill();
+            // Cap dome
+            refs.head.beginFill(suitCol, 0.85);
+            refs.head.drawRoundedRect(-bw * .38, -4, bw * .76, 5, 2);
+            refs.head.endFill();
+            // Cap button
+            refs.head.beginFill(0xffffff, 0.4); refs.head.drawCircle(0, -3, 1); refs.head.endFill();
+        }
+        // ─── RUMORED: Question mark floating above ───
+        if (isRm) {
+            refs.head.beginFill(0xa78bfa, 0.7);
+            refs.head.drawRect(-1, -8, 2, 4); // stem
+            refs.head.drawCircle(0, -10, 2.5); // top curve
+            refs.head.drawCircle(0, -3, 1); // dot
+            refs.head.endFill();
+        }
+        refs.head.y = -h;
+
+        if (refs._metroState !== 'riding') {
+            refs.body.clear();
+            // ─── AGE-SPECIFIC BODY STYLE ───
+            if (stg === 'baby') {
+                // Onesie — rounded, pastel version of lab color
+                const onesieCol = suitCol;
+                refs.body.beginFill(onesieCol, isRm ? .4 : 0.85);
+                refs.body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * .25); refs.body.endFill();
+                // Onesie buttons
+                refs.body.beginFill(0xffffff, 0.5);
+                for (let bi = 0; bi < Math.min(2, bodyH / 4); bi++) {
+                    refs.body.drawCircle(0, 2 + bi * 3, 0.8);
+                }
+                refs.body.endFill();
+            } else if (stg === 'kid') {
+                // T-shirt + shorts look — lab color top, darker bottom
+                const shirtH = Math.max(bodyH * 0.6, 3);
+                refs.body.beginFill(suitCol, isRm ? .4 : 1);
+                refs.body.drawRoundedRect(-bw / 2, 0, bw, shirtH, bw * .1); refs.body.endFill();
+                // Shorts
+                refs.body.beginFill(0x2a2a3a, 0.8);
+                refs.body.drawRect(-bw / 2, shirtH, bw, Math.max(bodyH - shirtH, 2)); refs.body.endFill();
+            } else {
+                refs.body.beginFill(suitCol, isR ? .4 : isRm ? .4 : 1);
+                refs.body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * .1); refs.body.endFill();
+            }
+            refs.body.y = -h + headH;
+        }
+
+        // ─── AGE-SPECIFIC LEG COLORS ───
+        const ageLegCol = isR ? 0x7788aa : isRm ? 0x6b7280 : stg === 'baby' ? 0xfdd8b5 : stg === 'kid' ? 0x2a2a3a : 0x3d2914;
         const lw = Math.max(2, bw * .25), lh = Math.max(legH, 2); refs.legL.clear();
-        refs.legL.beginFill(legCol, isR ? .25 : 1);
+        refs.legL.beginFill(ageLegCol, isR ? .25 : 1);
         refs.legL.drawRect(-lw / 2, 0, lw, lh); refs.legL.endFill(); refs.legL.x = -bw * .15; refs.legR.clear();
-        refs.legR.beginFill(legCol, isR ? .25 : 1);
+        refs.legR.beginFill(ageLegCol, isR ? .25 : 1);
         refs.legR.drawRect(-lw / 2, 0, lw, lh); refs.legR.endFill(); refs.legR.x = bw * .15;
-        refs.dot.clear(); const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : 0x4ade80; refs.dot.beginFill(dotCol); refs.dot.drawCircle(0, 0, 2); refs.dot.endFill();
+        refs.dot.clear(); const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : stg === 'kid' ? 0x22d3ee : 0x4ade80; refs.dot.beginFill(dotCol); refs.dot.drawCircle(0, 0, stg === 'baby' ? 2.5 : 2); refs.dot.endFill();
         refs.dot.y = -h - 6;
 
         // Spectral glow for retired models

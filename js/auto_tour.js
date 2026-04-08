@@ -51,12 +51,14 @@ const AutoTour = {
         { bldId: 'graveyard',         label: 'Model Graveyard',    zoom: 1.10, yOffset: -15,  pan: 0.06 },
         { bldId: 'convention_center', label: 'Conference Center',  zoom: 0.95, yOffset: -25,  pan: 0.12 },
         { bldId: 'court_hearing',     label: 'AI Court',           zoom: 1.10, yOffset: -15,  pan: 0.08 },
+        { bldId: 'city_park',         label: 'Central Park',       zoom: 0.90, yOffset: -20,  pan: 0.14 },
         { bldId: 'uni_main',          label: 'AI Academy',         zoom: 1.00, yOffset: -25,  pan: 0.10 },
         { bldId: 'metro_mid',         label: 'Central Metro',      zoom: 1.05, yOffset: -20,  pan: 0.08 },
         { bldId: 'backbone_ixp',      label: 'Internet Exchange',  zoom: 0.90, yOffset: -30,  pan: 0.12 },
         { bldId: 'robotics_assembly', label: 'Robotics Factory',   zoom: 0.90, yOffset: -25,  pan: 0.14 },
         { bldId: 'longevity_discovery',label:'Longevity Wing',     zoom: 0.95, yOffset: -20,  pan: 0.10 },
         { bldId: 'times_hq',          label: 'Newspaper HQ',      zoom: 1.10, yOffset: -15,  pan: 0.06 },
+        { bldId: 'black_market',      label: 'The Underground',   zoom: 1.05, yOffset: -15,  pan: 0.08 },
     ],
 
     /* ── Buildings eligible for interior visits ───────────────── */

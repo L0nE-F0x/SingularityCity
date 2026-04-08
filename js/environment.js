@@ -1261,6 +1261,25 @@ const Environment = {
           container.addChild(monIcon); b._monIcon = monIcon;
           b.tip = "Benchmark Monument: Awaiting Scores...";
           
+        } else if (b.id === 'black_market') {
+          // ── BLACK MARKET — Delegated to BlackMarket module ──
+          if (typeof BlackMarket !== 'undefined') {
+              BlackMarket.drawZone(gfx, container, b, h);
+          }
+
+        } else if (b.id === 'ai_index') {
+          // ── GLOBAL AI INDEX BILLBOARD — Delegated to AIIndex module ──
+          if (typeof AIIndex !== 'undefined') {
+              AIIndex.drawBillboard(gfx, container, b, h);
+          }
+
+        } else if (b.id === 'city_park') {
+          // ── CENTRAL PARK — Delegated to CityPark module ──
+          if (typeof CityPark !== 'undefined') {
+              CityPark.drawPark(gfx, container, b, h);
+              CityPark.initLampGlows(container, b);
+          }
+
         } else if (b.id === 'graveyard') {
           // ── MEMORIAL PARK — Redesigned graveyard with per-model headstones ──
           // Dark earth ground
@@ -2035,7 +2054,7 @@ const Environment = {
         gfx.cacheAsBitmap = true;
 
         // ─── ROOFTOP HELIPAD for HQ buildings with founders ───
-        if (!b.id.startsWith('house_') && !b.id.startsWith('res_') && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('suburb_') && !b.id.startsWith('npc_apt_') && b.id !== 'park' && b.id !== 'graveyard') {
+        if (!b.id.startsWith('house_') && !b.id.startsWith('res_') && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('suburb_') && !b.id.startsWith('npc_apt_') && b.id !== 'park' && b.id !== 'graveyard' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market') {
             const hasFounder = G.ceoRefs && G.ceoRefs[b.lab];
             if (hasFounder) {
                 const hpGfx = new PIXI.Graphics();
@@ -2144,7 +2163,7 @@ const Environment = {
         if (b._wins) { b._wins.forEach(win => { const t = new PIXI.Text('', { fontSize: 8, fill: 0xffffff }); t.anchor.set(0.5, 0.5); t.x = win.wx + 6; t.y = win.wy + 5; t.visible = false; container.addChild(t); b._winTexts.push(t); });
         }
   
-        if (b.id !== 'park' && b.id !== 'graveyard' && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('suburb_')) {
+        if (b.id !== 'park' && b.id !== 'graveyard' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market' && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('suburb_')) {
             const sign = new PIXI.Text(b.name, { fontFamily: 'Silkscreen', fontSize: 7, fill: 0x9898c0, align: 'center' });
             sign.anchor.set(0.5, 0); sign.x = b.w / 2; sign.y = h + 4;
             if (sign.width > b.w - 4) sign.scale.set((b.w - 4) / sign.width);
@@ -2177,7 +2196,7 @@ const Environment = {
         };
         // Auto-generate neon sign for any non-lab, non-special building
         let nc = neonConfig[b.id];
-        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('suburb_') && !b.id.startsWith('res_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park') {
+        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('suburb_') && !b.id.startsWith('res_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market') {
             nc = { text: (b.emoji || '🏢') + ' ' + (b.name || '').toUpperCase(), col: 0x6688aa, speed: 0.06, flicker: 0.2 };
         }
         if (nc) {

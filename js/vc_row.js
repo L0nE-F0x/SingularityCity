@@ -238,6 +238,9 @@ const VCRow = {
         const lunchWindow = dp >= 0.45 && dp < 0.55;
 
         this.carCommuters.forEach((cm, ci) => {
+            // Skip commuters currently on a deal trip — handled by _updateDealFlow
+            if (cm.state === 'deal_trip') return;
+
             // Morning arrival
             if (wantWork && cm.state === 'at_home') {
                 cm.state = 'driving_to_work';
@@ -324,6 +327,220 @@ const VCRow = {
     },
 
     update() {
-        // Dynamic data updates could go here (e.g., Supabase fetch for live funding)
+        // ─── DEAL FLOW: Periodic VC → Lab HQ funding trips ───
+        this._updateDealFlow();
+    },
+
+    // ═══════════════════════════════════════════════════════
+    //   DEAL FLOW ANIMATION SYSTEM
+    // ═══════════════════════════════════════════════════════
+
+    _activeDeals: [],
+    _dealParticles: [],
+    _nextDealTick: 800,
+    _dealLayer: null,
+
+    _updateDealFlow() {
+        if (!this._dealLayer && this._carLayer) {
+            this._dealLayer = new PIXI.Container();
+            this._carLayer.addChild(this._dealLayer);
+        }
+        if (!this._dealLayer) return;
+
+        const dp = G.getDayPhase();
+        const isBusinessHours = dp >= 0.35 && dp < 0.72;
+
+        // Spawn new deals periodically during business hours
+        if (isBusinessHours && G.tick >= this._nextDealTick && this._activeDeals.length < 2) {
+            this._spawnDeal();
+            this._nextDealTick = G.tick + 1500 + Math.floor(Math.random() * 1500);
+        }
+
+        // Update active deals
+        for (let i = this._activeDeals.length - 1; i >= 0; i--) {
+            const deal = this._activeDeals[i];
+            this._updateDeal(deal, i);
+        }
+
+        // Update money particles
+        for (let i = this._dealParticles.length - 1; i >= 0; i--) {
+            const p = this._dealParticles[i];
+            p.sprite.x += p.vx;
+            p.sprite.y += p.vy;
+            p.vy += 0.03;
+            p.life--;
+            p.sprite.alpha = Math.max(0, p.life / p.maxLife);
+            p.sprite.rotation += 0.05;
+            if (p.life <= 0) {
+                if (p.sprite.parent) p.sprite.parent.removeChild(p.sprite);
+                this._dealParticles.splice(i, 1);
+            }
+        }
+    },
+
+    _spawnDeal() {
+        // Pick a VC commuter (the partner or analyst)
+        const vcCandidates = this.carCommuters.filter(c => c.state === 'at_work' || c.state === 'back_from_lunch');
+        if (vcCandidates.length === 0) return;
+        const vc = vcCandidates[Math.floor(Math.random() * vcCandidates.length)];
+
+        // Pick a random funded lab HQ as destination
+        const fundedLabs = Object.keys(this.FUNDING);
+        const lab = fundedLabs[Math.floor(Math.random() * fundedLabs.length)];
+        const labBlds = G.bldsByLab[lab] || [];
+        const hq = labBlds.find(b => !b.id.startsWith('house_'));
+        if (!hq) return;
+
+        const funding = this.FUNDING[lab];
+        const labName = (typeof LABS !== 'undefined' && LABS[lab]) ? LABS[lab].name : lab;
+        const labCol = (typeof LABS !== 'undefined' && LABS[lab]) ? parseInt(LABS[lab].color.replace('#', ''), 16) : 0x4ade80;
+
+        // Mark commuter as doing a deal trip
+        vc.state = 'deal_trip';
+        vc.carCont.visible = true;
+        vc.carCont.x = vc.workX;
+        vc._dealTargetX = hq.x + hq.w / 2;
+        vc.carCont.scale.x = vc._dealTargetX > vc.workX ? 1 : -1;
+
+        // Create valuation popup (follows the deal)
+        const popup = new PIXI.Container();
+        const popBg = new PIXI.Graphics();
+        popBg.beginFill(0x0a0a18, 0.85);
+        popBg.drawRoundedRect(-50, -24, 100, 22, 4);
+        popBg.endFill();
+        popBg.beginFill(labCol, 0.3);
+        popBg.drawRoundedRect(-50, -24, 100, 22, 4);
+        popBg.endFill();
+        popup.addChild(popBg);
+
+        const valText = `$${(funding.valuation / 1000).toFixed(0)}B ${labName}`;
+        const txt = new PIXI.Text(valText, { fontFamily: 'Silkscreen', fontSize: 6, fill: 0xffffff });
+        txt.anchor.set(0.5, 0.5);
+        txt.y = -13;
+        popup.addChild(txt);
+
+        popup.x = vc.workX;
+        popup.y = G.groundY - 50;
+        popup.alpha = 0;
+        this._dealLayer.addChild(popup);
+
+        this._activeDeals.push({
+            vc,
+            lab,
+            labCol,
+            hq,
+            popup,
+            phase: 'traveling', // traveling → handshake → celebrating → returning → done
+            timer: 0,
+        });
+
+        if (typeof UI !== 'undefined') {
+            UI.addToast(`💰 ${vc.npc.name} heading to ${labName} HQ for funding meeting`);
+        }
+    },
+
+    _updateDeal(deal, index) {
+        const vc = deal.vc;
+
+        if (deal.phase === 'traveling') {
+            const dx = vc._dealTargetX - vc.carCont.x;
+            deal.popup.x = vc.carCont.x;
+            deal.popup.alpha = Math.min(1, deal.popup.alpha + 0.02);
+
+            if (Math.abs(dx) < 5) {
+                deal.phase = 'handshake';
+                deal.timer = 120;
+                vc.carCont.visible = false;
+                deal.popup.y = G.groundY - 60;
+            } else {
+                vc.carCont.x += Math.sign(dx) * Math.min(vc.speed, Math.abs(dx));
+            }
+        } else if (deal.phase === 'handshake') {
+            deal.timer--;
+            deal.popup.x = vc._dealTargetX;
+            // Pulse the popup
+            deal.popup.scale.set(1 + Math.sin(G.tick * 0.1) * 0.05);
+
+            // Handshake indicator
+            if (deal.timer === 80) {
+                // Spawn handshake emoji
+                const shake = new PIXI.Text('🤝', { fontSize: 16, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif' });
+                shake.anchor.set(0.5, 0.5);
+                shake.x = vc._dealTargetX;
+                shake.y = G.groundY - 40;
+                this._dealLayer.addChild(shake);
+                deal._shakeEmoji = shake;
+            }
+
+            if (deal.timer <= 0) {
+                deal.phase = 'celebrating';
+                deal.timer = 90;
+                // Spawn money particles
+                this._spawnMoneyBurst(vc._dealTargetX, G.groundY - 30, deal.labCol);
+                if (deal._shakeEmoji && deal._shakeEmoji.parent) {
+                    deal._shakeEmoji.parent.removeChild(deal._shakeEmoji);
+                }
+            }
+        } else if (deal.phase === 'celebrating') {
+            deal.timer--;
+            deal.popup.alpha = Math.max(0, deal.timer / 90);
+            if (deal.timer <= 0) {
+                deal.phase = 'returning';
+                vc.carCont.visible = true;
+                vc.carCont.x = vc._dealTargetX;
+                vc.carCont.scale.x = vc.workX > vc._dealTargetX ? 1 : -1;
+            }
+        } else if (deal.phase === 'returning') {
+            const dx = vc.workX - vc.carCont.x;
+            if (Math.abs(dx) < 5) {
+                deal.phase = 'done';
+                vc.state = 'at_work';
+                vc.carCont.visible = false;
+                vc.bld = vc.workBldId;
+            } else {
+                vc.carCont.x += Math.sign(dx) * Math.min(vc.speed, Math.abs(dx));
+            }
+        } else if (deal.phase === 'done') {
+            if (deal.popup.parent) deal.popup.parent.removeChild(deal.popup);
+            this._activeDeals.splice(index, 1);
+        }
+    },
+
+    _spawnMoneyBurst(x, y, color) {
+        const count = 12 + Math.floor(Math.random() * 8);
+        for (let i = 0; i < count; i++) {
+            const g = new PIXI.Graphics();
+            const isGold = Math.random() > 0.4;
+            const col = isGold ? 0xfbbf24 : color;
+            g.beginFill(col, 0.8);
+            if (isGold) {
+                g.drawCircle(0, 0, 2 + Math.random()); // coin
+            } else {
+                g.drawRect(-2, -1, 4, 2); // bill
+            }
+            g.endFill();
+            g.x = x;
+            g.y = y;
+            this._dealLayer.addChild(g);
+
+            this._dealParticles.push({
+                sprite: g,
+                vx: (Math.random() - 0.5) * 3,
+                vy: -(1.5 + Math.random() * 3),
+                life: 60 + Math.floor(Math.random() * 40),
+                maxLife: 100,
+            });
+        }
+
+        // Dollar sign popup
+        const dollar = new PIXI.Text('💰', { fontSize: 18, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif' });
+        dollar.anchor.set(0.5, 0.5);
+        dollar.x = x; dollar.y = y - 10;
+        this._dealLayer.addChild(dollar);
+        this._dealParticles.push({
+            sprite: dollar,
+            vx: 0, vy: -0.8,
+            life: 60, maxLife: 60,
+        });
     }
 };
