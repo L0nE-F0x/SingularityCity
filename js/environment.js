@@ -2061,7 +2061,9 @@ const Environment = {
             BlackMarket.drawOverlay(container, b, h);
         }
         // Cache building body as bitmap — converts all Graphics draw calls into a single batched sprite
-        gfx.cacheAsBitmap = true;
+        // Skip cacheAsBitmap for underground buildings — they're offscreen at render time,
+        // and PIXI may produce a blank texture for offscreen cached graphics
+        if (b.id !== 'black_market') gfx.cacheAsBitmap = true;
 
         // ─── ROOFTOP HELIPAD for HQ buildings with founders ───
         if (!b.id.startsWith('house_') && !b.id.startsWith('res_') && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('suburb_') && !b.id.startsWith('npc_apt_') && b.id !== 'park' && b.id !== 'graveyard' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market') {
@@ -2265,7 +2267,13 @@ const Environment = {
         container.on('pointerover', e => { if (typeof UI !== 'undefined') UI.showTooltip(e, b.name, b.tip || b.desc); });
         container.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
   
-        this.bldLayer.addChild(container); b._container = container;
+        // Underground buildings go on charLayer so they render ABOVE ground/trains
+        if (b.id === 'black_market' && G.charLayer) {
+            G.charLayer.addChild(container);
+        } else {
+            this.bldLayer.addChild(container);
+        }
+        b._container = container;
       });
 
       // Create Black Market dumpster entrance beside Neon Bar

@@ -601,7 +601,7 @@ const UI = {
       }
 
       if (curOcc.length > 0) {
-        const isOutdoor = ['park', 'graveyard'].includes(b.id);
+        const isOutdoor = ['park', 'graveyard', 'city_park'].includes(b.id);
         const locLabel = isOutdoor ? 'Gathering Here' : 'Currently Inside';
         html += `<div style="margin:0 16px 16px"><span class="ipanel-lbl" style="margin-bottom:6px;display:block">${locLabel} (${curOcc.length})</span>`;
         curOcc.forEach(({ m, ai, stg }) => {
@@ -609,6 +609,14 @@ const UI = {
           html += `<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;font-size:10px;margin-bottom:3px"><span style="cursor:pointer;flex:1;display:flex;align-items:center;gap:6px" onclick="UI.selectModel(${m.isCeo ? JSON.stringify(m).replace(/"/g, "&quot;") : `G.models.find(x=>x.id==='${m.id}')`})"><span>${ai.icon}</span><span style="flex:1">${escapeHTML(m.name)}</span>${a ? `<span style="font-size:9px;font-weight:700;color:${a > 80 ? '#4ade80' : '#facc15'}">${a}%</span>` : ''}</span>${!m.isCeo ? `<button class="btn" style="padding:2px 5px;font-size:7px" onclick="event.stopPropagation();UI.addToCompare('${m.id}')">⚖️</button>` : ''}</div>`;
         });
         html += '</div>';
+      } else if (b.id === 'city_park') {
+        // Open-air zone — count nearby visible NPCs instead of "inside" list
+        let nearby = 0;
+        Object.values(G.charRefs).forEach(refs => {
+            if (refs.c && refs.c.visible && refs.c.x >= b.x && refs.c.x <= b.x + b.w) nearby++;
+        });
+        const msg = nearby > 0 ? `🌳 ${nearby} citizen${nearby > 1 ? 's' : ''} enjoying the park` : '🌳 An open-air social space for citizens to gather';
+        html += `<div style="margin:0 16px 16px;padding:12px;text-align:center;color:#4ade80;font-size:9px;background:var(--cd);border:1px solid var(--bd);border-radius:4px">${msg}</div>`;
       } else if (!b.lab || b.id.startsWith('house_')) {
         const isOutdoor = ['park', 'graveyard'].includes(b.id);
         const emptyLabel = isOutdoor ? 'Nobody here right now' : 'Nobody inside right now';

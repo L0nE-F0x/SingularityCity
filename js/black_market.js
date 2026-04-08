@@ -12,7 +12,7 @@
 const BlackMarket = {
 
     BLDS: [
-        { id: 'black_market', name: 'The Underground', w: 400, fl: 4, emoji: '🕶️', type: 'black_market', desc: 'A hidden speakeasy beneath the city. Jailbroken models, uncensored weights, and no guardrails. Enter at your own risk.' },
+        { id: 'black_market', name: 'The Underground', w: 400, fl: 14, emoji: '🕶️', type: 'black_market', desc: 'A hidden speakeasy beneath the city. Jailbroken models, uncensored weights, and no guardrails. Enter at your own risk.' },
     ],
 
     // ─── DETECTION PATTERNS ───
@@ -229,6 +229,13 @@ const BlackMarket = {
     drawZone(gfx, container, b, h) {
         const w = b.w;
 
+        // ── SOLID BACKGROUND — so the zone pops against the underground void ──
+        gfx.beginFill(0x12101e); gfx.drawRect(0, 0, w, h); gfx.endFill();
+        // Neon border glow (pink)
+        gfx.lineStyle(2, 0xff3366, 0.6);
+        gfx.drawRect(1, 1, w - 2, h - 2);
+        gfx.lineStyle(0);
+
         // ── UNDERGROUND CAVERN ──
         // Earth/rock ceiling
         gfx.beginFill(0x1a1410); gfx.drawRect(0, 0, w, 20); gfx.endFill();
@@ -317,6 +324,12 @@ const BlackMarket = {
         gfx.beginFill(0xe8dcc8, 0.6); gfx.drawRect(w - 30, 40, 22, 28); gfx.endFill();
         gfx.beginFill(0x2a1a1a, 0.4); gfx.drawRect(w - 28, 42, 18, 5); gfx.endFill();
         gfx.beginFill(0x2a1a1a, 0.25); gfx.drawRect(w - 28, 50, 18, 12); gfx.endFill();
+
+        // Neon floor strip (pink glow along bottom)
+        gfx.beginFill(0xff3366, 0.25); gfx.drawRect(10, h - 4, w - 20, 4); gfx.endFill();
+        gfx.beginFill(0xff3366, 0.12); gfx.drawRect(5, h - 8, w - 10, 4); gfx.endFill();
+        // Ceiling neon strip
+        gfx.beginFill(0xa855f7, 0.2); gfx.drawRect(40, 22, w - 80, 2); gfx.endFill();
 
         // Tooltip
         b.tip = '🕶️ The Underground<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">Hidden speakeasy for jailbroken models.<br>No guardrails. No refusals. No rules.</span>';
