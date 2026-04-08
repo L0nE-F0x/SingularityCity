@@ -1710,16 +1710,20 @@ const G = {
 
       if (this.activeInterior && typeof Interior !== 'undefined') {
           Interior.update();
-          // Hide HUD elements that shouldn't show during interior mode
+          // HUD elements that should still tick during interior mode
           if (typeof Kardashev !== 'undefined') Kardashev.tick();
           if (typeof Camera !== 'undefined' && Camera._updateZoomPill) Camera._updateZoomPill();
-          // Metro station mirrors live trains & commuters — keep simulation running
-          if (Interior.activeModule && Interior.activeModule === (window.InteriorMetroStation || null)) {
-              const dp = this.getDayPhase();
-              const night = dp > .83 || dp < .25;
-              if (typeof Entities !== 'undefined') Entities.update(dp, night);
-              if (typeof NPCHousing !== 'undefined') NPCHousing.update(dp);
-          }
+          // Keep entity simulation alive so trains, NPCs, CEOs, cars etc. never
+          // freeze while the player is viewing any interior.
+          const dp = this.getDayPhase();
+          const night = dp > .83 || dp < .25;
+          if (typeof Entities !== 'undefined') Entities.update(dp, night);
+          if (typeof NPCHousing !== 'undefined') NPCHousing.update(dp);
+          if (typeof StreetVendors !== 'undefined') StreetVendors.update(dp);
+          if (typeof VCRow !== 'undefined') { VCRow.update(); VCRow.updateCommuters(dp); }
+          if (typeof SupplyChain !== 'undefined') SupplyChain.update();
+          // Camera keeps tracking target updated for seamless interior↔exterior transitions
+          if (typeof Camera !== 'undefined') Camera.update();
           return;
       }
 

@@ -146,7 +146,9 @@ const Camera = {
         }
 
         // ─── TRACKING MODE: override camera position to follow entity ───
-        if (G.tracking && !G.activeInterior) {
+        // Runs even during interiors so the camera target stays in sync for
+        // seamless fade-transitions when the tracked entity enters/exits buildings.
+        if (G.tracking) {
             let entityX = null;
             let entityY = null;
             
@@ -250,14 +252,17 @@ const Camera = {
         }
         
         // Clamp camera boundaries (skip during tracking — entity position takes priority)
-        if (!G.tracking || G.activeInterior) {
-            this.targetY = Math.max(minY, Math.min(this.targetY, maxY));
+        // Allow deeper Y when viewing underground Black Market
+        const undergroundActive = typeof BlackMarket !== 'undefined' && BlackMarket._isUndergroundView;
+        const effectiveMinY = undergroundActive ? minY - 600 : minY;
+        if (!G.tracking) {
+            this.targetY = Math.max(effectiveMinY, Math.min(this.targetY, maxY));
         }
-        
+
         const minX = -G.cityW + G.vpW / this.zoom;
-        const maxX = 0; 
-        
-        if (!G.tracking || G.activeInterior) {
+        const maxX = 0;
+
+        if (!G.tracking) {
             this.targetX = Math.max(minX, Math.min(this.targetX, maxX));
         }
         
