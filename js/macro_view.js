@@ -22,7 +22,6 @@ const MacroView = {
         { id: 'conference', emoji: '🎓', label: 'Conference',       match: b => b.id === 'convention_center' },
         { id: 'ai_index',  emoji: '📊', label: 'AI Index',         match: b => b.id === 'ai_index' },
         { id: 'nightlife',  emoji: '🍸', label: 'Nightlife',       match: b => b.id === 'neon_bar' },
-        { id: 'underground',emoji: '🕶️', label: 'Underground',     match: b => b.id === 'black_market' },
         { id: 'metro',      emoji: '🚇', label: 'Metro East',      match: b => b.id === 'metro_east' },
         { id: 'backbone',   emoji: '🌐', label: 'The Backbone',    match: b => b.id.startsWith('backbone_') },
         { id: 'robotics',   emoji: '🤖', label: 'Robotics Factory', match: b => b.id.startsWith('robotics_') },
@@ -62,6 +61,16 @@ const MacroView = {
             btn.onclick = () => this.jumpToZone(z);
             zones.appendChild(btn);
         });
+
+        // Underground button (special — full width, like Orbit, enters underground view)
+        if (typeof BlackMarket !== 'undefined') {
+            const ugBtn = document.createElement('div');
+            ugBtn.className = 'mm-zone mm-underground';
+            ugBtn.dataset.zone = 'underground';
+            ugBtn.textContent = '🕶️ The Underground';
+            ugBtn.onclick = () => { BlackMarket.enterUnderground(); };
+            zones.appendChild(ugBtn);
+        }
 
         // Click-to-jump on the canvas
         canvas.addEventListener('click', (e) => {

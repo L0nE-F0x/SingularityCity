@@ -11,7 +11,7 @@ const BirdFlocks = {
     _flocks: [],
     _container: null,
     _tick: 0,
-    _nextSpawn: 200,
+    _nextSpawn: 60,
 
     init(charLayer) {
         this._container = new PIXI.Container();
@@ -31,7 +31,7 @@ const BirdFlocks = {
         // Spawn new flocks periodically
         if (this._tick >= this._nextSpawn && this._flocks.length < this.MAX_FLOCKS) {
             this._spawnFlock(camX, camW);
-            this._nextSpawn = this._tick + 600 + Math.floor(Math.random() * 800);
+            this._nextSpawn = this._tick + 400 + Math.floor(Math.random() * 500);
         }
 
         // Update each flock
@@ -69,7 +69,7 @@ const BirdFlocks = {
             perchTimer: 0,
             dir: Math.random() < 0.5 ? 1 : -1,
             speed: 1.2 + Math.random() * 0.8,
-            altitude: G.groundY - 120 - Math.random() * 80,
+            altitude: G.groundY - 60 - Math.random() * 50,
             life: 0,
         };
 
@@ -110,10 +110,18 @@ const BirdFlocks = {
 
     _createBirdSprite() {
         const g = new PIXI.Graphics();
-        // Small bird — body + wing shape
-        g.beginFill(0x2a2a3a, 0.9);
-        g.drawEllipse(0, 0, 3, 1.5); // body
+        // Bird body — visible dark brown
+        g.beginFill(0x4a3828, 0.95);
+        g.drawEllipse(0, 0, 5, 2.5); // body
         g.endFill();
+        // Head
+        g.beginFill(0x3a2818, 0.9);
+        g.drawCircle(4, -1, 2);
+        g.endFill();
+        // Beak
+        g.beginFill(0xd4a020);
+        g.moveTo(6, -1); g.lineTo(8, -0.5); g.lineTo(6, 0);
+        g.closePath(); g.endFill();
         // Wings drawn dynamically in update
         g._wingL = new PIXI.Graphics();
         g._wingR = new PIXI.Graphics();
@@ -127,21 +135,21 @@ const BirdFlocks = {
         wingL.clear();
         wingR.clear();
         if (isPerched) {
-            // Folded wings
-            wingL.beginFill(0x3a3a4a, 0.7);
-            wingL.drawEllipse(-2, -1, 2, 1);
+            // Folded wings — tucked along body
+            wingL.beginFill(0x5a4838, 0.7);
+            wingL.drawEllipse(-3, -1, 3, 1.5);
             wingL.endFill();
-            wingR.beginFill(0x3a3a4a, 0.7);
-            wingR.drawEllipse(2, -1, 2, 1);
+            wingR.beginFill(0x5a4838, 0.7);
+            wingR.drawEllipse(3, -1, 3, 1.5);
             wingR.endFill();
         } else {
-            // Flapping wings
-            const wingY = Math.sin(phase) * 3;
-            wingL.beginFill(0x3a3a4a, 0.8);
-            wingL.moveTo(0, 0); wingL.lineTo(-5, wingY - 1); wingL.lineTo(-3, wingY);
+            // Flapping wings — larger, more visible
+            const wingY = Math.sin(phase) * 5;
+            wingL.beginFill(0x5a4838, 0.85);
+            wingL.moveTo(0, 0); wingL.lineTo(-8, wingY - 2); wingL.lineTo(-5, wingY);
             wingL.closePath(); wingL.endFill();
-            wingR.beginFill(0x3a3a4a, 0.8);
-            wingR.moveTo(0, 0); wingR.lineTo(5, wingY - 1); wingR.lineTo(3, wingY);
+            wingR.beginFill(0x5a4838, 0.85);
+            wingR.moveTo(0, 0); wingR.lineTo(8, wingY - 2); wingR.lineTo(5, wingY);
             wingR.closePath(); wingR.endFill();
         }
     },

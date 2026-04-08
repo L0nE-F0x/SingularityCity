@@ -1132,10 +1132,16 @@ const Entities = {
 
                 let atBuilding = Math.abs(refs.c.x - buildingTargetX) < 40;
                 
-                if (atBuilding && refs._metroState === 'none' && !isR) { 
-                    refs.bld = tBld.id;
-                    refs.wantsToEnter = true;
-                    refs.c.visible = false;
+                if (atBuilding && refs._metroState === 'none' && !isR) {
+                    if (tBld.id === 'city_park') {
+                        // Open-air zone: NPCs stay visible, just linger here
+                        refs.bld = null;
+                        refs.c.visible = true;
+                    } else {
+                        refs.bld = tBld.id;
+                        refs.wantsToEnter = true;
+                        refs.c.visible = false;
+                    }
                 }
 
                 if (refs.c.visible) {

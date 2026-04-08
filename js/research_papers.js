@@ -126,8 +126,8 @@ const ResearchPapers = {
             this.fetchPapers();
         }
 
-        // Deliver papers periodically (every ~10 seconds)
-        if (G.tick - this._lastDeliveryTick >= 600 && this.papers.length > 0) {
+        // Deliver papers periodically (every ~5 seconds)
+        if (G.tick - this._lastDeliveryTick >= 300 && this.papers.length > 0) {
             this._deliverPaper();
             this._lastDeliveryTick = G.tick;
         }
@@ -180,28 +180,39 @@ const ResearchPapers = {
     _createEnvelope(paper) {
         const cont = new PIXI.Container();
 
-        // Envelope body
+        // Envelope body (larger, more visible)
         const g = new PIXI.Graphics();
-        g.beginFill(0xf5f0e0); g.drawRoundedRect(-8, -6, 16, 12, 2); g.endFill();
+        g.beginFill(0xf5f0e0); g.drawRoundedRect(-12, -9, 24, 18, 3); g.endFill();
         // Envelope flap
         g.beginFill(0xe8e0cc);
-        g.moveTo(-8, -6); g.lineTo(0, 2); g.lineTo(8, -6); g.closePath();
+        g.moveTo(-12, -9); g.lineTo(0, 3); g.lineTo(12, -9); g.closePath();
         g.endFill();
-        // Seal
-        g.beginFill(0xef4444, 0.8); g.drawCircle(0, -1, 2); g.endFill();
+        // Border
+        g.lineStyle(1, 0xc4b898, 0.5);
+        g.drawRoundedRect(-12, -9, 24, 18, 3);
+        g.lineStyle(0);
+        // Wax seal
+        g.beginFill(0xef4444, 0.9); g.drawCircle(0, -1, 3); g.endFill();
+        g.beginFill(0xffffff, 0.3); g.drawCircle(-0.5, -1.5, 1); g.endFill();
         cont.addChild(g);
 
-        // Paper label (tiny)
+        // Lab color badge
         const labCol = (paper.lab && typeof LABS !== 'undefined' && LABS[paper.lab]) ?
             parseInt(LABS[paper.lab].color.replace('#', ''), 16) : 0x6688aa;
         const dot = new PIXI.Graphics();
-        dot.beginFill(labCol, 0.8); dot.drawCircle(0, -6, 1.5); dot.endFill();
+        dot.beginFill(labCol, 0.9); dot.drawCircle(0, -9, 2.5); dot.endFill();
         cont.addChild(dot);
+
+        // 📄 emoji floating above
+        const icon = new PIXI.Text('📄', { fontSize: 10, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif' });
+        icon.anchor.set(0.5, 1);
+        icon.x = 0; icon.y = -12;
+        cont.addChild(icon);
 
         // Title tooltip on hover
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
-        cont.hitArea = new PIXI.Rectangle(-10, -8, 20, 16);
+        cont.hitArea = new PIXI.Rectangle(-14, -14, 28, 28);
         cont.on('pointerover', (e) => {
             if (typeof UI !== 'undefined') UI.showTooltip(e, '📄 New Paper', paper.title);
         });

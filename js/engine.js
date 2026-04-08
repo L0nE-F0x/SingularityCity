@@ -358,9 +358,10 @@ const G = {
             currentX += nBar.w + 40;
         }
 
-        // ─── BLACK MARKET: Hidden underground zone after Neon Bar ───
-        if (typeof BlackMarket !== 'undefined' && BlackMarket.BLDS.length > 0) {
-            currentX = BlackMarket.positionZone(currentX);
+        // ─── BLACK MARKET: Underground zone beneath Neon Bar ───
+        // Positioned underground (not on the horizontal map) — accessed via dumpster click
+        if (typeof BlackMarket !== 'undefined') {
+            BlackMarket.positionUnderground();
         }
 
         let mEast = BLDS.find(b => b.id === 'metro_east');
@@ -462,7 +463,6 @@ const G = {
         addZB('city_park', BLDS.filter(b => b.id === 'city_park'));
         addZB('vcrow', BLDS.filter(b => b.id.startsWith('vcrow_')));
         if (nBar) addZB('nightlife', [nBar]);
-        addZB('black_market', BLDS.filter(b => b.id === 'black_market'));
         if (fSilicon) addZB('forest', [fSilicon]);
         addZB('estates', BLDS.filter(b => b.id.startsWith('house_')));
         addZB('backbone', BLDS.filter(b => b.id.startsWith('backbone_')));

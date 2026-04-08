@@ -789,7 +789,13 @@ const Environment = {
         const h = floors * 18 + 24; 
         
         const bx = b.x; const by = G.groundY - 24;
-        const container = new PIXI.Container(); container.x = bx; container.y = by - h;
+        const container = new PIXI.Container(); container.x = bx;
+        // Black Market renders underground — below ground level
+        if (b.id === 'black_market' && typeof BlackMarket !== 'undefined') {
+            container.y = G.groundY + BlackMarket.DEPTH - h;
+        } else {
+            container.y = by - h;
+        }
         const gfx = new PIXI.Graphics();
         
         // ─── SPACE ZONE BUILDINGS: delegate to SpaceEnvironment ───
@@ -2257,6 +2263,11 @@ const Environment = {
   
         this.bldLayer.addChild(container); b._container = container;
       });
+
+      // Create Black Market dumpster entrance beside Neon Bar
+      if (typeof BlackMarket !== 'undefined') {
+          BlackMarket.createDumpster(this.bldLayer);
+      }
 
       // Store fingerprint after build so subsequent calls can compare
       this._lastBuildFP = this._buildFingerprint();

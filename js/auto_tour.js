@@ -58,7 +58,7 @@ const AutoTour = {
         { bldId: 'robotics_assembly', label: 'Robotics Factory',   zoom: 0.90, yOffset: -25,  pan: 0.14 },
         { bldId: 'longevity_discovery',label:'Longevity Wing',     zoom: 0.95, yOffset: -20,  pan: 0.10 },
         { bldId: 'times_hq',          label: 'Newspaper HQ',      zoom: 1.10, yOffset: -15,  pan: 0.06 },
-        { bldId: 'black_market',      label: 'The Underground',   zoom: 1.05, yOffset: -15,  pan: 0.08 },
+        // Black Market is underground — auto-tour can't visit it
     ],
 
     /* ── Buildings eligible for interior visits ───────────────── */

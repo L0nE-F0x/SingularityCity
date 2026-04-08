@@ -51,7 +51,7 @@ const SupplyChain = {
         }
 
         // ── TRUCKS: Spawn delivery trucks when inventory is healthy ──
-        if (G.tick - this._lastDeliveryTick >= 400 && this._trucks.length < this.MAX_TRUCKS) {
+        if (G.tick - this._lastDeliveryTick >= 200 && this._trucks.length < this.MAX_TRUCKS) {
             this._spawnTruck();
             this._lastDeliveryTick = G.tick;
         }
@@ -146,28 +146,32 @@ const SupplyChain = {
         const c = new PIXI.Container();
         const g = new PIXI.Graphics();
 
-        // Truck cab
-        g.beginFill(0x3b82f6); g.drawRoundedRect(0, -12, 12, 12, 2); g.endFill();
+        // Truck cab (larger, brighter blue)
+        g.beginFill(0x3b82f6); g.drawRoundedRect(0, -18, 16, 18, 2); g.endFill();
         // Windshield
-        g.beginFill(0x88ccee, 0.6); g.drawRect(2, -10, 8, 5); g.endFill();
-        // Truck body/trailer
-        g.beginFill(0x475569); g.drawRect(12, -14, 24, 14); g.endFill();
+        g.beginFill(0x88ccee, 0.7); g.drawRect(3, -16, 10, 7); g.endFill();
+        // Truck body/trailer (larger)
+        g.beginFill(0x475569); g.drawRect(16, -20, 36, 20); g.endFill();
         // Cargo color stripe
         const cargoCol = commodity ? 0x4ade80 : 0xfbbf24;
-        g.beginFill(cargoCol, 0.6); g.drawRect(13, -13, 22, 3); g.endFill();
-        // Wheels
-        g.beginFill(0x1a1a2e); g.drawCircle(4, 1, 3); g.drawCircle(20, 1, 3); g.drawCircle(32, 1, 3); g.endFill();
-        g.beginFill(0x444455); g.drawCircle(4, 1, 1.5); g.drawCircle(20, 1, 1.5); g.drawCircle(32, 1, 1.5); g.endFill();
+        g.beginFill(cargoCol, 0.7); g.drawRect(17, -19, 34, 5); g.endFill();
+        // Side rivets
+        for (let ri = 0; ri < 4; ri++) {
+            g.beginFill(0x5a6a7a, 0.5); g.drawCircle(22 + ri * 8, -7, 1); g.endFill();
+        }
+        // Wheels (larger)
+        g.beginFill(0x1a1a2e); g.drawCircle(6, 2, 4); g.drawCircle(28, 2, 4); g.drawCircle(44, 2, 4); g.endFill();
+        g.beginFill(0x555566); g.drawCircle(6, 2, 2); g.drawCircle(28, 2, 2); g.drawCircle(44, 2, 2); g.endFill();
+        // Exhaust pipe
+        g.beginFill(0x3a3a4a); g.drawRect(-2, -6, 3, 6); g.endFill();
 
         c.addChild(g);
 
-        // Cargo label
-        if (commodity) {
-            const label = new PIXI.Text(commodity.emoji || '📦', { fontSize: 8, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif' });
-            label.anchor.set(0.5, 0.5);
-            label.x = 24; label.y = -7;
-            c.addChild(label);
-        }
+        // Cargo label (larger emoji)
+        const label = new PIXI.Text(commodity?.emoji || '📦', { fontSize: 12, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif' });
+        label.anchor.set(0.5, 0.5);
+        label.x = 34; label.y = -10;
+        c.addChild(label);
 
         return c;
     },

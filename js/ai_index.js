@@ -8,7 +8,7 @@
 const AIIndex = {
 
     BLDS: [
-        { id: 'ai_index', name: 'Global AI Index', w: 160, fl: 1, emoji: '📊', type: 'ai_index', desc: 'A colossal digital billboard tracking humanity\'s composite AI capability score in real time. Six weighted components distilled into a single number: 0-1000.' },
+        { id: 'ai_index', name: 'Global AI Index', w: 160, fl: 5, emoji: '📊', type: 'ai_index', desc: 'A colossal digital billboard tracking humanity\'s composite AI capability score in real time. Six weighted components distilled into a single number: 0-1000.' },
     ],
 
     _score: 0,
@@ -279,8 +279,8 @@ const AIIndex = {
     },
 
     tick() {
-        // Recalculate score every 300 ticks (~5 seconds)
-        if (G.tick - this._lastCalcTick >= 300) {
+        // Calculate immediately on first call, then every 300 ticks
+        if (this._lastCalcTick === 0 || G.tick - this._lastCalcTick >= 300) {
             this.calculate();
             this._lastCalcTick = G.tick;
         }
