@@ -177,11 +177,16 @@ const BlackMarket = {
     },
 
     _setSurfaceVisible(visible) {
+        // Hide ALL surface layers including sky
         const layers = [G.bldLayer, G.groundGfx, G.trainLayer, G.undergroundLayer,
-                        G.cloudLayer, G.reflectionLayer, G.carLayer];
+                        G.cloudLayer, G.reflectionLayer, G.carLayer,
+                        G.starsLayer, G.celestialGfx, G.lightLayer, G.fxGfx];
         layers.forEach(l => { if (l) l.visible = visible; });
-        // Keep the dumpster hidden when underground (it's on bldLayer parent)
         if (this._dumpsterSprite) this._dumpsterSprite.visible = visible;
+        // Swap app background: dark underground vs normal sky
+        if (G.app && G.app.renderer) {
+            G.app.renderer.background.color = visible ? 0x0a0a1a : 0x08060e;
+        }
     },
 
     _showSurfaceButton() {
