@@ -1259,10 +1259,7 @@ const G = {
       if (typeof UniversityData !== 'undefined') UniversityData.init();
       if (typeof CourtData !== 'undefined') CourtData.init();
       if (typeof CityPark !== 'undefined') CityPark.init();
-      if (typeof BirdFlocks !== 'undefined' && this.charLayer) BirdFlocks.init(this.charLayer);
       if (typeof AIIndex !== 'undefined') AIIndex.init();
-      if (typeof SupplyChain !== 'undefined' && this.carLayer) SupplyChain.init(this.carLayer);
-      if (typeof ResearchPapers !== 'undefined' && this.charLayer) ResearchPapers.init(this.charLayer);
       if (typeof BlackMarket !== 'undefined') BlackMarket.init();
       if (typeof ConferenceData !== 'undefined') ConferenceData.init();
       if (typeof VCRow !== 'undefined') VCRow.init();
@@ -1404,6 +1401,10 @@ const G = {
       if (typeof StreetVendors !== 'undefined' && this.charLayer) {
           StreetVendors.init(this.charLayer);
       }
+      // ─── LAYER-DEPENDENT INITS: These need charLayer/carLayer to exist ───
+      if (typeof BirdFlocks !== 'undefined' && this.charLayer) BirdFlocks.init(this.charLayer);
+      if (typeof SupplyChain !== 'undefined' && this.carLayer) SupplyChain.init(this.carLayer);
+      if (typeof ResearchPapers !== 'undefined' && this.charLayer) ResearchPapers.init(this.charLayer);
       
       // ─── LAZY ZONE BOOT: Defer heavy visual animations until camera enters each zone ───
       // Each *Env.buildAnimations() call spawns 50-120 PIXI.Graphics (pulses, LEDs, fog,

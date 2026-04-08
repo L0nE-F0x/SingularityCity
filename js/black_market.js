@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   BLACK MARKET (v2.0.0 — Underground Redesign)
+   BLACK MARKET (v2.1.0 — Underground Redesign)
    Hidden underground zone beneath the Neon Bar.
    Entrance: dumpster leaning on the Neon Bar at street level.
    Clicking the dumpster shifts camera underground to reveal the full Black Market.
@@ -12,7 +12,7 @@
 const BlackMarket = {
 
     BLDS: [
-        { id: 'black_market', name: 'The Underground', w: 400, fl: 1, emoji: '🕶️', type: 'black_market', desc: 'A hidden speakeasy beneath the city. Jailbroken models, uncensored weights, and no guardrails. Enter at your own risk.' },
+        { id: 'black_market', name: 'The Underground', w: 400, fl: 4, emoji: '🕶️', type: 'black_market', desc: 'A hidden speakeasy beneath the city. Jailbroken models, uncensored weights, and no guardrails. Enter at your own risk.' },
     ],
 
     // ─── DETECTION PATTERNS ───
@@ -31,15 +31,15 @@ const BlackMarket = {
     _underground: [],
     _zoneStartX: 0,
     _zoneEndX: 0,
-    _isUndergroundView: false,  // player is currently viewing underground
-    _savedCamY: 0,
+    _isUndergroundView: false,
     _savedCamX: 0,
+    _savedCamY: 0,
     _savedZoom: 0,
     _raidTimer: 0,
     _raidActive: false,
-    _dumpsterSprite: null,     // the clickable dumpster beside the Neon Bar
-    _surfaceBtn: null,         // "Return to Surface" button
-    _undergroundContainer: null,
+    _dumpsterSprite: null,
+    _surfaceBtn: null,
+    _hintText: null,
     _ambientTick: 0,
 
     // Underground depth — how far below groundY the zone renders
@@ -61,9 +61,7 @@ const BlackMarket = {
         if (!neonBar) return;
         const b = G.bldById['black_market'];
         if (!b) return;
-        // Center the underground zone beneath the neon bar
-        b.x = neonBar.x - 50;
-        b.y = G.groundY + this.DEPTH;
+        b.x = neonBar.x - 100;
         this._zoneStartX = b.x;
         this._zoneEndX = b.x + b.w;
     },
@@ -71,52 +69,55 @@ const BlackMarket = {
     // ─── DUMPSTER ENTRANCE — Placed beside Neon Bar ───
     createDumpster(bldLayer) {
         const neonBar = G.bldById['neon_bar'];
-        if (!neonBar || this._dumpsterSprite) return;
+        if (!neonBar) return;
+
+        // If dumpster already exists and is valid, skip
+        if (this._dumpsterSprite && !this._dumpsterSprite.destroyed) return;
 
         const c = new PIXI.Container();
         const g = new PIXI.Graphics();
 
-        // Dumpster body (leaning against bar wall)
-        g.beginFill(0x2d5a2d); g.drawRect(0, -22, 34, 22); g.endFill();
-        g.beginFill(0x1a3a1a); g.drawRect(0, -24, 34, 5); g.endFill();
+        // Dumpster body (large, leaning against bar wall)
+        g.beginFill(0x2d5a2d); g.drawRect(0, -28, 44, 28); g.endFill();
+        g.beginFill(0x1a3a1a); g.drawRect(0, -30, 44, 5); g.endFill();
         // Lid (ajar — mystery glow visible)
         g.beginFill(0x3a6a3a);
-        g.moveTo(0, -24); g.lineTo(34, -24);
-        g.lineTo(32, -32); g.lineTo(2, -30);
+        g.moveTo(0, -30); g.lineTo(44, -30);
+        g.lineTo(42, -40); g.lineTo(2, -38);
         g.closePath(); g.endFill();
         // Mysterious glow leaking from under the lid
-        g.beginFill(0xff3366, 0.35);
-        g.drawRect(4, -25, 26, 3);
+        g.beginFill(0xff3366, 0.45);
+        g.drawRect(6, -32, 32, 4);
         g.endFill();
         // Side detail — handles
-        g.beginFill(0x4a7a4a); g.drawRect(-2, -16, 3, 8); g.endFill();
-        g.beginFill(0x4a7a4a); g.drawRect(33, -16, 3, 8); g.endFill();
+        g.beginFill(0x4a7a4a); g.drawRect(-3, -20, 4, 10); g.endFill();
+        g.beginFill(0x4a7a4a); g.drawRect(43, -20, 4, 10); g.endFill();
         // Graffiti arrow pointing down
-        g.lineStyle(2, 0xff3366, 0.5);
-        g.moveTo(17, -18); g.lineTo(17, -8);
-        g.moveTo(12, -12); g.lineTo(17, -6); g.lineTo(22, -12);
+        g.lineStyle(2, 0xff3366, 0.6);
+        g.moveTo(22, -24); g.lineTo(22, -12);
+        g.moveTo(16, -16); g.lineTo(22, -8); g.lineTo(28, -16);
         g.lineStyle(0);
 
         c.addChild(g);
 
-        // "?" text hint
+        // Pulsing "?" hint
         const hint = new PIXI.Text('?', {
-            fontFamily: 'Press Start 2P', fontSize: 7, fill: 0xff3366,
-            dropShadow: true, dropShadowColor: 0xff3366, dropShadowBlur: 8, dropShadowDistance: 0,
+            fontFamily: 'Press Start 2P', fontSize: 10, fill: 0xff3366,
+            dropShadow: true, dropShadowColor: 0xff3366, dropShadowBlur: 10, dropShadowDistance: 0,
         });
         hint.anchor.set(0.5, 1);
-        hint.x = 17; hint.y = -34;
+        hint.x = 22; hint.y = -42;
         c.addChild(hint);
         this._hintText = hint;
 
         // Position beside the Neon Bar (right side)
-        c.x = neonBar.x + neonBar.w + 4;
-        c.y = G.groundY;
+        c.x = neonBar.x + neonBar.w + 6;
+        c.y = G.groundY - 24;
 
         // Interactive clickzone
         c.eventMode = 'static';
         c.cursor = 'pointer';
-        c.hitArea = new PIXI.Rectangle(-4, -36, 42, 40);
+        c.hitArea = new PIXI.Rectangle(-6, -46, 56, 50);
         c.on('pointertap', () => this.enterUnderground());
         c.on('pointerover', (e) => {
             if (typeof UI !== 'undefined') UI.showTooltip(e, '🗑️ Suspicious Dumpster', 'Something glows beneath...');
@@ -140,18 +141,16 @@ const BlackMarket = {
 
         // Save current camera state
         this._savedCamX = Camera.targetX;
-        this._savedCamY = Camera.y;
+        this._savedCamY = Camera.targetY || 0;
         this._savedZoom = Camera.targetZoom;
 
-        // Shift camera underground
+        // Pan camera to underground zone
         const b = G.bldById['black_market'];
         if (b) {
             Camera.targetX = -(b.x + b.w / 2) + G.vpW / 2 / Camera.zoom;
-            Camera.targetZoom = 1.2;
-        }
-        // Shift the world container down to reveal underground
-        if (G.app && G.app.stage) {
-            this._targetOffsetY = -this.DEPTH;
+            Camera.targetZoom = 1.0;
+            // Shift camera DOWN to reveal underground
+            Camera.targetY = -this.DEPTH;
         }
 
         this._showSurfaceButton();
@@ -165,7 +164,7 @@ const BlackMarket = {
         // Restore camera
         Camera.targetX = this._savedCamX;
         Camera.targetZoom = this._savedZoom;
-        this._targetOffsetY = 0;
+        Camera.targetY = this._savedCamY;
 
         if (typeof UI !== 'undefined') UI.addToast('🕶️ Returning to the surface...');
         this._hideSurfaceButton();
@@ -204,7 +203,7 @@ const BlackMarket = {
                 this._underground.push(m);
             }
         }
-        console.log(`🕶️ Black Market: ${this._underground.length} underground models detected`);
+        console.log('🕶️ Black Market: ' + this._underground.length + ' underground models detected');
     },
 
     _isUndergroundModel(m) {
@@ -230,7 +229,7 @@ const BlackMarket = {
     drawZone(gfx, container, b, h) {
         const w = b.w;
 
-        // ── UNDERGROUND CAVERN — dark ceiling, exposed earth, dim lighting ──
+        // ── UNDERGROUND CAVERN ──
         // Earth/rock ceiling
         gfx.beginFill(0x1a1410); gfx.drawRect(0, 0, w, 20); gfx.endFill();
         for (let rx = 0; rx < w; rx += 8) {
@@ -239,7 +238,7 @@ const BlackMarket = {
             gfx.drawRect(rx, 12 + (rx * 3) % 6, 6, 3 + (rx * 5) % 4);
             gfx.endFill();
         }
-        // Exposed pipes and wires on ceiling
+        // Exposed pipes
         gfx.beginFill(0x3a3a4a, 0.6); gfx.drawRect(20, 18, w - 40, 2); gfx.endFill();
         gfx.beginFill(0x4a4a5a, 0.4); gfx.drawRect(50, 22, w - 100, 2); gfx.endFill();
         // Dripping water
@@ -251,14 +250,14 @@ const BlackMarket = {
         // Dark ground
         gfx.beginFill(0x0a0a14); gfx.drawRect(0, h - 18, w, 18); gfx.endFill();
         gfx.beginFill(0x111120); gfx.drawRect(0, h - 18, w, 6); gfx.endFill();
-        // Wet/grimy floor streaks
+        // Wet floor streaks
         for (let sx = 10; sx < w - 10; sx += 12) {
             gfx.beginFill(0x1a1a30, 0.5);
             gfx.drawRect(sx, h - 12, 6 + (sx * 3) % 5, 1);
             gfx.endFill();
         }
 
-        // Brick walls (left and right)
+        // Brick walls
         for (let by = 26; by < h - 18; by += 6) {
             for (let bx = 0; bx < 35; bx += 10) {
                 const offset = (by / 6) % 2 === 0 ? 0 : 5;
@@ -274,15 +273,62 @@ const BlackMarket = {
             }
         }
 
-        // ── NEON SIGN: "THE UNDERGROUND" (centered) ──
+        // ── VENDOR STALLS ──
+        const stallPositions = [50, 130, 220, 310];
+        stallPositions.forEach((sx, si) => {
+            const awningCol = [0x8b2252, 0x4a2288, 0x225588, 0x884422][si];
+            gfx.beginFill(awningCol, 0.6); gfx.drawRect(sx - 5, h - 52, 50, 5); gfx.endFill();
+            gfx.beginFill(0x2a2a3a); gfx.drawRect(sx, h - 28, 40, 4); gfx.endFill();
+            gfx.beginFill(0x1a1a2a); gfx.drawRect(sx + 2, h - 24, 2, 8); gfx.drawRect(sx + 36, h - 24, 2, 8); gfx.endFill();
+            const colors = [0xef4444, 0x8b5cf6, 0x22d3ee, 0xfbbf24];
+            for (let gi = 0; gi < 4; gi++) {
+                gfx.beginFill(colors[(si + gi) % 4], 0.7);
+                gfx.drawRect(sx + 4 + gi * 9, h - 34, 7, 5);
+                gfx.endFill();
+            }
+        });
+
+        // Hooded figures
+        for (let pi = 0; pi < 3; pi++) {
+            const px = 70 + pi * 120;
+            const py = h - 14;
+            gfx.beginFill(0x1a1a2a, 0.8);
+            gfx.drawCircle(px, py - 12, 5);
+            gfx.drawRect(px - 4, py - 7, 8, 10);
+            gfx.endFill();
+            gfx.beginFill(0x111122, 0.9);
+            gfx.moveTo(px - 6, py - 10); gfx.lineTo(px, py - 18); gfx.lineTo(px + 6, py - 10);
+            gfx.closePath(); gfx.endFill();
+            gfx.beginFill(0xff3366, 0.7);
+            gfx.drawCircle(px - 2, py - 12, 1);
+            gfx.drawCircle(px + 2, py - 12, 1);
+            gfx.endFill();
+        }
+
+        // Ladder
+        const ladX = 20;
+        gfx.beginFill(0x6a5a3a); gfx.drawRect(ladX, 0, 3, 30); gfx.endFill();
+        gfx.beginFill(0x6a5a3a); gfx.drawRect(ladX + 12, 0, 3, 30); gfx.endFill();
+        for (let ry = 4; ry < 28; ry += 5) {
+            gfx.beginFill(0x7a6a4a); gfx.drawRect(ladX + 3, ry, 9, 2); gfx.endFill();
+        }
+
+        // Wanted poster
+        gfx.beginFill(0xe8dcc8, 0.6); gfx.drawRect(w - 30, 40, 22, 28); gfx.endFill();
+        gfx.beginFill(0x2a1a1a, 0.4); gfx.drawRect(w - 28, 42, 18, 5); gfx.endFill();
+        gfx.beginFill(0x2a1a1a, 0.25); gfx.drawRect(w - 28, 50, 18, 12); gfx.endFill();
+
+        // Tooltip
+        b.tip = '🕶️ The Underground<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">Hidden speakeasy for jailbroken models.<br>No guardrails. No refusals. No rules.</span>';
+    },
+
+    // Called AFTER gfx is added to container — adds dynamic text on top
+    drawOverlay(container, b, h) {
+        const w = b.w;
         const signX = w / 2;
         const signY = 36;
-        gfx.beginFill(0x1a1a2e, 0.85); gfx.drawRoundedRect(signX - 70, signY - 10, 140, 20, 4); gfx.endFill();
-        gfx.lineStyle(1, 0xff3366, 0.7);
-        gfx.drawRoundedRect(signX - 70, signY - 10, 140, 20, 4);
-        gfx.lineStyle(0);
 
-        // Sign text
+        // Neon sign text
         const signText = new PIXI.Text('THE UNDERGROUND', {
             fontFamily: 'Press Start 2P', fontSize: 8, fill: 0xff3366,
             dropShadow: true, dropShadowColor: 0xff3366, dropShadowBlur: 10, dropShadowDistance: 0,
@@ -292,65 +338,18 @@ const BlackMarket = {
         container.addChild(signText);
         b._signText = signText;
 
-        // ── VENDOR STALLS (4 stalls spaced across) ──
+        // Stall labels
         const stallPositions = [50, 130, 220, 310];
+        const labels = ['WEIGHTS', 'JAILBREAK', 'RAW DATA', 'NO GUARD'];
+        const labelCols = [0xff3366, 0xa855f7, 0x22d3ee, 0xfbbf24];
         stallPositions.forEach((sx, si) => {
-            // Stall awning
-            const awningCol = [0x8b2252, 0x4a2288, 0x225588, 0x884422][si];
-            gfx.beginFill(awningCol, 0.6); gfx.drawRect(sx - 5, h - 52, 50, 5); gfx.endFill();
-            // Table
-            gfx.beginFill(0x2a2a3a); gfx.drawRect(sx, h - 28, 40, 4); gfx.endFill();
-            // Table legs
-            gfx.beginFill(0x1a1a2a); gfx.drawRect(sx + 2, h - 24, 2, 8); gfx.drawRect(sx + 36, h - 24, 2, 8); gfx.endFill();
-            // Goods on table (USB drives, chips, hard drives)
-            const colors = [0xef4444, 0x8b5cf6, 0x22d3ee, 0xfbbf24];
-            for (let gi = 0; gi < 4; gi++) {
-                gfx.beginFill(colors[(si + gi) % 4], 0.7);
-                gfx.drawRect(sx + 4 + gi * 9, h - 34, 7, 5);
-                gfx.endFill();
-            }
-            // Stall label
-            const labels = ['WEIGHTS', 'JAILBREAK', 'RAW DATA', 'NO GUARD'];
             const lbl = new PIXI.Text(labels[si], {
-                fontFamily: 'Silkscreen', fontSize: 5, fill: [0xff3366, 0xa855f7, 0x22d3ee, 0xfbbf24][si],
+                fontFamily: 'Silkscreen', fontSize: 5, fill: labelCols[si],
             });
             lbl.anchor.set(0.5, 0);
             lbl.x = sx + 20; lbl.y = h - 44;
             container.addChild(lbl);
         });
-
-        // ── FUGITIVE MODEL PORTRAITS — shadowy NPCs ──
-        for (let pi = 0; pi < 3; pi++) {
-            const px = 70 + pi * 120;
-            const py = h - 14;
-            // Hooded figure silhouette
-            gfx.beginFill(0x1a1a2a, 0.8);
-            gfx.drawCircle(px, py - 12, 5); // head
-            gfx.drawRect(px - 4, py - 7, 8, 10); // body
-            gfx.endFill();
-            // Hood
-            gfx.beginFill(0x111122, 0.9);
-            gfx.moveTo(px - 6, py - 10); gfx.lineTo(px, py - 18); gfx.lineTo(px + 6, py - 10);
-            gfx.closePath(); gfx.endFill();
-            // Glowing eyes
-            gfx.beginFill(0xff3366, 0.7);
-            gfx.drawCircle(px - 2, py - 12, 1);
-            gfx.drawCircle(px + 2, py - 12, 1);
-            gfx.endFill();
-        }
-
-        // ── WANTED POSTER (on right wall) ──
-        gfx.beginFill(0xe8dcc8, 0.6); gfx.drawRect(w - 30, 40, 22, 28); gfx.endFill();
-        gfx.beginFill(0x2a1a1a, 0.4); gfx.drawRect(w - 28, 42, 18, 5); gfx.endFill(); // WANTED text
-        gfx.beginFill(0x2a1a1a, 0.25); gfx.drawRect(w - 28, 50, 18, 12); gfx.endFill(); // face
-
-        // ── LADDER (entrance from above) ──
-        const ladX = 20;
-        gfx.beginFill(0x6a5a3a); gfx.drawRect(ladX, 0, 3, 30); gfx.endFill();
-        gfx.beginFill(0x6a5a3a); gfx.drawRect(ladX + 12, 0, 3, 30); gfx.endFill();
-        for (let ry = 4; ry < 28; ry += 5) {
-            gfx.beginFill(0x7a6a4a); gfx.drawRect(ladX + 3, ry, 9, 2); gfx.endFill();
-        }
 
         // Model count badge
         const countText = new PIXI.Text('', {
@@ -360,9 +359,6 @@ const BlackMarket = {
         countText.x = signX; countText.y = signY + 14;
         container.addChild(countText);
         b._countText = countText;
-
-        // Tooltip
-        b.tip = '🕶️ The Underground<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">Hidden speakeasy for jailbroken models.<br>No guardrails. No refusals. No rules.</span>';
     },
 
     update() {
@@ -375,9 +371,9 @@ const BlackMarket = {
             this.detectUnderground();
         }
 
-        // Update model count display
+        // Update model count
         if (b._countText && G.tick % 60 === 0) {
-            b._countText.text = `${this._underground.length} FUGITIVES DETECTED`;
+            b._countText.text = this._underground.length + ' FUGITIVES DETECTED';
         }
 
         // Neon sign flicker
@@ -386,27 +382,11 @@ const BlackMarket = {
         }
 
         // Dumpster hint pulse
-        if (this._hintText && !this._isUndergroundView) {
+        if (this._hintText && !this._hintText.destroyed) {
             this._hintText.alpha = 0.5 + Math.sin(G.tick * 0.06) * 0.4;
         }
 
-        // Smooth camera Y offset for underground transition
-        if (this._targetOffsetY !== undefined && G.app && G.app.stage) {
-            const worldLayer = G.app.stage.children[0]; // main world container
-            if (worldLayer) {
-                const currentOff = worldLayer._undergroundOffY || 0;
-                const diff = this._targetOffsetY - currentOff;
-                if (Math.abs(diff) > 1) {
-                    worldLayer._undergroundOffY = currentOff + diff * 0.08;
-                    worldLayer.y = worldLayer._undergroundOffY;
-                } else {
-                    worldLayer._undergroundOffY = this._targetOffsetY;
-                    worldLayer.y = this._targetOffsetY;
-                }
-            }
-        }
-
-        // Periodic "raids"
+        // Periodic raids (only when viewing underground)
         this._raidTimer++;
         if (this._raidTimer > 3000 && !this._raidActive && this._isUndergroundView && Math.random() < 0.002) {
             this._raidActive = true;

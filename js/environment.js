@@ -2055,7 +2055,11 @@ const Environment = {
           }
         }
         
-        container.addChild(gfx);
+        container.addChildAt(gfx, 0);
+        // Add overlay text elements ON TOP of gfx for special buildings
+        if (b.id === 'black_market' && typeof BlackMarket !== 'undefined') {
+            BlackMarket.drawOverlay(container, b, h);
+        }
         // Cache building body as bitmap — converts all Graphics draw calls into a single batched sprite
         gfx.cacheAsBitmap = true;
 

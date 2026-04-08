@@ -990,7 +990,7 @@ const Entities = {
             refs._initPos = true;
             refs._metroState = 'none';
             refs._metroLegs = null;
-            refs.bld = isR ? null : tBld.id; 
+            refs.bld = (isR || tBld.id === 'city_park') ? null : tBld.id;
         }
 
         const isInside = refs.bld !== null;
