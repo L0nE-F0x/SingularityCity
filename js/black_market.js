@@ -43,7 +43,7 @@ const BlackMarket = {
     _ambientTick: 0,
 
     // Underground depth — how far below groundY the zone renders
-    DEPTH: 300,
+    DEPTH: 500,
 
     init() {
         this.BLDS.forEach(b => {
@@ -153,6 +153,9 @@ const BlackMarket = {
             Camera.targetY = -this.DEPTH;
         }
 
+        // Hide surface layers for a clean underground view
+        this._setSurfaceVisible(false);
+
         this._showSurfaceButton();
     },
 
@@ -166,8 +169,19 @@ const BlackMarket = {
         Camera.targetZoom = this._savedZoom;
         Camera.targetY = this._savedCamY;
 
+        // Restore surface layers
+        this._setSurfaceVisible(true);
+
         if (typeof UI !== 'undefined') UI.addToast('🕶️ Returning to the surface...');
         this._hideSurfaceButton();
+    },
+
+    _setSurfaceVisible(visible) {
+        const layers = [G.bldLayer, G.groundGfx, G.trainLayer, G.undergroundLayer,
+                        G.cloudLayer, G.reflectionLayer, G.carLayer];
+        layers.forEach(l => { if (l) l.visible = visible; });
+        // Keep the dumpster hidden when underground (it's on bldLayer parent)
+        if (this._dumpsterSprite) this._dumpsterSprite.visible = visible;
     },
 
     _showSurfaceButton() {

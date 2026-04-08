@@ -252,7 +252,7 @@ const Camera = {
         // Clamp camera boundaries (skip during tracking — entity position takes priority)
         // Allow deeper Y when viewing underground Black Market
         const undergroundActive = typeof BlackMarket !== 'undefined' && BlackMarket._isUndergroundView;
-        const effectiveMinY = undergroundActive ? minY - 400 : minY;
+        const effectiveMinY = undergroundActive ? minY - 600 : minY;
         if (!G.tracking || G.activeInterior) {
             // Orbit Mode is entered via minimap button only (no pull trigger)
             this.targetY = Math.max(effectiveMinY, Math.min(this.targetY, maxY));
