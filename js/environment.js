@@ -10,9 +10,10 @@ const Environment = {
     season: 'spring',
     rainDrops: [], snowFlakes: [], petals: [], sandParticles: [],
     
-    starsLayer: null, celestialGfx: null, cloudLayer: null, 
+    starsLayer: null, celestialGfx: null, cloudLayer: null,
     bldLayer: null, groundGfx: null, reflectionLayer: null, refMask: null,
     staticLightsGfx: null, lightLayer: null, fxGfx: null,
+    dataPulses: [],
 
     getSeason() { 
         const m = new Date().getMonth();
@@ -24,7 +25,7 @@ const Environment = {
         this.starsLayer = layers.starsLayer; this.celestialGfx = layers.celestialGfx; this.cloudLayer = layers.cloudLayer;
         this.bldLayer = layers.bldLayer; this.groundGfx = layers.groundGfx; this.reflectionLayer = layers.reflectionLayer;
         this.staticLightsGfx = layers.staticLightsGfx; this.lightLayer = layers.lightLayer; this.fxGfx = layers.fxGfx;
-        this.buildStars(); this.buildGround(); this.buildClouds(); this.buildBuildings();
+        this.buildStars(); this.buildGround(); this.buildDataPulses(); this.buildClouds(); this.buildBuildings();
     },
 
     buildStars() {
@@ -304,36 +305,29 @@ const Environment = {
 
       const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
       const cableEndX = hasPowerZone ? powerStartX : G.cityW + 2000;
-      for (let i = 0; i < 25; i++) {
-          const cy = gy + 35 + Math.random() * 30; 
-          const thickness = 1 + Math.random() * 2;
-          const col = cableCols[Math.floor(Math.random() * cableCols.length)];
-          const alpha = 0.3 + Math.random() * 0.5;
-          
-          g.lineStyle(thickness, col, alpha);
-          let startCableX = -2000;
-          if (hasPortZone) startCableX = Math.max(startCableX, portEndX);
-          if (hasSpaceZone) startCableX = Math.max(startCableX, spaceEndX);
-          g.moveTo(startCableX, cy);
-          
-          let currentY = cy;
-          for(let cx = startCableX; cx < cableEndX; cx += 150) {
-              currentY += (Math.random() * 12 - 6);
-              if (currentY < gy + 35) currentY = gy + 35;
-              if (currentY > gy + 65) currentY = gy + 65; 
-              g.lineTo(cx, currentY);
-          }
-          g.lineStyle(0);
+      let cableStartX = -2000;
+      if (hasPortZone) cableStartX = Math.max(cableStartX, portEndX);
+      if (hasSpaceZone) cableStartX = Math.max(cableStartX, spaceEndX);
+
+      // Dark cable tray background
+      g.beginFill(0x060a14); g.drawRect(cableStartX, gy + 32, cableEndX - cableStartX, 38); g.endFill();
+
+      // Neat horizontal cable rows (matching Backbone style)
+      for (let fi = 0; fi < 10; fi++) {
+          const fy = gy + 35 + fi * 3;
+          const col = cableCols[fi % cableCols.length];
+          g.beginFill(col, 0.30 + (fi % 3) * 0.08);
+          g.drawRect(cableStartX + 10, fy, cableEndX - cableStartX - 20, 2);
+          g.endFill();
       }
 
-      for(let i = 0; i < 200; i++) {
-          let cableMinX = -1000;
-          if (hasPortZone) cableMinX = Math.max(cableMinX, portEndX);
-          if (hasSpaceZone) cableMinX = Math.max(cableMinX, spaceEndX);
-          const nx = cableMinX + Math.random() * (cableEndX - cableMinX);
-          const ny = gy + 35 + Math.random() * 30;
-          g.beginFill(cableCols[Math.floor(Math.random() * cableCols.length)], 0.5);
-          g.drawCircle(nx, ny, 1 + Math.random() * 1.5);
+      // Junction node dots (sparse, organized)
+      for (let ni = 0; ni < 60; ni++) {
+          const nx = cableStartX + 30 + Math.random() * (cableEndX - cableStartX - 60);
+          if (inSpecialZone(nx)) continue;
+          const ny = gy + 36 + Math.random() * 28;
+          g.beginFill(cableCols[Math.floor(Math.random() * cableCols.length)], 0.45);
+          g.drawCircle(nx, ny, 1.2 + Math.random() * 1.5);
           g.endFill();
       }
 
@@ -695,6 +689,41 @@ const Environment = {
           g.moveTo(x1 - 5, gy - 47); g.quadraticCurveTo((x1+x2)/2, gy - 46 + sagB, x2 + 5, gy - 47);
           g.lineStyle(0);
       }
+    },
+
+    buildDataPulses() {
+        // Animated fiber pulse blips traveling along the city data cables
+        this.dataPulses.forEach(p => { if (p && !p.destroyed) p.destroy(); });
+        this.dataPulses = [];
+        const gy = G.groundY;
+        const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
+        const parent = this.groundGfx.parent;
+        if (!parent) return;
+
+        // Determine cable zone bounds (same logic as buildGround)
+        const hasPowerZone = typeof PowerZone !== 'undefined' && PowerZone.zoneStartX;
+        const hasPortZone = typeof PortZone !== 'undefined' && PortZone.zoneStartX;
+        const hasSpaceZone = typeof SpaceEnvironment !== 'undefined' && SpaceEnvironment.zoneStartX;
+        let startX = -2000;
+        if (hasPortZone) startX = Math.max(startX, PortZone.zoneEndX || PortZone.zoneStartX + 800);
+        if (hasSpaceZone) startX = Math.max(startX, SpaceEnvironment.zoneEndX || SpaceEnvironment.zoneStartX + 800);
+        const endX = hasPowerZone ? PowerZone.zoneStartX : G.cityW + 2000;
+
+        for (let i = 0; i < 30; i++) {
+            const p = new PIXI.Graphics();
+            const col = cableCols[i % cableCols.length];
+            p.beginFill(col, 0.7 + Math.random() * 0.3);
+            p.drawCircle(0, 0, 1.2 + Math.random() * 1.2);
+            p.endFill();
+            p.x = startX + Math.random() * (endX - startX);
+            p.y = gy + 38 + Math.random() * 25;
+            p._speed = (1.5 + Math.random() * 2.5) * (Math.random() > 0.5 ? 1 : -1);
+            p._baseY = p.y;
+            p._startX = startX;
+            p._endX = endX;
+            parent.addChild(p);
+            this.dataPulses.push(p);
+        }
     },
 
     buildClouds() {
@@ -2508,6 +2537,16 @@ const Environment = {
                 if (c.tint !== cloudTint) c.tint = cloudTint;
             }
         }
+        // ─── DATA PULSE BLIPS — animate along cables ───
+        for (let pi = 0; pi < this.dataPulses.length; pi++) {
+            const p = this.dataPulses[pi];
+            if (!p || p.destroyed) continue;
+            p.x += p._speed;
+            p.y = p._baseY + Math.sin(G.tick * 0.02 + p._baseY) * 2;
+            if (p._speed > 0 && p.x > p._endX + 200) p.x = p._startX - 100;
+            else if (p._speed < 0 && p.x < p._startX - 200) p.x = p._endX + 100;
+        }
+
         if (G.viewMode === 'micro') { this.updateWeather(); this.updateDesertWeather(); } this.drawWeather(); let targetRefAlpha = 0;
         if (night) { if (this.weather === 'rain') targetRefAlpha = 0.95; else if (this.weather === 'snow') targetRefAlpha = 0.5;
         else targetRefAlpha = 0.35; } else { if (this.weather === 'rain') targetRefAlpha = 0.4;

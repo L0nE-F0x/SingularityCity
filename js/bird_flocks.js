@@ -69,7 +69,7 @@ const BirdFlocks = {
             perchTimer: 0,
             dir: Math.random() < 0.5 ? 1 : -1,
             speed: 1.2 + Math.random() * 0.8,
-            altitude: G.groundY - 60 - Math.random() * 50,
+            altitude: G.groundY - 200 - Math.random() * 150,
             life: 0,
         };
 
@@ -83,7 +83,7 @@ const BirdFlocks = {
         if (candidates.length > 0) {
             const target = candidates[Math.floor(Math.random() * candidates.length)];
             flock.targetX = target.x + Math.random() * target.w;
-            flock.targetY = G.groundY - 50 - Math.random() * 20;
+            flock.targetY = G.groundY - 160 - Math.random() * 60;
         }
 
         const count = this.BIRDS_PER_FLOCK + Math.floor(Math.random() * 3) - 1;

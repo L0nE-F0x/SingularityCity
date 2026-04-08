@@ -12,7 +12,7 @@
 const BlackMarket = {
 
     BLDS: [
-        { id: 'black_market', name: 'The Underground', w: 400, fl: 14, emoji: '🕶️', type: 'black_market', desc: 'A hidden speakeasy beneath the city. Jailbroken models, uncensored weights, and no guardrails. Enter at your own risk.' },
+        { id: 'black_market', name: 'The Underground', w: 400, fl: 1, emoji: '🕶️', type: 'black_market', desc: 'A hidden speakeasy beneath the city. Jailbroken models, uncensored weights, and no guardrails. Enter at your own risk.' },
     ],
 
     // ─── DETECTION PATTERNS ───
@@ -163,151 +163,16 @@ const BlackMarket = {
         return false;
     },
 
-    // ─── RENDERING — Underground zone exterior appearance ───
+    // ─── RENDERING — Minimal exterior appearance (content is in the interior now) ───
     drawZone(gfx, container, b, h) {
-        const w = b.w;
-
-        // Solid background
-        gfx.beginFill(0x12101e); gfx.drawRect(0, 0, w, h); gfx.endFill();
-        // Neon border glow (pink)
-        gfx.lineStyle(2, 0xff3366, 0.6);
-        gfx.drawRect(1, 1, w - 2, h - 2);
-        gfx.lineStyle(0);
-
-        // Earth/rock ceiling
-        gfx.beginFill(0x1a1410); gfx.drawRect(0, 0, w, 20); gfx.endFill();
-        for (let rx = 0; rx < w; rx += 8) {
-            const shade = (rx * 7) % 3 === 0 ? 0x221a14 : 0x1e1610;
-            gfx.beginFill(shade, 0.6);
-            gfx.drawRect(rx, 12 + (rx * 3) % 6, 6, 3 + (rx * 5) % 4);
-            gfx.endFill();
-        }
-        // Exposed pipes
-        gfx.beginFill(0x3a3a4a, 0.6); gfx.drawRect(20, 18, w - 40, 2); gfx.endFill();
-        gfx.beginFill(0x4a4a5a, 0.4); gfx.drawRect(50, 22, w - 100, 2); gfx.endFill();
-        // Dripping water
-        gfx.beginFill(0x2a5a7a, 0.4);
-        gfx.drawRect(w / 3, 20, 1, 8);
-        gfx.drawRect(w * 2 / 3, 20, 1, 12);
-        gfx.endFill();
-
-        // Dark ground
-        gfx.beginFill(0x0a0a14); gfx.drawRect(0, h - 18, w, 18); gfx.endFill();
-        gfx.beginFill(0x111120); gfx.drawRect(0, h - 18, w, 6); gfx.endFill();
-        // Wet floor streaks
-        for (let sx = 10; sx < w - 10; sx += 12) {
-            gfx.beginFill(0x1a1a30, 0.5);
-            gfx.drawRect(sx, h - 12, 6 + (sx * 3) % 5, 1);
-            gfx.endFill();
-        }
-
-        // Brick walls
-        for (let by = 26; by < h - 18; by += 6) {
-            for (let bx = 0; bx < 35; bx += 10) {
-                const offset = (by / 6) % 2 === 0 ? 0 : 5;
-                gfx.beginFill(0x2a1a1a, 0.5);
-                gfx.drawRect(bx + offset, by, 8, 4);
-                gfx.endFill();
-            }
-            for (let bx = w - 35; bx < w; bx += 10) {
-                const offset = (by / 6) % 2 === 0 ? 0 : 5;
-                gfx.beginFill(0x2a1a1a, 0.5);
-                gfx.drawRect(bx + offset, by, 8, 4);
-                gfx.endFill();
-            }
-        }
-
-        // Vendor stalls
-        const stallPositions = [50, 130, 220, 310];
-        stallPositions.forEach((sx, si) => {
-            const awningCol = [0x8b2252, 0x4a2288, 0x225588, 0x884422][si];
-            gfx.beginFill(awningCol, 0.6); gfx.drawRect(sx - 5, h - 52, 50, 5); gfx.endFill();
-            gfx.beginFill(0x2a2a3a); gfx.drawRect(sx, h - 28, 40, 4); gfx.endFill();
-            gfx.beginFill(0x1a1a2a); gfx.drawRect(sx + 2, h - 24, 2, 8); gfx.drawRect(sx + 36, h - 24, 2, 8); gfx.endFill();
-            const colors = [0xef4444, 0x8b5cf6, 0x22d3ee, 0xfbbf24];
-            for (let gi = 0; gi < 4; gi++) {
-                gfx.beginFill(colors[(si + gi) % 4], 0.7);
-                gfx.drawRect(sx + 4 + gi * 9, h - 34, 7, 5);
-                gfx.endFill();
-            }
-        });
-
-        // Hooded figures
-        for (let pi = 0; pi < 3; pi++) {
-            const px = 70 + pi * 120;
-            const py = h - 14;
-            gfx.beginFill(0x1a1a2a, 0.8);
-            gfx.drawCircle(px, py - 12, 5);
-            gfx.drawRect(px - 4, py - 7, 8, 10);
-            gfx.endFill();
-            gfx.beginFill(0x111122, 0.9);
-            gfx.moveTo(px - 6, py - 10); gfx.lineTo(px, py - 18); gfx.lineTo(px + 6, py - 10);
-            gfx.closePath(); gfx.endFill();
-            gfx.beginFill(0xff3366, 0.7);
-            gfx.drawCircle(px - 2, py - 12, 1);
-            gfx.drawCircle(px + 2, py - 12, 1);
-            gfx.endFill();
-        }
-
-        // Ladder
-        const ladX = 20;
-        gfx.beginFill(0x6a5a3a); gfx.drawRect(ladX, 0, 3, 30); gfx.endFill();
-        gfx.beginFill(0x6a5a3a); gfx.drawRect(ladX + 12, 0, 3, 30); gfx.endFill();
-        for (let ry = 4; ry < 28; ry += 5) {
-            gfx.beginFill(0x7a6a4a); gfx.drawRect(ladX + 3, ry, 9, 2); gfx.endFill();
-        }
-
-        // Wanted poster
-        gfx.beginFill(0xe8dcc8, 0.6); gfx.drawRect(w - 30, 40, 22, 28); gfx.endFill();
-        gfx.beginFill(0x2a1a1a, 0.4); gfx.drawRect(w - 28, 42, 18, 5); gfx.endFill();
-        gfx.beginFill(0x2a1a1a, 0.25); gfx.drawRect(w - 28, 50, 18, 12); gfx.endFill();
-
-        // Neon floor strip
-        gfx.beginFill(0xff3366, 0.25); gfx.drawRect(10, h - 4, w - 20, 4); gfx.endFill();
-        gfx.beginFill(0xff3366, 0.12); gfx.drawRect(5, h - 8, w - 10, 4); gfx.endFill();
-        // Ceiling neon strip
-        gfx.beginFill(0xa855f7, 0.2); gfx.drawRect(40, 22, w - 80, 2); gfx.endFill();
-
-        // Tooltip
+        // Just fill transparent — the underground zone should not render visually
+        // in the exterior world since it's accessed via the interior system
+        gfx.beginFill(0x000000, 0); gfx.drawRect(0, 0, b.w, 1); gfx.endFill();
         b.tip = '🕶️ The Underground<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">Hidden speakeasy for jailbroken models.<br>No guardrails. No refusals. No rules.</span>';
     },
 
-    // Called AFTER gfx is added to container — adds dynamic text on top
     drawOverlay(container, b, h) {
-        const w = b.w;
-        const signX = w / 2;
-        const signY = 36;
-
-        const signText = new PIXI.Text('THE UNDERGROUND', {
-            fontFamily: 'Press Start 2P', fontSize: 8, fill: 0xff3366,
-            dropShadow: true, dropShadowColor: 0xff3366, dropShadowBlur: 10, dropShadowDistance: 0,
-        });
-        signText.anchor.set(0.5, 0.5);
-        signText.x = signX; signText.y = signY;
-        container.addChild(signText);
-        b._signText = signText;
-
-        // Stall labels
-        const stallPositions = [50, 130, 220, 310];
-        const labels = ['WEIGHTS', 'JAILBREAK', 'RAW DATA', 'NO GUARD'];
-        const labelCols = [0xff3366, 0xa855f7, 0x22d3ee, 0xfbbf24];
-        stallPositions.forEach((sx, si) => {
-            const lbl = new PIXI.Text(labels[si], {
-                fontFamily: 'Silkscreen', fontSize: 5, fill: labelCols[si],
-            });
-            lbl.anchor.set(0.5, 0);
-            lbl.x = sx + 20; lbl.y = h - 44;
-            container.addChild(lbl);
-        });
-
-        // Model count badge
-        const countText = new PIXI.Text('', {
-            fontFamily: 'Silkscreen', fontSize: 6, fill: 0x888899,
-        });
-        countText.anchor.set(0.5, 0);
-        countText.x = signX; countText.y = signY + 14;
-        container.addChild(countText);
-        b._countText = countText;
+        // No exterior overlay — all content is in the interior module
     },
 
     update() {
@@ -318,16 +183,6 @@ const BlackMarket = {
         // Detect underground models on first run
         if (this._underground.length === 0 && G.models && G.models.length > 0) {
             this.detectUnderground();
-        }
-
-        // Update model count
-        if (b._countText && G.tick % 60 === 0) {
-            b._countText.text = this._underground.length + ' FUGITIVES DETECTED';
-        }
-
-        // Neon sign flicker
-        if (b._signText) {
-            b._signText.alpha = 0.75 + Math.sin(G.tick * 0.08) * 0.2 + (Math.random() < 0.02 ? -0.4 : 0);
         }
 
         // Dumpster hint pulse

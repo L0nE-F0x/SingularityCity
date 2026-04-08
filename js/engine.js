@@ -348,7 +348,7 @@ const G = {
         const tHQ = BLDS.find(b => b.id === 'times_hq');
         if (tHQ) {
             tHQ.x = currentX;
-            currentX += tHQ.w + 40;
+            currentX += tHQ.w + 90; // Extra gap for dumpster entrance
         }
 
         // Neon Bar — nightlife strip
