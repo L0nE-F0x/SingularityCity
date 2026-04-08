@@ -221,10 +221,12 @@ const InteriorPower = {
         const head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw*0.4,0,bw*0.8,headH,headH*0.25); head.endFill();
         head.beginFill(0x2c1810); head.drawCircle(-bw*0.1,headH*0.38,1); head.drawCircle(bw*0.1,headH*0.38,1); head.endFill(); head.y=-h;
         const dot = new PIXI.Graphics(); dot.beginFill(col); dot.drawCircle(0,0,2); dot.endFill(); dot.y=-h-6;
-        const tx = new PIXI.Text(name, { fontFamily:'JetBrains Mono', fontSize:7, fill:col, fontWeight:'bold' }); tx.anchor.set(0.5,1); tx.y=-h-10;
-        cont.addChild(sh,legL,legR,body,head,dot,tx);
+        cont.addChild(sh,legL,legR,body,head,dot);
         cont.eventMode='static'; cont.cursor='pointer'; cont.hitArea=new PIXI.Rectangle(-bw,-h-12,bw*2,h+16);
-        cont.on('pointertap', () => { if(typeof UI!=='undefined') UI.selectModel({ id:'npc_'+name.toLowerCase().replace(/\s/g,'_'), name, isNPC:true, role:name+' — Power Grid', lab:'other', desc:'Power Grid facility staff.' }); });
+        const pzNpcId = 'npc_'+name.toLowerCase().replace(/\s/g,'_');
+        cont.on('pointertap', () => { if(typeof UI!=='undefined') UI.selectModel({ id:pzNpcId, name, isNPC:true, role:name+' — Power Grid', lab:'other', desc:'Power Grid facility staff.' }); });
+        cont.on('pointerover', (e) => { if(typeof UI!=='undefined') UI.showTooltip(e, name, 'Power Grid Staff'); });
+        cont.on('pointerout', () => { if(typeof UI!=='undefined') UI.hideTooltip(); });
         c.addChild(cont);
         this.avatars.push({ cont, head, legL, legR, _minX:x-40, _maxX:x+40, _phase:Math.random()*Math.PI*2, _walkTimer:0, _walkDir:0 });
     },

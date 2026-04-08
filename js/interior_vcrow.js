@@ -779,9 +779,7 @@ const InteriorVCRow = {
         head.beginFill(0x1a1008); head.drawRoundedRect(-bw * 0.42, -1, bw * 0.84, 4, 2); head.endFill();
         head.y = -h;
         const dot = new PIXI.Graphics(); dot.beginFill(col); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 5;
-        const tx = new PIXI.Text(name, { fontFamily: 'JetBrains Mono', fontSize: 7, fill: col, fontWeight: 'bold' });
-        tx.anchor.set(0.5, 1); tx.y = -h - 8;
-        cont.addChild(sh, legL, legR, body, head, dot, tx);
+        cont.addChild(sh, legL, legR, body, head, dot);
         cont.eventMode = 'static'; cont.cursor = 'pointer';
         cont.hitArea = new PIXI.Rectangle(-bw, -h - 10, bw * 2, h + 14);
         const bldName = this.bld ? this.bld.name : 'VC Row';

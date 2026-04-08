@@ -246,9 +246,7 @@ const InteriorDC = {
         head.y=-h; cont.addChild(head);
         // Status dot
         const dot=new PIXI.Graphics(); dot.beginFill(0x4ade80); dot.drawCircle(0,0,2); dot.endFill(); dot.y=-h-6; cont.addChild(dot);
-        // Name label
-        const tx=new PIXI.Text(name,{fontFamily:'JetBrains Mono',fontSize:7,fill:labCol,fontWeight:'bold'});
-        tx.anchor.set(0.5,1); tx.x=0; tx.y=-h-10; tx.zIndex=10; cont.addChild(tx);
+        // (name tag removed — hover tooltip + info panel only)
         // Click → NPC info panel
         const dcNpcId = 'npc_'+name.toLowerCase().replace(/\s/g,'_');
         const npcModel = { id:dcNpcId, name:name, isNPC:true, _trackType:'npc', role:name, phase:'released', lab:bld?bld.lab:'other', desc:'Facility staff — keeping systems operational.' };
