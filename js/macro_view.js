@@ -68,7 +68,7 @@ const MacroView = {
             ugBtn.className = 'mm-zone mm-underground';
             ugBtn.dataset.zone = 'underground';
             ugBtn.textContent = '🕶️ The Underground';
-            ugBtn.onclick = () => { BlackMarket.enterUnderground(); };
+            ugBtn.onclick = () => { const bld = G.bldById['black_market']; if (bld) G.enterInterior(bld); };
             zones.appendChild(ugBtn);
         }
 
