@@ -183,9 +183,106 @@ const BlackMarket = {
                         G.starsLayer, G.celestialGfx, G.lightLayer, G.fxGfx];
         layers.forEach(l => { if (l) l.visible = visible; });
         if (this._dumpsterSprite) this._dumpsterSprite.visible = visible;
-        // Swap app background: dark underground vs normal sky
-        if (G.app && G.app.renderer) {
-            G.app.renderer.background.color = visible ? 0x0a0a1a : 0x08060e;
+
+        if (!visible) {
+            this._showCavernBg();
+        } else {
+            this._hideCavernBg();
+        }
+    },
+
+    _showCavernBg() {
+        if (this._cavernBg) { this._cavernBg.visible = true; return; }
+
+        const gfx = new PIXI.Graphics();
+        const bm = G.bldById['black_market'];
+        // Draw a massive earth background centered on the BM building
+        const cx = bm ? bm.x - 400 : 0;
+        const cy = bm ? bm._container.y - 200 : 400;
+        const w = 1200, h = 800;
+
+        // Soil base layers — gradient from dark brown to deep earth
+        gfx.beginFill(0x1a120a); gfx.drawRect(cx, cy, w, h); gfx.endFill();
+        gfx.beginFill(0x2a1a0e, 0.7); gfx.drawRect(cx, cy, w, h / 3); gfx.endFill();
+        gfx.beginFill(0x0e0806, 0.5); gfx.drawRect(cx, cy + h * 0.7, w, h * 0.3); gfx.endFill();
+
+        // Rock strata — horizontal layers of varying stone
+        const strata = [
+            { y: 0.15, color: 0x3a2a1a, h: 4 }, { y: 0.25, color: 0x4a3828, h: 3 },
+            { y: 0.45, color: 0x2a1e14, h: 5 }, { y: 0.55, color: 0x3a3028, h: 3 },
+            { y: 0.7, color: 0x1e1610, h: 6 }, { y: 0.85, color: 0x2a2018, h: 4 },
+        ];
+        strata.forEach(s => {
+            gfx.beginFill(s.color, 0.6);
+            gfx.drawRect(cx, cy + h * s.y, w, s.h);
+            gfx.endFill();
+        });
+
+        // Scattered rocks and pebbles
+        let seed = 42;
+        const rng = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+        for (let i = 0; i < 80; i++) {
+            const rx = cx + rng() * w;
+            const ry = cy + rng() * h;
+            const rs = 2 + rng() * 6;
+            const shade = [0x3a2e20, 0x4a3a28, 0x2a1e14, 0x5a4a38, 0x1e1610][Math.floor(rng() * 5)];
+            gfx.beginFill(shade, 0.4 + rng() * 0.3);
+            gfx.drawEllipse(rx, ry, rs, rs * 0.6);
+            gfx.endFill();
+        }
+
+        // Roots dangling from ceiling
+        for (let i = 0; i < 12; i++) {
+            const rx = cx + 40 + rng() * (w - 80);
+            const rootLen = 20 + rng() * 60;
+            gfx.lineStyle(1 + rng() * 2, 0x3a2a1a, 0.5);
+            gfx.moveTo(rx, cy);
+            // Wiggly root path
+            let ry = cy;
+            for (let seg = 0; seg < 5; seg++) {
+                ry += rootLen / 5;
+                gfx.lineTo(rx + (rng() - 0.5) * 12, ry);
+            }
+            gfx.lineStyle(0);
+        }
+
+        // Dirt ceiling texture (top edge)
+        for (let dx = cx; dx < cx + w; dx += 6) {
+            const dh = 4 + rng() * 12;
+            gfx.beginFill(0x3a2818, 0.5);
+            gfx.drawRect(dx, cy, 5, dh);
+            gfx.endFill();
+        }
+
+        // Mineral veins (thin colored streaks)
+        const veins = [0x6a5a3a, 0x4a6a5a, 0x8a6a4a];
+        for (let i = 0; i < 6; i++) {
+            const vy = cy + 80 + rng() * (h - 160);
+            const vx = cx + rng() * w * 0.3;
+            const vw = 100 + rng() * 200;
+            gfx.lineStyle(1, veins[i % 3], 0.25);
+            gfx.moveTo(vx, vy);
+            gfx.lineTo(vx + vw, vy + (rng() - 0.5) * 20);
+            gfx.lineStyle(0);
+        }
+
+        // Dim ambient glow spots (underground moisture/fungi)
+        for (let i = 0; i < 5; i++) {
+            const gx = cx + 100 + rng() * (w - 200);
+            const gy = cy + 100 + rng() * (h - 200);
+            gfx.beginFill(0x2a4a3a, 0.08);
+            gfx.drawCircle(gx, gy, 30 + rng() * 40);
+            gfx.endFill();
+        }
+
+        gfx.zIndex = -1000;
+        G.charLayer.addChildAt(gfx, 0);
+        this._cavernBg = gfx;
+    },
+
+    _hideCavernBg() {
+        if (this._cavernBg) {
+            this._cavernBg.visible = false;
         }
     },
 
