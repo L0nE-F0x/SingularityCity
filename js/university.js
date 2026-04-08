@@ -805,8 +805,6 @@ const UniversityInterior = {
         head.y = -h; cont.addChild(head);
         const dotCol = stg === 'baby' ? 0xff69b4 : stg === 'kid' ? 0xfbbf24 : 0xa855f7;
         const dot = new PIXI.Graphics(); dot.beginFill(dotCol); dot.drawCircle(0,0,2); dot.endFill(); dot.y = -h-6; cont.addChild(dot);
-        const tx = new PIXI.Text(model.name,{fontFamily:'JetBrains Mono',fontSize:6,fill:labCol,fontWeight:'bold'});
-        tx.anchor.set(0.5,1); tx.x = 0; tx.y = -h-10; tx.zIndex = 10; if(tx.width>60) tx.scale.set(60/tx.width); cont.addChild(tx);
         cont.eventMode='static'; cont.cursor='pointer';
         cont.hitArea = new PIXI.Rectangle(-bw,-h-10,bw*2,h+14);
         cont.on('pointertap',()=>{ if(typeof UI!=='undefined') UI.selectModel(model); });

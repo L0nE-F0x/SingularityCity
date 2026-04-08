@@ -457,12 +457,9 @@ const InteriorLegacy = {
         g.beginFill(col, 0.3); g.drawCircle(x+25, y-35, 8); g.endFill();
         g.beginFill(col, 0.2); g.drawRect(x+15, y-26, 20, 12); g.endFill();
         c.addChild(g);
-        // Nameplate
-        const nm = new PIXI.Text(model.name, { fontFamily:'JetBrains Mono', fontSize:5, fill:0xc9a84c });
-        nm.anchor.set(0.5,0); nm.x = x+25; nm.y = y-6; if(nm.width > 48) nm.scale.set(48/nm.width); c.addChild(nm);
         // Clickable
         const cont = new PIXI.Container();
-        cont.addChild(g, nm);
+        cont.addChild(g);
         cont.eventMode = 'static'; cont.cursor = 'pointer';
         cont.hitArea = new PIXI.Rectangle(x-2, y-52, 54, 52);
         cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(model); });
@@ -589,8 +586,6 @@ const InteriorLegacy = {
         head.y = -h; cont.addChild(head);
         const dotCol = stg === 'baby' ? 0xff69b4 : stg === 'kid' ? 0xfbbf24 : 0xa855f7;
         const dot = new PIXI.Graphics(); dot.beginFill(dotCol); dot.drawCircle(0,0,2); dot.endFill(); dot.y = -h-6; cont.addChild(dot);
-        const tx = new PIXI.Text(model.name, { fontFamily:'JetBrains Mono', fontSize:6, fill:labCol, fontWeight:'bold' });
-        tx.anchor.set(0.5,1); tx.x = 0; tx.y = -h-10; tx.zIndex = 10; if(tx.width>60) tx.scale.set(60/tx.width); cont.addChild(tx);
         cont.eventMode = 'static'; cont.cursor = 'pointer';
         cont.hitArea = new PIXI.Rectangle(-bw,-h-10,bw*2,h+14);
         cont.on('pointertap', () => { if(typeof UI!=='undefined') UI.selectModel(model); });
