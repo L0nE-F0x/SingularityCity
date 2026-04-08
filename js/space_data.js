@@ -11,8 +11,8 @@ const SPACE_ORGS = {
     esa:         { name: 'ESA',           ceo: 'Josef Aschbacher', color: '#003399', icon: '🇪🇺', region: 'eu', desc: 'European Space Agency. HPC in orbit research and Copernicus AI platform.' },
     ula:         { name: 'ULA',           ceo: 'Tory Bruno',      color: '#1a1a2e', icon: '⚡', region: 'us', desc: 'United Launch Alliance. Vulcan Centaur heavy-lift for orbital data centers.' },
     rocketlab:   { name: 'Rocket Lab',    ceo: 'Peter Beck',      color: '#00b4d8', icon: '🌙', region: 'us', desc: 'Small-sat specialist enabling edge compute constellation deployments.' },
-    isro:        { name: 'ISRO',          ceo: 'S. Somanath',     color: '#ff6b00', icon: '🇮🇳', region: 'eu', desc: 'Indian Space Research Organisation. Cost-effective orbital compute access.' },
-    jaxa:        { name: 'JAXA',          ceo: 'Hiroshi Yamakawa', color: '#00479d', icon: '🇯🇵', region: 'cn', desc: 'Japan Aerospace Exploration Agency. Quantum compute satellite research.' },
+    isro:        { name: 'ISRO',          ceo: 'S. Somanath',     color: '#ff6b00', icon: '🇮🇳', region: 'in', desc: 'Indian Space Research Organisation. Cost-effective orbital compute access.' },
+    jaxa:        { name: 'JAXA',          ceo: 'Hiroshi Yamakawa', color: '#00479d', icon: '🇯🇵', region: 'jp', desc: 'Japan Aerospace Exploration Agency. Quantum compute satellite research.' },
     roscosmos:   { name: 'Roscosmos',     ceo: 'Yuri Borisov',    color: '#cc0000', icon: '☭',  region: 'eu', desc: 'Russian Federal Space Agency. ISS module compute and Angara heavy-lift.' }
 };
 

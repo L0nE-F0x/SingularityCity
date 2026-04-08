@@ -317,7 +317,7 @@ const VCRow = {
                 } else {
                     cm.carCont.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
                 }
-            } else if (cm.state !== 'driving_to_work' && cm.state !== 'driving_home' && cm.state !== 'driving_to_lunch' && cm.state !== 'at_lunch' && cm.state !== 'driving_from_lunch') {
+            } else if (cm.state !== 'driving_to_work' && cm.state !== 'driving_home' && cm.state !== 'driving_to_lunch' && cm.state !== 'at_lunch' && cm.state !== 'driving_from_lunch' && cm.state !== 'back_from_lunch') {
                 cm.carCont.visible = false;
             }
         });

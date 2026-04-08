@@ -135,11 +135,9 @@ const Kardashev = {
         if (typeof VCRow !== 'undefined' && VCRow.FUNDING) {
             Object.values(VCRow.FUNDING).forEach(f => {
                 const t = parseFloat(String(f.total || 0).replace(/[^0-9.]/g, ''));
-                if (t > 0) fundingB += t / 1e9; // already in billions in the data
+                if (t > 0) fundingB += t / 1000; // FUNDING.total is in $M, convert to $B
             });
         }
-        // Fix: VCRow stores values as raw numbers in billions already (e.g., 11.7e9)
-        if (fundingB > 500) fundingB = fundingB / 1e9; // re-normalize if stored as raw dollars
         const fundingNorm = Math.min(100, (fundingB / this.TARGET_FUNDING_B) * 100);
 
         // Supply chain health (inverse of bottleneck load average)

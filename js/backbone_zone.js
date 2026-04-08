@@ -124,7 +124,7 @@ const BackboneZone = {
 
     update() {
         // Slowly vary stats for visual interest
-        if (G.frameCount % 300 === 0) {
+        if (G.tick % 300 === 0) {
             this.networkStats.trafficTbps = +(10 + Math.random() * 5).toFixed(1);
             this.networkStats.cacheHitRate = +(92 + Math.random() * 6).toFixed(1);
             this.networkStats.avgLatencyMs = +(2 + Math.random() * 3).toFixed(1);

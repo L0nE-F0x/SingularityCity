@@ -80,7 +80,7 @@ const BackboneEnv = {
 
     update() {
         if (!this._built) return;
-        const fc = G.frameCount;
+        const fc = G.tick;
 
         // ─── Fiber pulses: travel along cables, reset when out of zone ───
         this.fiberPulses.forEach(p => {

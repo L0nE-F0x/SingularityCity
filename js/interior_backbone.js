@@ -552,7 +552,7 @@ const InteriorBackbone = {
         }
         // Animate LEDs on war room screens (flicker effect)
         if (this.scene) {
-            const fc = G.frameCount || 0;
+            const fc = G.tick || 0;
             this.indoorLights.forEach(l => {
                 if (l._flicker) l.alpha = 0.3 + Math.sin(fc * 0.05 + l._phase) * 0.3;
             });

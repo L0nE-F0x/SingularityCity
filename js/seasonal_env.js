@@ -83,8 +83,8 @@ const SeasonalEnv = {
             if (b.id === 'forest_0' || b.id === 'forest_1' || b.id === 'forest_space') return;
             if (b.id.startsWith('port_') || b.type === 'launchpad') return;
 
-            const bx = b.x, bw = b.w, flH = b.fl * 22;
-            const roofY = gy - flH - 10;
+            const bx = b.x, bw = b.w, flH = b.fl * 18 + 24;
+            const roofY = gy - flH;
 
             /* ── WINTER: Snow caps + fairy lights ── */
             if (isWinter) {

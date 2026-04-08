@@ -33,7 +33,7 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.rss2json.com https://finnhub.io https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://api.x.ai https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://ll.thespacedevs.com https://huggingface.co https://api.zeroeval.com https://export.arxiv.org https://celestrak.org; img-src 'self' data:; worker-src 'self'"

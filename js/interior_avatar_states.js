@@ -341,7 +341,7 @@ const InteriorAvatarStates = {
                     av.cont.y = av.floorY;
                     av.head.y = -32 + 10 + Math.sin(G.tick * 0.02 + i) * 0.5;
                     av.body.y = -32 + 14;
-                    if (av.legL) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
 
                     if (!av.propGfx) {
                         av.propGfx = new PIXI.Graphics();
@@ -372,7 +372,7 @@ const InteriorAvatarStates = {
                     av.cont.y = av.floorY;
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.05 + i) * 1;
                     av.body.y = -32 + 12 + 4;
-                    if (av.legL) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
 
                     if (!av.propGfx) {
                         av.propGfx = new PIXI.Graphics();
@@ -399,7 +399,7 @@ const InteriorAvatarStates = {
                     av.cont.y = av.floorY;
                     av.head.y = -32 + 8 + Math.sin(G.tick * 0.05 + i) * 1;
                     av.body.y = -32 + 12 + 4;
-                    if (av.legL) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
 
                     if (Math.random() < 0.002 && this.bubbles.length < 10) {
                         this.spawnBubble(av, ["Great sandwich.", "Lovely weather.", "Pass the potato salad."][Math.floor(Math.random()*3)]);
@@ -663,7 +663,7 @@ const InteriorAvatarStates = {
                     av.cont.y = av.floorY;
                     av.head.y = -32 + 10 + Math.sin(G.tick * 0.02 + i) * 0.5;
                     av.body.y = -32 + 14;
-                    if (av.legL) {
+                    if (av.legL && av.legR) {
                         av.legL.y = 0;
                         av.legR.y = 0;
                     }
@@ -679,7 +679,7 @@ const InteriorAvatarStates = {
                     av.cont.scale.x = Math.sign(Math.sin(G.tick * 0.05 + i)) || 1;
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.2 + i) * 1.5;
                     av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.2 + i)) * 1.5;
-                    if (av.legL) {
+                    if (av.legL && av.legR) {
                         av.legL.y = Math.sin(G.tick * 0.2 + i) * 2;
                         av.legR.y = -Math.sin(G.tick * 0.2 + i) * 2;
                     }
@@ -694,7 +694,7 @@ const InteriorAvatarStates = {
                     av.cont.y = av.floorY;
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.05 + i) * 1;
                     av.body.y = -32 + 12 + 4;
-                    if (av.legL) {
+                    if (av.legL && av.legR) {
                         av.legL.y = 0;
                         av.legR.y = 0;
                     }
@@ -714,7 +714,7 @@ const InteriorAvatarStates = {
                     av.cont.y = av.floorY;
                     av.head.y = -32 + 4 + Math.abs(Math.sin(G.tick * 0.2 + i)) * 4;
                     av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.2 + i)) * 4;
-                    if (av.legL) {
+                    if (av.legL && av.legR) {
                         av.legL.y = Math.sin(G.tick * 0.4 + i) * 3;
                         av.legR.y = -Math.sin(G.tick * 0.4 + i) * 3;
                     }
@@ -743,7 +743,7 @@ const InteriorAvatarStates = {
                     av.cont.scale.x = Math.sign(Math.sin(G.tick * 0.05 + i)) || 1;
                     av.head.y = -32 + 12 + Math.sin(G.tick * 0.1 + i) * 2;
                     av.body.y = -32 + 18;
-                    if (av.legL) {
+                    if (av.legL && av.legR) {
                         av.legL.y = 0;
                         av.legR.y = 0;
                     }
