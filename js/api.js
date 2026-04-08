@@ -551,9 +551,9 @@ const API = {
 
       if (!got && this.liveNews.length === 0) {
         this.liveNews = [
-          { headline: "OpenAI releases GPT-5.4 with 1M token context", url: "https://openai.com", source: "Fallback" },
+          { headline: "OpenAI launches GPT-4.1 and o4-mini reasoning models", url: "https://openai.com", source: "Fallback" },
           { headline: "Claude Opus 4.6 leads SWE-bench coding benchmarks", url: "https://anthropic.com", source: "Fallback" },
-          { headline: "Google Gemini 3.1 Pro launches with improved reasoning", url: "https://deepmind.google", source: "Fallback" },
+          { headline: "Google Gemini 2.5 Pro tops multi-modal leaderboards", url: "https://deepmind.google", source: "Fallback" },
           { headline: "DeepSeek R1 open-source reasoning model shocks industry", url: "https://deepseek.com", source: "Fallback" }
         ];
       }
@@ -1162,7 +1162,7 @@ const API = {
 
     // Known maximum version numbers per model family (update as new models release)
     _maxKnownVersions: {
-        'gemini': 3.1, 'gpt': 4.1, 'claude': 4, 'llama': 4, 'grok': 4,
+        'gemini': 3.1, 'gpt': 4.1, 'claude': 4.6, 'llama': 4, 'grok': 4,
         'phi': 4, 'mistral': 3, 'deepseek': 3, 'qwen': 3, 'palm': 2,
         'bard': 1, 'ernie': 5, 'glm': 5, 'command': 2, 'nova': 2,
         'nemotron': 1, 'codestral': 1
@@ -1251,12 +1251,13 @@ const API = {
         }
         // Also add all flagship models we know are real
         const knownReal = [
-            'claude opus 4', 'claude sonnet 4', 'claude sonnet 4.6', 'claude haiku 4',
+            'claude opus 4', 'claude opus 4.6', 'claude sonnet 4', 'claude sonnet 4.6',
+            'claude haiku 4', 'claude haiku 4.5',
             'claude 3.5 sonnet', 'claude 3.5 haiku', 'claude 3 opus',
             'gpt-4o', 'gpt-4o mini', 'gpt-4.1', 'gpt-4.1 mini', 'gpt-4.1 nano',
             'o1', 'o1-mini', 'o1-pro', 'o3', 'o3-mini', 'o4-mini',
             'gemini 2.5 pro', 'gemini 2.5 flash', 'gemini 2.0 flash',
-            'gemini 1.5 pro', 'gemini 1.5 flash', 'gemini 3.1',
+            'gemini 1.5 pro', 'gemini 1.5 flash',
             'grok 3', 'grok 3 mini', 'grok 4',
             'llama 4 scout', 'llama 4 maverick', 'llama 3.3', 'llama 3.1',
             'deepseek-r1', 'deepseek-v3', 'deepseek-r2',
@@ -1325,7 +1326,7 @@ const API = {
 
                 // ─── FLAGSHIP GAP: Which major labs are missing their LATEST model? ───
                 const flagshipExpectations = {
-                    anthropic: ['Claude Opus 4', 'Claude Sonnet 4', 'Claude Haiku 4'],
+                    anthropic: ['Claude Opus 4.6', 'Claude Sonnet 4.6', 'Claude Opus 4', 'Claude Sonnet 4', 'Claude Haiku 4.5'],
                     openai: ['GPT-4.1', 'o3', 'o4-mini', 'GPT-4o'],
                     google: ['Gemini 2.5 Pro', 'Gemini 2.5 Flash'],
                     xai: ['Grok 3', 'Grok 3 Mini', 'Grok 4'],
@@ -1383,10 +1384,10 @@ CONTEXT:
 CRITICAL ACCURACY RULES — VIOLATIONS WILL CORRUPT A PUBLIC DATABASE:
 1. ONLY return models that have been OFFICIALLY ANNOUNCED by the lab with a public blog post, API endpoint, or press release.
 2. Do NOT invent, extrapolate, or speculate about future model versions. For example:
-   - If the latest known Gemini is 2.5, do NOT return "Gemini 3", "Gemini 4", "Gemini 8 Ultra", etc.
-   - If the latest known GPT is 4.1, do NOT return "GPT-5", "GPT-6", etc.
-   - If the latest known Claude is Opus 4, do NOT return "Claude 5", "Claude 6", etc.
-   - If the latest known Llama is 4, do NOT return "Llama 5", "Llama 6", etc.
+   - If the latest known Gemini is 2.5, do NOT return "Gemini 4", "Gemini 5", "Gemini 8 Ultra", etc.
+   - If the latest known GPT is 4.1, do NOT return "GPT-6", "GPT-7", etc.
+   - If the latest known Claude is Opus 4.6, do NOT return "Claude 6", "Claude 7", etc.
+   - If the latest known Llama is 4, do NOT return "Llama 6", "Llama 7", etc.
 3. Version numbers must match real, publicly documented versions. If unsure, SKIP that model entirely.
 4. Release dates must be real dates when the model became publicly available. If unsure, use null.
 5. Benchmarks must be from official papers or leaderboards (e.g. LMSYS, ZeroEval). If unsure, omit the benchmark.
