@@ -1408,7 +1408,6 @@ const G = {
       // ─── LAYER-DEPENDENT INITS: These need charLayer/carLayer to exist ───
       if (typeof BirdFlocks !== 'undefined' && this.charLayer) BirdFlocks.init(this.charLayer);
       if (typeof SupplyChain !== 'undefined' && this.carLayer) SupplyChain.init(this.carLayer);
-      if (typeof ResearchPapers !== 'undefined' && this.charLayer) ResearchPapers.init(this.charLayer);
       
       // ─── LAZY ZONE BOOT: Defer heavy visual animations until camera enters each zone ───
       // Each *Env.buildAnimations() call spawns 50-120 PIXI.Graphics (pulses, LEDs, fog,
@@ -1792,7 +1791,6 @@ const G = {
               BirdFlocks: typeof BirdFlocks !== 'undefined' ? BirdFlocks : null,
               AIIndex: typeof AIIndex !== 'undefined' ? AIIndex : null,
               SupplyChain: typeof SupplyChain !== 'undefined' ? SupplyChain : null,
-              ResearchPapers: typeof ResearchPapers !== 'undefined' ? ResearchPapers : null,
               BlackMarket: typeof BlackMarket !== 'undefined' ? BlackMarket : null,
               ConferenceData: typeof ConferenceData !== 'undefined' ? ConferenceData : null,
               Kardashev: typeof Kardashev !== 'undefined' ? Kardashev : null,
@@ -1832,7 +1830,6 @@ const G = {
       if (S.ConferenceData) S.ConferenceData.update();
       if (S.Kardashev) S.Kardashev.tick();
       if (S.AIIndex) S.AIIndex.tick();
-      if (S.ResearchPapers) S.ResearchPapers.update();
       if (S.BlackMarket) S.BlackMarket.update();
 
       // Lazy zone boot — spawn each zone's visual animations on first approach
