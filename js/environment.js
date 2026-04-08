@@ -130,6 +130,17 @@ const Environment = {
       const hasBackboneZone = backboneStartX < Infinity && backboneEndX > 0;
       if (hasBackboneZone) { backboneStartX -= 60; backboneEndX += 40; }
 
+      // ─── Determine agent district X range ───
+      let agentsStartX = Infinity, agentsEndX = 0;
+      BLDS.forEach(b => {
+          if (b.id.startsWith('agents_')) {
+              if (b.x < agentsStartX) agentsStartX = b.x;
+              if (b.x + b.w > agentsEndX) agentsEndX = b.x + b.w;
+          }
+      });
+      const hasAgentsZone = agentsStartX < Infinity && agentsEndX > 0;
+      if (hasAgentsZone) { agentsStartX -= 60; agentsEndX += 40; }
+
       // ─── CITY TERRAIN (skip space zone range) ───
       const drawCityTerrain = (startX, endX) => {
           if (startX >= endX) return;
@@ -250,6 +261,33 @@ const Environment = {
           g.beginFill(0x22d3ee, 0.06); g.drawRect(backboneStartX, gy + 29, bkw, 1); g.endFill();
       }
 
+      // ─── AGENT DISTRICT terrain (dark rose-tinted ground) ───
+      if (hasAgentsZone) {
+          const agw = agentsEndX - agentsStartX;
+          // Dark sidewalk with rose tint
+          g.beginFill(0x0e0a1a); g.drawRect(agentsStartX, gy - 24, agw, 24); g.endFill();
+          g.beginFill(0x14101e); g.drawRect(agentsStartX, gy - 24, agw, 12); g.endFill();
+          g.beginFill(0x1e1530); g.drawRect(agentsStartX, gy - 24, agw, 2); g.endFill();
+          // Data flow lines in sidewalk (rose/amber)
+          for (let fx = agentsStartX; fx < agentsEndX; fx += 50) {
+              g.beginFill(0xf43f5e, 0.06); g.drawRect(fx, gy - 20, 25, 1); g.endFill();
+              g.beginFill(0xfbbf24, 0.05); g.drawRect(fx + 30, gy - 16, 15, 1); g.endFill();
+          }
+          // Dark road
+          g.beginFill(0x0a0818); g.drawRect(agentsStartX, gy, agw, 32); g.endFill();
+          g.beginFill(0x0e0c1e); g.drawRect(agentsStartX, gy, agw, 16); g.endFill();
+          // Rose-tinted center line
+          g.beginFill(0xf43f5e, 0.10); g.drawRect(agentsStartX, gy + 14, agw, 3); g.endFill();
+          g.beginFill(0xa855f7, 0.06); g.drawRect(agentsStartX, gy + 12, agw, 1); g.endFill();
+          // Road dashes
+          for (let x = agentsStartX; x < agentsEndX; x += 40) {
+              g.beginFill(0x1e1535, 0.5); g.drawRect(x, gy + 14, 20, 3); g.endFill();
+          }
+          // Edge accents
+          g.beginFill(0xf43f5e, 0.05); g.drawRect(agentsStartX, gy + 2, agw, 1); g.endFill();
+          g.beginFill(0xf43f5e, 0.05); g.drawRect(agentsStartX, gy + 29, agw, 1); g.endFill();
+      }
+
       if (hasSpaceZone) {
           // Desert terrain for space zone
           if (typeof SpaceEnvironment !== 'undefined') {
@@ -301,7 +339,7 @@ const Environment = {
           g.beginFill(col, a); g.drawRect(cursor, y, G.cityW + 4000 - cursor, h); g.endFill();
       };
       // Helper: is X in a non-city zone?
-      const inSpecialZone = (x) => (hasSpaceZone && x >= spaceStartX && x <= spaceEndX) || (hasPortZone && x >= portStartX && x <= portEndX) || (hasPowerZone && x >= powerStartX && x <= powerEndX) || (hasBackboneZone && x >= backboneStartX && x <= backboneEndX);
+      const inSpecialZone = (x) => (hasSpaceZone && x >= spaceStartX && x <= spaceEndX) || (hasPortZone && x >= portStartX && x <= portEndX) || (hasPowerZone && x >= powerStartX && x <= powerEndX) || (hasBackboneZone && x >= backboneStartX && x <= backboneEndX) || (hasAgentsZone && x >= agentsStartX && x <= agentsEndX);
 
       const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
       const cableEndX = hasPowerZone ? powerStartX : G.cityW + 2000;
@@ -332,7 +370,7 @@ const Environment = {
       }
 
       // Vertical risers from buildings down to fiber trunk
-      const cityBlds = BLDS.filter(b => !b.id.startsWith('backbone_') && !b.id.startsWith('port_') && !b.id.startsWith('power_') && !b.id.startsWith('space_') && !inSpecialZone(b.x + b.w / 2) && b.x > cableStartX && b.x < cableEndX);
+      const cityBlds = BLDS.filter(b => !b.id.startsWith('backbone_') && !b.id.startsWith('port_') && !b.id.startsWith('power_') && !b.id.startsWith('space_') && !b.id.startsWith('agents_') && !inSpecialZone(b.x + b.w / 2) && b.x > cableStartX && b.x < cableEndX);
       cityBlds.forEach(bb => {
           const cx = bb.x + bb.w / 2;
           g.beginFill(0x1a2540); g.drawRect(cx - 4, gy + 32, 8, 20); g.endFill();
@@ -495,6 +533,46 @@ const Environment = {
               g.beginFill(0x22d3ee, 0.5); g.drawCircle(jx + 6, gy + 178, 1.5); g.endFill();
               g.beginFill(0x0ea5e9); g.drawRect(jx + 50, gy + 218, 8, 12); g.endFill();
               g.beginFill(0xf59e0b); g.drawRect(jx + 100, gy + 233, 8, 16); g.endFill();
+          }
+      }
+
+      // ─── AGENT DISTRICT: Underground data mesh ───
+      if (hasAgentsZone) {
+          const agw = agentsEndX - agentsStartX;
+          // Dark data infrastructure underground
+          g.beginFill(0x06040e); g.drawRect(agentsStartX, gy + 32, agw, 38); g.endFill();
+          // Agent communication bus lines (rose/purple tinted)
+          const agentCols = [0xf43f5e, 0xa855f7, 0xfbbf24, 0x4ade80, 0x22d3ee, 0x8b5cf6];
+          for (let fi = 0; fi < 8; fi++) {
+              const fy = gy + 36 + fi * 4;
+              const col = agentCols[fi % agentCols.length];
+              g.beginFill(col, 0.25 + Math.random() * 0.2);
+              g.drawRect(agentsStartX + 10, fy, agw - 20, 2);
+              g.endFill();
+          }
+          // Node junction dots (agent endpoints)
+          for (let ni = 0; ni < 20; ni++) {
+              const nx = agentsStartX + 20 + Math.random() * (agw - 40);
+              const ny = gy + 36 + Math.random() * 28;
+              g.beginFill(agentCols[Math.floor(Math.random() * agentCols.length)], 0.4);
+              g.drawCircle(nx, ny, 1.5 + Math.random() * 1.5);
+              g.endFill();
+          }
+          // Vertical risers from buildings
+          const agBlds = BLDS.filter(b => b.id.startsWith('agents_'));
+          agBlds.forEach(ab => {
+              const cx = ab.x + ab.w / 2;
+              g.beginFill(0x1a1530); g.drawRect(cx - 4, gy + 32, 8, 20); g.endFill();
+              g.beginFill(0xf43f5e, 0.15); g.drawRect(cx - 2, gy + 34, 4, 16); g.endFill();
+              g.beginFill(0x1a1530); g.drawRect(cx - 6, gy + 30, 12, 5); g.endFill();
+              g.beginFill(0xf43f5e, 0.4); g.drawCircle(cx - 2, gy + 32, 1.2); g.endFill();
+              g.beginFill(0xa855f7, 0.4); g.drawCircle(cx + 2, gy + 32, 1.2); g.endFill();
+          });
+          g.beginFill(0x06040e); g.drawRect(agentsStartX, gy + 170, agw, 10); g.endFill();
+          for (let di = 0; di < 3; di++) {
+              const dy = gy + 192 + di * 8;
+              const col = agentCols[di % agentCols.length];
+              g.beginFill(col, 0.12); g.drawRect(agentsStartX, dy, agw, 1); g.endFill();
           }
       }
 
@@ -1517,6 +1595,70 @@ const Environment = {
           // Base / foundation
           gfx.beginFill(0x111e30); gfx.drawRect(0, h-4, b.w, 4); gfx.endFill();
           gfx.beginFill(bkCol, 0.1); gfx.drawRect(0, h-4, b.w, 1); gfx.endFill();
+
+        } else if (b.id.startsWith('agents_')) {
+          // ── AGENT DISTRICT BUILDINGS ──
+          const agCol = 0xf43f5e;
+          // Dark base with rose-tinted accent
+          gfx.beginFill(0x0c0a18); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
+          // Vertical panel lines (circuit board feel)
+          for (let px = 0; px < b.w; px += 28) { gfx.beginFill(0x14101e); gfx.drawRect(px, 0, 1, h); gfx.endFill(); }
+          // Accent glow stripe at top
+          gfx.beginFill(agCol, 0.18); gfx.drawRect(0, 0, b.w, 3); gfx.endFill();
+          gfx.beginFill(agCol, 0.08); gfx.drawRect(0, 3, b.w, 2); gfx.endFill();
+          // Floor slabs
+          for (let fi = 1; fi < floors; fi++) {
+              const fy = fi * 18;
+              gfx.beginFill(0x1a1530); gfx.drawRect(0, fy, b.w, 2); gfx.endFill();
+          }
+          // Windows — warm rose/amber glow (distinct from backbone's cyan)
+          for (let fi = 0; fi < floors; fi++) {
+              for (let wx = 8; wx < b.w - 12; wx += 22) {
+                  const wy = fi * 18 + 6;
+                  gfx.beginFill(0x0a0818); gfx.drawRect(wx, wy, 16, 10); gfx.endFill();
+                  const glowCols = [0xf43f5e, 0xfbbf24, 0xa855f7, 0x4ade80, 0x22d3ee];
+                  const gc = glowCols[Math.floor(Math.random() * glowCols.length)];
+                  gfx.beginFill(gc, 0.08 + Math.random() * 0.12);
+                  gfx.drawRect(wx+2, wy+2, 12, 6); gfx.endFill();
+              }
+          }
+          // Building-specific details
+          if (b.id === 'agents_orchestrator') {
+              // Workflow graph etched on facade (3 connected nodes)
+              const cy = h * 0.5;
+              gfx.beginFill(agCol, 0.12); gfx.drawCircle(b.w*0.25, cy, 6); gfx.drawCircle(b.w*0.5, cy-6, 6); gfx.drawCircle(b.w*0.75, cy, 6); gfx.endFill();
+              gfx.lineStyle(1, agCol, 0.08); gfx.moveTo(b.w*0.25+6, cy); gfx.lineTo(b.w*0.5-6, cy-6); gfx.moveTo(b.w*0.5+6, cy-6); gfx.lineTo(b.w*0.75-6, cy); gfx.lineStyle(0);
+          } else if (b.id === 'agents_sandbox') {
+              // Arena bars — benchmark indicator
+              for (let bi = 0; bi < 5; bi++) {
+                  const bh = 6 + Math.random() * 12;
+                  const bc = [0x22d3ee, 0x4ade80, 0xfbbf24, 0xf43f5e, 0x8b5cf6][bi];
+                  gfx.beginFill(bc, 0.12); gfx.drawRect(b.w*0.2 + bi*14, h*0.6-bh, 8, bh); gfx.endFill();
+              }
+          } else if (b.id === 'agents_memory') {
+              // Memory rings (concentric circles)
+              for (let ri = 0; ri < 3; ri++) {
+                  gfx.lineStyle(1, 0xa855f7, 0.08 + ri * 0.04);
+                  gfx.drawCircle(b.w/2, h*0.5, 10+ri*8);
+              }
+              gfx.lineStyle(0);
+          } else if (b.id === 'agents_toolshop') {
+              // Tool rack lines (horizontal slots)
+              for (let ti = 0; ti < 4; ti++) {
+                  gfx.beginFill(0xfbbf24, 0.06); gfx.drawRect(b.w*0.15, h*0.3+ti*12, b.w*0.7, 2); gfx.endFill();
+              }
+          }
+          // Rooftop antenna array (agent communication)
+          if (b.id === 'agents_orchestrator' || b.id === 'agents_sandbox') {
+              for (let ai = 0; ai < 3; ai++) {
+                  const ax = 30 + ai * 60;
+                  gfx.beginFill(0x64748b); gfx.drawRect(ax, -8, 2, 12); gfx.endFill();
+                  gfx.beginFill(agCol, 0.5); gfx.drawCircle(ax+1, -9, 1.5); gfx.endFill();
+              }
+          }
+          // Base / foundation
+          gfx.beginFill(0x14101e); gfx.drawRect(0, h-4, b.w, 4); gfx.endFill();
+          gfx.beginFill(agCol, 0.1); gfx.drawRect(0, h-4, b.w, 1); gfx.endFill();
 
         } else if (b.id.startsWith('power_')) {
           // ── POWER GRID ZONE BUILDINGS ──

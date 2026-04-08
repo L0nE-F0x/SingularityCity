@@ -110,7 +110,7 @@ const NPCHousing = {
         // live closer to the new eastern metro station.
         const wp = npc.workplace || '';
         // East-side workers → blocks 4-6 (closest to the new Longevity metro)
-        if (wp.startsWith('backbone_') || wp.startsWith('robotics_')) {
+        if (wp.startsWith('backbone_') || wp.startsWith('robotics_') || wp.startsWith('agents_')) {
             return 'npc_apt_4';
         }
         if (wp.startsWith('longevity_')) {

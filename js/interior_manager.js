@@ -43,6 +43,8 @@ const Interior = {
             this.activeModule = InteriorRobotics;
         } else if (bld.type === 'longevity' && typeof InteriorLongevity !== 'undefined') {
             this.activeModule = InteriorLongevity;
+        } else if (bld.type === 'agents' && typeof InteriorAgents !== 'undefined') {
+            this.activeModule = InteriorAgents;
         } else if (bld.id && bld.id.startsWith('metro_') && typeof InteriorMetroStation !== 'undefined') {
             this.activeModule = InteriorMetroStation;
         } else if (bld.id === 'times_hq' && typeof InteriorNewspaper !== 'undefined') {

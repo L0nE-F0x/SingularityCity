@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v308';
+const CACHE_NAME = 'singularity-city-v309';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -63,6 +63,9 @@ const CORE_ASSETS = [
     '/js/longevity_zone.js',
     '/js/longevity_env.js',
     '/js/interior_longevity.js',
+    '/js/agents_zone.js',
+    '/js/agents_env.js',
+    '/js/interior_agents.js',
     '/js/xray_mode.js',
     '/js/multiplayer.js',
     '/js/interior_manager.js',

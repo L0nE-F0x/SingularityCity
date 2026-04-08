@@ -387,6 +387,11 @@ const G = {
             currentX = LongevityZone.positionZone(currentX);
         }
 
+        // ─── AGENT DISTRICT: Autonomous AI Agent Frameworks ───
+        if (typeof AgentsZone !== 'undefined') {
+            currentX = AgentsZone.positionZone(currentX);
+        }
+
         // Longevity Line — eastern terminus metro between Longevity Wing and Silicon Woods
         const mLong = BLDS.find(b => b.id === 'metro_longevity');
         if (mLong) {
@@ -468,6 +473,7 @@ const G = {
         addZB('backbone', BLDS.filter(b => b.id.startsWith('backbone_')));
         addZB('robotics', BLDS.filter(b => b.id.startsWith('robotics_')));
         addZB('longevity', BLDS.filter(b => b.id.startsWith('longevity_')));
+        addZB('agents', BLDS.filter(b => b.id.startsWith('agents_')));
         addZB('suburbia', BLDS.filter(b => b.id.startsWith('suburb_')));
         addZB('power', BLDS.filter(b => b.id.startsWith('power_')));
 
@@ -1270,6 +1276,7 @@ const G = {
       if (typeof BackboneZone !== 'undefined') BackboneZone.init();
       if (typeof RoboticsZone !== 'undefined') RoboticsZone.init();
       if (typeof LongevityZone !== 'undefined') LongevityZone.init();
+      if (typeof AgentsZone !== 'undefined') AgentsZone.init();
 
       this.recalculateZoning(); 
       
@@ -1463,6 +1470,11 @@ const G = {
           registerLazy('longevity',
               () => ({ x0: LongevityZone.zoneStartX, x1: LongevityZone.zoneEndX }),
               () => LongevityEnv.buildAnimations(self.charLayer));
+      }
+      if (typeof AgentsEnv !== 'undefined' && typeof AgentsZone !== 'undefined') {
+          registerLazy('agents',
+              () => ({ x0: AgentsZone.zoneStartX, x1: AgentsZone.zoneEndX }),
+              () => AgentsEnv.buildAnimations(self.charLayer));
       }
 
       // VC Row cars and Space rockets are spawned immediately because they already have
@@ -1783,6 +1795,8 @@ const G = {
               RoboticsZone: typeof RoboticsZone !== 'undefined' ? RoboticsZone : null,
               LongevityEnv: typeof LongevityEnv !== 'undefined' ? LongevityEnv : null,
               LongevityZone: typeof LongevityZone !== 'undefined' ? LongevityZone : null,
+              AgentsEnv: typeof AgentsEnv !== 'undefined' ? AgentsEnv : null,
+              AgentsZone: typeof AgentsZone !== 'undefined' ? AgentsZone : null,
               XRayMode: typeof XRayMode !== 'undefined' ? XRayMode : null,
               VCRow: typeof VCRow !== 'undefined' ? VCRow : null,
               Multiplayer: typeof Multiplayer !== 'undefined' ? Multiplayer : null,
@@ -1821,6 +1835,8 @@ const G = {
       if (S.RoboticsEnv) S.RoboticsEnv.update();
       if (S.RoboticsZone) S.RoboticsZone.update();
       if (S.LongevityZone) S.LongevityZone.update();
+      if (S.AgentsEnv) S.AgentsEnv.update();
+      if (S.AgentsZone) S.AgentsZone.update();
       if (S.XRayMode) S.XRayMode.update();
       if (S.VCRow) { S.VCRow.update(); S.VCRow.updateCommuters(dp); }
       if (S.Multiplayer) S.Multiplayer.update();
