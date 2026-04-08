@@ -309,27 +309,38 @@ const Environment = {
       if (hasPortZone) cableStartX = Math.max(cableStartX, portEndX);
       if (hasSpaceZone) cableStartX = Math.max(cableStartX, spaceEndX);
 
-      // Dark cable tray background
+      // Dark cable tray background (same as Backbone)
       g.beginFill(0x060a14); g.drawRect(cableStartX, gy + 32, cableEndX - cableStartX, 38); g.endFill();
 
-      // Neat horizontal cable rows (matching Backbone style)
+      // Dense fiber trunk — 10 neat horizontal rows (identical to Backbone style)
       for (let fi = 0; fi < 10; fi++) {
           const fy = gy + 35 + fi * 3;
           const col = cableCols[fi % cableCols.length];
-          g.beginFill(col, 0.30 + (fi % 3) * 0.08);
+          g.beginFill(col, 0.35 + Math.random() * 0.25);
           g.drawRect(cableStartX + 10, fy, cableEndX - cableStartX - 20, 2);
           g.endFill();
       }
 
-      // Junction node dots (sparse, organized)
+      // Cable node dots — junction points (same size/alpha as Backbone)
       for (let ni = 0; ni < 60; ni++) {
           const nx = cableStartX + 30 + Math.random() * (cableEndX - cableStartX - 60);
           if (inSpecialZone(nx)) continue;
           const ny = gy + 36 + Math.random() * 28;
-          g.beginFill(cableCols[Math.floor(Math.random() * cableCols.length)], 0.45);
-          g.drawCircle(nx, ny, 1.2 + Math.random() * 1.5);
+          g.beginFill(cableCols[Math.floor(Math.random() * cableCols.length)], 0.5);
+          g.drawCircle(nx, ny, 1.5 + Math.random() * 2);
           g.endFill();
       }
+
+      // Vertical risers from buildings down to fiber trunk
+      const cityBlds = BLDS.filter(b => !b.id.startsWith('backbone_') && !b.id.startsWith('port_') && !b.id.startsWith('power_') && !b.id.startsWith('space_') && !inSpecialZone(b.x + b.w / 2) && b.x > cableStartX && b.x < cableEndX);
+      cityBlds.forEach(bb => {
+          const cx = bb.x + bb.w / 2;
+          g.beginFill(0x1a2540); g.drawRect(cx - 4, gy + 32, 8, 20); g.endFill();
+          g.beginFill(0x22d3ee, 0.2); g.drawRect(cx - 2, gy + 34, 4, 16); g.endFill();
+          g.beginFill(0x1a2a40); g.drawRect(cx - 6, gy + 30, 12, 5); g.endFill();
+          g.beginFill(0x22d3ee, 0.4); g.drawCircle(cx - 2, gy + 32, 1.2); g.endFill();
+          g.beginFill(0x4ade80, 0.4); g.drawCircle(cx + 2, gy + 32, 1.2); g.endFill();
+      });
 
       // gy+70 to gy+170 = tunnel cavity — left TRANSPARENT so undergroundLayer shows through
       // gy+170 downward = infrastructure depth — filled solid
