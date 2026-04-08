@@ -139,6 +139,11 @@ const BlackMarket = {
         }
         if (typeof UI !== 'undefined') UI.addToast('🕶️ Descending into The Underground...');
 
+        // Ensure underground models are detected before showing NPCs
+        if (this._underground.length === 0 && G.models && G.models.length > 0) {
+            this.detectUnderground();
+        }
+
         // Save current camera state
         this._savedCamX = Camera.targetX;
         this._savedCamY = Camera.targetY || 0;
@@ -183,6 +188,10 @@ const BlackMarket = {
                         G.starsLayer, G.celestialGfx, G.lightLayer, G.fxGfx];
         layers.forEach(l => { if (l) l.visible = visible; });
         if (this._dumpsterSprite) this._dumpsterSprite.visible = visible;
+        // Swap canvas background color
+        if (G.app && G.app.renderer) {
+            G.app.renderer.background.color = visible ? 0x0a0a1a : 0x1a120a;
+        }
 
         if (!visible) {
             this._showCavernBg();
@@ -192,98 +201,227 @@ const BlackMarket = {
     },
 
     _showCavernBg() {
-        if (this._cavernBg) { this._cavernBg.visible = true; return; }
+        if (this._cavernBg) { this._cavernBg.visible = true; this._showUndergroundNpcs(); return; }
 
         const gfx = new PIXI.Graphics();
         const bm = G.bldById['black_market'];
-        // Draw a massive earth background centered on the BM building
-        const cx = bm ? bm.x - 400 : 0;
-        const cy = bm ? bm._container.y - 200 : 400;
-        const w = 1200, h = 800;
+        if (!bm) return;
 
-        // Soil base layers — gradient from dark brown to deep earth
+        // Cover a huge area so no sky peeks through at any zoom/viewport
+        const cx = bm.x - 2000;
+        const cy = bm._container.y - 1000;
+        const w = 5000, h = 3000;
+
+        // Soil base — full fill
         gfx.beginFill(0x1a120a); gfx.drawRect(cx, cy, w, h); gfx.endFill();
-        gfx.beginFill(0x2a1a0e, 0.7); gfx.drawRect(cx, cy, w, h / 3); gfx.endFill();
+        // Lighter top layer (closer to surface)
+        gfx.beginFill(0x2a1a0e, 0.6); gfx.drawRect(cx, cy, w, h * 0.25); gfx.endFill();
+        // Darker bottom layer (deep earth)
         gfx.beginFill(0x0e0806, 0.5); gfx.drawRect(cx, cy + h * 0.7, w, h * 0.3); gfx.endFill();
 
-        // Rock strata — horizontal layers of varying stone
+        // Rock strata — wide horizontal bands
         const strata = [
-            { y: 0.15, color: 0x3a2a1a, h: 4 }, { y: 0.25, color: 0x4a3828, h: 3 },
-            { y: 0.45, color: 0x2a1e14, h: 5 }, { y: 0.55, color: 0x3a3028, h: 3 },
-            { y: 0.7, color: 0x1e1610, h: 6 }, { y: 0.85, color: 0x2a2018, h: 4 },
+            { y: 0.12, color: 0x3a2a1a, sh: 6 }, { y: 0.22, color: 0x4a3828, sh: 4 },
+            { y: 0.35, color: 0x2a1e14, sh: 8 }, { y: 0.48, color: 0x3a3028, sh: 5 },
+            { y: 0.6, color: 0x1e1610, sh: 7 }, { y: 0.75, color: 0x2a2018, sh: 5 },
+            { y: 0.88, color: 0x3a2a1a, sh: 4 },
         ];
         strata.forEach(s => {
-            gfx.beginFill(s.color, 0.6);
-            gfx.drawRect(cx, cy + h * s.y, w, s.h);
+            gfx.beginFill(s.color, 0.5);
+            gfx.drawRect(cx, cy + h * s.y, w, s.sh);
             gfx.endFill();
         });
 
-        // Scattered rocks and pebbles
         let seed = 42;
         const rng = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
-        for (let i = 0; i < 80; i++) {
-            const rx = cx + rng() * w;
-            const ry = cy + rng() * h;
-            const rs = 2 + rng() * 6;
+
+        // Scattered rocks and pebbles
+        for (let i = 0; i < 200; i++) {
+            const rx = cx + rng() * w, ry = cy + rng() * h, rs = 2 + rng() * 8;
             const shade = [0x3a2e20, 0x4a3a28, 0x2a1e14, 0x5a4a38, 0x1e1610][Math.floor(rng() * 5)];
-            gfx.beginFill(shade, 0.4 + rng() * 0.3);
+            gfx.beginFill(shade, 0.3 + rng() * 0.3);
             gfx.drawEllipse(rx, ry, rs, rs * 0.6);
             gfx.endFill();
         }
 
-        // Roots dangling from ceiling
-        for (let i = 0; i < 12; i++) {
-            const rx = cx + 40 + rng() * (w - 80);
-            const rootLen = 20 + rng() * 60;
-            gfx.lineStyle(1 + rng() * 2, 0x3a2a1a, 0.5);
+        // Roots dangling from the ceiling area
+        for (let i = 0; i < 20; i++) {
+            const rx = cx + 100 + rng() * (w - 200);
+            const rootLen = 30 + rng() * 80;
+            gfx.lineStyle(1 + rng() * 2, 0x3a2a1a, 0.4);
             gfx.moveTo(rx, cy);
-            // Wiggly root path
             let ry = cy;
-            for (let seg = 0; seg < 5; seg++) {
-                ry += rootLen / 5;
-                gfx.lineTo(rx + (rng() - 0.5) * 12, ry);
+            for (let seg = 0; seg < 6; seg++) {
+                ry += rootLen / 6;
+                gfx.lineTo(rx + (rng() - 0.5) * 15, ry);
             }
             gfx.lineStyle(0);
         }
 
-        // Dirt ceiling texture (top edge)
+        // Dirt ceiling chunks
         for (let dx = cx; dx < cx + w; dx += 6) {
-            const dh = 4 + rng() * 12;
-            gfx.beginFill(0x3a2818, 0.5);
+            const dh = 4 + rng() * 14;
+            gfx.beginFill(0x3a2818, 0.4);
             gfx.drawRect(dx, cy, 5, dh);
             gfx.endFill();
         }
 
-        // Mineral veins (thin colored streaks)
-        const veins = [0x6a5a3a, 0x4a6a5a, 0x8a6a4a];
-        for (let i = 0; i < 6; i++) {
+        // Mineral veins
+        const veins = [0x6a5a3a, 0x4a6a5a, 0x8a6a4a, 0x7a5a2a];
+        for (let i = 0; i < 12; i++) {
             const vy = cy + 80 + rng() * (h - 160);
-            const vx = cx + rng() * w * 0.3;
-            const vw = 100 + rng() * 200;
-            gfx.lineStyle(1, veins[i % 3], 0.25);
+            const vx = cx + rng() * w * 0.4;
+            const vw = 150 + rng() * 300;
+            gfx.lineStyle(1, veins[i % 4], 0.2);
             gfx.moveTo(vx, vy);
-            gfx.lineTo(vx + vw, vy + (rng() - 0.5) * 20);
+            gfx.lineTo(vx + vw, vy + (rng() - 0.5) * 30);
             gfx.lineStyle(0);
         }
 
-        // Dim ambient glow spots (underground moisture/fungi)
-        for (let i = 0; i < 5; i++) {
-            const gx = cx + 100 + rng() * (w - 200);
-            const gy = cy + 100 + rng() * (h - 200);
-            gfx.beginFill(0x2a4a3a, 0.08);
-            gfx.drawCircle(gx, gy, 30 + rng() * 40);
+        // Moisture glow spots
+        for (let i = 0; i < 10; i++) {
+            const gx = cx + 200 + rng() * (w - 400);
+            const gy = cy + 200 + rng() * (h - 400);
+            gfx.beginFill(0x2a4a3a, 0.06);
+            gfx.drawCircle(gx, gy, 40 + rng() * 60);
             gfx.endFill();
         }
+
+        // ── LADDER from building to ground level ──
+        const ladX = bm.x + 20;
+        const ladTop = G.groundY - 24; // street level
+        const ladBot = bm._container.y + 30; // inside the building
+        gfx.beginFill(0x6a5a3a); gfx.drawRect(ladX, ladTop, 3, ladBot - ladTop); gfx.endFill();
+        gfx.beginFill(0x6a5a3a); gfx.drawRect(ladX + 14, ladTop, 3, ladBot - ladTop); gfx.endFill();
+        for (let ry = ladTop + 6; ry < ladBot; ry += 10) {
+            gfx.beginFill(0x7a6a4a); gfx.drawRect(ladX + 3, ry, 11, 2); gfx.endFill();
+        }
+
+        // ── DUMPSTER at the top of the ladder (street level) ──
+        const dsX = ladX - 8, dsY = ladTop - 20;
+        gfx.beginFill(0x2d5a2d); gfx.drawRect(dsX, dsY, 34, 20); gfx.endFill();
+        gfx.beginFill(0x1a3a1a); gfx.drawRect(dsX, dsY - 3, 34, 5); gfx.endFill();
+        // Lid ajar with glow
+        gfx.beginFill(0x3a6a3a); gfx.moveTo(dsX, dsY - 3); gfx.lineTo(dsX + 34, dsY - 3);
+        gfx.lineTo(dsX + 32, dsY - 10); gfx.lineTo(dsX + 2, dsY - 8); gfx.closePath(); gfx.endFill();
+        gfx.beginFill(0xff3366, 0.4); gfx.drawRect(dsX + 5, dsY - 5, 24, 3); gfx.endFill();
+        // Street surface line
+        gfx.beginFill(0x333344); gfx.drawRect(cx, ladTop + 2, w, 8); gfx.endFill();
+        gfx.beginFill(0x444455); gfx.drawRect(cx, ladTop, w, 3); gfx.endFill();
 
         gfx.zIndex = -1000;
         G.charLayer.addChildAt(gfx, 0);
         this._cavernBg = gfx;
+
+        // Spawn underground NPC sprites
+        this._showUndergroundNpcs();
+    },
+
+    // ── UNDERGROUND NPCs — animated jailbroken model sprites ──
+    _undergroundNpcs: [],
+
+    _showUndergroundNpcs() {
+        // Show existing NPCs if they already exist
+        if (this._undergroundNpcs.length > 0) {
+            this._undergroundNpcs.forEach(n => { if (n.c) n.c.visible = true; });
+            return;
+        }
+        const bm = G.bldById['black_market'];
+        if (!bm || !bm._container) return;
+        const models = this._underground.slice(0, 16); // cap at 16 NPCs
+        if (models.length === 0) return;
+
+        const floorY = bm._container.y + (bm.fl * 18 + 24) - 20; // floor level inside building
+
+        models.forEach((m, i) => {
+            const c = new PIXI.Container();
+            const col = [0xff3366, 0xa855f7, 0x22d3ee, 0xfbbf24, 0x4ade80, 0xef4444][i % 6];
+
+            // Hooded figure body
+            const body = new PIXI.Graphics();
+            // Cloak
+            body.beginFill(0x1a1a2e, 0.9); body.drawRect(-4, -7, 8, 12); body.endFill();
+            // Hood
+            body.beginFill(0x111122); body.moveTo(-6, -8); body.lineTo(0, -16); body.lineTo(6, -8);
+            body.closePath(); body.endFill();
+            // Glowing eyes
+            body.beginFill(col, 0.8); body.drawCircle(-2, -10, 1.2); body.drawCircle(2, -10, 1.2); body.endFill();
+            // Legs
+            body.beginFill(0x1a1a2e); body.drawRect(-3, 5, 2, 4); body.drawRect(1, 5, 2, 4); body.endFill();
+            c.addChild(body);
+
+            // Name tag (small)
+            const tag = new PIXI.Text(m.name.length > 12 ? m.name.slice(0, 12) + '…' : m.name, {
+                fontFamily: 'Silkscreen', fontSize: 4, fill: col, alpha: 0.7,
+            });
+            tag.anchor.set(0.5, 0); tag.y = 10;
+            c.addChild(tag);
+
+            // Position scattered across the floor of the building
+            const xMin = bm.x + 50, xMax = bm.x + bm.w - 50;
+            c.x = xMin + (i / models.length) * (xMax - xMin) + (Math.random() - 0.5) * 20;
+            c.y = floorY;
+
+            // Movement state
+            const npc = {
+                c, body,
+                baseX: c.x,
+                dir: Math.random() < 0.5 ? 1 : -1,
+                speed: 0.15 + Math.random() * 0.2,
+                walkRange: 20 + Math.random() * 30,
+                walkTimer: Math.floor(Math.random() * 200),
+                idleTimer: 0,
+                state: 'walking', // walking | idle
+                legPhase: Math.random() * Math.PI * 2,
+            };
+
+            G.charLayer.addChild(c);
+            this._undergroundNpcs.push(npc);
+        });
+    },
+
+    _hideUndergroundNpcs() {
+        this._undergroundNpcs.forEach(n => { if (n.c) n.c.visible = false; });
+    },
+
+    _updateUndergroundNpcs() {
+        if (!this._isUndergroundView) return;
+        this._undergroundNpcs.forEach(npc => {
+            if (!npc.c || !npc.c.visible) return;
+
+            if (npc.state === 'walking') {
+                npc.c.x += npc.speed * npc.dir;
+                // Leg animation
+                npc.legPhase += 0.15;
+                const legSwing = Math.sin(npc.legPhase) * 2;
+                npc.body.children?.[0]; // legs are drawn on body graphics directly
+                // Subtle body bob
+                npc.c.y += Math.sin(npc.legPhase * 2) * 0.15;
+
+                // Reverse at walk range limits
+                if (Math.abs(npc.c.x - npc.baseX) > npc.walkRange) {
+                    npc.dir *= -1;
+                    npc.c.scale.x = npc.dir;
+                }
+                // Randomly pause
+                npc.walkTimer--;
+                if (npc.walkTimer <= 0) {
+                    npc.state = 'idle';
+                    npc.idleTimer = 80 + Math.floor(Math.random() * 120);
+                }
+            } else {
+                npc.idleTimer--;
+                if (npc.idleTimer <= 0) {
+                    npc.state = 'walking';
+                    npc.walkTimer = 100 + Math.floor(Math.random() * 200);
+                }
+            }
+        });
     },
 
     _hideCavernBg() {
-        if (this._cavernBg) {
-            this._cavernBg.visible = false;
-        }
+        if (this._cavernBg) this._cavernBg.visible = false;
+        this._hideUndergroundNpcs();
     },
 
     _showSurfaceButton() {
@@ -514,6 +652,9 @@ const BlackMarket = {
         if (this._hintText && !this._hintText.destroyed) {
             this._hintText.alpha = 0.5 + Math.sin(G.tick * 0.06) * 0.4;
         }
+
+        // Animate underground NPCs
+        this._updateUndergroundNpcs();
 
         // Periodic raids (only when viewing underground)
         this._raidTimer++;
