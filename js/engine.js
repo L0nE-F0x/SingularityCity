@@ -750,6 +750,9 @@ const G = {
     },
 
     _performEnterInterior(b) {
+        // Save zoom level so we can restore it when exiting
+        if (typeof Camera !== 'undefined') this._savedInteriorZoom = Camera.targetZoom;
+
         this.activeInterior = b.id;
 
         // Track unique interiors visited for Interior Designer achievement
@@ -826,7 +829,14 @@ const G = {
         // Full rebuilds were causing tracking mode lag and metro passenger teleportation.
 
         if (typeof Camera !== 'undefined') {
-            Camera.targetZoom = this.tracking ? 1.3 : 1;
+            // Restore zoom: tracking keeps 1.3; AutoTour uses its saved zoom; otherwise restore pre-interior zoom
+            if (this.tracking) {
+                Camera.targetZoom = 1.3;
+            } else if (typeof AutoTour !== 'undefined' && AutoTour.active && AutoTour._userZoom) {
+                Camera.targetZoom = AutoTour._userZoom;
+            } else {
+                Camera.targetZoom = this._savedInteriorZoom || 0.80;
+            }
         }
     },
 
@@ -835,6 +845,8 @@ const G = {
     // ═══════════════════════════════════════════════
     
     startTracking(type, id, lab) {
+        // Save zoom so stopTracking can restore it
+        if (typeof Camera !== 'undefined') this._savedTrackingZoom = Camera.targetZoom;
         this.tracking = { type, id, lab, _lastBld: null };
         this._transitioning = false;
 
@@ -874,7 +886,12 @@ const G = {
         if (ov) ov.style.opacity = '0';
 
         if (typeof Camera !== 'undefined') {
-            Camera.targetZoom = 1;
+            // Restore zoom: AutoTour uses its saved zoom; otherwise restore pre-tracking zoom
+            if (typeof AutoTour !== 'undefined' && AutoTour.active && AutoTour._userZoom) {
+                Camera.targetZoom = AutoTour._userZoom;
+            } else {
+                Camera.targetZoom = this._savedTrackingZoom || 0.80;
+            }
         }
     },
 

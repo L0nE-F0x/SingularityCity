@@ -247,6 +247,26 @@ const AutoTour = {
         if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) { this.stop('mode-change'); return; }
         if (typeof XRayMode !== 'undefined' && XRayMode.active) { this.stop('mode-change'); return; }
 
+        // Safety — if we think we're inside but the interior was already closed, reset flag
+        if (this._isInsideBuilding && !G.activeInterior) {
+            this._isInsideBuilding = false;
+            this._interiorEnteredAt = null;
+        }
+
+        // Safety timeout — force-exit if stuck inside a building for too long
+        if (this._isInsideBuilding && G.activeInterior && this._interiorEnteredAt) {
+            const stuckMs = now - this._interiorEnteredAt;
+            if (stuckMs > this.INTERIOR_HOLD_MS + 8000) {
+                // Something went wrong — force exit to keep the tour moving
+                this._exitInterior();
+                this._isInsideBuilding = false;
+                this._interiorEnteredAt = null;
+                this._stopStartedAt = now;
+                this._currentHoldMs = 1500;
+                return;
+            }
+        }
+
         // Keep zoom locked to the user's level (camera tracking overrides it each frame)
         if (this._userZoom && this._trackingModelId) {
             Camera.targetZoom = this._userZoom;
@@ -263,6 +283,7 @@ const AutoTour = {
             if (this._isInsideBuilding) {
                 this._exitInterior();
                 this._isInsideBuilding = false;
+                this._interiorEnteredAt = null;
                 // Small pause after exiting to let the city render
                 this._stopStartedAt = now;
                 this._currentHoldMs = 1500;
@@ -431,6 +452,7 @@ const AutoTour = {
                 G.enterInterior(b);
             }
             this._isInsideBuilding = true;
+            this._interiorEnteredAt = performance.now();
         }, 1800);
     },
 
@@ -475,6 +497,7 @@ const AutoTour = {
             }
         }
         this._isInsideBuilding = false;
+        this._interiorEnteredAt = null;
     },
 
     _addRecent(id) {
