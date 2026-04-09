@@ -223,7 +223,6 @@ const DCManager = {
         };
         API.supabase.from('dc_facilities').upsert(row).then(({ error }) => {
             if (error) console.warn(`[DCManager] Supabase sync failed for ${dc.id}:`, error.message);
-            else console.log(`🖥️ Synced ${dc.id} to cloud (status: ${dc.status})`);
         });
     }
 };

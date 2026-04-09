@@ -127,9 +127,6 @@ const Seasonal = {
             for (const [region, zones] of Object.entries(this._TZ_REGIONS)) {
                 if (zones.includes(tz)) this._playerRegions.push(region);
             }
-            if (this._playerRegions.length > 0) {
-                console.log(`🌍 Seasonal: detected regions [${this._playerRegions.join(', ')}] from timezone ${tz}`);
-            }
         } catch (_) {
             this._playerRegions = [];
         }

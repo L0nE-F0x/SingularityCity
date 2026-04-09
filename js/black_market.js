@@ -141,7 +141,6 @@ const BlackMarket = {
                 this._underground.push(m);
             }
         }
-        console.log('🕶️ Black Market: ' + this._underground.length + ' underground models detected');
     },
 
     _isUndergroundModel(m) {

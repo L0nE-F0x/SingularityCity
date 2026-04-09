@@ -52,7 +52,6 @@ const OrbitMode = {
             if (cached && Date.now() - cached.ts < this.CACHE_TTL) {
                 this.satellites = cached.data;
                 this._groupSatellites();
-                console.log(`🛰️ Orbit: Using cached ${this.satellites.length} satellites`);
                 return;
             }
         } catch (_) {}
@@ -141,7 +140,6 @@ const OrbitMode = {
                 } catch (_) {}
             }
 
-            console.log(`🛰️ Orbit: Loaded ${this.satellites.length} satellites (filtered to your region)`);
         } catch (e) {
             console.warn('[Orbit] Satellite fetch failed:', e.message);
             this._generateFallbackSatellites();

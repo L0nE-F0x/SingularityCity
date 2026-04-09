@@ -56,7 +56,6 @@ const SpaceData = {
             G.bldById[f.id] = f;
         }
         
-        console.log('🚀 Space Zone initialized with', SPACE_BLDS.length, 'facilities');
     },
     
     async fetchLaunches(force) {
@@ -67,7 +66,6 @@ const SpaceData = {
                 const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
                 if (cached && Date.now() - cached.ts < TTL) {
                     this.launches = cached.data;
-                    console.log(`🛰️ Using cached ${this.launches.length} launches (${Math.round((TTL - (Date.now() - cached.ts)) / 60000)}min left)`);
                     return;
                 }
             } catch(_) {}
@@ -94,8 +92,6 @@ const SpaceData = {
                     image: l.image || null
                 }));
                 try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: this.launches })); } catch(_) {}
-                console.log(`🛰️ Loaded ${this.launches.length} upcoming launches`);
-
                 if (typeof UI !== 'undefined') {
                     UI.addToast(`🚀 ${this.launches.length} upcoming launches tracked`);
                 }

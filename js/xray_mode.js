@@ -95,7 +95,6 @@ const XRayMode = {
         this._buildScanLine();
         this._buildHUD();
 
-        console.log('🔬 X-Ray Mode activated');
     },
 
     exit() {
@@ -149,7 +148,6 @@ const XRayMode = {
         this._connectionLines = null;
         this._scanLine = null;
 
-        console.log('🔬 X-Ray Mode deactivated');
     },
 
     // ─── BACKDROP: Solid near-black rectangle covering the full world area ───

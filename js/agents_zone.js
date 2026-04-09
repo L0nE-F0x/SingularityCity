@@ -82,7 +82,6 @@ const AgentsZone = {
         }
 
         this._buildTicker();
-        console.log('🤖 Agent District initialized with', this.BLDS.length, 'buildings and', this.NPCS.length, 'NPCs');
     },
 
     positionZone(afterX) {

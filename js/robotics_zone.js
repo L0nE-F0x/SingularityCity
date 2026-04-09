@@ -66,8 +66,6 @@ const RoboticsZone = {
                 }
             });
         }
-
-        console.log('🤖 Robotics Factory Zone initialized with', this.BLDS.length, 'buildings and', this.NPCS.length, 'NPCs');
     },
 
     positionZone(afterX) {

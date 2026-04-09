@@ -65,8 +65,6 @@ const LongevityZone = {
                 }
             });
         }
-
-        console.log('🧬 Longevity Research Wing initialized with', this.BLDS.length, 'buildings and', this.NPCS.length, 'NPCs');
     },
 
     positionZone(afterX) {

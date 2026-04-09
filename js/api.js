@@ -130,7 +130,7 @@ const API = {
                         });
                     }
                 });
-                console.log(`🖥️ Synced ${dcRes.data.length} DC facilities from cloud`);
+
             }
 
             window.BLDS = bldsRes.data.map(b => ({
@@ -161,7 +161,7 @@ const API = {
 
             window.AI_EVENTS = evRes.data;
 
-            console.log("✅ Core configuration data successfully loaded!");
+
             return true;
         } catch (err) {
             console.error("❌ Failed to fetch core data from Supabase:", err);
@@ -181,18 +181,18 @@ const API = {
                 
                 // Build verification registry before processing cloud models
                 if (!this._verifiedModelNames) this._buildVerifiedRegistry();
-                let rejected = 0;
+                let _rejected = 0;
 
                 data.forEach(m => {
                     // Verify cloud models too — purge hallucinated data from DB
                     const verification = this._verifyModel(m);
                     if (!verification.ok) {
                         console.warn(`🚫 [Cloud] REJECTED "${m.name}": ${verification.reason}`);
-                        rejected++;
+                        _rejected++;
                         // Delete hallucinated model from Supabase
                         if (this.supabase) {
                             this.supabase.from('models').delete().eq('id', m.id).then(({error}) => {
-                                if (!error) console.log(`🗑️ [Cloud] Purged hallucinated model "${m.name}" from database`);
+                                if (!error) { /* purged */ }
                             });
                         }
                         return;
@@ -226,7 +226,6 @@ const API = {
                         Object.assign(existingMap.get(m.id), m);
                     }
                 });
-                if (rejected > 0) console.log(`🚫 [Cloud] Rejected and purged ${rejected} hallucinated models from database`);
                 
                 if (added > 0) {
                     if (typeof UI !== 'undefined') UI.addLog(`☁️ Synced ${added} models from global database.`);
@@ -323,13 +322,11 @@ const API = {
             }
             
             if (added > 0) {
-                console.log(`🤗 [HF] Discovered ${added} trending open-source models`);
+
                 if (typeof UI !== 'undefined') UI.addToast(`🤗 Hugging Face: ${added} new open-source models!`);
                 if (typeof NOTIFY !== 'undefined') NOTIFY.send('Models Discovered!', `🤗 ${added} new open-source models from Hugging Face`);
                 if (typeof UI !== 'undefined') UI.addLog(`🤗 HF API: ${added} trending models added`);
                 G.evolveCity();
-            } else {
-                console.log('🤗 [HF] No new models (all trending already tracked)');
             }
         } catch(e) {
             console.warn('[HF API] Fetch failed:', e.message);
@@ -426,7 +423,7 @@ const API = {
                     }
                     // Fix stale phase — ZeroEval only lists released models
                     if (existing.phase === 'rumored' || existing.phase === 'pre_training') {
-                        console.log(`📊 [ZeroEval] Corrected ${existing.name}: "${existing.phase}" → "released"`);
+
                         existing.phase = 'released';
                         updated = true;
                     }
@@ -502,14 +499,12 @@ const API = {
             }
             
             if (added > 0 || benchUpdated > 0) {
-                console.log(`📊 [ZeroEval] +${added} new models, ${benchUpdated} benchmark updates`);
+
                 if (typeof UI !== 'undefined') {
                     if (added > 0) { UI.addToast(`📊 ZeroEval: ${added} new models with real benchmarks!`); if (typeof NOTIFY !== 'undefined') NOTIFY.send('Benchmarks Updated!', `📊 ${added} new models with real benchmark scores`); }
                     UI.addLog(`📊 ZeroEval: +${added} models, ${benchUpdated} benchmark backfills`);
                 }
                 G.evolveCity();
-            } else {
-                console.log('📊 [ZeroEval] All leaderboard models already tracked');
             }
         } catch(e) {
             console.warn('[ZeroEval] Fetch failed:', e.message);
@@ -614,7 +609,7 @@ const API = {
                     };
                 });
                 VCRow._buildTicker();
-                console.log(`💰 VC funding updated: ${data.length} labs from Supabase`);
+
             }
         } catch (e) { console.warn('[VC Funding] Fetch failed:', e.message); }
     },
@@ -642,7 +637,7 @@ const API = {
                 if (cats.bottleneck.length) SUPPLY_CHAIN.bottlenecks = cats.bottleneck;
                 if (cats.accelerator.length) SUPPLY_CHAIN.accelerators = cats.accelerator;
                 if (cats.foundry.length) SUPPLY_CHAIN.foundries = cats.foundry;
-                console.log(`🔗 Supply chain updated: ${data.length} entries from Supabase`);
+
             }
         } catch (e) { console.warn('[Supply Chain] Fetch failed:', e.message); }
     },
@@ -654,7 +649,7 @@ const API = {
         const regItems = this.liveNews.filter(n => regKeywords.test(n.headline));
         if (regItems.length > 0) {
             this.regulationNews = regItems;
-            console.log(`⚖️ Regulation news: ${regItems.length} relevant headlines found`);
+
         }
         // Also try dedicated regulation RSS feed
         try {
@@ -695,7 +690,7 @@ const API = {
             });
             if (papers.length > 0) {
                 this.arxivPapers = papers;
-                console.log(`📄 arXiv: ${papers.length} real AI papers fetched`);
+
             }
         } catch (e) { console.warn('[arXiv] Fetch failed:', e.message); }
     },
@@ -727,7 +722,6 @@ const API = {
         const roundPattern = /\b(seed|pre-seed|series\s+[a-f])\b/i;
 
         const existingHeadlines = new Set(this.vcDeals.map(d => d.headline));
-        let newCount = 0;
 
         for (const feed of feeds) {
             try {
@@ -757,7 +751,6 @@ const API = {
 
                     this.vcDeals.unshift(deal);
                     existingHeadlines.add(item.title);
-                    newCount++;
 
                     // Persist to Supabase (fire-and-forget)
                     if (this.supabase) {
@@ -778,7 +771,7 @@ const API = {
         this.vcDeals = this.vcDeals.slice(0, 30);
 
         if (this.vcDeals.length > 0) {
-            console.log(`💰 VC Deals: ${this.vcDeals.length} total (${newCount} new from RSS)`);
+
             if (typeof VCRow !== 'undefined') VCRow._buildTicker();
         }
     },
@@ -809,7 +802,6 @@ const API = {
 
         // 2. Fetch fresh from RSS
         const existing = new Set(this.supplyChainNews.map(n => n.headline));
-        let newCount = 0;
 
         for (const feed of feeds) {
             try {
@@ -837,7 +829,6 @@ const API = {
 
                     this.supplyChainNews.unshift(entry);
                     existing.add(item.title);
-                    newCount++;
 
                     // Persist to Supabase (fire-and-forget)
                     if (this.supabase) {
@@ -854,9 +845,7 @@ const API = {
 
         this.supplyChainNews = this.supplyChainNews.slice(0, 25);
 
-        if (this.supplyChainNews.length > 0) {
-            console.log(`🔗 Supply Chain: ${this.supplyChainNews.length} headlines (${newCount} new from RSS)`);
-        }
+        // supplyChainNews refreshed — UI picks up changes on next tick
     },
 
     // ═══ AI EVENTS CALENDAR — auto-populate from tech event RSS feeds ═══
@@ -911,7 +900,7 @@ const API = {
                     // Persist to Supabase
                     if (this.supabase) {
                         this.supabase.from('ai_events').insert(ev).then(({ error }) => {
-                            if (!error) console.log(`[Calendar] Saved event from RSS: ${name}`);
+                            if (!error) { /* saved */ }
                         });
                     }
                 }
@@ -924,7 +913,7 @@ const API = {
         }
 
         if (added > 0) {
-            console.log(`📅 Calendar: ${added} new AI events discovered from RSS`);
+
             if (typeof UI !== 'undefined') UI.addToast(`📅 Found ${added} new AI events!`);
         }
     },
@@ -979,7 +968,7 @@ const API = {
             }
 
             if (added > 0) {
-                console.log(`📅 Calendar: ${added} events seeded from LLM`);
+
                 if (typeof UI !== 'undefined') UI.addToast(`📅 Discovered ${added} upcoming AI events!`);
             }
         } catch (e) { console.warn('[Calendar LLM]', e.message); }
@@ -1017,7 +1006,7 @@ const API = {
         if (incidents.length > 0 && typeof BackboneZone !== 'undefined') {
             BackboneZone.cloudStatus = incidents;
             BackboneZone._buildTicker();
-            console.log(`🌐 Network Status: ${incidents.length} cloud provider updates`);
+
         }
     },
 
@@ -1029,7 +1018,7 @@ const API = {
         // Skip if already fetched this session (data changes slowly)
         if (this._gridData && (Date.now() - this._gridTs) < 6 * 3600 * 1000) return;
 
-        console.log('⚡ Loading global power grid data…');
+
 
         // Try Supabase first (auto-refreshed weekly by scheduled function)
         try {
@@ -1046,7 +1035,7 @@ const API = {
                         this._gridData = rows[0].data;
                         this._gridData._updatedAt = rows[0].updated_at;
                         this._gridTs = Date.now();
-                        console.log(`⚡ Global grid (live): ${this._gridData.plantCount.toLocaleString()} plants, ${Math.round(this._gridData.totalMW / 1000).toLocaleString()} GW, ${this._gridData.renewPct}% renewable`);
+
                         if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${this._gridData.plantCount.toLocaleString()} plants across ${this._gridData.regionsScanned} regions (live data)`);
                         return;
                     }
@@ -1060,7 +1049,7 @@ const API = {
             if (!r.ok) throw new Error('http-' + r.status);
             this._gridData = await r.json();
             this._gridTs = Date.now();
-            console.log(`⚡ Global grid (static): ${this._gridData.plantCount.toLocaleString()} plants, ${Math.round(this._gridData.totalMW / 1000).toLocaleString()} GW, ${this._gridData.renewPct}% renewable`);
+
             if (typeof UI !== 'undefined') UI.addLog(`⚡ Grid: ${this._gridData.plantCount.toLocaleString()} power plants across ${this._gridData.regionsScanned} regions`);
         } catch (e) {
             console.debug('⚡ Grid data load failed:', e.message);
@@ -1272,7 +1261,7 @@ const API = {
         for (const name of knownReal) {
             this._verifiedModelNames.add(name.toLowerCase().replace(/[^a-z0-9]/g, ''));
         }
-        console.log(`✅ [Verify] Built registry with ${this._verifiedModelNames.size} verified model names`);
+
     },
 
     async doScan() {
@@ -1434,7 +1423,7 @@ JSON (no markdown):
                   pl = { model: G.modelId || 'gpt-4o', temperature: 0.1, max_tokens: 8192, messages: [{ role: 'system', content: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only use real data. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API today is "released", NOT "rumored". CRITICAL: Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.' }, { role: 'user', content: prompt }] };
                 }
           
-                console.log(`📡 [SCAN] Provider: ${G.apiProvider}, Model: ${G.modelId || 'default'}, Prompt chars: ${prompt.length}, Models in dedup list: ${G.models.length}`);
+
                 const res = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl), signal: AbortSignal.timeout(120000) });
                 if (!res.ok) {
                     const errText = await res.text();
@@ -1445,7 +1434,7 @@ JSON (no markdown):
                 }
                 const data = await res.json();
                 rawDataDump = data;
-                console.log(`📡 [SCAN] Raw response from ${G.apiProvider}:`, data);
+
 
                 if (G.apiProvider === 'google') {
                     if (data.promptFeedback && data.promptFeedback.blockReason) {
@@ -1509,7 +1498,7 @@ JSON (no markdown):
                             if (lastCompleteObj > 0) {
                                 const salvaged = cleanTxt.substring(0, lastCompleteObj + 1) + '],"retirements":[],"elo_updates":[],"events":[],"lineage_updates":[]}';
                                 parsedData = JSON.parse(salvaged);
-                                console.log(`✅ [SCAN] Salvaged ${parsedData.models?.length || 0} models from truncated response`);
+
                             } else {
                                 throw parseErr;
                             }
@@ -1566,7 +1555,7 @@ JSON (no markdown):
                 }
 
                 if (isDuplicate) {
-                    console.log(`[Fact Checker] Caught duplicate model: ${m.name}. Checking for missing economic data to backfill...`);
+
                     let needsUpdate = false;
                     const target = G.models.find(mod => mod.id.toLowerCase().replace(/[^a-z0-9]/g, '') === safeId || mod.name.toLowerCase().replace(/[^a-z0-9]/g, '') === safeName);
                     
@@ -1586,7 +1575,7 @@ JSON (no markdown):
                         }
                         if (needsUpdate && this.supabase) {
                             this.supabase.from('models').update({ cost_input: m.cost_input, cost_out: m.cost_out, ctx: m.ctx }).eq('id', target.id).then(() => {
-                                console.log(`[Data Backfill] Successfully updated economics for ${target.name} in cloud.`);
+
                                 if(typeof UI !== 'undefined') UI.addToast(`📈 Backfilled economic data for ${target.name}!`);
                             });
                         }
@@ -1640,7 +1629,7 @@ JSON (no markdown):
                             fact: `Founder of ${labData.name || nm.lab}. Discovered via network scan.`
                         };
                         REAL_FOUNDERS.push(newFounder);
-                        console.log(`[Founder Found] Mapped ${m.founder_name} to ${nm.lab}`);
+
                         
                         if (this.supabase) {
                             // Only save founder if lab exists in DB (avoids FK violation)
@@ -1654,7 +1643,6 @@ JSON (no markdown):
                                     fact: newFounder.fact
                                 }, { onConflict: 'lab_id', ignoreDuplicates: true }).then(({error}) => {
                                     if (error) console.error(`[Founder] Save error for ${m.founder_name}:`, error);
-                                    else console.log(`[Founder] Saved ${m.founder_name} to cloud.`);
                                 });
                             }).catch(err => console.error(`[Founder] Save failed:`, err));
                         }
@@ -1734,7 +1722,6 @@ JSON (no markdown):
                     try {
                         const { error } = await this.supabase.from('models').upsert(this._dbSafeModel(nm));
                         if (error) console.error("Supabase Save Error:", error);
-                        else console.log(`Successfully synced ${nm.name} to cloud database.`);
                     } catch (dbErr) {
                         console.error("Cloud Sync Failed:", dbErr);
                     }
@@ -1770,7 +1757,7 @@ JSON (no markdown):
                     
                     if (this.supabase) {
                         this.supabase.from('families').upsert({ lab: safeLab, edges: window.FAMILIES[safeLab] }).then(({error}) => {
-                            if (!error) console.log(`[Lineage] Saved new family tree link for ${safeLab}`);
+                            if (!error) { /* saved */ }
                         });
                     }
                 }
@@ -1786,7 +1773,7 @@ JSON (no markdown):
                     addedEvents++;
                     if (this.supabase) {
                         this.supabase.from('ai_events').insert(ev).then(({error}) => {
-                            if (!error) console.log(`[Calendar] Saved new event: ${ev.name}`);
+                            if (!error) { /* saved */ }
                         });
                     }
                 }
@@ -1854,7 +1841,7 @@ JSON (no markdown):
             this.fetchRegulationNews(),
             this.fetchArxivPapers(),
             this.fetchAIEvents()
-        ]).then(() => console.log('📡 Live data refresh complete'));
+        ]);
 
       } catch(e) {
         console.error(`⛔ [SCAN] FATAL ERROR:`, e.message);
@@ -1883,7 +1870,7 @@ JSON (no markdown):
         if (!this.supabase) { console.error('No Supabase connection'); return; }
         if (!this._verifiedModelNames) this._buildVerifiedRegistry();
 
-        console.log('🧹 [Purge] Scanning database for hallucinated models...');
+
         if (typeof UI !== 'undefined') UI.addLog('🧹 Scanning for hallucinated data...');
 
         try {
@@ -1897,7 +1884,7 @@ JSON (no markdown):
             for (const m of data) {
                 const result = this._verifyModel(m);
                 if (!result.ok) {
-                    console.log(`🗑️ [Purge] "${m.name}" — ${result.reason}`);
+
                     toDelete.push(m.id);
                     purged++;
                 }
@@ -1917,7 +1904,7 @@ JSON (no markdown):
             G.models = G.models.filter(m => {
                 const result = this._verifyModel(m);
                 if (!result.ok) {
-                    console.log(`🗑️ [Purge Local] "${m.name}" — ${result.reason}`);
+
                     // Remove character sprite
                     if (typeof Entities !== 'undefined' && G.charRefs && G.charRefs[m.id]) {
                         const refs = G.charRefs[m.id];
@@ -1930,7 +1917,7 @@ JSON (no markdown):
             });
             const localPurged = localBefore - G.models.length;
 
-            console.log(`🧹 [Purge] Complete: ${purged} removed from cloud, ${localPurged} from local`);
+
             if (typeof UI !== 'undefined') UI.addLog(`🧹 Purged ${purged} hallucinated models from cloud, ${localPurged} from local`);
             if (typeof UI !== 'undefined') UI.addToast(`🧹 Cleaned ${purged + localPurged} hallucinated models!`);
 
@@ -1948,7 +1935,7 @@ JSON (no markdown):
             const rows = toSync.map(b => ({ id: b.id, name: b.name, w: b.w, x: Math.round(b.x), fl: b.fl || 1, emoji: b.emoji || null, lab: b.lab || null, desc: b.desc || null }));
             if (rows.length > 0) {
                 const { error } = await this.supabase.from('blds').upsert(rows, { onConflict: 'id' });
-                if (!error) console.log(`🏗️ Synced ${rows.length} building positions to cloud`);
+                if (!error) { /* synced */ }
             }
         } catch (e) { /* silent */ }
     }

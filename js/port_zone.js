@@ -101,7 +101,6 @@ const PortZone = {
                             supply_status: row.supply_status || 'stable'
                         };
                     });
-                    console.log(`🚢 Port Zone: Loaded ${data.length} commodity prices from cloud`);
                     return;
                 }
             } catch (e) { /* fall through to defaults */ }

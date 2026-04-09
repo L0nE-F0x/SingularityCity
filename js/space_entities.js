@@ -21,7 +21,6 @@ const SpaceEntities = {
             }
         });
         
-        console.log('🚀 Space Entities: Created', Object.keys(this.rockets).length, 'rockets');
     },
     
     createRocket(padBld) {
