@@ -253,6 +253,15 @@ const AutoTour = {
             this._interiorEnteredAt = null;
         }
 
+        // Safety — if we're in an interior we didn't enter deliberately
+        // (e.g., tracked model walked into a building via engine tracking code)
+        if (G.activeInterior && !this._isInsideBuilding && !this._trackingModelId) {
+            this._exitInterior();
+            this._stopStartedAt = now;
+            this._currentHoldMs = 1500;
+            return;
+        }
+
         // Safety timeout — force-exit if stuck inside a building for too long
         if (this._isInsideBuilding && G.activeInterior && this._interiorEnteredAt) {
             const stuckMs = now - this._interiorEnteredAt;
@@ -289,12 +298,13 @@ const AutoTour = {
                 this._currentHoldMs = 1500;
                 return;
             }
-            // If tracking, stop tracking
+            // If tracking, stop tracking — also exit interior if tracking led us into one
             if (this._trackingModelId) {
+                if (G.activeInterior) this._exitInterior();
                 if (G.tracking) G.stopTracking();
                 this._trackingModelId = null;
                 this._stopStartedAt = now;
-                this._currentHoldMs = 1000;
+                this._currentHoldMs = 1500;
                 return;
             }
             this._pickAndAdvance();
