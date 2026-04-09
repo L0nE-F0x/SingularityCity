@@ -13,6 +13,7 @@
         "cachebust": "node tools/cachebust.mjs"
     },
     "devDependencies": {
+        "esbuild": "^0.28.0",
         "eslint": "^9.17.0",
         "prettier": "^3.4.2"
     }
