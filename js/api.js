@@ -1157,10 +1157,11 @@ const API = {
     //   MODEL VERIFICATION — Reject hallucinated/impossible models
     // ═══════════════════════════════════════════════════════════════
 
-    // Known maximum version numbers per model family (update as new models release)
+    // Floor version caps per model family — auto-raised by _buildVerifiedRegistry()
+    // from live ZeroEval/HuggingFace data. These are the minimum known maxes.
     _maxKnownVersions: {
-        'gemini': 3.1, 'gpt': 4.1, 'claude': 4.6, 'llama': 4, 'grok': 4,
-        'phi': 4, 'mistral': 3, 'deepseek': 3, 'qwen': 3, 'palm': 2,
+        'gemini': 3.1, 'gpt': 5.4, 'claude': 4.6, 'llama': 4, 'grok': 4.2,
+        'phi': 4, 'mistral': 3, 'deepseek': 3.2, 'qwen': 3.5, 'palm': 2,
         'bard': 1, 'ernie': 5, 'glm': 5, 'command': 2, 'nova': 2,
         'nemotron': 4, 'codestral': 1
     },
@@ -1196,8 +1197,8 @@ const API = {
                 if (suffix === 'b') continue;
                 // Skip date codes: 3+ digit numbers like 2501 (Jan 2025) or 2025 are release dates, not versions
                 if (ver >= 100) continue;
-                // Allow up to maxVer + 1 for genuinely rumored next-gen, reject anything beyond
-                if (ver > maxVer + 1) {
+                // Allow up to maxVer + 0.5 for imminent releases, reject anything beyond
+                if (ver > maxVer + 0.5) {
                     return { ok: false, reason: `Version ${ver} exceeds max known ${family} version ${maxVer}` };
                 }
             }
@@ -1254,26 +1255,53 @@ const API = {
             'claude haiku 4', 'claude haiku 4.5',
             'claude 3.5 sonnet', 'claude 3.5 haiku', 'claude 3 opus',
             'gpt-4o', 'gpt-4o mini', 'gpt-4.1', 'gpt-4.1 mini', 'gpt-4.1 nano',
+            'gpt-5', 'gpt-5.2', 'gpt-5.2 codex', 'gpt-5.3 codex', 'gpt-5.3 codex spark',
+            'gpt-5.3 chat', 'gpt-5.4', 'gpt-5.4 mini', 'gpt-5.4 nano',
             'o1', 'o1-mini', 'o1-pro', 'o3', 'o3-mini', 'o4-mini',
             'gemini 2.5 pro', 'gemini 2.5 flash', 'gemini 2.0 flash',
             'gemini 1.5 pro', 'gemini 1.5 flash',
-            'grok 3', 'grok 3 mini', 'grok 4',
+            'gemini 3.1 pro', 'gemini 3.1 ultra', 'gemini 3.1 flash lite',
+            'grok 3', 'grok 3 mini', 'grok 4', 'grok 4.20',
             'llama 4 scout', 'llama 4 maverick', 'llama 3.3', 'llama 3.1',
-            'deepseek-r1', 'deepseek-v3', 'deepseek-r2',
-            'qwen3', 'qwen2.5', 'qwen2.5-max', 'qwq',
+            'deepseek-r1', 'deepseek-v3', 'deepseek-v3.2', 'deepseek-r2',
+            'qwen3', 'qwen3.5', 'qwen2.5', 'qwen2.5-max', 'qwq',
             'phi-4', 'phi-4-mini', 'phi-3',
-            'mistral large', 'mistral medium', 'codestral',
+            'mistral large', 'mistral medium', 'codestral', 'codestral 2501',
             'command r+', 'command r', 'command a',
             'nova pro', 'nova premier', 'nova lite',
             'nemotron ultra', 'llama-3.1-nemotron-ultra',
             'nemotron-4 340b', 'nemotron-4 340b instruct', 'nemotron-4 15b',
-            'nemotron-4-mini-4b-instruct', 'codestral 2501',
+            'nemotron-4-mini-4b-instruct',
             'yi-lightning', 'ernie 4.5', 'glm-4'
         ];
         for (const name of knownReal) {
             this._verifiedModelNames.add(name.toLowerCase().replace(/[^a-z0-9]/g, ''));
         }
 
+        // Auto-raise _maxKnownVersions from verified models so caps stay current
+        // This scans all trusted model names and extracts version numbers
+        this._autoDetectVersionCaps();
+    },
+
+    _autoDetectVersionCaps() {
+        const allVerified = [...this._verifiedModelNames];
+        // Also scan all G.models names regardless of source
+        for (const m of G.models) {
+            allVerified.push(m.name.toLowerCase().replace(/[^a-z0-9.\- ]/g, ''));
+        }
+        for (const name of allVerified) {
+            for (const family of Object.keys(this._maxKnownVersions)) {
+                const verMatch = name.match(new RegExp(`${family}[\\s\\-_]*(\\d+(?:\\.\\d+)?)`, 'i'));
+                if (verMatch) {
+                    const ver = parseFloat(verMatch[1]);
+                    // Skip date codes and param counts
+                    if (ver >= 100) continue;
+                    if (ver > this._maxKnownVersions[family]) {
+                        this._maxKnownVersions[family] = ver;
+                    }
+                }
+            }
+        }
     },
 
     async doScan() {
@@ -1312,9 +1340,9 @@ const API = {
                 // Cutting-edge gets 50% of scans to ensure latest models arrive first
                 const weightedCategories = [
                     { cat: "CUTTING-EDGE 2025-2026 Flagships (the NEWEST model from each major lab)", w: 50 },
-                    { cat: "Asian Tech Latest (DeepSeek-R2, Qwen3, Ernie 5, GLM-5, Yi-Lightning)", w: 15 },
-                    { cat: "Open-weights Latest (Llama 4, Mistral Large 2, Gemma 3, Phi-4, Command-R+)", w: 15 },
-                    { cat: "Specialized/Niche (Coding, Audio, Vision, Medical, Robotics — 2025 releases only)", w: 10 },
+                    { cat: "Asian Tech Latest (DeepSeek-V3.2, DeepSeek-R2, Qwen3.5, Ernie 5, GLM-5, Yi-Lightning)", w: 15 },
+                    { cat: "Open-weights Latest (Llama 4, Mistral Large 2, Gemma 3, Phi-4, Command-A)", w: 15 },
+                    { cat: "Specialized/Niche (Coding, Audio, Vision, Medical, Robotics — 2025-2026 releases only)", w: 10 },
                     { cat: "Rumored or In-Training (genuinely unconfirmed next-gen models)", w: 10 }
                 ];
                 
@@ -1328,15 +1356,15 @@ const API = {
                 // ─── FLAGSHIP GAP: Which major labs are missing their LATEST model? ───
                 const flagshipExpectations = {
                     anthropic: ['Claude Opus 4.6', 'Claude Sonnet 4.6', 'Claude Opus 4', 'Claude Sonnet 4', 'Claude Haiku 4.5'],
-                    openai: ['GPT-4.1', 'o3', 'o4-mini', 'GPT-4o'],
-                    google: ['Gemini 2.5 Pro', 'Gemini 2.5 Flash'],
-                    xai: ['Grok 3', 'Grok 3 Mini', 'Grok 4'],
+                    openai: ['GPT-5.4', 'GPT-5.4 mini', 'GPT-5.3 Codex', 'GPT-5.2', 'o3', 'o4-mini'],
+                    google: ['Gemini 3.1 Pro', 'Gemini 3.1 Ultra', 'Gemini 3.1 Flash Lite'],
+                    xai: ['Grok 4.20', 'Grok 4', 'Grok 3'],
                     meta: ['Llama 4 Scout', 'Llama 4 Maverick'],
-                    deepseek: ['DeepSeek-R1', 'DeepSeek-V3'],
+                    deepseek: ['DeepSeek-R1', 'DeepSeek-V3', 'DeepSeek-V3.2'],
                     microsoft: ['Phi-4', 'Phi-4-mini'],
                     amazon: ['Nova Pro', 'Nova Premier'],
-                    nvidia: ['Nemotron Ultra', 'Llama-3.1-Nemotron-Ultra'],
-                    alibaba: ['Qwen3', 'Qwen2.5-Max', 'QwQ'],
+                    nvidia: ['Nemotron Ultra', 'Nemotron-4 340B'],
+                    alibaba: ['Qwen3', 'Qwen3.5', 'QwQ'],
                     mistral: ['Mistral Large', 'Codestral', 'Mistral Medium']
                 };
                 const existingNames = new Set(G.models.map(m => m.name.toLowerCase()));
@@ -1385,10 +1413,11 @@ CONTEXT:
 CRITICAL ACCURACY RULES — VIOLATIONS WILL CORRUPT A PUBLIC DATABASE:
 1. ONLY return models that have been OFFICIALLY ANNOUNCED by the lab with a public blog post, API endpoint, or press release.
 2. Do NOT invent, extrapolate, or speculate about future model versions. For example:
-   - If the latest known Gemini is 2.5, do NOT return "Gemini 4", "Gemini 5", "Gemini 8 Ultra", etc.
-   - If the latest known GPT is 4.1, do NOT return "GPT-6", "GPT-7", etc.
+   - If the latest known Gemini is 3.1, do NOT return "Gemini 5", "Gemini 6", "Gemini 8 Ultra", etc.
+   - If the latest known GPT is 5.4, do NOT return "GPT-6", "GPT-7", etc.
    - If the latest known Claude is Opus 4.6, do NOT return "Claude 6", "Claude 7", etc.
    - If the latest known Llama is 4, do NOT return "Llama 6", "Llama 7", etc.
+   - If the latest known Grok is 4.20, do NOT return "Grok 6", "Grok 7", etc.
 3. Version numbers must match real, publicly documented versions. If unsure, SKIP that model entirely.
 4. Release dates must be real dates when the model became publicly available. If unsure, use null.
 5. Benchmarks must be from official papers or leaderboards (e.g. LMSYS, ZeroEval). If unsure, omit the benchmark.
