@@ -812,6 +812,9 @@ const G = {
         if (typeof SND !== 'undefined') SND.setAmbient('outside');
         // Clean up interior module event listeners before destroying PIXI objects
         if (typeof Interior !== 'undefined') Interior.cleanup();
+        // Force Environment to re-apply the sky gradient on next frame
+        // (interiors like The Underground overwrite vp.style.background directly)
+        if (typeof Environment !== 'undefined') Environment._lastSky = null;
         // Destroy all PIXI children to prevent memory leak from accumulated interiors
         if (this.interiorLayer) {
             this.interiorLayer.removeChildren().forEach(c => { if (c.destroy) c.destroy({ children: true, texture: false, baseTexture: false }); });
