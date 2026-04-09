@@ -569,6 +569,9 @@ const InteriorMetroStation = {
         this._platFloorY = platFloorY;
         this._platStandY = platFloorY;
         this._hallFloorY = hallBottom - 2;
+        this._platLeft = 40;         // left pillar + margin
+        this._platRight = W - 40;    // right pillar + margin
+        this._platW = W;
 
         // ─── TRACK BED + TRAIN CORRIDOR ───
         const trainCenterY = platFloorY + 8;
@@ -908,14 +911,19 @@ const InteriorMetroStation = {
                     ix = W / 2 + clampedDx;
                     iy = hallFloorY;
                 } else if (progress > 0.98) {
-                    ix = W / 2 + spread * 0.3;
+                    ix = this._liftCar.x;
                     iy = platStandY;
                 } else {
                     ix = this._liftCar.x;
                     iy = this._liftCar.y - 3;
                 }
             } else if (refs._metroState === 'waiting_train') {
-                ix = W / 2 + spread * 0.9;
+                // Spread across the full platform with idle milling
+                const platRange = (this._platRight - this._platLeft);
+                const hash = (m.id.charCodeAt(0) * 2654435761 + mi * 131) >>> 0;
+                const baseX = this._platLeft + (hash % Math.floor(platRange));
+                const mill = Math.sin(tick * 0.012 + hash * 0.001) * 18;
+                ix = Math.max(this._platLeft, Math.min(this._platRight, baseX + mill));
                 iy = platStandY;
             } else if (refs._metroState === 'riding') {
                 let ridingX = null;
@@ -930,7 +938,10 @@ const InteriorMetroStation = {
                 }
                 iy = this._trackY - 8;
             } else {
-                ix = W / 2 + spread;
+                // Fallback — spread across platform
+                const platRange = (this._platRight - this._platLeft);
+                const hash = (m.id.charCodeAt(0) * 2654435761 + mi * 131) >>> 0;
+                ix = this._platLeft + (hash % Math.floor(platRange));
                 iy = platStandY;
             }
 
@@ -977,20 +988,42 @@ const InteriorMetroStation = {
 
                 let ix, iy;
                 if (st === 'walk_to_metro' && entryMatch) {
-                    // Walking toward this station's entrance — show in hall
+                    // Walking toward this station — animate descent via elevator
                     const dxExt = cm.c.x - stationX;
-                    ix = W / 2 + Math.max(-W / 2 + 80, Math.min(W / 2 - 80, dxExt));
-                    iy = hallFloorY;
+                    const distToStation = Math.abs(dxExt);
+                    if (distToStation > 30) {
+                        // Still walking to entrance — show in hall
+                        ix = W / 2 + Math.max(-W / 2 + 80, Math.min(W / 2 - 80, dxExt));
+                        iy = hallFloorY;
+                    } else {
+                        // Close to station — show riding elevator down
+                        if (!cm._liftProgress) cm._liftProgress = 0;
+                        cm._liftProgress = Math.min(1, cm._liftProgress + 0.015);
+                        ix = this._liftCar ? this._liftCar.x : W / 2;
+                        iy = hallFloorY + cm._liftProgress * (platStandY - hallFloorY);
+                    }
                 } else if (st === 'riding_metro') {
-                    // Underground — show waiting on platform
-                    const spread = ((cm.npc.id.charCodeAt(0) * 31) % 200) - 100;
-                    ix = W / 2 + spread * 0.8;
+                    // Underground — spread across the full platform with milling
+                    cm._liftProgress = 0; // reset for next time
+                    const hash = (cm.npc.id.charCodeAt(0) * 2654435761 + cm.npc.id.charCodeAt(Math.min(1, cm.npc.id.length - 1)) * 131) >>> 0;
+                    const platRange = (this._platRight - this._platLeft);
+                    const baseX = this._platLeft + (hash % Math.floor(platRange));
+                    const mill = Math.sin(tick * 0.015 + hash * 0.001) * 15;
+                    ix = Math.max(this._platLeft, Math.min(this._platRight, baseX + mill));
                     iy = platStandY;
                 } else if (st === 'walk_from_metro' && exitMatch) {
-                    // Exiting at this station — show in hall walking away
-                    const dxExt = cm.c.x - stationX;
-                    ix = W / 2 + Math.max(-W / 2 + 80, Math.min(W / 2 - 80, dxExt));
-                    iy = hallFloorY;
+                    // Exiting — animate ascent via elevator then walk away
+                    if (!cm._liftProgress) cm._liftProgress = 1;
+                    cm._liftProgress = Math.max(0, cm._liftProgress - 0.015);
+                    if (cm._liftProgress > 0.02) {
+                        ix = this._liftCar ? this._liftCar.x : W / 2;
+                        iy = hallFloorY + cm._liftProgress * (platStandY - hallFloorY);
+                    } else {
+                        cm._liftProgress = 0;
+                        const dxExt = cm.c.x - stationX;
+                        ix = W / 2 + Math.max(-W / 2 + 80, Math.min(W / 2 - 80, dxExt));
+                        iy = hallFloorY;
+                    }
                 } else {
                     continue;
                 }
