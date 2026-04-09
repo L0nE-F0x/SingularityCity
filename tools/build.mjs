@@ -32,8 +32,6 @@ async function minifyDir(dir, loader) {
             const result = await esbuild.transform(original, {
                 loader,
                 minify: true,
-                // Keep function names for error stack traces
-                keepNames: loader === 'js',
             });
             await writeFile(filePath, result.code, 'utf8');
             const newSize = Buffer.byteLength(result.code, 'utf8');
