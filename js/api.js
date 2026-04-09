@@ -181,20 +181,15 @@ const API = {
                 
                 // Build verification registry before processing cloud models
                 if (!this._verifiedModelNames) this._buildVerifiedRegistry();
-                let _rejected = 0;
+                const rejectIds = [];
+                const rejectNames = [];
 
                 data.forEach(m => {
                     // Verify cloud models too — purge hallucinated data from DB
                     const verification = this._verifyModel(m);
                     if (!verification.ok) {
-                        console.warn(`🚫 [Cloud] REJECTED "${m.name}": ${verification.reason}`);
-                        _rejected++;
-                        // Delete hallucinated model from Supabase
-                        if (this.supabase) {
-                            this.supabase.from('models').delete().eq('id', m.id).then(({error}) => {
-                                if (!error) { /* purged */ }
-                            });
-                        }
+                        rejectIds.push(m.id);
+                        rejectNames.push(m.name);
                         return;
                     }
 
@@ -230,6 +225,19 @@ const API = {
                 if (added > 0) {
                     if (typeof UI !== 'undefined') UI.addLog(`☁️ Synced ${added} models from global database.`);
                 }
+                // Batch-purge rejected models from Supabase (more reliable than individual fire-and-forget)
+                if (rejectIds.length > 0) {
+                    console.warn(`🚫 [Cloud] Rejected ${rejectIds.length} hallucinated models: ${rejectNames.join(', ')}`);
+                    if (this.supabase) {
+                        for (let i = 0; i < rejectIds.length; i += 50) {
+                            const batch = rejectIds.slice(i, i + 50);
+                            this.supabase.from('models').delete().in('id', batch).then(({error}) => {
+                                if (error) console.warn(`⚠️ [Purge] DB delete failed (check Supabase RLS policy):`, error.message);
+                            });
+                        }
+                    }
+                }
+
                 // Always re-evolve: cost, benchmark, and ELO data may have updated
                 // for existing models even when no new models were added.
                 // This recalculates cheapestLab (SALE sign) and topLab (Apex Beacon).
@@ -1154,7 +1162,7 @@ const API = {
         'gemini': 3.1, 'gpt': 4.1, 'claude': 4.6, 'llama': 4, 'grok': 4,
         'phi': 4, 'mistral': 3, 'deepseek': 3, 'qwen': 3, 'palm': 2,
         'bard': 1, 'ernie': 5, 'glm': 5, 'command': 2, 'nova': 2,
-        'nemotron': 1, 'codestral': 1
+        'nemotron': 4, 'codestral': 1
     },
 
     _verifyModel(m) {
@@ -1186,6 +1194,8 @@ const API = {
                 // Skip parameter counts: numbers followed by 'b' (e.g., "7B", "70B", "13B")
                 // These are model sizes in billions of parameters, not version numbers
                 if (suffix === 'b') continue;
+                // Skip date codes: 3+ digit numbers like 2501 (Jan 2025) or 2025 are release dates, not versions
+                if (ver >= 100) continue;
                 // Allow up to maxVer + 1 for genuinely rumored next-gen, reject anything beyond
                 if (ver > maxVer + 1) {
                     return { ok: false, reason: `Version ${ver} exceeds max known ${family} version ${maxVer}` };
@@ -1256,6 +1266,8 @@ const API = {
             'command r+', 'command r', 'command a',
             'nova pro', 'nova premier', 'nova lite',
             'nemotron ultra', 'llama-3.1-nemotron-ultra',
+            'nemotron-4 340b', 'nemotron-4 340b instruct', 'nemotron-4 15b',
+            'nemotron-4-mini-4b-instruct', 'codestral 2501',
             'yi-lightning', 'ernie 4.5', 'glm-4'
         ];
         for (const name of knownReal) {
