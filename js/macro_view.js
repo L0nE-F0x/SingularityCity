@@ -78,7 +78,6 @@ const MacroView = {
             const clickRatio = (e.clientX - rect.left) / rect.width;
             const targetWorldX = clickRatio * this.cityW;
             Camera.targetX = -targetWorldX + (this.vpW / 2) / Camera.zoom;
-            Camera.targetZoom = 1;
             if (this.tracking) this.stopTracking();
         });
 
@@ -91,7 +90,6 @@ const MacroView = {
         if (!match) return;
         const targetX = match.x + match.w / 2;
         Camera.targetX = -targetX + (this.vpW / 2) / Camera.zoom;
-        Camera.targetZoom = 1;
         if (this.tracking) this.stopTracking();
         if (this.activeInterior) this.exitInterior();
     },
