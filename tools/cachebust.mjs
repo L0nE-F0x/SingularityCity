@@ -18,9 +18,10 @@ const path = 'index.html';
 let html = readFileSync(path, 'utf8');
 
 // Replace only local js/* script tags. CDN tags are left alone.
+// Handles both <script src="..."> and <script defer src="...">
 html = html.replace(
-    /<script src="(js\/[^"?]+)(\?v=[^"]*)?"><\/script>/g,
-    `<script src="$1?v=${version}"></script>`
+    /<script(\s+defer)?\s+src="(js\/[^"?]+)(\?v=[^"]*)?"><\/script>/g,
+    `<script$1 src="$2?v=${version}"></script>`
 );
 
 writeFileSync(path, html);
