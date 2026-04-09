@@ -183,10 +183,8 @@ const VCRow = {
             face.x = 0; face.y = -22;
             carCont.addChild(face);
 
-            // Name label above car
-            const tag = new PIXI.Text(npc.name, { fontFamily: 'JetBrains Mono', fontSize: 7, fill: col, fontWeight: 'bold' });
-            tag.anchor.set(0.5, 1); tag.y = -32;
-            carCont.addChild(tag);
+            // Start with headlights off (controlled by day/night in updateCommuters)
+            beam.alpha = 0;
 
             carCont.y = G.groundY - 12; // road level
             carCont.visible = false;
@@ -237,7 +235,15 @@ const VCRow = {
         const wantWork = dp > 0.33 && dp < 0.75;
         const lunchWindow = dp >= 0.45 && dp < 0.55;
 
+        // Headlights: on at night or in bad weather, off during clear day
+        const night = dp > 0.83 || dp < 0.25;
+        const badWeather = typeof Environment !== 'undefined' && (Environment.weather === 'rain' || Environment.weather === 'snow');
+        const beamTarget = night ? 1 : (badWeather ? 0.5 : 0);
+
         this.carCommuters.forEach((cm, ci) => {
+            // Smooth headlight transition
+            cm.beam.alpha += (beamTarget - cm.beam.alpha) * 0.05;
+
             // Skip commuters currently on a deal trip — handled by _updateDealFlow
             if (cm.state === 'deal_trip') return;
 

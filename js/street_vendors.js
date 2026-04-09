@@ -215,13 +215,15 @@ const StreetVendors = {
         head.endFill();
         head.y = -h;
 
-        // Chat bubble
-        const chat = new PIXI.Text('', {
-            fontFamily: 'JetBrains Mono', fontSize: 7,
-            fill: 0xffffff, stroke: 0x000000, strokeThickness: 2
-        });
-        chat.anchor.set(0.5, 1);
-        chat.y = -h - 12;
+        // Chat bubble — matches standard entity style (white rounded bg + tail)
+        const chat = new PIXI.Container();
+        const chatBg = new PIXI.Graphics();
+        const chatTxt = (typeof BitmapFonts !== 'undefined' && BitmapFonts.has('ChatBubble'))
+            ? new PIXI.BitmapText('', { fontName: 'ChatBubble', fontSize: 8 })
+            : new PIXI.Text('', { fontFamily: 'JetBrains Mono', fontSize: 8, fill: 0x000000, fontWeight: 'bold' });
+        chatTxt.anchor.set(0.5, 1); chatTxt.y = -4;
+        chat.addChild(chatBg, chatTxt);
+        chat.y = -h - 10;
         chat.visible = false;
 
         c.addChild(shadow, legL, legR, body, head, chat);
@@ -247,7 +249,7 @@ const StreetVendors = {
         });
 
         parent.addChild(c);
-        return { c, head, body, legL, legR, chat };
+        return { c, head, body, legL, legR, chat, chatBg, chatTxt };
     },
 
     // ─── MAIN UPDATE LOOP ───
@@ -258,19 +260,63 @@ const StreetVendors = {
             const vendTime = dp >= 0.33 && dp < 0.83;
             const goTime   = dp >= 0.28 && dp < 0.33;
 
-            // State machine
+            // State machine — use metro like other NPCs
             if ((vendTime || goTime) && vm.state === 'home') {
-                vm.state = 'commute_to';
                 vm.c.visible = true;
+                vm.c.x = vm.homeX;
                 vm.bld = null;
+                const destX = vm.stallX - 20;
+                const dist = Math.abs(destX - vm.homeX);
+                const stations = typeof NPCHousing !== 'undefined' ? NPCHousing._getMetroStations() : [];
+                if (dist > 400 && stations.length >= 2) {
+                    vm._metroEntryX = NPCHousing._nearestStation(vm.homeX, stations);
+                    vm._metroExitX = NPCHousing._nearestStation(destX, stations);
+                    vm._finalX = destX;
+                    vm.state = 'walk_to_metro';
+                } else {
+                    vm.state = 'commute_to';
+                }
             } else if (!vendTime && !goTime && vm.state === 'vending') {
-                vm.state = 'commute_home';
                 vm.stall.cont.visible = false;
                 vm.bld = null;
+                const dist = Math.abs(vm.homeX - vm.c.x);
+                const stations = typeof NPCHousing !== 'undefined' ? NPCHousing._getMetroStations() : [];
+                if (dist > 400 && stations.length >= 2) {
+                    vm._metroEntryX = NPCHousing._nearestStation(vm.c.x, stations);
+                    vm._metroExitX = NPCHousing._nearestStation(vm.homeX, stations);
+                    vm._finalX = vm.homeX;
+                    vm.state = 'walk_to_metro';
+                } else {
+                    vm.state = 'commute_home';
+                }
             }
 
             // Movement & animation
-            if (vm.state === 'commute_to') {
+            if (vm.state === 'walk_to_metro') {
+                const dx = vm._metroEntryX - vm.c.x;
+                if (Math.abs(dx) < 3) {
+                    vm.state = 'riding_metro';
+                    vm.c.visible = false;
+                    vm._metroTimer = 100 + Math.floor(Math.random() * 80);
+                } else {
+                    vm.c.x += Math.sign(dx) * Math.min(vm.speed, Math.abs(dx));
+                    vm.c.scale.x = dx > 0 ? 1 : -1;
+                    vm.chat.scale.x = vm.c.scale.x;
+                    this._animWalk(vm, vi);
+                }
+                vm.chat.visible = false;
+
+            } else if (vm.state === 'riding_metro') {
+                vm._metroTimer--;
+                if (vm._metroTimer <= 0) {
+                    vm.c.x = vm._metroExitX;
+                    vm.c.visible = true;
+                    // Determine if going to work or home based on destination
+                    const goingToStall = Math.abs(vm._finalX - (vm.stallX - 20)) < 50;
+                    vm.state = goingToStall ? 'commute_to' : 'commute_home';
+                }
+
+            } else if (vm.state === 'commute_to') {
                 const dx = vm.stallX - 20 - vm.c.x;
                 if (Math.abs(dx) < 3) {
                     vm.state = 'vending';
@@ -279,9 +325,8 @@ const StreetVendors = {
                     vm.stall.cont.x = vm.stallX;
                 } else {
                     vm.c.x += Math.sign(dx) * Math.min(vm.speed, Math.abs(dx));
-                    const dir = dx > 0 ? 1 : -1;
-                    vm.c.scale.x = dir;
-                    vm.chat.scale.x = dir; // counter-scale chat text
+                    vm.c.scale.x = dx > 0 ? 1 : -1;
+                    vm.chat.scale.x = vm.c.scale.x;
                     this._animWalk(vm, vi);
                 }
                 vm.chat.visible = false;
@@ -294,9 +339,8 @@ const StreetVendors = {
                     vm.bld = vm.homeBldId;
                 } else {
                     vm.c.x += Math.sign(dx) * Math.min(vm.speed, Math.abs(dx));
-                    const dir = dx > 0 ? 1 : -1;
-                    vm.c.scale.x = dir;
-                    vm.chat.scale.x = dir; // counter-scale chat text
+                    vm.c.scale.x = dx > 0 ? 1 : -1;
+                    vm.chat.scale.x = vm.c.scale.x;
                     this._animWalk(vm, vi);
                 }
                 vm.chat.visible = false;
@@ -324,11 +368,18 @@ const StreetVendors = {
                 vm.chat.scale.x = dir; // counter-scale chat text
                 this._animWalk(vm, vi);
 
-                // Vendor call-outs
+                // Vendor call-outs — standard bubble style
                 vm.chatTimer--;
                 if (vm.chatTimer <= 0 && Math.random() < 0.004) {
                     const tmpl = this.CALLS[Math.floor(Math.random() * this.CALLS.length)];
-                    vm.chat.text = tmpl.replace(/\{item\}/g, vm.def.item).replace(/\{emoji\}/g, vm.def.emoji);
+                    const msg = tmpl.replace(/\{item\}/g, vm.def.item).replace(/\{emoji\}/g, vm.def.emoji);
+                    vm.chatTxt.text = msg;
+                    vm.chatBg.clear();
+                    vm.chatBg.beginFill(0xffffff);
+                    vm.chatBg.drawRoundedRect(-vm.chatTxt.width / 2 - 6, -vm.chatTxt.height - 8, vm.chatTxt.width + 12, vm.chatTxt.height + 8, 4);
+                    vm.chatBg.endFill();
+                    vm.chatBg.beginFill(0xffffff);
+                    vm.chatBg.moveTo(-3, -4); vm.chatBg.lineTo(3, -4); vm.chatBg.lineTo(0, 2); vm.chatBg.endFill();
                     vm.chat.visible = true;
                     vm.chatTimer = 300;
                 } else if (vm.chatTimer <= 0) {
