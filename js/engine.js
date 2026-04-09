@@ -1957,27 +1957,58 @@ async function enterCity() {
       btn.style.opacity = '0.7';
   }
 
+  // ─── LOADING SCREEN helpers ───
+  const loader = document.getElementById('sc-loader');
+  const loaderFill = document.getElementById('sc-loader-fill');
+  const loaderStatus = document.getElementById('sc-loader-status');
+  const setProgress = (pct, msg) => {
+      if (loaderFill) loaderFill.style.width = pct + '%';
+      if (loaderStatus) loaderStatus.textContent = msg;
+  };
+
+  setProgress(5, 'Connecting to cloud...');
   if (typeof API !== 'undefined') {
       API.initSupabase();
       await API.fetchCoreData();
   }
+  setProgress(30, 'Building city layout...');
 
-  G.init();
-
-  // Initialize 3D Holomap (Three.js galaxy view)
-  if (typeof Holomap !== 'undefined') Holomap.init();
-
-  if (typeof API !== 'undefined') {
-      await API.fetchCloudModels();
-  }
-
+  // Show loader, start fading landing page
+  if (loader) loader.style.display = '';
   const instrOv = document.getElementById('instrOv');
   if (instrOv) instrOv.classList.remove('open');
   const l = document.getElementById('landing');
   if (l) l.classList.add('exit');
+  if (l) setTimeout(() => l.remove(), 900);
+
+  // Yield a frame so the loader paints before heavy init
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  setProgress(40, 'Initializing engine...');
+  G.init();
+
+  setProgress(55, 'Loading 3D holomap...');
+  // Initialize 3D Holomap (Three.js galaxy view)
+  if (typeof Holomap !== 'undefined') Holomap.init();
+
+  setProgress(65, 'Fetching AI models...');
+  if (typeof API !== 'undefined') {
+      await API.fetchCloudModels();
+  }
+
+  setProgress(85, 'Rendering city...');
+  // Yield again so loader updates before final render burst
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
   const gw = document.getElementById('gameWrap');
   if (gw) gw.classList.add('active');
-  if (l) setTimeout(() => l.remove(), 900);
+
+  setProgress(100, 'Welcome to Singularity City');
+  // Fade out loader after a beat
+  setTimeout(() => {
+      if (loader) loader.classList.add('hidden');
+      setTimeout(() => { if (loader) loader.style.display = 'none'; }, 700);
+  }, 400);
 
   if (typeof SND !== 'undefined') {
       SND.init();
