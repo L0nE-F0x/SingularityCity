@@ -164,16 +164,25 @@ const VCRow = {
             gfx.beginFill(0xffffff, 0.15); gfx.drawRect(-10, -26, 9, 8); gfx.drawRect(1, -26, 9, 8); gfx.endFill();
             gfx.beginFill(0x333333); gfx.drawCircle(-12, -1, 4); gfx.drawCircle(12, -1, 4); gfx.endFill();
             gfx.beginFill(0x555555); gfx.drawCircle(-12, -1, 2); gfx.drawCircle(12, -1, 2); gfx.endFill();
-            gfx.beginFill(0xffffff, 1.0); gfx.drawRect(20, -8, 4, 6); gfx.endFill();
-            gfx.beginFill(0xff3333, 1.0); gfx.drawRect(-26, -10, 4, 4); gfx.endFill();
+            // Daytime headlight/tail light housings (dim, always visible)
+            gfx.beginFill(0x888888, 0.5); gfx.drawRect(20, -8, 4, 6); gfx.endFill();
+            gfx.beginFill(0x993333, 0.4); gfx.drawRect(-26, -10, 4, 4); gfx.endFill();
             carCont.addChild(gfx);
 
-            // Headlight beam
+            // Headlight & tail light glow (on at night / bad weather only)
+            const lights = new PIXI.Graphics();
+            lights.beginFill(0xffffff, 1.0); lights.drawRect(20, -8, 4, 6); lights.endFill();
+            lights.beginFill(0xff3333, 1.0); lights.drawRect(-26, -10, 4, 4); lights.endFill();
+            lights.alpha = 0;
+            carCont.addChild(lights);
+
+            // Headlight beam cone
             const beam = new PIXI.Graphics();
             beam.beginFill(0xffffee, 0.12);
             beam.drawPolygon([24, -8, 80, -20, 80, 10, 24, 0]);
             beam.endFill();
             beam.blendMode = PIXI.BLEND_MODES.ADD;
+            beam.alpha = 0;
             carCont.addChildAt(beam, 0);
 
             // NPC face in car
@@ -221,7 +230,7 @@ const VCRow = {
             carCont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
 
             this.carCommuters.push({
-                npc, carCont, beam, homeX, workX,
+                npc, carCont, beam, lights, homeX, workX,
                 state: shouldWork ? 'at_work' : 'at_home',
                 speed: 2.5 + Math.random() * 1.0,
                 bld: shouldWork ? workBldId : homeBldId,
@@ -241,8 +250,9 @@ const VCRow = {
         const beamTarget = night ? 1 : (badWeather ? 0.5 : 0);
 
         this.carCommuters.forEach((cm, ci) => {
-            // Smooth headlight transition
+            // Smooth headlight + tail light transition
             cm.beam.alpha += (beamTarget - cm.beam.alpha) * 0.05;
+            cm.lights.alpha += (beamTarget - cm.lights.alpha) * 0.05;
 
             // Skip commuters currently on a deal trip — handled by _updateDealFlow
             if (cm.state === 'deal_trip') return;
