@@ -1266,6 +1266,35 @@ const API = {
         return { found: true, max: max < 0 ? null : max };
     },
 
+    // Phrase blacklist — telltale hallucination markers. Reject any model whose name
+    // contains these regardless of family/version. Used in step 2.5 of _verifyModel.
+    _hallucinationPhrases: [
+        'rumored', 'leaked', 'speculated', 'speculation', 'predicted',
+        'next gen', 'next-gen', 'next generation',
+        'in training', 'in-training', 'in development',
+        'upcoming', 'unreleased', 'forthcoming',
+        'allegedly', 'reportedly', 'expected',
+        'future model', 'will release', 'planned for',
+        '(beta upcoming)', '(early)', 'pre-release'
+    ],
+
+    // Specific known-fake patterns — narrow regexes for combinations that DON'T exist
+    // even though their components are real (e.g. "Gemini Ultra 2", "Gemini 1.5 Ultra").
+    _knownFakePatterns: [
+        // Gemini Ultra was 1.0 only — no 2, no 1.5 Ultra
+        /gemini\s*ultra\s*[2-9]/i,
+        /gemini\s*[2-9](?:\.\d+)?\s*ultra/i,
+        /gemini\s*1\.5\s*ultra/i,
+        // Claude rumored variants
+        /claude\s+\d+\s+opus\s+[2-9]/i, // "Claude 3 Opus 2"
+        /claude\s+\d+\s+sonnet\s+[2-9]/i,
+        /claude\s+\d+\s+haiku\s+[2-9]/i,
+        // GPT codename hallucinations (allow dash between gpt and version)
+        /gpt[\s\-]*[5-9][\s\-]*\(orion\s*[2-9]/i,
+        /gpt[\s\-]*[5-9][\s\-]*\(strawberry\s*[2-9]/i, // Strawberry was o1 codename
+        /gpt[\s\-]*[6-9](?!\.\d)/i // Bare GPT-6/7/8/9 without decimal (extra safety)
+    ],
+
     _verifyModel(m) {
         // Returns { ok: true } or { ok: false, reason: "..." }
         if (!m.name || !m.lab) return { ok: false, reason: 'Missing name or lab' };
@@ -1282,6 +1311,21 @@ const API = {
         // 2. Reject impossibly old release dates for new models
         if (relDate && relDate < '2017-01-01') {
             return { ok: false, reason: `Implausibly old release date: ${relDate}` };
+        }
+
+        // 2.5. Reject hallucination phrase markers ("(Rumored)", "(In-Training)", etc.)
+        // These run BEFORE family/lab bypass so even Gemini-from-Google can't slip through.
+        for (const phrase of this._hallucinationPhrases) {
+            if (name.includes(phrase)) {
+                return { ok: false, reason: `Hallucination marker: "${phrase}"` };
+            }
+        }
+
+        // 2.6. Reject known fake combinations (e.g. "Gemini Ultra 2", "Claude 3 Opus 2")
+        for (const pat of this._knownFakePatterns) {
+            if (pat.test(name)) {
+                return { ok: false, reason: `Known fake pattern: ${pat.source}` };
+            }
         }
 
         // 3. Check version numbers against known maximums.
