@@ -253,7 +253,8 @@ const G = {
             id === 'metro_east' || id === 'metro_dc' || id === 'metro_mid' || id === 'metro_longevity' || id.startsWith('npc_apt_') ||
             id.startsWith('suburb_') ||
             id === 'neon_bar' || id === 'visitor_monument' || id === 'times_hq' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
-            id.startsWith('uni_') || id.startsWith('court_') || id === 'city_park' || id === 'ai_index' || id === 'black_market' || id === 'convention_center' || id.startsWith('backbone_');
+            id.startsWith('uni_') || id.startsWith('court_') || id === 'city_park' || id === 'ai_index' || id === 'black_market' || id === 'convention_center' || id.startsWith('backbone_') ||
+            id === 'bld_1';
 
         const techBldsList = BLDS.filter(b =>
             !isSpecialId(b.id) && !isDcBld(b) && !isSpaceOrForestSep(b)
@@ -281,6 +282,13 @@ const G = {
         // ─── CENTRAL PARK: Green space between Court and Tech District ───
         if (typeof CityPark !== 'undefined' && CityPark.BLDS.length > 0) {
             techStartX = CityPark.positionZone(techStartX);
+        }
+
+        // ─── LEGACY SYSTEMS MUSEUM: Place right next to Central Park ───
+        const legacyBld = BLDS.find(b => b.id === 'bld_1');
+        if (legacyBld) {
+            legacyBld.x = techStartX;
+            techStartX = legacyBld.x + legacyBld.w + 65;
         }
 
         // Compact tech buildings with consistent 50px gaps
