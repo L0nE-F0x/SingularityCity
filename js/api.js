@@ -1164,14 +1164,14 @@ const API = {
         // Western
         'gemini': 3.1, 'gemma': 3, 'gpt': 5.4, 'claude': 4.6, 'llama': 4,
         'grok': 4.2, 'phi': 4, 'palm': 2, 'bard': 1, 'codellama': 1,
-        'mistral': 3.5, 'mixtral': 2, 'codestral': 1, 'ministral': 1, 'pixtral': 1, 'devstral': 1.5,
+        'mistral': 3, 'mixtral': 2, 'codestral': 1, 'ministral': 3, 'pixtral': 1, 'devstral': 1.5,
         'mathstral': 1, 'magistral': 2,
         'command': 2, 'nova': 2, 'titan': 1, 'nemotron': 4,
         // Asian
         'deepseek': 3.2, 'qwen': 3.5, 'qwq': 3,
         'yi': 2, 'ernie': 5, 'glm': 5, 'chatglm': 4,
-        'kimi': 2, 'moonshot': 1, 'minimax': 2.5, 'doubao': 2,
-        'hunyuan': 4, 'step': 2, 'baichuan': 2,
+        'kimi': 2.5, 'moonshot': 1, 'minimax': 2.5, 'doubao': 2,
+        'hunyuan': 4, 'step': 3.5, 'baichuan': 2,
         'internlm': 3, 'internvl': 3,
         // Open / specialty
         'falcon': 3, 'jais': 2, 'olmo': 2, 'olmoe': 1, 'tulu': 3, 'granite': 4, 'smollm': 3,
@@ -1251,6 +1251,12 @@ const API = {
         window = window.replace(/\d+(?:\.\d+)?b\b/gi, ' ');
         // Strip context lengths: "32k", "128k", "1m"
         window = window.replace(/\d+(?:\.\d+)?[km]\b/gi, ' ');
+        // Strip quantization format codes: "fp4", "fp8", "fp16", "int4", "int8",
+        // "nvfp4" (NVIDIA), "q4", "q8", "bf16", "gptq", "awq" — these are not versions
+        window = window.replace(/\b(?:nv)?fp\d+\b/gi, ' ');
+        window = window.replace(/\bint\d+\b/gi, ' ');
+        window = window.replace(/\bbf\d+\b/gi, ' ');
+        window = window.replace(/\bq\d+(?:_\w+)?\b/gi, ' ');
         // Match all remaining version-like numbers
         const matches = [...window.matchAll(/(\d+(?:\.\d+)?)([a-z]?)/g)];
         let max = -1;
@@ -1325,6 +1331,21 @@ const API = {
         for (const pat of this._knownFakePatterns) {
             if (pat.test(name)) {
                 return { ok: false, reason: `Known fake pattern: ${pat.source}` };
+            }
+        }
+
+        // 2.7. Trusted-name fast path — if normalized name (or substring) is in knownReal
+        // registry, accept immediately. This protects naming-convention quirks like
+        // "Aya 23" (where 23 is the model name suffix, not a version) from being killed
+        // by the strict version cap check below.
+        if (this._verifiedModelNames && this._verifiedModelNames.size > 0) {
+            const normName = name.replace(/[^a-z0-9]/g, '');
+            if (this._verifiedModelNames.has(normName)) return { ok: true };
+            // Bidirectional containment with length floor 5 (curated registry, lower floor OK)
+            for (const v of this._verifiedModelNames) {
+                if (v.length >= 5 && (normName.includes(v) || (normName.length >= 5 && v.includes(normName)))) {
+                    return { ok: true };
+                }
             }
         }
 
@@ -1452,19 +1473,21 @@ const API = {
             'phi-4', 'phi 4', 'phi-4-mini', 'phi 4 mini', 'phi-3', 'phi 3', 'phi-2',
             'phi-3.5', 'phi 3.5', 'phi silica',
             // Mistral
-            'mistral large', 'mistral large 2', 'mistral medium', 'mistral medium 3',
+            'mistral 3', 'mistral large', 'mistral large 2', 'mistral large 3',
+            'mistral medium', 'mistral medium 3',
             'mistral small', 'mistral small 3', 'mistral small 3.1', 'mistral small 3.2',
             'mistral nemo', 'mistral 7b',
             'mixtral 8x7b', 'mixtral 8x22b',
             'codestral', 'codestral 2501', 'codestral mamba',
-            'ministral 3b', 'ministral 8b',
+            'ministral 3', 'ministral 3b', 'ministral 8b', 'ministral 14b',
+            'ministral 3 14b', 'ministral 3 8b', 'ministral 3 3b',
             'pixtral', 'pixtral 12b', 'pixtral large',
             'devstral small', 'devstral medium', 'devstral 1.1',
             'mathstral', 'mathstral 7b',
             'magistral', 'magistral small', 'magistral medium',
             // Cohere
             'command r+', 'command r', 'command a', 'command light',
-            'aya 23', 'aya expanse', 'aya 8b', 'aya 35b',
+            'aya 23', 'aya 23 8b', 'aya 23 35b', 'aya expanse', 'aya 8b', 'aya 35b',
             // Amazon
             'nova pro', 'nova premier', 'nova lite', 'nova micro', 'nova canvas', 'nova reel',
             'titan text express', 'titan text lite',
@@ -1477,11 +1500,12 @@ const API = {
             'yi-lightning', 'yi lightning', 'yi-large', 'yi 34b', 'yi 6b', 'yi vl',
             'ernie 4.5', 'ernie 4', 'ernie bot', 'ernie x1',
             'glm-4', 'glm 4', 'glm-4-plus', 'glm 4 plus', 'glm-4v', 'chatglm',
-            'kimi k1', 'kimi k1.5', 'kimi k2', 'moonshot v1',
-            'minimax-01', 'minimax abab', 'minimax m1', 'minimax m2',
+            'kimi k1', 'kimi k1.5', 'kimi k2', 'kimi k2 thinking', 'kimi k2.5', 'moonshot v1',
+            'minimax-01', 'minimax abab', 'minimax m1', 'minimax m2', 'minimax m2.5',
             'doubao pro', 'doubao lite', 'doubao 1.5 pro',
             'hunyuan', 'hunyuan large', 'hunyuan turbo', 'hunyuan video', 'hunyuan dit',
-            'step-1', 'step-2', 'step-1v', 'step-1.5v',
+            'step-1', 'step-2', 'step-3', 'step-3.5', 'step-3.5-flash',
+            'step3', 'step3-vl', 'step3-vl-10b', 'step-1v', 'step-1.5v',
             'baichuan', 'baichuan2', 'baichuan 3', 'baichuan 4',
             'internlm', 'internlm 2', 'internlm 2.5', 'internlm xcomposer',
             'internvl', 'internvl 2', 'internvl 2.5',
@@ -1509,7 +1533,94 @@ const API = {
             'wizardlm', 'wizardmath', 'wizardcoder',
             'orca 2', 'orca mini',
             'vicuna 13b', 'vicuna 7b',
-            'starling 7b', 'starling lm'
+            'starling 7b', 'starling lm',
+            // ─── Research / specialty / historical models ──────────────────
+            // Google / DeepMind
+            'alphacode', 'alphacode 2', 'alphageometry', 'alphaproof', 'alphafold',
+            'chinchilla', 'chinchilla 70b', 'gopher', 'gopher 280b',
+            'minerva', 'minerva 62b', 'lamda', 'glam', 'ul2', 't5', 't5 11b', 'flan-t5', 'mt5',
+            'project astra', 'medgemma', 'medgemma 4b', 'med-gemini',
+            // OpenAI historical
+            'codex', 'whisper', 'instructgpt', 'text-davinci-002', 'text-davinci-003',
+            'chatgpt', 'chatgpt-4o', 'chatgpt-4o latest',
+            // Meta research
+            'opt', 'opt-175b', 'opt-66b', 'opt-30b', 'opt 175b', 'opt 66b', 'opt 30b',
+            'galactica', 'galactica 120b', 'segment anything', 'sam', 'sam 2',
+            'musicgen', 'audiogen', 'incoder', 'incoder-6.7b',
+            // Microsoft research
+            'turing-nlg', 'turing-nlg 17b', 'megatron-turing nlg', 'mt-nlg', 'mt-nlg 530b',
+            'megatron-turing nlg 530b', 'florence', 'florence-2', 'florence-2 large',
+            'mai-1', 'apple ajax',
+            // Apple
+            'mm1', 'ferret-ui', 'personal voice', 'mgie', 'apple vision fm',
+            // AI21
+            'jurassic-1', 'jurassic-1 178b', 'jurassic-1 jumbo', 'jurassic-2', 'j1-jumbo',
+            // Aleph Alpha
+            'luminous base', 'luminous extended', 'luminous-extended', 'luminous-supra',
+            'luminous supreme', 'luminous-large-v1-0', 'luminous world',
+            'pharia 1', 'pharia 1 7b', 'pharia 1 pro', 'pharia 1 pro 7b', 'pharia pro 70b',
+            // Stability
+            'stable audio', 'stable audio open', 'stable audio 2',
+            'stable diffusion', 'stable diffusion 3', 'stable diffusion 3 medium',
+            'stable beluga', 'stable beluga 7b', 'stablebeluga 70b',
+            'stable code', 'stable lm', 'stablelm zephyr',
+            // Cerebras
+            'cerebras-gpt', 'cerebras-gpt-13b', 'cerebras-gpt-6.7b', 'cerebras-gpt-2.7b',
+            'condor galaxy',
+            // Salesforce Research
+            'codegen', 'codegen-16b-multi', 'codegen2.5-7b-multi',
+            'codet5', 'codet5+', 'codet5+ 16b',
+            'xgen', 'xgen large', 'xgen 2 large', 'xgen-mm', 'xgen-mm 9b', 'xgen-mm vl',
+            'magicoder', 'magicoder evolution',
+            // EPFL / medical
+            'meditron', 'meditron-70b', 'meditron-70b-v2', 'med42', 'med42 70b',
+            'decolm', 'decolm 6.7b',
+            // Phind
+            'phind', 'phind-34b', 'phind-codellama', 'phind-codellama-34b',
+            'phind-codellama-34b-v2', 'phind-coder', 'phind coder',
+            // BigCode
+            'santacoder',
+            // Naver
+            'hyperclova', 'hyperclova x', 'hyperclova x 2', 'hyperclova x 2.0',
+            // Meituan
+            'longcat', 'longcat-flash', 'longcat-flash-chat', 'longcat-flash-lite',
+            'longcat-flash-thinking', 'bailing', 'bailing 7b', 'pura', 'pura 72b',
+            // LG
+            'exaone', 'exaone 3', 'exaone 3.0', 'exaone 3.5', 'exaone audio',
+            // ByteDance
+            'seed', 'doubao 1.5',
+            // Allen AI
+            'molmo', 'medolmo', 'medolmo 32b',
+            // SarvamAI
+            'sarvam', 'sarvam 1', 'sarvam-30b', 'sarvam med',
+            // Inception Labs
+            'mercury', 'mercury coder',
+            // Xiaomi
+            'mimo', 'milm', 'milm-7b', 'milm-7b-instruct', 'milm-6x7b',
+            // Hugging Face
+            'zephyr', 'zephyr 7b', 'zephyr-7b', 'zephyr-7b-beta', 'idefics', 'idefics2',
+            'idefics2-8b', 'huggingchat', 'parler-tts', 'parler-tts mini', 'parler-tts v2',
+            // DeepSeek
+            'janus', 'janus-pro', 'janus-pro-7b', 'deepseekmoe', 'deepseekmoe-16b',
+            // Zhipu / THUDM
+            'cogvlm', 'cogvlm2', 'cogvlm2-chat', 'cogagent',
+            // Alibaba
+            'qvq', 'qvq-72b', 'qvq-72b-preview',
+            // Databricks
+            'dolly', 'dolly v2', 'dolly v2 12b', 'leopard 7b',
+            // Shanghai AI Lab
+            'numinamath', 'numinamath-7b', 'sealion',
+            // Amazon
+            'codewhisperer',
+            // StepFun
+            'stepcoder', 'stepcoder-7b',
+            // TII / Inception
+            'acegpt', 'acegpt-13b',
+            // Other
+            'aider polyglot', 't0', 't0++',
+            'longwriter', 'longwriter 7b',
+            // Real benchmark/eval names that show up as "models"
+            'med-gemini', 'med-palm', 'med-palm 2'
         ];
         for (const name of knownReal) {
             this._verifiedModelNames.add(name.toLowerCase().replace(/[^a-z0-9]/g, ''));
@@ -2180,7 +2291,9 @@ JSON (no markdown):
                        reason.includes('Impossible ELO') ||
                        reason.includes('Absurd input pricing') ||
                        reason.includes('Absurd output pricing') ||
-                       reason.includes('Missing name or lab');
+                       reason.includes('Missing name or lab') ||
+                       reason.includes('Hallucination marker') ||
+                       reason.includes('Known fake pattern');
             };
 
             for (const m of data) {
