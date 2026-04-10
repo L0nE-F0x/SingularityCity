@@ -873,9 +873,6 @@ const Environment = {
               b._vcTickerW = null;
               b._bkTicker = null;
               b._bkTickerW = null;
-              b._winFaces = null;
-              b._winTexts = null;
-              b._wins = null;
               b._sign = null;
           });
       }
@@ -1794,7 +1791,6 @@ const Environment = {
           }
           // Windows with warm glow
           const cols = Math.floor((b.w - 20) / 20);
-          b._wins = [];
           for (let f = 0; f < floors; f++) {
               for (let c2 = 0; c2 < cols; c2++) {
                   const wx = 12 + c2 * 20, wy = 6 + f * 18;
@@ -1803,13 +1799,6 @@ const Environment = {
                   if (lit) { gfx.beginFill(0xfbbf24, 0.5); } else { gfx.beginFill(0x0a0a18); }
                   gfx.drawRect(wx, wy, 12, 10); gfx.endFill();
                   gfx.lineStyle(1, 0x334155, 0.3); gfx.drawRect(wx, wy, 12, 10); gfx.lineStyle(0);
-              }
-          }
-          // Build _wins BOTTOM-UP so occupancy emojis fill from ground level
-          for (let f = floors - 1; f >= 0; f--) {
-              for (let c2 = 0; c2 < cols; c2++) {
-                  const wx = 12 + c2 * 20, wy = 6 + f * 18;
-                  b._wins.push({ wx, wy });
               }
           }
           // Door
@@ -1892,9 +1881,7 @@ const Environment = {
           gfx.lineStyle(0);
 
           // Upper floor windows (2 across)
-          b._wins = [];
           const upWinY = bodyTop + 8;
-          const _upWins = [];
           [0.28, 0.72].forEach(frac => {
               const wx = Math.round(b.w * frac) - 7;
               gfx.beginFill(p.trim); gfx.drawRect(wx - 1, upWinY - 1, 16, 14); gfx.endFill();
@@ -1908,7 +1895,6 @@ const Environment = {
               gfx.lineStyle(0);
               // Shutters
               gfx.beginFill(p.trim); gfx.drawRect(wx - 4, upWinY, 3, 12); gfx.drawRect(wx + 15, upWinY, 3, 12); gfx.endFill();
-              _upWins.push({ wx, wy: upWinY });
           });
 
           // Ground floor: big front window (left) + door (center-right)
@@ -1920,9 +1906,6 @@ const Environment = {
           gfx.moveTo(gWinX + 13, gWinY); gfx.lineTo(gWinX + 13, gWinY + 16);
           gfx.moveTo(gWinX, gWinY + 8); gfx.lineTo(gWinX + 26, gWinY + 8);
           gfx.lineStyle(0);
-          // _wins: ground floor first (bottom-up), then upper windows
-          b._wins.push({ wx: gWinX, wy: gWinY });
-          _upWins.forEach(w => b._wins.push(w));
 
           // Front door with small porch
           const doorX = b.w - 38, doorY = h - 30;
@@ -1980,7 +1963,6 @@ const Environment = {
           gfx.drawRect(b.w - 8, 0, 8, h);
           gfx.endFill();
 
-          b._wins = [];
           const cols = Math.floor((b.w - 16) / 24);
           const rows = floors;
           for (let f = 0; f < rows; f++) {
@@ -1996,14 +1978,6 @@ const Environment = {
                   if (lit) {
                       gfx.beginFill(0xeab308, 0.15); gfx.drawRect(wx - 2, wy - 2, 16, 14); gfx.endFill();
                   }
-              }
-          }
-          // Build _wins BOTTOM-UP so occupancy emojis fill from ground level
-          for (let f = rows - 1; f >= 0; f--) {
-              for (let c = 0; c < cols; c++) {
-                  if (f === rows - 1 && (c === Math.floor(cols/2) || c === Math.floor(cols/2)-1)) continue;
-                  const wx = 16 + c * 24, wy = 20 + f * 18;
-                  b._wins.push({ wx, wy });
               }
           }
           
@@ -2147,12 +2121,10 @@ const Environment = {
           gfx.beginFill(0xff69b4, 0.3); gfx.drawRect(2, 10, 2, h - 20); gfx.endFill();
           gfx.beginFill(0x00ffff, 0.3); gfx.drawRect(b.w - 4, 10, 2, h - 20); gfx.endFill();
           // Windows with colored glow (bar interior visible)
-          b._wins = [];
           for (let wx = 15; wx < b.w - 20; wx += 28) {
               gfx.beginFill(0x000000); gfx.drawRect(wx, h * 0.3, 20, 22); gfx.endFill();
               const wCol = [0xff00ff, 0x00ffff, 0xff6b9d, 0xa855f7][Math.floor(wx / 28) % 4];
               gfx.beginFill(wCol, 0.25); gfx.drawRect(wx + 1, h * 0.3 + 1, 18, 20); gfx.endFill();
-              b._wins.push({ wx: wx + 4, wy: Math.round(h * 0.3) + 5 });
           }
           // Stage area (ground floor)
           gfx.beginFill(0x2a1040); gfx.drawRect(b.w / 2 - 25, h - 28, 50, 28); gfx.endFill();
@@ -2195,8 +2167,6 @@ const Environment = {
 
           const cols = Math.floor(b.w / 24);
           const doorL = b.w / 2 - 8, doorR = b.w / 2 + 8;
-          b._wins = [];
-          b._winTexts = [];
 
           // Draw windows top-down (visual rendering order)
           for (let f = 0; f < floors; f++) for (let c = 0; c < cols; c++) {
@@ -2214,13 +2184,6 @@ const Environment = {
             gfx.beginFill(colHex, 0.12); gfx.drawRect(wx, wy + 4, 12, 1); gfx.endFill();
             gfx.beginFill(colHex, 0.12);
             gfx.drawRect(wx + 5, wy, 1, 10); gfx.endFill();
-          }
-          // Build _wins array BOTTOM-UP so occupancy emojis fill from ground
-          // level where the camera sits, instead of from the roof (often off-screen)
-          for (let f = floors - 1; f >= 0; f--) for (let c = 0; c < cols; c++) {
-            const wx = 10 + c * 24, wy = 20 + f * 18;
-            if (f === floors - 1 && wx + 12 > doorL && wx < doorR) continue;
-            b._wins.push({ wx, wy });
           }
 
           gfx.beginFill(0x0a0a18);
@@ -2352,11 +2315,6 @@ const Environment = {
             container.addChild(vTickCont);
         }
 
-        const winFaces = new PIXI.Graphics();
-        container.addChild(winFaces); b._winFaces = winFaces; b._winTexts = [];
-        if (b._wins) { b._wins.forEach(win => { const t = new PIXI.Text('', { fontSize: 8, fill: 0xffffff }); t.anchor.set(0.5, 0.5); t.x = win.wx + 6; t.y = win.wy + 5; t.visible = false; container.addChild(t); b._winTexts.push(t); });
-        }
-  
         if (b.id !== 'park' && b.id !== 'graveyard' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market' && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('suburb_')) {
             const sign = new PIXI.Text(b.name, { fontFamily: 'Silkscreen', fontSize: 7, fill: 0x9898c0, align: 'center' });
             sign.anchor.set(0.5, 0); sign.x = b.w / 2; sign.y = h + 4;
@@ -2848,29 +2806,6 @@ const Environment = {
                 if (b._sign && b._sign.text !== undefined) {
                     if (ct > 0) b._sign.text = `${b.name} [${ct}]`; else b._sign.text = b.name; b._sign.scale.set(1);
                     if (b._sign.width > b.w - 4) b._sign.scale.set((b.w - 4) / b._sign.width);
-                }
-                if (b._winFaces && b._wins) {
-                    b._winFaces.clear();
-                    const wins = b._wins;
-                    const wLen = wins.length;
-                    for (let wi = 0; wi < wLen; wi++) {
-                        if (wi < ct) {
-                            const win = wins[wi];
-                            b._winFaces.beginFill(0xffffff, 0.9); b._winFaces.drawRect(win.wx, win.wy, 12, 10); b._winFaces.endFill();
-                            b._winFaces.beginFill(0xffeaa7, 0.15); b._winFaces.drawRect(win.wx - 1, win.wy - 1, 14, 12); b._winFaces.endFill();
-                        }
-                    }
-                    if (b._winTexts) {
-                        const wtLen = b._winTexts.length;
-                        for (let wi = 0; wi < wtLen; wi++) {
-                            const t = b._winTexts[wi];
-                            if (wi < ct) {
-                                const occ_item = list[wi]; const ai = ACTS[occ_item?.act]; t.text = ai ? ai.icon : '💻'; t.visible = true;
-                            } else {
-                                t.visible = false;
-                            }
-                        }
-                    }
                 }
             }
         }
