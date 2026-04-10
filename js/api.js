@@ -225,17 +225,13 @@ const API = {
                 if (added > 0) {
                     if (typeof UI !== 'undefined') UI.addLog(`☁️ Synced ${added} models from global database.`);
                 }
-                // Batch-purge rejected models from Supabase (more reliable than individual fire-and-forget)
+                // Log rejected models but DO NOT auto-delete from Supabase here.
+                // Cloud cleanup is handled by purgeHallucinations() which runs after
+                // ZeroEval+HF have loaded (giving the verifier its full registry).
                 if (rejectIds.length > 0) {
-                    console.warn(`🚫 [Cloud] Rejected ${rejectIds.length} hallucinated models: ${rejectNames.join(', ')}`);
-                    if (this.supabase) {
-                        for (let i = 0; i < rejectIds.length; i += 50) {
-                            const batch = rejectIds.slice(i, i + 50);
-                            this.supabase.from('models').delete().in('id', batch).then(({error}) => {
-                                if (error) console.warn(`⚠️ [Purge] DB delete failed (check Supabase RLS policy):`, error.message);
-                            });
-                        }
-                    }
+                    console.warn(`🚫 [Cloud] Filtered ${rejectIds.length} hallucinated models from display: ${rejectNames.join(', ')}`);
+                    // Stash for purgeHallucinations to clean up later
+                    this._pendingCloudRejects = rejectIds;
                 }
 
                 // Always re-evolve: cost, benchmark, and ELO data may have updated
@@ -336,6 +332,7 @@ const API = {
                 if (typeof UI !== 'undefined') UI.addLog(`🤗 HF API: ${added} trending models added`);
                 G.evolveCity();
             }
+            this._huggingfaceLoaded = true;
         } catch(e) {
             console.warn('[HF API] Fetch failed:', e.message);
         }
@@ -514,11 +511,12 @@ const API = {
                 }
                 G.evolveCity();
             }
+            this._zeroevalLoaded = true;
         } catch(e) {
             console.warn('[ZeroEval] Fetch failed:', e.message);
         }
     },
-  
+
     async fetchLiveNews() {
       let got = false;
       const allFeeds = [
@@ -1159,11 +1157,113 @@ const API = {
 
     // Floor version caps per model family — auto-raised by _buildVerifiedRegistry()
     // from live ZeroEval/HuggingFace data. These are the minimum known maxes.
+    // ANY model name containing one of these families MUST have its version within cap+0.5.
+    // ANY model name NOT containing one of these families is rejected unless it's in the
+    // explicit knownReal registry or came from a trusted source (zeroeval/huggingface).
     _maxKnownVersions: {
-        'gemini': 3.1, 'gpt': 5.4, 'claude': 4.6, 'llama': 4, 'grok': 4.2,
-        'phi': 4, 'mistral': 3, 'deepseek': 3.2, 'qwen': 3.5, 'palm': 2,
-        'bard': 1, 'ernie': 5, 'glm': 5, 'command': 2, 'nova': 2,
-        'nemotron': 4, 'codestral': 1
+        // Western
+        'gemini': 3.1, 'gemma': 3, 'gpt': 5.4, 'claude': 4.6, 'llama': 4,
+        'grok': 4.2, 'phi': 4, 'palm': 2, 'bard': 1, 'codellama': 1,
+        'mistral': 3.5, 'mixtral': 2, 'codestral': 1, 'ministral': 1, 'pixtral': 1, 'devstral': 1.5,
+        'mathstral': 1, 'magistral': 2,
+        'command': 2, 'nova': 2, 'titan': 1, 'nemotron': 4,
+        // Asian
+        'deepseek': 3.2, 'qwen': 3.5, 'qwq': 3,
+        'yi': 2, 'ernie': 5, 'glm': 5, 'chatglm': 4,
+        'kimi': 2, 'moonshot': 1, 'minimax': 2.5, 'doubao': 2,
+        'hunyuan': 4, 'step': 2, 'baichuan': 2,
+        'internlm': 3, 'internvl': 3,
+        // Open / specialty
+        'falcon': 3, 'jais': 2, 'olmo': 2, 'olmoe': 1, 'tulu': 3, 'granite': 4, 'smollm': 3,
+        'bloom': 1, 'bloomz': 1, 'starling': 1, 'vicuna': 1, 'wizard': 2, 'orca': 2,
+        'dbrx': 1, 'hermes': 4, 'aya': 2, 'snowflake': 2, 'openelm': 1,
+        'starcoder': 2, 'mpt': 1, 'pythia': 1, 'jamba': 2, 'stablelm': 3,
+        'minicpm': 4, 'llava': 2, 'lfm': 2, 'dolphin': 3, 'nvlm': 1, 'arctic': 2
+    },
+
+    // Family → known producing lab(s). Used to validate that "Cohere Command R+" really
+    // is a Cohere model (lab matches family) vs a Nous-Hermes finetune of Llama (lab mismatch).
+    _familyToLab: {
+        'gpt': ['openai'], 'claude': ['anthropic'],
+        'gemini': ['google'], 'gemma': ['google'], 'palm': ['google'], 'bard': ['google'],
+        'llama': ['meta'], 'codellama': ['meta'], 'openelm': ['apple'],
+        'grok': ['xai'],
+        'phi': ['microsoft'],
+        'mistral': ['mistral'], 'mixtral': ['mistral'], 'pixtral': ['mistral'],
+        'codestral': ['mistral'], 'ministral': ['mistral'], 'devstral': ['mistral'],
+        'mathstral': ['mistral'], 'magistral': ['mistral'],
+        'deepseek': ['deepseek'],
+        'qwen': ['alibaba'], 'qwq': ['alibaba'],
+        'ernie': ['baidu'],
+        'glm': ['zhipu_ai', 'zhipu', 'thudm'], 'chatglm': ['zhipu_ai', 'zhipu', 'thudm'],
+        'command': ['cohere'], 'aya': ['cohere', 'cohereforai'],
+        'nova': ['amazon'], 'titan': ['amazon'],
+        'nemotron': ['nvidia'], 'nvlm': ['nvidia'],
+        'yi': ['zerooneai', '01_ai', '01ai'],
+        'kimi': ['moonshot'], 'moonshot': ['moonshot'],
+        'minimax': ['minimax'],
+        'doubao': ['bytedance'],
+        'hunyuan': ['tencent'],
+        'step': ['stepfun'],
+        'baichuan': ['baichuan'],
+        'internlm': ['shanghai_ai_lab'], 'internvl': ['shanghai_ai_lab'],
+        'falcon': ['tii'], 'jais': ['inception'],
+        'olmo': ['allen_ai', 'allenai'], 'olmoe': ['allen_ai', 'allenai'],
+        'tulu': ['allen_ai', 'allenai'],
+        'granite': ['ibm'], 'smollm': ['huggingface', 'huggingfaceh4'],
+        'bloom': ['bigscience'], 'bloomz': ['bigscience'],
+        'dbrx': ['databricks'],
+        'hermes': ['nous', 'nousresearch'],
+        'snowflake': ['snowflake'], 'arctic': ['snowflake'],
+        'starcoder': ['bigcode', 'huggingface'],
+        'mpt': ['mosaicml', 'databricks'],
+        'pythia': ['eleutherai'],
+        'jamba': ['ai21', 'ai21labs'],
+        'stablelm': ['stabilityai', 'stability_ai'],
+        'minicpm': ['openbmb'],
+        'llava': ['llava', 'haotianliu'],
+        'lfm': ['liquid', 'liquidai'],
+        'dolphin': ['cognitivecomputations']
+    },
+
+    // Helper: scan name for the highest version number near a family token.
+    // Strips date patterns first so dates like "08-2024" don't get parsed as version 8.
+    // Returns { found: bool, max: number|null }.
+    _extractVersionNear(name, family) {
+        // Find family token (must be word-boundary delimited so "gpt" doesn't match "gptq")
+        const famRegex = new RegExp(`(?:^|[\\s\\-_])${family}(?:[\\s\\-_]|\\d|$)`, 'i');
+        const fm = name.match(famRegex);
+        if (!fm) return { found: false };
+        const idx = name.indexOf(fm[0]);
+        let window = name.substring(idx, idx + 50);
+        // Strip date patterns FIRST so they don't get misread as version numbers.
+        // Use [-_/] (NOT dot) to preserve "2.5" / "3.1" decimal versions.
+        window = window.replace(/\d{4}[-_/]\d{1,2}[-_/]\d{1,2}/g, ' '); // 2024-08-15
+        window = window.replace(/\d{1,2}[-_/]\d{1,2}[-_/]\d{4}/g, ' '); // 08-15-2024
+        window = window.replace(/\d{1,2}[-_/]\d{4}/g, ' ');              // 08-2024
+        window = window.replace(/\d{4}[-_/]\d{1,2}/g, ' ');              // 2024-08
+        window = window.replace(/\d{1,2}[-_/]\d{1,2}/g, ' ');            // 03-25 / 08_15 short date
+        window = window.replace(/\(\s*\d{6,}\s*\)/g, ' ');                // (20240227)
+        window = window.replace(/\b\d{6,}\b/g, ' ');                      // 20240227
+        // Strip MoE expert notation: "8x7b", "8x22b", "16x6.7b" (Mixtral, etc.)
+        window = window.replace(/\d+x\d+(?:\.\d+)?b\b/gi, ' ');
+        // Strip dimension/size notation: "1.5b", "3b", "70b", "405b" (parameter counts)
+        window = window.replace(/\d+(?:\.\d+)?b\b/gi, ' ');
+        // Strip context lengths: "32k", "128k", "1m"
+        window = window.replace(/\d+(?:\.\d+)?[km]\b/gi, ' ');
+        // Match all remaining version-like numbers
+        const matches = [...window.matchAll(/(\d+(?:\.\d+)?)([a-z]?)/g)];
+        let max = -1;
+        for (const mm of matches) {
+            const ver = parseFloat(mm[1]);
+            const suffix = (mm[2] || '').toLowerCase();
+            // Skip parameter counts (7b, 70b, 405b)
+            if (suffix === 'b') continue;
+            // Skip residual date codes / token counts
+            if (ver >= 100) continue;
+            if (ver > max) max = ver;
+        }
+        return { found: true, max: max < 0 ? null : max };
     },
 
     _verifyModel(m) {
@@ -1184,23 +1284,19 @@ const API = {
             return { ok: false, reason: `Implausibly old release date: ${relDate}` };
         }
 
-        // 3. Check version numbers against known maximums
+        // 3. Check version numbers against known maximums.
+        // This is the PRIMARY hallucination defense — uses flexible token-based matching
+        // so "Claude Opus 7.5" gets caught (version after a word) and "Cohere Command R+ 08-2024"
+        // doesn't (the date is filtered as a date code, not a version).
+        // STRICT: no buffer above maxVer. New flagship versions get auto-raised when seen
+        // from a trusted source (ZeroEval/HuggingFace) via _autoDetectVersionCaps.
+        let detectedFamily = null;
         for (const [family, maxVer] of Object.entries(this._maxKnownVersions)) {
-            // Match version patterns like "gemini 3", "gpt-4.1", "claude 4" etc.
-            // Capture the number AND one trailing letter to detect param counts (e.g., "7B")
-            const verMatch = name.match(new RegExp(`${family}[\\s\\-_]*([\\d]+(?:\\.[\\d]+)?)\\s*([a-z]?)`, 'i'));
-            if (verMatch) {
-                const ver = parseFloat(verMatch[1]);
-                const suffix = (verMatch[2] || '').toLowerCase();
-                // Skip parameter counts: numbers followed by 'b' (e.g., "7B", "70B", "13B")
-                // These are model sizes in billions of parameters, not version numbers
-                if (suffix === 'b') continue;
-                // Skip date codes: 3+ digit numbers like 2501 (Jan 2025) or 2025 are release dates, not versions
-                if (ver >= 100) continue;
-                // Allow up to maxVer + 0.5 for imminent releases, reject anything beyond
-                if (ver > maxVer + 0.5) {
-                    return { ok: false, reason: `Version ${ver} exceeds max known ${family} version ${maxVer}` };
-                }
+            const result = this._extractVersionNear(name, family);
+            if (!result.found) continue;
+            detectedFamily = family;
+            if (result.max != null && result.max > maxVer) {
+                return { ok: false, reason: `Version ${result.max} exceeds max known ${family} version ${maxVer}` };
             }
         }
 
@@ -1224,15 +1320,40 @@ const API = {
             return { ok: false, reason: `Absurd output pricing: $${m.cost_out}/1M` };
         }
 
-        // 6. Cross-reference against verified sources if available
-        // Models from ZeroEval/HuggingFace are trusted; LLM-sourced models get extra scrutiny
+        // 6. Cross-reference against verified sources (ZeroEval + HuggingFace + knownReal).
+        // Trusted sources are always allowed.
+        // If a known family was detected, accept ONLY if the family appears at the start
+        // of the name OR the model's lab matches the family's expected lab. This rejects
+        // finetune-style names like "Hermes 9 Llama" (Llama detected mid-name, lab=nous, not meta).
+        const trustedSrc = m._src === 'zeroeval' || m._src === 'huggingface';
+        if (trustedSrc) return { ok: true };
+
+        if (detectedFamily) {
+            const famAtStart = name.startsWith(detectedFamily);
+            const expectedLabs = this._familyToLab[detectedFamily] || [];
+            const labMatch = m.lab && expectedLabs.some(l =>
+                String(m.lab).toLowerCase().replace(/[^a-z0-9]/g, '').includes(l.replace(/[^a-z0-9]/g, ''))
+            );
+            if (famAtStart || labMatch) return { ok: true };
+            // Family detected mid-name with mismatched lab → fall through to registry check
+        }
+
+        // No recognized family (or mismatched lab) — must be in registry by name.
         if (this._verifiedModelNames && this._verifiedModelNames.size > 0) {
             const normName = name.replace(/[^a-z0-9]/g, '');
             const fuzzyName = normName.replace(/\d{6,}/g, '').replace(/\d+$/, '');
-            const isVerified = this._verifiedModelNames.has(normName) || this._verifiedModelNames.has(fuzzyName);
-            // Not being verified is not an automatic rejection, but flag it
+            let isVerified = this._verifiedModelNames.has(normName) || this._verifiedModelNames.has(fuzzyName);
             if (!isVerified) {
-                console.debug(`⚠️ [Verify] ${m.name} not found in ZeroEval/HuggingFace registry — allowing with caution`);
+                // Bidirectional containment with length floor 7 (handles lab-prefixed/date-suffixed names)
+                for (const v of this._verifiedModelNames) {
+                    if (v.length >= 7 && (normName.includes(v) || (normName.length >= 7 && v.includes(normName)))) {
+                        isVerified = true;
+                        break;
+                    }
+                }
+            }
+            if (!isVerified) {
+                return { ok: false, reason: `Unknown family + not in registry (likely hallucinated): ${m.name}` };
             }
         }
 
@@ -1249,30 +1370,102 @@ const API = {
                 this._verifiedModelNames.add(norm);
             }
         }
-        // Also add all flagship models we know are real
+        // Also add all flagship models we know are real (kept narrow — anything not here OR
+        // not in ZeroEval/HuggingFace gets rejected as hallucinated)
         const knownReal = [
+            // Anthropic
             'claude opus 4', 'claude opus 4.6', 'claude sonnet 4', 'claude sonnet 4.6',
             'claude haiku 4', 'claude haiku 4.5',
             'claude 3.5 sonnet', 'claude 3.5 haiku', 'claude 3 opus',
+            'claude 3 sonnet', 'claude 3 haiku', 'claude 2', 'claude 2.1', 'claude instant',
+            // OpenAI
             'gpt-4o', 'gpt-4o mini', 'gpt-4.1', 'gpt-4.1 mini', 'gpt-4.1 nano',
-            'gpt-5', 'gpt-5.2', 'gpt-5.2 codex', 'gpt-5.3 codex', 'gpt-5.3 codex spark',
-            'gpt-5.3 chat', 'gpt-5.4', 'gpt-5.4 mini', 'gpt-5.4 nano',
-            'o1', 'o1-mini', 'o1-pro', 'o3', 'o3-mini', 'o4-mini',
-            'gemini 2.5 pro', 'gemini 2.5 flash', 'gemini 2.0 flash',
-            'gemini 1.5 pro', 'gemini 1.5 flash',
-            'gemini 3.1 pro', 'gemini 3.1 ultra', 'gemini 3.1 flash lite',
-            'grok 3', 'grok 3 mini', 'grok 4', 'grok 4.20',
-            'llama 4 scout', 'llama 4 maverick', 'llama 3.3', 'llama 3.1',
-            'deepseek-r1', 'deepseek-v3', 'deepseek-v3.2', 'deepseek-r2',
-            'qwen3', 'qwen3.5', 'qwen2.5', 'qwen2.5-max', 'qwq',
-            'phi-4', 'phi-4-mini', 'phi-3',
-            'mistral large', 'mistral medium', 'codestral', 'codestral 2501',
-            'command r+', 'command r', 'command a',
-            'nova pro', 'nova premier', 'nova lite',
-            'nemotron ultra', 'llama-3.1-nemotron-ultra',
-            'nemotron-4 340b', 'nemotron-4 340b instruct', 'nemotron-4 15b',
-            'nemotron-4-mini-4b-instruct',
-            'yi-lightning', 'ernie 4.5', 'glm-4'
+            'gpt-4', 'gpt-4 turbo', 'gpt-3.5 turbo', 'gpt-4-vision',
+            'gpt-5', 'gpt-5 mini', 'gpt-5 nano', 'gpt-5.1', 'gpt-5.2', 'gpt-5.2 codex',
+            'gpt-5.3 codex', 'gpt-5.3 codex spark', 'gpt-5.3 chat',
+            'gpt-5.4', 'gpt-5.4 mini', 'gpt-5.4 nano',
+            'o1', 'o1-mini', 'o1-pro', 'o1-preview', 'o3', 'o3-mini', 'o3-pro', 'o4-mini',
+            // Google
+            'gemini 2.5 pro', 'gemini 2.5 flash', 'gemini 2.5 flash lite',
+            'gemini 2.0 flash', 'gemini 2.0 pro', 'gemini 2.0 flash lite',
+            'gemini 1.5 pro', 'gemini 1.5 flash', 'gemini 1.0 pro', 'gemini nano',
+            'gemini 3.1 pro', 'gemini 3.1 ultra', 'gemini 3.1 flash', 'gemini 3.1 flash lite',
+            'gemma 3', 'gemma 2', 'gemma 7b', 'codegemma', 'recurrentgemma', 'palm 2',
+            // xAI
+            'grok 1', 'grok 2', 'grok 3', 'grok 3 mini', 'grok 4', 'grok 4 mini', 'grok 4.20',
+            // Meta
+            'llama 4 scout', 'llama 4 maverick', 'llama 4 behemoth',
+            'llama 3.3', 'llama 3.2', 'llama 3.1', 'llama 3', 'llama 2', 'codellama',
+            // DeepSeek
+            'deepseek-r1', 'deepseek r1', 'deepseek-v3', 'deepseek v3',
+            'deepseek-v3.2', 'deepseek v3.2', 'deepseek-r2', 'deepseek r2',
+            'deepseek coder', 'deepseek math', 'deepseek vl', 'deepseek prover',
+            // Alibaba / Qwen
+            'qwen3', 'qwen 3', 'qwen3.5', 'qwen 3.5', 'qwen2.5', 'qwen 2.5',
+            'qwen2.5-max', 'qwen2.5 max', 'qwen2', 'qwq', 'qwq 32b',
+            'qwen vl', 'qwen audio', 'qwen coder', 'qwen math',
+            // Microsoft
+            'phi-4', 'phi 4', 'phi-4-mini', 'phi 4 mini', 'phi-3', 'phi 3', 'phi-2',
+            'phi-3.5', 'phi 3.5', 'phi silica',
+            // Mistral
+            'mistral large', 'mistral large 2', 'mistral medium', 'mistral medium 3',
+            'mistral small', 'mistral small 3', 'mistral small 3.1', 'mistral small 3.2',
+            'mistral nemo', 'mistral 7b',
+            'mixtral 8x7b', 'mixtral 8x22b',
+            'codestral', 'codestral 2501', 'codestral mamba',
+            'ministral 3b', 'ministral 8b',
+            'pixtral', 'pixtral 12b', 'pixtral large',
+            'devstral small', 'devstral medium', 'devstral 1.1',
+            'mathstral', 'mathstral 7b',
+            'magistral', 'magistral small', 'magistral medium',
+            // Cohere
+            'command r+', 'command r', 'command a', 'command light',
+            'aya 23', 'aya expanse', 'aya 8b', 'aya 35b',
+            // Amazon
+            'nova pro', 'nova premier', 'nova lite', 'nova micro', 'nova canvas', 'nova reel',
+            'titan text express', 'titan text lite',
+            // Nvidia
+            'nemotron ultra', 'nemotron-4 340b', 'nemotron-4 340b instruct',
+            'nemotron-4 15b', 'nemotron-4-mini-4b-instruct',
+            'llama-3.1-nemotron-ultra', 'llama 3.1 nemotron ultra',
+            'nvlm', 'nvlm-d', 'nvlm 1.0',
+            // Chinese labs
+            'yi-lightning', 'yi lightning', 'yi-large', 'yi 34b', 'yi 6b', 'yi vl',
+            'ernie 4.5', 'ernie 4', 'ernie bot', 'ernie x1',
+            'glm-4', 'glm 4', 'glm-4-plus', 'glm 4 plus', 'glm-4v', 'chatglm',
+            'kimi k1', 'kimi k1.5', 'kimi k2', 'moonshot v1',
+            'minimax-01', 'minimax abab', 'minimax m1', 'minimax m2',
+            'doubao pro', 'doubao lite', 'doubao 1.5 pro',
+            'hunyuan', 'hunyuan large', 'hunyuan turbo', 'hunyuan video', 'hunyuan dit',
+            'step-1', 'step-2', 'step-1v', 'step-1.5v',
+            'baichuan', 'baichuan2', 'baichuan 3', 'baichuan 4',
+            'internlm', 'internlm 2', 'internlm 2.5', 'internlm xcomposer',
+            'internvl', 'internvl 2', 'internvl 2.5',
+            // Open / specialty
+            'falcon 180b', 'falcon 40b', 'falcon 7b', 'falcon mamba', 'falcon 3',
+            'jais 13b', 'jais 30b',
+            'olmo 2', 'olmo', 'olmo 7b', 'olmoe', 'olmoe 1b 7b',
+            'tulu 3', 'tulu 2',
+            'granite 3', 'granite 3.1', 'granite 3.2', 'granite code', 'granite vision',
+            'smollm', 'smollm2', 'smollm 3',
+            'bloom', 'bloomz',
+            'dbrx', 'dbrx instruct', 'dbrx base',
+            'hermes 2', 'hermes 3', 'hermes 4', 'nous hermes',
+            'snowflake arctic', 'snowflake arctic instruct', 'arctic',
+            'openelm', 'openelm 270m', 'openelm 1.1b', 'openelm 3b',
+            'starcoder', 'starcoder2', 'starcoder 15b', 'starcoder2 15b',
+            'mpt', 'mpt-7b', 'mpt-30b',
+            'pythia', 'pythia 12b',
+            'jamba', 'jamba 1.5', 'jamba 1.5 large', 'jamba 1.5 mini',
+            'stablelm', 'stablelm 2', 'stablelm zephyr', 'stable code',
+            'minicpm', 'minicpm v', 'minicpm 2.6', 'minicpm 3', 'minicpm 4',
+            'llava', 'llava 1.5', 'llava 1.6', 'llava next',
+            'lfm', 'lfm 1.3b', 'lfm 3b', 'lfm 40b', 'lfm 2',
+            'dolphin', 'dolphin 2.9', 'dolphin 3',
+            'wizardlm', 'wizardmath', 'wizardcoder',
+            'orca 2', 'orca mini',
+            'vicuna 13b', 'vicuna 7b',
+            'starling 7b', 'starling lm'
         ];
         for (const name of knownReal) {
             this._verifiedModelNames.add(name.toLowerCase().replace(/[^a-z0-9]/g, ''));
@@ -1284,21 +1477,18 @@ const API = {
     },
 
     _autoDetectVersionCaps() {
-        const allVerified = [...this._verifiedModelNames];
-        // Also scan all G.models names regardless of source
-        for (const m of G.models) {
-            allVerified.push(m.name.toLowerCase().replace(/[^a-z0-9.\- ]/g, ''));
-        }
-        for (const name of allVerified) {
+        // Only consider models from TRUSTED sources (zeroeval, huggingface).
+        // Anything else could be hallucinated and would corrupt the caps.
+        // Use the original (lowercased but not normalized) name so decimals and dashes
+        // are preserved — _extractVersionNear handles param counts and date codes.
+        const trustedNames = G.models
+            .filter(m => m._src === 'zeroeval' || m._src === 'huggingface')
+            .map(m => m.name.toLowerCase());
+        for (const name of trustedNames) {
             for (const family of Object.keys(this._maxKnownVersions)) {
-                const verMatch = name.match(new RegExp(`${family}[\\s\\-_]*(\\d+(?:\\.\\d+)?)`, 'i'));
-                if (verMatch) {
-                    const ver = parseFloat(verMatch[1]);
-                    // Skip date codes and param counts
-                    if (ver >= 100) continue;
-                    if (ver > this._maxKnownVersions[family]) {
-                        this._maxKnownVersions[family] = ver;
-                    }
+                const result = this._extractVersionNear(name, family);
+                if (result.found && result.max != null && result.max > this._maxKnownVersions[family]) {
+                    this._maxKnownVersions[family] = result.max;
                 }
             }
         }
@@ -1909,8 +2099,20 @@ JSON (no markdown):
 
     async purgeHallucinations() {
         if (!this.supabase) { console.error('No Supabase connection'); return; }
-        if (!this._verifiedModelNames) this._buildVerifiedRegistry();
 
+        // Ensure ZeroEval + HuggingFace have populated the verified registry before purging.
+        // Without this, we'd reject legitimate models simply because their source-of-truth
+        // hadn't loaded yet.
+        if (!this._zeroevalLoaded && typeof this.fetchZeroEval === 'function') {
+            try { await this.fetchZeroEval(); } catch(e) { /* registry will fall back to knownReal */ }
+        }
+        if (!this._huggingfaceLoaded && typeof this.fetchHuggingFace === 'function') {
+            try { await this.fetchHuggingFace(); } catch(e) { /* same fallback */ }
+        }
+
+        // Always rebuild the registry from current G.models so it picks up any
+        // ZeroEval/HuggingFace models that arrived after the last build.
+        this._buildVerifiedRegistry();
 
         if (typeof UI !== 'undefined') UI.addLog('🧹 Scanning for hallucinated data...');
 
@@ -1922,10 +2124,24 @@ JSON (no markdown):
             let purged = 0;
             const toDelete = [];
 
+            // Only delete from cloud DB for HIGH-CONFIDENCE rejections (clear violations).
+            // "Unknown family + not in registry" is NOT high confidence — keep those in cloud
+            // (we just don't display them locally) so a future registry update can rescue them.
+            const isHighConfidence = (reason) => {
+                if (!reason) return false;
+                return reason.includes('Future release date') ||
+                       reason.includes('Implausibly old') ||
+                       reason.includes('exceeds max known') ||
+                       reason.includes('Impossible benchmark') ||
+                       reason.includes('Impossible ELO') ||
+                       reason.includes('Absurd input pricing') ||
+                       reason.includes('Absurd output pricing') ||
+                       reason.includes('Missing name or lab');
+            };
+
             for (const m of data) {
                 const result = this._verifyModel(m);
-                if (!result.ok) {
-
+                if (!result.ok && isHighConfidence(result.reason)) {
                     toDelete.push(m.id);
                     purged++;
                 }

@@ -1572,6 +1572,23 @@ const G = {
           setInterval(() => API.fetchZeroEval(), 20 * 60 * 1000); // every 20 min
       }
 
+      // ─── AUTO-PURGE HALLUCINATIONS: After ZeroEval + HF have loaded, scrub the local
+      // model list AND the cloud DB of any models that aren't in the verified registry.
+      // This catches models from prior LLM scans that snuck through before the registry was built.
+      if (typeof API !== 'undefined') {
+          setTimeout(() => {
+              if (typeof API.purgeHallucinations === 'function') {
+                  API.purgeHallucinations();
+              }
+          }, 15000); // 7s after ZeroEval, giving HF + ZeroEval time to populate the registry
+          // Re-run every 30 min to catch anything new from periodic LLM scans
+          setInterval(() => {
+              if (typeof API.purgeHallucinations === 'function') {
+                  API.purgeHallucinations();
+              }
+          }, 30 * 60 * 1000);
+      }
+
       // ─── LIVE DATA: VC Funding, Supply Chain, Regulation News, arXiv Papers, RSS Deals ───
       if (typeof API !== 'undefined') {
           setTimeout(() => API.fetchVCFunding(), 10000);
