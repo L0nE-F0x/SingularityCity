@@ -300,13 +300,20 @@ const G = {
             this.bldById['metro_mid'] = mMid2;
         }
         const mMid = BLDS.find(b => b.id === 'metro_mid');
+        const vMonEarly = BLDS.find(b => b.id === 'visitor_monument');
         if (mMid && techBldsList.length >= 4) {
             const medianIdx = Math.floor(techBldsList.length / 2);
             const leftBld = techBldsList[medianIdx];
             mMid.x = leftBld.x + leftBld.w + 15;
-            
-            // Shift right-side buildings to make room for station
-            const stationRight = mMid.x + mMid.w + 15;
+
+            // Place Visitor Monument right next to Central Line metro
+            let stationRight = mMid.x + mMid.w + 15;
+            if (vMonEarly) {
+                vMonEarly.x = stationRight;
+                stationRight = vMonEarly.x + vMonEarly.w + 15;
+            }
+
+            // Shift right-side buildings to make room for station + monument
             const rightBlds = techBldsList.filter(b => b.x > leftBld.x);
             if (rightBlds.length > 0 && rightBlds[0].x < stationRight) {
                 const shiftNeeded = stationRight - rightBlds[0].x;
@@ -317,6 +324,7 @@ const G = {
             rightMostTechX = lastTech.x + lastTech.w + 30;
         } else if (mMid) {
             mMid.x = techStartX + (rightMostTechX - techStartX) / 2;
+            if (vMonEarly) vMonEarly.x = mMid.x + mMid.w + 15;
         }
 
         let currentX = rightMostTechX + 60;
@@ -338,12 +346,7 @@ const G = {
             currentX = AIIndex.positionZone(currentX);
         }
 
-        // Visitor Monument — public obelisk
-        const vMon = BLDS.find(b => b.id === 'visitor_monument');
-        if (vMon) {
-            vMon.x = currentX;
-            currentX += vMon.w + 40;
-        }
+        // (Visitor Monument is now positioned next to Central Line metro station — see techBlds layout above)
 
         // Singularity City Times HQ — weekly newspaper
         const tHQ = BLDS.find(b => b.id === 'times_hq');
