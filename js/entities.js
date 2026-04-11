@@ -544,12 +544,13 @@ const Entities = {
                           ceo.refCont.visible = false;
                       }
                       // Scenic flyover OR heli-to-HQ OR space visit: only when CEO is inside a building
-                      else if (!ceo._heliTrip && !heli._scenicCooldown && ceo.bld !== null) {
+                      // and it's daytime — no chopper sorties at 3am, even for an imminent launch.
+                      else if (!ceo._heliTrip && !heli._scenicCooldown && ceo.bld !== null && dp > 0.30 && dp < 0.85) {
                           // ─── SPACE VISIT: CEO flies to space zone for imminent launches ───
                           const CEO_SPACE_MAP = { xai: 'spacex', amazon: 'blue_origin' };
                           const spaceOrg = CEO_SPACE_MAP[lab];
                           let spaceTrip = false;
-                          
+
                           if (spaceOrg && typeof SpaceData !== 'undefined' && SpaceData.launches) {
                               const now = Date.now();
                               const imminent = SpaceData.launches.find(l => {

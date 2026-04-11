@@ -47,8 +47,8 @@ const Goals = {
                 if (dp < 0.22) return { act: 'commute', bid: null };          // early commute
                 if (dp < 0.48) return { act: 'work', bid: null };             // morning grind
                 if (dp < 0.52) return { act: 'lunch', bid: 'cafe' };          // quick bite
-                if (dp < 0.94) return { act: 'work', bid: null };             // back to HQ until late
-                return { act: 'commute', bid: null };
+                if (dp < 0.92) return { act: 'work', bid: null };             // back to HQ until late
+                return { act: 'commute', bid: null };                         // 22:05–00:00 wrap up & commute home
             },
         },
 
@@ -214,6 +214,24 @@ const Goals = {
         if (stg !== 'adult') return null;
         const aKey = this.getArchetype(m);
         if (!aKey) return null;
+
+        // ─── Universal night sleep ──────────────────────────────────────────────────
+        // Even archetype NPCs need rest. Force sleep during the deep-night window so
+        // workaholic/foodie/etc don't keep streets full at 11pm. Night owls and arena
+        // warriors get a slightly later cutoff because grinding late IS their identity.
+        const lateCutoff = (aKey === 'night_owl' || aKey === 'arena_warrior') ? 0.96 : 0.94;
+        if (dp >= lateCutoff || dp < 0.16) {
+            return { act: 'sleep', bid: null };
+        }
+
+        // ─── Weekend rest day ───────────────────────────────────────────────────────
+        // On Saturdays and Sundays, archetype NPCs defer to the default weekend
+        // schedule (parks, cafes, arena, camping). Otherwise workaholics would still
+        // be at HQ on a Sunday afternoon, which breaks the "city takes the weekend off"
+        // illusion. Returning null here lets data.js fall through to its weekend block.
+        const d = new Date().getDay();
+        if (d === 0 || d === 6) return null;
+
         const def = this.ARCHETYPES[aKey];
         if (!def || typeof def.schedule !== 'function') return null;
         try {
