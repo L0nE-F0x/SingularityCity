@@ -52,16 +52,23 @@ const Camera = {
         vp.addEventListener('touchend', () => { this._pinchDist = 0; }, { passive: true });
 
         // ─── Default underground view ─────────────────────────────────────
-        // Show the underground metro tunnel, water/sewer pipes, and electrical
-        // conduits beneath the city when the app first loads. Users can pan up
-        // to see the city/sky normally — this just makes the underground
-        // infrastructure visible by default instead of hidden off-screen.
-        // Math: place ground at ~38% from top of screen, leaving ~62% for the
-        // underground strata. Negative targetY shifts the world up so high
-        // Y_world coordinates (underground) become visible on screen.
+        // Show the underground metro tunnel, water pipes, and the orange
+        // electric/sewer pipes beneath the city when the app first loads.
+        // Users can pan up to see the city/sky normally — this just makes
+        // the underground infrastructure visible by default instead of
+        // hidden off-screen.
+        //
+        // Anchor the orange electric pipe (its bottom edge sits at gy+247)
+        // just above the news ticker so the pipes are the lowest visible
+        // feature. Solving for screen_y(gy+247) = vpH - tickerH:
+        //   targetY = (vpH - tickerH) / zoom - (groundY + 247)
+        // The ~31 world-px between the pipe and the canvas bottom gets
+        // hidden by the ticker overlay, so there's no visible black void.
         if (typeof G !== 'undefined' && G.groundY) {
             const z = this.targetZoom;
-            const undergroundY = (G.vpH * 0.38 / z) - G.groundY;
+            const tickerH = 25; // approx news ticker height in screen px
+            const orangePipeBottom = G.groundY + 247;
+            const undergroundY = ((G.vpH - tickerH) / z) - orangePipeBottom;
             this.targetY = undergroundY;
             this.y = undergroundY;
         }
