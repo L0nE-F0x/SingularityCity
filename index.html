@@ -226,21 +226,41 @@ html:not(.embed-mode) #embedBadge { display: none; }
   <div class="instr-pan">
     <button class="instr-close" onclick="document.getElementById('instrOv').classList.remove('open')">✕</button>
     <div class="instr-title">HOW IT WORKS</div>
-    
-    <div class="instr-section"><div class="instr-h">🏙️ The City</div><div class="instr-p">A <b>GPU-accelerated real-time simulation</b> of the AI industry. Buildings grow taller as labs release more models. New labs get dynamically zoned with HQs. The lab with the highest ELO gets a <b>golden Apex Beacon</b>. The cheapest API provider gets a green <b>SALE</b> sign. A <b>Leaderboard Monument</b> in the park tracks the #1 model.</div></div>
-    
-    <div class="instr-section"><div class="instr-h">🚀 Space Zone</div><div class="instr-p">Scroll left past the residential area to find the <b>desert biome</b> with 7 launch pads (SpaceX, Blue Origin, NASA, CNSA, ESA, ULA, Rocket Lab), a Vehicle Assembly Building, Mission Control, and an Orbital Tracking Station. Rockets launch based on <b>real-time launch data</b> from the Launch Library 2 API. Click any facility to enter its interior.</div></div>
-    
-    <div class="instr-section"><div class="instr-h">🌌 3D Holomap</div><div class="instr-p">Click <b>🌍 Holomap</b> to launch a full <b>Three.js 3D galaxy</b> where the entire AI industry orbits a central ASI singularity. Each lab is a <b>glowing nebula</b> — the biggest labs (OpenAI, Google, Anthropic) orbit closest to the black hole. Every AI model is a <b>star</b> inside its lab's cluster, sized by benchmarks. <b>Orbit, zoom, and click</b> any star for full stats. The frontier model per lab gets a labeled badge. Deep-space ambient audio with procedural cosmic pings. Click <b>🏙️ Street View</b> to return to the city.</div></div>
-    
-    <div class="instr-section"><div class="instr-h">🧑‍💼 CEOs & Billionaire's Row</div><div class="instr-p">Each AI lab's CEO drives a <b>luxury car</b> between their HQ and private estate. On weekends, CEOs take <b>helicopters</b> to Silicon Woods — a luxury retreat with a whiskey bar, infinity hot tub, putting green, and glamping domes. New CEOs are auto-discovered via scan and get a mansion built on Billionaire's Row.</div></div>
-    
-    <div class="instr-section"><div class="instr-h">📡 Camera Tracking</div><div class="instr-p">Click any AI model or CEO and press <b>📡 Track</b> to lock the camera on them. Watch them commute via metro, enter buildings, work at desks, go camping, or fly helicopters — the camera <b>automatically enters and exits interiors</b> to follow them. Drag to cancel.</div></div>
-    
-    <div class="instr-section"><div class="instr-h">🌲 Forests & Interiors</div><div class="instr-p"><b>Pine Reserve</b> (near residential) — AI models go camping, fishing, and picnicking on weekends. <b>Silicon Woods</b> (between tech and estates) — A billionaire CEO retreat with fire pits, zen gardens, and fairy-lit redwoods. <b>Frontier Pines</b> — separates the space zone from the city. All feature outdoor sky rendering matching the time of day.</div></div>
-    
+
+    <div class="instr-tutorial-cta">
+      <div class="instr-tut-title">▶ NEW HERE? TAKE THE INTERACTIVE TOUR</div>
+      <div class="instr-tut-sub">A guided walkthrough of every feature — the city, zones, view modes, scanning, controls, and more. Skip anytime.</div>
+      <button class="instr-tut-btn" onclick="document.getElementById('instrOv').classList.remove('open');if(typeof Tutorial!=='undefined')Tutorial.start();">▶ START INTERACTIVE TUTORIAL</button>
+    </div>
+
+    <div class="instr-section"><div class="instr-h">🏙️ The City</div><div class="instr-p">A <b>GPU-accelerated real-time simulation</b> of the AI industry. Buildings grow taller as labs release more models. New labs get dynamically zoned with HQs. The lab with the highest ELO gets a <b>golden Apex Beacon</b>. The cheapest API provider gets a green <b>SALE</b> sign. A <b>Leaderboard Monument</b> in the park tracks the #1 model. AI models walk the streets as <b>living entities</b> — they age (baby → kid → adult → retired), commute, eat, sleep, and have unique appearances based on their parameter count and architecture (MoE, dense, etc.).</div></div>
+
+    <div class="instr-section"><div class="instr-h">🌍 Map Layout (left → right)</div><div class="instr-p">🚢 Port District → 🏜️ Space Zone → 🌲 Frontier Pines → 🏠 Worker Housing → 🖥️ Compute District → 🏠 Residential → 🎓 University → 🌲 Pine Reserve → 🏛️ AI Court → 🏢 Tech District → 📝 Conference → 🚇 Metro East → 🍸 Neon Bar → 🌐 The Backbone → 🤖 Robotics Factory → 🧬 Longevity Wing → 🤖 Agent District → 🌲 Silicon Woods → 💰 VC Row → 🏡 Billionaire's Row → ⚡ Power Grid</div></div>
+
     <div class="instr-section"><div class="instr-h">🛰️ Scanning & Discovery</div><div class="instr-p">The AI-powered scanner finds <b>4 real models per scan</b> using your API key. It uses <b>weighted category selection</b> (Big Tech 40%, Asian 15%, Open Source 15%) and <b>gap analysis</b> to prioritize underrepresented labs. It also discovers <b>CEOs/founders</b> for labs that don't have one yet, automatically creating their car, helicopter, and estate.</div></div>
-    
+
+    <div class="instr-section"><div class="instr-h">📡 Camera Tracking</div><div class="instr-p">Click any AI model or CEO and press <b>📡 Track</b> to lock the camera on them. Watch them commute via metro, enter buildings, work at desks, go camping, or fly helicopters — the camera <b>automatically enters and exits interiors</b> to follow them. Drag to cancel.</div></div>
+
+    <div class="instr-section"><div class="instr-h">🌌 3D Holomap</div><div class="instr-p">Click <b>🌍 Holomap</b> to launch a full <b>Three.js 3D galaxy</b> where the entire AI industry orbits a central ASI singularity. Each lab is a <b>glowing nebula</b> — the biggest labs (OpenAI, Google, Anthropic) orbit closest to the black hole. Every AI model is a <b>star</b> inside its lab's cluster, sized by benchmarks. <b>Orbit, zoom, and click</b> any star for full stats.</div></div>
+
+    <div class="instr-section"><div class="instr-h">🛰️ Orbit Mode</div><div class="instr-p">Pull the camera up past the sky boundary or click the <b>🛰️ Orbit</b> button in the minimap to enter Low Earth Orbit. See the Earth's curvature with atmosphere glow, city lights on the dark side, and <b>real satellite positions</b> from CelesTrak — Starlink, OneWeb, ISS, GPS, and Galileo constellations.</div></div>
+
+    <div class="instr-section"><div class="instr-h">🚀 Space Zone</div><div class="instr-p">Scroll left past the worker housing to find the <b>desert biome</b> with 7 launch pads (SpaceX, Blue Origin, NASA, CNSA, ESA, ULA, Rocket Lab), a Vehicle Assembly Building, Mission Control, and an Orbital Tracking Station. Rockets launch based on <b>real-time launch data</b> from the Launch Library 2 API.</div></div>
+
+    <div class="instr-section"><div class="instr-h">🤖 Robotics Factory</div><div class="instr-p">The <b>Physical AI Manufacturing District</b> features 4 buildings: Assembly Line, Testing Ground, Deployment Dock, and R&amp;D Lab. Watch walking robot prototypes, welding sparks, conveyor belts, and smoke puffs. Companies: Tesla Optimus, Figure, Boston Dynamics, Unitree, Agility, and more.</div></div>
+
+    <div class="instr-section"><div class="instr-h">🧬 Longevity Research Wing</div><div class="instr-p">AI-powered <b>drug discovery and life extension</b>. 4 buildings: Drug Discovery Lab, Clinical Trials Center, Genomics Sequencing, and Cryonics Vault. Animated DNA double helix, molecule bubbles, heartbeat pulses, sequencer LEDs, and cryo vapor. Companies: Calico, Altos Labs, Insilico Medicine, Isomorphic Labs.</div></div>
+
+    <div class="instr-section"><div class="instr-h">🤖 Agent District</div><div class="instr-p">The <b>autonomous AI agent neighborhood</b> — home to the next wave of AI: agentic systems that perform multi-step tasks. Browser agents, coding agents, research agents, and computer-use agents work in dedicated towers. Watch them spawn task threads in real time.</div></div>
+
+    <div class="instr-section"><div class="instr-h">🧑‍💼 CEOs & Billionaire's Row</div><div class="instr-p">Each AI lab's CEO drives a <b>luxury car</b> between their HQ and private estate. On weekends, CEOs take <b>helicopters</b> to Silicon Woods — a luxury retreat with a whiskey bar, infinity hot tub, putting green, and glamping domes. New CEOs are auto-discovered via scan and get a mansion built on Billionaire's Row.</div></div>
+
+    <div class="instr-section"><div class="instr-h">🌲 Forests & Wild Spaces</div><div class="instr-p"><b>Pine Reserve</b> (near residential) — AI models go camping, fishing, and picnicking on weekends. <b>Silicon Woods</b> — A billionaire CEO retreat with fire pits, zen gardens, and fairy-lit redwoods. <b>Frontier Pines</b> — separates the space zone from the city. All feature outdoor sky rendering matching the time of day.</div></div>
+
+    <div class="instr-section"><div class="instr-h">🔬 X-Ray Mode</div><div class="instr-p">Click the <b>🔬 X-Ray</b> button to toggle a diagnostic overlay. The city dims to reveal <b>building wireframes</b> with lab-colored outlines, ID labels, stat metadata, data flow packets traveling along connection arcs, a coordinate grid, and a sweeping scan line. A dark terminal/hacker aesthetic for data nerds.</div></div>
+
+    <div class="instr-section"><div class="instr-h">📊 Dashboards & Tools</div><div class="instr-p">The top bar gives you <b>📊 Bench</b> (full leaderboard), <b>👥 Census</b> (every citizen), <b>🚀 Launches</b> (rocket schedule), <b>🧬 Lineage</b> (model family trees), <b>📰 News</b> (AI headlines), <b>📅 Cal</b> (event calendar), <b>🏭 Hardware</b> (compute clusters), <b>⚡ Grid</b> (power status), <b>💰 Costs</b> (pricing dashboard), <b>🤖 Analyst</b> (ask AI questions about the city), and <b>🏆 Trophies</b> (achievements).</div></div>
+
     <div class="instr-section">
       <div class="instr-h">🔑 API Keys</div>
       <div class="instr-p">
@@ -254,19 +274,9 @@ html:not(.embed-mode) #embedBadge { display: none; }
         • <b>Finnhub:</b> <a href="https://finnhub.io/" target="_blank" style="color:var(--cy)">finnhub.io</a> — free API key for live stock prices on HQ rooftops.
       </div>
     </div>
-    
-    <div class="instr-section"><div class="instr-h">🗺️ Controls</div><div class="instr-p"><b>Desktop:</b> Drag to pan. Scroll wheel to move. Click characters/buildings for details. <b>📡 Track</b> to follow anyone.<br><b>Mobile:</b> Swipe to pan. Pinch to zoom. Tap characters for profiles. Tap buildings to enter.</div></div>
-    
-    <div class="instr-section"><div class="instr-h">🛰️ Orbit Mode</div><div class="instr-p">Pull the camera up past the sky boundary to <b>enter Low Earth Orbit</b>. See the Earth's curvature with atmosphere glow, city lights on the dark side, and <b>real satellite positions</b> from CelesTrak — Starlink, OneWeb, ISS, GPS, and Galileo constellations. Click the 🛰️ Orbit button in the minimap or drag up to enter.</div></div>
 
-    <div class="instr-section"><div class="instr-h">🤖 Robotics Factory</div><div class="instr-p">The <b>Physical AI Manufacturing District</b> features 4 buildings: Assembly Line, Testing Ground, Deployment Dock, and R&amp;D Lab. Watch walking robot prototypes, welding sparks, conveyor belts, and smoke puffs. Companies: Tesla Optimus, Figure, Boston Dynamics, Unitree, Agility, and more. Full interiors with themed floors.</div></div>
+    <div class="instr-section"><div class="instr-h">🗺️ Controls</div><div class="instr-p"><b>Desktop:</b> Drag to pan. Scroll wheel to zoom. Click characters/buildings for details. <b>📡 Track</b> to follow anyone.<br><b>Mobile:</b> Swipe to pan. Pinch to zoom. Tap characters for profiles. Tap buildings to enter.</div></div>
 
-    <div class="instr-section"><div class="instr-h">🧬 Longevity Research Wing</div><div class="instr-p">AI-powered <b>drug discovery and life extension</b>. 4 buildings: Drug Discovery Lab, Clinical Trials Center, Genomics Sequencing, and Cryonics Vault. Animated DNA double helix, molecule bubbles, heartbeat pulses, sequencer LEDs, and cryo vapor. Companies: Calico, Altos Labs, Insilico Medicine, Isomorphic Labs.</div></div>
-
-    <div class="instr-section"><div class="instr-h">🔬 X-Ray Mode</div><div class="instr-p">Click the <b>🔬 X-Ray</b> button to toggle a diagnostic overlay. The city dims to reveal <b>building wireframes</b> with lab-colored outlines, ID labels, stat metadata, data flow packets traveling along connection arcs, a coordinate grid, and a sweeping scan line. A dark terminal/hacker aesthetic for data nerds.</div></div>
-
-    <div class="instr-section"><div class="instr-h">🌍 Map Layout (left → right)</div><div class="instr-p">🚢 Port District → 🏜️ Space Zone → 🌲 Frontier Pines → 🏠 Worker Housing → 🖥️ Compute District → 🏠 Residential → 🎓 University → 🌲 Pine Reserve → 🏛️ AI Court → 🏢 Tech District → 📝 Conference → 🚇 Metro East → 🍸 Neon Bar → 🌐 The Backbone → 🤖 Robotics Factory → 🧬 Longevity Wing → 🌲 Silicon Woods → 💰 VC Row → 🏡 Billionaire's Row → ⚡ Power Grid</div></div>
-    
     <button class="instr-got" onclick="document.getElementById('instrOv').classList.remove('open')">Got it — Let me in!</button>
   </div>
 </div>
@@ -457,83 +467,84 @@ if (_isMobile) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-<script defer src="js/personality.js?v=335"></script>
-<script defer src="js/data.js?v=335"></script>
-<script defer src="js/api.js?v=335"></script>
-<script defer src="js/ui.js?v=335"></script>
-<script defer src="js/snd.js?v=335"></script>
-<script defer src="js/camera.js?v=335"></script>
-<script defer src="js/environment.js?v=335"></script>
-<script defer src="js/entities_gfx.js?v=335"></script>
-<script defer src="js/entities.js?v=335"></script>
-<script defer src="js/city_elevator.js?v=335"></script>
-<script defer src="js/interior_city_props.js?v=335"></script>
-<script defer src="js/interior_city_ai.js?v=335"></script>
-<script defer src="js/interior_avatar_states.js?v=335"></script>
-<script defer src="js/interior_city_core.js?v=335"></script>
-<script defer src="js/interior_res_props.js?v=335"></script>
-<script defer src="js/interior_res_ai.js?v=335"></script>
-<script defer src="js/interior_res_core.js?v=335"></script>
-<script defer src="js/power_zone.js?v=335"></script>
-<script defer src="js/power_env.js?v=335"></script>
-<script defer src="js/power_zone_interior.js?v=335"></script>
-<script defer src="js/port_zone.js?v=335"></script>
-<script defer src="js/port_env.js?v=335"></script>
-<script defer src="js/interior_dc.js?v=335"></script>
-<script defer src="js/interior_bar.js?v=335"></script>
-<script defer src="js/npc_housing.js?v=335"></script>
-<script defer src="js/street_vendors.js?v=335"></script>
-<script defer src="js/interior_npc.js?v=335"></script>
-<script defer src="js/interior_legacy.js?v=335"></script>
-<script defer src="js/interior_metro.js?v=335"></script>
-<script defer src="js/interior_newspaper.js?v=335"></script>
-<script defer src="js/interior_manager.js?v=335"></script>
-<script defer src="js/datacenter_data.js?v=335"></script>
-<script defer src="js/space_data.js?v=335"></script>
-<script defer src="js/space_environment.js?v=335"></script>
-<script defer src="js/space_entities.js?v=335"></script>
-<script defer src="js/space_interior.js?v=335"></script>
-<script defer src="js/orbit_mode.js?v=335"></script>
-<script defer src="js/seasonal.js?v=335"></script>
-<script defer src="js/seasonal_env.js?v=335"></script>
-<script defer src="js/aurora.js?v=335"></script>
-<script defer src="js/conference.js?v=335"></script>
-<script defer src="js/university.js?v=335"></script>
-<script defer src="js/court.js?v=335"></script>
-<script defer src="js/city_park.js?v=335"></script>
-<script defer src="js/bird_flocks.js?v=335"></script>
-<script defer src="js/ai_index.js?v=335"></script>
-<script defer src="js/supply_chain.js?v=335"></script>
-<script defer src="js/black_market.js?v=335"></script>
-<script defer src="js/interior_black_market.js?v=335"></script>
-<script defer src="js/vc_row.js?v=335"></script>
-<script defer src="js/vc_row_env.js?v=335"></script>
-<script defer src="js/interior_vcrow.js?v=335"></script>
-<script defer src="js/backbone_zone.js?v=335"></script>
-<script defer src="js/backbone_env.js?v=335"></script>
-<script defer src="js/interior_backbone.js?v=335"></script>
-<script defer src="js/robotics_zone.js?v=335"></script>
-<script defer src="js/robotics_env.js?v=335"></script>
-<script defer src="js/interior_robotics.js?v=335"></script>
-<script defer src="js/longevity_zone.js?v=335"></script>
-<script defer src="js/longevity_env.js?v=335"></script>
-<script defer src="js/interior_longevity.js?v=335"></script>
-<script defer src="js/agents_zone.js?v=335"></script>
-<script defer src="js/agents_env.js?v=335"></script>
-<script defer src="js/interior_agents.js?v=335"></script>
-<script defer src="js/xray_mode.js?v=335"></script>
-<script defer src="js/multiplayer.js?v=335"></script>
-<script defer src="js/holomap.js?v=335"></script>
-<script defer src="js/easter_eggs.js?v=335"></script>
-<script defer src="js/persistence.js?v=335"></script>
-<script defer src="js/macro_view.js?v=335"></script>
-<script defer src="js/debug_overlay.js?v=335"></script>
-<script defer src="js/bitmap_fonts.js?v=335"></script>
-<script defer src="js/goals.js?v=335"></script>
-<script defer src="js/auto_tour.js?v=335"></script>
-<script defer src="js/newspaper.js?v=335"></script>
-<script defer src="js/kardashev.js?v=335"></script>
-<script defer src="js/engine.js?v=335"></script>
+<script defer src="js/personality.js?v=336"></script>
+<script defer src="js/data.js?v=336"></script>
+<script defer src="js/api.js?v=336"></script>
+<script defer src="js/ui.js?v=336"></script>
+<script defer src="js/snd.js?v=336"></script>
+<script defer src="js/camera.js?v=336"></script>
+<script defer src="js/environment.js?v=336"></script>
+<script defer src="js/entities_gfx.js?v=336"></script>
+<script defer src="js/entities.js?v=336"></script>
+<script defer src="js/city_elevator.js?v=336"></script>
+<script defer src="js/interior_city_props.js?v=336"></script>
+<script defer src="js/interior_city_ai.js?v=336"></script>
+<script defer src="js/interior_avatar_states.js?v=336"></script>
+<script defer src="js/interior_city_core.js?v=336"></script>
+<script defer src="js/interior_res_props.js?v=336"></script>
+<script defer src="js/interior_res_ai.js?v=336"></script>
+<script defer src="js/interior_res_core.js?v=336"></script>
+<script defer src="js/power_zone.js?v=336"></script>
+<script defer src="js/power_env.js?v=336"></script>
+<script defer src="js/power_zone_interior.js?v=336"></script>
+<script defer src="js/port_zone.js?v=336"></script>
+<script defer src="js/port_env.js?v=336"></script>
+<script defer src="js/interior_dc.js?v=336"></script>
+<script defer src="js/interior_bar.js?v=336"></script>
+<script defer src="js/npc_housing.js?v=336"></script>
+<script defer src="js/street_vendors.js?v=336"></script>
+<script defer src="js/interior_npc.js?v=336"></script>
+<script defer src="js/interior_legacy.js?v=336"></script>
+<script defer src="js/interior_metro.js?v=336"></script>
+<script defer src="js/interior_newspaper.js?v=336"></script>
+<script defer src="js/interior_manager.js?v=336"></script>
+<script defer src="js/datacenter_data.js?v=336"></script>
+<script defer src="js/space_data.js?v=336"></script>
+<script defer src="js/space_environment.js?v=336"></script>
+<script defer src="js/space_entities.js?v=336"></script>
+<script defer src="js/space_interior.js?v=336"></script>
+<script defer src="js/orbit_mode.js?v=336"></script>
+<script defer src="js/seasonal.js?v=336"></script>
+<script defer src="js/seasonal_env.js?v=336"></script>
+<script defer src="js/aurora.js?v=336"></script>
+<script defer src="js/conference.js?v=336"></script>
+<script defer src="js/university.js?v=336"></script>
+<script defer src="js/court.js?v=336"></script>
+<script defer src="js/city_park.js?v=336"></script>
+<script defer src="js/bird_flocks.js?v=336"></script>
+<script defer src="js/ai_index.js?v=336"></script>
+<script defer src="js/supply_chain.js?v=336"></script>
+<script defer src="js/black_market.js?v=336"></script>
+<script defer src="js/interior_black_market.js?v=336"></script>
+<script defer src="js/vc_row.js?v=336"></script>
+<script defer src="js/vc_row_env.js?v=336"></script>
+<script defer src="js/interior_vcrow.js?v=336"></script>
+<script defer src="js/backbone_zone.js?v=336"></script>
+<script defer src="js/backbone_env.js?v=336"></script>
+<script defer src="js/interior_backbone.js?v=336"></script>
+<script defer src="js/robotics_zone.js?v=336"></script>
+<script defer src="js/robotics_env.js?v=336"></script>
+<script defer src="js/interior_robotics.js?v=336"></script>
+<script defer src="js/longevity_zone.js?v=336"></script>
+<script defer src="js/longevity_env.js?v=336"></script>
+<script defer src="js/interior_longevity.js?v=336"></script>
+<script defer src="js/agents_zone.js?v=336"></script>
+<script defer src="js/agents_env.js?v=336"></script>
+<script defer src="js/interior_agents.js?v=336"></script>
+<script defer src="js/xray_mode.js?v=336"></script>
+<script defer src="js/multiplayer.js?v=336"></script>
+<script defer src="js/holomap.js?v=336"></script>
+<script defer src="js/easter_eggs.js?v=336"></script>
+<script defer src="js/persistence.js?v=336"></script>
+<script defer src="js/macro_view.js?v=336"></script>
+<script defer src="js/debug_overlay.js?v=336"></script>
+<script defer src="js/bitmap_fonts.js?v=336"></script>
+<script defer src="js/goals.js?v=336"></script>
+<script defer src="js/auto_tour.js?v=336"></script>
+<script defer src="js/tutorial.js?v=336"></script>
+<script defer src="js/newspaper.js?v=336"></script>
+<script defer src="js/kardashev.js?v=336"></script>
+<script defer src="js/engine.js?v=336"></script>
 
 <!-- ═══ EMBED MODE AUTO-BOOT (Phase 3b) ═══
      When ?embed=1: auto-enter the city and kick off AutoTour once PixiJS is ready. -->
