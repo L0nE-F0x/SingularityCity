@@ -262,25 +262,27 @@ const Camera = {
         let maxBldHeight = this._maxBldH;
 
         const groundAnchor = G.groundY * (1 / this.targetZoom - 1);
-        
+
         // ─── CAMERA LOCK UPDATE ───
-        const minY = groundAnchor - 260; 
-        
+        // Lower bound (most-negative targetY = camera looking deepest down):
+        // hard-clamp to the orange electric pipe (gy+247) sitting just above
+        // the news ticker. Anything past that is empty deep earth — no reason
+        // to let users drag the camera into a black void.
+        // Solving: screen_y(gy+247) = vpH - tickerH
+        //   minY = (vpH - tickerH) / zoom - (groundY + 247)
+        const tickerH = 25;
+        const minY = ((G.vpH - tickerH) / this.targetZoom) - (G.groundY + 247);
+
         let maxY = groundAnchor;
         const visibleHeight = G.vpH / this.targetZoom;
-        
-        if (maxBldHeight > visibleHeight - 100) { 
+
+        if (maxBldHeight > visibleHeight - 100) {
             maxY = groundAnchor + (maxBldHeight - visibleHeight + 150);
         }
-        
+
         // Clamp camera boundaries (skip during tracking — entity position takes priority)
-        // Allow camera to scroll down to see the underground metro tunnel,
-        // water/sewer pipes, and electrical conduits at all times. The original
-        // 600px extension was previously gated behind a BlackMarket flag that
-        // was never actually set, so the underground panning was unreachable.
-        const effectiveMinY = minY - 600;
         if (!G.tracking) {
-            this.targetY = Math.max(effectiveMinY, Math.min(this.targetY, maxY));
+            this.targetY = Math.max(minY, Math.min(this.targetY, maxY));
         }
 
         const minX = -G.cityW + G.vpW / this.zoom;
