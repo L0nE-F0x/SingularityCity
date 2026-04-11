@@ -50,6 +50,21 @@ const Camera = {
             }
         }, { passive: false });
         vp.addEventListener('touchend', () => { this._pinchDist = 0; }, { passive: true });
+
+        // ─── Default underground view ─────────────────────────────────────
+        // Show the underground metro tunnel, water/sewer pipes, and electrical
+        // conduits beneath the city when the app first loads. Users can pan up
+        // to see the city/sky normally — this just makes the underground
+        // infrastructure visible by default instead of hidden off-screen.
+        // Math: place ground at ~38% from top of screen, leaving ~62% for the
+        // underground strata. Negative targetY shifts the world up so high
+        // Y_world coordinates (underground) become visible on screen.
+        if (typeof G !== 'undefined' && G.groundY) {
+            const z = this.targetZoom;
+            const undergroundY = (G.vpH * 0.38 / z) - G.groundY;
+            this.targetY = undergroundY;
+            this.y = undergroundY;
+        }
     },
 
     onDown(e) {
@@ -252,9 +267,11 @@ const Camera = {
         }
         
         // Clamp camera boundaries (skip during tracking — entity position takes priority)
-        // Allow deeper Y when viewing underground Black Market
-        const undergroundActive = typeof BlackMarket !== 'undefined' && BlackMarket._isUndergroundView;
-        const effectiveMinY = undergroundActive ? minY - 600 : minY;
+        // Allow camera to scroll down to see the underground metro tunnel,
+        // water/sewer pipes, and electrical conduits at all times. The original
+        // 600px extension was previously gated behind a BlackMarket flag that
+        // was never actually set, so the underground panning was unreachable.
+        const effectiveMinY = minY - 600;
         if (!G.tracking) {
             this.targetY = Math.max(effectiveMinY, Math.min(this.targetY, maxY));
         }
