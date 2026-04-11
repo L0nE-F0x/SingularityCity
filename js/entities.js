@@ -1132,9 +1132,14 @@ const Entities = {
                 }
 
                 let atBuilding = Math.abs(refs.c.x - buildingTargetX) < 40;
-                
+
                 if (atBuilding && refs._metroState === 'none' && !isR) {
-                    if (tBld.id === 'city_park') {
+                    // BUG FIX (v338): only let models linger visibly at Central Park when
+                    // they actually have a "hang out" act. Sleep/commute traffic that just
+                    // happens to be near the park's centroid was getting stuck and forming
+                    // a permanent overnight cluster.
+                    const lingerOK = !night && (act === 'socialize' || act === 'lunch' || act === 'play' || act === 'share');
+                    if (tBld.id === 'city_park' && lingerOK) {
                         // Open-air zone: NPCs stay visible, just linger here
                         refs.bld = null;
                         refs.c.visible = true;
@@ -1155,7 +1160,16 @@ const Entities = {
                         refs.elev.visible = false;
                     }
 
-                    if (!isR && refs._streetState === 'walking' && isOnScreen && tick % 30 === (i % 30)) {
+                    // BUG FIX (v338): suppress street-chat finder for sleep/commute and
+                    // at night. Models heading home shouldn't stop to chat — that traffic
+                    // jam was the main feeder for the persistent Central Park cluster.
+                    const chatBlocked = night || act === 'sleep' || act === 'commute';
+                    if (chatBlocked && refs._streetState === 'chatting') {
+                        // Force-end any in-progress chat so the model can resume walking
+                        refs._streetState = 'walking';
+                        refs._chatTimer = 0;
+                    }
+                    if (!isR && !chatBlocked && refs._streetState === 'walking' && isOnScreen && tick % 30 === (i % 30)) {
                         const myId = m.id;
                         const myX = refs.c.x;
                         // Only search a limited window of models, not all 730
@@ -1165,6 +1179,9 @@ const Entities = {
                             if (otherM.id === myId) continue;
                             const otherRefs = charRefs[otherM.id];
                             if (!otherRefs || !otherRefs.c.visible || otherRefs._streetState !== 'walking' || otherRefs._chatTimer > 0) continue;
+                            // BUG FIX (v338): don't drag a sleeping/commuting neighbor into a chat
+                            const otherAct = otherM._cachedAct;
+                            if (otherAct === 'sleep' || otherAct === 'commute') continue;
                             if (Math.abs(otherRefs.c.x - myX) < 30) { partnerObj = otherM; break; }
                         }
                         if (partnerObj && Math.random() < 0.05) {

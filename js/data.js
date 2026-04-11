@@ -270,10 +270,13 @@ function getAct(stg, dp, seed, model) {
       }
   }
 
-  // ─── UNDERGROUND MODELS — visit Black Market during evening/night ───
+  // ─── UNDERGROUND MODELS — visit Black Market during evening hours ───
+  // BUG FIX (v338): removed `dp < 0.15` early-morning path. Even underground models
+  // sleep in the deep-night window — keeping 40% of them out until 03:36am was
+  // creating ghost commuters that piled up around Central Park on the way home.
   if (model._underground && G.bldById && G.bldById['black_market']) {
-      if ((dp > 0.80 || dp < 0.15) && s < 40) return { act: 'nightlife', bid: 'black_market' };
-      if (dp >= 0.72 && dp < 0.80 && s < 20) return { act: 'nightlife', bid: 'black_market' };
+      if (dp >= 0.72 && dp < 0.80 && s < 20) return { act: 'nightlife', bid: 'black_market' };  // 17:17–19:12
+      if (dp >= 0.80 && dp < 0.94 && s < 40) return { act: 'nightlife', bid: 'black_market' };  // 19:12–22:34
   }
 
   // ─── GOAL-DRIVEN NPCs (Phase 2a) ────────────────────────────────────────────────
