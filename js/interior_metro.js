@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   METRO STATION INTERIOR (v1.3.0 — Real entity mirroring, worker NPCs, trackable)
+   METRO STATION INTERIOR (v1.4.0 — Avatar parity with exterior: paramScale, lifecycle stage, MoE)
    Renders a station cross-section: ticket hall above + glass elevator shaft + platform + tracks + tunnels.
    Mirrors real-time state of BOTH AI models (G.models/charRefs) AND worker NPCs
    (NPCHousing.commuters) so every entity using this station is visible inside.
@@ -959,8 +959,10 @@ const InteriorMetroStation = {
             const isWalking = (refs._metroState === 'entering' || refs._metroState === 'exiting');
             if (av.legL && av.legR) {
                 const phase = isWalking ? Math.sin(tick * 0.25 + (m.id.charCodeAt(0) * 0.3)) : 0;
-                av.legL.x = -2.4 + phase * 1.2;
-                av.legR.x =  2.4 - phase * 1.2;
+                const baseLegX = av._baseLegX != null ? av._baseLegX : 2.4;
+                const legSwing = av._legSwing != null ? av._legSwing : 1.2;
+                av.legL.x = -baseLegX + phase * legSwing;
+                av.legR.x =  baseLegX - phase * legSwing;
             }
             // Subtle idle sway for standing/waiting avatars
             if (!isWalking && av.body) {
@@ -1050,8 +1052,10 @@ const InteriorMetroStation = {
                 const isWalking = (st === 'walk_to_metro' || st === 'walk_from_metro');
                 if (av.legL && av.legR) {
                     const phase = isWalking ? Math.sin(tick * 0.25 + (cm.npc.id.charCodeAt(0) * 0.3)) : 0;
-                    av.legL.x = -2.4 + phase * 1.2;
-                    av.legR.x = 2.4 - phase * 1.2;
+                    const baseLegX = av._baseLegX != null ? av._baseLegX : 2.4;
+                    const legSwing = av._legSwing != null ? av._legSwing : 1.2;
+                    av.legL.x = -baseLegX + phase * legSwing;
+                    av.legR.x =  baseLegX - phase * legSwing;
                 }
                 if (!isWalking && av.body) {
                     av.body.rotation = Math.sin(tick * 0.04 + cm.npc.id.charCodeAt(0) * 0.5) * 0.02;
@@ -1092,12 +1096,17 @@ const InteriorMetroStation = {
                 // Walking leg animation
                 if (av.legL && av.legR) {
                     const phase = Math.sin(tick * 0.25 + w.id.charCodeAt(0) * 0.3);
-                    av.legL.x = -2.4 + phase * 1.2;
-                    av.legR.x =  2.4 - phase * 1.2;
+                    const baseLegX = av._baseLegX != null ? av._baseLegX : 2.4;
+                    const legSwing = av._legSwing != null ? av._legSwing : 1.2;
+                    av.legL.x = -baseLegX + phase * legSwing;
+                    av.legR.x =  baseLegX - phase * legSwing;
                 }
             } else {
                 // Idle sway
-                if (av.legL && av.legR) { av.legL.x = -2.4; av.legR.x = 2.4; }
+                if (av.legL && av.legR) {
+                    const baseLegX = av._baseLegX != null ? av._baseLegX : 2.4;
+                    av.legL.x = -baseLegX; av.legR.x = baseLegX;
+                }
                 if (av.body) av.body.rotation = Math.sin(tick * 0.04 + w.id.charCodeAt(0) * 0.5) * 0.02;
             }
             av.cont.zIndex = Math.round(av.cont.y);
@@ -1228,10 +1237,11 @@ const InteriorMetroStation = {
 
     _makeAvatarSprite(m) {
         const cont = new PIXI.Container();
+        const isNPC = !!m._npcColor;
 
+        // ─── Lab/suit color (same logic as exterior) ───
         let suitHex = 0x22d3ee;
-        // Worker NPCs pass their color via _npcColor
-        if (m._npcColor) {
+        if (isNPC) {
             const c = m._npcColor;
             if (typeof c === 'string') suitHex = parseInt(c.replace('#', ''), 16);
             else if (typeof c === 'number') suitHex = c;
@@ -1241,69 +1251,216 @@ const InteriorMetroStation = {
             else if (typeof c === 'number') suitHex = c;
         }
 
-        const bw = 16, h = 32, headH = 11, bodyH = h - headH - 4;
-        const skinCol = 0xfdd8b5;
-        const legCol = 0x3d2914;
+        // ─── Lifecycle stage + paramScale (only meaningful for real models) ───
+        // NPCs always render at adult/default scale.
+        let stg = 'adult';
+        let sd = { size: 1, headR: 0.4 };
+        let paramScale = 1;
+        let isMoE = false;
+        if (!isNPC) {
+            if (typeof getStage === 'function') stg = getStage(m.rel, m.ret, m.phase);
+            if (typeof STAGES !== 'undefined' && STAGES[stg]) sd = STAGES[stg];
+            let paramCount = 100;
+            if (m.arch) {
+                if (m.arch.type && m.arch.type.includes('MoE')) isMoE = true;
+                if (m.arch.params) {
+                    let pStr = m.arch.params.replace(/[^0-9.TBM]/ig, '');
+                    if (pStr.includes('T')) paramCount = parseFloat(pStr) * 1000;
+                    else if (pStr.includes('B')) paramCount = parseFloat(pStr);
+                }
+            }
+            paramScale = Math.max(0.7, Math.min(1.4, 0.6 + (Math.log10(Math.max(paramCount, 1)) * 0.2)));
+        }
+        const finalSc = sd.size * paramScale;
 
+        // ─── Proportions (mirror exterior updateCharStateVisuals) ───
+        const bw = Math.round(16 * finalSc);
+        const h = Math.round(32 * finalSc);
+        const headH = Math.round(h * sd.headR);
+        const bodyH = h - headH - Math.round(4 * finalSc);
+        const legH = Math.max(2, Math.round(4 * finalSc));
+        const eyeS = Math.max(1, bw * 0.08);
+
+        const isR = stg === 'retired';
+        const isRm = stg === 'rumored';
+        const suitCol = isR ? 0x667799 : suitHex;
+        const babySkin = 0xffe4c4;
+        const kidSkin  = 0xfde0b8;
+        const skinCol = isR ? 0xb8c0cc : isRm ? 0x8b5cf6 : stg === 'baby' ? babySkin : stg === 'kid' ? kidSkin : 0xfdd8b5;
+        const eyeCol = isR ? 0xaaccff : isRm ? 0xa78bfa : stg === 'baby' ? 0x1a1a2e : 0x2c1810;
+        const ageEyeS = stg === 'baby' ? eyeS * 1.4 : eyeS;
+        const legCol = isR ? 0x7788aa : isRm ? 0x6b7280 : stg === 'baby' ? 0xfdd8b5 : stg === 'kid' ? 0x2a2a3a : 0x3d2914;
+
+        // ─── Shadow ───
         const shadow = new PIXI.Graphics();
         shadow.beginFill(0x000000, 0.25);
         shadow.drawEllipse(0, 2, bw * 0.6, 3);
         shadow.endFill();
         cont.addChild(shadow);
 
+        // ─── Spectral glow for retired models ───
+        const ghostGlow = new PIXI.Graphics();
+        if (isR) {
+            ghostGlow.beginFill(0x6688ff, 0.15);
+            ghostGlow.drawEllipse(0, -h * 0.4, bw * 1.2, h * 0.6);
+            ghostGlow.endFill();
+            ghostGlow.beginFill(0x88aaff, 0.08);
+            ghostGlow.drawEllipse(0, -h * 0.4, bw * 1.8, h * 0.8);
+            ghostGlow.endFill();
+            ghostGlow.blendMode = PIXI.BLEND_MODES.ADD;
+        }
+        cont.addChild(ghostGlow);
+
+        // ─── Tracking highlight ring ───
         const highlight = new PIXI.Graphics();
         highlight.lineStyle(2, 0x22d3ee, 0.9);
         highlight.drawCircle(0, -h / 2, h * 0.65);
         highlight.visible = false;
         cont.addChild(highlight);
 
+        // ─── MoE ghost bodies (Mixture of Experts) ───
+        const ghostL = new PIXI.Graphics();
+        const ghostR = new PIXI.Graphics();
+        ghostL.visible = false;
+        ghostR.visible = false;
+        if (isMoE && !isR) {
+            ghostL.beginFill(suitCol, 0.5);
+            ghostL.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1);
+            ghostL.endFill();
+            ghostR.beginFill(suitCol, 0.5);
+            ghostR.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1);
+            ghostR.endFill();
+            ghostL.blendMode = PIXI.BLEND_MODES.ADD;
+            ghostR.blendMode = PIXI.BLEND_MODES.ADD;
+            ghostL.visible = true;
+            ghostR.visible = true;
+            ghostL.y = -h + headH;
+            ghostR.y = -h + headH;
+            ghostL.x = -bw * 0.2;
+            ghostR.x = bw * 0.2;
+            ghostL.alpha = 0.4;
+            ghostR.alpha = 0.4;
+        }
+        cont.addChild(ghostL, ghostR);
+
+        // ─── Legs ───
+        const lw = Math.max(2, bw * 0.25);
         const legL = new PIXI.Graphics();
-        legL.beginFill(legCol); legL.drawRect(-2, 0, 4, 4); legL.endFill();
+        legL.beginFill(legCol, isR ? 0.25 : 1);
+        legL.drawRect(-lw / 2, 0, lw, legH);
+        legL.endFill();
         legL.x = -bw * 0.15;
-        legL.y = -4;
         cont.addChild(legL);
         const legR = new PIXI.Graphics();
-        legR.beginFill(legCol); legR.drawRect(-2, 0, 4, 4); legR.endFill();
+        legR.beginFill(legCol, isR ? 0.25 : 1);
+        legR.drawRect(-lw / 2, 0, lw, legH);
+        legR.endFill();
         legR.x = bw * 0.15;
-        legR.y = -4;
         cont.addChild(legR);
 
+        // ─── Body (age-specific) ───
         const body = new PIXI.Graphics();
-        body.beginFill(suitHex);
-        body.drawRoundedRect(-bw / 2, 0, bw, bodyH, bw * 0.1);
-        body.endFill();
-        body.beginFill(0xffffff, 0.08);
-        body.drawRoundedRect(-bw / 2 + 2, bodyH * 0.55, bw - 4, 3, 2);
-        body.endFill();
+        if (stg === 'baby') {
+            body.beginFill(suitCol, isRm ? 0.4 : 0.85);
+            body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.25);
+            body.endFill();
+            body.beginFill(0xffffff, 0.5);
+            for (let bi = 0; bi < Math.min(2, bodyH / 4); bi++) {
+                body.drawCircle(0, 2 + bi * 3, 0.8);
+            }
+            body.endFill();
+        } else if (stg === 'kid') {
+            const shirtH = Math.max(bodyH * 0.6, 3);
+            body.beginFill(suitCol, isRm ? 0.4 : 1);
+            body.drawRoundedRect(-bw / 2, 0, bw, shirtH, bw * 0.1);
+            body.endFill();
+            body.beginFill(0x2a2a3a, 0.8);
+            body.drawRect(-bw / 2, shirtH, bw, Math.max(bodyH - shirtH, 2));
+            body.endFill();
+        } else {
+            body.beginFill(suitCol, isR ? 0.4 : isRm ? 0.4 : 1);
+            body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1);
+            body.endFill();
+            body.beginFill(0xffffff, 0.08);
+            body.drawRoundedRect(-bw / 2 + 2, bodyH * 0.55, Math.max(bw - 4, 1), 3, 2);
+            body.endFill();
+        }
         body.y = -h + headH;
         cont.addChild(body);
 
+        // ─── Head with age-specific accessories ───
         const head = new PIXI.Graphics();
-        head.beginFill(skinCol);
+        head.beginFill(skinCol, isR ? 0.3 : isRm ? 0.5 : 1);
         head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
         head.endFill();
-        head.beginFill(0x2c1810);
-        head.drawCircle(-bw * 0.1, headH * 0.38, 1.2);
-        head.drawCircle( bw * 0.1, headH * 0.38, 1.2);
+        head.beginFill(eyeCol);
+        head.drawCircle(-bw * 0.12, headH * 0.38, isR ? eyeS * 1.5 : ageEyeS);
+        head.drawCircle( bw * 0.12, headH * 0.38, isR ? eyeS * 1.5 : ageEyeS);
         head.endFill();
-        head.beginFill(0x000000, 0.4);
-        head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
-        head.endFill();
+        if (stg === 'baby') {
+            // Cute eye sparkles
+            head.beginFill(0xffffff, 0.7);
+            head.drawCircle(-bw * 0.12 + 1, headH * 0.35, ageEyeS * 0.4);
+            head.drawCircle( bw * 0.12 + 1, headH * 0.35, ageEyeS * 0.4);
+            head.endFill();
+            // Small 'o' mouth
+            head.beginFill(0xdd8888, 0.6);
+            head.drawCircle(0, headH * 0.65, bw * 0.06);
+            head.endFill();
+            // Tuft of hair
+            head.beginFill(eyeCol, 0.7);
+            head.drawEllipse(-bw * 0.1, -1, bw * 0.12, 3);
+            head.drawEllipse( bw * 0.05, -2, bw * 0.10, 2.5);
+            head.endFill();
+            // Pacifier
+            head.beginFill(0xff88aa, 0.8); head.drawCircle(0, headH * 0.72, bw * 0.1); head.endFill();
+            head.beginFill(0xffaacc, 0.9); head.drawCircle(0, headH * 0.72, bw * 0.06); head.endFill();
+        } else {
+            // Neutral mouth line
+            head.beginFill(0x000000, 0.4);
+            head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
+            head.endFill();
+        }
+        if (stg === 'kid') {
+            // Baseball cap
+            head.beginFill(suitCol, 0.9);
+            head.drawRect(-bw * 0.45, -1, bw * 0.9, 3);
+            head.endFill();
+            head.beginFill(suitCol, 0.85);
+            head.drawRoundedRect(-bw * 0.38, -4, bw * 0.76, 5, 2);
+            head.endFill();
+            head.beginFill(0xffffff, 0.4); head.drawCircle(0, -3, 1); head.endFill();
+        }
+        if (isRm) {
+            // Floating question mark
+            head.beginFill(0xa78bfa, 0.7);
+            head.drawRect(-1, -8, 2, 4);
+            head.drawCircle(0, -10, 2.5);
+            head.drawCircle(0, -3, 1);
+            head.endFill();
+        }
         head.y = -h;
         cont.addChild(head);
 
+        // ─── Status dot ───
         const dot = new PIXI.Graphics();
-        dot.beginFill(suitHex);
-        dot.drawCircle(0, 0, 2);
+        const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : stg === 'kid' ? 0x22d3ee : 0x4ade80;
+        dot.beginFill(dotCol);
+        dot.drawCircle(0, 0, stg === 'baby' ? 2.5 : 2);
         dot.endFill();
         dot.y = -h - 6;
         cont.addChild(dot);
+
+        // Lifecycle alpha + blend (matches exterior)
+        if (!isNPC) {
+            cont.alpha = isR ? 0.6 : isRm ? 0.8 : 1.0;
+            cont.blendMode = isR ? PIXI.BLEND_MODES.ADD : PIXI.BLEND_MODES.NORMAL;
+        }
 
         // Click/hover handlers — same as exterior NPCs
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
         cont.hitArea = new PIXI.Rectangle(-bw, -h - 12, bw * 2, h + 16);
-        const isNPC = !!m._npcColor;
         cont.on('pointertap', () => {
             if (typeof UI !== 'undefined') {
                 if (isNPC) {
@@ -1320,7 +1477,13 @@ const InteriorMetroStation = {
             if (typeof UI !== 'undefined') UI.hideTooltip();
         });
 
-        return { cont, body, head, legL, legR, dot, highlight };
+        // Store scaled leg base/swing so the leg-walk animation in update()
+        // works correctly regardless of avatar size.
+        return {
+            cont, body, head, legL, legR, dot, highlight,
+            _baseLegX: bw * 0.15,
+            _legSwing: Math.max(0.6, bw * 0.075)
+        };
     },
 
     cleanup() {
