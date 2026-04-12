@@ -546,12 +546,9 @@ h1, h2, h3, p { margin: 0; }
 .is-mobile #btnExitInterior { top: max(4px, env(safe-area-inset-top)) !important; right: max(8px, env(safe-area-inset-right)) !important; }
 .is-mobile #autoTourOverlay { top: max(12px, env(safe-area-inset-top)) !important; right: max(12px, env(safe-area-inset-right)) !important; }
 .is-mobile #trackingHud { bottom: max(30px, calc(24px + env(safe-area-inset-bottom))) !important; }
-.is-mobile #kardashevHUD { left: auto !important; right: max(8px, env(safe-area-inset-right)) !important; bottom: max(32px, calc(28px + env(safe-area-inset-bottom))) !important; top: auto !important; transform: scale(0.85); transform-origin: bottom right; }
 .is-mobile #debugOverlay { top: max(8px, env(safe-area-inset-top)) !important; left: max(8px, env(safe-area-inset-left)) !important; }
 .is-mobile .install-banner { padding-top: env(safe-area-inset-top); }
-.is-mobile .mm-toggle { min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-.is-mobile #minimap { bottom: max(32px, calc(28px + env(safe-area-inset-bottom))); right: max(8px, env(safe-area-inset-right)); max-width: calc(100vw - 16px); }
-.is-mobile #minimap.collapsed { width: 70px; }
+.is-mobile .mm-header { min-height: 32px; }
 
 /* ─── MOBILE RESPONSIVENESS & BOTTOM SHEETS ─── */
 @media (max-width: 768px) {
@@ -610,9 +607,6 @@ h1, h2, h3, p { margin: 0; }
 
   #btnExitInterior { font-size: 10px !important; padding: 8px 16px !important; top: 8px !important; right: 8px !important; }
 
-  /* Kardashev HUD — move to bottom-right on mobile so it doesn't overlap controls */
-  #kardashevHUD { left: auto !important; right: 8px !important; top: auto !important; bottom: 28px !important; transform: scale(0.8); transform-origin: bottom right; }
-
   /* Auto-tour overlay — shrink to not overlap exit/controls */
   #autoTourOverlay { font-size: 7px !important; padding: 4px 10px !important; }
 
@@ -665,14 +659,8 @@ h1, h2, h3, p { margin: 0; }
   .mp-react-btn { width: 26px; height: 26px; font-size: 13px; }
 
   #trackingHud { bottom: 26px !important; font-size: 8px !important; padding: 4px 10px !important; }
-  #kardashevHUD { transform: scale(0.7) !important; transform-origin: bottom right !important; }
   #btnExitInterior { padding: 6px 12px !important; font-size: 9px !important; }
   #autoTourOverlay { font-size: 6px !important; padding: 3px 8px !important; }
-
-  /* Minimap — compact on landscape phones */
-  #minimap { width: 200px; bottom: 26px; }
-  #minimap.collapsed { width: 60px; }
-  .mm-zone { font-size: 6px; padding: 3px 4px; }
 
   /* Newspaper in landscape — limit height and ensure scroll */
   #newspaperPaper { max-height: calc(100vh - 20px); overflow-y: auto; }

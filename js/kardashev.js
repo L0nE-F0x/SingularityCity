@@ -189,14 +189,27 @@ const Kardashev = {
 
         const el = document.createElement('div');
         el.id = 'kardashevHUD';
+
         if (window.isMobile) {
-            el.style.cssText = 'position:fixed;bottom:32px;left:12px;top:auto;z-index:800;cursor:pointer;user-select:none;transform:scale(0.85);transform-origin:bottom left;';
+            // On mobile: add a compact button to the control bar instead of a floating gauge
+            el.style.cssText = 'display:none;';
+            document.body.appendChild(el);
+
+            const ctrlScroll = document.querySelector('.ctrls-scroll');
+            if (ctrlScroll) {
+                const btn = document.createElement('button');
+                btn.className = 'btn';
+                btn.id = 'kardashevBtn';
+                btn.innerHTML = '⚡ <span id="kBtnScore">K 0.700</span>';
+                btn.onclick = () => this.showPanel();
+                ctrlScroll.appendChild(btn);
+            }
         } else {
             el.style.cssText = 'position:fixed;top:4px;left:260px;z-index:800;cursor:pointer;user-select:none;transition:opacity 0.3s ease;';
         }
         el.onclick = () => this.showPanel();
 
-        // SVG arc gauge
+        // SVG arc gauge (used on desktop, hidden on mobile)
         el.innerHTML = `
             <svg width="68" height="42" viewBox="0 0 68 42" style="display:block">
                 <defs>
@@ -227,6 +240,10 @@ const Kardashev = {
         const fill = ((this.score - 0.700) / 0.300) * totalLen; // 0.700→0, 1.000→88
         arc.setAttribute('stroke-dasharray', `${Math.max(0, fill)} ${totalLen}`);
         txt.textContent = `K ${this.score.toFixed(3)}`;
+
+        // Update mobile button text if present
+        const mBtn = document.getElementById('kBtnScore');
+        if (mBtn) mBtn.textContent = `K ${this.score.toFixed(3)}`;
 
         // Pulse color based on score
         const hud = document.getElementById('kardashevHUD');
