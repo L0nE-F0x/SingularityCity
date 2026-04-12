@@ -429,7 +429,7 @@ const InteriorAgents = {
 
     drawNPC(c, x, y, role, col) {
         const colHex = col || 0x64748b;
-        const bw = 12, h = 28, headH = 10, bodyH = h - headH - 4, legH = 4;
+        const bw = 16, h = 32, headH = Math.round(32 * 0.4), bodyH = h - headH - 4, legH = 4;
         const cont = new PIXI.Container();
 
         const shadow = new PIXI.Graphics();
@@ -559,10 +559,10 @@ const InteriorAgents = {
                         av.cont.scale.x = dir;
                         if (av.dot) av.dot.scale.x = dir;
                     }
-                    av.head.y = -av._h + Math.sin(G.tick * 0.2) * 1.5;
-                    av.body.y = -av._h + av._h * 0.36 + Math.abs(Math.sin(G.tick * 0.2)) * 1.5;
-                    av.legL.y = Math.sin(G.tick * 0.3) * 3;
-                    av.legR.y = -Math.sin(G.tick * 0.3) * 3;
+                    av.head.y = -av._h + Math.sin(G.tick * 0.12) * 1.5;
+                    av.body.y = -av._h + av._h * 0.4 + Math.abs(Math.sin(G.tick * 0.12)) * 1.5;
+                    av.legL.y = Math.sin(G.tick * 0.15) * 2.5;
+                    av.legR.y = -Math.sin(G.tick * 0.15) * 2.5;
                     break;
                 }
                 case 'chatting': {

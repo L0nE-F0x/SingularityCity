@@ -69,8 +69,8 @@ const InteriorBackbone = {
             const floorName = isB ? layout.floors[0] : layout.floors[numFloors - 1 - f] || 'Operations';
             const rg = new PIXI.Graphics();
             // Side walls (columns)
-            rg.beginFill(0x0a1020); rg.drawRect(startX-6, fy, 6, floorH); rg.drawRect(startX+bldW, fy, 6, floorH); rg.endFill();
-            const wc = isB ? 0x080e18 : 0x0c1424;
+            rg.beginFill(0x0c1525); rg.drawRect(startX-6, fy, 6, floorH); rg.drawRect(startX+bldW, fy, 6, floorH); rg.endFill();
+            const wc = isB ? 0x0a1220 : 0x0c1525;
             if (isB) {
                 // Basement: solid wall (underground)
                 rg.beginFill(wc); rg.drawRect(startX, fy, bldW, floorH); rg.endFill();
@@ -97,8 +97,8 @@ const InteriorBackbone = {
                 rg.endFill();
             }
             // Floor slab
-            rg.beginFill(0x0a1018); rg.drawRect(startX, fy+floorH-6, bldW, 6); rg.endFill();
-            rg.beginFill(0x1a2538); rg.drawRect(startX-6, fy+floorH-3, bldW+12, 3); rg.endFill();
+            rg.beginFill(0x0a1220); rg.drawRect(startX, fy+floorH-6, bldW, 6); rg.endFill();
+            rg.beginFill(0x1a2a40); rg.drawRect(startX-6, fy+floorH-3, bldW+12, 3); rg.endFill();
             // Accent line (cyan glow at ceiling)
             rg.beginFill(layout.col, 0.08); rg.drawRect(startX, fy, bldW, 2); rg.endFill();
             this.scene.addChild(rg);
@@ -377,7 +377,7 @@ const InteriorBackbone = {
 
     drawNPC(c, x, y, role, col) {
         const colHex = col || 0x64748b;
-        const bw = 12, h = 28, headH = 10, bodyH = h - headH - 4, legH = 4, eyeS = 1;
+        const bw = 16, h = 32, headH = Math.round(32 * 0.4), bodyH = h - headH - 4, legH = 4, eyeS = Math.max(1, 16 * 0.08);
         const cont = new PIXI.Container();
 
         const shadow = new PIXI.Graphics();
@@ -395,9 +395,9 @@ const InteriorBackbone = {
 
         const lw = Math.max(2, bw * 0.25), lh = Math.max(legH, 2);
         const legL = new PIXI.Graphics();
-        legL.beginFill(0x1e293b); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill(); legL.x = -bw * 0.15;
+        legL.beginFill(0x3d2914); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill(); legL.x = -bw * 0.15;
         const legR = new PIXI.Graphics();
-        legR.beginFill(0x1e293b); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill(); legR.x = bw * 0.15;
+        legR.beginFill(0x3d2914); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill(); legR.x = bw * 0.15;
 
         const dot = new PIXI.Graphics();
         dot.beginFill(colHex); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 6;
@@ -491,10 +491,10 @@ const InteriorBackbone = {
                         if (av.label) av.label.scale.x = dir;
                         if (av.dot) av.dot.scale.x = dir;
                     }
-                    av.head.y = -av._h + Math.sin(G.tick * 0.2) * 1.5;
-                    av.body.y = -av._h + av._h * 0.36 + Math.abs(Math.sin(G.tick * 0.2)) * 1.5;
-                    av.legL.y = Math.sin(G.tick * 0.3) * 3;
-                    av.legR.y = -Math.sin(G.tick * 0.3) * 3;
+                    av.head.y = -av._h + Math.sin(G.tick * 0.12) * 1.5;
+                    av.body.y = -av._h + av._h * 0.4 + Math.abs(Math.sin(G.tick * 0.12)) * 1.5;
+                    av.legL.y = Math.sin(G.tick * 0.15) * 2.5;
+                    av.legR.y = -Math.sin(G.tick * 0.15) * 2.5;
                     break;
                 }
                 case 'chatting': {

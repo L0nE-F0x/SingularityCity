@@ -535,7 +535,7 @@ const InteriorLegacy = {
     // ═══ NPC AVATAR ═══
     _npc(c, x, y, name, col) {
         const cont = new PIXI.Container(); cont.x = x; cont.y = y; cont.sortableChildren = true; cont.zIndex = 5;
-        const labCol = col || 0x64748b; const bw = 16; const h = 32; const headH = Math.round(h*0.35); const bodyH = h-headH-4;
+        const labCol = col || 0x64748b; const bw = 16; const h = 32; const headH = Math.round(h*0.4); const bodyH = h-headH-4;
         // Shadow
         const sh = new PIXI.Graphics(); sh.beginFill(0x000000,0.25); sh.drawEllipse(0,2,bw*0.6,3); sh.endFill(); cont.addChild(sh);
         // Legs
@@ -611,10 +611,10 @@ const InteriorLegacy = {
         this.avatars.forEach(av=>{if(!av.cont||av.cont.destroyed)return;
             av._walkTimer=(av._walkTimer||0)-1;if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;}const nx=av.cont.x+av._walkDir*0.3;if(nx>av._minX&&nx<av._maxX)av.cont.x=nx;
             const ah=av._h||32;
-            if(av.head){av.head.y=-ah+Math.sin(G.tick*0.15+av._phase)*1.5;}
-            if(av.body){av.body.y=-ah+Math.round(ah*0.35)+Math.abs(Math.sin(G.tick*0.15+av._phase))*1.5;}
-            if(av.legL){av.legL.y=Math.sin(G.tick*0.2+av._phase)*3;}
-            if(av.legR){av.legR.y=-Math.sin(G.tick*0.2+av._phase)*3;}
+            if(av.head){av.head.y=-ah+Math.sin(G.tick*0.12+av._phase)*1.5;}
+            if(av.body){av.body.y=-ah+Math.round(ah*0.4)+Math.abs(Math.sin(G.tick*0.12+av._phase))*1.5;}
+            if(av.legL){av.legL.y=Math.sin(G.tick*0.15+av._phase)*2.5;}
+            if(av.legR){av.legR.y=-Math.sin(G.tick*0.15+av._phase)*2.5;}
         });
     }
 };

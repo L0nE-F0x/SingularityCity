@@ -590,11 +590,11 @@ const InteriorBar = {
     },
 
     _animateWalk(av) {
-        av.head.y = -32 + 4 + Math.sin(G.tick * 0.08) * 1;
-        av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.08)) * 1;
+        av.head.y = -32 + 4 + Math.sin(G.tick * 0.12) * 1.5;
+        av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.12)) * 1.5;
         if (av.legL && av.legR) {
-            av.legL.y = Math.sin(G.tick * 0.12) * 2;
-            av.legR.y = -Math.sin(G.tick * 0.12) * 2;
+            av.legL.y = Math.sin(G.tick * 0.15) * 2.5;
+            av.legR.y = -Math.sin(G.tick * 0.15) * 2.5;
         }
     },
 

@@ -60,19 +60,19 @@ const InteriorDC = {
             // Room walls & background — with real window holes for above-ground floors
             const rg = new PIXI.Graphics();
             // Left wall
-            rg.beginFill(isDc?0x080c12:0xbcc0c6); rg.drawRect(startX-8, fy, 8, floorH); rg.endFill();
+            rg.beginFill(isDc?0x1e293b:0xbcc0c6); rg.drawRect(startX-8, fy, 8, floorH); rg.endFill();
             // Right wall (before shaft)
-            rg.beginFill(isDc?0x080c12:0xbcc0c6); rg.drawRect(shaftX-2, fy, 8, floorH); rg.endFill();
+            rg.beginFill(isDc?0x1e293b:0xbcc0c6); rg.drawRect(shaftX-2, fy, 8, floorH); rg.endFill();
             
             if (!isB) {
                 // Above-ground: draw wall with window holes
                 // Top strip (above windows)
-                rg.beginFill(isDc?0x0a0e14:0xd4d8dd); rg.drawRect(startX, fy, usableW, 22); rg.endFill();
+                rg.beginFill(isDc?0x1e293b:0xd4d8dd); rg.drawRect(startX, fy, usableW, 22); rg.endFill();
                 // Bottom strip (below windows)
-                rg.beginFill(isDc?0x0a0e14:0xd4d8dd); rg.drawRect(startX, fy+54, usableW, floorH-54); rg.endFill();
+                rg.beginFill(isDc?0x1e293b:0xd4d8dd); rg.drawRect(startX, fy+54, usableW, floorH-54); rg.endFill();
                 // Wall segments BETWEEN windows
                 let wx = windowX;
-                rg.beginFill(isDc?0x0a0e14:0xd4d8dd);
+                rg.beginFill(isDc?0x1e293b:0xd4d8dd);
                 rg.drawRect(startX, fy+22, windowX-startX, 32); // left of first window
                 while(wx+40<=windowX+windowW) {
                     // Gap of 20px between windows is wall
@@ -87,7 +87,7 @@ const InteriorDC = {
                 const wfr = new PIXI.Graphics();
                 let cwx = windowX;
                 while(cwx+40<=windowX+windowW) {
-                    wfr.lineStyle(2, isDc?0x1a2030:0xa0a8b0);
+                    wfr.lineStyle(2, isDc?0x334155:0xa0a8b0);
                     wfr.drawRect(cwx, fy+22, 40, 32);
                     // Cross bars
                     wfr.moveTo(cwx+20, fy+22); wfr.lineTo(cwx+20, fy+54);
@@ -98,7 +98,7 @@ const InteriorDC = {
                 this.scene.addChild(wfr);
             } else {
                 // Basement: solid wall, no windows
-                rg.beginFill(isDc?0x0a0e14:0xd4d8dd); rg.drawRect(startX, fy, usableW, floorH); rg.endFill();
+                rg.beginFill(isDc?0x1e293b:0xd4d8dd); rg.drawRect(startX, fy, usableW, floorH); rg.endFill();
             }
             
             // Floor surface
@@ -229,7 +229,7 @@ const InteriorDC = {
         const nightRoles = ['Security','NOC Lead','SRE','Power Eng','Foreman','Chief Eng'];
         if (isNight && !nightRoles.includes(name)) return;
         const cont=new PIXI.Container(); cont.x=x; cont.y=y; cont.sortableChildren=true; cont.zIndex=5;
-        const labCol=col||0x64748b; const bw=16; const h=32; const headH=Math.round(h*0.35); const bodyH=h-headH-4;
+        const labCol=col||0x64748b; const bw=16; const h=32; const headH=Math.round(h*0.4); const bodyH=h-headH-4;
         // Shadow
         const sh=new PIXI.Graphics(); sh.beginFill(0x000000,0.25); sh.drawEllipse(0,2,bw*0.6,3); sh.endFill(); cont.addChild(sh);
         // Legs
@@ -295,10 +295,10 @@ const InteriorDC = {
         // NPC wandering with walk animation
         this.avatars.forEach(av=>{if(!av.cont||av.cont.destroyed)return;if(av._trackGlow){av._trackGlow.alpha=0.25+Math.sin(G.tick*0.1)*0.15;if(av._trackArrow)av._trackArrow.y=Math.sin(G.tick*0.15)*3-2;}av._walkTimer=(av._walkTimer||0)-1;if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;}const nx=av.cont.x+av._walkDir*0.3;if(nx>av._minX&&nx<av._maxX)av.cont.x=nx;
             // Walk animation — legs swing, head/body bob
-            if(av.head){av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5;}
-            if(av.body){av.body.y=-32+11+Math.abs(Math.sin(G.tick*0.15+av._phase))*1.5;}
-            if(av.legL){av.legL.y=Math.sin(G.tick*0.2+av._phase)*3;}
-            if(av.legR){av.legR.y=-Math.sin(G.tick*0.2+av._phase)*3;}
+            if(av.head){av.head.y=-32+Math.sin(G.tick*0.12+av._phase)*1.5;}
+            if(av.body){av.body.y=-32+13+Math.abs(Math.sin(G.tick*0.12+av._phase))*1.5;}
+            if(av.legL){av.legL.y=Math.sin(G.tick*0.15+av._phase)*2.5;}
+            if(av.legR){av.legR.y=-Math.sin(G.tick*0.15+av._phase)*2.5;}
         });
     }
 };

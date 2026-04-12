@@ -826,7 +826,7 @@ const InteriorNewspaper = {
             suitHex = typeof m._npcColor === 'number' ? m._npcColor : parseInt(String(m._npcColor).replace('#', ''), 16);
         }
 
-        const bw = 16, h = 32, headH = 11, bodyH = h - headH - 4;
+        const bw = 16, h = 32, headH = Math.round(h * 0.4), bodyH = h - headH - 4;
 
         const shadow = new PIXI.Graphics();
         shadow.beginFill(0x000000, 0.25);
@@ -840,13 +840,14 @@ const InteriorNewspaper = {
         highlight.visible = false;
         cont.addChild(highlight);
 
+        const lw = Math.max(2, bw * 0.25), lh = Math.max(4, 2);
         const legL = new PIXI.Graphics();
-        legL.beginFill(0x3d2914); legL.drawRect(-2, 0, 4, 4); legL.endFill();
-        legL.x = -bw * 0.15; legL.y = -4;
+        legL.beginFill(0x3d2914); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill();
+        legL.x = -bw * 0.15;
         cont.addChild(legL);
         const legR = new PIXI.Graphics();
-        legR.beginFill(0x3d2914); legR.drawRect(-2, 0, 4, 4); legR.endFill();
-        legR.x = bw * 0.15; legR.y = -4;
+        legR.beginFill(0x3d2914); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill();
+        legR.x = bw * 0.15;
         cont.addChild(legR);
 
         const body = new PIXI.Graphics();
@@ -969,12 +970,12 @@ const InteriorNewspaper = {
             if (Math.abs(dx) > 1) {
                 av.cont.x += Math.sign(dx) * av._speed;
                 if (av.legL && av.legR) {
-                    const phase = Math.sin(tick * 0.25 + (w.id.charCodeAt(3) || 0) * 0.3);
-                    av.legL.x = -2.4 + phase * 1.2;
-                    av.legR.x = 2.4 - phase * 1.2;
+                    const phase = Math.sin(tick * 0.15 + (w.id.charCodeAt(3) || 0) * 0.3);
+                    av.legL.y = phase * 2.5;
+                    av.legR.y = -phase * 2.5;
                 }
             } else {
-                if (av.legL && av.legR) { av.legL.x = -2.4; av.legR.x = 2.4; }
+                if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
                 if (av.body) av.body.rotation = Math.sin(tick * 0.04 + (w.id.charCodeAt(3) || 0) * 0.5) * 0.02;
             }
             av.cont.zIndex = Math.round(av.cont.y);
