@@ -176,6 +176,25 @@ const Newspaper = {
                 font-size: 9px; font-style: italic;
                 color: #5a3e1a; letter-spacing: 0.5px;
             }
+            @media (max-width: 768px) {
+                #newspaperPaper {
+                    margin: 8px auto; padding: 16px 14px 20px;
+                }
+                .np-masthead h1 { font-size: 28px; }
+                .np-meta { flex-direction: column; align-items: center; gap: 2px; font-size: 9px; }
+                .np-top-story h2 { font-size: 18px; }
+                .np-top-story p { font-size: 11px; }
+                .np-top-story .np-sub { font-size: 11px; }
+                .np-grid { grid-template-columns: 1fr; gap: 12px; }
+                .np-section h3 { font-size: 13px; }
+                .np-classifieds { columns: 1; font-size: 9px; }
+                .np-close { top: 8px; right: 8px; padding: 6px 10px; font-size: 12px; }
+                .np-pdf { top: 8px; right: 46px; padding: 6px 10px; font-size: 9px; }
+            }
+            @media (max-height: 500px) {
+                #newspaperPaper { margin: 4px auto; padding: 12px 10px 14px; max-height: calc(100vh - 8px); overflow-y: auto; }
+                .np-masthead h1 { font-size: 22px; }
+            }
         `;
         document.head.appendChild(runtime);
         this._styleEl = runtime;

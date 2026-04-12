@@ -104,8 +104,8 @@ const AutoTour = {
         el.id = 'autoTourOverlay';
         el.style.cssText = [
             'position:fixed',
-            'top:12px',
-            'right:12px',
+            'top:max(12px, env(safe-area-inset-top))',
+            'right:max(12px, env(safe-area-inset-right))',
             'z-index:99998',
             'padding:5px 12px',
             'background:rgba(0,0,0,0.55)',

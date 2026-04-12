@@ -37,8 +37,8 @@ const Debug = {
         el.id = 'debugOverlay';
         el.style.cssText = [
             'position:fixed',
-            'top:8px',
-            'left:8px',
+            'top:max(8px, env(safe-area-inset-top))',
+            'left:max(8px, env(safe-area-inset-left))',
             'z-index:99999',
             'padding:10px 12px',
             'background:rgba(0,0,0,0.78)',
@@ -50,6 +50,7 @@ const Debug = {
             'pointer-events:none',
             'text-shadow:0 0 2px #0f0',
             'min-width:230px',
+            'max-width:calc(100vw - 16px)',
             'display:none',
             'backdrop-filter:blur(2px)',
             '-webkit-backdrop-filter:blur(2px)',

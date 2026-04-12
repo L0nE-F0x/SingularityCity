@@ -214,9 +214,11 @@ const UI = {
       let ty = vpRect.top + gp.y - 50;
       
       const ttW = tt.offsetWidth;
-      if (tx - (ttW / 2) < 10) tx = (ttW / 2) + 10;
-      if (tx + (ttW / 2) > window.innerWidth - 10) tx = window.innerWidth - (ttW / 2) - 10;
-      
+      const margin = window.isMobile ? 16 : 10;
+      if (tx - (ttW / 2) < margin) tx = (ttW / 2) + margin;
+      if (tx + (ttW / 2) > window.innerWidth - margin) tx = window.innerWidth - (ttW / 2) - margin;
+      if (ty < margin) ty = margin;
+
       tt.style.left = tx + 'px';
       tt.style.top = ty + 'px';
     },
@@ -268,7 +270,7 @@ const UI = {
         ${isPre ? '<div style="font-size:8px;color:#8b5cf6;padding:4px 10px;background:#8b5cf622;border:1px solid #8b5cf633;border-radius:3px;margin:4px 16px;text-align:center">🔬 Not Yet Released</div>' : ''}
         ${m._src ? '<div style="font-size:8px;color:var(--cy);padding:4px 10px;background:#22d3ee0a;border:1px solid #22d3ee22;border-radius:3px;margin:4px 16px;text-align:center">🛰️ Discovered via Scan</div>' : ''}
         <div class="ipanel-tabs"><button class="ipanel-tab active" onclick="UI.panelTab('info',this)">👤 Profile</button><button class="ipanel-tab" onclick="UI.panelTab('bench',this)">📊 Bench</button><button class="ipanel-tab" onclick="UI.panelTab('cost',this)">💰 Cost</button></div>
-        <div id="panelContent" style="max-height: calc(100vh - 280px); overflow-y: auto; overflow-x: hidden; padding-right: 4px; padding-bottom: 10px;"></div>
+        <div id="panelContent" style="max-height: calc(100vh - 280px); max-height: calc(100dvh - 280px); overflow-y: auto; overflow-x: hidden; padding-right: 4px; padding-bottom: 10px;"></div>
         <div style="padding:8px 16px;display:flex;gap:6px"><button class="btn" style="flex:1;text-align:center" onclick="UI.addToCompare('${m.id}')">⚖️ Compare</button><button class="btn" style="flex:1;text-align:center;${G.tracking && G.tracking.id === m.id ? 'background:var(--ac);color:#000;border-color:var(--ac)' : ''}" onclick="G.tracking && G.tracking.id==='${m.id}' ? G.stopTracking() : G.startTracking('model','${m.id}','${m.lab}')">${G.tracking && G.tracking.id === m.id ? '📡 Tracking' : '📡 Track'}</button></div>`;
       this.panelTab('info');
     },
@@ -288,7 +290,7 @@ const UI = {
             <div style="flex:1"><div class="ipanel-name">${safeName}</div><div class="ipanel-sub" style="color:${col}">${safeRole}</div></div>
             <div class="ipanel-badge" style="background:var(--cd);color:var(--t2);border:1px solid var(--bd)">NPC</div>
           </div>
-          <div style="max-height: calc(100vh - 130px); overflow-y: auto; overflow-x: hidden; padding-right: 4px;">
+          <div style="max-height: calc(100vh - 130px); max-height: calc(100dvh - 130px); overflow-y: auto; overflow-x: hidden; padding-right: 4px;">
               <p class="ipanel-desc">${escapeHTML(m.desc || 'A specialized, non-sentient utility construct designed to assist with city operations.')}</p>
               <div class="ipanel-grid">
                 <div class="ipanel-stat"><span class="ipanel-lbl">System Status</span><span class="ipanel-val" style="color:#4ade80">Online</span></div>

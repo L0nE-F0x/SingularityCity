@@ -543,6 +543,12 @@ h1, h2, h3, p { margin: 0; }
 .is-mobile .tick { padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 .is-mobile .mp-reactions { bottom: calc(36px + env(safe-area-inset-bottom)); left: calc(12px + env(safe-area-inset-left)); }
 .is-mobile .toasts { right: calc(10px + env(safe-area-inset-right)); }
+.is-mobile #btnExitInterior { top: max(4px, env(safe-area-inset-top)) !important; right: max(8px, env(safe-area-inset-right)) !important; }
+.is-mobile #autoTourOverlay { top: max(12px, env(safe-area-inset-top)) !important; right: max(12px, env(safe-area-inset-right)) !important; }
+.is-mobile #trackingHud { bottom: max(30px, calc(24px + env(safe-area-inset-bottom))) !important; }
+.is-mobile #kardashevHUD { left: auto !important; right: 8px !important; top: max(4px, env(safe-area-inset-top)) !important; }
+.is-mobile #debugOverlay { top: max(8px, env(safe-area-inset-top)) !important; left: max(8px, env(safe-area-inset-left)) !important; }
+.is-mobile .install-banner { padding-top: env(safe-area-inset-top); }
 
 /* ─── MOBILE RESPONSIVENESS & BOTTOM SHEETS ─── */
 @media (max-width: 768px) {
@@ -596,10 +602,33 @@ h1, h2, h3, p { margin: 0; }
   .tick-lbl { font-size: 8px; padding: 0 8px; }
   .slog { display: none; }
 
-  #trackingHud { font-size: 9px; padding: 5px 12px; bottom: 30px; }
+  #trackingHud { font-size: 9px !important; padding: 5px 12px !important; bottom: 30px !important; max-width: calc(100vw - 24px); }
   #minimap { display: none; }
 
   #btnExitInterior { font-size: 10px !important; padding: 8px 16px !important; top: 8px !important; right: 8px !important; }
+
+  /* Kardashev HUD — move to right side on mobile so it doesn't overlap logo */
+  #kardashevHUD { left: auto !important; right: 8px !important; top: 4px !important; transform: scale(0.85); transform-origin: top right; }
+
+  /* Auto-tour overlay — shrink to not overlap exit/controls */
+  #autoTourOverlay { font-size: 7px !important; padding: 4px 10px !important; }
+
+  /* Debug overlay — shrink on mobile */
+  #debugOverlay { font-size: 9px !important; min-width: 180px !important; max-width: calc(100vw - 16px) !important; }
+
+  /* Newspaper modal — tighter padding on phones */
+  #newspaperPaper { padding: 16px 14px 20px !important; margin: 10px auto !important; }
+  .np-masthead h1 { font-size: 28px !important; }
+  .np-meta { flex-direction: column; align-items: center; gap: 2px; }
+  .np-top-story h2 { font-size: 18px !important; }
+  .np-top-story p { font-size: 11px !important; }
+  .np-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .np-classifieds { columns: 1 !important; }
+  .np-close { top: 8px !important; right: 10px !important; padding: 6px 10px !important; font-size: 12px !important; }
+  .np-pdf { top: 8px !important; right: 50px !important; padding: 6px 10px !important; font-size: 9px !important; }
+
+  /* Kardashev breakdown overlay — full-width bottom sheet on mobile */
+  #kardashevOv .ov-pan { max-height: 80vh; }
 }
 
 /* ─── LANDSCAPE MOBILE (phone in hand) ─── */
@@ -631,6 +660,14 @@ h1, h2, h3, p { margin: 0; }
 
   .mp-reactions { bottom: 28px; }
   .mp-react-btn { width: 26px; height: 26px; font-size: 13px; }
+
+  #trackingHud { bottom: 26px !important; font-size: 8px !important; padding: 4px 10px !important; }
+  #kardashevHUD { transform: scale(0.75); }
+  #btnExitInterior { padding: 6px 12px !important; font-size: 9px !important; }
+  #autoTourOverlay { font-size: 6px !important; padding: 3px 8px !important; }
+
+  /* Newspaper in landscape — limit height and ensure scroll */
+  #newspaperPaper { max-height: calc(100vh - 20px); overflow-y: auto; }
 }
 
 @media (max-width: 480px) {
@@ -958,10 +995,14 @@ h1, h2, h3, p { margin: 0; }
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
-    #holomapInfoPanel { width: 90vw; right: -95vw; top: auto; bottom: 0; max-height: 50vh; border-radius: 10px 10px 0 0; }
-    #holomapInfoPanel.on { right: 5vw; }
+    #holomapInfoPanel { width: 100vw; right: -100vw; top: auto; bottom: 0; max-height: 60vh; border-radius: 16px 16px 0 0; padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+    #holomapInfoPanel.on { right: 0; }
+    #holomapInfoPanel::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+    .holo-panel-name { font-size: 15px; }
     .holo-neb-label { font-size: 11px; }
-    #holoHudInfo { font-size: 8px; gap: 12px; padding: 4px 12px; }
+    .holo-star-name { font-size: 9px !important; }
+    #holoHudInfo { font-size: 8px; gap: 10px; padding: 4px 12px; max-width: calc(100vw - 24px); }
+    #holoHud { bottom: max(40px, calc(30px + env(safe-area-inset-bottom))); }
     .mp-counter { font-size: 8px; padding: 3px 8px; }
     .mp-reactions { bottom: 34px; gap: 3px; }
     .mp-react-btn { width: 28px; height: 28px; font-size: 14px; }

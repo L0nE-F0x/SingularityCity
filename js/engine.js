@@ -787,7 +787,7 @@ const G = {
             exitBtn = document.createElement('button');
             exitBtn.id = 'btnExitInterior';
             exitBtn.innerHTML = '🚪 EXIT BUILDING';
-            exitBtn.style.cssText = 'position:fixed; top:0px; right:20px; z-index:9999; background:#f43f5e; color:#fff; border:none; border-bottom: 3px solid #be123c; padding:12px 20px; border-radius:0 0 6px 6px; cursor:pointer; font-size:12px; font-weight:bold; font-family:"Press Start 2P", monospace; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: background 0.2s;';
+            exitBtn.style.cssText = 'position:fixed; top:0px; right:20px; z-index:9999; background:#f43f5e; color:#fff; border:none; border-bottom: 3px solid #be123c; padding:12px 20px; border-radius:0 0 6px 6px; cursor:pointer; font-size:12px; font-weight:bold; font-family:"Press Start 2P", monospace; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: background 0.2s; max-width: calc(100vw - 16px);';
             exitBtn.onmouseover = () => { exitBtn.style.background = '#e11d48'; };
             exitBtn.onmouseout = () => { exitBtn.style.background = '#f43f5e'; };
             exitBtn.onclick = () => { if(typeof SND !== 'undefined') SND.uiClick(); this.exitInterior(); };
@@ -862,7 +862,7 @@ const G = {
         if (!hud) {
             hud = document.createElement('div');
             hud.id = 'trackingHud';
-            hud.style.cssText = 'position:absolute; bottom:40px; left:50%; transform:translateX(-50%); z-index:150; background:rgba(10,10,25,0.9); border:1px solid #22d3ee; border-radius:20px; padding:6px 16px; display:flex; align-items:center; gap:10px; font-family:"JetBrains Mono",monospace; font-size:10px; color:#22d3ee; pointer-events:all; box-shadow:0 4px 15px rgba(34,211,238,0.3); animation:slideUp 0.3s ease;';
+            hud.style.cssText = 'position:absolute; bottom:40px; left:50%; transform:translateX(-50%); z-index:150; background:rgba(10,10,25,0.9); border:1px solid #22d3ee; border-radius:20px; padding:6px 16px; display:flex; align-items:center; gap:10px; font-family:"JetBrains Mono",monospace; font-size:10px; color:#22d3ee; pointer-events:all; box-shadow:0 4px 15px rgba(34,211,238,0.3); animation:slideUp 0.3s ease; max-width:calc(100vw - 24px); flex-wrap:wrap; justify-content:center;';
             document.getElementById('gameWrap').appendChild(hud);
         }
 
