@@ -41,6 +41,12 @@ const MacroView = {
         const canvas = document.getElementById('mmCanvas');
         if (!mm || !zones || !canvas) return;
 
+        // Mobile: compact minimap so it doesn't overflow or clip toggle button
+        if (window.isMobile) {
+            mm.style.width = '200px';
+            mm.style.maxWidth = 'calc(100vw - 24px)';
+        }
+
         // Build zone quick-jump buttons
         zones.innerHTML = '';
 

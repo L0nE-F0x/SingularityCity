@@ -24,5 +24,11 @@ html = html.replace(
     `<script$1 src="$2?v=${version}"></script>`
 );
 
+// Also bump local css/* stylesheet tags
+html = html.replace(
+    /<link\s+rel="stylesheet"\s+href="(css\/[^"?]+)(\?v=[^"]*)?"\s*>/g,
+    `<link rel="stylesheet" href="$1?v=${version}">`
+);
+
 writeFileSync(path, html);
-console.log(`cachebust: bumped local js/* script tags to v=${version}`);
+console.log(`cachebust: bumped local js/* and css/* tags to v=${version}`);
