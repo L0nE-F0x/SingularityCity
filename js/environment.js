@@ -2483,47 +2483,107 @@ const Environment = {
     drawWeather() {
       // Throttle weather particle drawing to every other frame
       if (G.tick % 2 !== 0) return;
-      const g = this.fxGfx; g.clear(); const vw = G.vpW, vh = G.vpH, wx = -G.world.x;
-      const wy = -(G.world.y || 0); // vertical camera offset in world coords
+      const g = this.fxGfx; g.clear();
+      // fxGfx is a child of G.world which has scale applied — viewport bounds
+      // must be in LOCAL world coords (pre-scale). Previously this used raw
+      // G.vpW / G.world.x, which left rain seeded in a wrong-sized, offset box
+      // and made particles only appear where the camera first was.
+      const zoom = (G.world && G.world.scale && G.world.scale.x) ? G.world.scale.x : 1;
+      const vw = G.vpW / zoom;
+      const vh = G.vpH / zoom;
+      const wx = -(G.world.x || 0) / zoom; // world-X of viewport left edge
+      const wy = -(G.world.y || 0) / zoom; // world-Y of viewport top edge
+      const margin = 80 / zoom;             // overscan so particles enter/exit gracefully
+      const xMin = wx - margin, xMax = wx + vw + margin;
+      const yMin = wy - margin, yMax = wy + vh + margin;
       const desert = this._getDesertRange();
       const tick = G.tick;
       const ds = desert ? desert.start : 0;
       const de = desert ? desert.end : 0;
 
+      // Helper: respawn a particle somewhere inside the current viewport
+      // (used when camera pans and old particles end up offscreen).
+      const respawnInside = (d) => {
+        d.x = wx + Math.random() * vw;
+        d.y = wy + Math.random() * vh;
+      };
+
       // ─── CITY WEATHER (skip desert zone) ───
       if (this.weather === 'rain') {
-        while (this.rainDrops.length < 150) this.rainDrops.push({ x: wx + Math.random() * vw, y: Math.random() * vh, s: 4 + Math.random() * 4 });
-        g.lineStyle(1, 0x88bbdd, 0.3);
+        const target = 260;
+        while (this.rainDrops.length < target) {
+          this.rainDrops.push({
+            x: wx + Math.random() * vw,
+            y: wy + Math.random() * vh,
+            s: 4 + Math.random() * 4
+          });
+        }
+        g.lineStyle(1, 0x88bbdd, 0.38);
         const drops = this.rainDrops;
         for (let i = 0; i < drops.length; i++) {
             const d = drops[i];
             d.y += d.s; d.x -= 0.8;
-            if (d.y > vh) { d.y = -10; d.x = wx + Math.random() * vw; }
+            // Natural fall-cycle: drop hit the bottom → reappear at the top.
+            if (d.y > yMax) {
+              d.y = yMin;
+              d.x = wx + Math.random() * vw;
+            } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
+              // Camera panned — drop is now outside viewport. Respawn inside.
+              respawnInside(d);
+            }
             if (desert && d.x >= ds && d.x <= de) continue;
             g.moveTo(d.x, d.y); g.lineTo(d.x - 1.5, d.y + 14);
         }
       } else if (this.weather === 'snow') {
-        while (this.snowFlakes.length < 120) this.snowFlakes.push({ x: wx + Math.random() * vw, y: Math.random() * vh, s: 0.5 + Math.random() * 1.2, r: 1 + Math.random() * 2, dx: Math.random() * 0.5 - 0.25 });
+        const target = 180;
+        while (this.snowFlakes.length < target) {
+          this.snowFlakes.push({
+            x: wx + Math.random() * vw,
+            y: wy + Math.random() * vh,
+            s: 0.5 + Math.random() * 1.2,
+            r: 1 + Math.random() * 2,
+            dx: Math.random() * 0.5 - 0.25
+          });
+        }
         // Batch: single beginFill for all snowflakes (same color/alpha)
         g.beginFill(0xffffff, 0.5);
         const flakes = this.snowFlakes;
         for (let i = 0; i < flakes.length; i++) {
             const d = flakes[i];
             d.y += d.s; d.x += d.dx + Math.sin(tick * 0.02 + d.r) * 0.3;
-            if (d.y > vh) { d.y = -5; d.x = wx + Math.random() * vw; }
+            if (d.y > yMax) {
+              d.y = yMin;
+              d.x = wx + Math.random() * vw;
+            } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
+              respawnInside(d);
+            }
             if (desert && d.x >= ds && d.x <= de) continue;
             g.drawCircle(d.x, d.y, d.r);
         }
         g.endFill();
       } else if (this.weather === 'cherry') {
-        while (this.petals.length < 60) this.petals.push({ x: wx + Math.random() * vw, y: Math.random() * vh, s: 0.3 + Math.random() * 0.8, r: Math.random() * Math.PI, rot: Math.random() * 0.02 });
+        const target = 90;
+        while (this.petals.length < target) {
+          this.petals.push({
+            x: wx + Math.random() * vw,
+            y: wy + Math.random() * vh,
+            s: 0.3 + Math.random() * 0.8,
+            r: Math.random() * Math.PI,
+            rot: Math.random() * 0.02
+          });
+        }
         // Batch: single beginFill for all petals
         g.beginFill(0xffb7c5, 0.5);
         const petals = this.petals;
         for (let i = 0; i < petals.length; i++) {
             const d = petals[i];
             d.y += d.s; d.x += Math.sin(d.r += d.rot) * 0.5;
-            if (d.y > vh) { d.y = -8; d.x = wx + Math.random() * vw; }
+            if (d.y > yMax) {
+              d.y = yMin;
+              d.x = wx + Math.random() * vw;
+            } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
+              respawnInside(d);
+            }
             if (desert && d.x >= ds && d.x <= de) continue;
             g.drawEllipse(d.x, d.y, 3, 1.5);
         }
@@ -2532,7 +2592,8 @@ const Environment = {
 
       // ─── DESERT WEATHER (sandstorm — only in desert zone) ───
       if (this.desertWeather === 'sandstorm' && desert) {
-        while (this.sandParticles.length < 100) {
+        const target = 140;
+        while (this.sandParticles.length < target) {
             this.sandParticles.push({
                 x: desert.start + Math.random() * (desert.end - desert.start),
                 y: wy + Math.random() * vh,
@@ -2549,8 +2610,9 @@ const Environment = {
             d.y += d.vy + Math.sin(tick * 0.03 + d.x * 0.01) * 0.5;
             // Wrap within desert zone
             if (d.x > desert.end) { d.x = desert.start; d.y = wy + Math.random() * vh; }
-            if (d.y > wy + vh) d.y = wy - 5;
-            if (d.y < wy - 10) d.y = wy + vh;
+            // Vertical recycling now uses proper world-Y bounds (was using vh as screen-space)
+            if (d.y > yMax) d.y = yMin;
+            if (d.y < yMin - 10) d.y = yMax;
             g.beginFill(0xd4a574, d.alpha);
             g.drawEllipse(d.x, d.y, d.size * 2, d.size * 0.6);
             g.endFill();
@@ -2558,7 +2620,7 @@ const Environment = {
 
         // Sandstorm haze overlay (darkens the desert) — covers full visible area
         g.beginFill(0xc2956a, 0.06 + Math.sin(tick * 0.01) * 0.02);
-        g.drawRect(desert.start, wy - 200, desert.end - desert.start, vh + 400);
+        g.drawRect(desert.start, yMin - 200, desert.end - desert.start, vh + 400);
         g.endFill();
       }
     },
