@@ -548,7 +548,11 @@ h1, h2, h3, p { margin: 0; }
 .is-mobile #trackingHud { bottom: max(30px, calc(24px + env(safe-area-inset-bottom))) !important; }
 .is-mobile #debugOverlay { top: max(8px, env(safe-area-inset-top)) !important; left: max(8px, env(safe-area-inset-left)) !important; }
 .is-mobile .install-banner { padding-top: env(safe-area-inset-top); }
-.is-mobile .mm-header { min-height: 32px; }
+.is-mobile #minimap { max-height: calc(100vh - 80px); max-height: calc(100dvh - 80px); display: flex; flex-direction: column; overflow: hidden; }
+.is-mobile #minimap.collapsed { max-height: none; }
+.is-mobile .mm-header { min-height: 32px; flex-shrink: 0; }
+.is-mobile #mmCanvas { flex-shrink: 0; }
+.is-mobile .mm-zones { overflow-y: auto; flex: 1; min-height: 0; }
 
 /* ─── MOBILE RESPONSIVENESS & BOTTOM SHEETS ─── */
 @media (max-width: 768px) {
