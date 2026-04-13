@@ -584,13 +584,16 @@ const UI = {
       const dp = G.getDayPhase();
       const curOcc = [];
       G.models.forEach((m, i) => {
-        const stg = getStage(m.rel, m.ret, m.phase); 
-        const { act } = getAct(stg, dp, i, m); 
+        const stg = getStage(m.rel, m.ret, m.phase);
+        const { act } = getAct(stg, dp, i, m);
         const ai = (typeof ACTS !== 'undefined' && ACTS[act]) ? ACTS[act] : { indoor: true, icon: '💻', verb: 'processing' };
-        
+
         const refs = G.charRefs[m.id];
         if (refs && refs.bld === b.id) {
-            curOcc.push({ m, ai, stg });
+            // If model wants to leave (schedule changed), show departure icon
+            // instead of misleading activity icon (e.g. zzz when stuck in cafe)
+            const displayAi = refs.wantsToLeave ? { icon: '🚶', verb: 'departing', label: 'Departing' } : ai;
+            curOcc.push({ m, ai: displayAi, stg });
         }
       });
 

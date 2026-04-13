@@ -26,6 +26,36 @@ const InteriorAvatarStates = {
 
             if (av.propGfx) av.propGfx.visible = false;
 
+            // ─── SCHEDULE CHANGE: poll wantsToLeave so models exit when their activity changes ───
+            // BUG FIX (v349): Without this, models that enter a building (e.g. cafe at lunch)
+            // remain trapped forever because the state machine never checked whether their
+            // schedule had moved on. This caused 100+ models to pile up overnight with zzz icons.
+            if (!av.m.isCeo && av.state !== 'gone') {
+                const _refs = G.charRefs[av.m.id];
+                if (_refs && _refs.wantsToLeave) {
+                    const _exitStates = ['walking_to_elevator_down', 'calling_lift', 'waiting_lift',
+                                         'delay_enter_lift', 'entering_lift', 'riding_lift', 'walking_out'];
+                    if (!_exitStates.includes(av.state)) {
+                        // Stagger departures with a random delay so models don't all stampede
+                        // to the elevator at once (0-3 seconds spread)
+                        if (typeof av._exitDelay === 'undefined') av._exitDelay = Math.floor(Math.random() * 180);
+                        if (av._exitDelay > 0) { av._exitDelay--; }
+                        else {
+                            if (av.floorIdx === 0) {
+                                av.state = 'walking_out';
+                                av.targetX = this.startX + (this.bld.id === 'forest_0' ? this.bldW / 2 : this.usableW / 2);
+                            } else {
+                                av.state = 'walking_to_elevator_down';
+                                av.targetX = this.floors[av.floorIdx].elevatorX;
+                            }
+                        }
+                    }
+                } else {
+                    // Reset exit delay when model no longer wants to leave (re-entered legitimately)
+                    av._exitDelay = undefined;
+                }
+            }
+
             if ((av.state === 'walking_to_prop' || av.state === 'returning') && av.timer <= 0 && !av.m.isCeo) {
                 let partner = this.avatars.find(other =>
                     other !== av &&

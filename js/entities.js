@@ -1005,8 +1005,21 @@ const Entities = {
                     refs.bld = null;
                     refs.wantsToLeave = false;
                     refs.c.visible = true;
+                    refs._stuckTimer = 0;
                 } else {
-                    refs.c.visible = false;
+                    // Safety net: if model is trapped for >30s while interior is open
+                    // (elevator bottleneck), force-teleport it out on the next exterior tick
+                    refs._stuckTimer = (refs._stuckTimer || 0) + 1;
+                    if (refs._stuckTimer > 1800) {
+                        const b = bldById[refs.bld];
+                        if (b) refs.c.x = b.x + (b.w / 2);
+                        refs.bld = null;
+                        refs.wantsToLeave = false;
+                        refs.c.visible = true;
+                        refs._stuckTimer = 0;
+                    } else {
+                        refs.c.visible = false;
+                    }
                 }
             } else {
                 refs.c.visible = true;
