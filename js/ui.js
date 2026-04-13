@@ -590,13 +590,13 @@ const UI = {
 
         const refs = G.charRefs[m.id];
         if (refs && refs.bld === b.id) {
-            // If model wants to leave (schedule changed), show departure icon
-            // instead of misleading activity icon (e.g. zzz when stuck in cafe)
-            // Also: if schedule says sleep but model is in a non-residential building,
-            // show departing — they're misrouted, not sleeping in the cafe.
+            // BUG FIX (v351): Don't count models whose schedule says they should
+            // be sleeping elsewhere. refs.bld can be stale (transition delay or
+            // init race), so trust the schedule as source of truth — a sleeping
+            // model has no business showing up inside a cafe/gym/arena.
             const isResLike = b.id.startsWith('res_') || b.id === 'graveyard' || b.id.startsWith('uni_') || b.id.startsWith('house_');
-            const misrouted = act === 'sleep' && !isResLike;
-            const displayAi = (refs.wantsToLeave || misrouted) ? { icon: '🚶', verb: 'departing', label: 'Departing' } : ai;
+            if (act === 'sleep' && !isResLike) return;
+            const displayAi = refs.wantsToLeave ? { icon: '🚶', verb: 'departing', label: 'Departing' } : ai;
             curOcc.push({ m, ai: displayAi, stg });
         }
       });

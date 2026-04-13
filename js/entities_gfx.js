@@ -582,13 +582,18 @@ const EntitiesGfx = {
         let defaultHq = (G.bldsByLab[m.lab] || []).find(x => !x.id.startsWith('house_')) || (G.bldsByLab[m.lab] || [])[0];
         let startBld = bid ? G.bldById[bid] : defaultHq || G.bldById['uni_dorm'];
 
-        // BUG FIX (v351): Prevent models from initializing into social buildings
-        // during night hours. If schedule says sleep, force residential.
+        // BUG FIX (v351): Prevent models from initializing into social/daytime buildings
+        // during night hours. Any model whose schedule resolves to a non-residential
+        // building at night is misrouted — redirect to residential.
         const _night = dpNow > .83 || dpNow < .25;
-        if (_night && initAct === 'sleep' && startBld && !startBld.id.startsWith('res_') && startBld.id !== 'graveyard' && !startBld.id.startsWith('uni_')) {
+        const _socialIds = { cafe:1, open_square:1, gym:1, arena:1, city_park:1, park:1 };
+        if (_night && startBld && _socialIds[startBld.id]) {
             const _region = (LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region : 'eu';
             const _resBld = G.bldById['res_' + _region];
-            if (_resBld) startBld = _resBld;
+            if (_resBld) {
+                console.warn(`[v351] Redirected ${m.name} from ${startBld.id} to ${_resBld.id} (night, act=${initAct}, bid=${bid})`);
+                startBld = _resBld;
+            }
         }
 
         G.charRefs[m.id] = { 

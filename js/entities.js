@@ -986,9 +986,10 @@ const Entities = {
         let buildingTargetX = tBld.x + (tBld.w / 2) + pseudoRandomOffset;
 
         if (!refs._initPos) {
-            // BUG FIX (v351): If night + sleep schedule but tBld is a social building,
-            // redirect to residential — prevents 100+ models initializing into the cafe.
-            if (night && act === 'sleep' && tBld && !tBld.id.startsWith('res_') && tBld.id !== 'graveyard' && !tBld.id.startsWith('uni_')) {
+            // BUG FIX (v351): At night, redirect models away from social/daytime buildings
+            // to residential. Catches any misrouted init regardless of activity type.
+            const _socialIds = { cafe:1, open_square:1, gym:1, arena:1, city_park:1, park:1 };
+            if (night && tBld && _socialIds[tBld.id]) {
                 const _region = (typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region : 'eu';
                 const _resBld = bldById['res_' + _region];
                 if (_resBld) { tBld = _resBld; buildingTargetX = tBld.x + (tBld.w / 2) + pseudoRandomOffset; }
