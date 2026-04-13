@@ -986,6 +986,13 @@ const Entities = {
         let buildingTargetX = tBld.x + (tBld.w / 2) + pseudoRandomOffset;
 
         if (!refs._initPos) {
+            // BUG FIX (v351): If night + sleep schedule but tBld is a social building,
+            // redirect to residential — prevents 100+ models initializing into the cafe.
+            if (night && act === 'sleep' && tBld && !tBld.id.startsWith('res_') && tBld.id !== 'graveyard' && !tBld.id.startsWith('uni_')) {
+                const _region = (typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region : 'eu';
+                const _resBld = bldById['res_' + _region];
+                if (_resBld) { tBld = _resBld; buildingTargetX = tBld.x + (tBld.w / 2) + pseudoRandomOffset; }
+            }
             refs.c.x = buildingTargetX;
             refs._logicalY = groundY - 20;
             refs._initPos = true;

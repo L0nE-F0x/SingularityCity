@@ -576,10 +576,20 @@ const EntitiesGfx = {
         const paramScale = Math.max(0.7, Math.min(1.4, 0.6 + (Math.log10(Math.max(paramCount, 1)) * 0.2)));
 
         const stg = getStage(m.rel, m.ret, m.phase);
-        const { bid } = getAct(stg, G.getDayPhase(), G.models.indexOf(m), m);
-        
+        const dpNow = G.getDayPhase();
+        const { act: initAct, bid } = getAct(stg, dpNow, G.models.indexOf(m), m);
+
         let defaultHq = (G.bldsByLab[m.lab] || []).find(x => !x.id.startsWith('house_')) || (G.bldsByLab[m.lab] || [])[0];
         let startBld = bid ? G.bldById[bid] : defaultHq || G.bldById['uni_dorm'];
+
+        // BUG FIX (v351): Prevent models from initializing into social buildings
+        // during night hours. If schedule says sleep, force residential.
+        const _night = dpNow > .83 || dpNow < .25;
+        if (_night && initAct === 'sleep' && startBld && !startBld.id.startsWith('res_') && startBld.id !== 'graveyard' && !startBld.id.startsWith('uni_')) {
+            const _region = (LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region : 'eu';
+            const _resBld = G.bldById['res_' + _region];
+            if (_resBld) startBld = _resBld;
+        }
 
         G.charRefs[m.id] = { 
             c, shadow, head, body, legL, legR, dot, umbrella, ghostL, ghostR, ghostGlow, briefcase, chat, chatBg, chatTxt,

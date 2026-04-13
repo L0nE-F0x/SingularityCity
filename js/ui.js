@@ -592,7 +592,11 @@ const UI = {
         if (refs && refs.bld === b.id) {
             // If model wants to leave (schedule changed), show departure icon
             // instead of misleading activity icon (e.g. zzz when stuck in cafe)
-            const displayAi = refs.wantsToLeave ? { icon: '🚶', verb: 'departing', label: 'Departing' } : ai;
+            // Also: if schedule says sleep but model is in a non-residential building,
+            // show departing — they're misrouted, not sleeping in the cafe.
+            const isResLike = b.id.startsWith('res_') || b.id === 'graveyard' || b.id.startsWith('uni_') || b.id.startsWith('house_');
+            const misrouted = act === 'sleep' && !isResLike;
+            const displayAi = (refs.wantsToLeave || misrouted) ? { icon: '🚶', verb: 'departing', label: 'Departing' } : ai;
             curOcc.push({ m, ai: displayAi, stg });
         }
       });
