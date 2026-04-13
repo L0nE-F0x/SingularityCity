@@ -422,6 +422,8 @@ const InteriorBar = {
         rat.eventMode = 'static'; rat.cursor = 'pointer';
         rat.hitArea = new PIXI.Rectangle(-15, -20, 35, 24);
         rat.on('pointertap', () => { if(typeof UI!=='undefined') UI.selectModel({ id:'npc_cellar_rat', name:'Cellar Rat', isNPC:true, role:'Cellar Rat', lab:'other', desc:'A resourceful rodent who guards the wine cellar. Technically not an employee but has seniority over everyone.' }); });
+        rat.on('pointerover', (e) => { if(typeof UI!=='undefined') UI.showTooltip(e, 'Cellar Rat', 'Wine Cellar Guardian'); });
+        rat.on('pointerout', () => { if(typeof UI!=='undefined') UI.hideTooltip(); });
         c.addChild(rat);
         this.avatars.push({ cont: rat, _minX: sx+60, _maxX: sx+bw-80, _phase: Math.random()*Math.PI*2, _walkTimer: 0, _walkDir: 0 });
     },

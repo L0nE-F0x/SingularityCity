@@ -398,6 +398,14 @@ const InteriorCityAI = {
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
         cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
+        cont.on('pointerover', (e) => {
+            if (typeof UI === 'undefined') return;
+            const stg = getStage(m.rel, m.ret, m.phase); const sd = STAGES[stg] || STAGES.adult;
+            const dp = G.getDayPhase(); const idx = G.models.indexOf(m);
+            const ai = (typeof ACTS !== 'undefined' && ACTS[getAct(stg, dp, idx, m).act]) ? ACTS[getAct(stg, dp, idx, m).act] : { icon: '💻', label: 'Processing' };
+            UI.showTooltip(e, `${m.name}${m.phase === 'rumored' ? ' 🔮' : ''}`, `${ai.icon} ${ai.label} · ${sd.label}`, true);
+        });
+        cont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
 
         container.addChild(cont);
 
