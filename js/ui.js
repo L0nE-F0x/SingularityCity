@@ -590,14 +590,7 @@ const UI = {
 
         const refs = G.charRefs[m.id];
         if (refs && refs.bld === b.id) {
-            // BUG FIX (v351): Don't count models whose schedule says they should
-            // be sleeping elsewhere. refs.bld can be stale (transition delay or
-            // init race), so trust the schedule as source of truth — a sleeping
-            // model has no business showing up inside a cafe/gym/arena.
-            const isResLike = b.id.startsWith('res_') || b.id === 'graveyard' || b.id.startsWith('uni_') || b.id.startsWith('house_');
-            if (act === 'sleep' && !isResLike) return;
-            const displayAi = refs.wantsToLeave ? { icon: '🚶', verb: 'departing', label: 'Departing' } : ai;
-            curOcc.push({ m, ai: displayAi, stg });
+            curOcc.push({ m, ai, stg });
         }
       });
 
