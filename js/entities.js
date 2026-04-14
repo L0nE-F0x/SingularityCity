@@ -1163,7 +1163,12 @@ const Entities = {
                     // happens to be near the park's centroid was getting stuck and forming
                     // a permanent overnight cluster.
                     const lingerOK = !night && (act === 'socialize' || act === 'lunch' || act === 'play' || act === 'share');
-                    if (tBld.id === 'city_park' && lingerOK) {
+                    if (act === 'commute') {
+                        // Commuting: entity walks toward HQ but stays on the street
+                        // (visible, not entered). They'll enter once schedule flips to 'work'.
+                        refs.bld = null;
+                        refs.c.visible = true;
+                    } else if (tBld.id === 'city_park' && lingerOK) {
                         // Open-air zone: NPCs stay visible, just linger here
                         refs.bld = null;
                         refs.c.visible = true;

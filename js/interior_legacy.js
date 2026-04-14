@@ -534,6 +534,9 @@ const InteriorLegacy = {
 
     // ═══ NPC AVATAR ═══
     _npc(c, x, y, name, col) {
+        // Museum: closed at night — only Security stays
+        const dp = G.getDayPhase(); const isNight = dp > 0.83 || dp < 0.25;
+        if (isNight && name !== 'Security') return;
         const cont = new PIXI.Container(); cont.x = x; cont.y = y; cont.sortableChildren = true; cont.zIndex = 5;
         const labCol = col || 0x64748b; const bw = 16; const h = 32; const headH = Math.round(h*0.4); const bodyH = h-headH-4;
         // Shadow

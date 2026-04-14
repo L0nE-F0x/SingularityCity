@@ -386,6 +386,11 @@ const InteriorBlackMarket = {
     },
 
     _npc(c, x, y, name, col, desc) {
+        // Black market operates evenings/nights — skeleton crew during daytime
+        const dp = G.getDayPhase();
+        const isDaytime = dp >= 0.30 && dp < 0.65;
+        const dayRoles = ['Vault Guard', 'Bouncer'];
+        if (isDaytime && !dayRoles.includes(name)) return;
         const cont = new PIXI.Container(); cont.x = x; cont.y = y; cont.zIndex = 5;
         const bw = 16, h = 32;
         const sh = new PIXI.Graphics(); sh.beginFill(0x000000, 0.25); sh.drawEllipse(0, 2, bw * 0.6, 3); sh.endFill();

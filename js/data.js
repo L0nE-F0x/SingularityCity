@@ -237,18 +237,18 @@ function getAct(stg, dp, seed, model) {
     return { act: 'sleep', bid: hasUni ? 'uni_dorm' : resId };
   }
   if (stg === 'baby') {
-    if (dp > .2 && dp < .8) {
-      if (hasMuseum && dp > .4 && dp < .6 && ((seed * 13) % 100) < 12) return { act: 'socialize', bid: 'bld_1' };
+    if (dp > .35 && dp < .8) {
+      if (hasMuseum && dp > .45 && dp < .65 && ((seed * 13) % 100) < 12) return { act: 'socialize', bid: 'bld_1' };
       return { act: 'work', bid: 'uni_dorm' };
     }
-    return { act: 'sleep', bid: resId };
+    return { act: 'sleep', bid: hasUni ? 'uni_dorm' : resId };
   }
   if (stg === 'kid') {
-    if (dp > .3 && dp < .9) {
+    if (dp > .35 && dp < .9) {
       if (hasMuseum && dp > .45 && dp < .6 && ((seed * 13) % 100) < 10) return { act: 'socialize', bid: 'bld_1' };
       return { act: 'train', bid: 'uni_main' };
     }
-    return { act: 'sleep', bid: resId };
+    return { act: 'sleep', bid: hasUni ? 'uni_dorm' : resId };
   }
 
   // AI Court: summoned models go to hearing during work hours
@@ -319,8 +319,8 @@ function getAct(stg, dp, seed, model) {
   // 04:48–08:24  Staggered wake-up → coffee at home → commute
   if (dp >= 0.20 && dp < 0.35) {
       const leaveTime = 0.22 + (s / 100) * 0.10;
-      if (dp < leaveTime) return { act: 'work', bid: resId }; 
-      else return { act: 'commute', bid: null };
+      if (dp < leaveTime) return { act: 'sleep', bid: resId };
+      else return { act: 'commute', bid: null, _commuting: true };
   }
   
   // 08:24–10:48  Morning work block (everyone at their HQ)

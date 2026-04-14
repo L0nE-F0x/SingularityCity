@@ -444,6 +444,10 @@ const InteriorBar = {
     },
     
     _npc(c, x, y, name, col) {
+        // Bar is a nightlife venue — staff off during early morning (closed hours)
+        const dp = G.getDayPhase();
+        const barClosed = dp >= 0.25 && dp < 0.35;
+        if (barClosed && name !== 'Bouncer') return;
         const cont = new PIXI.Container(); cont.x=x; cont.y=y; cont.zIndex=5;
         const bw=16, h=32;
         const sh = new PIXI.Graphics(); sh.beginFill(0x000000,0.25); sh.drawEllipse(0,2,bw*0.6,3); sh.endFill();

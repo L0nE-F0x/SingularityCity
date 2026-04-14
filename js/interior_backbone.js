@@ -109,9 +109,13 @@ const InteriorBackbone = {
             const fc = new PIXI.Container(); fc.sortableChildren = true; this.scene.addChild(fc);
             const pY = fy + floorH - 6;
             this._drawFloorProps(fc, startX, bldW, pY, fy, floorH, floorName, layout.col, bld.id);
-            // Spawn NPCs on this floor
+            // Spawn NPCs on this floor (night: only essential ops roles)
+            const _dpNow = G.getDayPhase();
+            const _isNight = _dpNow > 0.83 || _dpNow < 0.25;
+            const _nightRoles = ['NOC Lead','SRE','Security Eng','Incident Cmdr','Sat Ops'];
             const floorNpcs = this._getNPCsForFloor(floorName, layout, f, numFloors);
             floorNpcs.forEach(npcDef => {
+                if (_isNight && !_nightRoles.includes(npcDef.role)) return;
                 this.drawNPC(fc, startX + npcDef.xOff, pY, npcDef.role, npcDef.col);
             });
         }
