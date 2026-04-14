@@ -364,8 +364,6 @@ const AutoTour = {
 
         this._addRecent(bldId);
 
-        // Dynamic zoom — busier buildings get slightly tighter shot
-        const zoom = count > 30 ? 1.30 : count > 15 ? 1.15 : 1.00;
         const holdMs = this.HOLD_MS_MIN + Math.random() * (this.HOLD_MS_MAX - this.HOLD_MS_MIN);
         this._currentHoldMs = holdMs;
 
@@ -373,12 +371,11 @@ const AutoTour = {
         this._panDrift = 0.03 + Math.random() * 0.05;
         this._panDir = Math.random() < 0.5 ? 1 : -1;
 
-        const z = this._userZoom || 1;
+        // Only pan horizontally — preserve user's zoom and Y so underground view
+        // (metro rails, water/electric pipes) stays visible throughout the tour.
+        const z = Camera.zoom || this._userZoom || 1;
         const worldX = b.x + b.w / 2;
         Camera.targetX = -(worldX) + (G.vpW / 2) / z;
-        const groundAnchor = G.groundY * (1 / z - 1);
-        Camera.targetY = groundAnchor + (-20);
-        Camera.targetZoom = z;
 
         const label = (b.lab ? b.lab.toUpperCase() + ' HQ' : b.label || b.id) + ' (' + count + ' active)';
         this._setLabel(label);
@@ -411,12 +408,11 @@ const AutoTour = {
         this._panDrift = (def.pan || 0.10) * 0.5;
         this._panDir = Math.random() < 0.5 ? 1 : -1;
 
-        const z = this._userZoom || 1;
+        // Only pan horizontally — preserve user's zoom and Y so underground view
+        // (metro rails, water/electric pipes) stays visible throughout the tour.
+        const z = Camera.zoom || this._userZoom || 1;
         const worldX = b.x + b.w / 2;
         Camera.targetX = -(worldX) + (G.vpW / 2) / z;
-        const groundAnchor = G.groundY * (1 / z - 1);
-        Camera.targetY = groundAnchor + (def.yOffset || 0);
-        Camera.targetZoom = z;
 
         this._setLabel(def.label);
     },
@@ -438,13 +434,10 @@ const AutoTour = {
         const b = G.bldById[bldId];
         this._addRecent(bldId);
 
-        // First pan to the building
-        const z = this._userZoom || 1;
+        // First pan to the building — only modify X so the user's Y/zoom is preserved
+        const z = Camera.zoom || this._userZoom || 1;
         const worldX = b.x + b.w / 2;
         Camera.targetX = -(worldX) + (G.vpW / 2) / z;
-        const groundAnchor = G.groundY * (1 / z - 1);
-        Camera.targetY = groundAnchor + (-15);
-        Camera.targetZoom = z;
         this._panDrift = 0;
 
         const label = b.lab ? b.lab.toUpperCase() + ' — Inside' : (b.label || bldId) + ' — Inside';

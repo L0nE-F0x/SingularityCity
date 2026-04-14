@@ -243,9 +243,15 @@ const Camera = {
             
             if (entityX !== null) {
                 this.targetX = -(entityX) + (G.vpW / 2) / this.zoom;
-                // Center entity vertically: offset so entityY lands at ~60% down the screen
-                this.targetY = -(entityY) + (G.vpH * 0.6) / this.zoom;
-                this.targetZoom = 1.3;
+                // Auto-Tour tracking preserves the user's zoom AND Y so the underground
+                // view (metro/pipes) stays visible; manual tracking centers+zooms the entity.
+                if (typeof AutoTour !== 'undefined' && AutoTour.active) {
+                    if (AutoTour._userZoom) this.targetZoom = AutoTour._userZoom;
+                    // leave targetY alone — user's saved Y keeps the underground visible
+                } else {
+                    this.targetY = -(entityY) + (G.vpH * 0.6) / this.zoom;
+                    this.targetZoom = 1.3;
+                }
             }
         }
         
