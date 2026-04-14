@@ -292,9 +292,14 @@ const Camera = {
             this.targetX = Math.max(minX, Math.min(this.targetX, maxX));
         }
         
-        this.zoom += (this.targetZoom - this.zoom) * 0.08;
-        this.x += (this.targetX - this.x) * 0.12;
-        this.y += (this.targetY - this.y) * 0.12;
+        // Slower, cinematic lerp during Auto-Tour scenic/interior pans
+        // (but keep snappy lerp while tracking an entity so follow feels tight)
+        const _cinematic = (typeof AutoTour !== 'undefined' && AutoTour.active && !G.tracking);
+        const _zoomLerp = _cinematic ? 0.035 : 0.08;
+        const _xyLerp   = _cinematic ? 0.05  : 0.12;
+        this.zoom += (this.targetZoom - this.zoom) * _zoomLerp;
+        this.x += (this.targetX - this.x) * _xyLerp;
+        this.y += (this.targetY - this.y) * _xyLerp;
         
         if (!G.tracking) {
             if (this.x < minX) { this.x = minX; }

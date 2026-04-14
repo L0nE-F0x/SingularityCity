@@ -23,11 +23,11 @@ const AutoTour = {
     embedSticky: false,
 
     /* ── Tuning ───────────────────────────────────────────────── */
-    IDLE_MS:  180000,
-    HOLD_MS_MIN: 6000,
-    HOLD_MS_MAX: 14000,
-    INTERIOR_HOLD_MS: 12000,
-    TRACK_HOLD_MS: 10000,
+    IDLE_MS:  300000,          // 5 minutes of no input before tour auto-starts
+    HOLD_MS_MIN: 10000,        // slower pace between location jumps
+    HOLD_MS_MAX: 18000,
+    INTERIOR_HOLD_MS: 16000,
+    TRACK_HOLD_MS: 14000,
     MIN_STOPS: 3,
 
     /* ── Category weights (must sum to 1.0) ──────────────────── */
@@ -369,8 +369,8 @@ const AutoTour = {
         const holdMs = this.HOLD_MS_MIN + Math.random() * (this.HOLD_MS_MAX - this.HOLD_MS_MIN);
         this._currentHoldMs = holdMs;
 
-        // Gentle pan drift
-        this._panDrift = 0.06 + Math.random() * 0.10;
+        // Gentle pan drift (halved for smoother cinematic feel)
+        this._panDrift = 0.03 + Math.random() * 0.05;
         this._panDir = Math.random() < 0.5 ? 1 : -1;
 
         const z = this._userZoom || 1;
@@ -407,8 +407,8 @@ const AutoTour = {
         const holdMs = this.HOLD_MS_MIN + Math.random() * (this.HOLD_MS_MAX - this.HOLD_MS_MIN);
         this._currentHoldMs = holdMs;
 
-        // Cinematic drift
-        this._panDrift = def.pan || 0.10;
+        // Cinematic drift (halved for smoother cinematic feel)
+        this._panDrift = (def.pan || 0.10) * 0.5;
         this._panDir = Math.random() < 0.5 ? 1 : -1;
 
         const z = this._userZoom || 1;
@@ -450,7 +450,7 @@ const AutoTour = {
         const label = b.lab ? b.lab.toUpperCase() + ' — Inside' : (b.label || bldId) + ' — Inside';
         this._setLabel(label);
 
-        // Enter interior after a brief pause to let pan complete
+        // Enter interior after a brief pause to let the (now slower) pan complete
         this._currentHoldMs = this.INTERIOR_HOLD_MS;
         setTimeout(() => {
             if (!this.active) return;
@@ -463,7 +463,7 @@ const AutoTour = {
             }
             this._isInsideBuilding = true;
             this._interiorEnteredAt = performance.now();
-        }, 1800);
+        }, 2800);
     },
 
     /* ── TRACKING: follow a random walking model ───────────── */
