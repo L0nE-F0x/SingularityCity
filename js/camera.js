@@ -243,15 +243,9 @@ const Camera = {
             
             if (entityX !== null) {
                 this.targetX = -(entityX) + (G.vpW / 2) / this.zoom;
-                // Auto-Tour tracking preserves the user's zoom AND Y so the underground
-                // view (metro/pipes) stays visible; manual tracking centers+zooms the entity.
-                if (typeof AutoTour !== 'undefined' && AutoTour.active) {
-                    if (AutoTour._userZoom) this.targetZoom = AutoTour._userZoom;
-                    // leave targetY alone — user's saved Y keeps the underground visible
-                } else {
-                    this.targetY = -(entityY) + (G.vpH * 0.6) / this.zoom;
-                    this.targetZoom = 1.3;
-                }
+                // Center entity vertically: offset so entityY lands at ~60% down the screen
+                this.targetY = -(entityY) + (G.vpH * 0.6) / this.zoom;
+                this.targetZoom = 1.3;
             }
         }
         
@@ -298,11 +292,12 @@ const Camera = {
             this.targetX = Math.max(minX, Math.min(this.targetX, maxX));
         }
         
-        // Slower, cinematic lerp during Auto-Tour scenic/interior pans
-        // (but keep snappy lerp while tracking an entity so follow feels tight)
-        const _cinematic = (typeof AutoTour !== 'undefined' && AutoTour.active && !G.tracking);
-        const _zoomLerp = _cinematic ? 0.035 : 0.08;
-        const _xyLerp   = _cinematic ? 0.05  : 0.12;
+        // Very slow, cinematic lerp during Auto-Tour — every transition (scenic pan,
+        // zoom-in to tracked entity, zoom-out afterwards) should glide over ~4 seconds
+        // so the tour feels like a screensaver drift, not a slideshow.
+        const _cinematic = (typeof AutoTour !== 'undefined' && AutoTour.active);
+        const _zoomLerp = _cinematic ? 0.010 : 0.08;
+        const _xyLerp   = _cinematic ? 0.015 : 0.12;
         this.zoom += (this.targetZoom - this.zoom) * _zoomLerp;
         this.x += (this.targetX - this.x) * _xyLerp;
         this.y += (this.targetY - this.y) * _xyLerp;

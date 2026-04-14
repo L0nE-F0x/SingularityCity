@@ -247,15 +247,19 @@ const AutoTour = {
         if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) { this.stop('mode-change'); return; }
         if (typeof XRayMode !== 'undefined' && XRayMode.active) { this.stop('mode-change'); return; }
 
-        // Safety — if we think we're inside but the interior was already closed, reset flag
-        if (this._isInsideBuilding && !G.activeInterior) {
+        // Safety — if we think we're inside but the interior was already closed, reset flag.
+        // IMPORTANT: skip during an in-flight transition — `_transitionEnter` sets
+        // `_transitioning=true` and opens the overlay for 200ms before G.activeInterior
+        // actually becomes set, so without this guard we'd reset the flag in the gap
+        // and then the next safety check would immediately exit the interior.
+        if (this._isInsideBuilding && !G.activeInterior && !G._transitioning) {
             this._isInsideBuilding = false;
             this._interiorEnteredAt = null;
         }
 
         // Safety — if we're in an interior we didn't enter deliberately
         // (e.g., tracked model walked into a building via engine tracking code)
-        if (G.activeInterior && !this._isInsideBuilding && !this._trackingModelId) {
+        if (G.activeInterior && !this._isInsideBuilding && !this._trackingModelId && !G._transitioning) {
             this._exitInterior();
             this._stopStartedAt = now;
             this._currentHoldMs = 1500;
@@ -276,11 +280,6 @@ const AutoTour = {
             }
         }
 
-        // Keep zoom locked to the user's level (camera tracking overrides it each frame)
-        if (this._userZoom && this._trackingModelId) {
-            Camera.targetZoom = this._userZoom;
-        }
-
         // Apply gentle horizontal drift for cinematic panning (exterior only)
         if (!this._isInsideBuilding && !this._trackingModelId && this._panDrift) {
             Camera.targetX += this._panDrift * this._panDir;
@@ -293,18 +292,21 @@ const AutoTour = {
                 this._exitInterior();
                 this._isInsideBuilding = false;
                 this._interiorEnteredAt = null;
-                // Small pause after exiting to let the city render
+                // Pause after exiting so the zoom/fade glide back to user level before the next jump
                 this._stopStartedAt = now;
-                this._currentHoldMs = 1500;
+                this._currentHoldMs = 2500;
                 return;
             }
-            // If tracking, stop tracking — also exit interior if tracking led us into one
+            // If tracking, stop tracking — also exit interior if tracking led us into one.
+            // G.stopTracking() restores AutoTour._userZoom automatically; we also restore the
+            // saved Y so the underground view (metro/pipes) comes back for the next scenic stop.
             if (this._trackingModelId) {
                 if (G.activeInterior) this._exitInterior();
                 if (G.tracking) G.stopTracking();
                 this._trackingModelId = null;
+                if (this._savedTargetY !== undefined) Camera.targetY = this._savedTargetY;
                 this._stopStartedAt = now;
-                this._currentHoldMs = 1500;
+                this._currentHoldMs = 2500;
                 return;
             }
             this._pickAndAdvance();
@@ -456,7 +458,7 @@ const AutoTour = {
             }
             this._isInsideBuilding = true;
             this._interiorEnteredAt = performance.now();
-        }, 2800);
+        }, 3500);
     },
 
     /* ── TRACKING: follow a random walking model ───────────── */
