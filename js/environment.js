@@ -484,14 +484,15 @@ const Environment = {
       // ─── BACKBONE ZONE: Dense underground fiber nexus ───
       if (hasBackboneZone) {
           const bkw = backboneEndX - backboneStartX;
-          // Dark fiber infrastructure underground
-          g.beginFill(0x060a14); g.drawRect(backboneStartX, gy + 32, bkw, 38); g.endFill();
-          // Dense fiber trunk (the main nexus where all cables converge)
+          // Dark fiber infrastructure underground (extend +/-2px so it overlaps neighboring city cable tray seamlessly)
+          g.beginFill(0x060a14); g.drawRect(backboneStartX - 2, gy + 32, bkw + 4, 38); g.endFill();
+          // Dense fiber trunk (the main nexus where all cables converge) — extend edge-to-edge with slight overlap
+          // so cables meet main city cables (same Y positions, same colors) without any visible gap.
           for (let fi = 0; fi < 10; fi++) {
               const fy = gy + 35 + fi * 3;
               const col = cableCols[fi % cableCols.length];
               g.beginFill(col, 0.35 + Math.random() * 0.25);
-              g.drawRect(backboneStartX + 10, fy, bkw - 20, 2);
+              g.drawRect(backboneStartX - 2, fy, bkw + 4, 2);
               g.endFill();
           }
           // Cable node dots (junction points)
@@ -539,15 +540,16 @@ const Environment = {
       // ─── AGENT DISTRICT: Underground data mesh ───
       if (hasAgentsZone) {
           const agw = agentsEndX - agentsStartX;
-          // Dark data infrastructure underground
-          g.beginFill(0x06040e); g.drawRect(agentsStartX, gy + 32, agw, 38); g.endFill();
-          // Agent communication bus lines (rose/purple tinted)
+          // Dark data infrastructure underground (extend +/-2px for seamless overlap with neighboring cable tray)
+          g.beginFill(0x06040e); g.drawRect(agentsStartX - 2, gy + 32, agw + 4, 38); g.endFill();
+          // Agent communication bus lines (rose/purple tinted) — 10 rows at main-city Y positions so they line up
+          // across zone boundaries; extend edge-to-edge with slight overlap so there's no visible gap.
           const agentCols = [0xf43f5e, 0xa855f7, 0xfbbf24, 0x4ade80, 0x22d3ee, 0x8b5cf6];
-          for (let fi = 0; fi < 8; fi++) {
-              const fy = gy + 36 + fi * 4;
+          for (let fi = 0; fi < 10; fi++) {
+              const fy = gy + 35 + fi * 3;
               const col = agentCols[fi % agentCols.length];
-              g.beginFill(col, 0.25 + Math.random() * 0.2);
-              g.drawRect(agentsStartX + 10, fy, agw - 20, 2);
+              g.beginFill(col, 0.30 + Math.random() * 0.2);
+              g.drawRect(agentsStartX - 2, fy, agw + 4, 2);
               g.endFill();
           }
           // Node junction dots (agent endpoints)
