@@ -246,7 +246,10 @@ const VCRow = {
 
         // Headlights: on at night or in bad weather, off during clear day
         const night = dp > 0.83 || dp < 0.25;
-        const badWeather = typeof Environment !== 'undefined' && (Environment.weather === 'rain' || Environment.weather === 'snow');
+        const badWeather = typeof Environment !== 'undefined' && (
+            Environment.isRainy?.() || Environment.weather === 'snow' ||
+            Environment.weather === 'overcast' || Environment.weather === 'fog'
+        );
         const beamTarget = night ? 1 : (badWeather ? 0.5 : 0);
 
         this.carCommuters.forEach((cm, ci) => {

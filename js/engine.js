@@ -1933,7 +1933,8 @@ const G = {
             dead = this.models.length - alive;
             labCount = labSet.size;
         }
-        const wI = (typeof Environment !== 'undefined') ? (Environment.weather === 'rain' ? '🌧️' : Environment.weather === 'snow' ? '❄️' : Environment.weather === 'cherry' ? '🌸' : '') : '';
+        const _wIcons = { rain:'🌧️', drizzle:'🌦️', thunderstorm:'⛈️', snow:'❄️', cherry:'🌸', leaves:'🍂', fog:'🌫️', overcast:'☁️', partly_cloudy:'⛅' };
+        const wI = (typeof Environment !== 'undefined') ? (_wIcons[Environment.weather] || '') : '';
 
         if (!this._nfoEl) this._nfoEl = document.getElementById('nfo');
         const nfoEl = this._nfoEl;

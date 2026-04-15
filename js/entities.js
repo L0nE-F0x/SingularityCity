@@ -310,7 +310,11 @@ const Entities = {
 
     update(dp, night) {
       // Headlight alpha — on at night or during rain/snow, off otherwise
-      const badWeather = typeof Environment !== 'undefined' && (Environment.weather === 'rain' || Environment.weather === 'snow');
+      // Headlights trigger for any precipitation that darkens the sky (rain, drizzle, storm, snow, thick fog).
+      const badWeather = typeof Environment !== 'undefined' && (
+        Environment.isRainy?.() || Environment.weather === 'snow' ||
+        Environment.weather === 'overcast' || Environment.weather === 'fog'
+      );
       const headlightTarget = night ? 1 : (badWeather ? 0.5 : 0);
       this._headlightAlpha += (headlightTarget - this._headlightAlpha) * 0.05;
 
@@ -871,6 +875,8 @@ const Entities = {
       const chatBubbles = G.chatBubbles;
       const hasEnv = typeof Environment !== 'undefined';
       const envWeather = hasEnv ? Environment.weather : null;
+      // Any rain-family weather that should slow commutes and pop umbrellas.
+      const envIsRainy = hasEnv && Environment.isRainy ? Environment.isRainy() : (envWeather === 'rain');
       const hasPers = typeof Personality !== 'undefined';
 
       // ─── PERF: Hoist metro station lookups (same for every entity) ───
@@ -1239,8 +1245,8 @@ const Entities = {
                     const pSpeedMod = (1.4 - (pScale * 0.3)) * personalitySpd;
 
                     if (refs._metroState === 'none' && !refs._metroLegs) {
-                        const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (envWeather === 'rain' && act === 'commute' ? 1.5 : 1);
-                        const wAmt = (act === 'commute' ? (envWeather === 'rain' ? 120 : 80) : (isSocial ? 50 : 20)) * pScale;
+                        const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (envIsRainy && act === 'commute' ? 1.5 : 1);
+                        const wAmt = (act === 'commute' ? (envIsRainy ? 120 : 80) : (isSocial ? 50 : 20)) * pScale;
                         wobble = Math.sin(i * 1.7 + tick * ws) * wAmt;
                     }
 
@@ -1285,7 +1291,7 @@ const Entities = {
                                 refs.c.x = currentTargetX;
                                 currentDir = Math.sign(distX) || 1;
                                 if (wobble !== 0) {
-                                    const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (envWeather === 'rain' && act === 'commute' ? 1.5 : 1);
+                                    const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (envIsRainy && act === 'commute' ? 1.5 : 1);
                                     currentDir = Math.cos(i * 1.7 + tick * ws) > 0 ? 1 : -1;
                                 }
                             }
@@ -1370,7 +1376,7 @@ const Entities = {
 
                     const isOutside = !isIn && !isR && refs._metroState === 'none' && refs.c.visible;
 
-                    if (isOutside && envWeather === 'rain') {
+                    if (isOutside && envIsRainy) {
                         refs.umbrella.visible = true;
                         refs.umbrella.rotation = (currentDir === 1 ? 0.1 : -0.1) + Math.sin(tick * 0.1 + i) * 0.05;
                     } else {

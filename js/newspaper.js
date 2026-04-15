@@ -393,6 +393,9 @@ const Newspaper = {
         const map = {
             clear: 'FAIR SKIES', rain: 'RAINY', snow: 'SNOW FLURRIES',
             cherry: 'BLOSSOM DRIFT', sandstorm: 'SANDSTORM',
+            drizzle: 'LIGHT DRIZZLE', thunderstorm: 'THUNDERSTORMS',
+            fog: 'THICK FOG', overcast: 'OVERCAST', partly_cloudy: 'PARTLY CLOUDY',
+            leaves: 'AUTUMN LEAVES',
         };
         return map[weather] || 'FAIR SKIES';
     },

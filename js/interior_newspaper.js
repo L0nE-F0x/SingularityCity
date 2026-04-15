@@ -912,8 +912,13 @@ const InteriorNewspaper = {
                 sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
             }
             // Weather overrides (matches InteriorCity exactly)
-            if (typeof Environment !== 'undefined' && Environment.weather === 'rain' && !night && dp > .3 && dp < .72) {
-                sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
+            if (typeof Environment !== 'undefined' && !night && dp > .3 && dp < .72) {
+                const _ew = Environment.weather;
+                if (_ew === 'rain' || _ew === 'drizzle')   sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
+                else if (_ew === 'thunderstorm')           sky = 'linear-gradient(180deg,#1a1f2a,#2d3340 50%,#444a55)';
+                else if (_ew === 'overcast')               sky = 'linear-gradient(180deg,#4a5568,#64748b 50%,#94a3b8)';
+                else if (_ew === 'fog')                    sky = 'linear-gradient(180deg,#8a9099,#a8b1bb 50%,#c0c8d0)';
+                else if (_ew === 'partly_cloudy')          sky = 'linear-gradient(180deg,#355088,#6a9abf 50%,#93b9d8)';
             }
             if (typeof Environment !== 'undefined' && Environment.weather === 'snow') {
                 sky = 'linear-gradient(180deg,#1a1a2e,#2d3748 50%,#4a5568)';

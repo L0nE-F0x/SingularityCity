@@ -71,7 +71,7 @@ const PowerEnv = {
         if (typeof PowerZone === 'undefined') return;
         PowerZone.update();
         const w = typeof Environment !== 'undefined' ? Environment.weather : 'clear';
-        const windMult = w === 'rain' ? 2.5 : w === 'snow' ? 1.8 : w === 'sandstorm' ? 3.0 : 1.0;
+        const windMult = w === 'thunderstorm' ? 3.2 : (w === 'rain' || w === 'drizzle') ? 2.5 : w === 'snow' ? 1.8 : w === 'sandstorm' ? 3.0 : w === 'fog' ? 0.4 : 1.0;
 
         // Steam particles rise and reset
         this.steamParts.forEach(p => {

@@ -3,17 +3,99 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const Environment = {
-    weather: 'clear', 
+    // ─── WEATHER STATE (v16.4 overhaul) ───
+    // `weather` is the current visible state. Extended vocabulary:
+    //   clear, partly_cloudy, overcast, fog, drizzle, rain, thunderstorm, snow, cherry, leaves
+    // Existing external checks for 'rain'/'snow'/'cherry' continue to work;
+    // use the helpers isRainy()/isSnowing()/isCloudy() for the extended categories.
+    weather: 'clear',
+    weatherIntensity: 0,         // 0..1, current render intensity (smooth-lerped)
+    weatherTargetIntensity: 0,   // where intensity wants to move toward
+    weatherPending: null,        // queued next weather — swap when intensity hits 0
+    wind: { x: 0, y: 0 },        // wind vector (x = horizontal, y unused for now)
+    _windSeed: Math.random() * 1000,
+    lightningFlash: 0,           // 0..1 brightness of current lightning flash
+    _nextLightningTick: 0,
+    _fogGfx: null,               // lazy-created overlay for fog wash
+    _flashGfx: null,             // lazy-created overlay for lightning
+
     desertWeather: 'clear',
-    nextWeatherTick: 800, 
+    nextWeatherTick: 800,
     nextDesertWeatherTick: 1200,
     season: 'spring',
     rainDrops: [], snowFlakes: [], petals: [], sandParticles: [],
-    
+
     starsLayer: null, celestialGfx: null, cloudLayer: null,
     bldLayer: null, groundGfx: null, reflectionLayer: null, refMask: null,
     staticLightsGfx: null, lightLayer: null, fxGfx: null,
     dataPulses: [],
+
+    // ─── WEATHER TYPE METADATA ───
+    // peak: peak intensity for full-strength rendering (0..1)
+    // hasParticles: whether drawWeather spawns particles
+    // category: used for isRainy/isCloudy etc.
+    _WEATHER_INFO: {
+        clear:         { peak: 0,    hasParticles: false, category: 'clear'   },
+        partly_cloudy: { peak: 0,    hasParticles: false, category: 'clear'   },
+        overcast:      { peak: 0,    hasParticles: false, category: 'cloudy'  },
+        fog:           { peak: 0.7,  hasParticles: false, category: 'cloudy'  },
+        drizzle:       { peak: 0.35, hasParticles: true,  category: 'rainy'   },
+        rain:          { peak: 0.85, hasParticles: true,  category: 'rainy'   },
+        thunderstorm:  { peak: 1.0,  hasParticles: true,  category: 'rainy'   },
+        snow:          { peak: 0.8,  hasParticles: true,  category: 'snowy'   },
+        cherry:        { peak: 0.7,  hasParticles: true,  category: 'bloom'   },
+        leaves:        { peak: 0.7,  hasParticles: true,  category: 'bloom'   },
+    },
+
+    // ─── MARKOV TRANSITION WEIGHTS ───
+    // Per-season next-state probabilities. Keys are current weather; values
+    // are [nextWeather, weight] pairs. Selection is a weighted random draw.
+    // Keeping related states adjacent makes transitions feel meteorological.
+    _MARKOV: {
+        spring: {
+            clear:         [['clear', 4], ['partly_cloudy', 2], ['cherry', 1]],
+            partly_cloudy: [['clear', 2], ['partly_cloudy', 2], ['overcast', 2], ['cherry', 1]],
+            overcast:      [['partly_cloudy', 2], ['drizzle', 2], ['rain', 1], ['fog', 1]],
+            fog:           [['fog', 1], ['overcast', 2], ['partly_cloudy', 2], ['clear', 1]],
+            drizzle:       [['drizzle', 1], ['rain', 2], ['overcast', 2]],
+            rain:          [['rain', 2], ['drizzle', 2], ['thunderstorm', 0.5], ['overcast', 1]],
+            thunderstorm:  [['rain', 3], ['overcast', 1]],
+            cherry:        [['cherry', 2], ['clear', 2], ['partly_cloudy', 1]],
+        },
+        summer: {
+            clear:         [['clear', 5], ['partly_cloudy', 2]],
+            partly_cloudy: [['clear', 3], ['partly_cloudy', 2], ['overcast', 1]],
+            overcast:      [['partly_cloudy', 2], ['rain', 1], ['thunderstorm', 1]],
+            fog:           [['fog', 1], ['clear', 3]],
+            drizzle:       [['rain', 2], ['overcast', 1]],
+            rain:          [['rain', 2], ['thunderstorm', 1], ['overcast', 1]],
+            thunderstorm:  [['rain', 2], ['overcast', 2]],
+        },
+        autumn: {
+            clear:         [['clear', 3], ['partly_cloudy', 2], ['leaves', 1]],
+            partly_cloudy: [['clear', 2], ['overcast', 2], ['leaves', 1], ['fog', 1]],
+            overcast:      [['partly_cloudy', 2], ['drizzle', 2], ['rain', 1], ['fog', 1]],
+            fog:           [['fog', 2], ['overcast', 2], ['partly_cloudy', 1]],
+            drizzle:       [['drizzle', 1], ['rain', 2], ['overcast', 1]],
+            rain:          [['rain', 2], ['drizzle', 2], ['overcast', 1]],
+            leaves:        [['leaves', 2], ['clear', 1], ['partly_cloudy', 1], ['overcast', 1]],
+        },
+        winter: {
+            clear:         [['clear', 3], ['partly_cloudy', 2], ['fog', 1]],
+            partly_cloudy: [['clear', 2], ['overcast', 2], ['snow', 1]],
+            overcast:      [['partly_cloudy', 2], ['snow', 2], ['drizzle', 1], ['fog', 1]],
+            fog:           [['fog', 2], ['overcast', 2], ['partly_cloudy', 1]],
+            drizzle:       [['drizzle', 1], ['overcast', 2], ['snow', 1]],
+            snow:          [['snow', 3], ['overcast', 1]],
+        },
+    },
+
+    // ─── WEATHER CATEGORY HELPERS (used by external modules) ───
+    isRainy()   { return this._WEATHER_INFO[this.weather]?.category === 'rainy'; },
+    isSnowing() { return this.weather === 'snow'; },
+    isCloudy()  { const c = this._WEATHER_INFO[this.weather]?.category; return c === 'cloudy' || c === 'rainy' || c === 'snowy'; },
+    isWet()     { return this.isRainy(); },  // alias — for reflection/trail decisions
+    hasPrecipitation() { return !!this._WEATHER_INFO[this.weather]?.hasParticles; },
 
     getSeason() { 
         const m = new Date().getMonth();
@@ -2427,27 +2509,112 @@ const Environment = {
       this._lastBuildFP = this._buildFingerprint();
     },
 
+    // ─── WEATHER SELECTION (Markov chain, season-aware) ───
+    // Picks the next weather state based on the current state. If current
+    // state has no entry for the current season (e.g. snow in summer), falls
+    // back to the 'clear' row for that season.
+    _pickNextWeather() {
+      const table = this._MARKOV[this.season] || this._MARKOV.spring;
+      const row = table[this.weather] || table.clear || [['clear', 1]];
+      let total = 0;
+      for (const [, w] of row) total += w;
+      let roll = Math.random() * total;
+      for (const [name, w] of row) {
+          roll -= w;
+          if (roll <= 0) return name;
+      }
+      return row[0][0];
+    },
+
     updateWeather() {
       if (G.tick <= this.nextWeatherTick) return;
       this.season = this.getSeason();
-      let weathers;
-      if (this.season === 'winter') weathers = ['clear', 'clear', 'clear', 'snow', 'snow', 'rain'];
-      else if (this.season === 'spring') weathers = ['clear', 'clear', 'clear', 'rain', 'cherry'];
-      else if (this.season === 'autumn') weathers = ['clear', 'clear', 'clear', 'rain']; else weathers = ['clear', 'clear', 'clear', 'clear', 'rain'];
-      const nw = weathers[Math.floor(Math.random() * weathers.length)];
-      
-      if (nw !== this.weather) {
-        this.weather = nw;
-        this.rainDrops = []; this.snowFlakes = []; this.petals = [];
-        if (typeof UI !== 'undefined') {
-            if (nw === 'rain') { UI.addToast('🌧️ A rainstorm has started!');
-            G.unlockAchieve('rain_seen'); } 
-            else if (nw === 'snow') { UI.addToast('❄️ Snow is falling!'); G.unlockAchieve('snow_seen'); } 
-            else if (nw === 'cherry') UI.addToast('🌸 Cherry blossoms drifting!'); 
-            else if (G.tick > 1500) UI.addToast('☀️ Weather cleared up.');
-        }
+
+      // If a fade-out is still in progress, don't queue a new one yet —
+      // let the current transition finish cleanly.
+      if (this.weatherPending) {
+          this.nextWeatherTick = G.tick + 400;
+          return;
       }
+
+      const nw = this._pickNextWeather();
+      if (nw !== this.weather) {
+          // Begin transition: fade out current, then swap to `nw`, then fade in.
+          this.weatherPending = nw;
+          this.weatherTargetIntensity = 0;
+          this._announceWeather(nw);
+      } else {
+          // Same state picked — just nudge the target intensity (wiggle density).
+          const peak = this._WEATHER_INFO[nw]?.peak || 0;
+          this.weatherTargetIntensity = peak * (0.8 + Math.random() * 0.2);
+      }
+
+      // Next roll in 25-65 seconds of sim time (matches old cadence).
       this.nextWeatherTick = G.tick + 2000 + Math.floor(Math.random() * 3000);
+    },
+
+    _announceWeather(nw) {
+      if (typeof UI === 'undefined') return;
+      const toasts = {
+          rain:         '🌧️ A rainstorm is rolling in.',
+          drizzle:      '🌦️ A light drizzle has started.',
+          thunderstorm: '⛈️ Thunderstorm! Heads down out there.',
+          snow:         '❄️ Snow is starting to fall.',
+          cherry:       '🌸 Cherry blossoms drifting through the air.',
+          leaves:       '🍂 Autumn leaves are falling.',
+          fog:          '🌫️ Fog is settling over the city.',
+          overcast:     '☁️ The sky is clouding over.',
+          partly_cloudy:'⛅ A few clouds moving in.',
+      };
+      const msg = toasts[nw];
+      if (msg) UI.addToast(msg);
+      else if (nw === 'clear' && G.tick > 1500) UI.addToast('☀️ The weather is clearing up.');
+
+      // Existing achievements preserved; extend with new ones.
+      if (G.unlockAchieve) {
+          if (nw === 'rain')         G.unlockAchieve('rain_seen');
+          else if (nw === 'snow')    G.unlockAchieve('snow_seen');
+          else if (nw === 'thunderstorm') G.unlockAchieve('thunder_seen');
+          else if (nw === 'fog')     G.unlockAchieve('fog_seen');
+      }
+    },
+
+    // ─── SMOOTH TRANSITION TICK (runs every frame) ───
+    // Lerps weatherIntensity toward its target. When fading out and a
+    // `weatherPending` is queued, swap and begin fading in to the new peak.
+    _tickWeatherTransition() {
+      const lerpRate = 0.004;  // ~250-frame (4-second) fade at 60fps
+      const target = this.weatherTargetIntensity;
+      const cur = this.weatherIntensity;
+      const delta = target - cur;
+      if (Math.abs(delta) > 0.001) {
+          this.weatherIntensity += delta * lerpRate * 16;  // scaled lerp
+          if (Math.abs(this.weatherIntensity - target) < 0.005) this.weatherIntensity = target;
+      }
+
+      // Fade-out complete → swap to pending weather and start fading in.
+      if (this.weatherPending && this.weatherIntensity < 0.02) {
+          const nw = this.weatherPending;
+          this.weather = nw;
+          this.weatherPending = null;
+          // Clear old particles so they don't flash in the new state.
+          this.rainDrops.length = 0;
+          this.snowFlakes.length = 0;
+          this.petals.length = 0;
+          // Begin fading in to the new weather's peak intensity.
+          const peak = this._WEATHER_INFO[nw]?.peak || 0;
+          this.weatherTargetIntensity = peak * (0.85 + Math.random() * 0.15);
+      }
+
+      // Slow wind drift — gentle breeze, stronger during storms.
+      const t = G.tick * 0.0008 + this._windSeed;
+      const base = Math.sin(t) * 0.4 + Math.sin(t * 0.37) * 0.2;
+      let windMax = 0.4;
+      if (this.weather === 'rain' || this.weather === 'drizzle') windMax = 1.1;
+      else if (this.weather === 'thunderstorm') windMax = 1.8;
+      else if (this.weather === 'snow') windMax = 0.7;
+      else if (this.weather === 'fog') windMax = 0.25;
+      this.wind.x = base * windMax;
     },
 
     updateDesertWeather() {
@@ -2511,33 +2678,49 @@ const Environment = {
       };
 
       // ─── CITY WEATHER (skip desert zone) ───
-      if (this.weather === 'rain') {
-        const target = 260;
+      const w = this.weather;
+      const intensity = this.weatherIntensity;
+      const wind = this.wind;
+
+      // RAINY FAMILY (drizzle, rain, thunderstorm) — unified render path
+      if (w === 'drizzle' || w === 'rain' || w === 'thunderstorm') {
+        // Target particle count scales with intensity. Drizzle caps low.
+        const baseTarget = w === 'thunderstorm' ? 340 : w === 'rain' ? 260 : 100;
+        const target = Math.floor(baseTarget * intensity);
+        // Spawn up to target; remove surplus gradually (during fade-out).
         while (this.rainDrops.length < target) {
           this.rainDrops.push({
             x: wx + Math.random() * vw,
             y: wy + Math.random() * vh,
-            s: 4 + Math.random() * 4
+            s: (w === 'drizzle' ? 2.5 : 4) + Math.random() * 4
           });
         }
-        g.lineStyle(1, 0x88bbdd, 0.38);
+        if (this.rainDrops.length > target) this.rainDrops.length = target;
+
+        const rainAlpha = (w === 'drizzle' ? 0.22 : w === 'thunderstorm' ? 0.5 : 0.38) * (0.3 + intensity * 0.7);
+        const windX = wind.x * (w === 'drizzle' ? 0.6 : 1.0);
+        const streakLen = w === 'drizzle' ? 9 : w === 'thunderstorm' ? 18 : 14;
+        g.lineStyle(1, 0x88bbdd, rainAlpha);
         const drops = this.rainDrops;
         for (let i = 0; i < drops.length; i++) {
             const d = drops[i];
-            d.y += d.s; d.x -= 0.8;
-            // Natural fall-cycle: drop hit the bottom → reappear at the top.
+            d.y += d.s;
+            d.x += windX - 0.2;
             if (d.y > yMax) {
               d.y = yMin;
               d.x = wx + Math.random() * vw;
             } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
-              // Camera panned — drop is now outside viewport. Respawn inside.
               respawnInside(d);
             }
             if (desert && d.x >= ds && d.x <= de) continue;
-            g.moveTo(d.x, d.y); g.lineTo(d.x - 1.5, d.y + 14);
+            // Streak slants with wind for a sense of direction.
+            g.moveTo(d.x, d.y);
+            g.lineTo(d.x - 1.5 + windX * 2, d.y + streakLen);
         }
-      } else if (this.weather === 'snow') {
-        const target = 180;
+
+      // SNOW — drifts with wind
+      } else if (w === 'snow') {
+        const target = Math.floor(220 * intensity);
         while (this.snowFlakes.length < target) {
           this.snowFlakes.push({
             x: wx + Math.random() * vw,
@@ -2547,12 +2730,14 @@ const Environment = {
             dx: Math.random() * 0.5 - 0.25
           });
         }
-        // Batch: single beginFill for all snowflakes (same color/alpha)
-        g.beginFill(0xffffff, 0.5);
+        if (this.snowFlakes.length > target) this.snowFlakes.length = target;
+
+        g.beginFill(0xffffff, 0.5 * (0.4 + intensity * 0.6));
         const flakes = this.snowFlakes;
         for (let i = 0; i < flakes.length; i++) {
             const d = flakes[i];
-            d.y += d.s; d.x += d.dx + Math.sin(tick * 0.02 + d.r) * 0.3;
+            d.y += d.s;
+            d.x += d.dx + Math.sin(tick * 0.02 + d.r) * 0.3 + wind.x * 0.8;
             if (d.y > yMax) {
               d.y = yMin;
               d.x = wx + Math.random() * vw;
@@ -2563,8 +2748,10 @@ const Environment = {
             g.drawCircle(d.x, d.y, d.r);
         }
         g.endFill();
-      } else if (this.weather === 'cherry') {
-        const target = 90;
+
+      // CHERRY BLOSSOMS — unchanged look, now wind-aware
+      } else if (w === 'cherry') {
+        const target = Math.floor(130 * intensity);
         while (this.petals.length < target) {
           this.petals.push({
             x: wx + Math.random() * vw,
@@ -2574,12 +2761,14 @@ const Environment = {
             rot: Math.random() * 0.02
           });
         }
-        // Batch: single beginFill for all petals
-        g.beginFill(0xffb7c5, 0.5);
+        if (this.petals.length > target) this.petals.length = target;
+
+        g.beginFill(0xffb7c5, 0.5 * (0.4 + intensity * 0.6));
         const petals = this.petals;
         for (let i = 0; i < petals.length; i++) {
             const d = petals[i];
-            d.y += d.s; d.x += Math.sin(d.r += d.rot) * 0.5;
+            d.y += d.s;
+            d.x += Math.sin(d.r += d.rot) * 0.5 + wind.x * 0.5;
             if (d.y > yMax) {
               d.y = yMin;
               d.x = wx + Math.random() * vw;
@@ -2590,6 +2779,108 @@ const Environment = {
             g.drawEllipse(d.x, d.y, 3, 1.5);
         }
         g.endFill();
+
+      // AUTUMN LEAVES — cherry variant with warm palette
+      } else if (w === 'leaves') {
+        const target = Math.floor(110 * intensity);
+        while (this.petals.length < target) {
+          this.petals.push({
+            x: wx + Math.random() * vw,
+            y: wy + Math.random() * vh,
+            s: 0.4 + Math.random() * 0.9,
+            r: Math.random() * Math.PI,
+            rot: (Math.random() - 0.5) * 0.04,
+            // Pre-pick a tint so each leaf has a stable color across frames.
+            leafCol: [0xd97706, 0xc2410c, 0x9a3412, 0x991b1b, 0xca8a04][Math.floor(Math.random() * 5)]
+          });
+        }
+        if (this.petals.length > target) this.petals.length = target;
+
+        const leaves = this.petals;
+        const baseAlpha = 0.55 * (0.4 + intensity * 0.6);
+        for (let i = 0; i < leaves.length; i++) {
+            const d = leaves[i];
+            d.y += d.s;
+            d.x += Math.sin(d.r += d.rot) * 0.7 + wind.x * 0.7;
+            if (d.y > yMax) {
+              d.y = yMin;
+              d.x = wx + Math.random() * vw;
+            } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
+              respawnInside(d);
+            }
+            if (desert && d.x >= ds && d.x <= de) continue;
+            // Each leaf is a tiny ellipse with its tumble-rotation applied
+            // via the graphics matrix — cheap and gives individual motion.
+            g.beginFill(d.leafCol || 0xd97706, baseAlpha);
+            const tumble = Math.sin(tick * 0.03 + d.r) * 0.5 + 1;
+            g.drawEllipse(d.x, d.y, 3.2, 1.6 * tumble);
+            g.endFill();
+        }
+      }
+
+      // ─── FOG WASH ───
+      // Separate overlay layer (additive-friendly). Created lazily. Drifts with wind.
+      if (!this._fogGfx) {
+          this._fogGfx = new PIXI.Graphics();
+          // Parent to the same layer as fxGfx so it draws above the city.
+          if (this.fxGfx && this.fxGfx.parent) this.fxGfx.parent.addChild(this._fogGfx);
+      }
+      const fogG = this._fogGfx;
+      fogG.clear();
+      const fogIntensity = (w === 'fog') ? intensity : 0;
+      if (fogIntensity > 0.02) {
+          // Three horizontal bands with decreasing alpha toward the bottom —
+          // gives depth-fog feel without a texture or shader.
+          const drift = (tick * 0.2 + wind.x * 40) % 200 - 100;
+          const bandAlpha = fogIntensity * 0.35;
+          fogG.beginFill(0xa8b1bb, bandAlpha);
+          fogG.drawRect(wx - 200, wy, vw + 400, vh * 0.55);
+          fogG.endFill();
+          fogG.beginFill(0xbec5cc, bandAlpha * 0.7);
+          fogG.drawRect(wx - 200, wy + vh * 0.3, vw + 400, vh * 0.55);
+          fogG.endFill();
+          // Drifting streaks: low-alpha elongated ellipses
+          fogG.beginFill(0xd1d6dc, bandAlpha * 0.5);
+          for (let fi = 0; fi < 6; fi++) {
+              const sy = wy + (fi * vh) / 6 + ((tick * 0.1) % (vh / 6));
+              const sx = wx + ((drift + fi * 80) % (vw + 400)) - 200;
+              fogG.drawEllipse(sx, sy, 140, 14);
+          }
+          fogG.endFill();
+      }
+
+      // ─── LIGHTNING FLASH OVERLAY ───
+      if (!this._flashGfx) {
+          this._flashGfx = new PIXI.Graphics();
+          if (this.fxGfx && this.fxGfx.parent) this.fxGfx.parent.addChild(this._flashGfx);
+      }
+      const flashG = this._flashGfx;
+      flashG.clear();
+      if (w === 'thunderstorm') {
+          // Schedule next strike 3-13s ahead (200-800 ticks) — only during storm.
+          if (this._nextLightningTick <= 0) this._nextLightningTick = G.tick + 200 + Math.floor(Math.random() * 600);
+          if (G.tick >= this._nextLightningTick) {
+              this.lightningFlash = 0.9 + Math.random() * 0.1;
+              this._nextLightningTick = G.tick + 200 + Math.floor(Math.random() * 600);
+              // Thunder SFX delayed by 10-35 ticks (~0.2-0.6s at 60fps) — distant rumble.
+              if (typeof SND !== 'undefined' && SND.playTone) {
+                  const delay = 150 + Math.random() * 450;
+                  setTimeout(() => {
+                      try {
+                          SND.playTone(90, 'sawtooth', 0.8, 0.06, 45);
+                          setTimeout(() => SND.playTone(60, 'triangle', 1.1, 0.04, 30), 200);
+                      } catch (_) {}
+                  }, delay);
+              }
+          }
+      } else {
+          this._nextLightningTick = 0;
+      }
+      if (this.lightningFlash > 0.02) {
+          flashG.beginFill(0xf5f7ff, this.lightningFlash * 0.35);
+          flashG.drawRect(wx - 200, wy - 200, vw + 400, vh + 400);
+          flashG.endFill();
+          this.lightningFlash *= 0.82;  // fast decay, 3-4 visible frames
       }
 
       // ─── DESERT WEATHER (sandstorm — only in desert zone) ───
@@ -2640,8 +2931,18 @@ const Environment = {
         sky = `linear-gradient(180deg,rgb(${35 + t * 45 | 0},${25 + t * 10 | 0},${90 - t * 50 | 0}),rgb(${120 + t * 110 | 0},${80 - t * 30 | 0},${60 - t * 30 | 0}) 50%,rgb(${180 + t * 60 | 0},${100 - t * 40 | 0},${30 | 0}))`;
         }
         else sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
-        if (this.weather === 'rain' && !night && dp > .3 && dp < .72) sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
-        if (this.weather === 'snow') sky = 'linear-gradient(180deg,#1a1a2e,#2d3748 50%,#4a5568)';
+        // ─── WEATHER SKY OVERRIDES ───
+        // Extended for new states. Each is applied only in day/golden-hour
+        // where it reads (night skies already dominate).
+        const _w = this.weather;
+        if (!night && dp > .3 && dp < .72) {
+            if (_w === 'rain' || _w === 'drizzle')      sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
+            else if (_w === 'thunderstorm')             sky = 'linear-gradient(180deg,#1a1f2a,#2d3340 50%,#444a55)';
+            else if (_w === 'overcast')                 sky = 'linear-gradient(180deg,#4a5568,#64748b 50%,#94a3b8)';
+            else if (_w === 'fog')                      sky = 'linear-gradient(180deg,#8a9099,#a8b1bb 50%,#c0c8d0)';
+            else if (_w === 'partly_cloudy')            sky = 'linear-gradient(180deg,#355088,#6a9abf 50%,#93b9d8)';
+        }
+        if (_w === 'snow') sky = 'linear-gradient(180deg,#1a1a2e,#2d3748 50%,#4a5568)';
         // X-Ray mode: override sky with pure black so the neon overlay reads as night-on-black
         if (typeof XRayMode !== 'undefined' && XRayMode.active) sky = '#02060a';
         if (sky !== this._lastSky) { this._lastSky = sky; vp.style.background = sky; }
@@ -2702,7 +3003,15 @@ const Environment = {
             const clouds = this.cloudLayer.children;
             const cLen = clouds.length;
             const _tk = G.tick;
-            const cloudAlphaBase = (this.weather === 'rain' || this.weather === 'snow') ? .30 : -1;
+            // Cloud cover scales with weather category — overcast/storm pack the sky, drizzle/fog add partial wash.
+            const _w = this.weather, _wi = this.weatherIntensity || 0;
+            let cloudAlphaBase = -1;
+            if (_w === 'rain' || _w === 'snow')        cloudAlphaBase = 0.30 * (0.5 + _wi * 0.5);
+            else if (_w === 'thunderstorm')            cloudAlphaBase = 0.48 * (0.5 + _wi * 0.5);
+            else if (_w === 'overcast')                cloudAlphaBase = 0.38 * (0.5 + _wi * 0.5);
+            else if (_w === 'drizzle')                 cloudAlphaBase = 0.25 * (0.5 + _wi * 0.5);
+            else if (_w === 'fog')                     cloudAlphaBase = 0.22 * (0.5 + _wi * 0.5);
+            else if (_w === 'partly_cloudy')           cloudAlphaBase = 0.18 * (0.5 + _wi * 0.5);
             const cloudTint = isGoldenHour ? 0xffcc88 : 0xffffff;
             for (let ci = 0; ci < cLen; ci++) {
                 const c = clouds[ci];
@@ -2722,11 +3031,25 @@ const Environment = {
             else if (p._speed < 0 && p.x < p._startX - 200) p.x = p._endX + 100;
         }
 
-        if (G.viewMode === 'micro') { this.updateWeather(); this.updateDesertWeather(); } this.drawWeather(); let targetRefAlpha = 0;
-        if (night) { if (this.weather === 'rain') targetRefAlpha = 0.95; else if (this.weather === 'snow') targetRefAlpha = 0.5;
-        else targetRefAlpha = 0.35; } else { if (this.weather === 'rain') targetRefAlpha = 0.4;
-        else if (this.weather === 'snow') targetRefAlpha = 0.2;
-        else if (isGoldenHour) targetRefAlpha = 0.25; } this.reflectionLayer.alpha += (targetRefAlpha - this.reflectionLayer.alpha) * 0.05;
+        if (G.viewMode === 'micro') { this.updateWeather(); this.updateDesertWeather(); }
+        this._tickWeatherTransition();
+        this.drawWeather();
+        // Reflection alpha scales with rain intensity and stacks with night/golden-hour boosts.
+        let targetRefAlpha = 0;
+        const _rw = this.weather, _rwi = this.weatherIntensity || 0;
+        const _isRainy = (_rw === 'rain' || _rw === 'drizzle' || _rw === 'thunderstorm');
+        if (night) {
+            if (_isRainy)          targetRefAlpha = 0.55 + 0.40 * _rwi;
+            else if (_rw === 'snow') targetRefAlpha = 0.5;
+            else if (_rw === 'fog')  targetRefAlpha = 0.45;
+            else                     targetRefAlpha = 0.35;
+        } else {
+            if (_isRainy)          targetRefAlpha = 0.15 + 0.25 * _rwi;
+            else if (_rw === 'snow') targetRefAlpha = 0.2;
+            else if (_rw === 'fog')  targetRefAlpha = 0.18;
+            else if (isGoldenHour)   targetRefAlpha = 0.25;
+        }
+        this.reflectionLayer.alpha += (targetRefAlpha - this.reflectionLayer.alpha) * 0.05;
         const targetLightAlpha = night ? 1 : 0; if(this.lightLayer) { this.lightLayer.alpha += (targetLightAlpha - this.lightLayer.alpha) * 0.05;
         } 
         

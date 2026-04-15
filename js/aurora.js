@@ -32,9 +32,9 @@ const Aurora = {
         if (!night) return;
         if (this._active || this._cometActive) return;
 
-        // Weather must be clear for aurora
+        // Weather must be clear or only lightly cloudy for aurora to be visible.
         const weather = (typeof Environment !== 'undefined') ? Environment.weather : 'clear';
-        if (weather !== 'clear') return;
+        if (weather !== 'clear' && weather !== 'partly_cloudy') return;
 
         const roll = Math.random();
 

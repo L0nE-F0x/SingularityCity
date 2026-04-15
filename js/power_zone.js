@@ -66,11 +66,29 @@ const PowerZone = {
             const dp = G.getDayPhase();
             if (dp < 0.25 || dp > 0.83) return 0; // Night
             const dayProgress = (dp - 0.25) / (0.83 - 0.25);
-            return Math.round(src.mw * Math.sin(dayProgress * Math.PI)); // Bell curve peaking at noon
+            // Weather derate: clouds, fog, and storms choke photovoltaic output.
+            const w = typeof Environment !== 'undefined' ? Environment.weather : 'clear';
+            const wDerate = w === 'thunderstorm' ? 0.15
+                : w === 'overcast' ? 0.35
+                : (w === 'rain' || w === 'snow') ? 0.50
+                : w === 'drizzle' ? 0.65
+                : w === 'fog' ? 0.45
+                : w === 'partly_cloudy' ? 0.80
+                : w === 'sandstorm' ? 0.30
+                : 1.0;
+            return Math.round(src.mw * Math.sin(dayProgress * Math.PI) * wDerate);
         }
         if (srcId === 'power_wind') {
             const w = typeof Environment !== 'undefined' ? Environment.weather : 'clear';
-            const mult = w === 'rain' ? 1.4 : w === 'snow' ? 1.2 : w === 'sandstorm' ? 1.6 : 0.6;
+            // Wind output: stronger during storms, weaker during fog/calm.
+            const mult = w === 'thunderstorm' ? 1.8
+                : (w === 'rain' || w === 'drizzle') ? 1.4
+                : w === 'snow' ? 1.2
+                : w === 'sandstorm' ? 1.6
+                : w === 'overcast' ? 0.9
+                : w === 'partly_cloudy' ? 0.75
+                : w === 'fog' ? 0.35
+                : 0.6;
             return Math.round(src.mw * mult);
         }
         return src.mw; // Nuclear, coal, hydro = constant
