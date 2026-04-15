@@ -22,6 +22,18 @@ Drop a live view of Singularity City into any page with an iframe. The embed aut
 
 ## Features
 
+### 🌦️ Dynamic Weather & Climate Zones
+- **10 weather states** — clear, partly cloudy, overcast, fog, drizzle, rain, thunderstorm, snow, cherry blossoms, autumn leaves
+- **5 climate profiles** detected from your IANA timezone — tropical, arid, temperate, continental, polar
+- **Southern-hemisphere flip** — Sydney's July is winter, Bali's January is wet season
+- **Per-climate Markov chains** — Bali gets monsoon thunderstorms, Phoenix gets year-round clear skies, Reykjavik gets polar snow, Tokyo gets cherry blossoms in spring
+- **Smooth intensity transitions** — weather fades in/out over ~4 seconds instead of popping on/off
+- **Wind vector** drives slanted rain, drifting snow, tumbling petals and leaves
+- **Thunderstorm** adds lightning flash overlays and delayed thunder SFX
+- **Fog** layers a drifting wash with streaks across the viewport
+- **Power grid reacts** — solar derates under clouds/storm, wind turbines spin harder during storms and stall in fog
+- **Manual override** via `localStorage.setItem('sc_climate', 'polar')` for players who want a different biome
+
 ### 🏢 Living City
 - **960+ AI model citizens** with daily routines — commuting, working, socializing, sleeping
 - **Goal-driven archetypes** — ~20% of citizens have lifestyle routines (gym rats, foodies, bar regulars, bookworms, park joggers, coffee addicts, night owls)
