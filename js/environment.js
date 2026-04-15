@@ -47,46 +47,199 @@ const Environment = {
         leaves:        { peak: 0.7,  hasParticles: true,  category: 'bloom'   },
     },
 
-    // ─── MARKOV TRANSITION WEIGHTS ───
-    // Per-season next-state probabilities. Keys are current weather; values
-    // are [nextWeather, weight] pairs. Selection is a weighted random draw.
-    // Keeping related states adjacent makes transitions feel meteorological.
+    // ─── CLIMATE ZONES ───
+    // The sim detects the player's Köppen-lite climate from their IANA timezone
+    // and picks weather from a climate-specific Markov chain. Five profiles:
+    //   • temperate   — 4 distinct seasons, cherry + leaves (default)
+    //   • continental — harsher winters, heavier snow, shorter mild seasons
+    //   • polar       — near year-round snow, brief summer with cool rain
+    //   • tropical    — wet/dry seasons, thunderstorms, no snow/cherry/leaves
+    //   • arid        — one "season", mostly clear, rare rain
+    // Southern-hemisphere temperate/continental/polar zones flip the season
+    // calendar so Sydney's July is winter, not summer.
+    climate: 'temperate',     // set by _detectClimate() in init()
+    hemisphere: 'N',          // 'N' or 'S' — flips season calendar
+
+    _CLIMATE_PROFILES: {
+        temperate:   { seasons: ['spring', 'summer', 'autumn', 'winter'], calendar: 4 },
+        continental: { seasons: ['spring', 'summer', 'autumn', 'winter'], calendar: 4 },
+        polar:       { seasons: ['spring', 'summer', 'autumn', 'winter'], calendar: 4 },
+        tropical:    { seasons: ['wet', 'dry'], calendar: 2 },
+        arid:        { seasons: ['arid'], calendar: 1 },
+    },
+
+    // Timezone-to-climate regexes. First match wins. Fallback: temperate.
+    // Not exhaustive — approximates the Köppen bands using major IANA zones.
+    // Note: Pacific\/ excludes Auckland/Chatham (NZ — temperate). Most other
+    // Pacific island nations sit within the tropical latitudinal band.
+    _TZ_TROPICAL: /^Pacific\/(?!Auckland|Chatham)|^Indian\/(Mauritius|Reunion|Mahe|Antananarivo|Comoro|Mayotte|Chagos|Cocos|Christmas|Maldives)|^Asia\/(Jakarta|Makassar|Jayapura|Pontianak|Dili|Manila|Bangkok|Ho_Chi_Minh|Phnom_Penh|Vientiane|Singapore|Kuala_Lumpur|Kuching|Brunei|Colombo|Dhaka|Rangoon|Yangon|Kathmandu|Kolkata|Calcutta|Bombay|Mumbai)|^America\/(Bogota|Caracas|Lima|Guayaquil|Panama|Belize|San_Salvador|Tegucigalpa|Managua|Costa_Rica|Guatemala|Merida|Cancun|Mexico_City|Havana|Port_au_Prince|Santo_Domingo|Jamaica|Puerto_Rico|Martinique|Barbados|Grenada|St_Lucia|St_Vincent|Trinidad|Port_of_Spain|Paramaribo|Cayenne|Manaus|Bahia|Recife|Fortaleza|Belem)|^Africa\/(Lagos|Accra|Abidjan|Dakar|Bamako|Conakry|Freetown|Monrovia|Douala|Libreville|Kinshasa|Brazzaville|Bangui|Nairobi|Dar_es_Salaam|Kampala|Kigali|Bujumbura|Addis_Ababa|Djibouti|Mogadishu|Luanda|Lubumbashi|Malabo|Sao_Tome|Porto-Novo|Lome|Ouagadougou|Niamey|Ndjamena)|^Australia\/Darwin/,
+    _TZ_ARID: /^Asia\/(Riyadh|Dubai|Kuwait|Qatar|Bahrain|Baghdad|Amman|Damascus|Tehran|Ashgabat|Kabul|Tashkent|Samarkand|Dushanbe|Muscat|Aden|Jerusalem|Tel_Aviv|Nicosia|Beirut)|^Africa\/(Cairo|Tripoli|Algiers|Tunis|Casablanca|El_Aaiun|Nouakchott|Bissau|Gaborone|Khartoum|Asmara|Juba|Windhoek)|^Australia\/(Perth|Adelaide|Broken_Hill|Eucla)|^America\/Phoenix/,
+    _TZ_POLAR: /^Atlantic\/Reykjavik|^Antarctica\/|^Europe\/(Helsinki|Tallinn|Riga|Stockholm|Oslo|Vilnius)|^Asia\/(Yakutsk|Magadan|Anadyr|Kamchatka|Srednekolymsk|Khandyga|Ust-Nera|Vladivostok|Sakhalin|Chita)|^America\/(Anchorage|Nome|Iqaluit|Yellowknife|Whitehorse|Dawson|Inuvik|Resolute|Rankin_Inlet|Cambridge_Bay|Nuuk|Godthab|Thule)|^Arctic\//,
+    _TZ_CONTINENTAL: /^Europe\/(Moscow|Warsaw|Prague|Budapest|Minsk|Kiev|Kyiv|Bucharest|Sofia|Belgrade|Zagreb|Sarajevo|Skopje|Chisinau|Volgograd|Samara|Saratov|Ulyanovsk|Astrakhan|Kirov)|^Asia\/(Novosibirsk|Yekaterinburg|Omsk|Krasnoyarsk|Irkutsk|Novokuznetsk|Barnaul|Tomsk|Ulaanbaatar|Choibalsan|Hovd|Harbin|Shanghai|Chongqing|Seoul|Pyongyang|Beijing|Urumqi|Almaty|Qyzylorda|Bishkek)|^America\/(Winnipeg|Chicago|Denver|Regina|Edmonton|Calgary|Saskatoon|Boise|Detroit|Indianapolis|Minneapolis|Milwaukee|Fargo|North_Dakota)/,
+    _TZ_SOUTH: /^Australia\/|^Pacific\/(Auckland|Chatham|Fiji|Tongatapu|Apia|Noumea|Port_Moresby|Guadalcanal|Rarotonga|Niue|Wallis|Efate|Norfolk)|^Antarctica\/|^Africa\/(Johannesburg|Maputo|Maseru|Mbabane|Gaborone|Harare|Lusaka|Windhoek|Luanda|Kinshasa|Brazzaville|Nairobi|Dar_es_Salaam|Lilongwe|Bujumbura|Kigali|Lubumbashi|Mogadishu)|^America\/(Argentina|Sao_Paulo|Santiago|Montevideo|Asuncion|La_Paz|Bahia|Recife|Fortaleza|Manaus|Cayenne|Paramaribo|Port_of_Spain|Punta_Arenas)|^Asia\/(Jakarta|Makassar|Jayapura|Pontianak|Dili)|^Indian\/(Mauritius|Reunion|Mahe|Antananarivo|Comoro|Mayotte)/,
+
+    _detectClimate() {
+        // localStorage override first — lets players pick a climate manually.
+        try {
+            const override = localStorage.getItem('sc_climate');
+            if (override && this._CLIMATE_PROFILES[override]) return override;
+        } catch (_) {}
+        let tz = '';
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (_) {}
+        if (this._TZ_TROPICAL.test(tz))    return 'tropical';
+        if (this._TZ_ARID.test(tz))        return 'arid';
+        if (this._TZ_POLAR.test(tz))       return 'polar';
+        if (this._TZ_CONTINENTAL.test(tz)) return 'continental';
+        return 'temperate';
+    },
+
+    _detectHemisphere() {
+        try {
+            const override = localStorage.getItem('sc_hemisphere');
+            if (override === 'N' || override === 'S') return override;
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+            return this._TZ_SOUTH.test(tz) ? 'S' : 'N';
+        } catch (_) { return 'N'; }
+    },
+
+    // ─── MARKOV TRANSITION WEIGHTS (per climate, per season) ───
+    // Structure: _MARKOV[climate][season][currentWeather] = [[nextWeather, weight], ...]
+    // Selection is a weighted random draw across the row.
     _MARKOV: {
-        spring: {
-            clear:         [['clear', 4], ['partly_cloudy', 2], ['cherry', 1]],
-            partly_cloudy: [['clear', 2], ['partly_cloudy', 2], ['overcast', 2], ['cherry', 1]],
-            overcast:      [['partly_cloudy', 2], ['drizzle', 2], ['rain', 1], ['fog', 1]],
-            fog:           [['fog', 1], ['overcast', 2], ['partly_cloudy', 2], ['clear', 1]],
-            drizzle:       [['drizzle', 1], ['rain', 2], ['overcast', 2]],
-            rain:          [['rain', 2], ['drizzle', 2], ['thunderstorm', 0.5], ['overcast', 1]],
-            thunderstorm:  [['rain', 3], ['overcast', 1]],
-            cherry:        [['cherry', 2], ['clear', 2], ['partly_cloudy', 1]],
+        temperate: {
+            spring: {
+                clear:         [['clear', 4], ['partly_cloudy', 2], ['cherry', 1]],
+                partly_cloudy: [['clear', 2], ['partly_cloudy', 2], ['overcast', 2], ['cherry', 1]],
+                overcast:      [['partly_cloudy', 2], ['drizzle', 2], ['rain', 1], ['fog', 1]],
+                fog:           [['fog', 1], ['overcast', 2], ['partly_cloudy', 2], ['clear', 1]],
+                drizzle:       [['drizzle', 1], ['rain', 2], ['overcast', 2]],
+                rain:          [['rain', 2], ['drizzle', 2], ['thunderstorm', 0.5], ['overcast', 1]],
+                thunderstorm:  [['rain', 3], ['overcast', 1]],
+                cherry:        [['cherry', 2], ['clear', 2], ['partly_cloudy', 1]],
+            },
+            summer: {
+                clear:         [['clear', 5], ['partly_cloudy', 2]],
+                partly_cloudy: [['clear', 3], ['partly_cloudy', 2], ['overcast', 1]],
+                overcast:      [['partly_cloudy', 2], ['rain', 1], ['thunderstorm', 1]],
+                fog:           [['fog', 1], ['clear', 3]],
+                drizzle:       [['rain', 2], ['overcast', 1]],
+                rain:          [['rain', 2], ['thunderstorm', 1], ['overcast', 1]],
+                thunderstorm:  [['rain', 2], ['overcast', 2]],
+            },
+            autumn: {
+                clear:         [['clear', 3], ['partly_cloudy', 2], ['leaves', 1]],
+                partly_cloudy: [['clear', 2], ['overcast', 2], ['leaves', 1], ['fog', 1]],
+                overcast:      [['partly_cloudy', 2], ['drizzle', 2], ['rain', 1], ['fog', 1]],
+                fog:           [['fog', 2], ['overcast', 2], ['partly_cloudy', 1]],
+                drizzle:       [['drizzle', 1], ['rain', 2], ['overcast', 1]],
+                rain:          [['rain', 2], ['drizzle', 2], ['overcast', 1]],
+                leaves:        [['leaves', 2], ['clear', 1], ['partly_cloudy', 1], ['overcast', 1]],
+            },
+            winter: {
+                clear:         [['clear', 3], ['partly_cloudy', 2], ['fog', 1]],
+                partly_cloudy: [['clear', 2], ['overcast', 2], ['snow', 1]],
+                overcast:      [['partly_cloudy', 2], ['snow', 2], ['drizzle', 1], ['fog', 1]],
+                fog:           [['fog', 2], ['overcast', 2], ['partly_cloudy', 1]],
+                drizzle:       [['drizzle', 1], ['overcast', 2], ['snow', 1]],
+                snow:          [['snow', 3], ['overcast', 1]],
+            },
         },
-        summer: {
-            clear:         [['clear', 5], ['partly_cloudy', 2]],
-            partly_cloudy: [['clear', 3], ['partly_cloudy', 2], ['overcast', 1]],
-            overcast:      [['partly_cloudy', 2], ['rain', 1], ['thunderstorm', 1]],
-            fog:           [['fog', 1], ['clear', 3]],
-            drizzle:       [['rain', 2], ['overcast', 1]],
-            rain:          [['rain', 2], ['thunderstorm', 1], ['overcast', 1]],
-            thunderstorm:  [['rain', 2], ['overcast', 2]],
+        // Continental: harsher than temperate. Shorter mild seasons, heavier winter.
+        continental: {
+            spring: {
+                clear:         [['clear', 3], ['partly_cloudy', 3], ['overcast', 2]],
+                partly_cloudy: [['clear', 2], ['overcast', 2], ['rain', 1], ['thunderstorm', 0.5]],
+                overcast:      [['partly_cloudy', 2], ['rain', 2], ['drizzle', 1], ['fog', 1]],
+                drizzle:       [['drizzle', 1], ['rain', 1], ['overcast', 2]],
+                rain:          [['rain', 2], ['thunderstorm', 0.5], ['drizzle', 1], ['overcast', 1]],
+                thunderstorm:  [['rain', 2], ['overcast', 1]],
+                fog:           [['fog', 1], ['overcast', 2], ['partly_cloudy', 1]],
+            },
+            summer: {
+                clear:         [['clear', 4], ['partly_cloudy', 3]],
+                partly_cloudy: [['clear', 2], ['partly_cloudy', 2], ['thunderstorm', 1]],
+                overcast:      [['partly_cloudy', 2], ['thunderstorm', 2], ['rain', 1]],
+                rain:          [['rain', 1], ['thunderstorm', 2], ['partly_cloudy', 2]],
+                thunderstorm:  [['rain', 2], ['partly_cloudy', 1], ['clear', 1]],
+            },
+            autumn: {
+                clear:         [['clear', 2], ['partly_cloudy', 3], ['leaves', 2]],
+                partly_cloudy: [['overcast', 3], ['leaves', 1], ['fog', 1]],
+                overcast:      [['partly_cloudy', 1], ['rain', 2], ['drizzle', 2], ['fog', 2]],
+                rain:          [['rain', 2], ['drizzle', 1], ['overcast', 1], ['snow', 0.3]],
+                drizzle:       [['drizzle', 1], ['rain', 1], ['overcast', 2]],
+                fog:           [['fog', 2], ['overcast', 2]],
+                leaves:        [['leaves', 3], ['partly_cloudy', 1], ['overcast', 1]],
+            },
+            winter: {
+                clear:         [['clear', 1], ['partly_cloudy', 2], ['snow', 2], ['fog', 1]],
+                partly_cloudy: [['overcast', 3], ['snow', 2]],
+                overcast:      [['overcast', 2], ['snow', 4], ['fog', 2]],
+                snow:          [['snow', 5], ['overcast', 2]],
+                fog:           [['fog', 3], ['overcast', 2]],
+            },
         },
-        autumn: {
-            clear:         [['clear', 3], ['partly_cloudy', 2], ['leaves', 1]],
-            partly_cloudy: [['clear', 2], ['overcast', 2], ['leaves', 1], ['fog', 1]],
-            overcast:      [['partly_cloudy', 2], ['drizzle', 2], ['rain', 1], ['fog', 1]],
-            fog:           [['fog', 2], ['overcast', 2], ['partly_cloudy', 1]],
-            drizzle:       [['drizzle', 1], ['rain', 2], ['overcast', 1]],
-            rain:          [['rain', 2], ['drizzle', 2], ['overcast', 1]],
-            leaves:        [['leaves', 2], ['clear', 1], ['partly_cloudy', 1], ['overcast', 1]],
+        // Polar: snow-dominated year-round, brief cool summer.
+        polar: {
+            spring: {
+                clear:         [['clear', 1], ['partly_cloudy', 2], ['overcast', 2], ['snow', 2]],
+                partly_cloudy: [['overcast', 2], ['snow', 2]],
+                overcast:      [['overcast', 2], ['snow', 3], ['fog', 2]],
+                snow:          [['snow', 4], ['overcast', 2]],
+                fog:           [['fog', 3], ['overcast', 2]],
+            },
+            summer: {
+                clear:         [['clear', 2], ['partly_cloudy', 3], ['overcast', 2], ['fog', 1]],
+                partly_cloudy: [['clear', 2], ['overcast', 2], ['rain', 1]],
+                overcast:      [['partly_cloudy', 2], ['rain', 2], ['fog', 2], ['drizzle', 1]],
+                rain:          [['rain', 1], ['overcast', 2], ['drizzle', 1]],
+                drizzle:       [['drizzle', 1], ['overcast', 1]],
+                fog:           [['fog', 3], ['overcast', 2]],
+            },
+            autumn: {
+                clear:         [['clear', 1], ['partly_cloudy', 1], ['overcast', 2], ['snow', 2]],
+                partly_cloudy: [['overcast', 3], ['snow', 2]],
+                overcast:      [['overcast', 3], ['snow', 3], ['fog', 2]],
+                snow:          [['snow', 4], ['overcast', 2]],
+                fog:           [['fog', 3], ['snow', 1]],
+            },
+            winter: {
+                clear:         [['clear', 1], ['overcast', 3], ['snow', 3], ['fog', 2]],
+                overcast:      [['overcast', 2], ['snow', 5], ['fog', 3]],
+                snow:          [['snow', 6], ['overcast', 2]],
+                fog:           [['fog', 4], ['overcast', 2], ['snow', 1]],
+            },
         },
-        winter: {
-            clear:         [['clear', 3], ['partly_cloudy', 2], ['fog', 1]],
-            partly_cloudy: [['clear', 2], ['overcast', 2], ['snow', 1]],
-            overcast:      [['partly_cloudy', 2], ['snow', 2], ['drizzle', 1], ['fog', 1]],
-            fog:           [['fog', 2], ['overcast', 2], ['partly_cloudy', 1]],
-            drizzle:       [['drizzle', 1], ['overcast', 2], ['snow', 1]],
-            snow:          [['snow', 3], ['overcast', 1]],
+        // Tropical: wet/dry binary. Lots of afternoon thunderstorms in wet season.
+        tropical: {
+            wet: {
+                clear:         [['clear', 1], ['partly_cloudy', 3], ['overcast', 1]],
+                partly_cloudy: [['partly_cloudy', 2], ['overcast', 3], ['thunderstorm', 2], ['rain', 2]],
+                overcast:      [['overcast', 2], ['rain', 3], ['thunderstorm', 3], ['partly_cloudy', 1]],
+                drizzle:       [['drizzle', 1], ['rain', 2], ['overcast', 2]],
+                rain:          [['rain', 2], ['thunderstorm', 2], ['overcast', 2], ['drizzle', 1]],
+                thunderstorm:  [['rain', 3], ['overcast', 2], ['thunderstorm', 1]],
+                fog:           [['fog', 1], ['overcast', 2], ['partly_cloudy', 1]],
+            },
+            dry: {
+                clear:         [['clear', 5], ['partly_cloudy', 3]],
+                partly_cloudy: [['clear', 3], ['partly_cloudy', 3], ['overcast', 1], ['thunderstorm', 0.5]],
+                overcast:      [['partly_cloudy', 3], ['clear', 1], ['rain', 1]],
+                rain:          [['rain', 1], ['partly_cloudy', 2], ['overcast', 1]],
+                thunderstorm:  [['rain', 2], ['partly_cloudy', 2], ['clear', 1]],
+                drizzle:       [['drizzle', 1], ['partly_cloudy', 2]],
+                fog:           [['fog', 1], ['clear', 3]],
+            },
+        },
+        // Arid: one perpetual "season". Mostly clear, rare rain, no snow/cherry/leaves.
+        arid: {
+            arid: {
+                clear:         [['clear', 8], ['partly_cloudy', 1]],
+                partly_cloudy: [['clear', 4], ['partly_cloudy', 2], ['overcast', 1]],
+                overcast:      [['clear', 2], ['partly_cloudy', 2], ['overcast', 1], ['rain', 0.5], ['thunderstorm', 0.3]],
+                rain:          [['rain', 1], ['overcast', 1], ['clear', 2]],
+                thunderstorm:  [['rain', 1], ['overcast', 1], ['clear', 2]],
+            },
         },
     },
 
@@ -97,17 +250,42 @@ const Environment = {
     isWet()     { return this.isRainy(); },  // alias — for reflection/trail decisions
     hasPrecipitation() { return !!this._WEATHER_INFO[this.weather]?.hasParticles; },
 
-    getSeason() { 
+    // Season is climate-aware. For 4-season climates it also respects hemisphere.
+    //   arid     → always 'arid'
+    //   tropical → 'wet' or 'dry' (wet = warm half of year for the hemisphere)
+    //   4-season → 'spring'|'summer'|'autumn'|'winter' (SH flipped 6 months)
+    getSeason() {
+        const profile = this._CLIMATE_PROFILES[this.climate] || this._CLIMATE_PROFILES.temperate;
+        if (profile.calendar === 1) return 'arid';
         const m = new Date().getMonth();
-        return m >= 2 && m <= 4 ? 'spring' : m >= 5 && m <= 7 ? 'summer' : m >= 8 && m <= 10 ? 'autumn' : 'winter'; 
+        // Normalize month to "NH equivalent" if in southern hemisphere.
+        const nm = this.hemisphere === 'S' ? (m + 6) % 12 : m;
+        if (profile.calendar === 2) {
+            // Tropical: wet = warm half (May–Oct NH, Nov–Apr SH).
+            return (nm >= 4 && nm <= 9) ? 'wet' : 'dry';
+        }
+        // 4-season calendar.
+        if (nm >= 2 && nm <= 4) return 'spring';
+        if (nm >= 5 && nm <= 7) return 'summer';
+        if (nm >= 8 && nm <= 10) return 'autumn';
+        return 'winter';
     },
 
     init(layers) {
+        this.climate = this._detectClimate();
+        this.hemisphere = this._detectHemisphere();
         this.season = this.getSeason();
         this.starsLayer = layers.starsLayer; this.celestialGfx = layers.celestialGfx; this.cloudLayer = layers.cloudLayer;
         this.bldLayer = layers.bldLayer; this.groundGfx = layers.groundGfx; this.reflectionLayer = layers.reflectionLayer;
         this.staticLightsGfx = layers.staticLightsGfx; this.lightLayer = layers.lightLayer; this.fxGfx = layers.fxGfx;
         this.buildStars(); this.buildGround(); this.buildDataPulses(); this.buildClouds(); this.buildBuildings();
+        // Announce climate once per session — delayed so UI has time to mount.
+        setTimeout(() => {
+            if (typeof UI === 'undefined' || !UI.addToast) return;
+            const icons = { tropical: '🌴', arid: '🏜️', temperate: '🍃', continental: '🌲', polar: '🧊' };
+            const labels = { tropical: 'Tropical', arid: 'Arid', temperate: 'Temperate', continental: 'Continental', polar: 'Polar' };
+            UI.addToast(`${icons[this.climate] || '🌍'} Climate: ${labels[this.climate] || this.climate} (${this.hemisphere === 'S' ? 'Southern' : 'Northern'} Hemisphere)`);
+        }, 1500);
     },
 
     buildStars() {
@@ -2509,13 +2687,15 @@ const Environment = {
       this._lastBuildFP = this._buildFingerprint();
     },
 
-    // ─── WEATHER SELECTION (Markov chain, season-aware) ───
-    // Picks the next weather state based on the current state. If current
-    // state has no entry for the current season (e.g. snow in summer), falls
-    // back to the 'clear' row for that season.
+    // ─── WEATHER SELECTION (Markov chain, climate + season aware) ───
+    // Uses _MARKOV[climate][season][currentWeather]. Falls back gracefully
+    // if the current weather doesn't have a row for the active season (e.g.
+    // entering a climate where that state doesn't exist).
     _pickNextWeather() {
-      const table = this._MARKOV[this.season] || this._MARKOV.spring;
-      const row = table[this.weather] || table.clear || [['clear', 1]];
+      const climateTable = this._MARKOV[this.climate] || this._MARKOV.temperate;
+      const table = climateTable[this.season] || climateTable[Object.keys(climateTable)[0]];
+      const row = table[this.weather] || table.clear || table.partly_cloudy
+                  || [['clear', 1]];
       let total = 0;
       for (const [, w] of row) total += w;
       let roll = Math.random() * total;
