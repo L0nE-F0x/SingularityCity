@@ -1006,4 +1006,122 @@ h1, h2, h3, p { margin: 0; }
     .mp-counter { font-size: 8px; padding: 3px 8px; }
     .mp-reactions { bottom: 34px; gap: 3px; }
     .mp-react-btn { width: 28px; height: 28px; font-size: 14px; }
+    #orbit-hud { max-width: calc(100vw - 24px); padding: 12px 14px; font-size: 10px; }
+    .orbit-hud-title { font-size: 12px !important; }
+}
+
+/* ═══════════════════════════════════════════════
+   ORBIT VIEW (3D Three.js mode)
+   ═══════════════════════════════════════════════ */
+#orbit-hud {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 500;
+    background: rgba(2, 6, 20, 0.72);
+    border: 1px solid rgba(68, 170, 255, 0.35);
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #88aacc;
+    font-size: 11px;
+    line-height: 1.55;
+    max-width: 340px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 24px rgba(68, 170, 255, 0.08);
+    pointer-events: none;
+}
+.orbit-hud-title {
+    font-family: 'Press Start 2P', monospace;
+    color: #66bbff;
+    font-size: 14px;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+    text-shadow: 0 0 12px rgba(102, 187, 255, 0.4);
+}
+.orbit-hud-stats {
+    color: #aabbcc;
+    margin-bottom: 8px;
+    font-size: 10px;
+}
+.orbit-hud-stats b { color: #e0f0ff; }
+.orbit-hud-loc {
+    color: #4ade80;
+    font-size: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(68, 170, 255, 0.18);
+}
+.orbit-hud-legend {
+    font-size: 10px;
+    color: #aabbcc;
+    margin-bottom: 10px;
+}
+.orbit-hud-legend > div {
+    margin-bottom: 3px;
+}
+.orbit-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    vertical-align: middle;
+    border-radius: 1px;
+    box-shadow: 0 0 6px currentColor;
+}
+.orbit-hud-hint {
+    color: #667788;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(68, 170, 255, 0.18);
+}
+
+#orbitTooltip {
+    position: fixed;
+    z-index: 600;
+    background: rgba(2, 6, 20, 0.95);
+    border: 1px solid #44aaff;
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #e0ecff;
+    font-size: 10px;
+    line-height: 1.55;
+    min-width: 240px;
+    max-width: 300px;
+    pointer-events: none;
+    box-shadow: 0 0 24px rgba(68, 170, 255, 0.25);
+}
+.ott-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: #66bbff;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+    word-break: break-word;
+}
+.ott-meta {
+    color: #88aacc;
+    font-size: 9px;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+.ott-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 10px;
+    margin-bottom: 2px;
+}
+.ott-row span { color: #667788; }
+.ott-row b {
+    color: #e0ecff;
+    font-weight: normal;
+    text-align: right;
+}
+.ott-sep {
+    border: 0;
+    border-top: 1px dashed rgba(68, 170, 255, 0.25);
+    margin: 8px 0;
 }
