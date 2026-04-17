@@ -60,7 +60,7 @@ const SND = {
         this.ambientGain.gain.value = this._sfxEnabled ? 0.4 : 0;
 
         // Initialize Background Music
-        this.musicEl = new Audio('SingularityCity.mp3');
+        this.musicEl = new Audio('SingularityCity.mp3?v=362');
         this.musicEl.loop = true;
         this.musicEl.volume = 0.35; 
         
