@@ -19,13 +19,14 @@ const OrbitMode = {
     // ─── Three.js ───
     scene: null, camera: null, renderer: null, controls: null,
     raycaster: null, pointer: null,
-    canvas: null, hudEl: null, tooltipEl: null,
-    earthGroup: null, earthMesh: null, atmosphereMesh: null,
+    canvas: null, hudEl: null, infoPanelEl: null,
+    earthGroup: null, earthMesh: null, atmosphereMesh: null, cloudMesh: null,
     gridGroup: null, starField: null, orbitLinesGroup: null,
     satGroup: null, satSprites: [],
     youMarker: null, sunDir: null,
+    _dayTex: null, _nightTex: null, _cloudTex: null, _texturesLoaded: false,
     _satTextures: {},
-    _hoverSprite: null, _selectedSprite: null,
+    _selectedSprite: null,
     _tick: 0,
 
     // Saved PixiJS camera state (engine keeps ticking underneath)
@@ -208,6 +209,7 @@ const OrbitMode = {
 
         if (typeof G !== 'undefined' && G.tracking) G.stopTracking();
         if (this.satellites.length === 0) await this.fetchSatellites();
+        if (!this._texturesLoaded) await this._loadTextures();
         if (!this._built) this._build();
         else this._rebuildSatellites();
 
@@ -238,12 +240,11 @@ const OrbitMode = {
         this._transitioning = false;
         this._exiting = false;
         this._transitionProgress = 0;
-        this._hoverSprite = null;
         this._selectedSprite = null;
 
         if (this.canvas) this.canvas.style.display = 'none';
         if (this.hudEl) this.hudEl.style.display = 'none';
-        if (this.tooltipEl) this.tooltipEl.style.display = 'none';
+        this._hideInfoPanel();
 
         this._restoreGameUI();
 
@@ -268,7 +269,7 @@ const OrbitMode = {
         const mm = document.getElementById('minimap');
         if (mm) mm.style.display = 'none';
         document.querySelectorAll('.bld-tip, .ship-tip, .tooltip, [id*="tooltip"], [id*="Tip"]')
-            .forEach(t => { if (t.id !== 'orbitTooltip') t.style.display = 'none'; });
+            .forEach(t => { t.style.display = 'none'; });
     },
 
     _restoreGameUI() {
@@ -282,10 +283,40 @@ const OrbitMode = {
     //   BUILD THREE.JS SCENE
     // ═══════════════════════════════════════════════
 
+    // Load the 8K Earth textures (day, night, clouds) once, with
+    // procedural fallbacks if any fail.
+    _loadTextures() {
+        if (this._texturesLoaded) return Promise.resolve();
+        const loader = new THREE.TextureLoader();
+        const load = (url) => new Promise((resolve) => {
+            loader.load(url, resolve, undefined, (err) => {
+                console.warn(`[Orbit] texture ${url} failed — falling back procedural`, err);
+                resolve(null);
+            });
+        });
+        return Promise.all([
+            load('textures/8k_earth_daymap.jpg'),
+            load('textures/8k_earth_nightmap.jpg'),
+            load('textures/8k_earth_clouds.jpg')
+        ]).then(([day, night, clouds]) => {
+            const finalize = (tex, fallback) => {
+                if (!tex) return fallback();
+                tex.anisotropy = 8;
+                tex.minFilter = THREE.LinearMipmapLinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                return tex;
+            };
+            this._dayTex = finalize(day, () => this._makeDayTextureProcedural());
+            this._nightTex = finalize(night, () => this._makeNightTextureProcedural());
+            this._cloudTex = clouds ? finalize(clouds, null) : null;
+            this._texturesLoaded = true;
+        });
+    },
+
     _build() {
         this.canvas = document.getElementById('orbitCv');
         this.hudEl = document.getElementById('orbit-hud');
-        this.tooltipEl = document.getElementById('orbitTooltip');
+        this.infoPanelEl = document.getElementById('orbitInfoPanel');
         if (!this.canvas) {
             console.warn('[Orbit] #orbitCv canvas not found');
             return;
@@ -368,20 +399,18 @@ const OrbitMode = {
         this.scene.add(this.earthGroup);
 
         this._buildEarthSphere();
+        this._buildClouds();
         this._buildAtmosphere();
         this._buildGrid();
         this._buildYouMarker();
     },
 
     _buildEarthSphere() {
-        const dayTex = this._makeDayTexture();
-        const nightTex = this._makeNightTexture();
-
         const mat = new THREE.ShaderMaterial({
             uniforms: {
-                dayMap: { value: dayTex },
-                nightMap: { value: nightTex },
-                sunDir: { value: new THREE.Vector3(1, 0.2, 0.3).normalize() }
+                dayMap:   { value: this._dayTex },
+                nightMap: { value: this._nightTex },
+                sunDir:   { value: new THREE.Vector3(1, 0.2, 0.3).normalize() }
             },
             vertexShader: `
                 varying vec3 vNormalW;
@@ -400,11 +429,13 @@ const OrbitMode = {
                 varying vec2 vUv;
                 void main() {
                     float d = dot(vNormalW, sunDir);
-                    float mixFactor = smoothstep(-0.15, 0.30, d);
+                    float mixFactor = smoothstep(-0.18, 0.30, d);
                     vec3 day = texture2D(dayMap, vUv).rgb;
                     vec3 night = texture2D(nightMap, vUv).rgb;
+                    // Boost night lights slightly to make cities pop
+                    night *= 1.25;
                     vec3 color = mix(night, day, mixFactor);
-                    // Subtle rim brighten on sunlit edge
+                    // Subtle atmospheric scatter on the sunlit limb
                     float rim = smoothstep(0.0, 0.4, d) * (1.0 - abs(d));
                     color += vec3(0.08, 0.15, 0.25) * rim;
                     gl_FragColor = vec4(color, 1.0);
@@ -415,6 +446,49 @@ const OrbitMode = {
         const geo = new THREE.SphereGeometry(this.EARTH_R, 96, 64);
         this.earthMesh = new THREE.Mesh(geo, mat);
         this.earthGroup.add(this.earthMesh);
+    },
+
+    // Thin transparent cloud shell, lit by sun so clouds disappear on the night side
+    _buildClouds() {
+        if (!this._cloudTex) return;
+        const mat = new THREE.ShaderMaterial({
+            uniforms: {
+                cloudMap: { value: this._cloudTex },
+                sunDir:   { value: new THREE.Vector3(1, 0.2, 0.3).normalize() }
+            },
+            vertexShader: `
+                varying vec3 vNormalW;
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    vNormalW = normalize(mat3(modelMatrix) * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D cloudMap;
+                uniform vec3 sunDir;
+                varying vec3 vNormalW;
+                varying vec2 vUv;
+                void main() {
+                    vec3 c = texture2D(cloudMap, vUv).rgb;
+                    float lum = max(c.r, max(c.g, c.b));
+                    float d = dot(vNormalW, sunDir);
+                    float sunlit = smoothstep(-0.20, 0.30, d);
+                    // Day: bright white clouds. Night: dim blue-grey clouds
+                    vec3 color = mix(vec3(0.25, 0.30, 0.45), vec3(1.0), sunlit);
+                    float alpha = lum * mix(0.35, 0.80, sunlit);
+                    if (alpha < 0.02) discard;
+                    gl_FragColor = vec4(color, alpha);
+                }
+            `,
+            transparent: true,
+            depthWrite: false
+        });
+        const geo = new THREE.SphereGeometry(this.EARTH_R * 1.008, 96, 64);
+        this.cloudMesh = new THREE.Mesh(geo, mat);
+        // Child of earthGroup: inherits earth rotation; local rotation below adds drift.
+        this.earthGroup.add(this.cloudMesh);
     },
 
     _buildAtmosphere() {
@@ -491,9 +565,8 @@ const OrbitMode = {
         const lat = 0;
         const pos = this._latLonToVec3(lat, userLon, this.EARTH_R * 1.015);
 
-        // Glowing dot
         const mat = new THREE.SpriteMaterial({
-            map: this._getSatTexture(0x4ade80),
+            map: this._getGlowDotTexture(),
             color: 0x4ade80,
             transparent: true,
             depthWrite: false,
@@ -502,15 +575,34 @@ const OrbitMode = {
         const sprite = new THREE.Sprite(mat);
         sprite.scale.set(8, 8, 1);
         sprite.position.copy(pos);
-
-        // Pulsing outer ring (updated in animate)
         sprite.userData.isYou = true;
         this.earthGroup.add(sprite);
         this.youMarker = sprite;
     },
 
-    // Earth surface day texture — stylized continents on deep blue ocean
-    _makeDayTexture() {
+    _getGlowDotTexture() {
+        if (this._glowDotTex) return this._glowDotTex;
+        const s = 64;
+        const c = document.createElement('canvas');
+        c.width = s; c.height = s;
+        const ctx = c.getContext('2d');
+        const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+        g.addColorStop(0.0, 'rgba(255,255,255,1.0)');
+        g.addColorStop(0.25, 'rgba(255,255,255,0.7)');
+        g.addColorStop(0.55, 'rgba(200,230,255,0.25)');
+        g.addColorStop(1.0, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, s, s);
+        const tex = new THREE.CanvasTexture(c);
+        tex.magFilter = THREE.LinearFilter;
+        tex.minFilter = THREE.LinearFilter;
+        this._glowDotTex = tex;
+        return tex;
+    },
+
+    // Procedural fallback — stylized continents on deep blue ocean.
+    // Used only when the real 8K texture fails to load.
+    _makeDayTextureProcedural() {
         const w = 1024, h = 512;
         const c = document.createElement('canvas');
         c.width = w; c.height = h;
@@ -615,8 +707,9 @@ const OrbitMode = {
         return tex;
     },
 
-    // Night texture — dark background with city-light clusters on land
-    _makeNightTexture() {
+    // Procedural fallback — dark background with city-light clusters on land.
+    // Used only when the real 8K texture fails to load.
+    _makeNightTextureProcedural() {
         const w = 1024, h = 512;
         const c = document.createElement('canvas');
         c.width = w; c.height = h;
@@ -750,35 +843,38 @@ const OrbitMode = {
         this.satSprites = [];
 
         const groupColors = {
-            starlink: 0x44aaff, oneweb: 0xff8844, iss: 0xffff00,
-            gps: 0x44ff88, galileo: 0xaa88ff, other: 0xffffff
+            starlink: 0x66bbff, oneweb: 0xffaa66, iss: 0xffffaa,
+            gps: 0x88ffaa, galileo: 0xccaaff, other: 0xffffff
         };
-        const groupSize = {
-            starlink: 3.0, oneweb: 3.2, iss: 6.0, gps: 5.0, galileo: 5.0, other: 3.0
+        // Display size in scene units — these are pixel-art sprites so we scale to preserve
+        // the bitmap's aspect ratio. ISS is ~109m wingtip-to-wingtip in reality (the largest
+        // object on orbit) so it's deliberately oversized here to read as "the station".
+        const groupScale = {
+            starlink: 14, oneweb: 12, iss: 26, gps: 18, galileo: 18, other: 10
         };
 
         this.satellites.forEach(sat => {
             const color = groupColors[sat.group] || 0xffffff;
-            const size = groupSize[sat.group] || 3.0;
+            const { tex, aspect } = this._getSatTexture(sat.group);
+            const scale = groupScale[sat.group] || 10;
             const mat = new THREE.SpriteMaterial({
-                map: this._getSatTexture(color),
-                color: color,
+                map: tex,
                 transparent: true,
                 depthWrite: false,
-                blending: THREE.AdditiveBlending
+                depthTest: true
             });
             const sprite = new THREE.Sprite(mat);
-            sprite.scale.set(size, size, 1);
+            sprite.scale.set(scale * aspect, scale, 1);
             sprite.userData.sat = sat;
             sprite.userData.orbitAngle = (sat.phase / 180) * Math.PI;
-            // Real mean motion → angular speed per frame (rev/day / 86400s * dt*60 frames).
-            // Speed up 200× so orbits are visually observable within seconds rather than hours.
+            // Angular speed per frame at 60fps: (rev/day / 86400s) * 2π * (1/60) * speedup.
+            // 200× speedup makes orbital motion observable in seconds instead of hours.
             sprite.userData.orbitSpeed = (sat.meanMotion / 86400) * (Math.PI * 2) * 200 / 60;
-            sprite.userData.baseSize = size;
+            sprite.userData.baseScaleX = scale * aspect;
+            sprite.userData.baseScaleY = scale;
             sprite.userData.baseColor = color;
             sprite.userData.radius = this._satRadius(sat);
 
-            // Initial position
             const pos = this._orbitPosition(sat, sprite.userData.orbitAngle, sprite.userData.radius);
             sprite.position.copy(pos);
 
@@ -790,7 +886,6 @@ const OrbitMode = {
     },
 
     _rebuildSatellites() {
-        // Called when re-entering after data refresh
         if (this.satGroup) { this.scene.remove(this.satGroup); this.satGroup = null; }
         if (this.orbitLinesGroup) { this.scene.remove(this.orbitLinesGroup); this.orbitLinesGroup = null; }
         this.satSprites = [];
@@ -798,26 +893,238 @@ const OrbitMode = {
         this._buildSatellites();
     },
 
-    // Radial-gradient glow texture cached per color
-    _getSatTexture(color) {
-        const key = color.toString(16);
-        if (this._satTextures[key]) return this._satTextures[key];
+    // Returns { tex, aspect } for a satellite group. Bitmaps are cached per group and drawn
+    // with NearestFilter to preserve the chunky pixel-art aesthetic at any zoom level.
+    _getSatTexture(group) {
+        if (this._satTextures[group]) return this._satTextures[group];
+        const { canvas, aspect } = this._drawPixelSat(group);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.magFilter = THREE.NearestFilter;
+        tex.minFilter = THREE.NearestFilter;
+        tex.generateMipmaps = false;
+        const entry = { tex, aspect };
+        this._satTextures[group] = entry;
+        return entry;
+    },
+
+    // Paint a chunky pixel-art sprite for a given satellite class. Each bitmap has
+    // a soft additive glow layer baked in so the sat reads against both bright and dark
+    // backgrounds. Returns { canvas, aspect } — aspect = width/height of the canvas.
+    _drawPixelSat(group) {
+        const PIXEL = 4;
+        let cols, rows, draw;
+
+        if (group === 'iss') {
+            // Wide truss + 4 pairs of solar arrays + radiators + modules
+            cols = 20; rows = 10;
+            draw = (px) => {
+                // Solar arrays (cobalt blue, slight gradient per pair)
+                const panel1 = '#1a3380', panel2 = '#2347b0', edge = '#0c1c4a';
+                // Pair 1 (far left)
+                px(0, 3, panel1); px(1, 3, panel1); px(2, 3, panel1);
+                px(0, 6, panel1); px(1, 6, panel1); px(2, 6, panel1);
+                px(0, 2, edge); px(0, 7, edge); px(2, 2, edge); px(2, 7, edge);
+                // Pair 2
+                px(4, 3, panel2); px(5, 3, panel2); px(6, 3, panel2);
+                px(4, 6, panel2); px(5, 6, panel2); px(6, 6, panel2);
+                px(4, 2, edge); px(6, 2, edge); px(4, 7, edge); px(6, 7, edge);
+                // Pair 3
+                px(13, 3, panel2); px(14, 3, panel2); px(15, 3, panel2);
+                px(13, 6, panel2); px(14, 6, panel2); px(15, 6, panel2);
+                px(13, 2, edge); px(15, 2, edge); px(13, 7, edge); px(15, 7, edge);
+                // Pair 4 (far right)
+                px(17, 3, panel1); px(18, 3, panel1); px(19, 3, panel1);
+                px(17, 6, panel1); px(18, 6, panel1); px(19, 6, panel1);
+                px(17, 2, edge); px(19, 2, edge); px(17, 7, edge); px(19, 7, edge);
+                // Central truss (horizontal beam, aluminium silver)
+                for (let x = 3; x <= 16; x++) {
+                    px(x, 4, '#b8c4d0');
+                    px(x, 5, '#8896a8');
+                }
+                // Pressurized modules (white/pearl) — central cluster
+                px(8, 4, '#f0f4f8'); px(9, 4, '#f0f4f8'); px(10, 4, '#f0f4f8'); px(11, 4, '#f0f4f8');
+                px(8, 5, '#d0d8e0'); px(9, 5, '#d0d8e0'); px(10, 5, '#d0d8e0'); px(11, 5, '#d0d8e0');
+                px(8, 3, '#d0d8e0'); px(11, 3, '#d0d8e0');
+                px(9, 6, '#aab4c0'); px(10, 6, '#aab4c0');
+                // Cupola + docking node (bright white)
+                px(9, 7, '#ffffff'); px(10, 7, '#ffffff');
+                // Radiator panels (bright silver verticals between panel pairs)
+                px(3, 3, '#dce4ec'); px(3, 4, '#dce4ec'); px(3, 5, '#dce4ec'); px(3, 6, '#dce4ec');
+                px(16, 3, '#dce4ec'); px(16, 4, '#dce4ec'); px(16, 5, '#dce4ec'); px(16, 6, '#dce4ec');
+                px(12, 4, '#dce4ec'); px(12, 5, '#dce4ec');
+                px(7, 4, '#dce4ec'); px(7, 5, '#dce4ec');
+                // Red warning nav light
+                px(9, 2, '#ff4455');
+            };
+        } else if (group === 'starlink') {
+            // Flat body + single large solar wing (the iconic Starlink silhouette)
+            cols = 16; rows = 6;
+            draw = (px) => {
+                // Body (dark grey, compact rectangle)
+                px(1, 2, '#444a52'); px(2, 2, '#444a52'); px(3, 2, '#444a52'); px(4, 2, '#444a52');
+                px(1, 3, '#2e3238'); px(2, 3, '#2e3238'); px(3, 3, '#2e3238'); px(4, 3, '#2e3238');
+                // Highlight edge
+                px(1, 2, '#5a6068'); px(4, 2, '#5a6068');
+                // Phased-array antenna (bottom of body)
+                px(2, 4, '#888e96'); px(3, 4, '#888e96');
+                // Large single solar panel extending right
+                const panel = '#1a3a98', panelDark = '#0e2570', panelHi = '#2e5ad8';
+                for (let x = 5; x < 16; x++) {
+                    px(x, 2, panel);
+                    px(x, 3, panelDark);
+                }
+                // Panel cell grid lines
+                for (let x = 6; x < 16; x += 2) {
+                    px(x, 2, panelHi);
+                }
+                // Top + bottom edges of panel
+                for (let x = 5; x < 16; x++) {
+                    px(x, 1, '#0a1640');
+                }
+                // Nav light
+                px(0, 3, '#ff5566');
+            };
+        } else if (group === 'oneweb') {
+            // Box body with two symmetric solar wings
+            cols = 14; rows = 8;
+            draw = (px) => {
+                // Body (amber-copper tint to visually differ from Starlink)
+                px(6, 3, '#a86844'); px(7, 3, '#a86844');
+                px(6, 4, '#8a5030'); px(7, 4, '#8a5030');
+                px(6, 2, '#c88860'); px(7, 2, '#c88860');
+                // Antenna
+                px(6, 1, '#d4d8dc'); px(7, 1, '#d4d8dc');
+                px(6, 0, '#eef0f2');
+                // Left wing
+                for (let x = 0; x <= 5; x++) {
+                    px(x, 3, '#1a3380');
+                    px(x, 4, '#0e1f5a');
+                }
+                px(0, 3, '#2347b0');
+                px(2, 3, '#2347b0');
+                px(4, 3, '#2347b0');
+                // Right wing
+                for (let x = 8; x <= 13; x++) {
+                    px(x, 3, '#1a3380');
+                    px(x, 4, '#0e1f5a');
+                }
+                px(9, 3, '#2347b0');
+                px(11, 3, '#2347b0');
+                px(13, 3, '#2347b0');
+                // Wing edges
+                for (let x = 0; x <= 13; x++) {
+                    if (x < 6 || x > 7) px(x, 2, '#0a1640');
+                    if (x < 6 || x > 7) px(x, 5, '#0a1640');
+                }
+                // Status light
+                px(7, 5, '#4affaa');
+            };
+        } else if (group === 'gps') {
+            // Blocky body + 2 side panels + hi-gain dish
+            cols = 14; rows = 10;
+            draw = (px) => {
+                // Body (white-cream, GPS-Block-style)
+                for (let y = 4; y <= 6; y++) {
+                    for (let x = 5; x <= 8; x++) {
+                        px(x, y, '#e8e8d8');
+                    }
+                }
+                // Body shading
+                px(5, 4, '#c0c0b0'); px(8, 4, '#c0c0b0');
+                px(5, 6, '#a8a898'); px(6, 6, '#a8a898'); px(7, 6, '#a8a898'); px(8, 6, '#a8a898');
+                // Solar panels (darker blue)
+                for (let y = 4; y <= 6; y++) {
+                    for (let x = 0; x <= 3; x++) { px(x, y, '#163e6a'); }
+                    for (let x = 10; x <= 13; x++) { px(x, y, '#163e6a'); }
+                }
+                // Panel highlights
+                for (let x = 0; x <= 3; x++) { px(x, 4, '#2a6cb0'); }
+                for (let x = 10; x <= 13; x++) { px(x, 4, '#2a6cb0'); }
+                // Panel cell lines
+                px(1, 5, '#0a2650'); px(2, 5, '#0a2650');
+                px(11, 5, '#0a2650'); px(12, 5, '#0a2650');
+                // Connecting booms
+                px(4, 5, '#888'); px(9, 5, '#888');
+                // Hi-gain antenna dish on top
+                px(6, 3, '#f8f8e8'); px(7, 3, '#f8f8e8');
+                px(5, 3, '#d8d8c8'); px(8, 3, '#d8d8c8');
+                px(6, 2, '#e8e8d8'); px(7, 2, '#e8e8d8');
+                // Feed boom
+                px(6, 1, '#aaa'); px(7, 1, '#aaa');
+                // Bottom antenna
+                px(6, 7, '#888'); px(7, 7, '#888');
+                // Green status LED
+                px(7, 5, '#4affaa');
+            };
+        } else if (group === 'galileo') {
+            // Similar to GPS but with distinct purple accents + different panel layout
+            cols = 14; rows = 10;
+            draw = (px) => {
+                // Body (pearl white with purple accent band)
+                for (let y = 4; y <= 6; y++) {
+                    for (let x = 5; x <= 8; x++) {
+                        px(x, y, '#eae6f2');
+                    }
+                }
+                // Purple accent stripe (Galileo liveries often have purple/violet)
+                px(5, 5, '#8868c0'); px(6, 5, '#8868c0'); px(7, 5, '#8868c0'); px(8, 5, '#8868c0');
+                // Body shading
+                px(5, 6, '#a098b0'); px(6, 6, '#a098b0'); px(7, 6, '#a098b0'); px(8, 6, '#a098b0');
+                // Solar panels (navy blue)
+                for (let y = 4; y <= 6; y++) {
+                    for (let x = 0; x <= 3; x++) { px(x, y, '#1a2f70'); }
+                    for (let x = 10; x <= 13; x++) { px(x, y, '#1a2f70'); }
+                }
+                // Panel highlights
+                for (let x = 0; x <= 3; x++) { px(x, 4, '#3050a8'); }
+                for (let x = 10; x <= 13; x++) { px(x, 4, '#3050a8'); }
+                // Cell grid
+                px(1, 5, '#0a1850'); px(3, 5, '#0a1850');
+                px(10, 5, '#0a1850'); px(12, 5, '#0a1850');
+                // Booms
+                px(4, 5, '#888'); px(9, 5, '#888');
+                // Top antenna (L-band horn + dish)
+                px(6, 3, '#eae6f2'); px(7, 3, '#eae6f2');
+                px(6, 2, '#d8d0e8'); px(7, 2, '#d8d0e8');
+                px(6, 1, '#bbb');
+                // Violet status LED
+                px(7, 5, '#cc88ff');
+            };
+        } else {
+            // Generic fallback
+            cols = 8; rows = 6;
+            draw = (px) => {
+                px(3, 2, '#cccccc'); px(4, 2, '#cccccc');
+                px(3, 3, '#888888'); px(4, 3, '#888888');
+                for (let x = 0; x <= 2; x++) { px(x, 2, '#1a3380'); px(x, 3, '#0e1f5a'); }
+                for (let x = 5; x <= 7; x++) { px(x, 2, '#1a3380'); px(x, 3, '#0e1f5a'); }
+            };
+        }
+
+        const w = cols * PIXEL;
+        const h = rows * PIXEL;
         const c = document.createElement('canvas');
-        c.width = 128; c.height = 128;
+        c.width = w; c.height = h;
         const ctx = c.getContext('2d');
-        const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-        const r = (color >> 16) & 0xff;
-        const gg = (color >> 8) & 0xff;
-        const b = color & 0xff;
-        g.addColorStop(0.0, `rgba(255,255,255,1.0)`);
-        g.addColorStop(0.15, `rgba(${r},${gg},${b},0.95)`);
-        g.addColorStop(0.45, `rgba(${r},${gg},${b},0.35)`);
-        g.addColorStop(1.0, `rgba(${r},${gg},${b},0.0)`);
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, 128, 128);
-        const tex = new THREE.CanvasTexture(c);
-        this._satTextures[key] = tex;
-        return tex;
+        ctx.imageSmoothingEnabled = false;
+
+        // Soft glow behind the sprite so it reads against both day-Earth and black-space backgrounds
+        const glowR = Math.min(w, h) * 0.6;
+        const glow = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, glowR);
+        glow.addColorStop(0.0, 'rgba(255,255,255,0.35)');
+        glow.addColorStop(0.4, 'rgba(180,210,255,0.15)');
+        glow.addColorStop(1.0, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, w, h);
+
+        // Pixel plotter closure — snaps to integer grid
+        const px = (x, y, color) => {
+            ctx.fillStyle = color;
+            ctx.fillRect(x * PIXEL, y * PIXEL, PIXEL, PIXEL);
+        };
+        draw(px);
+
+        return { canvas: c, aspect: cols / rows };
     },
 
     _satRadius(sat) {
@@ -893,25 +1200,21 @@ const OrbitMode = {
         const hit = this._pickSatellite();
         if (hit) {
             this._selectedSprite = hit;
-            this._showTooltip(hit, e.clientX, e.clientY);
+            this._showInfoPanel(hit);
             if (typeof SND !== 'undefined') SND.uiClick();
-        } else {
-            this._selectedSprite = null;
-            this._hideTooltip();
         }
     },
 
     _pickSatellite() {
         if (!this.raycaster || !this.satSprites.length) return null;
         this.raycaster.setFromCamera(this.pointer, this.camera);
-        // Slightly expanded sprite hit test — sprites are small, give a comfortable margin
         this.raycaster.params.Sprite = this.raycaster.params.Sprite || {};
         const hits = this.raycaster.intersectObjects(this.satSprites, false);
         return hits.length ? hits[0].object : null;
     },
 
-    _showTooltip(sprite, mx, my) {
-        if (!this.tooltipEl) return;
+    _showInfoPanel(sprite) {
+        if (!this.infoPanelEl) return;
         const sat = sprite.userData.sat;
         const R_EARTH = 6371;
         const altStr = sat.altitude < 1000
@@ -926,52 +1229,54 @@ const OrbitMode = {
         if (sat.altitude > 2000 && sat.altitude < 35000) regime = 'MEO';
         else if (sat.altitude >= 35000) regime = 'GEO';
         const meta = {
-            starlink: { op: 'SpaceX', purpose: 'Broadband internet', country: 'USA' },
-            oneweb:   { op: 'OneWeb / Eutelsat', purpose: 'Broadband internet', country: 'UK' },
-            iss:      { op: 'NASA · Roscosmos · ESA · JAXA · CSA', purpose: 'Crewed space station', country: 'Intl.' },
-            gps:      { op: 'US Space Force', purpose: 'Positioning / navigation', country: 'USA' },
-            galileo:  { op: 'EU / ESA', purpose: 'Positioning / navigation', country: 'EU' },
-            other:    { op: '—', purpose: '—', country: '—' }
-        }[sat.group] || { op: '—', purpose: '—', country: '—' };
+            starlink: { op: 'SpaceX', purpose: 'Broadband internet', country: 'USA', launched: '2019–present' },
+            oneweb:   { op: 'OneWeb / Eutelsat', purpose: 'Broadband internet', country: 'UK', launched: '2019–present' },
+            iss:      { op: 'NASA · Roscosmos · ESA · JAXA · CSA', purpose: 'Crewed space station', country: 'International', launched: '1998' },
+            gps:      { op: 'US Space Force', purpose: 'Positioning / navigation', country: 'USA', launched: '1978–present' },
+            galileo:  { op: 'EU / ESA', purpose: 'Positioning / navigation', country: 'European Union', launched: '2011–present' },
+            other:    { op: '—', purpose: '—', country: '—', launched: '—' }
+        }[sat.group] || { op: '—', purpose: '—', country: '—', launched: '—' };
 
         const accent = '#' + (sprite.userData.baseColor || 0x44aaff).toString(16).padStart(6, '0');
 
-        this.tooltipEl.innerHTML = `
-            <div class="ott-name" style="color:${accent}">▓ ${sat.name}</div>
-            <div class="ott-meta">${sat.group.toUpperCase()} · ${regime}</div>
-            <div class="ott-row"><span>Operator</span><b>${meta.op}</b></div>
-            <div class="ott-row"><span>Country</span><b>${meta.country}</b></div>
-            <div class="ott-row"><span>Purpose</span><b>${meta.purpose}</b></div>
-            <hr class="ott-sep">
-            <div class="ott-row"><span>Altitude</span><b>${altStr}</b></div>
-            <div class="ott-row"><span>Inclination</span><b>${sat.inclination.toFixed(2)}°</b></div>
-            <div class="ott-row"><span>Eccentricity</span><b>${sat.eccentricity.toFixed(5)}</b></div>
-            <div class="ott-row"><span>Period</span><b>${periodStr}</b></div>
-            <div class="ott-row"><span>Velocity</span><b>${orbitalVel.toFixed(2)} km/s</b></div>
-            <div class="ott-row"><span>Mean motion</span><b>${sat.meanMotion.toFixed(3)} rev/day</b></div>
-            <div class="ott-row"><span>NORAD ID</span><b>${sat.noradId}</b></div>
+        this.infoPanelEl.innerHTML = `
+            <button class="orbit-panel-x" aria-label="Close">✕</button>
+            <div class="orbit-panel-top">
+                <div class="orbit-panel-name" style="color:${accent}">${sat.name}</div>
+                <div class="orbit-panel-badges">
+                    <span class="orbit-panel-badge" style="color:${accent};border-color:${accent}55;background:${accent}15">${sat.group.toUpperCase()}</span>
+                    <span class="orbit-panel-badge">${regime}</span>
+                </div>
+            </div>
+            <div class="orbit-panel-desc">${meta.purpose}</div>
+            <div class="orbit-panel-stats">
+                <div class="orbit-stat"><span class="orbit-stat-lbl">Operator</span><span class="orbit-stat-val">${meta.op}</span></div>
+                <div class="orbit-stat"><span class="orbit-stat-lbl">Country</span><span class="orbit-stat-val">${meta.country}</span></div>
+                <div class="orbit-stat"><span class="orbit-stat-lbl">First launched</span><span class="orbit-stat-val">${meta.launched}</span></div>
+            </div>
+            <div class="orbit-panel-section-h">ORBIT</div>
+            <div class="orbit-panel-stats">
+                <div class="orbit-stat"><span class="orbit-stat-lbl">Altitude</span><span class="orbit-stat-val">${altStr}</span></div>
+                <div class="orbit-stat"><span class="orbit-stat-lbl">Inclination</span><span class="orbit-stat-val">${sat.inclination.toFixed(2)}°</span></div>
+                <div class="orbit-stat"><span class="orbit-stat-lbl">Eccentricity</span><span class="orbit-stat-val">${sat.eccentricity.toFixed(5)}</span></div>
+                <div class="orbit-stat"><span class="orbit-stat-lbl">Period</span><span class="orbit-stat-val">${periodStr}</span></div>
+                <div class="orbit-stat"><span class="orbit-stat-lbl">Velocity</span><span class="orbit-stat-val">${orbitalVel.toFixed(2)} km/s</span></div>
+                <div class="orbit-stat"><span class="orbit-stat-lbl">Mean motion</span><span class="orbit-stat-val">${sat.meanMotion.toFixed(3)} rev/day</span></div>
+                <div class="orbit-stat"><span class="orbit-stat-lbl">NORAD ID</span><span class="orbit-stat-val">${sat.noradId}</span></div>
+            </div>
         `;
-        this.tooltipEl.style.borderColor = accent;
-        this.tooltipEl.style.display = 'block';
-        this._placeTooltip(mx, my);
+        this.infoPanelEl.style.borderColor = accent + '80';
+        this.infoPanelEl.classList.add('on');
+        const closeBtn = this.infoPanelEl.querySelector('.orbit-panel-x');
+        if (closeBtn) closeBtn.onclick = () => {
+            if (typeof SND !== 'undefined') SND.uiClick();
+            this._selectedSprite = null;
+            this._hideInfoPanel();
+        };
     },
 
-    _placeTooltip(mx, my) {
-        if (!this.tooltipEl || this.tooltipEl.style.display === 'none') return;
-        const w = this.tooltipEl.offsetWidth;
-        const h = this.tooltipEl.offsetHeight;
-        const vw = window.innerWidth, vh = window.innerHeight;
-        let tx = mx + 16;
-        let ty = my - 10;
-        if (tx + w > vw - 10) tx = mx - w - 16;
-        if (ty + h > vh - 10) ty = vh - h - 10;
-        if (ty < 10) ty = 10;
-        this.tooltipEl.style.left = tx + 'px';
-        this.tooltipEl.style.top = ty + 'px';
-    },
-
-    _hideTooltip() {
-        if (this.tooltipEl) this.tooltipEl.style.display = 'none';
+    _hideInfoPanel() {
+        if (this.infoPanelEl) this.infoPanelEl.classList.remove('on');
     },
 
     _showExitBtn() {
@@ -1026,15 +1331,21 @@ const OrbitMode = {
         if (!this.active) return;
 
         // Update sun direction (real day phase — drives the earth terminator)
+        const dp = (typeof G !== 'undefined' && G.getDayPhase) ? G.getDayPhase() : 0.5;
+        const angle = (dp - 0.5) * Math.PI * 2 + Math.PI;
+        const sx = Math.cos(angle), sy = 0.25, sz = Math.sin(angle);
         if (this.earthMesh) {
-            const dp = (typeof G !== 'undefined' && G.getDayPhase) ? G.getDayPhase() : 0.5;
-            const angle = (dp - 0.5) * Math.PI * 2 + Math.PI;
-            const sunDir = this.earthMesh.material.uniforms.sunDir.value;
-            sunDir.set(Math.cos(angle), 0.25, Math.sin(angle)).normalize();
+            this.earthMesh.material.uniforms.sunDir.value.set(sx, sy, sz).normalize();
+        }
+        if (this.cloudMesh) {
+            this.cloudMesh.material.uniforms.sunDir.value.set(sx, sy, sz).normalize();
         }
 
         // Earth slowly rotates (cosmetic — about 1 rev per ~60s)
         if (this.earthGroup) this.earthGroup.rotation.y += 0.001;
+        // Clouds drift slightly faster than the surface (they're a child of earthGroup,
+        // so this local rotation adds on top of the earth's rotation)
+        if (this.cloudMesh) this.cloudMesh.rotation.y += 0.00025;
 
         // Animate satellites
         this.satSprites.forEach(sp => {
@@ -1045,31 +1356,24 @@ const OrbitMode = {
                 sp.userData.radius
             );
             sp.position.copy(pos);
-            // ISS pulsing blink
+            // ISS pulsing blink (preserves pixel-art aspect ratio)
             if (sp.userData.sat.group === 'iss') {
-                const p = 1 + Math.sin(this._tick * 0.08) * 0.25;
-                sp.scale.setScalar(sp.userData.baseSize * p);
+                const p = 1 + Math.sin(this._tick * 0.08) * 0.15;
+                sp.scale.set(sp.userData.baseScaleX * p, sp.userData.baseScaleY * p, 1);
             }
         });
 
         // You-marker pulse
         if (this.youMarker) {
             const p = 1 + Math.sin(this._tick * 0.07) * 0.3;
-            this.youMarker.scale.setScalar(8 * p);
+            this.youMarker.scale.set(8 * p, 8 * p, 1);
         }
 
-        // Selected satellite — pulse outline via scale
+        // Selected satellite — gentle pulse to draw the eye
         if (this._selectedSprite) {
             const sp = this._selectedSprite;
-            const p = 1 + Math.sin(this._tick * 0.15) * 0.4;
-            sp.scale.setScalar(sp.userData.baseSize * p * 1.3);
-            // Follow tooltip to the satellite
-            if (this.tooltipEl && this.tooltipEl.style.display === 'block') {
-                const screen = sp.position.clone().project(this.camera);
-                const mx = (screen.x * 0.5 + 0.5) * window.innerWidth;
-                const my = (-screen.y * 0.5 + 0.5) * window.innerHeight;
-                this._placeTooltip(mx, my);
-            }
+            const p = 1.25 + Math.sin(this._tick * 0.15) * 0.2;
+            sp.scale.set(sp.userData.baseScaleX * p, sp.userData.baseScaleY * p, 1);
         }
 
         // Subtle star twinkle (vary opacity slowly)

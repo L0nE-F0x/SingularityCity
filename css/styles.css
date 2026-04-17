@@ -1077,51 +1077,112 @@ h1, h2, h3, p { margin: 0; }
     border-top: 1px dashed rgba(68, 170, 255, 0.18);
 }
 
-#orbitTooltip {
+#orbitInfoPanel {
     position: fixed;
+    top: 80px;
+    right: -400px;
+    width: 340px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    background: rgba(2, 6, 20, 0.92);
+    border: 1px solid rgba(68, 170, 255, 0.35);
+    border-radius: 10px;
+    padding: 20px 22px;
     z-index: 600;
-    background: rgba(2, 6, 20, 0.95);
-    border: 1px solid #44aaff;
-    border-radius: 4px;
-    padding: 10px 14px;
+    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(12px);
+    box-shadow: -5px 5px 30px rgba(0, 0, 0, 0.55), 0 0 30px rgba(68, 170, 255, 0.12);
     font-family: 'JetBrains Mono', monospace;
     color: #e0ecff;
-    font-size: 10px;
-    line-height: 1.55;
-    min-width: 240px;
-    max-width: 300px;
-    pointer-events: none;
-    box-shadow: 0 0 24px rgba(68, 170, 255, 0.25);
 }
-.ott-name {
+#orbitInfoPanel.on { right: 20px; }
+
+.orbit-panel-x {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: 1px solid rgba(102, 187, 255, 0.3);
+    color: #88aacc;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.orbit-panel-x:hover { color: #fff; border-color: #fff; }
+
+.orbit-panel-top { margin-bottom: 14px; padding-right: 24px; }
+.orbit-panel-name {
     font-family: 'Press Start 2P', monospace;
-    font-size: 10px;
-    color: #66bbff;
-    margin-bottom: 4px;
+    font-size: 13px;
+    margin-bottom: 10px;
     letter-spacing: 1px;
     word-break: break-word;
+    line-height: 1.35;
+    text-shadow: 0 0 10px currentColor;
 }
-.ott-meta {
-    color: #88aacc;
+.orbit-panel-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.orbit-panel-badge {
+    display: inline-block;
     font-size: 9px;
-    margin-bottom: 8px;
-    letter-spacing: 1px;
+    background: rgba(136, 170, 204, 0.12);
+    color: #88aacc;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(136, 170, 204, 0.3);
+    letter-spacing: 1.5px;
 }
-.ott-row {
+.orbit-panel-desc {
+    font-size: 11px;
+    color: #aabbcc;
+    line-height: 1.6;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(68, 170, 255, 0.15);
+    font-style: italic;
+}
+.orbit-panel-section-h {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: #66bbff;
+    letter-spacing: 2px;
+    margin: 14px 0 8px;
+}
+.orbit-panel-stats { margin-bottom: 4px; }
+.orbit-stat {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
     gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.5);
     font-size: 10px;
-    margin-bottom: 2px;
 }
-.ott-row span { color: #667788; }
-.ott-row b {
-    color: #e0ecff;
-    font-weight: normal;
-    text-align: right;
-}
-.ott-sep {
-    border: 0;
-    border-top: 1px dashed rgba(68, 170, 255, 0.25);
-    margin: 8px 0;
+.orbit-stat-lbl { color: #667788; flex-shrink: 0; }
+.orbit-stat-val { color: #e0ecff; text-align: right; word-break: break-word; }
+
+@media (max-width: 768px) {
+    #orbitInfoPanel {
+        width: 100vw;
+        right: -100vw;
+        top: auto;
+        bottom: 0;
+        max-height: 65vh;
+        border-radius: 16px 16px 0 0;
+        padding: 16px;
+        padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+    #orbitInfoPanel.on { right: 0; }
+    #orbitInfoPanel::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+    }
 }
