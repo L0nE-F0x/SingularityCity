@@ -31,4 +31,16 @@ html = html.replace(
 );
 
 writeFileSync(path, html);
-console.log(`cachebust: bumped local js/* and css/* tags to v=${version}`);
+
+// Keep the service-worker CACHE_NAME in sync with index.html versions.
+// Without this, bumping only index.html leaves the SW serving stale cached
+// copies of the old assets — a silent production-deploy hazard.
+const swPath = 'sw.js';
+let sw = readFileSync(swPath, 'utf8');
+sw = sw.replace(
+    /const CACHE_NAME = 'singularity-city-v[^']*';/,
+    `const CACHE_NAME = 'singularity-city-v${version}';`
+);
+writeFileSync(swPath, sw);
+
+console.log(`cachebust: bumped local js/* and css/* tags and sw.js CACHE_NAME to v=${version}`);

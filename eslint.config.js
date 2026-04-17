@@ -170,6 +170,8 @@ export default [
                 SupplyChain: 'writable', // Port→DC delivery system
                 ResearchPapers: 'writable', // arXiv paper delivery
                 BlackMarket: 'writable', // Underground jailbroken models zone
+                InteriorBlackMarket: 'writable', // Black Market interior
+                InteriorMetroStation: 'writable', // Metro station interior
                 Kardashev: 'writable', // Kardashev compute scale
 
                 // Data / constants declared at top level across many files
