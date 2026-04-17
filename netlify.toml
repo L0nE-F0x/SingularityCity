@@ -30,6 +30,12 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/orbit-sats"
+  to = "/.netlify/functions/orbit-sats"
+  status = 200
+  force = true
+
 
 [[headers]]
   for = "/*"

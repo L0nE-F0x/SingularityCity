@@ -35,7 +35,7 @@ const OrbitMode = {
     // Scene scale (Earth radius in scene units; real km → scene via /6371 * this)
     EARTH_R: 100,
 
-    CACHE_KEY: 'sc_orbit_sats',
+    CACHE_KEY: 'sc_orbit_sats_v2',
     CACHE_TTL: 60 * 60 * 1000,
 
     // ═══════════════════════════════════════════════
@@ -52,85 +52,105 @@ const OrbitMode = {
             }
         } catch (_) {}
 
+        const userLon = this._getUserLongitude();
+        const isProd = typeof location !== 'undefined'
+            && location.hostname
+            && location.hostname !== 'localhost'
+            && location.hostname !== '127.0.0.1';
+
+        let starlinkSamples = [];
+        let onewebSamples = [];
+
+        // Primary path: Netlify Function does the heavy 4 MB Starlink fetch server-side
+        // and returns a small pre-sampled payload. Much more reliable than shipping the
+        // full response to the browser.
         try {
-            const isProd = typeof location !== 'undefined'
-                && location.hostname
-                && location.hostname !== 'localhost'
-                && location.hostname !== '127.0.0.1';
+            const r = await fetch(
+                `/api/orbit-sats?lon=${userLon}&starlink=80&oneweb=20`,
+                { signal: AbortSignal.timeout(25000) }
+            );
+            if (r.ok) {
+                const data = await r.json();
+                starlinkSamples = data.starlink || [];
+                onewebSamples = data.oneweb || [];
+                console.log(`[Orbit] fetched ${starlinkSamples.length} starlink, ${onewebSamples.length} oneweb via function`);
+            } else {
+                console.warn('[Orbit] orbit-sats function →', r.status);
+            }
+        } catch (err) {
+            console.warn('[Orbit] orbit-sats function failed:', err.message);
+        }
+
+        // Fallback: direct CelesTrak (used in dev without Netlify CLI, or if the
+        // function is down). Keeps OneWeb working even if Starlink's big response fails.
+        if (starlinkSamples.length === 0 && onewebSamples.length === 0) {
             const base = isProd
                 ? '/api/celestrak/NORAD/elements/gp.php'
                 : 'https://celestrak.org/NORAD/elements/gp.php';
-            const urls = [
-                `${base}?GROUP=starlink&FORMAT=json`,
-                `${base}?GROUP=oneweb&FORMAT=json`
-            ];
-            const results = await Promise.allSettled(
-                urls.map(async u => {
-                    try {
-                        const r = await fetch(u, { signal: AbortSignal.timeout(25000) });
-                        if (!r.ok) {
-                            console.warn(`[Orbit] ${u} → HTTP ${r.status}`);
-                            return [];
-                        }
-                        return await r.json();
-                    } catch (err) {
-                        console.warn(`[Orbit] ${u} failed:`, err.message);
-                        return [];
-                    }
-                })
-            );
-
-            let sats = [];
+            const results = await Promise.allSettled([
+                fetch(`${base}?GROUP=starlink&FORMAT=json`, { signal: AbortSignal.timeout(25000) }).then(r => r.ok ? r.json() : []),
+                fetch(`${base}?GROUP=oneweb&FORMAT=json`, { signal: AbortSignal.timeout(25000) }).then(r => r.ok ? r.json() : [])
+            ]);
             const starlinkRaw = results[0].status === 'fulfilled' ? results[0].value : [];
             const onewebRaw = results[1].status === 'fulfilled' ? results[1].value : [];
-
-            const userLon = this._getUserLongitude();
-            const filterByRegion = (arr) => {
-                return arr.filter(s => {
-                    const raan = s.RA_OF_ASC_NODE || 0;
-                    const diff = Math.abs(((raan - userLon + 540) % 360) - 180);
-                    return diff < 90;
-                });
-            };
-
-            const regionStarlink = filterByRegion(starlinkRaw);
-            const regionOneweb = filterByRegion(onewebRaw);
-
-            const sampleStarlink = this._sampleArray(regionStarlink.length ? regionStarlink : starlinkRaw, 80);
-            const sampleOneweb = this._sampleArray(regionOneweb.length ? regionOneweb : onewebRaw, 20);
-
-            sats = [
-                ...sampleStarlink.map(s => this._parseSat(s, 'starlink')),
-                ...sampleOneweb.map(s => this._parseSat(s, 'oneweb'))
-            ];
-
-            sats.push({
-                name: 'ISS (ZARYA)', group: 'iss', noradId: 25544,
-                inclination: 51.6, eccentricity: 0.0001, meanMotion: 15.5,
-                altitude: 420, phase: Math.random() * 360, raan: Math.random() * 360
+            const filterByRegion = (arr) => arr.filter(s => {
+                const diff = Math.abs((((s.RA_OF_ASC_NODE || 0) - userLon + 540) % 360) - 180);
+                return diff < 90;
             });
+            const regionStar = filterByRegion(starlinkRaw);
+            const regionOne = filterByRegion(onewebRaw);
+            starlinkSamples = this._sampleArray(regionStar.length ? regionStar : starlinkRaw, 80)
+                .map(s => this._compactRaw(s, 'starlink'));
+            onewebSamples = this._sampleArray(regionOne.length ? regionOne : onewebRaw, 20)
+                .map(s => this._compactRaw(s, 'oneweb'));
+        }
 
-            sats.push(
-                { name: 'GPS BIIR-2', group: 'gps', noradId: 28474, inclination: 55, eccentricity: 0.01, meanMotion: 2.0, altitude: 20200, phase: Math.random() * 360, raan: 45 },
-                { name: 'GPS BIIR-3', group: 'gps', noradId: 28874, inclination: 55, eccentricity: 0.01, meanMotion: 2.0, altitude: 20200, phase: Math.random() * 360, raan: 120 },
-                { name: 'GALILEO-1', group: 'galileo', noradId: 37846, inclination: 56, eccentricity: 0.0002, meanMotion: 1.7, altitude: 23222, phase: Math.random() * 360, raan: 90 },
-                { name: 'GALILEO-2', group: 'galileo', noradId: 38857, inclination: 56, eccentricity: 0.0002, meanMotion: 1.7, altitude: 23222, phase: Math.random() * 360, raan: 270 }
-            );
+        const sats = [
+            ...starlinkSamples.map(s => this._parseSat(s, 'starlink')),
+            ...onewebSamples.map(s => this._parseSat(s, 'oneweb'))
+        ];
 
-            if (sampleStarlink.length === 0 && sampleOneweb.length === 0) {
-                this._generateFallbackSatellites();
-            } else {
-                this.satellites = sats;
-                this._groupSatellites();
+        sats.push({
+            name: 'ISS (ZARYA)', group: 'iss', noradId: 25544,
+            inclination: 51.6, eccentricity: 0.0001, meanMotion: 15.5,
+            altitude: 420, phase: Math.random() * 360, raan: Math.random() * 360
+        });
+        sats.push(
+            { name: 'GPS BIIR-2', group: 'gps', noradId: 28474, inclination: 55, eccentricity: 0.01, meanMotion: 2.0, altitude: 20200, phase: Math.random() * 360, raan: 45 },
+            { name: 'GPS BIIR-3', group: 'gps', noradId: 28874, inclination: 55, eccentricity: 0.01, meanMotion: 2.0, altitude: 20200, phase: Math.random() * 360, raan: 120 },
+            { name: 'GALILEO-1', group: 'galileo', noradId: 37846, inclination: 56, eccentricity: 0.0002, meanMotion: 1.7, altitude: 23222, phase: Math.random() * 360, raan: 90 },
+            { name: 'GALILEO-2', group: 'galileo', noradId: 38857, inclination: 56, eccentricity: 0.0002, meanMotion: 1.7, altitude: 23222, phase: Math.random() * 360, raan: 270 }
+        );
+
+        if (starlinkSamples.length === 0 && onewebSamples.length === 0) {
+            console.warn('[Orbit] both sources failed — using procedural fallback');
+            this._generateFallbackSatellites();
+        } else {
+            this.satellites = sats;
+            this._groupSatellites();
+            // Only cache if we actually got Starlink data. An all-OneWeb cache would
+            // stick around for an hour and make the HUD look broken.
+            if (starlinkSamples.length > 0) {
                 try {
                     localStorage.setItem(this.CACHE_KEY, JSON.stringify({ ts: Date.now(), data: sats }));
                 } catch (_) {}
             }
-
-        } catch (e) {
-            console.warn('[Orbit] Satellite fetch failed:', e.message);
-            this._generateFallbackSatellites();
         }
+    },
+
+    // Normalize a raw CelesTrak record (capital-case fields) into the compact shape
+    // the function endpoint already returns. Keeps the downstream code uniform.
+    _compactRaw(raw, group) {
+        return {
+            name: raw.OBJECT_NAME || 'Unknown',
+            group,
+            noradId: raw.NORAD_CAT_ID || 0,
+            inclination: raw.INCLINATION || 0,
+            eccentricity: raw.ECCENTRICITY || 0,
+            meanMotion: raw.MEAN_MOTION || 0,
+            raan: raw.RA_OF_ASC_NODE || 0,
+            phase: raw.MEAN_ANOMALY || 0
+        };
     },
 
     _getUserLongitude() {
@@ -138,17 +158,21 @@ const OrbitMode = {
         return -offsetMin / 4;
     },
 
-    _parseSat(raw, group) {
-        // Kepler's 3rd: a_km = 42241.08 / mean_motion^(2/3) for Earth orbits.
-        const mm = raw.MEAN_MOTION;
+    _parseSat(s, group) {
+        // Input is already compact (meanMotion/inclination/etc.). Kepler's 3rd gives
+        // altitude from mean motion: a_km = 42241.08 / mean_motion^(2/3).
+        const mm = s.meanMotion || 0;
         const altitude = mm ? (42241.08 / Math.pow(mm, 2/3)) - 6371 : 550;
         return {
-            name: raw.OBJECT_NAME || 'Unknown', group, noradId: raw.NORAD_CAT_ID || 0,
-            inclination: raw.INCLINATION || 53, eccentricity: raw.ECCENTRICITY || 0.0001,
+            name: s.name || 'Unknown',
+            group,
+            noradId: s.noradId || 0,
+            inclination: s.inclination || 53,
+            eccentricity: s.eccentricity || 0.0001,
             meanMotion: mm || 15.0,
             altitude,
-            phase: raw.MEAN_ANOMALY || Math.random() * 360,
-            raan: raw.RA_OF_ASC_NODE || Math.random() * 360
+            phase: s.phase || Math.random() * 360,
+            raan: s.raan || Math.random() * 360
         };
     },
 
