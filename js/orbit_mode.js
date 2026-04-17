@@ -846,11 +846,11 @@ const OrbitMode = {
             starlink: 0x66bbff, oneweb: 0xffaa66, iss: 0xffffaa,
             gps: 0x88ffaa, galileo: 0xccaaff, other: 0xffffff
         };
-        // Display size in scene units — these are pixel-art sprites so we scale to preserve
-        // the bitmap's aspect ratio. ISS is ~109m wingtip-to-wingtip in reality (the largest
-        // object on orbit) so it's deliberately oversized here to read as "the station".
+        // Sprite height in scene units. Earth radius = 100 units, so these are small —
+        // zoom in to see pixel-art detail; zoomed out they read as tiny dots with shape.
+        // ISS is deliberately largest (it's the biggest object on orbit at ~109m).
         const groupScale = {
-            starlink: 14, oneweb: 12, iss: 26, gps: 18, galileo: 18, other: 10
+            starlink: 3.0, oneweb: 3.2, iss: 5.0, gps: 3.5, galileo: 3.5, other: 2.5
         };
 
         this.satellites.forEach(sat => {
@@ -1108,11 +1108,11 @@ const OrbitMode = {
         const ctx = c.getContext('2d');
         ctx.imageSmoothingEnabled = false;
 
-        // Soft glow behind the sprite so it reads against both day-Earth and black-space backgrounds
-        const glowR = Math.min(w, h) * 0.6;
+        // Tight glow hugs the body so the sprite stays compact at low zoom
+        const glowR = Math.min(w, h) * 0.35;
         const glow = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, glowR);
-        glow.addColorStop(0.0, 'rgba(255,255,255,0.35)');
-        glow.addColorStop(0.4, 'rgba(180,210,255,0.15)');
+        glow.addColorStop(0.0, 'rgba(255,255,255,0.18)');
+        glow.addColorStop(0.5, 'rgba(180,210,255,0.06)');
         glow.addColorStop(1.0, 'rgba(0,0,0,0)');
         ctx.fillStyle = glow;
         ctx.fillRect(0, 0, w, h);
