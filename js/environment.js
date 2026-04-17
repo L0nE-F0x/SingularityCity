@@ -2845,6 +2845,10 @@ const Environment = {
       const margin = 80 / zoom;             // overscan so particles enter/exit gracefully
       const xMin = wx - margin, xMax = wx + vw + margin;
       const yMin = wy - margin, yMax = wy + vh + margin;
+      // Weather particles must not bleed into the underground. All terrain
+      // (city, port, power, backbone, agents, desert) draws its topmost
+      // surface at groundY - 24, so that's the universal floor for rain/snow/etc.
+      const groundTop = (typeof G.groundY === 'number') ? G.groundY - 24 : yMax;
       const desert = this._getDesertRange();
       const tick = G.tick;
       const ds = desert ? desert.start : 0;
@@ -2854,7 +2858,8 @@ const Environment = {
       // (used when camera pans and old particles end up offscreen).
       const respawnInside = (d) => {
         d.x = wx + Math.random() * vw;
-        d.y = wy + Math.random() * vh;
+        const maxY = Math.min(wy + vh, groundTop);
+        d.y = wy + Math.random() * Math.max(0, maxY - wy);
       };
 
       // ─── CITY WEATHER (skip desert zone) ───
@@ -2886,16 +2891,19 @@ const Environment = {
             const d = drops[i];
             d.y += d.s;
             d.x += windX - 0.2;
-            if (d.y > yMax) {
+            // Respawn when drop hits ground OR exits viewport bottom.
+            if (d.y > groundTop || d.y > yMax) {
               d.y = yMin;
               d.x = wx + Math.random() * vw;
             } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
               respawnInside(d);
             }
             if (desert && d.x >= ds && d.x <= de) continue;
-            // Streak slants with wind for a sense of direction.
+            if (d.y > groundTop) continue;
+            // Streak slants with wind, but never extends below ground.
+            const endY = Math.min(d.y + streakLen, groundTop);
             g.moveTo(d.x, d.y);
-            g.lineTo(d.x - 1.5 + windX * 2, d.y + streakLen);
+            g.lineTo(d.x - 1.5 + windX * 2, endY);
         }
 
       // SNOW — drifts with wind
@@ -2918,13 +2926,14 @@ const Environment = {
             const d = flakes[i];
             d.y += d.s;
             d.x += d.dx + Math.sin(tick * 0.02 + d.r) * 0.3 + wind.x * 0.8;
-            if (d.y > yMax) {
+            if (d.y > groundTop || d.y > yMax) {
               d.y = yMin;
               d.x = wx + Math.random() * vw;
             } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
               respawnInside(d);
             }
             if (desert && d.x >= ds && d.x <= de) continue;
+            if (d.y > groundTop) continue;
             g.drawCircle(d.x, d.y, d.r);
         }
         g.endFill();
@@ -2949,13 +2958,14 @@ const Environment = {
             const d = petals[i];
             d.y += d.s;
             d.x += Math.sin(d.r += d.rot) * 0.5 + wind.x * 0.5;
-            if (d.y > yMax) {
+            if (d.y > groundTop || d.y > yMax) {
               d.y = yMin;
               d.x = wx + Math.random() * vw;
             } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
               respawnInside(d);
             }
             if (desert && d.x >= ds && d.x <= de) continue;
+            if (d.y > groundTop) continue;
             g.drawEllipse(d.x, d.y, 3, 1.5);
         }
         g.endFill();
@@ -2982,13 +2992,14 @@ const Environment = {
             const d = leaves[i];
             d.y += d.s;
             d.x += Math.sin(d.r += d.rot) * 0.7 + wind.x * 0.7;
-            if (d.y > yMax) {
+            if (d.y > groundTop || d.y > yMax) {
               d.y = yMin;
               d.x = wx + Math.random() * vw;
             } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
               respawnInside(d);
             }
             if (desert && d.x >= ds && d.x <= de) continue;
+            if (d.y > groundTop) continue;
             // Each leaf is a tiny ellipse with its tumble-rotation applied
             // via the graphics matrix — cheap and gives individual motion.
             g.beginFill(d.leafCol || 0xd97706, baseAlpha);
@@ -3013,16 +3024,27 @@ const Environment = {
           // gives depth-fog feel without a texture or shader.
           const drift = (tick * 0.2 + wind.x * 40) % 200 - 100;
           const bandAlpha = fogIntensity * 0.35;
-          fogG.beginFill(0xa8b1bb, bandAlpha);
-          fogG.drawRect(wx - 200, wy, vw + 400, vh * 0.55);
-          fogG.endFill();
-          fogG.beginFill(0xbec5cc, bandAlpha * 0.7);
-          fogG.drawRect(wx - 200, wy + vh * 0.3, vw + 400, vh * 0.55);
-          fogG.endFill();
-          // Drifting streaks: low-alpha elongated ellipses
+          // Clip fog to above ground so it doesn't wash underground tunnels.
+          const clipBandH = (top, wantH) => Math.max(0, Math.min(top + wantH, groundTop) - top);
+          const band1Top = wy;
+          const band1H = clipBandH(band1Top, vh * 0.55);
+          if (band1H > 0) {
+              fogG.beginFill(0xa8b1bb, bandAlpha);
+              fogG.drawRect(wx - 200, band1Top, vw + 400, band1H);
+              fogG.endFill();
+          }
+          const band2Top = wy + vh * 0.3;
+          const band2H = clipBandH(band2Top, vh * 0.55);
+          if (band2H > 0) {
+              fogG.beginFill(0xbec5cc, bandAlpha * 0.7);
+              fogG.drawRect(wx - 200, band2Top, vw + 400, band2H);
+              fogG.endFill();
+          }
+          // Drifting streaks: low-alpha elongated ellipses, skipped below ground.
           fogG.beginFill(0xd1d6dc, bandAlpha * 0.5);
           for (let fi = 0; fi < 6; fi++) {
               const sy = wy + (fi * vh) / 6 + ((tick * 0.1) % (vh / 6));
+              if (sy > groundTop) continue;
               const sx = wx + ((drift + fi * 80) % (vw + 400)) - 200;
               fogG.drawEllipse(sx, sy, 140, 14);
           }
@@ -3083,18 +3105,23 @@ const Environment = {
             d.y += d.vy + Math.sin(tick * 0.03 + d.x * 0.01) * 0.5;
             // Wrap within desert zone
             if (d.x > desert.end) { d.x = desert.start; d.y = wy + Math.random() * vh; }
-            // Vertical recycling now uses proper world-Y bounds (was using vh as screen-space)
-            if (d.y > yMax) d.y = yMin;
-            if (d.y < yMin - 10) d.y = yMax;
+            // Vertical recycling: never let sand drift below desert surface.
+            if (d.y > groundTop || d.y > yMax) d.y = yMin;
+            if (d.y < yMin - 10) d.y = Math.min(yMax, groundTop);
+            if (d.y > groundTop) continue;
             g.beginFill(0xd4a574, d.alpha);
             g.drawEllipse(d.x, d.y, d.size * 2, d.size * 0.6);
             g.endFill();
         }
 
-        // Sandstorm haze overlay (darkens the desert) — covers full visible area
-        g.beginFill(0xc2956a, 0.06 + Math.sin(tick * 0.01) * 0.02);
-        g.drawRect(desert.start, yMin - 200, desert.end - desert.start, vh + 400);
-        g.endFill();
+        // Sandstorm haze overlay — clipped to above desert surface.
+        const hazeTop = yMin - 200;
+        const hazeH = Math.max(0, Math.min(hazeTop + vh + 400, groundTop) - hazeTop);
+        if (hazeH > 0) {
+            g.beginFill(0xc2956a, 0.06 + Math.sin(tick * 0.01) * 0.02);
+            g.drawRect(desert.start, hazeTop, desert.end - desert.start, hazeH);
+            g.endFill();
+        }
       }
     },
 
