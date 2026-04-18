@@ -1,17 +1,48 @@
 // Tiny dev-only script: rewrite <script src="js/foo.js"> → <script src="js/foo.js?v=N">
-// in index.html. Run via `node tools/cachebust.mjs <version>`. Idempotent — strips any
+// in index.html. Run via `node tools/cachebust.mjs [version]`. Idempotent — strips any
 // existing ?v=... first, then appends the new one. Used to defeat browser HTTP cache during
 // rapid iteration without having to manually edit every tag.
 //
 // Usage:
-//   node tools/cachebust.mjs 227
+//   node tools/cachebust.mjs          # auto-pick next safe version (max(local, remote) + 1)
+//   node tools/cachebust.mjs 227      # force a specific version
+//
+// Auto-mode runs `git fetch origin main` and reads the remote sw.js CACHE_NAME so
+// parallel sessions can't pick the same version and accidentally skip cache
+// invalidation. Falls back to local-only bump if git/network fails.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 
-const version = process.argv[2];
+function extractVersion(swContent) {
+    const m = swContent && swContent.match(/CACHE_NAME = 'singularity-city-v(\d+)'/);
+    return m ? parseInt(m[1], 10) : 0;
+}
+
+function getLocalVersion() {
+    try { return extractVersion(readFileSync('sw.js', 'utf8')); }
+    catch { return 0; }
+}
+
+function getRemoteVersion() {
+    try {
+        execSync('git fetch origin main --quiet', { stdio: 'pipe' });
+        const remoteSw = execSync('git show origin/main:sw.js', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+        return extractVersion(remoteSw);
+    } catch (e) {
+        const firstLine = String(e.message || e).split('\n')[0];
+        console.warn(`cachebust: couldn't read remote sw.js (${firstLine}) — falling back to local-only bump`);
+        return 0;
+    }
+}
+
+let version = process.argv[2];
 if (!version) {
-    console.error('Usage: node tools/cachebust.mjs <version>');
-    process.exit(1);
+    const local = getLocalVersion();
+    const remote = getRemoteVersion();
+    const next = Math.max(local, remote) + 1;
+    version = String(next);
+    console.log(`cachebust: auto-detected — local=v${local}, remote=v${remote} → bumping to v${version}`);
 }
 
 const path = 'index.html';
