@@ -28,6 +28,11 @@ const OrbitMode = {
     _satTextures: {},
     _selectedSprite: null,
     _tick: 0,
+    _lastUpdateMs: 0,
+
+    // Animation timescale: 1 = real time (ISS completes an orbit in ~90 minutes of
+    // viewing, Earth rotates in 24h). Bump this if you want sped-up motion.
+    TIMESCALE: 1,
 
     // Saved PixiJS camera state (engine keeps ticking underneath)
     _savedCamX: 0, _savedCamY: 0, _savedCamZoom: 1,
@@ -891,9 +896,9 @@ const OrbitMode = {
             sprite.scale.set(scale * aspect, scale, 1);
             sprite.userData.sat = sat;
             sprite.userData.orbitAngle = (sat.phase / 180) * Math.PI;
-            // Angular speed per frame at 60fps: (rev/day / 86400s) * 2π * (1/60) * speedup.
-            // 200× speedup makes orbital motion observable in seconds instead of hours.
-            sprite.userData.orbitSpeed = (sat.meanMotion / 86400) * (Math.PI * 2) * 200 / 60;
+            // Real-time angular speed in radians per second: (rev/day ÷ 86400) × 2π.
+            // Applied via delta-time in update() so framerate doesn't affect motion speed.
+            sprite.userData.orbitSpeedPerSec = (sat.meanMotion / 86400) * Math.PI * 2;
             sprite.userData.baseScaleX = scale * aspect;
             sprite.userData.baseScaleY = scale;
             sprite.userData.baseColor = color;
@@ -1221,6 +1226,11 @@ const OrbitMode = {
 
     _onClick(e) {
         if (!this.active) return;
+        // Refresh pointer NDC on the click event — taps may not fire pointermove first.
+        const rect = this.canvas.getBoundingClientRect();
+        this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
         const hit = this._pickSatellite();
         if (hit) {
             this._selectedSprite = hit;
@@ -1229,12 +1239,53 @@ const OrbitMode = {
         }
     },
 
+    // Screen-space picking with earth occlusion.
+    // Sprites are small (3–5 scene units) so Three.js's default raycast is fiddly to
+    // click. We project each sat into NDC and pick the nearest one to the cursor
+    // within a comfortable threshold, skipping any occluded by the Earth sphere.
     _pickSatellite() {
-        if (!this.raycaster || !this.satSprites.length) return null;
-        this.raycaster.setFromCamera(this.pointer, this.camera);
-        this.raycaster.params.Sprite = this.raycaster.params.Sprite || {};
-        const hits = this.raycaster.intersectObjects(this.satSprites, false);
-        return hits.length ? hits[0].object : null;
+        if (!this.satSprites.length || !this.camera) return null;
+
+        const CLICK_RADIUS_NDC = 0.035;           // ~3.5% of half-viewport — forgiving
+        const EARTH_OCC_R_SQ = (this.EARTH_R * 0.985) * (this.EARTH_R * 0.985);
+        const camPos = this.camera.position;
+        const camDistSq = camPos.lengthSq();
+        const ndcX = this.pointer.x;
+        const ndcY = this.pointer.y;
+
+        const _dir = new THREE.Vector3();
+        const _proj = new THREE.Vector3();
+        let best = null;
+        let bestD2 = CLICK_RADIUS_NDC * CLICK_RADIUS_NDC;
+
+        for (const sp of this.satSprites) {
+            // Earth occlusion: does the ray from camera to sprite pass through the
+            // Earth sphere before reaching the sprite? If so, skip.
+            _dir.copy(sp.position).sub(camPos);
+            const len = _dir.length();
+            if (len > 0) {
+                _dir.multiplyScalar(1 / len);
+                const t = -camPos.dot(_dir);            // closest-approach param
+                if (t > 0 && t < len) {
+                    const closestSq = camDistSq - t * t;
+                    if (closestSq < EARTH_OCC_R_SQ) continue; // blocked by Earth
+                }
+            }
+
+            // Screen-space distance
+            _proj.copy(sp.position).project(this.camera);
+            if (_proj.z < -1 || _proj.z > 1) continue;
+            const dx = _proj.x - ndcX;
+            const dy = _proj.y - ndcY;
+            const d2 = dx * dx + dy * dy;
+
+            // Prefer the closest to cursor; break ties by nearer-to-camera (in front).
+            if (d2 < bestD2) {
+                bestD2 = d2;
+                best = sp;
+            }
+        }
+        return best;
     },
 
     _showInfoPanel(sprite) {
@@ -1327,7 +1378,15 @@ const OrbitMode = {
         if (!this._built) return;
         this._tick++;
 
-        // Transition (crossfade)
+        // Delta-time in seconds (capped so a tab-switch doesn't cause a huge jump).
+        const nowMs = performance.now();
+        const dt = this._lastUpdateMs
+            ? Math.min((nowMs - this._lastUpdateMs) / 1000, 0.1)
+            : 0;
+        this._lastUpdateMs = nowMs;
+        const nowSec = nowMs / 1000;
+
+        // Transition (crossfade) — kept frame-based, it's a short 0.4s animation
         if (this._transitioning) {
             if (!this._exiting) {
                 this._transitionProgress = Math.min(1, this._transitionProgress + 0.04);
@@ -1354,7 +1413,7 @@ const OrbitMode = {
 
         if (!this.active) return;
 
-        // Update sun direction (real day phase — drives the earth terminator)
+        // Update sun direction (drives the Earth day/night terminator)
         const dp = (typeof G !== 'undefined' && G.getDayPhase) ? G.getDayPhase() : 0.5;
         const angle = (dp - 0.5) * Math.PI * 2 + Math.PI;
         const sx = Math.cos(angle), sy = 0.25, sz = Math.sin(angle);
@@ -1365,44 +1424,48 @@ const OrbitMode = {
             this.cloudMesh.material.uniforms.sunDir.value.set(sx, sy, sz).normalize();
         }
 
-        // Earth slowly rotates (cosmetic — about 1 rev per ~60s)
-        if (this.earthGroup) this.earthGroup.rotation.y += 0.001;
-        // Clouds drift slightly faster than the surface (they're a child of earthGroup,
-        // so this local rotation adds on top of the earth's rotation)
-        if (this.cloudMesh) this.cloudMesh.rotation.y += 0.00025;
+        // Real-time rotation rates (radians per second). TIMESCALE=1 is 1:1 real time —
+        // Earth takes 24h to rotate, ISS takes ~90min to orbit. Bump TIMESCALE to speed
+        // everything up proportionally without changing relative motion.
+        const EARTH_ROT_PER_SEC = (Math.PI * 2) / 86400;                   // 1 rev / 24h
+        const CLOUD_DIFFERENTIAL_PER_SEC = EARTH_ROT_PER_SEC * 0.05;       // +5% drift
+        const ts = this.TIMESCALE;
 
-        // Animate satellites
+        if (this.earthGroup) this.earthGroup.rotation.y += EARTH_ROT_PER_SEC * ts * dt;
+        if (this.cloudMesh) this.cloudMesh.rotation.y += CLOUD_DIFFERENTIAL_PER_SEC * ts * dt;
+
+        // Animate satellites at real orbital speed
         this.satSprites.forEach(sp => {
-            sp.userData.orbitAngle += sp.userData.orbitSpeed;
+            sp.userData.orbitAngle += sp.userData.orbitSpeedPerSec * ts * dt;
             const pos = this._orbitPosition(
                 sp.userData.sat,
                 sp.userData.orbitAngle,
                 sp.userData.radius
             );
             sp.position.copy(pos);
-            // ISS pulsing blink (preserves pixel-art aspect ratio)
+            // ISS blink — time-based so it stays ~1.3s period regardless of framerate
             if (sp.userData.sat.group === 'iss') {
-                const p = 1 + Math.sin(this._tick * 0.08) * 0.15;
+                const p = 1 + Math.sin(nowSec * 4.8) * 0.15;
                 sp.scale.set(sp.userData.baseScaleX * p, sp.userData.baseScaleY * p, 1);
             }
         });
 
-        // You-marker pulse
+        // You-marker pulse (~1.5s period)
         if (this.youMarker) {
-            const p = 1 + Math.sin(this._tick * 0.07) * 0.3;
+            const p = 1 + Math.sin(nowSec * 4.2) * 0.3;
             this.youMarker.scale.set(8 * p, 8 * p, 1);
         }
 
-        // Selected satellite — gentle pulse to draw the eye
+        // Selected satellite — brighter quick pulse (~0.7s) to draw the eye
         if (this._selectedSprite) {
             const sp = this._selectedSprite;
-            const p = 1.25 + Math.sin(this._tick * 0.15) * 0.2;
+            const p = 1.25 + Math.sin(nowSec * 9) * 0.2;
             sp.scale.set(sp.userData.baseScaleX * p, sp.userData.baseScaleY * p, 1);
         }
 
-        // Subtle star twinkle (vary opacity slowly)
-        if (this.starField && this._tick % 4 === 0) {
-            this.starField.material.opacity = 0.75 + Math.sin(this._tick * 0.03) * 0.1;
+        // Star twinkle (~3.5s period)
+        if (this.starField) {
+            this.starField.material.opacity = 0.78 + Math.sin(nowSec * 1.8) * 0.08;
         }
 
         this.controls.update();
