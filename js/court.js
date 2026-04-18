@@ -75,8 +75,9 @@ const CourtData = {
     },
 
     _scheduleSummon() {
-        // Summon 1-2 models every ~4 real hours (simulated: every 8000 ticks ≈ 2.2 min for demo)
-        this._nextSummon = G.tick + 6000 + Math.floor(Math.random() * 4000);
+        // Summon 1-2 models every ~4-5 minutes of demo time. Long enough that the
+        // previous summon has cleared and commuters have returned home.
+        this._nextSummon = G.tick + 18000 + Math.floor(Math.random() * 6000);
     },
 
     _pickModelsForSummon() {
@@ -110,7 +111,7 @@ const CourtData = {
         }
 
         if (summoned.length > 0 && typeof UI !== 'undefined') {
-            UI.addToast('⚖️ ' + summoned.map(m => m.name).join(' & ') + ' summoned to AI Senate!');
+            UI.addToast('⚖️ ' + summoned.map(m => m.name).join(' & ') + ' summoned to the Hearing Chamber!');
         }
     },
 
@@ -141,10 +142,11 @@ const CourtData = {
             this._scheduleSummon();
         }
 
-        // Auto-clear summons after 3000 ticks (~50 seconds)
+        // Auto-clear summons after 12000 ticks (~3.3 min) — enough time to
+        // commute across the city via metro, attend the hearing, and head home.
         if (this._summonedModels.length > 0) {
             const oldest = G.models.find(m => m.id === this._summonedModels[0]);
-            if (oldest && oldest._summonTick && G.tick - oldest._summonTick > 3000) {
+            if (oldest && oldest._summonTick && G.tick - oldest._summonTick > 12000) {
                 this._summonedModels.forEach(id => {
                     const m = G.models.find(mm => mm.id === id);
                     if (m) { m._summoned = false; m._summonTick = 0; }

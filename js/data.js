@@ -251,8 +251,9 @@ function getAct(stg, dp, seed, model) {
     return { act: 'sleep', bid: hasUni ? 'uni_dorm' : resId };
   }
 
-  // AI Court: summoned models go to hearing during work hours
-  if (typeof CourtData !== 'undefined' && CourtData.isModelSummoned(model.id) && dp > .35 && dp < .65) {
+  // AI Court: summoned models drop everything and report to the Hearing Chamber.
+  // No day-phase gate — a subpoena overrides sleep, lunch, work, etc.
+  if (typeof CourtData !== 'undefined' && CourtData.isModelSummoned(model.id)) {
       return { act: 'work', bid: 'court_hearing' };
   }
   // Conference: during active conference, 15% of adults attend during work hours

@@ -1389,6 +1389,14 @@ const Entities = {
                     } else {
                         refs.briefcase.visible = false;
                     }
+
+                    if (refs.summonIcon) {
+                        const summoned = m._summoned === true;
+                        refs.summonIcon.visible = summoned && isOutside;
+                        if (summoned && isOutside) {
+                            refs.summonIcon.y = refs.head.y - 2 + Math.sin(tick * 0.1 + i) * 1.2;
+                        }
+                    }
                 }
             }
         } else {

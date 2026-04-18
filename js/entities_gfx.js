@@ -534,7 +534,11 @@ const EntitiesGfx = {
         const ghostR = new PIXI.Graphics(); ghostR.visible = false;
         
         const briefcase = new PIXI.Graphics(); briefcase.visible = false;
-        
+
+        // Court summon marker — small ⚖️ floats above head when subpoenaed.
+        const summonIcon = new PIXI.Text('⚖️', { fontFamily: 'JetBrains Mono', fontSize: 11 });
+        summonIcon.anchor.set(0.5, 1); summonIcon.visible = false;
+
         // Spectral glow aura (visible on retired/ghost models)
         const ghostGlow = new PIXI.Graphics(); ghostGlow.visible = false;
         ghostGlow.blendMode = PIXI.BLEND_MODES.ADD;
@@ -550,7 +554,7 @@ const EntitiesGfx = {
         chat.addChild(chatBg, chatTxt);
         chat.visible = false;
         
-        c.addChild(ghostGlow, shadow, ghostL, ghostR, legL, legR, body, head, dot, umbrella, briefcase, chat); 
+        c.addChild(ghostGlow, shadow, ghostL, ghostR, legL, legR, body, head, dot, umbrella, briefcase, summonIcon, chat);
         c.eventMode = 'static'; c.cursor = 'pointer';
         c.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
         c.on('pointerover', e => { 
@@ -596,8 +600,8 @@ const EntitiesGfx = {
             }
         }
 
-        G.charRefs[m.id] = { 
-            c, shadow, head, body, legL, legR, dot, umbrella, ghostL, ghostR, ghostGlow, briefcase, chat, chatBg, chatTxt,
+        G.charRefs[m.id] = {
+            c, shadow, head, body, legL, legR, dot, umbrella, ghostL, ghostR, ghostGlow, briefcase, summonIcon, chat, chatBg, chatTxt,
             paramScale, isMoE,
             bld: startBld ? startBld.id : null,
             wantsToLeave: false, 
