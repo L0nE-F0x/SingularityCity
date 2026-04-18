@@ -86,7 +86,17 @@ const VCRowEnv = {
         });
 
         // ─── CRYPTEX LOGO PULSE (brighter at night, gentle throb always) ───
+        // Re-sync x/y every frame so the logo tracks the Cryptex building even if
+        // the city re-zones later (new labs pushing VC Row rightward, etc.). Using
+        // absolute world coords set at buildAnimations time caused the logo to land
+        // on whatever building happened to occupy the stale x after re-zoning.
         if (this.cryptexLogo && !this.cryptexLogo.destroyed) {
+            const cryptex = G.bldById['vcrow_cryptex'];
+            if (cryptex) {
+                const bldH = (cryptex.fl || 8) * 18 + 24;
+                this.cryptexLogo.x = cryptex.x + cryptex.w / 2;
+                this.cryptexLogo.y = G.groundY - bldH / 2 - 6;
+            }
             const isNight = dp < 0.25 || dp > 0.83;
             const throb = 0.85 + Math.sin(G.tick * 0.05 + this.cryptexLogo._basePulse) * 0.15;
             this.cryptexLogo.alpha = (isNight ? 1.0 : 0.65) * throb;
