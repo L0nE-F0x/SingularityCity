@@ -1575,6 +1575,12 @@ const G = {
           setInterval(() => API.fetchZeroEval(), 20 * 60 * 1000); // every 20 min
       }
 
+      // ─── OPENROUTER: Catches beta/preview models before GA (free, no-auth) ───
+      if (typeof API !== 'undefined') {
+          setTimeout(() => API.fetchOpenRouter(), 11000); // initial fetch after 11s
+          setInterval(() => API.fetchOpenRouter(), 25 * 60 * 1000); // every 25 min
+      }
+
       // ─── AUTO-PURGE HALLUCINATIONS: After ZeroEval + HF have loaded, scrub the local
       // model list AND the cloud DB of any models that aren't in the verified registry.
       // This catches models from prior LLM scans that snuck through before the registry was built.

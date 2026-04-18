@@ -519,6 +519,190 @@ const API = {
         }
     },
 
+    // ═══════════════════════════════════════════════════════════════
+    //   OPENROUTER API — Free, no-auth. Catches beta/preview models
+    //   that ZeroEval and HuggingFace only list after GA release.
+    // ═══════════════════════════════════════════════════════════════
+
+    _orLabMap: {
+        'anthropic': 'anthropic', 'openai': 'openai', 'google': 'google',
+        'meta-llama': 'meta', 'meta': 'meta',
+        'mistralai': 'mistral', 'mistral': 'mistral',
+        'x-ai': 'xai', 'xai': 'xai',
+        'deepseek': 'deepseek', 'cohere': 'cohere', 'perplexity': 'perplexity',
+        'microsoft': 'microsoft', 'nvidia': 'nvidia', 'amazon': 'amazon',
+        'qwen': 'alibaba', 'alibaba': 'alibaba', 'zhipu': 'zhipu_ai',
+        'apple': 'apple', 'databricks': 'databricks', 'ai21': 'ai21',
+        'minimax': 'minimax', 'reka': 'reka', 'together': 'together',
+        'inflection': 'inflection', 'stability': 'stability',
+        '01-ai': '01_ai', 'baichuan': 'baichuan',
+        'moonshotai': 'moonshot', 'moonshot': 'moonshot',
+        'nousresearch': 'nous', 'liquid': 'liquid'
+    },
+
+    async fetchOpenRouter() {
+        try {
+            const isDeployed = !['localhost','127.0.0.1'].includes(window.location.hostname);
+            const url = isDeployed
+                ? '/api/openrouter/models'
+                : 'https://openrouter.ai/api/v1/models';
+            const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+            if (!res.ok) { console.warn('[OpenRouter] HTTP', res.status); return; }
+            const payload = await res.json();
+            const models = payload && Array.isArray(payload.data) ? payload.data : [];
+            if (models.length === 0) return;
+
+            const fuzzyNorm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\d{6,}/g, '');
+            const existingNames = new Set(G.models.map(m => m.name.toLowerCase().replace(/[^a-z0-9]/g, '')));
+            const existingFuzzy = new Set(G.models.map(m => fuzzyNorm(m.name)));
+
+            // Cap total OpenRouter-sourced models at 80 (smaller than ZeroEval's 150
+            // since OpenRouter is noisier — includes community/preview variants).
+            const orCount = G.models.filter(m => m._src === 'openrouter').length;
+            const capRemaining = Math.max(0, 80 - orCount);
+
+            const cnLabs = new Set(['alibaba', 'deepseek', 'zhipu_ai', '01_ai', 'baichuan', 'moonshot', 'minimax']);
+            const euLabs = new Set(['mistral', 'cohere', 'ai21', 'stability', 'reka']);
+
+            let added = 0, updated = 0;
+
+            for (const or of models) {
+                if (!or.id || !or.name) continue;
+
+                // id format: "lab/model-name". Skip variant suffixes like :beta/:free/:nitro —
+                // those are the same base model through a different OpenRouter routing tier.
+                if (/:beta$|:free$|:nitro$|:extended$|:thinking$/i.test(or.id)) continue;
+
+                const slashIdx = or.id.indexOf('/');
+                if (slashIdx <= 0) continue;
+                const rawLab = or.id.slice(0, slashIdx).toLowerCase();
+                if (rawLab === 'openrouter' || rawLab === 'auto') continue;
+
+                // Strip "Lab: " prefix from display name
+                let displayName = or.name;
+                const colonIdx = displayName.indexOf(': ');
+                if (colonIdx > 0 && colonIdx < 30) displayName = displayName.slice(colonIdx + 2).trim();
+                if (!displayName) continue;
+
+                const safeName = displayName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const fuzzyName = fuzzyNorm(displayName);
+
+                const labId = this._orLabMap[rawLab] || rawLab.replace(/[^a-z0-9]/g, '_');
+                const region = cnLabs.has(labId) ? 'cn' : euLabs.has(labId) ? 'eu' : 'us';
+
+                // OpenRouter pricing is per-token. Convert to $/1M to match ZeroEval shape.
+                let costIn = null, costOut = null;
+                if (or.pricing) {
+                    const pIn = parseFloat(or.pricing.prompt);
+                    const pOut = parseFloat(or.pricing.completion);
+                    if (!isNaN(pIn) && pIn >= 0) costIn = pIn * 1e6;
+                    if (!isNaN(pOut) && pOut >= 0) costOut = pOut * 1e6;
+                }
+
+                const modality = (or.architecture && or.architecture.modality) || '';
+                const isMultimodal = /image|video|audio/i.test(modality);
+
+                let releaseDate = null;
+                if (or.created && typeof or.created === 'number') {
+                    try { releaseDate = new Date(or.created * 1000).toISOString().split('T')[0]; } catch(e) {}
+                }
+
+                const existing = G.models.find(m => {
+                    const eName = m.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const eId = m.id.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    return eName === safeName || eId === safeName || fuzzyNorm(m.name) === fuzzyName;
+                });
+
+                if (existing) {
+                    let changed = false;
+                    if (or.context_length && !existing.ctx) {
+                        if (!window.CTX) window.CTX = {};
+                        window.CTX[existing.id] = or.context_length;
+                        existing.ctx = or.context_length;
+                        changed = true;
+                    }
+                    if (costIn != null && costOut != null && existing.cost_input == null) {
+                        if (!window.COSTS) window.COSTS = {};
+                        window.COSTS[existing.id] = { input: costIn, output: costOut };
+                        existing.cost_input = costIn;
+                        existing.cost_out = costOut;
+                        changed = true;
+                    }
+                    if (releaseDate && !existing.rel && !existing.released) {
+                        existing.rel = releaseDate;
+                        existing.released = releaseDate;
+                        changed = true;
+                    }
+                    if (existing.phase === 'rumored' || existing.phase === 'pre_training') {
+                        existing.phase = 'released';
+                        changed = true;
+                    }
+                    if (changed) updated++;
+                    continue;
+                }
+
+                if (existingFuzzy.has(fuzzyName)) { updated++; continue; }
+                if (added >= capRemaining) continue;
+
+                const nm = {
+                    id: or.id.replace(/\//g, '_').replace(/[^a-z0-9_]/gi, '_'),
+                    name: displayName,
+                    lab: G.ensureLabExists(labId, region),
+                    region: region,
+                    released: releaseDate,
+                    retired: null,
+                    phase: 'released',
+                    os: false,
+                    desc: `${displayName}.${isMultimodal ? ' Multimodal.' : ''}`,
+                    personality: isMultimodal ? 'Multimodal' : 'Analytical',
+                    talent: 'General',
+                    favSpot: 'Server Room',
+                    _src: 'openrouter',
+                    benchmarks: null,
+                    ctx: or.context_length || null,
+                    cost_input: costIn,
+                    cost_out: costOut,
+                    arch: { params: 'Unknown', type: 'Dense', tokens: 'Unknown', compute: 'Unknown' }
+                };
+
+                if (costIn != null && costOut != null) {
+                    if (!window.COSTS) window.COSTS = {};
+                    window.COSTS[nm.id] = { input: costIn, output: costOut };
+                }
+                if (or.context_length) {
+                    if (!window.CTX) window.CTX = {};
+                    window.CTX[nm.id] = or.context_length;
+                }
+
+                existingNames.add(safeName);
+                existingFuzzy.add(fuzzyName);
+                G.models.push(nm);
+                if (typeof Entities !== 'undefined') Entities.createChar(nm);
+                added++;
+
+                if (this.supabase) {
+                    try { await this.supabase.from('models').upsert(this._dbSafeModel(nm)); } catch(e) { /* silent */ }
+                }
+
+                if (added >= 8) break; // cap per fetch
+            }
+
+            if (added > 0 || updated > 0) {
+                if (typeof UI !== 'undefined') {
+                    if (added > 0) {
+                        UI.addToast(`🌐 OpenRouter: ${added} new model${added>1?'s':''} (incl. preview/beta)`);
+                        if (typeof NOTIFY !== 'undefined') NOTIFY.send('New AI Models', `🌐 ${added} new model${added>1?'s':''} from OpenRouter`);
+                    }
+                    UI.addLog(`🌐 OpenRouter: +${added} models, ${updated} backfills`);
+                }
+                G.evolveCity();
+            }
+            this._openrouterLoaded = true;
+        } catch(e) {
+            console.warn('[OpenRouter] Fetch failed:', e.message);
+        }
+    },
+
     async fetchLiveNews() {
       let got = false;
       const allFeeds = [
@@ -1392,7 +1576,7 @@ const API = {
         // If a known family was detected, accept ONLY if the family appears at the start
         // of the name OR the model's lab matches the family's expected lab. This rejects
         // finetune-style names like "Hermes 9 Llama" (Llama detected mid-name, lab=nous, not meta).
-        const trustedSrc = m._src === 'zeroeval' || m._src === 'huggingface';
+        const trustedSrc = m._src === 'zeroeval' || m._src === 'huggingface' || m._src === 'openrouter';
         if (trustedSrc) return { ok: true };
 
         if (detectedFamily) {
@@ -1432,7 +1616,7 @@ const API = {
         this._verifiedModelNames = new Set();
         // Add all models already in G.models that came from trusted sources
         for (const m of G.models) {
-            if (m._src === 'zeroeval' || m._src === 'huggingface') {
+            if (m._src === 'zeroeval' || m._src === 'huggingface' || m._src === 'openrouter') {
                 const norm = m.name.toLowerCase().replace(/[^a-z0-9]/g, '');
                 this._verifiedModelNames.add(norm);
             }
@@ -1639,7 +1823,7 @@ const API = {
         // Use the original (lowercased but not normalized) name so decimals and dashes
         // are preserved — _extractVersionNear handles param counts and date codes.
         const trustedNames = G.models
-            .filter(m => m._src === 'zeroeval' || m._src === 'huggingface')
+            .filter(m => m._src === 'zeroeval' || m._src === 'huggingface' || m._src === 'openrouter')
             .map(m => m.name.toLowerCase());
         for (const name of trustedNames) {
             for (const family of Object.keys(this._maxKnownVersions)) {
@@ -2265,6 +2449,9 @@ JSON (no markdown):
         }
         if (!this._huggingfaceLoaded && typeof this.fetchHuggingFace === 'function') {
             try { await this.fetchHuggingFace(); } catch(e) { /* same fallback */ }
+        }
+        if (!this._openrouterLoaded && typeof this.fetchOpenRouter === 'function') {
+            try { await this.fetchOpenRouter(); } catch(e) { /* same fallback */ }
         }
 
         // Always rebuild the registry from current G.models so it picks up any
