@@ -368,8 +368,10 @@ const API = {
             const existingNames = new Set(G.models.map(m => m.name.toLowerCase().replace(/[^a-z0-9]/g, '')));
             const _existingIds = new Set(G.models.map(m => m.id.toLowerCase().replace(/[^a-z0-9]/g, '')));
             
-            // Fuzzy name normalizer — strips version dates like "20250514", trailing numbers
-            const fuzzyNorm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\d{6,}/g, '').replace(/\d+$/,'');
+            // Fuzzy name normalizer — strips only 6+ digit date codes like "20250514".
+            // Version numbers (e.g. the "47" in "claudeopus47") are KEPT so that minor
+            // version bumps like Opus 4.6 → 4.7 are treated as distinct models, not dupes.
+            const fuzzyNorm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\d{6,}/g, '');
             const existingFuzzy = new Set(G.models.map(m => fuzzyNorm(m.name)));
             
             // Track how many ZeroEval-sourced models we already have (cap at 150 total)
