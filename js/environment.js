@@ -2559,7 +2559,11 @@ const Environment = {
         }
 
         // ─── VC ROW: Deal ticker on rooftop (same pattern as HQ stock tickers above) ───
+        // Cryptex Exchange gets a live crypto feed (bitcoin-orange) instead of the deal ticker.
         if (b.type === 'vcrow' && typeof VCRow !== 'undefined') {
+            const isCrypto = b.id === 'vcrow_cryptex';
+            const tickColor = isCrypto ? 0xf7931a : 0x4ade80; // BTC orange vs VC green
+            const initialText = isCrypto ? VCRow.getNextCryptoTickerItem() : VCRow.getNextTickerItem();
             const vTickCont = new PIXI.Container();
             vTickCont.y = 0;
             const vTickBg = new PIXI.Graphics();
@@ -2568,12 +2572,13 @@ const Environment = {
             const vMask = new PIXI.Graphics();
             vMask.beginFill(0xffffff); vMask.drawRect(0, -5, b.w, 24); vMask.endFill();
             vTickCont.addChild(vMask); vTickCont.mask = vMask;
-            const vTickTxt = new PIXI.Text(VCRow.getNextTickerItem(), {
+            const vTickTxt = new PIXI.Text(initialText, {
                 fontFamily: 'monospace', fontSize: 10, fontWeight: '900', strokeThickness: 1,
-                fill: 0x4ade80, stroke: 0x4ade80, dropShadow: true, dropShadowColor: 0x4ade80, dropShadowBlur: 10, dropShadowDistance: 0, padding: 10
+                fill: tickColor, stroke: tickColor, dropShadow: true, dropShadowColor: tickColor, dropShadowBlur: 10, dropShadowDistance: 0, padding: 10
             });
             vTickTxt.y = 1; vTickTxt.x = b.w; vTickTxt.blendMode = PIXI.BLEND_MODES.ADD;
             vTickCont.addChild(vTickTxt); b._vcTicker = vTickTxt; b._vcTickerW = b.w;
+            b._vcTickerIsCrypto = isCrypto;
             container.addChild(vTickCont);
         }
 
@@ -3381,7 +3386,9 @@ const Environment = {
             if (b._vcTicker && b._vcTickerW && !b._vcTicker.destroyed) {
                 b._vcTicker.x -= 0.6;
                 if (b._vcTicker.x + b._vcTicker.width < 0) {
-                    b._vcTicker.text = (typeof VCRow !== 'undefined') ? VCRow.getNextTickerItem() : '';
+                    b._vcTicker.text = (typeof VCRow !== 'undefined')
+                        ? (b._vcTickerIsCrypto ? VCRow.getNextCryptoTickerItem() : VCRow.getNextTickerItem())
+                        : '';
                     b._vcTicker.x = b._vcTickerW;
                 }
             }

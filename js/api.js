@@ -703,6 +703,42 @@ const API = {
         }
     },
 
+    // ═══════════════════════════════════════════════════════════════
+    //   COINGECKO API — Free, no-auth crypto market telemetry.
+    //   Feeds the Cryptex Exchange ticker in VC Row.
+    // ═══════════════════════════════════════════════════════════════
+
+    cryptoCoins: [], // [{ symbol, name, price, change, marketCap }]
+
+    async fetchCoinGecko() {
+        try {
+            const url = 'https://api.coingecko.com/api/v3/coins/markets'
+                      + '?vs_currency=usd&order=market_cap_desc&per_page=15&page=1'
+                      + '&sparkline=false&price_change_percentage=24h';
+            const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+            if (!res.ok) { console.warn('[CoinGecko] HTTP', res.status); return; }
+            const data = await res.json();
+            if (!Array.isArray(data)) return;
+
+            this.cryptoCoins = data
+                .filter(c => c && c.symbol && typeof c.current_price === 'number')
+                .map(c => ({
+                    symbol: c.symbol,
+                    name: c.name,
+                    price: c.current_price,
+                    change: typeof c.price_change_percentage_24h === 'number' ? c.price_change_percentage_24h : 0,
+                    marketCap: c.market_cap || 0
+                }));
+
+            if (typeof UI !== 'undefined' && this.cryptoCoins.length > 0 && !this._cgFirstLoadLogged) {
+                UI.addLog(`₿ CoinGecko: ${this.cryptoCoins.length} coins live at Cryptex Exchange`);
+                this._cgFirstLoadLogged = true;
+            }
+        } catch(e) {
+            console.warn('[CoinGecko] Fetch failed:', e.message);
+        }
+    },
+
     async fetchLiveNews() {
       let got = false;
       const allFeeds = [

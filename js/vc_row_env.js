@@ -45,6 +45,24 @@ const VCRowEnv = {
         this.arrowGfx = new PIXI.Graphics();
         this.arrowGfx.zIndex = 0;
         charLayer.addChild(this.arrowGfx);
+
+        // ─── CRYPTEX: Giant neon ₿ logo on the facade (orange glow, pulses at night) ───
+        const cryptex = G.bldById['vcrow_cryptex'];
+        if (cryptex) {
+            const bldH = (cryptex.fl || 8) * 18 + 24;
+            const logo = new PIXI.Text('₿', {
+                fontFamily: 'Arial, sans-serif', fontSize: 72, fontWeight: '900',
+                fill: 0xf7931a, stroke: 0xffa940, strokeThickness: 2,
+                dropShadow: true, dropShadowColor: 0xf7931a, dropShadowBlur: 18, dropShadowDistance: 0
+            });
+            logo.anchor.set(0.5, 0.5);
+            logo.x = cryptex.x + cryptex.w / 2;
+            logo.y = gy - bldH / 2 - 6;
+            logo.blendMode = PIXI.BLEND_MODES.ADD;
+            logo._basePulse = Math.random() * Math.PI * 2;
+            charLayer.addChild(logo);
+            this.cryptexLogo = logo;
+        }
     },
 
     update() {
@@ -66,6 +84,13 @@ const VCRowEnv = {
                 p._driftX = (Math.random() - 0.5) * 0.3;
             }
         });
+
+        // ─── CRYPTEX LOGO PULSE (brighter at night, gentle throb always) ───
+        if (this.cryptexLogo && !this.cryptexLogo.destroyed) {
+            const isNight = dp < 0.25 || dp > 0.83;
+            const throb = 0.85 + Math.sin(G.tick * 0.05 + this.cryptexLogo._basePulse) * 0.15;
+            this.cryptexLogo.alpha = (isNight ? 1.0 : 0.65) * throb;
+        }
 
         // ─── MARKET ARROWS (redraw every 120 frames) ───
         this._arrowTimer++;

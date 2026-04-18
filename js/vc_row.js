@@ -11,6 +11,7 @@ const VCRow = {
         { id: 'vcrow_launchpad', name: 'Startup Launchpad', w: 180, fl: 4, emoji: '🚀', type: 'vcrow', desc: 'AI accelerator program. Fresh graduates and rumored models pitch here for seed funding.' },
         { id: 'vcrow_titan',     name: 'Titan Bank',        w: 240, fl: 7, emoji: '🏦', type: 'vcrow', desc: 'The tallest building on VC Row. Handles IPOs, M&A, and billion-dollar debt financing.' },
         { id: 'vcrow_exchange',  name: 'AI Exchange',       w: 200, fl: 3, emoji: '📊', type: 'vcrow', desc: 'Real-time trading floor. Model valuations, compute futures, and API pricing derivatives.' },
+        { id: 'vcrow_cryptex',   name: 'Cryptex Exchange',  w: 220, fl: 8, emoji: '₿',  type: 'vcrow', desc: 'Crypto × AI nexus. Live BTC/ETH/SOL feeds, agent-payment rails, and decentralized-compute futures. Neon BTC logo lights the VC Row skyline at night.' },
     ],
 
     SUBURB_BLDS: [
@@ -136,6 +137,24 @@ const VCRow = {
         const item = this.dealTicker[this.tickerIdx % this.dealTicker.length];
         this.tickerIdx++;
         return item;
+    },
+
+    // Live crypto ticker for the Cryptex building — pulled from CoinGecko via API.fetchCoinGecko().
+    // Returns one assembled line per call (the scroller shows one line at a time).
+    _cryptoIdx: 0,
+    getNextCryptoTickerItem() {
+        const coins = (typeof API !== 'undefined' && Array.isArray(API.cryptoCoins)) ? API.cryptoCoins : [];
+        if (coins.length === 0) return '  ₿ CRYPTEX EXCHANGE — booting market feed...  ';
+        const c = coins[this._cryptoIdx % coins.length];
+        this._cryptoIdx++;
+        const sym = c.symbol.toUpperCase();
+        const price = c.price >= 1000 ? c.price.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                     : c.price >= 1   ? c.price.toFixed(2)
+                     :                   c.price.toFixed(4);
+        const chg = c.change;
+        const arrow = chg >= 0 ? '▲' : '▼';
+        const chgStr = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+        return `  ${arrow} ${sym}  $${price}  ${chgStr}  `;
     },
 
     // Get total industry funding

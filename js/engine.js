@@ -1581,6 +1581,12 @@ const G = {
           setInterval(() => API.fetchOpenRouter(), 25 * 60 * 1000); // every 25 min
       }
 
+      // ─── COINGECKO: Live crypto prices for the Cryptex Exchange ticker ───
+      if (typeof API !== 'undefined') {
+          setTimeout(() => API.fetchCoinGecko(), 3000); // fast initial fetch so ticker lights up quickly
+          setInterval(() => API.fetchCoinGecko(), 2 * 60 * 1000); // every 2 min (well under 30/min free tier)
+      }
+
       // ─── AUTO-PURGE HALLUCINATIONS: After ZeroEval + HF have loaded, scrub the local
       // model list AND the cloud DB of any models that aren't in the verified registry.
       // This catches models from prior LLM scans that snuck through before the registry was built.
