@@ -433,10 +433,10 @@ const CourtInterior = {
             this.lifts[bld.id] = new CityElevator(ec, numFloors, floorH, shaftX+15);
         }
 
-        // ─── UNDERGROUND STACK — shared with exterior (cables/tunnel/earth/pipes) ───
+        // ─── UNDERGROUND STACK — shared with exterior (cables/tunnel/infrastructure/pipes) ───
         const basementBottom = roofH + (numFloors + 1) * floorH;
         const undergroundY = basementBottom + 6;
-        const undergroundH = 280;
+        const undergroundH = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH : 238;
         const vm = new PIXI.Graphics();
         vm.beginFill(0x1a1810); vm.drawRect(0, basementBottom - 4, G.vpW, 10); vm.endFill();
         vm.beginFill(0x050508); vm.drawRect(0, undergroundY + undergroundH, G.vpW, 3000); vm.endFill();

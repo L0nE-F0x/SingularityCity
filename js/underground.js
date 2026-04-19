@@ -34,7 +34,14 @@ const Underground = {
     /* ─── Layer thicknesses (depths from topY) ─── */
     H_CABLE_TRAY: 38,
     H_TUNNEL: 100,
-    H_PIPE_BAND: 30,
+    H_INFRA: 100,   // dark-navy infrastructure depth (mirrors exterior gy+170…+270)
+    /* Total depth of the full mirrored stack (cable + tunnel + infrastructure). */
+    FULL_STACK_DEPTH: 238,
+
+    /* ─── Infrastructure backdrop colors (mirror environment.js) ─── */
+    INFRA_DEEP: 0x0a0a0f,
+    INFRA_PLAT_1: 0x1a202c,
+    INFRA_PLAT_2: 0x0f172a,
 
     /* Map a zone tag to earth tint variants. */
     _zoneEarth(zone) {
@@ -63,17 +70,17 @@ const Underground = {
 
     /**
      * Paint the full underground stack into one Graphics object.
-     * Layout (top to bottom):
+     * Layout (top to bottom — matches exterior environment.js gy+32…+270):
      *   topY .................. cable tray (38px)
      *   topY + 38 ............. tunnel cavity (100px) — live trains overlay sits here
-     *   topY + 138 ............ deep earth + rock veins (h - 138 - 30)
-     *   bottom - 30 ........... water + sewer pipe band (30px)
+     *   topY + 138 ............ infrastructure depth (100px) — dark navy + pipes + junction boxes
+     *   topY + 238 ............ deep earth + rock veins (h - 238)
      *
      * @param {PIXI.Graphics} g
      * @param {number} x left in container coords
      * @param {number} topY top in container coords (where the underground starts, just below floor)
      * @param {number} w width
-     * @param {number} h total depth (≥ 200 for full stack)
+     * @param {number} h total depth (≥ 240 for full stack)
      * @param {string} zone 'tech' | 'residential' | 'forest' | 'port' | 'space' | 'court' | 'agents'
      * @param {number} worldSeed optional seed (use building's world-X so adjacent buildings align)
      */
@@ -81,10 +88,10 @@ const Underground = {
         const seed = worldSeed != null ? worldSeed : (x | 0);
         this.drawCableTray(g, x, topY, w, seed);
         this.drawTunnelCavity(g, x, topY + this.H_CABLE_TRAY, w, seed);
-        const earthTop = topY + this.H_CABLE_TRAY + this.H_TUNNEL;
-        const earthH = Math.max(0, h - this.H_CABLE_TRAY - this.H_TUNNEL - this.H_PIPE_BAND);
+        this.drawInfrastructure(g, x, topY + this.H_CABLE_TRAY + this.H_TUNNEL, w, seed);
+        const earthTop = topY + this.H_CABLE_TRAY + this.H_TUNNEL + this.H_INFRA;
+        const earthH = Math.max(0, h - this.H_CABLE_TRAY - this.H_TUNNEL - this.H_INFRA);
         if (earthH > 0) this.drawDeepEarth(g, x, earthTop, w, earthH, zone, seed);
-        this.drawPipes(g, x, topY + h - this.H_PIPE_BAND, w, seed);
     },
 
     /* ─── 1. Cable tray (10 horizontal fibers + junction dots) ─── */
@@ -153,33 +160,46 @@ const Underground = {
         }
     },
 
-    /* ─── 4. Water + sewer pipe band with staggered junction boxes (matches exterior) ─── */
-    drawPipes(g, x, topY, w, seed) {
-        // Mirror exterior environment.js: water at gy+220, sewer at gy+235 (offset 15 from water).
-        // Water (outer 0x0369a1, inner 0x0284c7)
-        g.beginFill(this.WATER_PIPE); g.drawRect(x, topY, w, 8); g.endFill();
-        g.beginFill(this.WATER_PIPE_INNER); g.drawRect(x, topY + 2, w, 4); g.endFill();
-        // Sewer (outer 0xb45309, inner 0xd97706) — 15px below water top
-        g.beginFill(this.SEWER_PIPE); g.drawRect(x, topY + 15, w, 12); g.endFill();
-        g.beginFill(this.SEWER_PIPE_INNER); g.drawRect(x, topY + 17, w, 8); g.endFill();
+    /* ─── 4. Infrastructure depth — dark navy backdrop + platform overlays + pipes + junction boxes
+       This mirrors the exterior layout exactly. In environment.js the city zone has:
+         gy+170 (h=100) → 0x0a0a0f infrastructure deep
+         gy+180 (h=30)  → 0x1a202c platform overlay 1
+         gy+185 (h=20)  → 0x0f172a platform overlay 2
+         gy+220 (h=8)   → 0x0369a1 water (inner gy+222 h=4 0x0284c7)
+         gy+235 (h=12)  → 0xb45309 sewer (inner gy+237 h=8 0xd97706)
+         every 200px    → cable junction (15x40) at gy+175, water box (10x12) at +50,+218,
+                           sewer box (10x16) at +100,+233
+       Translated to local coords with topY = infra start (= exterior gy+170).         ─── */
+    drawInfrastructure(g, x, topY, w, seed) {
+        // Dark navy backdrop
+        g.beginFill(this.INFRA_DEEP); g.drawRect(x, topY, w, this.H_INFRA); g.endFill();
+        // Platform overlays
+        g.beginFill(this.INFRA_PLAT_1); g.drawRect(x, topY + 10, w, 30); g.endFill();
+        g.beginFill(this.INFRA_PLAT_2); g.drawRect(x, topY + 15, w, 20); g.endFill();
+        // Water pipe (gy+220 → topY+50)
+        g.beginFill(this.WATER_PIPE); g.drawRect(x, topY + 50, w, 8); g.endFill();
+        g.beginFill(this.WATER_PIPE_INNER); g.drawRect(x, topY + 52, w, 4); g.endFill();
+        // Sewer pipe (gy+235 → topY+65)
+        g.beginFill(this.SEWER_PIPE); g.drawRect(x, topY + 65, w, 12); g.endFill();
+        g.beginFill(this.SEWER_PIPE_INNER); g.drawRect(x, topY + 67, w, 8); g.endFill();
 
-        // Junction boxes — staggered horizontally every 200px (matches exterior gy+175/+218/+233 layout)
+        // Junction boxes — staggered horizontally every 200px
         const r = this._seedRng(seed + 4242);
         const phase = Math.floor(r() * 200);
         for (let bx = x - 200 + phase; bx < x + w + 50; bx += 200) {
-            // Cable junction body (15w x 40h) — extends UP into earth above pipes (ends 5px above water)
+            // Cable junction body 15x40 at gy+175 → topY+5
             if (bx + 15 > x && bx < x + w) {
-                g.beginFill(this.JBOX_BODY); g.drawRect(bx, topY - 45, 15, 40); g.endFill();
+                g.beginFill(this.JBOX_BODY); g.drawRect(bx, topY + 5, 15, 40); g.endFill();
             }
-            // Water mini-box (10w x 12h) — at water level, +50 to the right
+            // Water mini-box 10x12 at +50 right, gy+218 → topY+48
             const wx = bx + 50;
             if (wx + 10 > x && wx < x + w) {
-                g.beginFill(this.JBOX_WATER); g.drawRect(wx, topY - 2, 10, 12); g.endFill();
+                g.beginFill(this.JBOX_WATER); g.drawRect(wx, topY + 48, 10, 12); g.endFill();
             }
-            // Sewer mini-box (10w x 16h) — at sewer level, +100 to the right
+            // Sewer mini-box 10x16 at +100 right, gy+233 → topY+63
             const sx = bx + 100;
             if (sx + 10 > x && sx < x + w) {
-                g.beginFill(this.JBOX_SEWER); g.drawRect(sx, topY + 13, 10, 16); g.endFill();
+                g.beginFill(this.JBOX_SEWER); g.drawRect(sx, topY + 63, 10, 16); g.endFill();
             }
         }
     },
@@ -212,26 +232,32 @@ const Underground = {
 
         const sprites = trainKeys.map(key => {
             const s = new PIXI.Container();
+            let passengerGfx = null;
             // Use the SAME sprite builder as the exterior train so visuals never drift.
             if (typeof EntitiesGfx !== 'undefined' && typeof EntitiesGfx.buildTrainSprite === 'function') {
                 const { tBg, fGfx, lightL, lightR } = EntitiesGfx.buildTrainSprite();
-                s.addChild(tBg, fGfx, lightL, lightR);
+                // Passenger silhouettes render BETWEEN body and front overlay (mirrors exterior riderCont layering).
+                passengerGfx = new PIXI.Graphics();
+                s.addChild(tBg, passengerGfx, fGfx, lightL, lightR);
             }
             s.scale.set(spriteScale);
             s.visible = false;
             container.addChild(s);
-            return { s, key };
+            return { s, key, passengerGfx };
         });
 
         const sliceLeft = buildingWorldX - viewSliceWorld / 2;
         // Train body extends y=-35 to y=+40 (with sleeper). Bottom (+40) rests near tunnel floor.
         const tunnelCenterY = localTunnelY + this.H_TUNNEL - 40 * spriteScale - 4;
+        // Window centers (matches createTrainObj windows at cx-100/0/+100, w=20, h=50 starting at cy-28).
+        const winX = [-90, 10, 110];
+        const skinTones = [0xfcd5b4, 0xe0a899, 0xc69076, 0x8d5524];
 
         return {
             container,
             update() {
                 if (typeof Entities === 'undefined') return;
-                sprites.forEach(({ s, key }) => {
+                sprites.forEach(({ s, key, passengerGfx }) => {
                     const t = Entities[key];
                     if (!t || typeof t.x !== 'number') { s.visible = false; return; }
                     const dx = t.x - sliceLeft;
@@ -241,6 +267,24 @@ const Underground = {
                     s.y = tunnelCenterY;
                     const dir = (t.dir != null ? t.dir : 1) >= 0 ? 1 : -1;
                     s.scale.x = spriteScale * dir;
+
+                    // Passenger silhouettes — up to 12 heads (4 per window × 3 windows).
+                    if (passengerGfx) {
+                        passengerGfx.clear();
+                        const npax = Math.min(12, Math.floor(t.passengers || 0));
+                        for (let i = 0; i < npax; i++) {
+                            const winIdx = i % 3;
+                            const seatIdx = Math.floor(i / 3); // 0..3 seats per window
+                            const col = seatIdx % 2;
+                            const row = Math.floor(seatIdx / 2);
+                            const px = winX[winIdx] + (col === 0 ? -4 : 4);
+                            const py = -16 + row * 10;
+                            const skin = skinTones[(i + (key.charCodeAt(5) | 0)) % skinTones.length];
+                            passengerGfx.beginFill(skin);
+                            passengerGfx.drawCircle(px, py, 2.8);
+                            passengerGfx.endFill();
+                        }
+                    }
                 });
             },
             destroy() {
