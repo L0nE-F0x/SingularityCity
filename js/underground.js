@@ -54,8 +54,8 @@ const Underground = {
         backbone:  { cables: 'dense', tunnel: false, infra: false, earthZone: 'tech',        liveTrains: false, ocean: false, silo: false },
         // Port — deep ocean cover, no cables, no tunnel, no pipes.
         port:      { cables: false,   tunnel: false, infra: false, earthZone: 'port',        liveTrains: false, ocean: true,  silo: false },
-        // Space — pure dark void/rock. Nothing buried.
-        space:     { cables: false,   tunnel: false, infra: false, earthZone: 'space',       liveTrains: false, ocean: false, silo: false },
+        // Space — desert biome (sandstone → sedimentary → bedrock). Warm browns. No cables/tunnel/pipes.
+        space:     { cables: false,   tunnel: false, infra: false, earthZone: 'space',       liveTrains: false, ocean: false, silo: false, desert: true },
         // Power — substations & switchgear. No fiber tray, no metro, no city pipes (yet — TBD per zone).
         power:     { cables: false,   tunnel: false, infra: false, earthZone: 'tech',        liveTrains: false, ocean: false, silo: false },
         // Agents — same full stack as city but with rose-tinted earth fill.
@@ -78,6 +78,7 @@ const Underground = {
     depthOf(profileKey) {
         const p = this._profile(profileKey);
         if (p.silo) return this.H_SILO;
+        if (p.desert) return 300; // full desert geology stack (sandstone → sedimentary → bedrock)
         return (p.cables ? this.H_CABLE_TRAY : 0)
              + (p.tunnel ? this.H_TUNNEL : 0)
              + (p.infra  ? this.H_INFRA  : 0);
@@ -133,13 +134,17 @@ const Underground = {
     drawBasementStack(g, x, topY, w, h, profile, worldSeed, opts) {
         const p = this._profile(profile);
         const seed = worldSeed != null ? worldSeed : (x | 0);
-        // Silo / ocean profiles fill the whole space themselves.
+        // Silo / ocean / desert profiles fill the whole space themselves.
         if (p.silo) {
             this.drawSiloBunker(g, x, topY, w, h, seed, opts || {});
             return;
         }
         if (p.ocean) {
             this.drawOcean(g, x, topY, w, h, seed);
+            return;
+        }
+        if (p.desert) {
+            this.drawDesertGeology(g, x, topY, w, h, seed);
             return;
         }
         let cy = topY;
@@ -255,6 +260,53 @@ const Underground = {
             g.beginFill(0x4488cc, 0.03);
             g.moveTo(rx, topY); g.lineTo(rx - 20, topY + Math.min(170, h - 20)); g.lineTo(rx + 20, topY + Math.min(170, h - 20));
             g.closePath(); g.endFill();
+        }
+    },
+
+    /* ─── Desert geology (space profile) — mirrors space_environment.js exactly:
+       Sandstone → sedimentary rock → bedrock, with ore deposits & fossil fragments.
+       Layout (relative to topY, mirrors exterior gy+32…+300+):
+         topY +  0 .. +38   sandstone band (warm tan/brown)
+         topY + 38 .. +70   darker sandstone
+         topY + 70 .. +130  sedimentary rock (mid brown)
+         topY +130 .. +170  bedrock band
+         topY +170 .. end   deep bedrock (very dark)
+       Below the stack, a final fill covers anything past depthOf.                ─── */
+    drawDesertGeology(g, x, topY, w, h, seed) {
+        // Upper sandstone band (where city cables would be)
+        g.beginFill(0x6b4423); g.drawRect(x, topY, w, 38); g.endFill();
+        g.beginFill(0x8b6533); g.drawRect(x, topY + 8, w, 8); g.endFill();
+        g.beginFill(0x5c3a1e); g.drawRect(x, topY + 23, w, 15); g.endFill();
+        // Sedimentary rock (where metro tunnel would be)
+        g.beginFill(0x4a2e14); g.drawRect(x, topY + 38, w, Math.min(100, Math.max(0, h - 38))); g.endFill();
+        g.beginFill(0x3d2510); g.drawRect(x, topY + 58, w, Math.min(40, Math.max(0, h - 58))); g.endFill();
+        // Darker bedrock band
+        g.beginFill(0x2d1a0c); g.drawRect(x, topY + 98, w, Math.min(40, Math.max(0, h - 98))); g.endFill();
+        // Deep bedrock (where water/sewer pipes would be)
+        if (h > 138) g.beginFill(0x231508), g.drawRect(x, topY + 138, w, Math.min(60, h - 138)), g.endFill();
+        if (h > 168) g.beginFill(0x1a0f05), g.drawRect(x, topY + 168, w, Math.min(60, h - 168)), g.endFill();
+        // Absolute bottom fill — covers everything past the stack
+        if (h > 220) g.beginFill(0x110a03), g.drawRect(x, topY + 220, w, h - 220 + 1500), g.endFill();
+
+        // Ore/mineral deposits scattered through the strata
+        const r = this._seedRng(seed + 5151);
+        const oreCount = Math.max(40, Math.floor(w / 8));
+        for (let i = 0; i < oreCount; i++) {
+            const ox = x + r() * w;
+            const oy = topY + 5 + r() * (h - 10);
+            const col = r() > 0.7 ? 0xfbbf24 : r() > 0.4 ? 0xa16207 : 0x78350f;
+            g.beginFill(col, 0.4);
+            g.drawRect(ox, oy, 2 + r() * 3, 1 + r() * 2);
+            g.endFill();
+        }
+        // Fossil fragments in deeper layers
+        const fossilCount = Math.max(15, Math.floor(w / 25));
+        for (let i = 0; i < fossilCount; i++) {
+            const fx = x + r() * w;
+            const fy = topY + 80 + r() * Math.max(20, h - 80);
+            g.beginFill(0xd6d3d1, 0.15);
+            g.drawRect(fx, fy, 1 + r() * 4, 1);
+            g.endFill();
         }
     },
 

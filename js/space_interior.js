@@ -23,85 +23,166 @@ const SpaceInterior = {
         this.avatars = [];
         this.bubbles = [];
         this.indoorLights = [];
-        
-        this.skyContainer = new PIXI.Container();
-        this.layer.addChild(this.skyContainer);
-        this.starsLayer = new PIXI.Container();
-        for (let i = 0; i < 100; i++) {
-            const s = new PIXI.Graphics();
-            s.beginFill(0xffffff); s.drawCircle(0, 0, .5 + Math.random() * 1.5); s.endFill();
-            s.x = Math.random() * G.vpW; s.y = Math.random() * G.vpH * .5;
-            s._phase = Math.random() * Math.PI * 2;
-            this.starsLayer.addChild(s);
+
+        // ─── SKY LAYER (behind scene — DOM sky shows through window cutouts) ───
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._createSkyLayer) {
+            const sky = InteriorCity._createSkyLayer(layer, 80);
+            this.skyContainer = sky.skyContainer;
+            this.starsLayer = sky.starsLayer;
+            this.celestialGfx = sky.celestialGfx;
+        } else {
+            // Fallback if InteriorCity not loaded yet
+            this.skyContainer = new PIXI.Container();
+            layer.addChild(this.skyContainer);
+            this.starsLayer = new PIXI.Container();
+            this.celestialGfx = new PIXI.Graphics();
+            this.skyContainer.addChild(this.starsLayer, this.celestialGfx);
         }
-        this.celestialGfx = new PIXI.Graphics();
-        this.skyContainer.addChild(this.starsLayer, this.celestialGfx);
-        
+
         this.scene = new PIXI.Container();
         this.layer.addChild(this.scene);
-        
+
         const org = bld.org ? SPACE_ORGS[bld.org] : null;
         const colHex = org ? parseInt(org.color.slice(1), 16) : 0x0ea5e9;
-        
+
+        // Building palette by type — mirrors space_environment.js exterior values
+        // launchpad: concrete grey gantry; mission_control & tracking: navy; assembly: VAB grey
+        const isAssembly = bld.type === 'assembly';
+        const isLaunchpad = bld.type === 'launchpad';
+        const wallCol  = isAssembly  ? 0x6b7280 :  // VAB grey-blue
+                         isLaunchpad ? 0x475569 :  // dark concrete
+                                       0x1e293b;   // navy (mission_control / tracking)
+        const trimCol  = isAssembly  ? 0xcbd5e1 :  // light VAB highlight
+                         isLaunchpad ? 0x64748b :  // medium concrete
+                                       0x334155;   // navy trim
+        const wallEdge = isAssembly  ? 0x4b5563 :
+                         isLaunchpad ? 0x334155 :
+                                       0x0f172a;
+        const floorSlabCol = isAssembly ? 0x4b5563 : 0x0a1018;
+
         const floorH = 80;
-        const numFloors = bld.type === 'assembly' ? 4 : bld.type === 'mission_control' ? 3 : bld.type === 'launchpad' ? 2 : 2;
-        const roofH = 80;
-        const totalH = roofH + (numFloors + 1) * floorH;
-        this.totalH = totalH;
-        
-        const bldW = G.vpW;
-        const startX = 0;
-        
-        // Building background
-        const bg = new PIXI.Graphics();
-        bg.beginFill(0x0a0a15);
-        bg.drawRect(0, 0, bldW, totalH + 200);
-        bg.endFill();
-        this.scene.addChild(bg);
-        
-        // Roof
+        const numFloors = isAssembly ? 4 : bld.type === 'mission_control' ? 3 : isLaunchpad ? 2 : 2;
+        const roofH = 70;
+        // totalH includes roof + above-ground floors + basement floor + underground stack
+        const undergroundH = (typeof Underground !== 'undefined') ? (Underground.depthOf('space') + 60) : 360;
+        this.totalH = roofH + (numFloors + 1) * floorH + undergroundH;
+
+        const bldW = Math.min(G.vpW - 60, 900);
+        const startX = (G.vpW - bldW) / 2;
+
+        // Window band constants for punched cutouts (above-ground floors)
+        const winMarginX = 40;
+        const winY_off = 14;
+        const winH_px = floorH - 30;
+        const mullionPitch = 60;
+        const mullionW = 6;
+
+        // ─── ROOF — type-specific silhouette ───
         const roof = new PIXI.Graphics();
-        roof.beginFill(colHex, 0.3);
-        roof.drawRect(startX, roofH - 4, bldW, 4);
+        // Roof slab
+        roof.beginFill(wallCol);
+        roof.drawRect(startX, roofH - 12, bldW, 12);
         roof.endFill();
-        roof.beginFill(colHex, 0.15);
-        roof.drawRect(startX, roofH - 20, bldW, 20);
+        // Trim line
+        roof.beginFill(trimCol, 0.85);
+        roof.drawRect(startX, roofH - 14, bldW, 2);
         roof.endFill();
-        // Org name on roof
-        const orgName = org ? org.name : bld.name;
+        // Roof label band
+        roof.beginFill(wallEdge, 0.95);
+        roof.drawRect(startX, roofH - 30, bldW, 18);
+        roof.endFill();
+        roof.beginFill(colHex, 0.18);
+        roof.drawRect(startX, roofH - 30, bldW, 18);
+        roof.endFill();
+        this.scene.addChild(roof);
+
+        // Type-specific rooftop features (built into the roof container, scene-relative)
+        this._drawRoofFeatures(this.scene, bld, startX, bldW, roofH, colHex);
+
+        // Roof label text
+        const orgName = org ? org.name : (bld.name || '');
         const roofTxt = new PIXI.Text(orgName.toUpperCase(), {
-            fontFamily: '"JetBrains Mono", monospace', fontSize: 12, fill: colHex, fontWeight: 'bold', letterSpacing: 4
+            fontFamily: '"JetBrains Mono", monospace', fontSize: 11, fill: colHex, fontWeight: 'bold', letterSpacing: 4
         });
         roofTxt.anchor.set(0.5, 0.5);
-        roofTxt.x = bldW / 2;
-        roofTxt.y = roofH - 12;
-        roof.addChild(roofTxt);
-        this.scene.addChild(roof);
-        
-        // Build floors
-        for (let f = 0; f < numFloors; f++) {
-            const fy = roofH + (numFloors - 1 - f) * floorH;
+        roofTxt.x = startX + bldW / 2;
+        roofTxt.y = roofH - 21;
+        if (roofTxt.width > bldW - 20) roofTxt.scale.set((bldW - 20) / roofTxt.width);
+        this.scene.addChild(roofTxt);
+
+        // Side wall columns (frame the building)
+        const sideCols = new PIXI.Graphics();
+        sideCols.beginFill(wallEdge);
+        sideCols.drawRect(startX - 6, roofH, 6, (numFloors + 1) * floorH);
+        sideCols.drawRect(startX + bldW, roofH, 6, (numFloors + 1) * floorH);
+        sideCols.endFill();
+        // Edge highlight
+        sideCols.beginFill(trimCol, 0.6);
+        sideCols.drawRect(startX - 6, roofH, 2, (numFloors + 1) * floorH);
+        sideCols.drawRect(startX + bldW + 4, roofH, 2, (numFloors + 1) * floorH);
+        sideCols.endFill();
+        this.scene.addChild(sideCols);
+
+        // Build floors — basement (f=-1) + above-ground (f=0..numFloors-1)
+        for (let f = -1; f < numFloors; f++) {
+            const isBasement = f === -1;
+            const fy = isBasement
+                ? roofH + numFloors * floorH
+                : roofH + (numFloors - 1 - f) * floorH;
             const floorCont = new PIXI.Container();
             floorCont.sortableChildren = true;
-            
-            // Floor background
+
+            // Floor background — basement is solid, above-ground has window cutout
             const floorBg = new PIXI.Graphics();
-            floorBg.beginFill(0x0f0f1a);
-            floorBg.drawRect(startX, fy, bldW, floorH);
+            if (isBasement) {
+                floorBg.beginFill(wallEdge);
+                floorBg.drawRect(startX, fy, bldW, floorH);
+                floorBg.endFill();
+                // Subtle hazard accent
+                floorBg.beginFill(colHex, 0.08);
+                floorBg.drawRect(startX, fy, bldW, 2);
+                floorBg.endFill();
+            } else {
+                const winX = startX + winMarginX;
+                const winW = bldW - winMarginX * 2;
+                const winY = fy + winY_off;
+                if (typeof InteriorCity !== 'undefined' && InteriorCity._drawWallWithWindowCutout) {
+                    InteriorCity._drawWallWithWindowCutout(
+                        floorBg, wallCol,
+                        startX, fy, bldW, floorH,
+                        winX, winY, winW, winH_px,
+                        mullionPitch, mullionW
+                    );
+                } else {
+                    floorBg.beginFill(wallCol); floorBg.drawRect(startX, fy, bldW, floorH); floorBg.endFill();
+                }
+                // Window frame
+                floorBg.lineStyle(1.5, trimCol, 0.9);
+                floorBg.drawRect(winX, winY, winW, winH_px);
+                floorBg.moveTo(winX, winY + winH_px * 0.5);
+                floorBg.lineTo(winX + winW, winY + winH_px * 0.5);
+                floorBg.lineStyle(0);
+                // Faint org-color tint over window glass
+                floorBg.beginFill(colHex, 0.05);
+                floorBg.drawRect(winX, winY, winW, winH_px);
+                floorBg.endFill();
+            }
+            // Floor slab divider
+            floorBg.beginFill(floorSlabCol);
+            floorBg.drawRect(startX, fy + floorH - 6, bldW, 6);
             floorBg.endFill();
-            // Floor line
-            floorBg.beginFill(0x1a1a30);
-            floorBg.drawRect(startX, fy + floorH - 4, bldW, 4);
-            floorBg.endFill();
-            // Accent strip
-            floorBg.beginFill(colHex, 0.1);
+            // Top accent
+            floorBg.beginFill(colHex, 0.12);
             floorBg.drawRect(startX, fy, bldW, 2);
             floorBg.endFill();
             floorCont.addChild(floorBg);
-            
-            const propY = fy + floorH - 4;
-            
-            if (bld.type === 'mission_control') {
+
+            const propY = fy + floorH - 6;
+
+            if (isBasement) {
+                // Basement floor — type-specific industrial sub-level
+                this._drawBasementProps(floorCont, bld, startX, bldW, fy, floorH, colHex);
+            } else if (bld.type === 'mission_control') {
                 if (f === numFloors - 1) {
                     this.drawBigScreen(floorCont, startX + bldW / 2, fy + 8, bldW - 100, floorH - 20, colHex);
                     this.drawNPC(floorCont, startX + 120, propY, 'Flight Director', colHex);
@@ -172,12 +253,74 @@ const SpaceInterior = {
             
             this.scene.addChild(floorCont);
         }
-        
-        // Position scene
+
+        // ─── DESERT SAND SURFACE STRIP (matches space_environment.js exterior) ───
+        // Only the flanks — building basement occludes its own footprint.
+        const groundY = roofH + numFloors * floorH;
+        const sand = new PIXI.Graphics();
+        const leftW = startX - 6;
+        const rightX = startX + bldW + 6;
+        const rightW = G.vpW - rightX;
+        // Compacted sand "road" — only on the flanks (continues behind building's basement wall)
+        if (leftW > 0) {
+            sand.beginFill(0x8b7355); sand.drawRect(0, groundY, leftW, 28); sand.endFill();
+            sand.beginFill(0x9a8265); sand.drawRect(0, groundY, leftW, 14); sand.endFill();
+        }
+        if (rightW > 0) {
+            sand.beginFill(0x8b7355); sand.drawRect(rightX, groundY, rightW, 28); sand.endFill();
+            sand.beginFill(0x9a8265); sand.drawRect(rightX, groundY, rightW, 14); sand.endFill();
+        }
+        // Soft sand top surface (above the road slab) on flanks
+        if (leftW > 0) {
+            sand.beginFill(0xc2956a); sand.drawRect(0, groundY - 18, leftW, 18); sand.endFill();
+            sand.beginFill(0xd4a574); sand.drawRect(0, groundY - 18, leftW, 9); sand.endFill();
+            sand.beginFill(0xe0b88a); sand.drawRect(0, groundY - 18, leftW, 2); sand.endFill();
+        }
+        if (rightW > 0) {
+            sand.beginFill(0xc2956a); sand.drawRect(rightX, groundY - 18, rightW, 18); sand.endFill();
+            sand.beginFill(0xd4a574); sand.drawRect(rightX, groundY - 18, rightW, 9); sand.endFill();
+            sand.beginFill(0xe0b88a); sand.drawRect(rightX, groundY - 18, rightW, 2); sand.endFill();
+        }
+        // Road dashed centerline (skip building footprint)
+        for (let mx = 0; mx < G.vpW; mx += 40) {
+            if (mx + 20 < startX || mx > startX + bldW) {
+                sand.beginFill(0xd4a574, 0.4); sand.drawRect(mx, groundY + 12, 20, 3); sand.endFill();
+            }
+        }
+        // Sand texture dots scattered across flanks
+        const sandRng = this._sandSeed(bld.x | 0);
+        for (let i = 0; i < 80; i++) {
+            const sx = sandRng() * G.vpW;
+            if (sx > startX - 8 && sx < startX + bldW + 8) continue;
+            const sy = groundY - 16 + sandRng() * 14;
+            sand.beginFill(sandRng() > 0.5 ? 0xb8895e : 0xdabc8e, 0.3);
+            sand.drawRect(sx, sy, 1 + sandRng() * 2, 1);
+            sand.endFill();
+        }
+        this.scene.addChild(sand);
+
+        // ─── DESERT UNDERGROUND STACK (space profile) ───
+        const basementBottom = roofH + (numFloors + 1) * floorH;
+        const undergroundY = basementBottom + 2;
+        if (typeof Underground !== 'undefined') {
+            const ug = new PIXI.Graphics();
+            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'space', (bld.x | 0));
+            this.scene.addChild(ug);
+            // Final dark fill below
+            const fill = new PIXI.Graphics();
+            fill.beginFill(0x080503);
+            fill.drawRect(0, undergroundY + undergroundH, G.vpW, 2000);
+            fill.endFill();
+            this.scene.addChild(fill);
+        }
+
+        // Position scene — bottom of basement floor sits near viewport bottom
+        // (underground extends below; user scrolls down to expose it)
         const bottomPadding = 56;
-        this.scene.y = G.vpH - bottomPadding - totalH + floorH;
-        this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - bottomPadding - totalH - floorH);
-        this.maxY = Math.max(this.scene.y + floorH * 3, G.vpH - bottomPadding);
+        this.scene.y = G.vpH - bottomPadding - this.totalH + (floorH + undergroundH);
+        // Scroll bounds: up to expose roof+sky, down to expose full underground stack
+        this.minY = this.scene.y - floorH * 3;
+        this.maxY = this.scene.y + undergroundH + floorH;
         this._noYScroll = false;
         
         this.layer.eventMode = 'static';
@@ -205,24 +348,10 @@ const SpaceInterior = {
     
     update() {
         if (!this.layer || !this.layer.visible) return;
-        
-        const dp = G.getDayPhase();
-        const night = dp > .83 || dp < .25;
-        const vp = document.getElementById('viewport');
-        
-        let sky;
-        if (dp < .22) sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
-        else if (dp < .30) { const t = (dp-.22)/.08; sky = `linear-gradient(180deg,rgb(${8+t*40|0},${10+t*30|0},${30+t*40|0}),rgb(${15+t*80|0},${15+t*50|0},${40+t*50|0}) 50%,rgb(${20+t*120|0},${20+t*80|0},${40+t*30|0}))`; }
-        else if (dp < .72) sky = 'linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)';
-        else if (dp < .84) { const t = (dp-.72)/.12; sky = `linear-gradient(180deg,rgb(${45+t*30|0},${74-t*40|0},${122-t*60|0}),rgb(${90+t*80|0},${143-t*80|0},${187-t*100|0}) 50%,rgb(${135+t*60|0},${100-t*50|0},${50-t*10|0}))`; }
-        else sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
-        if (vp) vp.style.background = sky;
-        
-        if (this.starsLayer) { this.starsLayer.visible = night; if (night) { this.starsLayer.children.forEach(s => { s.alpha = .15 + Math.abs(Math.sin(G.tick * .03 + s._phase)) * .5; }); } }
-        if (this.celestialGfx) {
-            this.celestialGfx.clear();
-            if (night) { let np = dp > 0.83 ? (dp-0.83)/0.42 : (dp+0.17)/0.42; this.celestialGfx.beginFill(0xe8e8d0); this.celestialGfx.drawCircle(G.vpW*np, 40+Math.sin(np*Math.PI)*120, 12); this.celestialGfx.endFill(); }
-            else { let dayP = (dp-0.25)/(0.83-0.25); this.celestialGfx.beginFill(0xffe066); this.celestialGfx.drawCircle(G.vpW*dayP, 40+Math.sin(dayP*Math.PI)*120, 15); this.celestialGfx.endFill(); }
+
+        // Shared sky/sun/moon/stars logic — keeps in sync with all other interiors
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._applyDynamicSky) {
+            InteriorCity._applyDynamicSky(this.celestialGfx, this.starsLayer);
         }
         
         // Animate indoor lights (screen flicker)
@@ -501,7 +630,215 @@ const SpaceInterior = {
         c.addChild(g, txt);
         bld._countdownClock = txt;
     },
-    
+
+    // Deterministic PRNG seeded by building world-X — keeps sand texture stable per visit.
+    _sandSeed(seed) {
+        let s = (seed | 0) || 7;
+        return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    },
+
+    // ════════════════════════════════════════════════════
+    //   ROOFTOP FEATURES — type-specific silhouettes that mirror the exterior
+    // ════════════════════════════════════════════════════
+    _drawRoofFeatures(parent, bld, startX, bldW, roofH, colHex) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        if (bld.type === 'mission_control') {
+            // Satellite dish on roof (centered, mirrors exterior)
+            const cx = startX + bldW / 2;
+            g.beginFill(0xf1f5f9);
+            g.drawPolygon([cx - 22, roofH - 30, cx, roofH - 50, cx + 22, roofH - 30]);
+            g.endFill();
+            g.beginFill(0x94a3b8);
+            g.drawRect(cx - 2, roofH - 30, 4, 14);
+            g.endFill();
+            // Receiver tip
+            g.beginFill(0x22d3ee);
+            g.drawCircle(cx, roofH - 48, 2);
+            g.endFill();
+            // Signal arcs
+            g.lineStyle(1, 0x22d3ee, 0.3);
+            g.drawCircle(cx, roofH - 50, 8);
+            g.drawCircle(cx, roofH - 50, 14);
+            g.lineStyle(0);
+        } else if (bld.type === 'tracking') {
+            // Multiple dish array on roof (mirrors exterior)
+            [-50, -16, 18, 52].forEach((off, i) => {
+                const dx = startX + bldW / 2 + off;
+                // Dish (triangle)
+                g.beginFill(0xf1f5f9);
+                g.drawPolygon([dx - 12, roofH - 30, dx, roofH - 46, dx + 12, roofH - 30]);
+                g.endFill();
+                // Mast
+                g.beginFill(0x94a3b8);
+                g.drawRect(dx - 1, roofH - 30, 2, 12);
+                g.endFill();
+                // Signal arc
+                g.lineStyle(1, 0x22d3ee, 0.3 + (i % 2) * 0.2);
+                g.drawCircle(dx, roofH - 48, 5);
+                g.drawCircle(dx, roofH - 48, 9);
+                g.lineStyle(0);
+            });
+        } else if (bld.type === 'assembly') {
+            // VAB-style flag stripe (mirrors exterior NASA homage)
+            const cx = startX + bldW / 2;
+            g.beginFill(0x1e40af);
+            g.drawRect(cx - 38, roofH - 60, 76, 28);
+            g.endFill();
+            g.beginFill(0xef4444);
+            for (let sy = roofH - 56; sy < roofH - 32; sy += 6) {
+                g.drawRect(cx - 36, sy, 72, 3);
+            }
+            g.endFill();
+            g.beginFill(0xffffff);
+            g.drawRect(cx - 36, roofH - 58, 26, 12);
+            g.endFill();
+            // Star dots in canton
+            g.beginFill(0x1e40af);
+            for (let sx = cx - 33; sx < cx - 12; sx += 6) {
+                for (let sy = roofH - 56; sy < roofH - 48; sy += 4) {
+                    g.drawRect(sx, sy, 1.5, 1.5);
+                }
+            }
+            g.endFill();
+        } else if (bld.type === 'launchpad') {
+            // Gantry tower silhouette behind the building
+            const cx = startX + bldW / 2;
+            // Twin tower legs
+            g.beginFill(0x475569);
+            g.drawRect(cx - 18, roofH - 80, 5, 50);
+            g.drawRect(cx + 13, roofH - 80, 5, 50);
+            g.endFill();
+            // Cross beams
+            g.beginFill(0x64748b);
+            for (let by = roofH - 75; by < roofH - 30; by += 8) {
+                g.drawRect(cx - 18, by, 36, 2);
+            }
+            g.endFill();
+            // Swing arm (red)
+            g.beginFill(0xef4444);
+            g.drawRect(cx + 18, roofH - 60, 20, 3);
+            g.endFill();
+            // Top antenna
+            g.beginFill(0xfacc15);
+            g.drawCircle(cx, roofH - 84, 2);
+            g.endFill();
+        }
+        parent.addChild(g);
+    },
+
+    // ════════════════════════════════════════════════════
+    //   BASEMENT PROPS — type-specific industrial sub-level
+    // ════════════════════════════════════════════════════
+    _drawBasementProps(c, bld, startX, bldW, fy, floorH, colHex) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Concrete floor with hazard stripes (common to all)
+        g.beginFill(0x0f172a, 0.6);
+        g.drawRect(startX + 6, fy + floorH - 12, bldW - 12, 8);
+        g.endFill();
+        for (let i = 0; i < Math.floor(bldW / 22); i++) {
+            g.beginFill((i % 2 === 0) ? 0xfbbf24 : 0x1a1a2e, 0.4);
+            g.drawRect(startX + 8 + i * 22, fy + floorH - 4, 18, 2);
+            g.endFill();
+        }
+        const labelTxt = (bld.type === 'launchpad'      ? 'B1 · FLAME TRENCH & FUEL LINES' :
+                         bld.type === 'mission_control' ? 'B1 · BACKUP POWER & COOLING'   :
+                         bld.type === 'assembly'        ? 'B1 · TRANSPORTER CRAWLER BAY'  :
+                         bld.type === 'tracking'        ? 'B1 · COOLED SIGNAL VAULT'      :
+                                                          'B1 · SUB-LEVEL');
+        const lbl = new PIXI.Text(labelTxt, {
+            fontFamily: '"JetBrains Mono", monospace', fontSize: 8, fill: 0x64748b, letterSpacing: 1
+        });
+        lbl.x = startX + 8; lbl.y = fy + 4;
+        lbl.alpha = 0.7;
+        c.addChild(g, lbl);
+
+        if (bld.type === 'launchpad') {
+            // Flame trench — angled black void with ducting
+            const tx = startX + bldW / 2 - 60;
+            g.beginFill(0x000000);
+            g.drawPolygon([tx, fy + 18, tx + 120, fy + 18, tx + 100, fy + floorH - 14, tx + 20, fy + floorH - 14]);
+            g.endFill();
+            g.beginFill(0xfbbf24, 0.15);
+            g.drawPolygon([tx + 10, fy + 22, tx + 110, fy + 22, tx + 95, fy + floorH - 18, tx + 25, fy + floorH - 18]);
+            g.endFill();
+            // Fuel pipes flanking
+            g.beginFill(0x0369a1);
+            g.drawRect(startX + 30, fy + 30, bldW - 60, 5);
+            g.endFill();
+            g.beginFill(0x0284c7);
+            g.drawRect(startX + 30, fy + 31, bldW - 60, 2);
+            g.endFill();
+            g.beginFill(0xb45309);
+            g.drawRect(startX + 30, fy + 50, bldW - 60, 5);
+            g.endFill();
+            // Junction valves
+            for (let vx = startX + 60; vx < startX + bldW - 40; vx += 200) {
+                g.beginFill(0x334155); g.drawRect(vx, fy + 26, 12, 12); g.endFill();
+                g.beginFill(0xef4444); g.drawCircle(vx + 6, fy + 32, 2); g.endFill();
+            }
+        } else if (bld.type === 'mission_control') {
+            // Backup generator banks + cooling ducts
+            for (let i = 0; i < 5; i++) {
+                const gx = startX + 30 + i * 100;
+                if (gx + 70 > startX + bldW - 20) break;
+                // Generator
+                g.beginFill(0x334155); g.drawRect(gx, fy + 24, 60, 36); g.endFill();
+                g.beginFill(0x1f2937); g.drawRect(gx + 4, fy + 28, 52, 28); g.endFill();
+                // Vents
+                for (let vy = fy + 32; vy < fy + 55; vy += 4) {
+                    g.beginFill(0x0f172a); g.drawRect(gx + 8, vy, 44, 2); g.endFill();
+                }
+                // Status LED
+                g.beginFill(0x4ade80); g.drawCircle(gx + 56, fy + 28, 2); g.endFill();
+            }
+            // Cooling pipe overhead
+            g.beginFill(0x0369a1); g.drawRect(startX + 20, fy + 12, bldW - 40, 6); g.endFill();
+            g.beginFill(0x0284c7); g.drawRect(startX + 20, fy + 13, bldW - 40, 3); g.endFill();
+        } else if (bld.type === 'assembly') {
+            // Crawler transporter — wide tracked vehicle
+            const cx = startX + bldW / 2;
+            g.beginFill(0x4b5563); g.drawRect(cx - 140, fy + 30, 280, 26); g.endFill();
+            g.beginFill(0x374151); g.drawRect(cx - 130, fy + 35, 260, 16); g.endFill();
+            // Tracks (wheel rows)
+            for (let trx = cx - 130; trx < cx + 130; trx += 18) {
+                g.beginFill(0x1f2937); g.drawCircle(trx, fy + 56, 5); g.endFill();
+                g.beginFill(0x0a0f1a); g.drawCircle(trx, fy + 56, 2); g.endFill();
+            }
+            // Top platform (where rocket would sit)
+            g.beginFill(0x6b7280); g.drawRect(cx - 100, fy + 22, 200, 8); g.endFill();
+            g.beginFill(0xfbbf24); g.drawRect(cx - 100, fy + 22, 200, 1); g.endFill();
+            // Side warning markings
+            g.beginFill(0xfbbf24);
+            for (let mx = cx - 130; mx < cx + 130; mx += 18) {
+                g.drawRect(mx, fy + 30, 8, 3);
+            }
+            g.endFill();
+        } else if (bld.type === 'tracking') {
+            // Cooled signal vault — server racks + LN2 tanks
+            for (let i = 0; i < 4; i++) {
+                const rx = startX + 40 + i * 110;
+                if (rx + 80 > startX + bldW - 20) break;
+                // Server rack
+                g.beginFill(0x0a0a12); g.drawRect(rx, fy + 14, 50, 50); g.endFill();
+                g.beginFill(0x111120); g.drawRect(rx + 3, fy + 17, 44, 44); g.endFill();
+                for (let sy = fy + 20; sy < fy + 60; sy += 7) {
+                    g.beginFill(0x1a1a30); g.drawRect(rx + 6, sy, 38, 5); g.endFill();
+                    g.beginFill(0x4ade80); g.drawCircle(rx + 10, sy + 2.5, 0.8); g.endFill();
+                    g.beginFill(colHex, 0.25); g.drawRect(rx + 14, sy + 1, 26, 3); g.endFill();
+                }
+                // LN2 tank beside rack
+                g.beginFill(0xcbd5e1); g.drawRect(rx + 56, fy + 24, 20, 38); g.endFill();
+                g.beginFill(0x94a3b8); g.drawRect(rx + 58, fy + 26, 16, 34); g.endFill();
+                g.beginFill(0x22d3ee, 0.4); g.drawRect(rx + 60, fy + 28, 12, 10); g.endFill();
+                // Frost wisps
+                g.beginFill(0xffffff, 0.2); g.drawCircle(rx + 66, fy + 22, 3); g.endFill();
+            }
+            // Cold pipe along ceiling
+            g.beginFill(0x22d3ee, 0.3); g.drawRect(startX + 20, fy + 8, bldW - 40, 4); g.endFill();
+        }
+        c.addChild(g);
+    },
+
     drawNPC(c, x, y, role, col) {
         const colHex = col || 0x64748b;
         const bw = 12;
