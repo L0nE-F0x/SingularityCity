@@ -583,16 +583,22 @@ const UI = {
   
       const dp = G.getDayPhase();
       const curOcc = [];
-      G.models.forEach((m, i) => {
-        const stg = getStage(m.rel, m.ret, m.phase);
-        const { act } = getAct(stg, dp, i, m);
-        const ai = (typeof ACTS !== 'undefined' && ACTS[act]) ? ACTS[act] : { indoor: true, icon: '💻', verb: 'processing' };
+      // Construction sites are empty shells — no models "live" there, and the
+      // interior doesn't render exterior citizens anyway. Skip occupancy scan.
+      const isConstructionSite = (b.id.startsWith('dc_') || b.id.startsWith('fab_'))
+          && b.dcData && b.dcData.status === 'construction';
+      if (!isConstructionSite) {
+          G.models.forEach((m, i) => {
+            const stg = getStage(m.rel, m.ret, m.phase);
+            const { act } = getAct(stg, dp, i, m);
+            const ai = (typeof ACTS !== 'undefined' && ACTS[act]) ? ACTS[act] : { indoor: true, icon: '💻', verb: 'processing' };
 
-        const refs = G.charRefs[m.id];
-        if (refs && refs.bld === b.id) {
-            curOcc.push({ m, ai, stg });
-        }
-      });
+            const refs = G.charRefs[m.id];
+            if (refs && refs.bld === b.id) {
+                curOcc.push({ m, ai, stg });
+            }
+          });
+      }
 
       if (b.id.startsWith('house_') && typeof G.ceoRefs !== 'undefined') {
           const ceoRef = G.ceoRefs[b.lab];

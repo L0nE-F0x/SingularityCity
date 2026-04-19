@@ -919,7 +919,14 @@ const Entities = {
         
         const ai = (typeof ACTS !== 'undefined' && ACTS[act]) ? ACTS[act] : ((typeof ACTS !== 'undefined' && ACTS['work']) ? ACTS['work'] : { indoor: true, icon: '💻', label: 'Processing' });
         
-        let defaultHq = (bldsByLab[m.lab] || []).find(x => !x.id.startsWith('house_')) || (bldsByLab[m.lab] || [])[0];
+        // Pick the lab's HQ — NOT a data center or chip fab. DC/fab buildings
+        // carry `lab: operator`, so without this filter Microsoft's Phi models
+        // would all route to Stargate Abilene (which is still under construction)
+        // instead of Microsoft HQ.
+        const labBlds = bldsByLab[m.lab] || [];
+        let defaultHq = labBlds.find(x => !x.id.startsWith('house_') && !x.id.startsWith('dc_') && !x.id.startsWith('fab_'))
+                     || labBlds.find(x => !x.id.startsWith('house_'))
+                     || labBlds[0];
         let tBld = bid ? bldById[bid] : defaultHq || bldById['uni_dorm'];
         const isSocial = act === 'lunch' || act === 'socialize' || act === 'play' || act === 'benchmark' || act === 'share' || act === 'train' || act === 'arena'; const block = Math.floor(dp * 24);
   
