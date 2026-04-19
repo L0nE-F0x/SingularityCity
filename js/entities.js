@@ -973,6 +973,17 @@ const Entities = {
             if (_resBld) tBld = _resBld;
         }
 
+        // BUG FIX (v388): Night-at-park catch-all. Central Park is an outdoor
+        // zone with no interior-enter flow. At night lingerOK is false, so any
+        // non-sleep act pointing at city_park would fall through the atBuilding
+        // else-branch below and get marooned invisible (refs.bld='city_park',
+        // visible=false). Redirect home instead — they'll sleep like everyone else.
+        if (tBld && tBld.id === 'city_park' && night) {
+            const _region = (typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region : 'eu';
+            const _resBld = bldById['res_' + _region];
+            if (_resBld) tBld = _resBld;
+        }
+
         const isIn = ai.indoor; const isR = stg === 'retired';
         const isRm = stg === 'rumored';
         if (isIn && !isR) { if (!occ[tBld.id]) occ[tBld.id] = [];
@@ -1183,6 +1194,12 @@ const Entities = {
                         refs.c.visible = true;
                     } else if (tBld.id === 'city_park' && lingerOK) {
                         // Open-air zone: NPCs stay visible, just linger here
+                        refs.bld = null;
+                        refs.c.visible = true;
+                    } else if (tBld.id === 'city_park') {
+                        // Defense-in-depth (v388): city_park has no interior.
+                        // If we reach here, upstream redirect failed — stay visible
+                        // at the park edge rather than ghosting into a non-building.
                         refs.bld = null;
                         refs.c.visible = true;
                     } else {
