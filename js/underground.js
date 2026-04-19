@@ -153,22 +153,34 @@ const Underground = {
         }
     },
 
-    /* ─── 4. Water + sewer pipe band with junction boxes ─── */
+    /* ─── 4. Water + sewer pipe band with staggered junction boxes (matches exterior) ─── */
     drawPipes(g, x, topY, w, seed) {
-        // Water (top half)
+        // Mirror exterior environment.js: water at gy+220, sewer at gy+235 (offset 15 from water).
+        // Water (outer 0x0369a1, inner 0x0284c7)
         g.beginFill(this.WATER_PIPE); g.drawRect(x, topY, w, 8); g.endFill();
         g.beginFill(this.WATER_PIPE_INNER); g.drawRect(x, topY + 2, w, 4); g.endFill();
-        // Sewer (bottom half)
-        g.beginFill(this.SEWER_PIPE); g.drawRect(x, topY + 14, w, 12); g.endFill();
-        g.beginFill(this.SEWER_PIPE_INNER); g.drawRect(x, topY + 16, w, 8); g.endFill();
-        // Junction boxes spaced ~200px
+        // Sewer (outer 0xb45309, inner 0xd97706) — 15px below water top
+        g.beginFill(this.SEWER_PIPE); g.drawRect(x, topY + 15, w, 12); g.endFill();
+        g.beginFill(this.SEWER_PIPE_INNER); g.drawRect(x, topY + 17, w, 8); g.endFill();
+
+        // Junction boxes — staggered horizontally every 200px (matches exterior gy+175/+218/+233 layout)
         const r = this._seedRng(seed + 4242);
-        let bx = x + 30 + r() * 60;
-        while (bx < x + w - 18) {
-            g.beginFill(this.JBOX_BODY); g.drawRect(bx, topY - 6, 14, 30); g.endFill();
-            g.beginFill(this.JBOX_WATER); g.drawRect(bx + 3, topY + 1, 8, 5); g.endFill();
-            g.beginFill(this.JBOX_SEWER); g.drawRect(bx + 3, topY + 16, 8, 6); g.endFill();
-            bx += 180 + r() * 60;
+        const phase = Math.floor(r() * 200);
+        for (let bx = x - 200 + phase; bx < x + w + 50; bx += 200) {
+            // Cable junction body (15w x 40h) — extends UP into earth above pipes (ends 5px above water)
+            if (bx + 15 > x && bx < x + w) {
+                g.beginFill(this.JBOX_BODY); g.drawRect(bx, topY - 45, 15, 40); g.endFill();
+            }
+            // Water mini-box (10w x 12h) — at water level, +50 to the right
+            const wx = bx + 50;
+            if (wx + 10 > x && wx < x + w) {
+                g.beginFill(this.JBOX_WATER); g.drawRect(wx, topY - 2, 10, 12); g.endFill();
+            }
+            // Sewer mini-box (10w x 16h) — at sewer level, +100 to the right
+            const sx = bx + 100;
+            if (sx + 10 > x && sx < x + w) {
+                g.beginFill(this.JBOX_SEWER); g.drawRect(sx, topY + 13, 10, 16); g.endFill();
+            }
         }
     },
 
