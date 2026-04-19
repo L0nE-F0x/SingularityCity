@@ -117,35 +117,46 @@ const InteriorNPC = {
             this.lifts[bld.id] = new CityElevator(ec, numFloors, floorH, shaftX+15);
         }
         
-        // ─── EARTH AROUND BASEMENT ───
+        // ─── EARTH AROUND BASEMENT (zone-tinted) ───
+        // suburb_* houses live in the VC/Banking east_rock zone — no metro tunnel below,
+        // and the surface earth is rose-brown rock. npc_apt_* are core city.
+        const isSuburb = bld.id && bld.id.startsWith('suburb_');
+        const profile  = isSuburb ? 'east_rock' : 'city';
+        const earthBase = isSuburb ? 0x2d1a11 : 0x2a2218;
+        const earthHi   = isSuburb ? 0x3d261a : 0x3a3020;
         const groundY = roofH + numFloors * floorH;
         const earth = new PIXI.Graphics();
-        earth.beginFill(0x2a2218); earth.drawRect(0, groundY, startX-6, floorH); earth.endFill();
-        earth.beginFill(0x3a3020); earth.drawRect(0, groundY, startX-6, 6); earth.endFill();
-        earth.beginFill(0x2a2218); earth.drawRect(shaftX+shaftW, groundY, G.vpW-shaftX-shaftW, floorH); earth.endFill();
-        earth.beginFill(0x3a3020); earth.drawRect(shaftX+shaftW, groundY, G.vpW-shaftX-shaftW, 6); earth.endFill();
+        earth.beginFill(earthBase); earth.drawRect(0, groundY, startX-6, floorH); earth.endFill();
+        earth.beginFill(earthHi);   earth.drawRect(0, groundY, startX-6, 6); earth.endFill();
+        earth.beginFill(earthBase); earth.drawRect(shaftX+shaftW, groundY, G.vpW-shaftX-shaftW, floorH); earth.endFill();
+        earth.beginFill(earthHi);   earth.drawRect(shaftX+shaftW, groundY, G.vpW-shaftX-shaftW, 6); earth.endFill();
         earth.beginFill(0x4a4a5a); earth.drawRect(0, groundY-2, startX-6, 6); earth.endFill();
         earth.beginFill(0x4a4a5a); earth.drawRect(shaftX+shaftW, groundY-2, G.vpW-shaftX-shaftW, 6); earth.endFill();
         earth.beginFill(0x2d5a3f); earth.drawRect(0, groundY-4, startX-6, 4); earth.endFill();
         earth.beginFill(0x2d5a3f); earth.drawRect(shaftX+shaftW, groundY-4, G.vpW-shaftX-shaftW, 4); earth.endFill();
         this.scene.addChild(earth);
-        
-        // ─── BELOW-BASEMENT STACK (city profile — full cable/tunnel/infra mirror) ───
+
+        // ─── BELOW-BASEMENT STACK (per-zone profile — exterior is the blueprint) ───
         const basementBottom = roofH + (numFloors + 1) * floorH;
         const undergroundY = basementBottom + 6;
-        const undergroundH = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH : 238;
+        const profileDepth = (typeof Underground !== 'undefined') ? Underground.depthOf(profile) : 238;
+        const undergroundH = Math.max(profileDepth + 60, 300);
         const vm = new PIXI.Graphics();
         vm.beginFill(0x1a1810); vm.drawRect(0, basementBottom - 4, G.vpW, 10); vm.endFill();
         vm.beginFill(0x050508); vm.drawRect(0, undergroundY + undergroundH, G.vpW, 3000); vm.endFill();
         this.scene.addChild(vm);
         if (typeof Underground !== 'undefined') {
             const ug = new PIXI.Graphics();
-            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'city', (bld.x | 0));
+            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, profile, (bld.x | 0));
             this.scene.addChild(ug);
-            if (this._liveTrains) this._liveTrains.destroy();
-            this._liveTrains = Underground.attachLiveTrains(
-                this.scene, bld.x + bld.w / 2, 0,
-                undergroundY + Underground.H_CABLE_TRAY, G.vpW, 1200);
+            // Live trains only for profiles with a metro tunnel (city has it, east_rock doesn't)
+            if (this._liveTrains) { try { this._liveTrains.destroy(); } catch (e) {} this._liveTrains = null; }
+            const profileCfg = Underground._profile ? Underground._profile(profile) : null;
+            if (profileCfg && profileCfg.liveTrains) {
+                this._liveTrains = Underground.attachLiveTrains(
+                    this.scene, bld.x + bld.w / 2, 0,
+                    undergroundY + Underground.H_CABLE_TRAY, G.vpW, 1200);
+            }
         }
         
         // ─── TRACKED NPC WALK-IN ANIMATION ───
