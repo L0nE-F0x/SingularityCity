@@ -255,39 +255,43 @@ const SpaceInterior = {
         }
 
         // ─── DESERT SAND SURFACE STRIP (matches space_environment.js exterior) ───
-        // Only the flanks — building basement occludes its own footprint.
+        // Flanks only — building basement occludes its own footprint.
+        // Spans from soft sand top (groundY-18) all the way down to where the underground
+        // stack begins (basementBottom+2), so no sky-gap shows through beside the building.
         const groundY = roofH + numFloors * floorH;
+        const flankBottom = roofH + (numFloors + 1) * floorH + 2; // = undergroundY
+        const flankH = flankBottom - groundY;
         const sand = new PIXI.Graphics();
         const leftW = startX - 6;
         const rightX = startX + bldW + 6;
         const rightW = G.vpW - rightX;
-        // Compacted sand "road" — only on the flanks (continues behind building's basement wall)
-        if (leftW > 0) {
-            sand.beginFill(0x8b7355); sand.drawRect(0, groundY, leftW, 28); sand.endFill();
-            sand.beginFill(0x9a8265); sand.drawRect(0, groundY, leftW, 14); sand.endFill();
-        }
-        if (rightW > 0) {
-            sand.beginFill(0x8b7355); sand.drawRect(rightX, groundY, rightW, 28); sand.endFill();
-            sand.beginFill(0x9a8265); sand.drawRect(rightX, groundY, rightW, 14); sand.endFill();
-        }
-        // Soft sand top surface (above the road slab) on flanks
-        if (leftW > 0) {
-            sand.beginFill(0xc2956a); sand.drawRect(0, groundY - 18, leftW, 18); sand.endFill();
-            sand.beginFill(0xd4a574); sand.drawRect(0, groundY - 18, leftW, 9); sand.endFill();
-            sand.beginFill(0xe0b88a); sand.drawRect(0, groundY - 18, leftW, 2); sand.endFill();
-        }
-        if (rightW > 0) {
-            sand.beginFill(0xc2956a); sand.drawRect(rightX, groundY - 18, rightW, 18); sand.endFill();
-            sand.beginFill(0xd4a574); sand.drawRect(rightX, groundY - 18, rightW, 9); sand.endFill();
-            sand.beginFill(0xe0b88a); sand.drawRect(rightX, groundY - 18, rightW, 2); sand.endFill();
-        }
+
+        // Helper: paint the full flank column (sand top → road → compacted earth down to underground)
+        const paintFlank = (fx, fw) => {
+            if (fw <= 0) return;
+            // Soft sand top (above ground line)
+            sand.beginFill(0xc2956a); sand.drawRect(fx, groundY - 18, fw, 18); sand.endFill();
+            sand.beginFill(0xd4a574); sand.drawRect(fx, groundY - 18, fw, 9); sand.endFill();
+            sand.beginFill(0xe0b88a); sand.drawRect(fx, groundY - 18, fw, 2); sand.endFill();
+            // Compacted sand road (top 28px below ground line)
+            sand.beginFill(0x8b7355); sand.drawRect(fx, groundY, fw, Math.min(28, flankH)); sand.endFill();
+            sand.beginFill(0x9a8265); sand.drawRect(fx, groundY, fw, Math.min(14, flankH)); sand.endFill();
+            // Below the road — packed dirt fading into the upper sandstone of the underground
+            if (flankH > 28) {
+                sand.beginFill(0x6b4423); sand.drawRect(fx, groundY + 28, fw, flankH - 28); sand.endFill();
+                sand.beginFill(0x5c3a1e); sand.drawRect(fx, groundY + 28, fw, Math.min(8, flankH - 28)); sand.endFill();
+            }
+        };
+        paintFlank(0, leftW);
+        paintFlank(rightX, rightW);
+
         // Road dashed centerline (skip building footprint)
         for (let mx = 0; mx < G.vpW; mx += 40) {
             if (mx + 20 < startX || mx > startX + bldW) {
                 sand.beginFill(0xd4a574, 0.4); sand.drawRect(mx, groundY + 12, 20, 3); sand.endFill();
             }
         }
-        // Sand texture dots scattered across flanks
+        // Sand texture dots scattered across flanks (above ground only)
         const sandRng = this._sandSeed(bld.x | 0);
         for (let i = 0; i < 80; i++) {
             const sx = sandRng() * G.vpW;
