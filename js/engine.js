@@ -633,6 +633,9 @@ const G = {
       }
       this._lastEvolve = now;
 
+      // Flip any construction sites whose completion year has arrived
+      if (typeof DCManager !== 'undefined') DCManager.checkCompletions();
+
       // Post data to worker for NEXT cycle's cache
       this._postToWorker();
 

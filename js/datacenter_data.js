@@ -150,7 +150,7 @@ const DCManager = {
         const now = new Date();
         const currentYear = now.getFullYear();
         let changed = false;
-        
+
         DC_FACILITIES.forEach(dc => {
             if (dc.status === 'construction' && dc.completion) {
                 const completionYear = parseInt(dc.completion);
@@ -158,7 +158,7 @@ const DCManager = {
                     dc.status = 'operational';
                     this._completedIds.add(dc.id);
                     changed = true;
-                    
+
                     // Update the BLDS entry
                     if (typeof BLDS !== 'undefined') {
                         const bld = BLDS.find(b => b.id === dc.id);
@@ -167,10 +167,10 @@ const DCManager = {
                             bld.fl = dc.type === 'chipfab' ? 3 : 3;
                         }
                     }
-                    
+
                     // Sync to Supabase
                     this._syncToCloud(dc);
-                    
+
                     // Announce completion
                     if (typeof UI !== 'undefined') {
                         UI.addToast(`🏗️ ${dc.name} construction complete! Now operational.`);
@@ -178,34 +178,34 @@ const DCManager = {
                 }
             }
         });
-        
-        // Trigger visual rebuild if anything changed
-        if (changed && typeof Environment !== 'undefined' && Environment.drawCityscape) {
-            Environment.drawCityscape();
-        }
-        
+
+        if (changed) this._rebuildCity();
+
         return changed;
     },
-    
-    // Add a new facility dynamically (can be called from console or future API)
+
+    // Add a new facility dynamically (called from console, API, or LLM scan)
     addFacility(facility) {
         if (!facility.id || DC_FACILITIES.find(dc => dc.id === facility.id)) return false;
         DC_FACILITIES.push(facility);
-        
-        // Sync to Supabase
+
         this._syncToCloud(facility);
-        
-        // Trigger zone recalculation to place the new building
-        if (typeof G !== 'undefined' && G.recalculateZoning) {
-            G.recalculateZoning();
-        }
-        if (typeof Environment !== 'undefined' && Environment.drawCityscape) {
-            Environment.drawCityscape();
-        }
+        this._rebuildCity();
+
         if (typeof UI !== 'undefined') {
-            UI.addToast(`🖥️ New facility discovered: ${facility.name}`);
+            const icon = facility.type === 'chipfab' ? '🔧' : '🖥️';
+            UI.addToast(`${icon} New facility discovered: ${facility.name}`);
         }
         return true;
+    },
+
+    // Rebuild ground + buildings so new/updated DCs actually appear on the map.
+    _rebuildCity() {
+        if (typeof G !== 'undefined' && G.recalculateZoning) G.recalculateZoning();
+        if (typeof Environment !== 'undefined') {
+            if (Environment.buildGround) Environment.buildGround();
+            if (Environment.buildBuildings) Environment.buildBuildings();
+        }
     },
     
     // Write facility data to Supabase

@@ -1202,6 +1202,109 @@ const API = {
         } catch (e) { console.warn('[Calendar LLM]', e.message); }
     },
 
+    // ═══ NEW DATA CENTERS — LLM scan for real-world facilities not yet on the map ═══
+    _dcScanning: false,
+    async fetchNewDataCenters() {
+        if (this._dcScanning || !G.authKey || typeof DC_FACILITIES === 'undefined' || typeof DCManager === 'undefined') return;
+        this._dcScanning = true;
+        try {
+            const existingIds = DC_FACILITIES.map(dc => dc.id).join(', ');
+            const existingNames = DC_FACILITIES.map(dc => `${dc.name} (${dc.operator})`).join('; ');
+            const today = new Date().toISOString().split('T')[0];
+
+            const prompt = `You are a real-time AI infrastructure data API. Find up to 3 REAL data centers or chip fabrication plants that are NOT already in our database.
+
+TODAY IS ${today}. Prioritize facilities that came online or broke ground in the last 12 months (e.g. xAI Colossus 2, new Meta / Microsoft / Google / AWS / Oracle / CoreWeave mega-sites, new TSMC / Samsung / Intel fabs).
+
+EXISTING FACILITY IDs (do NOT duplicate): ${existingIds}
+EXISTING FACILITY NAMES: ${existingNames}
+
+CRITICAL ACCURACY RULES — VIOLATIONS WILL CORRUPT A PUBLIC DATABASE:
+1. ONLY return facilities that have been OFFICIALLY ANNOUNCED with a public press release, earnings call, or verifiable news coverage.
+2. Do NOT invent, extrapolate, or speculate. If unsure about any field, SKIP that facility entirely.
+3. "status" must be "operational" (running today), "construction" (announced but not online), or "planned".
+4. "type" must be "datacenter" or "chipfab".
+5. "operator" should be a lowercase lab/company id: google, microsoft, amazon, meta, xai, oracle, coreweave, tsmc, samsung, intel, asml, nvidia, apple, anthropic, openai, tesla, etc.
+6. "completion" is a 4-digit year string like "2026" or "2028" for construction/planned (omit for operational).
+7. "power_mw" and "gpus" should be numbers/strings with real figures. If unknown, use null.
+8. "id" must be a new, unique, lowercase_snake_case string starting with "dc_" for datacenters or "fab_" for chipfabs.
+
+Respond with ONLY minified JSON, no markdown:
+{"facilities":[{"id":"dc_example","name":"Example DC","operator":"google","location":"City, State/Country","type":"datacenter","status":"operational","gpus":"50,000 H200","power_mw":400,"cooling":"Liquid cooling","desc":"One-sentence summary.","completion":null,"color":"#4285f4"}]}`;
+
+            let url, hd = { 'Content-Type': 'application/json' }, pl;
+
+            if (G.apiProvider === 'anthropic') {
+                url = 'https://api.anthropic.com/v1/messages';
+                hd['x-api-key'] = G.authKey; hd['anthropic-version'] = '2023-06-01'; hd['anthropic-dangerously-allow-browser'] = 'true';
+                pl = { model: G.modelId || 'claude-sonnet-4-20250514', max_tokens: 2048, system: `You are a real-time AI infrastructure data API. Respond strictly in minified JSON. Today is ${today}. Only return facilities you are certain exist in the real world.`, messages: [{ role: 'user', content: prompt }] };
+            } else if (G.apiProvider === 'google') {
+                url = `https://generativelanguage.googleapis.com/v1beta/models/${G.modelId || 'gemini-2.5-flash'}:generateContent?key=${G.authKey}`;
+                pl = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 2048, responseMimeType: 'application/json' } };
+            } else if (G.apiProvider === 'xai') {
+                url = 'https://api.x.ai/v1/chat/completions';
+                hd['Authorization'] = `Bearer ${G.authKey}`;
+                pl = { model: G.modelId || 'grok-3-latest', temperature: 0.1, max_tokens: 2048, messages: [{ role: 'system', content: `You are a real-time AI infrastructure data API. Today is ${today}. Respond strictly in minified JSON. Only return facilities that are real.` }, { role: 'user', content: prompt }] };
+            } else {
+                url = 'https://api.openai.com/v1/chat/completions';
+                hd['Authorization'] = `Bearer ${G.authKey}`;
+                pl = { model: G.modelId || 'gpt-4o', temperature: 0.1, max_tokens: 2048, messages: [{ role: 'system', content: `You are a real-time AI infrastructure data API. Today is ${today}. Respond strictly in minified JSON. Only return facilities that are real.` }, { role: 'user', content: prompt }] };
+            }
+
+            const r = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl), signal: AbortSignal.timeout(60000) });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const d = await r.json();
+
+            let txt = '';
+            if (G.apiProvider === 'anthropic') txt = d.content?.[0]?.text || '';
+            else if (G.apiProvider === 'google') txt = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            else txt = d.choices?.[0]?.message?.content || '';
+
+            const match = txt.match(/\{[\s\S]*\}/);
+            if (!match) return;
+            const parsed = JSON.parse(match[0]);
+            if (!parsed.facilities || !Array.isArray(parsed.facilities)) return;
+
+            let added = 0;
+            for (const f of parsed.facilities) {
+                if (!f.id || !f.name || !f.operator) continue;
+                const safeId = String(f.id).toLowerCase().replace(/[^a-z0-9_]/g, '');
+                if (!safeId.startsWith('dc_') && !safeId.startsWith('fab_')) continue;
+                if (DC_FACILITIES.find(dc => dc.id === safeId)) continue;
+
+                const facility = {
+                    id: safeId,
+                    name: String(f.name).slice(0, 80),
+                    operator: String(f.operator).toLowerCase().replace(/[^a-z0-9_]/g, ''),
+                    location: f.location ? String(f.location).slice(0, 80) : 'Undisclosed',
+                    type: f.type === 'chipfab' ? 'chipfab' : 'datacenter',
+                    status: ['operational', 'construction', 'planned'].includes(f.status) ? f.status : 'operational',
+                    gpus: f.gpus || null,
+                    power_mw: typeof f.power_mw === 'number' ? f.power_mw : null,
+                    cooling: f.cooling || null,
+                    process: f.process || null,
+                    products: f.products || null,
+                    investment: f.investment || null,
+                    completion: f.completion ? String(f.completion).slice(0, 10) : null,
+                    desc: f.desc ? String(f.desc).slice(0, 240) : `${f.name} — discovered via network scan.`,
+                    w: f.type === 'chipfab' ? 170 : 160,
+                    color: typeof f.color === 'string' && /^#[0-9a-f]{6}$/i.test(f.color) ? f.color : '#64748b'
+                };
+
+                if (DCManager.addFacility(facility)) added++;
+            }
+
+            if (added > 0 && typeof UI !== 'undefined') {
+                UI.addLog(`🛰️ Discovered ${added} new compute facility${added === 1 ? '' : 'ies'}!`);
+                if (typeof NOTIFY !== 'undefined') NOTIFY.send('New Compute!', `${added} new data center${added === 1 ? '' : 's'} on the map`);
+            }
+        } catch (e) {
+            console.warn('[DC Scan]', e.message);
+        } finally {
+            this._dcScanning = false;
+        }
+    },
+
     // ═══ NETWORK STATUS — cloud provider incidents + internet health for The Backbone ═══
     async fetchNetworkStatus() {
         const feeds = [
@@ -2448,7 +2551,8 @@ JSON (no markdown):
             this.fetchSupplyChain(),
             this.fetchRegulationNews(),
             this.fetchArxivPapers(),
-            this.fetchAIEvents()
+            this.fetchAIEvents(),
+            this.fetchNewDataCenters()
         ]);
 
       } catch(e) {
