@@ -192,46 +192,43 @@ const Underground = {
         container.sortableChildren = true;
         parent.addChild(container);
 
-        const trainDefs = [
-            { key: 'trainWest',      col: 0x38bdf8 },
-            { key: 'trainEast',      col: 0xfacc15 },
-            { key: 'trainMid',       col: 0xf97316 },
-            { key: 'trainDC',        col: 0x06b6d4 },
-            { key: 'trainLongevity', col: 0x22c55e }
-        ];
+        const trainKeys = ['trainWest', 'trainEast', 'trainMid', 'trainDC', 'trainLongevity'];
+        // Native train is 360w x 75h. Tunnel is 100h. Cap scale so train fits with 8px padding.
+        const TRAIN_NATIVE_H = 75;
+        const xRatio = localTunnelW / viewSliceWorld;
+        const spriteScale = Math.min(xRatio, (this.H_TUNNEL - 8) / TRAIN_NATIVE_H);
 
-        const sprites = trainDefs.map(def => {
-            const s = new PIXI.Graphics();
-            // Body
-            s.beginFill(def.col); s.drawRoundedRect(-32, -10, 64, 18, 3); s.endFill();
-            s.beginFill(def.col, 0.6); s.drawRoundedRect(-30, -8, 60, 6, 2); s.endFill();
-            // Windows
-            s.beginFill(0xffffff, 0.7);
-            for (let wx = -26; wx < 26; wx += 9) s.drawRect(wx, -6, 5, 4);
-            s.endFill();
-            // Headlight
-            s.beginFill(0xfff7c0); s.drawCircle(28, 1, 2); s.endFill();
+        const sprites = trainKeys.map(key => {
+            const s = new PIXI.Container();
+            // Use the SAME sprite builder as the exterior train so visuals never drift.
+            if (typeof EntitiesGfx !== 'undefined' && typeof EntitiesGfx.buildTrainSprite === 'function') {
+                const { tBg, fGfx, lightL, lightR } = EntitiesGfx.buildTrainSprite();
+                s.addChild(tBg, fGfx, lightL, lightR);
+            }
+            s.scale.set(spriteScale);
             s.visible = false;
             container.addChild(s);
-            return { s, def };
+            return { s, key };
         });
 
         const sliceLeft = buildingWorldX - viewSliceWorld / 2;
-        const tunnelCenterY = localTunnelY + 88; // align with rail bed
+        // Train body extends y=-35 to y=+40 (with sleeper). Bottom (+40) rests near tunnel floor.
+        const tunnelCenterY = localTunnelY + this.H_TUNNEL - 40 * spriteScale - 4;
 
         return {
             container,
             update() {
                 if (typeof Entities === 'undefined') return;
-                sprites.forEach(({ s, def }) => {
-                    const t = Entities[def.key];
+                sprites.forEach(({ s, key }) => {
+                    const t = Entities[key];
                     if (!t || typeof t.x !== 'number') { s.visible = false; return; }
                     const dx = t.x - sliceLeft;
-                    if (dx < -80 || dx > viewSliceWorld + 80) { s.visible = false; return; }
+                    if (dx < -200 || dx > viewSliceWorld + 200) { s.visible = false; return; }
                     s.visible = true;
                     s.x = localTunnelX + (dx / viewSliceWorld) * localTunnelW;
                     s.y = tunnelCenterY;
-                    s.scale.x = (t.dir != null ? t.dir : 1) >= 0 ? 1 : -1;
+                    const dir = (t.dir != null ? t.dir : 1) >= 0 ? 1 : -1;
+                    s.scale.x = spriteScale * dir;
                 });
             },
             destroy() {

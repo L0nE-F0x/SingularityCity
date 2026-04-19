@@ -436,44 +436,51 @@ const EntitiesGfx = {
         });
     },
 
+    /* Shared train visual — used by exterior createTrainObj AND Underground.attachLiveTrains
+       so the basement view never drifts from the city above. Returns body+front graphics. */
+    buildTrainSprite() {
+        const tBg = new PIXI.Graphics();
+        tBg.beginFill(0x1e293b);
+        tBg.drawRoundedRect(-180, -35, 360, 65, 8);
+        tBg.endFill();
+        tBg.beginFill(0x0284c7);
+        tBg.drawRect(-175, 4, 350, 8);
+        tBg.endFill();
+        tBg.beginFill(0x94a3b8);
+        for (let px = -160; px <= 160; px += 45) { tBg.drawRect(px - 1, -25, 2, 29); }
+        tBg.endFill();
+
+        const fGfx = new PIXI.Graphics();
+        fGfx.beginFill(0xcbd5e1); fGfx.drawRoundedRect(-180, -35, 360, 15, 8); fGfx.endFill();
+        fGfx.beginFill(0x94a3b8); fGfx.drawRect(-180, -4, 360, 34); fGfx.endFill();
+        fGfx.beginFill(0x94a3b8); for (let px = -180; px <= 180; px += 45) { fGfx.drawRect(px - 5, -20, 10, 16); } fGfx.endFill();
+        fGfx.beginFill(0x64748b);
+        fGfx.drawRect(-100, -28, 20, 50); fGfx.drawRect(0, -28, 20, 50); fGfx.drawRect(100, -28, 20, 50); fGfx.endFill();
+        fGfx.beginFill(0x0f172a, 0.6);
+        fGfx.drawRect(-96, -18, 12, 16); fGfx.drawRect(4, -18, 12, 16); fGfx.drawRect(104, -18, 12, 16); fGfx.endFill();
+        fGfx.beginFill(0x1e293b); fGfx.drawRect(-175, 30, 350, 10); fGfx.endFill();
+        fGfx.beginFill(0x0ea5e9); fGfx.drawRect(-180, -2, 360, 4); fGfx.endFill();
+        fGfx.beginFill(0xe0f2fe, 0.15); fGfx.drawRect(-180, -20, 360, 16); fGfx.endFill();
+
+        const lightL = new PIXI.Graphics(); lightL.beginFill(0xef4444); lightL.drawCircle(-175, 0, 4); lightL.endFill();
+        const lightR = new PIXI.Graphics(); lightR.beginFill(0x4ade80); lightR.drawCircle(175, 0, 4); lightR.endFill();
+
+        return { tBg, fGfx, lightL, lightR };
+    },
+
     createTrainObj(trainLayer, carLayer, st1, st2, startDelay, tunnelY) {
         let t = {
             c: new PIXI.Container(),
             front: new PIXI.Container(),
             x: st1, y: tunnelY,
             st1: st1, st2: st2, targetX: st2,
-            state: 'waiting', timer: startDelay, 
-            speed: 6, dir: 1, passengers: 0 
+            state: 'waiting', timer: startDelay,
+            speed: 6, dir: 1, passengers: 0
         };
-        
-        const tBg = new PIXI.Graphics();
-        tBg.beginFill(0x1e293b); 
-        tBg.drawRoundedRect(-180, -35, 360, 65, 8); 
-        tBg.endFill();
-        tBg.beginFill(0x0284c7);
-        tBg.drawRect(-175, 4, 350, 8);
-        tBg.endFill();
-        tBg.beginFill(0x94a3b8);
-        for(let px = -160; px <= 160; px += 45) { tBg.drawRect(px - 1, -25, 2, 29); }
-        tBg.endFill();
+
+        const { tBg, fGfx, lightL, lightR } = this.buildTrainSprite();
         t.c.addChild(tBg);
         t.c.x = t.x; t.c.y = t.y;
-
-        const fGfx = new PIXI.Graphics();
-        fGfx.beginFill(0xcbd5e1); fGfx.drawRoundedRect(-180, -35, 360, 15, 8); fGfx.endFill(); 
-        fGfx.beginFill(0x94a3b8); fGfx.drawRect(-180, -4, 360, 34); fGfx.endFill(); 
-        fGfx.beginFill(0x94a3b8); for(let px = -180; px <= 180; px += 45) { fGfx.drawRect(px - 5, -20, 10, 16); } fGfx.endFill(); 
-        fGfx.beginFill(0x64748b); 
-        fGfx.drawRect(-100, -28, 20, 50); fGfx.drawRect(0, -28, 20, 50); fGfx.drawRect(100, -28, 20, 50); fGfx.endFill();
-        fGfx.beginFill(0x0f172a, 0.6); 
-        fGfx.drawRect(-96, -18, 12, 16); fGfx.drawRect(4, -18, 12, 16); fGfx.drawRect(104, -18, 12, 16); fGfx.endFill();
-        fGfx.beginFill(0x1e293b); fGfx.drawRect(-175, 30, 350, 10); fGfx.endFill(); 
-        fGfx.beginFill(0x0ea5e9); fGfx.drawRect(-180, -2, 360, 4); fGfx.endFill(); 
-        fGfx.beginFill(0xe0f2fe, 0.15); fGfx.drawRect(-180, -20, 360, 16); fGfx.endFill(); 
-
-        const lightL = new PIXI.Graphics(); lightL.beginFill(0xef4444); lightL.drawCircle(-175, 0, 4); lightL.endFill();
-        const lightR = new PIXI.Graphics(); lightR.beginFill(0x4ade80); lightR.drawCircle(175, 0, 4); lightR.endFill();
-        
         t.front.addChild(fGfx, lightL, lightR);
         t.lightL = lightL; t.lightR = lightR;
         t.front.x = t.x; t.front.y = t.y;
