@@ -238,8 +238,9 @@ const InteriorNewspaper = {
 
         // ─── INITIAL POSITION + SCROLL HANDLERS ───
         const bottomPad = 40;
+        const undergroundDepth = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH + 6 : 244;
         this.scene.y = G.vpH - bottomPad - totalH + floorH;
-        this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - bottomPad - totalH - floorH);
+        this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - bottomPad - totalH - undergroundDepth);
         this.maxY = Math.max(this.scene.y + floorH * 3, G.vpH - bottomPad);
         this._noYScroll = false;
         this.layer.eventMode = 'static';
@@ -259,10 +260,11 @@ const InteriorNewspaper = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    //  UNDERGROUND LAYERS — full city stack matching exterior/InteriorCity
+    //  UNDERGROUND LAYERS — delegates to Underground module (city profile)
     // ═══════════════════════════════════════════════════════════════
     _drawUnderground(startX, bldW, surfaceY, belowY, floorH, W) {
         const g = new PIXI.Graphics();
+        const seed = (this.bld && this.bld.x | 0) || 0;
 
         // Earth walls flanking the building at basement depth
         g.beginFill(0x2a2218);
@@ -285,17 +287,33 @@ const InteriorNewspaper = {
         g.drawRect(startX + bldW, surfaceY - 2, W - startX - bldW, 2);
         g.endFill();
 
-        // Below basement: full fiber/tunnel/pipe stack
-        g.beginFill(0x0a0a0f);
-        g.drawRect(0, belowY, W, 260);
-        g.endFill();
-
         // Foundation slab
         g.beginFill(0x2a2a34);
         g.drawRect(startX - 8, belowY, bldW + 16, 4);
         g.endFill();
 
-        // ─── CABLE REGION (wavy lines + junction dots — matches exterior) ───
+        // ─── BELOW-BASEMENT STACK — delegate to Underground (city profile) ───
+        if (typeof Underground !== 'undefined') {
+            const undergroundY = belowY + 6;
+            const undergroundH = Underground.FULL_STACK_DEPTH;
+            Underground.drawBasementStack(g, 0, undergroundY, W, undergroundH, 'city', seed);
+            // Deep void below
+            g.beginFill(0x050508);
+            g.drawRect(0, undergroundY + undergroundH, W, 500);
+            g.endFill();
+            this.scene.addChild(g);
+            // Live trains overlay
+            if (this._liveTrains) this._liveTrains.destroy();
+            this._liveTrains = Underground.attachLiveTrains(
+                this.scene, this.bld.x + (this.bld.w || bldW) / 2, 0,
+                undergroundY + Underground.H_CABLE_TRAY, W, 1200);
+            return;
+        }
+
+        // ─── FALLBACK: legacy inline rendering (only used if Underground module is missing) ───
+        g.beginFill(0x0a0a0f);
+        g.drawRect(0, belowY, W, 260);
+        g.endFill();
         const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
         let cr = 101;
         const cr2 = () => { cr = (cr * 16807) % 2147483647; return (cr - 1) / 2147483646; };
@@ -952,6 +970,8 @@ const InteriorNewspaper = {
                 });
             }
         }
+        // Live trains visible in basement tunnel slice
+        if (this._liveTrains) this._liveTrains.update();
 
         // ─── Day/night shift rotation ───
         const isNightShift = night;

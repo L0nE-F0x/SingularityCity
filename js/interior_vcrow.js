@@ -204,29 +204,33 @@ const InteriorVCRow = {
         shaftGfx.beginFill(0xffffee, 0.08); shaftGfx.drawRect(shaftX + 8, carFy + 16, shaftW - 16, floorH - 30); shaftGfx.endFill();
         this.scene.addChild(shaftGfx);
 
-        // ─── EARTH AROUND BASEMENT ───
+        // ─── EARTH AROUND BASEMENT (east_rock zone — vc row sits past metro terminus) ───
         const groundY = roofH + numFloors * floorH;
         const earth = new PIXI.Graphics();
-        earth.beginFill(0x2a2218); earth.drawRect(0, groundY, startX - 6, floorH); earth.endFill();
-        earth.beginFill(0x3a3020); earth.drawRect(0, groundY, startX - 6, 6); earth.endFill();
-        earth.beginFill(0x2a2218); earth.drawRect(startX + bldW + 6, groundY, G.vpW - startX - bldW - 6, floorH); earth.endFill();
-        earth.beginFill(0x3a3020); earth.drawRect(startX + bldW + 6, groundY, G.vpW - startX - bldW - 6, 6); earth.endFill();
+        earth.beginFill(0x2a1a10); earth.drawRect(0, groundY, startX - 6, floorH); earth.endFill();
+        earth.beginFill(0x3a2218); earth.drawRect(0, groundY, startX - 6, 6); earth.endFill();
+        earth.beginFill(0x2a1a10); earth.drawRect(startX + bldW + 6, groundY, G.vpW - startX - bldW - 6, floorH); earth.endFill();
+        earth.beginFill(0x3a2218); earth.drawRect(startX + bldW + 6, groundY, G.vpW - startX - bldW - 6, 6); earth.endFill();
         this.scene.addChild(earth);
 
-        // ─── VOID BELOW ───
-        const vmY = roofH + (numFloors + 1) * floorH;
+        // ─── BELOW-BASEMENT STACK (east_rock profile — pipes continue, no cables/tunnel) ───
+        const basementBottom = roofH + (numFloors + 1) * floorH;
+        const undergroundY = basementBottom + 6;
+        const undergroundH = (typeof Underground !== 'undefined') ? Math.max(Underground.depthOf('east_rock') + 60, 300) : 300;
         const vm = new PIXI.Graphics();
-        vm.beginFill(0x050508); vm.drawRect(0, vmY, G.vpW, 2000); vm.endFill();
-        const cableColors = [0xef4444, 0x22d3ee, 0x4ade80, 0xfbbf24, 0xa855f7];
-        for (let cy = vmY + 8; cy < vmY + 80; cy += 6) {
-            vm.beginFill(cableColors[Math.floor(Math.random() * cableColors.length)], 0.12 + Math.random() * 0.15);
-            vm.drawRect(0, cy + Math.random() * 3, G.vpW, 1 + Math.random() * 2); vm.endFill();
-        }
+        vm.beginFill(0x1a1810); vm.drawRect(0, basementBottom - 4, G.vpW, 10); vm.endFill();
+        vm.beginFill(0x050508); vm.drawRect(0, undergroundY + undergroundH, G.vpW, 3000); vm.endFill();
         this.scene.addChild(vm);
+        if (typeof Underground !== 'undefined') {
+            const ug = new PIXI.Graphics();
+            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'east_rock', (bld.x | 0));
+            this.scene.addChild(ug);
+        }
 
         // Position scene so ground floor is visible
         const bp = 56; this.scene.y = G.vpH - bp - this.totalH + floorH;
-        this.minY = this.scene.y - floorH * 3; this.maxY = this.scene.y + floorH * 3;
+        this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - bp - this.totalH - undergroundH - 6);
+        this.maxY = this.scene.y + floorH * 3;
 
         // Drag scroll
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';

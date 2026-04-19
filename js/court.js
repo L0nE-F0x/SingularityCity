@@ -443,7 +443,7 @@ const CourtInterior = {
         this.scene.addChild(vm);
         if (typeof Underground !== 'undefined') {
             const ug = new PIXI.Graphics();
-            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'court', (bld.x | 0));
+            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'city', (bld.x | 0));
             this.scene.addChild(ug);
             if (this._liveTrains) this._liveTrains.destroy();
             this._liveTrains = Underground.attachLiveTrains(

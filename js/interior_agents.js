@@ -622,6 +622,8 @@ const InteriorAgents = {
             InteriorCity._applyDynamicSky(this.celestialGfx, this.starsLayer);
         }
         if (this._lift && !this._lift.destroyed) this._lift.update();
+        // Live trains attached by InteriorCity._drawZoneUnderground (agents profile)
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._liveTrains) InteriorCity._liveTrains.update();
         this.updateAvatars();
     }
 };

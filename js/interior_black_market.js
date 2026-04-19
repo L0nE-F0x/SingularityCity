@@ -127,15 +127,23 @@ const InteriorBlackMarket = {
         earth.beginFill(0x3a3028); earth.drawRect(startX + bldW + 6, grdY - 2, G.vpW - startX - bldW - 6, 4); earth.endFill();
         this.scene.addChild(earth);
 
-        // ─── DEEP VOID ───
-        const vmY = roofH + (numFloors + 1) * floorH;
-        const vm = new PIXI.Graphics();
-        vm.beginFill(0x0a0806); vm.drawRect(0, vmY - 4, G.vpW, 10); vm.endFill();
-        vm.beginFill(0x030304); vm.drawRect(0, vmY + 6, G.vpW, 3000); vm.endFill();
-        for (let dx = 60; dx < G.vpW; dx += 100 + Math.floor(rng() * 80)) {
-            vm.beginFill(0x2a4a3a, 0.15); vm.drawRect(dx, vmY + 10, 1, 20 + rng() * 30); vm.endFill();
+        // ─── BELOW-BASEMENT STACK (city profile — black market sits in the central city) ───
+        const basementBottom = roofH + (numFloors + 1) * floorH;
+        const undergroundY = basementBottom + 6;
+        const undergroundH = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH : 238;
+        const voidMask = new PIXI.Graphics();
+        voidMask.beginFill(0x0a0806); voidMask.drawRect(0, basementBottom - 4, G.vpW, 10); voidMask.endFill();
+        voidMask.beginFill(0x030304); voidMask.drawRect(0, undergroundY + undergroundH, G.vpW, 3000); voidMask.endFill();
+        this.scene.addChild(voidMask);
+        if (typeof Underground !== 'undefined') {
+            const ug = new PIXI.Graphics();
+            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'city', (bld.x | 0));
+            this.scene.addChild(ug);
+            if (this._liveTrains) this._liveTrains.destroy();
+            this._liveTrains = Underground.attachLiveTrains(
+                this.scene, bld.x + bld.w / 2, 0,
+                undergroundY + Underground.H_CABLE_TRAY, G.vpW, 1200);
         }
-        this.scene.addChild(vm);
 
         // ─── VISITOR AVATARS ───
         const visitingModels = G.models.filter(m => {
@@ -174,7 +182,8 @@ const InteriorBlackMarket = {
 
         // Position & scroll
         this.scene.y = G.vpH - 56 - this.totalH + floorH;
-        this.minY = this.scene.y - floorH * 3; this.maxY = this.scene.y + floorH * 3;
+        this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - 56 - this.totalH - undergroundH - 6);
+        this.maxY = this.scene.y + floorH * 3;
 
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
         window.removeEventListener('pointermove', this._onMove); window.removeEventListener('pointerup', this._onUp);
@@ -543,6 +552,9 @@ const InteriorBlackMarket = {
         // Underground background — dark earth tones
         const vp = document.getElementById('viewport');
         if (vp) vp.style.background = 'linear-gradient(180deg,#0e0806,#1a120a 50%,#0a0806)';
+
+        // Live trains visible in basement tunnel slice
+        if (this._liveTrains) this._liveTrains.update();
 
         // Neon lights flicker
         this.indoorLights.forEach(l => {

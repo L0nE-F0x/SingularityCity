@@ -35,6 +35,8 @@ const Underground = {
     H_CABLE_TRAY: 38,
     H_TUNNEL: 100,
     H_INFRA: 100,   // dark-navy infrastructure depth (mirrors exterior gy+170…+270)
+    H_OCEAN_FLOOR: 20,
+    H_SILO: 240,    // missile silo bunker depth (4 levels × 55 + headroom)
     /* Total depth of the full mirrored stack (cable + tunnel + infrastructure). */
     FULL_STACK_DEPTH: 238,
 
@@ -42,6 +44,44 @@ const Underground = {
     INFRA_DEEP: 0x0a0a0f,
     INFRA_PLAT_1: 0x1a202c,
     INFRA_PLAT_2: 0x0f172a,
+
+    /* ─── Per-zone profiles — exterior is the blueprint, each zone gets only what's truly under it ─── */
+    PROFILES: {
+        // Default — central city, residential, court, university, conference, vc row, dc, etc.
+        // Cable tray + metro tunnel + infrastructure (with pipes & boxes). Has live trains.
+        city:      { cables: true,    tunnel: true,  infra: true,  earthZone: 'tech',        liveTrains: true,  ocean: false, silo: false },
+        // Backbone trunk — DENSE cable tray, no tunnel, no pipes. (Backbone is *just* cables.)
+        backbone:  { cables: 'dense', tunnel: false, infra: false, earthZone: 'tech',        liveTrains: false, ocean: false, silo: false },
+        // Port — deep ocean cover, no cables, no tunnel, no pipes.
+        port:      { cables: false,   tunnel: false, infra: false, earthZone: 'port',        liveTrains: false, ocean: true,  silo: false },
+        // Space — pure dark void/rock. Nothing buried.
+        space:     { cables: false,   tunnel: false, infra: false, earthZone: 'space',       liveTrains: false, ocean: false, silo: false },
+        // Power — substations & switchgear. No fiber tray, no metro, no city pipes (yet — TBD per zone).
+        power:     { cables: false,   tunnel: false, infra: false, earthZone: 'tech',        liveTrains: false, ocean: false, silo: false },
+        // Agents — same full stack as city but with rose-tinted earth fill.
+        agents:    { cables: true,    tunnel: true,  infra: true,  earthZone: 'agents',      liveTrains: true,  ocean: false, silo: false },
+        // Forest — just earth & roots. No cables, no tunnel, no pipes.
+        forest:    { cables: false,   tunnel: false, infra: false, earthZone: 'forest',      liveTrains: false, ocean: false, silo: false },
+        // East rock — past metro terminus (vc row, longevity, robotics suburbs). Pipes continue, no cables/tunnel.
+        east_rock: { cables: false,   tunnel: false, infra: true,  earthZone: 'east_rock',   liveTrains: false, ocean: false, silo: false },
+        // Silo — Billionaire's Row missile bunker shafts. Bunker walls + hazard stripes + LED levels.
+        silo:      { cables: false,   tunnel: false, infra: false, earthZone: 'tech',        liveTrains: false, ocean: false, silo: true  }
+    },
+
+    /* Resolve a profile (string key or object) to a normalized config. */
+    _profile(p) {
+        if (p && typeof p === 'object') return p;
+        return this.PROFILES[p] || this.PROFILES.city;
+    },
+
+    /* Total mirrored depth for a given profile (caller uses this to size undergroundH). */
+    depthOf(profileKey) {
+        const p = this._profile(profileKey);
+        if (p.silo) return this.H_SILO;
+        return (p.cables ? this.H_CABLE_TRAY : 0)
+             + (p.tunnel ? this.H_TUNNEL : 0)
+             + (p.infra  ? this.H_INFRA  : 0);
+    },
 
     /* Map a zone tag to earth tint variants. */
     _zoneEarth(zone) {
@@ -54,6 +94,8 @@ const Underground = {
                 return { base: 0x111119, a: 0x222238, b: 0x080812 };
             case 'residential':
                 return { base: 0x2a2218, a: 0x3a2818, b: 0x1f1408 };
+            case 'east_rock':
+                return { base: 0x2d1a11, a: 0x3d261a, b: 0x1f100a };
             case 'tech':
             case 'court':
             case 'agents':
@@ -69,45 +111,73 @@ const Underground = {
     },
 
     /**
-     * Paint the full underground stack into one Graphics object.
-     * Layout (top to bottom — matches exterior environment.js gy+32…+270):
+     * Paint the underground stack into one Graphics object using a per-zone profile.
+     * Each profile (city, backbone, port, space, power, agents, forest) selects which
+     * layers to draw — the exterior is the blueprint and each zone gets only what's
+     * truly under it in environment.js.
+     *
+     * Layout when all layers are on (city/agents profile):
      *   topY .................. cable tray (38px)
      *   topY + 38 ............. tunnel cavity (100px) — live trains overlay sits here
-     *   topY + 138 ............ infrastructure depth (100px) — dark navy + pipes + junction boxes
+     *   topY + 138 ............ infrastructure depth (100px) — dark navy + pipes + boxes
      *   topY + 238 ............ deep earth + rock veins (h - 238)
      *
      * @param {PIXI.Graphics} g
      * @param {number} x left in container coords
      * @param {number} topY top in container coords (where the underground starts, just below floor)
      * @param {number} w width
-     * @param {number} h total depth (≥ 240 for full stack)
-     * @param {string} zone 'tech' | 'residential' | 'forest' | 'port' | 'space' | 'court' | 'agents'
+     * @param {number} h total depth
+     * @param {string|object} profile profile key from PROFILES, or a config object
      * @param {number} worldSeed optional seed (use building's world-X so adjacent buildings align)
      */
-    drawBasementStack(g, x, topY, w, h, zone, worldSeed) {
+    drawBasementStack(g, x, topY, w, h, profile, worldSeed, opts) {
+        const p = this._profile(profile);
         const seed = worldSeed != null ? worldSeed : (x | 0);
-        this.drawCableTray(g, x, topY, w, seed);
-        this.drawTunnelCavity(g, x, topY + this.H_CABLE_TRAY, w, seed);
-        this.drawInfrastructure(g, x, topY + this.H_CABLE_TRAY + this.H_TUNNEL, w, seed);
-        const earthTop = topY + this.H_CABLE_TRAY + this.H_TUNNEL + this.H_INFRA;
-        const earthH = Math.max(0, h - this.H_CABLE_TRAY - this.H_TUNNEL - this.H_INFRA);
-        if (earthH > 0) this.drawDeepEarth(g, x, earthTop, w, earthH, zone, seed);
+        // Silo / ocean profiles fill the whole space themselves.
+        if (p.silo) {
+            this.drawSiloBunker(g, x, topY, w, h, seed, opts || {});
+            return;
+        }
+        if (p.ocean) {
+            this.drawOcean(g, x, topY, w, h, seed);
+            return;
+        }
+        let cy = topY;
+        if (p.cables) {
+            this.drawCableTray(g, x, cy, w, seed, p.cables === 'dense');
+            cy += this.H_CABLE_TRAY;
+        }
+        if (p.tunnel) {
+            this.drawTunnelCavity(g, x, cy, w, seed);
+            cy += this.H_TUNNEL;
+        }
+        if (p.infra) {
+            this.drawInfrastructure(g, x, cy, w, seed);
+            cy += this.H_INFRA;
+        }
+        const earthH = Math.max(0, h - (cy - topY));
+        if (earthH > 0) this.drawDeepEarth(g, x, cy, w, earthH, p.earthZone, seed);
     },
 
-    /* ─── 1. Cable tray (10 horizontal fibers + junction dots) ─── */
-    drawCableTray(g, x, topY, w, seed) {
+    /* ─── 1. Cable tray (horizontal fibers + junction dots).
+       `dense` mode = backbone trunk style: more fibers, stronger alpha. ─── */
+    drawCableTray(g, x, topY, w, seed, dense) {
+        const fibers = dense ? 16 : 10;
+        const fiberAlpha = dense ? 0.85 : 0.55;
+        const dotAlpha = dense ? 0.85 : 0.6;
         g.beginFill(this.CABLE_TRAY_BG); g.drawRect(x, topY, w, this.H_CABLE_TRAY); g.endFill();
-        for (let fi = 0; fi < 10; fi++) {
-            const fy = topY + 3 + fi * 3;
+        const fiberSpacing = (this.H_CABLE_TRAY - 6) / fibers;
+        for (let fi = 0; fi < fibers; fi++) {
+            const fy = topY + 3 + fi * fiberSpacing;
             const col = this.CABLE_COLS[fi % this.CABLE_COLS.length];
-            g.beginFill(col, 0.55); g.drawRect(x + 5, fy, w - 10, 2); g.endFill();
+            g.beginFill(col, fiberAlpha); g.drawRect(x + 5, fy, w - 10, dense ? 2 : 2); g.endFill();
         }
         const r = this._seedRng(seed + 7919);
-        const dotCount = Math.max(6, Math.floor(w / 18));
+        const dotCount = Math.max(6, Math.floor(w / (dense ? 10 : 18)));
         for (let i = 0; i < dotCount; i++) {
             const nx = x + 5 + r() * (w - 10);
             const ny = topY + 3 + r() * (this.H_CABLE_TRAY - 6);
-            g.beginFill(this.CABLE_COLS[Math.floor(r() * this.CABLE_COLS.length)], 0.6);
+            g.beginFill(this.CABLE_COLS[Math.floor(r() * this.CABLE_COLS.length)], dotAlpha);
             g.drawCircle(nx, ny, 1 + r() * 1.5);
             g.endFill();
         }
@@ -136,6 +206,99 @@ const Underground = {
             g.beginFill(this.TUNNEL_PILLAR); g.drawRect(px, topY, 14, this.H_TUNNEL); g.endFill();
             g.beginFill(this.TUNNEL_LIGHT); g.drawCircle(px + 7, topY + 18, 1.5); g.endFill();
             px += 130 + r() * 30;
+        }
+    },
+
+    /* ─── Ocean cover (port profile) — mirrors environment.js port-zone block:
+       deep navy water gradient + sandy floor + coral patches + bubbles + light rays. ─── */
+    drawOcean(g, x, topY, w, h, seed) {
+        // Solid deep ocean
+        g.beginFill(0x061220); g.drawRect(x, topY, w, h); g.endFill();
+        // Water gradient layers (top → mid)
+        g.beginFill(0x081830, 0.8); g.drawRect(x, topY, w, Math.min(40, h)); g.endFill();
+        g.beginFill(0x0a2040, 0.5); g.drawRect(x, topY + 38, w, Math.min(30, h - 38)); g.endFill();
+        // Sandy ocean floor at the bottom
+        const floorH = this.H_OCEAN_FLOOR;
+        if (h > floorH + 10) {
+            g.beginFill(0x3a3228, 0.5); g.drawRect(x, topY + h - floorH - 5, w, 8); g.endFill();
+            g.beginFill(0x2a2218); g.drawRect(x, topY + h - floorH, w, floorH); g.endFill();
+        }
+        const r = this._seedRng(seed + 7777);
+        const coralCols = [0xff6b6b, 0xff9a76, 0xffd166, 0xa8e6cf, 0xf4845f, 0xf78ca0, 0x7ec8e3, 0xc5a3ff];
+        const coralBase = topY + h - floorH;
+        for (let cx = x + 20; cx < x + w - 20; cx += 30 + r() * 40) {
+            const cc = coralCols[Math.floor(r() * coralCols.length)];
+            const ch = 8 + r() * 18;
+            const cw = 6 + r() * 12;
+            const cy = coralBase - ch;
+            g.beginFill(cc, 0.5 + r() * 0.3);
+            if (r() > 0.5) {
+                g.drawEllipse(cx, cy + ch / 2, cw, ch / 2);
+            } else {
+                g.drawRect(cx, cy, cw * 0.3, ch);
+                g.drawRect(cx - cw * 0.3, cy + ch * 0.3, cw * 0.7, ch * 0.15);
+                g.drawRect(cx + cw * 0.2, cy + ch * 0.5, cw * 0.6, ch * 0.12);
+            }
+            g.endFill();
+        }
+        // Air bubbles
+        for (let bi = 0; bi < 12; bi++) {
+            const bx = x + 30 + r() * (w - 60);
+            const by = topY + 20 + r() * (h - 60);
+            g.beginFill(0x88ccff, 0.15 + r() * 0.15);
+            g.drawCircle(bx, by, 1 + r() * 3);
+            g.endFill();
+        }
+        // Light rays from surface
+        for (let ri = 0; ri < 4; ri++) {
+            const rx = x + 60 + ri * (w / 4);
+            g.beginFill(0x4488cc, 0.03);
+            g.moveTo(rx, topY); g.lineTo(rx - 20, topY + Math.min(170, h - 20)); g.lineTo(rx + 20, topY + Math.min(170, h - 20));
+            g.closePath(); g.endFill();
+        }
+    },
+
+    /* ─── Silo bunker (Billionaire's Row) — mirrors environment.js silo-zone block:
+       Dark concrete bunker walls + hazard stripes + 4 missile silo levels with warning LEDs.
+       Building sits in the middle; silo shafts flank it on both sides.
+       `opts.buildingX` + `opts.buildingW` define the building footprint inside the bunker;
+       if omitted we fill the whole span as bunker (no exclusion). ─── */
+    drawSiloBunker(g, x, topY, w, h, seed, opts) {
+        const bx = (opts && typeof opts.buildingX === 'number') ? opts.buildingX : -1;
+        const bw = (opts && typeof opts.buildingW === 'number') ? opts.buildingW : 0;
+        const hasBuilding = bx >= 0 && bw > 0;
+        // Dark bunker void across full span
+        g.beginFill(0x0a0a0f); g.drawRect(x, topY, w, h); g.endFill();
+        // Helper: paint bunker walls inside a horizontal segment [sx, sxEnd]
+        const paintSegment = (sx, sxEnd) => {
+            const segW = sxEnd - sx;
+            if (segW < 12) return;
+            // Concrete wall
+            g.beginFill(0x1e293b); g.drawRect(sx + 6, topY + 6, segW - 12, h - 12); g.endFill();
+            // Hazard stripe (yellow) at top
+            g.beginFill(0xfacc15); g.drawRect(sx + 6, topY + 6, segW - 12, 5); g.endFill();
+            // Black hazard triangles
+            g.beginFill(0x000000);
+            for (let hx = sx + 6; hx < sxEnd - 12; hx += 14) {
+                g.drawPolygon([hx, topY + 6, hx + 7, topY + 6, hx + 2, topY + 11, hx - 5, topY + 11]);
+            }
+            g.endFill();
+            // 4 missile silo levels
+            for (let levelI = 0; levelI < 4; levelI++) {
+                const lvY = topY + 30 + levelI * 55;
+                if (lvY > topY + h - 10) break;
+                g.beginFill(0x334155); g.drawRect(sx + 6, lvY, segW - 12, 3); g.endFill();
+                // Warning LEDs every 30px
+                for (let lx = sx + 20; lx < sxEnd - 20; lx += 30) {
+                    g.beginFill(0x10b981); g.drawCircle(lx, lvY - 6, 1.5); g.endFill();
+                }
+            }
+        };
+        if (hasBuilding) {
+            paintSegment(x, bx);
+            paintSegment(bx + bw, x + w);
+        } else {
+            paintSegment(x, x + w);
         }
     },
 
@@ -257,7 +420,9 @@ const Underground = {
             container,
             update() {
                 if (typeof Entities === 'undefined') return;
+                if (!container || container.destroyed) return;
                 sprites.forEach(({ s, key, passengerGfx }) => {
+                    if (!s || s.destroyed) return;
                     const t = Entities[key];
                     if (!t || typeof t.x !== 'number') { s.visible = false; return; }
                     const dx = t.x - sliceLeft;

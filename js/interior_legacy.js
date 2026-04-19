@@ -162,28 +162,28 @@ const InteriorLegacy = {
             }
         }
 
-        // ─── VOID + DATA CABLES ───
+        // ─── BELOW-BASEMENT STACK (city profile) ───
         const basementBottom = roofH + (numFloors + 1) * floorH;
+        const undergroundY = basementBottom + 6;
+        const undergroundH = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH : 238;
         const vm = new PIXI.Graphics();
         vm.beginFill(0x1a1810); vm.drawRect(0, basementBottom - 4, G.vpW, 10); vm.endFill();
-        vm.beginFill(0x050508); vm.drawRect(0, basementBottom + 6, G.vpW, 3000); vm.endFill();
-        const cableColors = [0xc9a84c, 0x8b6e3a, 0x6a5a2e, 0xd4b45a, 0xa08040];
-        for (let cy = basementBottom + 20; cy < basementBottom + 120; cy += 6) {
-            const col = cableColors[Math.floor(Math.random() * cableColors.length)];
-            const thick = 1 + Math.random() * 2;
-            vm.beginFill(col, 0.10 + Math.random() * 0.15);
-            vm.drawRect(0, cy + Math.random() * 3, G.vpW, thick);
-            vm.endFill();
-        }
-        for (let px = 80; px < G.vpW; px += 150) {
-            vm.beginFill(0x111115); vm.drawRect(px, basementBottom + 6, 20, 100); vm.endFill();
-        }
+        vm.beginFill(0x050508); vm.drawRect(0, undergroundY + undergroundH, G.vpW, 3000); vm.endFill();
         this.scene.addChild(vm);
+        if (typeof Underground !== 'undefined') {
+            const ug = new PIXI.Graphics();
+            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'city', (bld.x | 0));
+            this.scene.addChild(ug);
+            if (this._liveTrains) this._liveTrains.destroy();
+            this._liveTrains = Underground.attachLiveTrains(
+                this.scene, bld.x + bld.w / 2, 0,
+                undergroundY + Underground.H_CABLE_TRAY, G.vpW, 1200);
+        }
 
         // ─── POSITION & SCROLL ───
         const bp = 56, initY = G.vpH-bp-this.totalH+floorH;
         this.scene.y = initY;
-        this.minY = Math.min(initY - floorH * 3, G.vpH - bp - this.totalH - floorH);
+        this.minY = Math.min(initY - floorH * 3, G.vpH - bp - this.totalH - undergroundH - 6);
         this.maxY = Math.max(initY + floorH * 3, G.vpH - bp);
         this._noYScroll = false;
 
@@ -610,6 +610,8 @@ const InteriorLegacy = {
         this.indoorLights.forEach(l=>{if(!l.g||l.g.destroyed)return;if(l.type==='blink')l.g.alpha=l.maxA*(0.5+Math.sin(G.tick*0.05+Math.random()*0.1)*0.5);else if(l.type==='screen')l.g.alpha=l.maxA*(0.7+Math.sin(G.tick*0.02)*0.3);});
         // Elevator
         if(this.bld&&this.lifts[this.bld.id])this.lifts[this.bld.id].update();
+        // Live trains visible in basement tunnel slice
+        if (this._liveTrains) this._liveTrains.update();
         // NPC + visitor wandering with walk animation
         this.avatars.forEach(av=>{if(!av.cont||av.cont.destroyed)return;
             av._walkTimer=(av._walkTimer||0)-1;if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;}const nx=av.cont.x+av._walkDir*0.3;if(nx>av._minX&&nx<av._maxX)av.cont.x=nx;

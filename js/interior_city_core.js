@@ -1799,204 +1799,59 @@ const InteriorCity = {
     _drawZoneUnderground(scene, bld, startX, bldW, surfaceY, belowY, floorH) {
         const vpW = G.vpW;
         const zone = this._determineZone(bld);
+        const profile = this._zoneProfile(zone);
+        const seed = (bld && bld.x | 0) || 0;
         const g = new PIXI.Graphics();
 
-        // ─── PORT ZONE: Deep ocean below basement ───
-        if (zone === 'port') {
-            // Deep ocean fill
-            g.beginFill(0x061220); g.drawRect(0, surfaceY, vpW, floorH + 300); g.endFill();
-            g.beginFill(0x081830, 0.8); g.drawRect(0, surfaceY, vpW, 40); g.endFill();
-            g.beginFill(0x0a2040, 0.5); g.drawRect(0, surfaceY + 40, vpW, 30); g.endFill();
-            // Sandy sea floor way down
-            g.beginFill(0x2a2218); g.drawRect(0, belowY + 120, vpW, 20); g.endFill();
-            g.beginFill(0x3a3228, 0.5); g.drawRect(0, belowY + 115, vpW, 5); g.endFill();
-            // Coral patches flanking the building
-            const coralCols = [0xff6b6b, 0xff9a76, 0xffd166, 0xa8e6cf, 0xf4845f, 0xf78ca0];
-            let coralSeed = (bld.x || 0) + 77;
-            const cr = () => { coralSeed = (coralSeed * 16807) % 2147483647; return (coralSeed - 1) / 2147483646; };
-            for (let cx = 10; cx < startX - 10; cx += 20 + cr() * 30) {
-                g.beginFill(coralCols[Math.floor(cr() * coralCols.length)], 0.5);
-                g.drawEllipse(cx, belowY + 110, 4 + cr() * 6, 4 + cr() * 4);
-                g.endFill();
-            }
-            for (let cx = startX + bldW + 10; cx < vpW - 10; cx += 20 + cr() * 30) {
-                g.beginFill(coralCols[Math.floor(cr() * coralCols.length)], 0.5);
-                g.drawEllipse(cx, belowY + 110, 4 + cr() * 6, 4 + cr() * 4);
-                g.endFill();
-            }
-            // Air bubbles (static, decorative)
-            for (let bi = 0; bi < 16; bi++) {
-                const bx = cr() * vpW;
-                const by = surfaceY + cr() * 180;
-                g.beginFill(0x88ccff, 0.2); g.drawCircle(bx, by, 1 + cr() * 2); g.endFill();
-            }
-            // Light rays from above
-            for (let ri = 0; ri < 3; ri++) {
-                const rx = 80 + ri * (vpW / 3);
-                g.beginFill(0x4488cc, 0.04);
-                g.moveTo(rx, surfaceY); g.lineTo(rx - 20, surfaceY + 180); g.lineTo(rx + 20, surfaceY + 180);
-                g.closePath(); g.endFill();
-            }
-            scene.addChild(g);
-            return;
+        // ─── Earth walls flanking the building at basement depth (visual continuity) ───
+        // Skip for port (ocean replaces it) and silo (bunker replaces it).
+        if (zone !== 'port' && zone !== 'silo') {
+            const earthCol = (zone === 'east_rock') ? 0x2a1a10 : 0x2a2218;
+            const topsoilCol = (zone === 'east_rock') ? 0x3a2218 : 0x3a3020;
+            g.beginFill(earthCol); g.drawRect(0, surfaceY, startX - 2, floorH); g.endFill();
+            g.beginFill(earthCol); g.drawRect(startX + bldW + 2, surfaceY, vpW - startX - bldW - 2, floorH); g.endFill();
+            g.beginFill(topsoilCol); g.drawRect(0, surfaceY, startX - 2, 6); g.endFill();
+            g.beginFill(topsoilCol); g.drawRect(startX + bldW + 2, surfaceY, vpW - startX - bldW - 2, 6); g.endFill();
+            // Grass strip at surface level
+            g.beginFill(0x2d5a3f); g.drawRect(0, surfaceY - 4, startX - 2, 4); g.endFill();
+            g.beginFill(0x2d5a3f); g.drawRect(startX + bldW + 2, surfaceY - 4, vpW - startX - bldW - 2, 4); g.endFill();
+            // Foundation strip just below the basement floor
+            g.beginFill(0x1a1810); g.drawRect(0, belowY - 4, vpW, 10); g.endFill();
         }
 
-        // ─── SILO ZONE (Billionaire's Row houses) — Secure silo bunkers ───
-        if (zone === 'silo') {
-            // Dark bunker void outside the building
-            g.beginFill(0x0a0a0f); g.drawRect(0, surfaceY, startX, floorH + 240); g.endFill();
-            g.beginFill(0x0a0a0f); g.drawRect(startX + bldW, surfaceY, vpW - startX - bldW, floorH + 240); g.endFill();
-            // Bunker concrete walls
-            g.beginFill(0x1e293b); g.drawRect(6, surfaceY + 6, startX - 12, floorH + 228); g.endFill();
-            g.beginFill(0x1e293b); g.drawRect(startX + bldW + 6, surfaceY + 6, vpW - startX - bldW - 12, floorH + 228); g.endFill();
-            // Hazard stripe top
-            g.beginFill(0xfacc15); g.drawRect(6, surfaceY + 6, startX - 12, 5); g.endFill();
-            g.beginFill(0xfacc15); g.drawRect(startX + bldW + 6, surfaceY + 6, vpW - startX - bldW - 12, 5); g.endFill();
-            g.beginFill(0x000000);
-            for (let hx = 6; hx < startX - 12; hx += 14) { g.drawPolygon([hx, surfaceY+6, hx+7, surfaceY+6, hx+2, surfaceY+11, hx-5, surfaceY+11]); }
-            for (let hx = startX + bldW + 6; hx < vpW - 6; hx += 14) { g.drawPolygon([hx, surfaceY+6, hx+7, surfaceY+6, hx+2, surfaceY+11, hx-5, surfaceY+11]); }
-            g.endFill();
-            // Missile silo shafts in the flanking areas
-            for (let levelI = 0; levelI < 4; levelI++) {
-                const lvY = surfaceY + 30 + levelI * 55;
-                g.beginFill(0x334155); g.drawRect(6, lvY, startX - 12, 3); g.endFill();
-                g.beginFill(0x334155); g.drawRect(startX + bldW + 6, lvY, vpW - startX - bldW - 12, 3); g.endFill();
-                // Warning LEDs
-                for (let lx = 20; lx < startX - 20; lx += 30) {
-                    g.beginFill(0x10b981); g.drawCircle(lx, lvY - 6, 1.5); g.endFill();
-                }
-                for (let lx = startX + bldW + 20; lx < vpW - 20; lx += 30) {
-                    g.beginFill(0x10b981); g.drawCircle(lx, lvY - 6, 1.5); g.endFill();
-                }
-            }
-            scene.addChild(g);
-            return;
+        // ─── Delegate to Underground module — single source of truth for the basement stack ───
+        if (typeof Underground !== 'undefined') {
+            const undergroundY = belowY + 6;
+            const profileDepth = Underground.depthOf(profile);
+            const totalDepth = Math.max(profileDepth + 60, 300); // pad with deep earth/void
+            Underground.drawBasementStack(g, 0, undergroundY, vpW, totalDepth, profile, seed,
+                profile === 'silo' ? { buildingX: startX, buildingW: bldW } : null);
+            // Deep void below everything we rendered
+            g.beginFill(0x050508); g.drawRect(0, undergroundY + totalDepth, vpW, 500); g.endFill();
         }
-
-        // ─── EAST ROCK (VC Row suburbs, Longevity, Robotics — past metro_longevity terminus) ───
-        // Solid rock/earth (no metro tunnel) matching environment.js:330-351
-        if (zone === 'east_rock') {
-            // Earth walls flanking the building at basement depth
-            g.beginFill(0x2a1a10); g.drawRect(0, surfaceY, startX, floorH); g.endFill();
-            g.beginFill(0x2a1a10); g.drawRect(startX + bldW, surfaceY, vpW - startX - bldW, floorH); g.endFill();
-            g.beginFill(0x3a2218); g.drawRect(0, surfaceY, startX, 6); g.endFill();
-            g.beginFill(0x3a2218); g.drawRect(startX + bldW, surfaceY, vpW - startX - bldW, 6); g.endFill();
-            // Grass trim at surface level
-            g.beginFill(0x2d5a3f); g.drawRect(0, surfaceY - 4, startX, 4); g.endFill();
-            g.beginFill(0x2d5a3f); g.drawRect(startX + bldW, surfaceY - 4, vpW - startX - bldW, 4); g.endFill();
-            // Deep rock fill below the basement
-            g.beginFill(0x2d1a11); g.drawRect(0, belowY, vpW, 300); g.endFill();
-            // Rock texture (seeded for stability)
-            let rockSeed = (bld.x || 0) + 99;
-            const rr = () => { rockSeed = (rockSeed * 16807) % 2147483647; return (rockSeed - 1) / 2147483646; };
-            for (let rx = 0; rx < vpW; rx += 12) {
-                for (let ry = belowY; ry < belowY + 280; ry += 12) {
-                    if (rr() > 0.4) {
-                        g.beginFill(rr() > 0.5 ? 0x3d261a : 0x1f100a, 0.8);
-                        g.drawRect(rx + rr() * 8, ry + rr() * 8, 2 + rr() * 4, 2 + rr() * 3);
-                        g.endFill();
-                    }
-                    if (rr() > 0.96) {
-                        // Gold/mineral vein flecks
-                        g.beginFill(rr() > 0.5 ? 0xb45309 : 0xfacc15, 0.6);
-                        g.drawRect(rx + rr() * 10, ry + rr() * 10, 1 + rr() * 2, 1);
-                        g.endFill();
-                    }
-                }
-            }
-            // Water pipe (shared city trunk, keeps running east)
-            g.beginFill(0x0369a1); g.drawRect(0, belowY + 100, vpW, 8); g.endFill();
-            g.beginFill(0x0284c7); g.drawRect(0, belowY + 102, vpW, 4); g.endFill();
-            // Sewer trunk
-            g.beginFill(0xb45309); g.drawRect(0, belowY + 115, vpW, 12); g.endFill();
-            g.beginFill(0xd97706); g.drawRect(0, belowY + 117, vpW, 8); g.endFill();
-            scene.addChild(g);
-            return;
-        }
-
-        // ─── DEFAULT: Full city stack (cables + tunnel + water + sewer + rock) ───
-        // Matches environment.js:284-367 — cable region, tunnel cavity, metro tunnel, pipes, rock.
-        // Earth walls flanking the building at basement depth
-        g.beginFill(0x2a2218); g.drawRect(0, surfaceY, startX - 2, floorH); g.endFill();
-        g.beginFill(0x2a2218); g.drawRect(startX + bldW + 2, surfaceY, vpW - startX - bldW - 2, floorH); g.endFill();
-        // Topsoil accent
-        g.beginFill(0x3a3020); g.drawRect(0, surfaceY, startX - 2, 6); g.endFill();
-        g.beginFill(0x3a3020); g.drawRect(startX + bldW + 2, surfaceY, vpW - startX - bldW - 2, 6); g.endFill();
-        // Grass strip at surface level
-        g.beginFill(0x2d5a3f); g.drawRect(0, surfaceY - 4, startX - 2, 4); g.endFill();
-        g.beginFill(0x2d5a3f); g.drawRect(startX + bldW + 2, surfaceY - 4, vpW - startX - bldW - 2, 4); g.endFill();
-
-        // Below the basement: the full fiber/tunnel/pipe stack
-        // Cable region (gy+35 to gy+65 in exterior world → first 30px below basement)
-        g.beginFill(0x0a0a0f); g.drawRect(0, belowY, vpW, 260); g.endFill();
-        // Colored fiber cables (25 lines)
-        const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
-        let cableSeed = (bld.x || 0) + 33;
-        const cr2 = () => { cableSeed = (cableSeed * 16807) % 2147483647; return (cableSeed - 1) / 2147483646; };
-        for (let ci = 0; ci < 20; ci++) {
-            const cy = belowY + 3 + cr2() * 28;
-            const col = cableCols[Math.floor(cr2() * cableCols.length)];
-            const alpha = 0.3 + cr2() * 0.5;
-            const thickness = 1 + cr2() * 1.5;
-            g.lineStyle(thickness, col, alpha);
-            g.moveTo(0, cy);
-            let curY = cy;
-            for (let cx = 0; cx < vpW; cx += 60) {
-                curY += (cr2() * 8 - 4);
-                if (curY < belowY + 3) curY = belowY + 3;
-                if (curY > belowY + 30) curY = belowY + 30;
-                g.lineTo(cx, curY);
-            }
-        }
-        g.lineStyle(0);
-        // Junction dots
-        for (let ji = 0; ji < 80; ji++) {
-            const jx = cr2() * vpW;
-            const jy = belowY + 3 + cr2() * 28;
-            g.beginFill(cableCols[Math.floor(cr2() * cableCols.length)], 0.5);
-            g.drawCircle(jx, jy, 1 + cr2() * 1);
-            g.endFill();
-        }
-
-        // Metro tunnel cavity (gy+70 to gy+170 exterior → belowY+30 to belowY+130)
-        // Leave mostly transparent to show depth; add a dark cavity fill with support pillars
-        g.beginFill(0x0a0a10, 0.85); g.drawRect(0, belowY + 30, vpW, 100); g.endFill();
-        // Support pillars every ~150px
-        for (let px = 40; px < vpW; px += 150) {
-            g.beginFill(0x1a1a24); g.drawRect(px, belowY + 35, 8, 90); g.endFill();
-            g.beginFill(0x2a2a3a); g.drawRect(px, belowY + 35, 2, 90); g.endFill();
-            // Red safety light
-            g.beginFill(0xef4444); g.drawCircle(px + 4, belowY + 50, 1.5); g.endFill();
-        }
-        // Metro tracks on tunnel floor
-        g.beginFill(0x2a2a3e); g.drawRect(0, belowY + 120, vpW, 10); g.endFill();
-        g.beginFill(0xfacc15); g.drawRect(0, belowY + 131, vpW, 1); g.endFill();
-        g.beginFill(0xd97706);
-        for (let tx = 0; tx < vpW; tx += 8) { g.drawRect(tx, belowY + 128, 4, 2); }
-        g.endFill();
-
-        // Deep earth / infrastructure layer (gy+170 down)
-        g.beginFill(0x0a0a0f); g.drawRect(0, belowY + 135, vpW, 30); g.endFill();
-
-        // Water pipe (gy+220 exterior → belowY + 180)
-        g.beginFill(0x0369a1); g.drawRect(0, belowY + 180, vpW, 8); g.endFill();
-        g.beginFill(0x0284c7); g.drawRect(0, belowY + 182, vpW, 4); g.endFill();
-
-        // Sewer trunk (gy+235 → belowY + 195)
-        g.beginFill(0xb45309); g.drawRect(0, belowY + 195, vpW, 12); g.endFill();
-        g.beginFill(0xd97706); g.drawRect(0, belowY + 197, vpW, 8); g.endFill();
-
-        // Junction boxes on utility trunks
-        for (let jx = 40; jx < vpW; jx += 180) {
-            g.beginFill(0x334155); g.drawRect(jx, belowY + 140, 12, 36); g.endFill();
-            g.beginFill(0x0ea5e9); g.drawRect(jx + 40, belowY + 183, 8, 10); g.endFill();
-            g.beginFill(0xf59e0b); g.drawRect(jx + 80, belowY + 198, 8, 14); g.endFill();
-        }
-
-        // Deep void fill
-        g.beginFill(0x050508); g.drawRect(0, belowY + 215, vpW, 500); g.endFill();
-
         scene.addChild(g);
+
+        // ─── Live trains overlay — only for profiles that have a metro tunnel ───
+        if (this._liveTrains) { try { this._liveTrains.destroy(); } catch (e) {} this._liveTrains = null; }
+        const profileCfg = (typeof Underground !== 'undefined') ? Underground._profile(profile) : null;
+        if (profileCfg && profileCfg.liveTrains && bld) {
+            const undergroundY = belowY + 6;
+            const tunnelTopY = undergroundY + Underground.H_CABLE_TRAY;
+            const buildingWorldX = bld.x + (bld.w || bldW) / 2;
+            this._liveTrains = Underground.attachLiveTrains(scene, buildingWorldX, 0, tunnelTopY, vpW, 1200);
+        }
+    },
+
+    // Map zone id → Underground profile key
+    _zoneProfile(zone) {
+        switch (zone) {
+            case 'port':       return 'port';
+            case 'silo':       return 'silo';
+            case 'east_rock':  return 'east_rock';
+            case 'backbone':   return 'backbone';
+            case 'agents':     return 'agents';
+            default:           return 'city';
+        }
     },
 
     // Determine which underground zone this building belongs to based on its id/type
@@ -2004,6 +1859,8 @@ const InteriorCity = {
         if (!bld) return 'default';
         if (bld.id && bld.id.startsWith('port_')) return 'port';
         if (bld.id && bld.id.startsWith('house_')) return 'silo';
+        if (bld.id && bld.id.startsWith('backbone_')) return 'backbone';
+        if (bld.id && bld.id.startsWith('agents_')) return 'agents';
         if (bld.type === 'vcrow') return 'east_rock';
         if (bld.id && bld.id.startsWith('suburb_')) return 'east_rock';
         if (bld.type === 'longevity') return 'east_rock';
@@ -2026,9 +1883,11 @@ const InteriorCity = {
 
     update() {
         if (!this.layer || !this.layer.visible) return;
-        
+
         if (this.updateLifts) this.updateLifts();
-        
+        // Live trains visible in basement tunnel slice (city/agents profiles)
+        if (this._liveTrains) this._liveTrains.update();
+
         const dp = G.getDayPhase();
         const night = dp > .83 || dp < .25;
         const vp = document.getElementById('viewport'); 

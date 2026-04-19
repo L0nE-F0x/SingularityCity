@@ -120,20 +120,23 @@ const InteriorBar = {
         earth.beginFill(0x2d5a3f); earth.drawRect(startX + bldW + 6, groundY - 4, G.vpW - startX - bldW - 6, 4); earth.endFill();
         this.scene.addChild(earth);
         
-        // ─── DATA CABLES + VOID (below basement) ───
-        const vmY = roofH + (numFloors + 1) * floorH;
-        const vm = new PIXI.Graphics();
-        vm.beginFill(0x1a1810); vm.drawRect(0, vmY - 4, G.vpW, 10); vm.endFill();
-        vm.beginFill(0x050508); vm.drawRect(0, vmY + 6, G.vpW, 3000); vm.endFill();
-        const cableColors = [0xef4444, 0x22d3ee, 0x4ade80, 0xfbbf24, 0xa855f7, 0xf97316, 0x06b6d4, 0xe879f9];
-        for (let cy = vmY + 20; cy < vmY + 120; cy += 6) {
-            const col = cableColors[Math.floor(Math.random() * cableColors.length)];
-            vm.beginFill(col, 0.15 + Math.random() * 0.25);
-            vm.drawRect(0, cy + Math.random() * 3, G.vpW, 1 + Math.random() * 2); vm.endFill();
+        // ─── BELOW-BASEMENT STACK (city profile) ───
+        const basementBottom = roofH + (numFloors + 1) * floorH;
+        const undergroundY = basementBottom + 6;
+        const undergroundH = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH : 238;
+        const voidMask = new PIXI.Graphics();
+        voidMask.beginFill(0x1a1810); voidMask.drawRect(0, basementBottom - 4, G.vpW, 10); voidMask.endFill();
+        voidMask.beginFill(0x050508); voidMask.drawRect(0, undergroundY + undergroundH, G.vpW, 3000); voidMask.endFill();
+        this.scene.addChild(voidMask);
+        if (typeof Underground !== 'undefined') {
+            const ug = new PIXI.Graphics();
+            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'city', (bld.x | 0));
+            this.scene.addChild(ug);
+            if (this._liveTrains) this._liveTrains.destroy();
+            this._liveTrains = Underground.attachLiveTrains(
+                this.scene, bld.x + bld.w / 2, 0,
+                undergroundY + Underground.H_CABLE_TRAY, G.vpW, 1200);
         }
-        for (let px = 80; px < G.vpW; px += 150) { vm.beginFill(0x111115); vm.drawRect(px, vmY + 6, 20, 100); vm.endFill(); }
-        for (let lx = 90; lx < G.vpW; lx += 150) { vm.beginFill(0xef4444); vm.drawCircle(lx, vmY + 25, 2); vm.endFill(); }
-        this.scene.addChild(vm);
         
         // ─── VISITOR AVATARS — proper drawAvatar matching exterior appearance ───
         const visitingModels = G.models.filter(m => {
@@ -208,7 +211,8 @@ const InteriorBar = {
 
         // Position
         const bp = 56; this.scene.y = G.vpH - bp - this.totalH + floorH;
-        this.minY = this.scene.y - floorH * 3; this.maxY = this.scene.y + floorH * 3;
+        this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - bp - this.totalH - undergroundH - 6);
+        this.maxY = this.scene.y + floorH * 3;
         
         // Drag scroll
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
@@ -624,6 +628,8 @@ const InteriorBar = {
             else { let dayP = (dp - 0.25) / (0.83 - 0.25); this.celestialGfx.beginFill(0xffe066); this.celestialGfx.drawCircle(G.vpW * dayP, 40 + Math.sin(dayP * Math.PI) * 120, 15); this.celestialGfx.endFill(); }
         }
         if (this.starsLayer) { this.starsLayer.visible = night; if (night) this.starsLayer.children.forEach(s => { s.alpha = .15 + Math.abs(Math.sin(G.tick * .03 + s._phase)) * .5; }); }
+        // Live trains visible in basement tunnel slice
+        if (this._liveTrains) this._liveTrains.update();
 
         // Neon + disco lights
         this.indoorLights.forEach(l => {

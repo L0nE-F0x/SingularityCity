@@ -130,16 +130,23 @@ const InteriorNPC = {
         earth.beginFill(0x2d5a3f); earth.drawRect(shaftX+shaftW, groundY-4, G.vpW-shaftX-shaftW, 4); earth.endFill();
         this.scene.addChild(earth);
         
-        // ─── DATA CABLES + VOID ───
-        const vmY = roofH + (numFloors + 1) * floorH;
+        // ─── BELOW-BASEMENT STACK (city profile — full cable/tunnel/infra mirror) ───
+        const basementBottom = roofH + (numFloors + 1) * floorH;
+        const undergroundY = basementBottom + 6;
+        const undergroundH = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH : 238;
         const vm = new PIXI.Graphics();
-        vm.beginFill(0x1a1810); vm.drawRect(0, vmY-4, G.vpW, 10); vm.endFill();
-        vm.beginFill(0x050508); vm.drawRect(0, vmY+6, G.vpW, 3000); vm.endFill();
-        const cc = [0xef4444,0x22d3ee,0x4ade80,0xfbbf24,0xa855f7,0xf97316,0x06b6d4,0xe879f9];
-        for (let cy = vmY+20; cy < vmY+120; cy += 6) { vm.beginFill(cc[Math.floor(Math.random()*cc.length)], 0.15+Math.random()*0.25); vm.drawRect(0, cy+Math.random()*3, G.vpW, 1+Math.random()*2); vm.endFill(); }
-        for (let px = 80; px < G.vpW; px += 150) { vm.beginFill(0x111115); vm.drawRect(px, vmY+6, 20, 100); vm.endFill(); }
-        for (let lx = 90; lx < G.vpW; lx += 150) { vm.beginFill(0xef4444); vm.drawCircle(lx, vmY+25, 2); vm.endFill(); }
+        vm.beginFill(0x1a1810); vm.drawRect(0, basementBottom - 4, G.vpW, 10); vm.endFill();
+        vm.beginFill(0x050508); vm.drawRect(0, undergroundY + undergroundH, G.vpW, 3000); vm.endFill();
         this.scene.addChild(vm);
+        if (typeof Underground !== 'undefined') {
+            const ug = new PIXI.Graphics();
+            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'city', (bld.x | 0));
+            this.scene.addChild(ug);
+            if (this._liveTrains) this._liveTrains.destroy();
+            this._liveTrains = Underground.attachLiveTrains(
+                this.scene, bld.x + bld.w / 2, 0,
+                undergroundY + Underground.H_CABLE_TRAY, G.vpW, 1200);
+        }
         
         // ─── TRACKED NPC WALK-IN ANIMATION ───
         if (typeof G !== 'undefined' && G.tracking && G.tracking.type === 'npc') {
@@ -181,7 +188,9 @@ const InteriorNPC = {
 
         // Position & scroll
         const bp = 56; const initY = G.vpH-bp-this.totalH+floorH;
-        this.scene.y = initY; this.minY = initY - floorH*3; this.maxY = initY + floorH*3;
+        this.scene.y = initY;
+        this.minY = Math.min(initY - floorH*3, G.vpH - bp - this.totalH - undergroundH - 6);
+        this.maxY = initY + floorH*3;
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
         window.removeEventListener('pointermove', this._onMove); window.removeEventListener('pointerup', this._onUp);
         this.layer.on('pointerdown', (e) => { this.isDragging=true; this._startY=e.clientY; this._startSceneY=this.scene.y; this.layer.cursor='grabbing'; });
@@ -412,6 +421,7 @@ const InteriorNPC = {
         if(this.starsLayer){this.starsLayer.visible=night;if(night)this.starsLayer.children.forEach(s=>{s.alpha=.15+Math.abs(Math.sin(G.tick*.03+s._phase))*.5;});}
         this.indoorLights.forEach(l => { if(!l.g||l.g.destroyed) return; l.g.alpha = l.maxA*(0.7+Math.sin(G.tick*0.02)*0.3); });
         if (this.bld && this.lifts[this.bld.id]) this.lifts[this.bld.id].update();
+        if (this._liveTrains) this._liveTrains.update();
         this.avatars.forEach((av,ci) => { if(!av.cont||av.cont.destroyed) return; if(av._trackGlow){av._trackGlow.alpha=0.25+Math.sin(G.tick*0.1)*0.15;if(av._trackArrow)av._trackArrow.y=Math.sin(G.tick*0.15)*3-2;} if(av._isWalkIn){const dx=av._walkTarget-av.cont.x;if(Math.abs(dx)<av._walkSpeed){av.cont.x=av._walkTarget;av._isWalkIn=false;av._walkDir=0;av._walkTimer=60+Math.random()*120;av._minX=av._walkTarget-50;av._maxX=av._walkTarget+50;}else{av.cont.x+=Math.sign(dx)*av._walkSpeed;av.cont.scale.x=Math.sign(dx);if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5;if(av.legL)av.legL.y=Math.sin(G.tick*0.25+ci)*4;if(av.legR)av.legR.y=-Math.sin(G.tick*0.25+ci)*4;}return;} if(av._isZzz){const t=G.tick*0.04+av._phase;av._z1.y=Math.sin(t)*3;av._z1.alpha=0.5+Math.sin(t)*0.3;av._z2.y=-8+Math.sin(t+1)*3;av._z2.alpha=0.3+Math.sin(t+1)*0.25;av._z3.y=-18+Math.sin(t+2)*3;av._z3.alpha=0.15+Math.sin(t+2)*0.2;return;} av._walkTimer--; if(av._walkTimer<=0){av._walkDir=(Math.random()>0.5)?1:-1;av._walkTimer=60+Math.random()*120;} const nx=av.cont.x+av._walkDir*0.3; if(nx>av._minX&&nx<av._maxX)av.cont.x=nx; if(av.head)av.head.y=-32+Math.sin(G.tick*0.15+av._phase)*1.5; if(av.legL)av.legL.y=Math.sin(G.tick*0.2+ci)*3; if(av.legR)av.legR.y=-Math.sin(G.tick*0.2+ci)*3; });
     }
 };
