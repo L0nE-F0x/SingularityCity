@@ -222,9 +222,9 @@ const Underground = {
         return {
             container,
             update() {
-                if (typeof G === 'undefined') return;
+                if (typeof Entities === 'undefined') return;
                 sprites.forEach(({ s, def }) => {
-                    const t = G[def.key];
+                    const t = Entities[def.key];
                     if (!t || typeof t.x !== 'number') { s.visible = false; return; }
                     const dx = t.x - sliceLeft;
                     if (dx < -80 || dx > viewSliceWorld + 80) { s.visible = false; return; }
