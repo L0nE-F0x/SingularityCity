@@ -29,7 +29,7 @@
 <meta name="screen-orientation" content="landscape">
 
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=388">
+<link rel="stylesheet" href="css/styles.css?v=389">
 
 <!-- ═══ GLOBAL ERROR HANDLER (catch crashes before they white-screen) ═══ -->
 <script>
@@ -141,10 +141,7 @@ html:not(.embed-mode) #embedBadge { display: none; }
 <div id="landing">
   <div class="land-bg"><div class="land-glow g1"></div><div class="land-glow g2"></div><div class="land-glow g3"></div><div id="landStars"></div><div class="land-skyline" id="landSkyline"></div></div>
   <div class="land-content">
-    <div class="land-emoji">🏙️</div>
-    <h1 class="land-title">SINGULARITY CITY</h1>
-    <p class="land-sub">The entire AI industry — alive in your browser.<br>
-    Every model is a citizen. Every lab is a district. Every benchmark, every launch, every price war — <span>happening in real time</span>.</p>
+    <img class="land-banner" src="banner.webp?v=390" alt="Singularity City — The entire AI industry, alive in your browser" width="1840" height="528">
     <div class="land-features">
       <div class="land-feat" data-tip="960+ AI citizens with daily routines"><span>🏢</span><b>Living City</b></div>
       <div class="land-feat" data-tip="17 real-world data centers &amp; chip fabs"><span>🖥️</span><b>Compute District</b></div>
@@ -187,7 +184,6 @@ html:not(.embed-mode) #embedBadge { display: none; }
       <button class="land-enter" onclick="enterCity()">▶ Enter Singularity City</button>
       <button class="land-how" onclick="document.getElementById('instrOv').classList.add('open')">❓ How It Works</button>
     </div>
-    <div class="land-footer"><span>🌍 Global Sync</span><span>🖥️ 17 Data Centers</span><span>🌌 3D Holomap</span><span>🚇 4 Metro Lines</span><span>📈 AI Index</span><span>🚀 Real Launches</span><span>🚢 Trade Port</span><span>⚡ Power Grid</span><span>💰 VC Deals</span><span>👥 Multiplayer</span><span>🧠 Personalities</span><span>🔊 Soundscape</span><span>🏠 NPC Workers</span><span>🍸 Neon Bar</span><span>🎓 University</span><span>🏛️ AI Court</span><span>📝 Conferences</span><span>🎄 Seasons</span><span>☄️ Aurora</span><span>🛰️ Orbit Mode</span><span>🤖 Robotics</span><span>🧬 Longevity</span><span>🤖 Agent District</span><span>🔬 X-Ray</span><span>📰 Weekly Paper</span><span>🎬 Auto-Tour</span><span>🖼️ Embeddable</span><span>🎯 Goal NPCs</span><span>🌳 City Park</span><span>🌦️ Dynamic Weather</span><span>🚚 Supply Chain</span><span>📄 Research</span><span>🕶️ Underground</span><span>👶 NPC Aging</span></div>
     <div id="mobileWarning" style="display:none;margin-top:12px;padding:8px 14px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:6px;font-size:10px;color:#fbbf24;line-height:1.5">
       📱 <b>Mobile detected.</b> Touch controls: swipe to pan, pinch to zoom, tap for profiles.
     </div>

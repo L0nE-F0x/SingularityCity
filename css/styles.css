@@ -66,11 +66,20 @@ h1, h2, h3, p { margin: 0; }
 .land-skyline { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; align-items: flex-end; opacity: 0.4; }
 .land-bld { background: linear-gradient(to top, var(--bd), transparent); margin-right: 2px; }
 
-.land-content { position: relative; z-index: 2; text-align: center; max-width: 780px; width: 94vw; padding: clamp(12px, 2vh, 20px) clamp(12px, 2vw, 20px); flex-shrink: 0; margin: auto 0; }
-.land-emoji { font-size: clamp(28px, 5vh, 50px); margin-bottom: clamp(8px, 1.5vh, 16px); animation: float 4s ease-in-out infinite; }
+.land-content { position: relative; z-index: 2; text-align: center; max-width: 960px; width: 94vw; padding: clamp(12px, 2vh, 20px) clamp(12px, 2vw, 20px); flex-shrink: 0; margin: auto 0; }
+.land-banner {
+    display: block;
+    width: 100%;
+    max-width: 920px;
+    height: auto;
+    margin: 0 auto clamp(12px, 2vh, 20px);
+    border-radius: 10px;
+    box-shadow: 0 8px 40px rgba(34,211,238,0.18), 0 0 0 1px rgba(255,255,255,0.06);
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 
-.land-title { font-family: 'Silkscreen', sans-serif; font-size: clamp(22px, 4.5vw, 42px); margin-bottom: clamp(8px, 1.5vh, 16px); color: #fff; text-shadow: 0 0 20px rgba(34,211,238,0.4); letter-spacing: 2px; }
 .land-sub { font-size: clamp(11px, 1.4vw, 14px); color: var(--t2); line-height: 1.7; margin-bottom: clamp(16px, 3vh, 28px); }
 .land-sub span { color: var(--ac); font-weight: bold; }
 
@@ -139,7 +148,6 @@ h1, h2, h3, p { margin: 0; }
 .land-how { background: transparent; color: var(--t1); border: 1px solid var(--bd); padding: clamp(10px, 1.5vh, 14px) clamp(18px, 3vw, 28px); font-family: 'JetBrains Mono', monospace; font-size: clamp(11px, 1.3vw, 14px); border-radius: 4px; cursor: pointer; transition: all 0.2s; }
 .land-how:hover { border-color: var(--t2); background: rgba(255,255,255,0.05); }
 
-.land-footer { display: flex; gap: clamp(6px, 1vw, 14px); justify-content: center; flex-wrap: wrap; font-size: clamp(7px, 0.85vw, 9px); color: var(--t3); padding-bottom: 12px; }
 
 /* ─── GAME WRAPPER & TRANSITIONS ─── */
 #gameWrap { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity 0.5s ease, background-color 0.8s ease; }
@@ -606,7 +614,6 @@ h1, h2, h3, p { margin: 0; }
   .land-feat { padding: 4px 6px; font-size: 8px; }
   .land-feat span { font-size: 11px; }
   .land-feat b { font-size: 8px; }
-  .land-footer { gap: 6px; font-size: 7px; }
 
   .logo h1 { display: none; }
   .nfo { flex-wrap: wrap; justify-content: center; font-size: 9px; padding: 4px 8px; }
