@@ -174,15 +174,25 @@ const API = {
         try {
             const { data, error } = await this.supabase.from('models').select('*');
             if (error) throw error;
-            
+
             if (data && data.length > 0) {
+                // Fuzzy name norm matches the one used by ZeroEval/OpenRouter/scan dedup —
+                // strips 6+ digit date codes (so "claude-opus-4-7-20251103" collapses onto
+                // "claude-opus-4-7") while preserving the "47" version digits.
+                const fuzzyNorm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\d{6,}/g, '');
                 const existingMap = new Map(G.models.map(m => [m.id, m]));
-                let added = 0;
-                
+                // Name-based lookup: prevents two Supabase rows with different IDs but the
+                // same display name (e.g. scan wrote "claude-opus-4-7", OpenRouter wrote
+                // "anthropic_claude-opus-4-7") from both spawning citizens on reload.
+                const existingByName = new Map();
+                G.models.forEach(m => { const k = fuzzyNorm(m.name); if (k) existingByName.set(k, m); });
+                let added = 0, dupeSkipped = 0;
+
                 // Build verification registry before processing cloud models
                 if (!this._verifiedModelNames) this._buildVerifiedRegistry();
                 const rejectIds = [];
                 const rejectNames = [];
+                if (!this._pendingNameDupes) this._pendingNameDupes = [];
 
                 data.forEach(m => {
                     // Verify cloud models too — purge hallucinated data from DB
@@ -213,17 +223,33 @@ const API = {
                     // PASS REGION INTO ENGINE DYNAMICALLY
                     m.lab = G.ensureLabExists(m.lab, m.region);
 
-                    if (!existingMap.has(m.id)) {
-                        G.models.push(m);
-                        if (typeof Entities !== 'undefined') Entities.createChar(m);
-                        added++;
-                    } else {
+                    if (existingMap.has(m.id)) {
                         Object.assign(existingMap.get(m.id), m);
+                        return;
                     }
+
+                    // Name collision: a different row already covers this model. Skip the
+                    // extra entry so we don't spawn two citizens for the same model, and
+                    // queue the losing row ID for dedupeModels() to clean up in Supabase.
+                    const nameKey = fuzzyNorm(m.name);
+                    if (nameKey && existingByName.has(nameKey)) {
+                        this._pendingNameDupes.push(m.id);
+                        dupeSkipped++;
+                        return;
+                    }
+
+                    G.models.push(m);
+                    if (typeof Entities !== 'undefined') Entities.createChar(m);
+                    existingMap.set(m.id, m);
+                    if (nameKey) existingByName.set(nameKey, m);
+                    added++;
                 });
                 
                 if (added > 0) {
                     if (typeof UI !== 'undefined') UI.addLog(`☁️ Synced ${added} models from global database.`);
+                }
+                if (dupeSkipped > 0) {
+                    console.warn(`🔀 [Cloud] Skipped ${dupeSkipped} duplicate-name rows on load — dedupeModels() will reconcile Supabase.`);
                 }
                 // Log rejected models but DO NOT auto-delete from Supabase here.
                 // Cloud cleanup is handled by purgeHallucinations() which runs after
@@ -2540,9 +2566,9 @@ JSON (no markdown):
         if (G.models.length >= 100) G.unlockAchieve('hundred_models');
         if (new Set(G.models.map(m => m.lab)).size >= 7) G.unlockAchieve('all_labs');
         
-        G.save(); 
+        G.save();
         G.evolveCity();
-        
+
         await stockPromise;
 
         // ─── LIVE DATA REFRESH: Piggyback on scan to update all live feeds ───
@@ -2554,6 +2580,12 @@ JSON (no markdown):
             this.fetchAIEvents(),
             this.fetchNewDataCenters()
         ]);
+
+        // Collapse any same-name duplicates introduced by this scan (rare, but the
+        // scan can produce a new ID for a model OpenRouter/ZeroEval already seeded).
+        if (typeof this.dedupeModels === 'function') {
+            try { await this.dedupeModels(); } catch (e) { console.warn('[Scan] Dedupe failed:', e); }
+        }
 
       } catch(e) {
         console.error(`⛔ [SCAN] FATAL ERROR:`, e.message);
@@ -2669,6 +2701,130 @@ JSON (no markdown):
         } catch (e) {
             console.error('🧹 [Purge] Error:', e);
         }
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    //   NAME-BASED DEDUPE — Collapse entries that represent the same
+    //   real-world model but were written under different IDs by
+    //   separate sources (LLM scan vs OpenRouter vs ZeroEval, etc.).
+    //   Runs locally on G.models AND reconciles Supabase.
+    //   Call via console: API.dedupeModels()
+    // ═══════════════════════════════════════════════════════════════
+    async dedupeModels() {
+        const fuzzyNorm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/\d{6,}/g, '');
+
+        // Source trust ranking — trusted sources survive ID collisions against scan output.
+        const sourceRank = { zeroeval: 5, huggingface: 4, openrouter: 3, llm_scan: 2 };
+
+        const scoreModel = (m) => {
+            let s = sourceRank[m._src] || 1;
+            if (m.phase === 'released') s += 10;
+            else if (m.phase === 'rumored' || m.phase === 'baby' || m.phase === 'kid') s -= 2;
+            if (!m.ret) s += 3;
+            if (m.benchmarks && Object.keys(m.benchmarks).length > 0) s += 3;
+            if (window.BM && window.BM[m.id] && Object.keys(window.BM[m.id]).length > 0) s += 3;
+            if (m.cost_input != null && m.cost_out != null && (m.cost_input > 0 || m.cost_out > 0)) s += 2;
+            if (m.ctx) s += 1;
+            if (m.rel || m.released) s += 1;
+            return s;
+        };
+
+        // Group local models by normalized display name.
+        const groups = new Map();
+        for (const m of G.models) {
+            if (!m.name) continue;
+            const key = fuzzyNorm(m.name);
+            if (!key) continue;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(m);
+        }
+
+        const toRemoveIds = [];
+        let mergedCount = 0;
+
+        for (const [, group] of groups) {
+            if (group.length < 2) continue;
+
+            group.sort((a, b) => scoreModel(b) - scoreModel(a));
+            const winner = group[0];
+            const losers = group.slice(1);
+
+            for (const loser of losers) {
+                if (!winner.rel && loser.rel) winner.rel = loser.rel;
+                if (!winner.released && loser.released) winner.released = loser.released;
+                if (!winner.ctx && loser.ctx) winner.ctx = loser.ctx;
+                if ((winner.cost_input == null || winner.cost_input === 0) && loser.cost_input) {
+                    winner.cost_input = loser.cost_input;
+                    winner.cost_out = loser.cost_out;
+                }
+                if (loser.benchmarks) {
+                    if (!winner.benchmarks) winner.benchmarks = {};
+                    for (const [k, v] of Object.entries(loser.benchmarks)) {
+                        if (!winner.benchmarks[k] || v > winner.benchmarks[k]) winner.benchmarks[k] = v;
+                    }
+                }
+                if (window.BM && window.BM[loser.id]) {
+                    if (!window.BM[winner.id]) window.BM[winner.id] = {};
+                    for (const [k, v] of Object.entries(window.BM[loser.id])) {
+                        if (!window.BM[winner.id][k] || v > window.BM[winner.id][k]) window.BM[winner.id][k] = v;
+                    }
+                    delete window.BM[loser.id];
+                }
+                if (window.COSTS && window.COSTS[loser.id]) {
+                    if (!window.COSTS[winner.id]) window.COSTS[winner.id] = window.COSTS[loser.id];
+                    delete window.COSTS[loser.id];
+                }
+                if (window.CTX && window.CTX[loser.id]) {
+                    if (!window.CTX[winner.id]) window.CTX[winner.id] = window.CTX[loser.id];
+                    delete window.CTX[loser.id];
+                }
+
+                // Kill the duplicate citizen's sprite
+                if (typeof Entities !== 'undefined' && G.charRefs && G.charRefs[loser.id]) {
+                    const refs = G.charRefs[loser.id];
+                    if (refs.c && refs.c.parent) refs.c.parent.removeChild(refs.c);
+                    delete G.charRefs[loser.id];
+                }
+
+                toRemoveIds.push(loser.id);
+                mergedCount++;
+            }
+        }
+
+        // Also fold in any rows that fetchCloudModels skipped as name-duplicates on load.
+        if (Array.isArray(this._pendingNameDupes) && this._pendingNameDupes.length > 0) {
+            for (const id of this._pendingNameDupes) {
+                if (!toRemoveIds.includes(id)) toRemoveIds.push(id);
+            }
+            this._pendingNameDupes = [];
+        }
+
+        if (toRemoveIds.length === 0) return;
+
+        const removeSet = new Set(toRemoveIds);
+        G.models = G.models.filter(m => !removeSet.has(m.id));
+
+        // Reconcile Supabase in batches of 50.
+        if (this.supabase) {
+            for (let i = 0; i < toRemoveIds.length; i += 50) {
+                const batch = toRemoveIds.slice(i, i + 50);
+                try {
+                    const { error: delErr } = await this.supabase.from('models').delete().in('id', batch);
+                    if (delErr) console.error('[Dedupe] Batch delete error:', delErr);
+                } catch (e) {
+                    console.error('[Dedupe] Delete failed:', e);
+                }
+            }
+        }
+
+        console.log(`🔀 [Dedupe] Merged ${mergedCount} duplicate model entries. Removed IDs:`, toRemoveIds);
+        if (typeof UI !== 'undefined') {
+            UI.addLog(`🔀 Dedupe: collapsed ${mergedCount} duplicate model entries`);
+            if (mergedCount > 0) UI.addToast(`🔀 Merged ${mergedCount} duplicate citizen${mergedCount > 1 ? 's' : ''}!`);
+        }
+
+        G.save();
+        G.evolveCity();
     },
 
     async syncBuildingPositions() {

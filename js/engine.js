@@ -1607,6 +1607,22 @@ const G = {
           }, 30 * 60 * 1000);
       }
 
+      // ─── AUTO-DEDUPE: Collapse same-name models written under different IDs by
+      // separate sources (LLM scan vs OpenRouter vs ZeroEval). Runs AFTER purge so
+      // we don't dedupe against rows that are about to be deleted anyway.
+      if (typeof API !== 'undefined') {
+          setTimeout(() => {
+              if (typeof API.dedupeModels === 'function') {
+                  API.dedupeModels();
+              }
+          }, 20000);
+          setInterval(() => {
+              if (typeof API.dedupeModels === 'function') {
+                  API.dedupeModels();
+              }
+          }, 30 * 60 * 1000);
+      }
+
       // ─── LIVE DATA: VC Funding, Supply Chain, Regulation News, arXiv Papers, RSS Deals ───
       if (typeof API !== 'undefined') {
           setTimeout(() => API.fetchVCFunding(), 10000);
