@@ -558,6 +558,25 @@ const UI = {
         }
         html += `</div>`;
       }
+      // ─── ALIGNMENT INSTITUTE panel — safety research brief ───
+      else if (b.type === 'alignment') {
+        const shieldCol = (typeof b.shield === 'number') ? ('#' + b.shield.toString(16).padStart(6, '0')) : col;
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:8px;color:${shieldCol};letter-spacing:1px">🛡️ SAFETY RESEARCH BRIEF</div>`;
+        if (b.focus)    html += `<div>🎯 <b>Focus:</b> ${escapeHTML(b.focus)}</div>`;
+        if (b.lead)     html += `<div>👤 <b>Lead:</b> ${escapeHTML(b.lead)}</div>`;
+        if (b.location) html += `<div>📍 <b>Location:</b> ${escapeHTML(b.location)}</div>`;
+        if (b.founded)  html += `<div>📅 <b>Founded:</b> ${b.founded}</div>`;
+        if (Array.isArray(b.papers) && b.papers.length) {
+            html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)">`;
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${shieldCol}">📄 KEY PAPERS</div>`;
+            b.papers.forEach(p => {
+                html += `<div style="font-size:9px;padding:3px 0;color:var(--t2)">• ${escapeHTML(p)}</div>`;
+            });
+            html += `</div>`;
+        }
+        html += `</div>`;
+      }
       // ─── EMBASSY panel — AI policy brief for the country ───
       else if (b.type === 'embassy') {
         const accentCol = (typeof b.accent === 'number') ? ('#' + b.accent.toString(16).padStart(6, '0')) : col;

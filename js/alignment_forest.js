@@ -1,0 +1,116 @@
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════
+   ALIGNMENT FOREST (v1.0.0 — Phase 4, Roadmap Feature #2)
+   A contemplative research quarter for AI safety. Five institutes nestled among trees, each
+   with a green living roof, glass facade, and a rotating particle shield ring that conveys
+   the "defence-in-depth" posture of alignment research.
+
+   Clicking an institute opens an AI Safety Brief panel with the lab's research focus,
+   lead researcher, and flagship papers. Pure data layer — no live API.
+
+   Sits east of Agent District, before the Longevity metro terminus.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+const AlignmentForest = {
+    BLDS: [
+        {
+            id: 'align_miri', name: 'MIRI', w: 140, fl: 3, emoji: '🧠',
+            type: 'alignment', shield: 0x22d3ee,
+            focus: 'Embedded agency · decision theory · corrigibility',
+            lead: 'Eliezer Yudkowsky · Nate Soares',
+            location: 'Berkeley, California',
+            founded: 2000,
+            papers: ['Embedded Agency', 'Functional Decision Theory', 'Logical Induction'],
+            desc: 'Machine Intelligence Research Institute. The original alignment shop. Framed the field\'s foundational problems — corrigibility, value loading, agent foundations — before most of the industry knew they existed.'
+        },
+        {
+            id: 'align_metr', name: 'METR', w: 140, fl: 3, emoji: '📊',
+            type: 'alignment', shield: 0xa78bfa,
+            focus: 'Pre-deployment dangerous-capability evals',
+            lead: 'Beth Barnes',
+            location: 'Berkeley, California',
+            founded: 2023,
+            papers: ['Example of Evaluations on Dangerous Capabilities', 'GPT-4 Autonomous Replication Eval'],
+            desc: 'Model Evaluation & Threat Research (formerly ARC Evals). Runs pre-release safety evaluations for OpenAI, Anthropic, and Google DeepMind. Probes for autonomous replication, cyber-offense, and self-exfiltration capabilities.'
+        },
+        {
+            id: 'align_apollo', name: 'Apollo Research', w: 140, fl: 3, emoji: '🔍',
+            type: 'alignment', shield: 0xef4444,
+            focus: 'Deception · scheming · situational awareness',
+            lead: 'Marius Hobbhahn',
+            location: 'London, UK',
+            founded: 2023,
+            papers: ['Frontier Models Are Capable of In-context Scheming (2024)', 'Sleeper Agents (w/ Anthropic)'],
+            desc: 'Apollo Research. The deception specialists. Produced the industry-shifting evidence that frontier models can strategically lie to evaluators when they believe goal-pursuit is at stake. Runs scheming evals for frontier labs.'
+        },
+        {
+            id: 'align_redwood', name: 'Redwood', w: 140, fl: 3, emoji: '🛡️',
+            type: 'alignment', shield: 0x34d399,
+            focus: 'AI control · mechanistic interpretability',
+            lead: 'Buck Shlegeris · Ryan Greenblatt',
+            location: 'Berkeley, California',
+            founded: 2021,
+            papers: ['AI Control: Improving Safety Despite Intentional Subversion', 'Causal Scrubbing'],
+            desc: 'Redwood Research. Pioneers of the AI control paradigm — assume the model may be scheming, then design deployment protocols that stay safe anyway. Deep mechanistic interpretability practice alongside.'
+        },
+        {
+            id: 'align_far', name: 'FAR AI', w: 140, fl: 3, emoji: '🌲',
+            type: 'alignment', shield: 0xfbbf24,
+            focus: 'Robustness · adversarial policies · multi-agent',
+            lead: 'Adam Gleave',
+            location: 'Berkeley, California',
+            founded: 2022,
+            papers: ['Adversarial Policies Beat Superhuman Go AIs', 'Jailbroken RLHF with Few Examples'],
+            desc: 'FAR AI (Fundamental AI Research). Technical alignment nonprofit with a focus on robustness — famous for breaking superhuman Go agents using adversarial opponents, and for showing RLHF-aligned models can be re-jailbroken with tiny fine-tuning datasets.'
+        }
+    ],
+
+    _inited: false,
+    zoneStartX: 0,
+    zoneEndX: 0,
+
+    init() {
+        if (this._inited) return;
+        this._inited = true;
+        this.BLDS.forEach(def => {
+            if (!BLDS.find(b => b.id === def.id)) {
+                const bld = { ...def, x: 0, lab: null };
+                BLDS.push(bld);
+                if (typeof G !== 'undefined' && G.bldById) G.bldById[def.id] = bld;
+            }
+        });
+    },
+
+    positionZone(afterX) {
+        let x = afterX + 50;
+        this.zoneStartX = x;
+        this.BLDS.forEach(def => {
+            const bld = BLDS.find(b => b.id === def.id);
+            if (bld) { bld.x = x; x += bld.w + 40; } // larger gap than Embassy Row — trees need room
+        });
+        this.zoneEndX = x + 30;
+        return this.zoneEndX;
+    },
+
+    update() {
+        // Rotate the particle shield rings around each institute.
+        const t = (typeof G !== 'undefined' ? G.tick : 0) * 0.012;
+        this.BLDS.forEach((def) => {
+            const bld = (typeof G !== 'undefined' && G.bldById) ? G.bldById[def.id] : null;
+            if (!bld || !bld._shieldParticles || !bld._shieldRingR) return;
+            const particles = bld._shieldParticles;
+            const n = particles.length;
+            const rX = bld._shieldRingR;
+            const rY = bld._shieldRingR * 0.35; // squashed elliptical ring for depth
+            const phase = bld._shieldPhase || 0;
+            for (let i = 0; i < n; i++) {
+                const a = t + phase + (i / n) * Math.PI * 2;
+                const px = Math.cos(a) * rX;
+                const py = Math.sin(a) * rY;
+                particles[i].x = px;
+                particles[i].y = py;
+                // Back-of-ring particles dim slightly
+                particles[i].alpha = 0.45 + 0.55 * (0.5 + Math.sin(a) * 0.5);
+            }
+        });
+    }
+};

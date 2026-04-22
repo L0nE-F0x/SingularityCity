@@ -2405,6 +2405,122 @@ const Environment = {
           // Shadow
           gfx.beginFill(0x000000, 0.18); gfx.drawRect(0, h - 2, b.w, 4); gfx.endFill();
 
+        } else if (b.type === 'alignment') {
+          // ── ALIGNMENT FOREST — Green-roof glass pavilion with shield particle ring ──
+          const shieldCol = b.shield || 0x22d3ee;
+
+          // Dark stone base
+          gfx.beginFill(0x1e2a22); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
+          gfx.beginFill(0x162018); gfx.drawRect(2, 2, b.w - 4, h - 4); gfx.endFill();
+
+          // Flanking trees (outside building footprint, added in bg first)
+          for (const tx of [-6, b.w + 6]) {
+              // Trunk
+              gfx.beginFill(0x3a2a18); gfx.drawRect(tx - 1.5, h - 14, 3, 14); gfx.endFill();
+              gfx.beginFill(0x26180a); gfx.drawRect(tx + 0.5, h - 14, 1, 14); gfx.endFill();
+              // Three-puff canopy
+              gfx.beginFill(0x1f4a28); gfx.drawCircle(tx, h - 22, 7.5); gfx.endFill();
+              gfx.beginFill(0x2e6a38); gfx.drawCircle(tx - 2.5, h - 24, 5.5); gfx.endFill();
+              gfx.beginFill(0x4a9a4e); gfx.drawCircle(tx + 2.5, h - 20, 4.5); gfx.endFill();
+              // Highlight
+              gfx.beginFill(0x7acc7e, 0.6); gfx.drawCircle(tx - 3.5, h - 25.5, 1.3); gfx.endFill();
+          }
+
+          // Large glass facade — tinted teal/green
+          gfx.beginFill(0x08120f); gfx.drawRect(8, 12, b.w - 16, h - 24); gfx.endFill();
+          gfx.beginFill(shieldCol, 0.16); gfx.drawRect(10, 14, b.w - 20, h - 28); gfx.endFill();
+          // Glass reflections
+          gfx.beginFill(0xffffff, 0.08); gfx.drawRect(12, 16, (b.w - 24) * 0.3, h - 32); gfx.endFill();
+          gfx.beginFill(shieldCol, 0.06); gfx.drawRect(12 + (b.w - 24) * 0.3, 16, (b.w - 24) * 0.7, h - 32); gfx.endFill();
+
+          // Vertical glass mullions
+          for (let mx = 20; mx < b.w - 18; mx += 18) {
+              gfx.beginFill(0x0a1a18, 0.7); gfx.drawRect(mx, 14, 1, h - 28); gfx.endFill();
+          }
+          // Horizontal mullion band (mid-floor)
+          gfx.beginFill(0x0a1a18, 0.7); gfx.drawRect(10, Math.floor(h / 2), b.w - 20, 1); gfx.endFill();
+
+          // Rim light along glass top edge
+          gfx.beginFill(shieldCol, 0.55); gfx.drawRect(10, 13, b.w - 20, 1); gfx.endFill();
+
+          // Green living roof — tufted foliage across the top
+          for (let rx = 0; rx < b.w; rx += 6) {
+              const th = 2 + ((rx * 7) % 4);
+              gfx.beginFill(0x2a5a30); gfx.drawRect(rx, -th, 6, th + 2); gfx.endFill();
+              gfx.beginFill(0x3e8040); gfx.drawRect(rx + 1, -th + 1, 4, 2); gfx.endFill();
+          }
+          // Mossy highlights
+          for (let rx = 3; rx < b.w; rx += 11) {
+              gfx.beginFill(0x6ab868, 0.55); gfx.drawCircle(rx, -1, 1.2); gfx.endFill();
+          }
+          // Solar/skylight in the middle of the roof
+          gfx.beginFill(0x0a1a18); gfx.drawRect(b.w * 0.38, -3, b.w * 0.24, 3); gfx.endFill();
+          gfx.beginFill(shieldCol, 0.45); gfx.drawRect(b.w * 0.38 + 1, -3, b.w * 0.24 - 2, 2); gfx.endFill();
+
+          // Entrance: dark glass door with glowing outline
+          const doorW = 18, doorH = 22;
+          const doorX = b.w / 2 - doorW / 2;
+          const doorY = h - doorH - 4;
+          gfx.beginFill(0x000000, 0.5); gfx.drawRect(doorX, doorY, doorW, doorH); gfx.endFill();
+          gfx.beginFill(shieldCol, 0.28); gfx.drawRect(doorX + 1, doorY + 1, doorW - 2, doorH - 2); gfx.endFill();
+          gfx.lineStyle(1, shieldCol, 0.85);
+          gfx.drawRect(doorX, doorY, doorW, doorH);
+          gfx.lineStyle(0);
+          // Door handle
+          gfx.beginFill(shieldCol, 0.9); gfx.drawRect(doorX + doorW - 4, doorY + doorH / 2 - 2, 1.5, 4); gfx.endFill();
+
+          // Base step
+          gfx.beginFill(0x162018); gfx.drawRect(-2, h - 4, b.w + 4, 4); gfx.endFill();
+          gfx.beginFill(0x0e1610); gfx.drawRect(-1, h - 1, b.w + 2, 2); gfx.endFill();
+
+          // Ground shadow
+          gfx.beginFill(0x000000, 0.22); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
+
+          // ── SHIELD PARTICLE RING — 10 orbiting dots around building center ──
+          const shieldCont = new PIXI.Container();
+          shieldCont.x = b.w / 2;
+          shieldCont.y = h * 0.45;
+          const particles = [];
+          for (let i = 0; i < 10; i++) {
+              const p = new PIXI.Graphics();
+              p.beginFill(shieldCol, 0.85);
+              p.drawCircle(0, 0, 2);
+              p.endFill();
+              p.beginFill(shieldCol, 0.28);
+              p.drawCircle(0, 0, 5);
+              p.endFill();
+              p.blendMode = PIXI.BLEND_MODES.ADD;
+              shieldCont.addChild(p);
+              particles.push(p);
+          }
+          container.addChild(shieldCont);
+          b._shieldParticles = particles;
+          b._shieldRingR = Math.max(b.w, h) * 0.55;
+          b._shieldPhase = Math.random() * Math.PI * 2;
+
+          // Name plaque (glowing, matches shield color)
+          const plaque = new PIXI.Graphics();
+          const plW = Math.max(70, Math.min(b.w - 20, 90));
+          plaque.beginFill(0x08120f, 0.92);
+          plaque.drawRoundedRect(-plW / 2, -7, plW, 14, 3);
+          plaque.endFill();
+          plaque.lineStyle(1, shieldCol, 0.9);
+          plaque.drawRoundedRect(-plW / 2, -7, plW, 14, 3);
+          plaque.lineStyle(0);
+          plaque.x = b.w / 2;
+          plaque.y = doorY - 14;
+          container.addChild(plaque);
+          const plaqueTxt = new PIXI.Text((b.name || '').toUpperCase(), {
+              fontFamily: 'JetBrains Mono', fontSize: 6.5, fontWeight: 'bold',
+              fill: shieldCol, letterSpacing: 0.7,
+              dropShadow: true, dropShadowColor: shieldCol, dropShadowBlur: 5, dropShadowDistance: 0, padding: 3
+          });
+          plaqueTxt.anchor.set(0.5, 0.5);
+          plaqueTxt.x = b.w / 2;
+          plaqueTxt.y = doorY - 14;
+          if (plaqueTxt.width > plW - 8) plaqueTxt.scale.set((plW - 8) / plaqueTxt.width);
+          container.addChild(plaqueTxt);
+
         } else if (b.type === 'embassy') {
           // ── EMBASSY — Classical columned facade with flying flag ──
           const flagCols = b.flagColors || [0xcccccc];
@@ -2763,7 +2879,7 @@ const Environment = {
         };
         // Auto-generate neon sign for any non-lab, non-special building
         let nc = neonConfig[b.id];
-        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('suburb_') && !b.id.startsWith('res_') && !b.id.startsWith('embassy_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market') {
+        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('suburb_') && !b.id.startsWith('res_') && !b.id.startsWith('embassy_') && !b.id.startsWith('align_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market') {
             nc = { text: (b.emoji || '🏢') + ' ' + (b.name || '').toUpperCase(), col: 0x6688aa, speed: 0.06, flicker: 0.2 };
         }
         if (nc) {

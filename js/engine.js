@@ -401,6 +401,11 @@ const G = {
             currentX = AgentsZone.positionZone(currentX);
         }
 
+        // ─── ALIGNMENT FOREST: AI Safety Research Quarter ───
+        if (typeof AlignmentForest !== 'undefined') {
+            currentX = AlignmentForest.positionZone(currentX);
+        }
+
         // Longevity Line — eastern terminus metro between Longevity Wing and Silicon Woods
         const mLong = BLDS.find(b => b.id === 'metro_longevity');
         if (mLong) {
@@ -1311,6 +1316,7 @@ const G = {
       if (typeof RoboticsZone !== 'undefined') RoboticsZone.init();
       if (typeof LongevityZone !== 'undefined') LongevityZone.init();
       if (typeof AgentsZone !== 'undefined') AgentsZone.init();
+      if (typeof AlignmentForest !== 'undefined') AlignmentForest.init();
 
       this.recalculateZoning(); 
       
@@ -1889,6 +1895,7 @@ const G = {
               BirdFlocks: typeof BirdFlocks !== 'undefined' ? BirdFlocks : null,
               HNBlimps: typeof HNBlimps !== 'undefined' ? HNBlimps : null,
               EmbassyRow: typeof EmbassyRow !== 'undefined' ? EmbassyRow : null,
+              AlignmentForest: typeof AlignmentForest !== 'undefined' ? AlignmentForest : null,
               AIIndex: typeof AIIndex !== 'undefined' ? AIIndex : null,
               SupplyChain: typeof SupplyChain !== 'undefined' ? SupplyChain : null,
               BlackMarket: typeof BlackMarket !== 'undefined' ? BlackMarket : null,
@@ -1931,6 +1938,7 @@ const G = {
       if (this.tick % 2 === 0 && S.BirdFlocks) S.BirdFlocks.update(); // every other frame for perf
       if (S.HNBlimps) S.HNBlimps.update();
       if (S.EmbassyRow && this.tick % 2 === 0) S.EmbassyRow.update();
+      if (S.AlignmentForest) S.AlignmentForest.update();
       if (S.ConferenceData) S.ConferenceData.update();
       if (S.Kardashev) S.Kardashev.tick();
       if (S.AIIndex) S.AIIndex.tick();
