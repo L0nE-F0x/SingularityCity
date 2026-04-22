@@ -1200,17 +1200,6 @@ const UI = {
       pan.innerHTML = h;
     },
   
-    showAchievements() {
-      document.getElementById('achieveOv').classList.add('open'); const pan = document.getElementById('achievePan');
-      const total = Object.keys(ACHIEVEMENTS).length; const earned = Object.keys(G.achievements).length;
-      let h = `<button class="ipanel-x" onclick="document.getElementById('achieveOv').classList.remove('open')">✕</button><div class="ov-title">🏆 ACHIEVEMENTS — ${earned}/${total}</div><div style="height:6px;background:var(--bd);border-radius:3px;margin-bottom:16px;overflow:hidden"><div style="width:${(earned / total) * 100}%;height:100%;background:linear-gradient(90deg,#4ade80,#22d3ee)"></div></div><div class="pop-grid" style="gap:6px">`;
-      Object.entries(ACHIEVEMENTS).forEach(([key, a]) => {
-        const u = G.achievements[key];
-        h += `<div class="pop-card" style="opacity:${u ? 1 : .4};background:${u ? 'var(--cd)' : 'var(--sf)'}"><span style="font-size:20px">${a.icon}</span><div style="flex:1"><div style="font-size:9px;font-weight:700">${a.name}</div><div style="font-size:7px;color:var(--t3)">${a.desc}</div>${u ? `<div style="font-size:6px;color:var(--ac)">${new Date(u).toLocaleDateString()}</div>` : ''}</div></div>`;
-      });
-      h += '</div>'; pan.innerHTML = h;
-    },
-  
     showNewsPanel() {
       document.getElementById('newsOv').classList.add('open'); const pan = document.getElementById('newsPan');
       let h = `<button class="ipanel-x" onclick="document.getElementById('newsOv').classList.remove('open')">✕</button><div class="ov-title">📰 AI NEWS</div><div style="text-align:center;margin-bottom:12px"><button class="btn" onclick="API.fetchLiveNews().then(()=>UI.showNewsPanel())">🔄 Refresh</button></div><div style="max-height:60vh;overflow-y:auto">`;

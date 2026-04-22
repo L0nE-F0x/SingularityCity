@@ -128,6 +128,13 @@ const QUESTS = {
         cat: 'Progress',
         achieves: ['witnessed']
     },
+    pop_10: {
+        title: 'Population 10',
+        desc: 'Grow the city to 10 discovered models.',
+        icon: '🏘️',
+        cat: 'Progress',
+        achieves: ['ten_models']
+    },
     pop_50: {
         title: 'Metropolis',
         desc: 'Grow the population to 50 discovered models.',
