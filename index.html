@@ -29,7 +29,7 @@
 <meta name="screen-orientation" content="landscape">
 
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=391">
+<link rel="stylesheet" href="css/styles.css?v=392">
 
 <!-- ═══ GLOBAL ERROR HANDLER (catch crashes before they white-screen) ═══ -->
 <script>
@@ -400,6 +400,7 @@ if (_isMobile) {
         <button class="btn" onclick="UI.uiClick();UI.showCostDashboard()" title="Pricing comparison & ROI">💰 Costs</button>
         <button class="btn" onclick="UI.uiClick();UI.showAnalyst()" title="Ask AI questions">🤖 Analyst</button>
         <button class="btn" onclick="UI.uiClick();UI.showAchievements()" title="Achievements">🏆 Trophies</button>
+        <button class="btn" onclick="UI.uiClick();Quests.showPanel()" title="Quest log">📜 Quests</button>
         <button class="btn" id="btnXRay" onclick="UI.uiClick();if(typeof XRayMode!=='undefined')XRayMode.toggle()" title="X-Ray diagnostic overlay">🔬 X-Ray</button>
         <button class="btn" onclick="UI.uiClick();UI.showSettings()" title="Settings">⚙️</button>
         <button class="btn" id="btnSound" onclick="UI.uiClick();UI.toggleSound()" title="Sound on/off">🔊</button>
@@ -453,6 +454,7 @@ if (_isMobile) {
   <div class="ov" id="computeOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:600px" id="computePan"></div></div>
   <div class="ov" id="costOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:700px;max-width:95vw" id="costPan"></div></div>
   <div class="ov" id="achieveOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:520px" id="achievePan"></div></div>
+  <div class="ov" id="questsOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:560px;max-height:85vh;overflow-y:auto" id="questsPan"></div></div>
   <div class="ov" id="newsOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:520px" id="newsPan"></div></div>
   <div class="ov" id="analystOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:520px" id="analystPan"></div></div>
   <div class="ov" id="kardashevOv" onclick="if(event.target===this)this.classList.remove('open')"><div class="ov-pan" style="width:520px;max-width:95vw" id="kardashevPan"></div></div>
@@ -468,85 +470,86 @@ if (_isMobile) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-<script defer src="js/personality.js?v=391"></script>
-<script defer src="js/data.js?v=391"></script>
-<script defer src="js/api.js?v=391"></script>
-<script defer src="js/ui.js?v=391"></script>
-<script defer src="js/snd.js?v=391"></script>
-<script defer src="js/camera.js?v=391"></script>
-<script defer src="js/environment.js?v=391"></script>
-<script defer src="js/entities_gfx.js?v=391"></script>
-<script defer src="js/entities.js?v=391"></script>
-<script defer src="js/underground.js?v=391"></script>
-<script defer src="js/city_elevator.js?v=391"></script>
-<script defer src="js/interior_city_props.js?v=391"></script>
-<script defer src="js/interior_city_ai.js?v=391"></script>
-<script defer src="js/interior_avatar_states.js?v=391"></script>
-<script defer src="js/interior_city_core.js?v=391"></script>
-<script defer src="js/interior_res_props.js?v=391"></script>
-<script defer src="js/interior_res_ai.js?v=391"></script>
-<script defer src="js/interior_res_core.js?v=391"></script>
-<script defer src="js/power_zone.js?v=391"></script>
-<script defer src="js/power_env.js?v=391"></script>
-<script defer src="js/power_zone_interior.js?v=391"></script>
-<script defer src="js/port_zone.js?v=391"></script>
-<script defer src="js/port_env.js?v=391"></script>
-<script defer src="js/interior_dc.js?v=391"></script>
-<script defer src="js/interior_bar.js?v=391"></script>
-<script defer src="js/npc_housing.js?v=391"></script>
-<script defer src="js/street_vendors.js?v=391"></script>
-<script defer src="js/interior_npc.js?v=391"></script>
-<script defer src="js/interior_legacy.js?v=391"></script>
-<script defer src="js/interior_metro.js?v=391"></script>
-<script defer src="js/interior_newspaper.js?v=391"></script>
-<script defer src="js/interior_manager.js?v=391"></script>
-<script defer src="js/datacenter_data.js?v=391"></script>
-<script defer src="js/space_data.js?v=391"></script>
-<script defer src="js/space_environment.js?v=391"></script>
-<script defer src="js/space_entities.js?v=391"></script>
-<script defer src="js/space_interior.js?v=391"></script>
-<script defer src="js/orbit_mode.js?v=391"></script>
-<script defer src="js/seasonal.js?v=391"></script>
-<script defer src="js/seasonal_env.js?v=391"></script>
-<script defer src="js/aurora.js?v=391"></script>
-<script defer src="js/conference.js?v=391"></script>
-<script defer src="js/university.js?v=391"></script>
-<script defer src="js/court.js?v=391"></script>
-<script defer src="js/city_park.js?v=391"></script>
-<script defer src="js/bird_flocks.js?v=391"></script>
-<script defer src="js/ai_index.js?v=391"></script>
-<script defer src="js/supply_chain.js?v=391"></script>
-<script defer src="js/black_market.js?v=391"></script>
-<script defer src="js/interior_black_market.js?v=391"></script>
-<script defer src="js/vc_row.js?v=391"></script>
-<script defer src="js/vc_row_env.js?v=391"></script>
-<script defer src="js/interior_vcrow.js?v=391"></script>
-<script defer src="js/backbone_zone.js?v=391"></script>
-<script defer src="js/backbone_env.js?v=391"></script>
-<script defer src="js/interior_backbone.js?v=391"></script>
-<script defer src="js/robotics_zone.js?v=391"></script>
-<script defer src="js/robotics_env.js?v=391"></script>
-<script defer src="js/interior_robotics.js?v=391"></script>
-<script defer src="js/longevity_zone.js?v=391"></script>
-<script defer src="js/longevity_env.js?v=391"></script>
-<script defer src="js/interior_longevity.js?v=391"></script>
-<script defer src="js/agents_zone.js?v=391"></script>
-<script defer src="js/agents_env.js?v=391"></script>
-<script defer src="js/interior_agents.js?v=391"></script>
-<script defer src="js/xray_mode.js?v=391"></script>
-<script defer src="js/multiplayer.js?v=391"></script>
-<script defer src="js/holomap.js?v=391"></script>
-<script defer src="js/easter_eggs.js?v=391"></script>
-<script defer src="js/persistence.js?v=391"></script>
-<script defer src="js/macro_view.js?v=391"></script>
-<script defer src="js/debug_overlay.js?v=391"></script>
-<script defer src="js/bitmap_fonts.js?v=391"></script>
-<script defer src="js/goals.js?v=391"></script>
-<script defer src="js/auto_tour.js?v=391"></script>
-<script defer src="js/tutorial.js?v=391"></script>
-<script defer src="js/newspaper.js?v=391"></script>
-<script defer src="js/kardashev.js?v=391"></script>
-<script defer src="js/engine.js?v=391"></script>
+<script defer src="js/personality.js?v=392"></script>
+<script defer src="js/data.js?v=392"></script>
+<script defer src="js/api.js?v=392"></script>
+<script defer src="js/ui.js?v=392"></script>
+<script defer src="js/snd.js?v=392"></script>
+<script defer src="js/camera.js?v=392"></script>
+<script defer src="js/environment.js?v=392"></script>
+<script defer src="js/entities_gfx.js?v=392"></script>
+<script defer src="js/entities.js?v=392"></script>
+<script defer src="js/underground.js?v=392"></script>
+<script defer src="js/city_elevator.js?v=392"></script>
+<script defer src="js/interior_city_props.js?v=392"></script>
+<script defer src="js/interior_city_ai.js?v=392"></script>
+<script defer src="js/interior_avatar_states.js?v=392"></script>
+<script defer src="js/interior_city_core.js?v=392"></script>
+<script defer src="js/interior_res_props.js?v=392"></script>
+<script defer src="js/interior_res_ai.js?v=392"></script>
+<script defer src="js/interior_res_core.js?v=392"></script>
+<script defer src="js/power_zone.js?v=392"></script>
+<script defer src="js/power_env.js?v=392"></script>
+<script defer src="js/power_zone_interior.js?v=392"></script>
+<script defer src="js/port_zone.js?v=392"></script>
+<script defer src="js/port_env.js?v=392"></script>
+<script defer src="js/interior_dc.js?v=392"></script>
+<script defer src="js/interior_bar.js?v=392"></script>
+<script defer src="js/npc_housing.js?v=392"></script>
+<script defer src="js/street_vendors.js?v=392"></script>
+<script defer src="js/interior_npc.js?v=392"></script>
+<script defer src="js/interior_legacy.js?v=392"></script>
+<script defer src="js/interior_metro.js?v=392"></script>
+<script defer src="js/interior_newspaper.js?v=392"></script>
+<script defer src="js/interior_manager.js?v=392"></script>
+<script defer src="js/datacenter_data.js?v=392"></script>
+<script defer src="js/space_data.js?v=392"></script>
+<script defer src="js/space_environment.js?v=392"></script>
+<script defer src="js/space_entities.js?v=392"></script>
+<script defer src="js/space_interior.js?v=392"></script>
+<script defer src="js/orbit_mode.js?v=392"></script>
+<script defer src="js/seasonal.js?v=392"></script>
+<script defer src="js/seasonal_env.js?v=392"></script>
+<script defer src="js/aurora.js?v=392"></script>
+<script defer src="js/conference.js?v=392"></script>
+<script defer src="js/university.js?v=392"></script>
+<script defer src="js/court.js?v=392"></script>
+<script defer src="js/city_park.js?v=392"></script>
+<script defer src="js/bird_flocks.js?v=392"></script>
+<script defer src="js/ai_index.js?v=392"></script>
+<script defer src="js/supply_chain.js?v=392"></script>
+<script defer src="js/black_market.js?v=392"></script>
+<script defer src="js/interior_black_market.js?v=392"></script>
+<script defer src="js/vc_row.js?v=392"></script>
+<script defer src="js/vc_row_env.js?v=392"></script>
+<script defer src="js/interior_vcrow.js?v=392"></script>
+<script defer src="js/backbone_zone.js?v=392"></script>
+<script defer src="js/backbone_env.js?v=392"></script>
+<script defer src="js/interior_backbone.js?v=392"></script>
+<script defer src="js/robotics_zone.js?v=392"></script>
+<script defer src="js/robotics_env.js?v=392"></script>
+<script defer src="js/interior_robotics.js?v=392"></script>
+<script defer src="js/longevity_zone.js?v=392"></script>
+<script defer src="js/longevity_env.js?v=392"></script>
+<script defer src="js/interior_longevity.js?v=392"></script>
+<script defer src="js/agents_zone.js?v=392"></script>
+<script defer src="js/agents_env.js?v=392"></script>
+<script defer src="js/interior_agents.js?v=392"></script>
+<script defer src="js/xray_mode.js?v=392"></script>
+<script defer src="js/multiplayer.js?v=392"></script>
+<script defer src="js/holomap.js?v=392"></script>
+<script defer src="js/easter_eggs.js?v=392"></script>
+<script defer src="js/persistence.js?v=392"></script>
+<script defer src="js/quests.js?v=392"></script>
+<script defer src="js/macro_view.js?v=392"></script>
+<script defer src="js/debug_overlay.js?v=392"></script>
+<script defer src="js/bitmap_fonts.js?v=392"></script>
+<script defer src="js/goals.js?v=392"></script>
+<script defer src="js/auto_tour.js?v=392"></script>
+<script defer src="js/tutorial.js?v=392"></script>
+<script defer src="js/newspaper.js?v=392"></script>
+<script defer src="js/kardashev.js?v=392"></script>
+<script defer src="js/engine.js?v=392"></script>
 
 <!-- ═══ EMBED MODE AUTO-BOOT (Phase 3b) ═══
      When ?embed=1: auto-enter the city and kick off AutoTour once PixiJS is ready. -->

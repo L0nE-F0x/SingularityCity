@@ -488,11 +488,12 @@ const G = {
     unlockAchieve(key) {
       if (this.achievements[key]) return;
       this.achievements[key] = Date.now();
-      const a = ACHIEVEMENTS[key]; 
+      if (typeof Quests !== 'undefined') Quests.onAchievement(key);
+      const a = ACHIEVEMENTS[key];
       if (!a) return;
       if (typeof UI !== 'undefined') UI.addToast(`🏆 Achievement: ${a.icon} ${a.name}!`);
       if (typeof SND !== 'undefined') SND.achieve();
-      if (typeof NOTIFY !== 'undefined') NOTIFY.send('Achievement Unlocked!', `${a.icon} ${a.name} — ${a.desc}`); 
+      if (typeof NOTIFY !== 'undefined') NOTIFY.send('Achievement Unlocked!', `${a.icon} ${a.name} — ${a.desc}`);
       this.save();
     },
 
