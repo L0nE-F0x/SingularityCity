@@ -2405,6 +2405,154 @@ const Environment = {
           // Shadow
           gfx.beginFill(0x000000, 0.18); gfx.drawRect(0, h - 2, b.w, 4); gfx.endFill();
 
+        } else if (b.type === 'embassy') {
+          // ── EMBASSY — Classical columned facade with flying flag ──
+          const flagCols = b.flagColors || [0xcccccc];
+          const accent = (typeof b.accent === 'number') ? b.accent : flagCols[0];
+
+          // Marble/ivory facade
+          gfx.beginFill(0xe9e4d2); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
+          gfx.beginFill(0xf4efdc); gfx.drawRect(3, 3, b.w - 6, h - 6); gfx.endFill();
+
+          // Triangular pediment (roof)
+          gfx.beginFill(0xd3cdb4);
+          gfx.drawPolygon([0, 0, b.w / 2, -16, b.w, 0]);
+          gfx.endFill();
+          gfx.beginFill(accent, 0.55);
+          gfx.drawPolygon([8, -2, b.w / 2, -12, b.w - 8, -2]);
+          gfx.endFill();
+          // Pediment trim
+          gfx.lineStyle(1, 0xa8a288, 0.7);
+          gfx.moveTo(0, 0); gfx.lineTo(b.w / 2, -16); gfx.lineTo(b.w, 0);
+          gfx.lineStyle(0);
+
+          // Horizontal flag-color accent stripe across architrave
+          const stripeH = 3;
+          const stripeW = (b.w - 16) / flagCols.length;
+          flagCols.forEach((c, i) => {
+              gfx.beginFill(c, 0.9);
+              gfx.drawRect(8 + i * stripeW, 3, stripeW, stripeH);
+              gfx.endFill();
+          });
+
+          // Columns (classical doric — evenly spaced across facade)
+          const nCols = 5;
+          const colW = 7;
+          const colInset = 14;
+          const colSpacing = (b.w - colInset * 2) / (nCols - 1);
+          for (let i = 0; i < nCols; i++) {
+              const cx = colInset + i * colSpacing - colW / 2;
+              // Shaft
+              gfx.beginFill(0xf8f3df); gfx.drawRect(cx, 10, colW, h - 22); gfx.endFill();
+              // Shadow on right side (adds depth)
+              gfx.beginFill(0xc6bfa2, 0.7); gfx.drawRect(cx + colW - 2, 10, 2, h - 22); gfx.endFill();
+              // Highlight on left
+              gfx.beginFill(0xfffbe8, 0.5); gfx.drawRect(cx + 1, 10, 1, h - 22); gfx.endFill();
+              // Capital (top)
+              gfx.beginFill(0xd6d0b6); gfx.drawRect(cx - 2, 8, colW + 4, 3); gfx.endFill();
+              // Base
+              gfx.beginFill(0xd6d0b6); gfx.drawRect(cx - 2, h - 14, colW + 4, 3); gfx.endFill();
+          }
+
+          // Base steps (two tiers)
+          gfx.beginFill(0xccc5ac); gfx.drawRect(-4, h - 10, b.w + 8, 5); gfx.endFill();
+          gfx.beginFill(0xbab396); gfx.drawRect(-2, h - 5, b.w + 4, 5); gfx.endFill();
+
+          // Grand entrance
+          const doorW = 22, doorH = 26;
+          const doorX = b.w / 2 - doorW / 2;
+          const doorY = h - doorH - 10;
+          gfx.beginFill(0x000000, 0.35); gfx.drawRect(doorX - 2, doorY, doorW + 4, doorH); gfx.endFill();
+          gfx.beginFill(0x2e2014); gfx.drawRect(doorX, doorY, doorW, doorH); gfx.endFill();
+          gfx.beginFill(0x4a3422); gfx.drawRect(doorX + 2, doorY + 2, doorW - 4, doorH - 4); gfx.endFill();
+          // Door split (double doors)
+          gfx.lineStyle(1, 0x1a1008, 0.8);
+          gfx.moveTo(doorX + doorW / 2, doorY + 2); gfx.lineTo(doorX + doorW / 2, doorY + doorH);
+          gfx.lineStyle(0);
+          // Brass knobs
+          gfx.beginFill(0xfbbf24); gfx.drawCircle(doorX + doorW / 2 - 3, doorY + doorH / 2, 0.9); gfx.endFill();
+          gfx.beginFill(0xfbbf24); gfx.drawCircle(doorX + doorW / 2 + 3, doorY + doorH / 2, 0.9); gfx.endFill();
+          // Accent lintel above door
+          gfx.beginFill(accent, 0.85);
+          gfx.drawRect(doorX - 2, doorY - 2, doorW + 4, 2);
+          gfx.endFill();
+
+          // Small lanterns flanking door
+          for (const lx of [doorX - 8, doorX + doorW + 8]) {
+              gfx.beginFill(0x333333); gfx.drawRect(lx - 1, doorY + 4, 2, 4); gfx.endFill();
+              gfx.beginFill(0xfbbf24, 0.9); gfx.drawCircle(lx, doorY + 10, 2); gfx.endFill();
+              gfx.beginFill(0xfffbe8, 0.7); gfx.drawCircle(lx, doorY + 10, 1); gfx.endFill();
+          }
+
+          // Windows flanking the door (elegant, small panes)
+          const winY = 16;
+          const winH = h - 40;
+          for (const wx of [b.w / 2 - 50, b.w / 2 + 30]) {
+              if (wx < 18 || wx + 20 > b.w - 18) continue;
+              gfx.beginFill(0x1a1a28); gfx.drawRect(wx, winY, 20, winH); gfx.endFill();
+              gfx.beginFill(0xffe9a8, 0.55); gfx.drawRect(wx + 1, winY + 1, 18, winH - 2); gfx.endFill();
+              gfx.lineStyle(0.6, 0xa8a288, 0.8);
+              gfx.moveTo(wx + 10, winY + 1); gfx.lineTo(wx + 10, winY + winH - 1);
+              gfx.moveTo(wx + 1, winY + winH / 2); gfx.lineTo(wx + 19, winY + winH / 2);
+              gfx.lineStyle(0);
+          }
+
+          // Shadow
+          gfx.beginFill(0x000000, 0.22); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
+
+          // Flag pole with flying flag on rooftop — added as its own container for animation
+          const flagCont = new PIXI.Container();
+          flagCont.x = b.w * 0.5;
+          flagCont.y = -16;
+          // Pole
+          const pole = new PIXI.Graphics();
+          pole.beginFill(0x7a7a7a); pole.drawRect(-1, -28, 2, 30); pole.endFill();
+          pole.beginFill(0xfbbf24); pole.drawCircle(0, -28, 1.8); pole.endFill();
+          flagCont.addChild(pole);
+          // Flag rectangle
+          const flag = new PIXI.Graphics();
+          const fw = 22, fh = 13;
+          if (flagCols.length === 1) {
+              flag.beginFill(flagCols[0]); flag.drawRect(0, 0, fw, fh); flag.endFill();
+          } else if (flagCols.length === 2) {
+              flag.beginFill(flagCols[0]); flag.drawRect(0, 0, fw, fh); flag.endFill();
+              flag.beginFill(flagCols[1]); flag.drawCircle(fw * 0.28, fh * 0.5, fh * 0.35); flag.endFill();
+          } else {
+              // Horizontal stripes for 3+ color flags
+              const sh = fh / flagCols.length;
+              flagCols.forEach((c, i) => {
+                  flag.beginFill(c); flag.drawRect(0, i * sh, fw, sh); flag.endFill();
+              });
+          }
+          flag.lineStyle(0.5, 0x000000, 0.35); flag.drawRect(0, 0, fw, fh); flag.lineStyle(0);
+          flag.x = 1;
+          flag.y = -26;
+          flag.pivot.set(0, fh * 0.5);
+          flagCont.addChild(flag);
+          container.addChild(flagCont);
+          b._flagGfx = flag;
+
+          // Embassy name plaque on facade (small, over the door)
+          const plaque = new PIXI.Graphics();
+          plaque.beginFill(0x1a1a28, 0.9);
+          plaque.drawRoundedRect(-42, -6, 84, 12, 2);
+          plaque.endFill();
+          plaque.lineStyle(0.8, accent, 0.85);
+          plaque.drawRoundedRect(-42, -6, 84, 12, 2);
+          plaque.lineStyle(0);
+          plaque.x = b.w / 2;
+          plaque.y = doorY - 10;
+          container.addChild(plaque);
+          const plaqueTxt = new PIXI.Text((b.name || '').toUpperCase(), {
+              fontFamily: 'JetBrains Mono', fontSize: 5.5, fontWeight: 'bold',
+              fill: 0xfffbe8, letterSpacing: 0.6
+          });
+          plaqueTxt.anchor.set(0.5, 0.5);
+          plaqueTxt.x = b.w / 2;
+          plaqueTxt.y = doorY - 10;
+          if (plaqueTxt.width > 78) plaqueTxt.scale.set(78 / plaqueTxt.width);
+          container.addChild(plaqueTxt);
+
         } else {
           gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, 4, 6, h - 4);
           gfx.endFill();
@@ -2615,7 +2763,7 @@ const Environment = {
         };
         // Auto-generate neon sign for any non-lab, non-special building
         let nc = neonConfig[b.id];
-        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('suburb_') && !b.id.startsWith('res_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market') {
+        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('suburb_') && !b.id.startsWith('res_') && !b.id.startsWith('embassy_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market') {
             nc = { text: (b.emoji || '🏢') + ' ' + (b.name || '').toUpperCase(), col: 0x6688aa, speed: 0.06, flicker: 0.2 };
         }
         if (nc) {

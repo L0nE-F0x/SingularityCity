@@ -558,6 +558,25 @@ const UI = {
         }
         html += `</div>`;
       }
+      // ─── EMBASSY panel — AI policy brief for the country ───
+      else if (b.type === 'embassy') {
+        const accentCol = (typeof b.accent === 'number') ? ('#' + b.accent.toString(16).padStart(6, '0')) : col;
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:8px;color:${accentCol};letter-spacing:1px">${b.emoji || '🏛️'} AI POLICY BRIEF</div>`;
+        if (b.regulator)  html += `<div>🏛️ <b>Regulator:</b> ${escapeHTML(b.regulator)}</div>`;
+        if (b.framework)  html += `<div>📜 <b>Framework:</b> ${escapeHTML(b.framework)}</div>`;
+        if (b.stance)     html += `<div style="margin-top:4px">⚖️ <b>Stance:</b> ${escapeHTML(b.stance)}</div>`;
+        if (Array.isArray(b.labs) && b.labs.length) {
+            html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)">`;
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${accentCol}">🔬 NOTABLE LABS</div>`;
+            html += `<div style="display:flex;flex-wrap:wrap;gap:4px">`;
+            b.labs.forEach(l => {
+                html += `<span style="font-size:9px;padding:2px 6px;background:var(--sf);border:1px solid var(--bd);border-radius:3px">${escapeHTML(l)}</span>`;
+            });
+            html += `</div></div>`;
+        }
+        html += `</div>`;
+      }
       // ─── VISITOR MONUMENT panel ───
       else if (b.id === 'visitor_monument') {
         const vt = typeof VisitorTracker !== 'undefined' ? VisitorTracker : { uniqueVisitors: 0, totalVisits: 0 };

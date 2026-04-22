@@ -341,7 +341,12 @@ const G = {
             currentX += convBld.w + 50;
         }
 
-        // ─── GLOBAL AI INDEX: Billboard after Convention Center ───
+        // ─── EMBASSY ROW: Diplomatic quarter between Convention Center and AI Index ───
+        if (typeof EmbassyRow !== 'undefined') {
+            currentX = EmbassyRow.positionZone(currentX);
+        }
+
+        // ─── GLOBAL AI INDEX: Billboard after Embassy Row ───
         if (typeof AIIndex !== 'undefined' && AIIndex.BLDS.length > 0) {
             currentX = AIIndex.positionZone(currentX);
         }
@@ -1301,6 +1306,7 @@ const G = {
       if (typeof BlackMarket !== 'undefined') BlackMarket.init();
       if (typeof ConferenceData !== 'undefined') ConferenceData.init();
       if (typeof VCRow !== 'undefined') VCRow.init();
+      if (typeof EmbassyRow !== 'undefined') EmbassyRow.init();
       if (typeof BackboneZone !== 'undefined') BackboneZone.init();
       if (typeof RoboticsZone !== 'undefined') RoboticsZone.init();
       if (typeof LongevityZone !== 'undefined') LongevityZone.init();
@@ -1882,6 +1888,7 @@ const G = {
               CityPark: typeof CityPark !== 'undefined' ? CityPark : null,
               BirdFlocks: typeof BirdFlocks !== 'undefined' ? BirdFlocks : null,
               HNBlimps: typeof HNBlimps !== 'undefined' ? HNBlimps : null,
+              EmbassyRow: typeof EmbassyRow !== 'undefined' ? EmbassyRow : null,
               AIIndex: typeof AIIndex !== 'undefined' ? AIIndex : null,
               SupplyChain: typeof SupplyChain !== 'undefined' ? SupplyChain : null,
               BlackMarket: typeof BlackMarket !== 'undefined' ? BlackMarket : null,
@@ -1923,6 +1930,7 @@ const G = {
       if (S.CityPark) S.CityPark.update();
       if (this.tick % 2 === 0 && S.BirdFlocks) S.BirdFlocks.update(); // every other frame for perf
       if (S.HNBlimps) S.HNBlimps.update();
+      if (S.EmbassyRow && this.tick % 2 === 0) S.EmbassyRow.update();
       if (S.ConferenceData) S.ConferenceData.update();
       if (S.Kardashev) S.Kardashev.tick();
       if (S.AIIndex) S.AIIndex.tick();
