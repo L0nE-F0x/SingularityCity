@@ -903,6 +903,11 @@ const Entities = {
           return 3;
       };
 
+      // ─── Phase 5: build spatial hash of visible outdoor walkers for local avoidance ───
+      if (typeof CrowdSeparation !== 'undefined') {
+          CrowdSeparation.rebuild(models, charRefs, camLeft, camRight);
+      }
+
       for (let i = 0; i < modelsLen; i++) {
         const m = models[i];
         // Cache stage/act — only recalculate once per second (60 frames)
@@ -1318,6 +1323,12 @@ const Entities = {
                                     const ws = .0015 * sd.speed * weatherSpeedMod * pSpeedMod * (envIsRainy && act === 'commute' ? 1.5 : 1);
                                     currentDir = Math.cos(i * 1.7 + tick * ws) > 0 ? 1 : -1;
                                 }
+                            }
+                            // ─── Phase 5: local crowd avoidance ─────────────────────────
+                            // Small lateral nudge if standing too close to another walker.
+                            // Breaks up sidewalk clumps without disrupting target-seeking.
+                            if (typeof CrowdSeparation !== 'undefined') {
+                                refs.c.x += CrowdSeparation.nudge(refs, i);
                             }
                         }
 
