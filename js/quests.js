@@ -38,6 +38,13 @@ const QUESTS = {
         cat: 'Exploration',
         achieves: ['galactic_tourist']
     },
+    hn_blimp: {
+        title: 'Ear to the Ground',
+        desc: 'Click a HackerNews blimp drifting over the city.',
+        icon: '🗞️',
+        cat: 'Exploration',
+        achieves: ['hn_read']
+    },
 
     // ── 🌍 NATURAL EVENTS ───────────────────────────────────────────────────────
     see_aurora: {

@@ -1442,6 +1442,7 @@ const G = {
       }
       // ─── LAYER-DEPENDENT INITS: These need charLayer/carLayer to exist ───
       if (typeof BirdFlocks !== 'undefined' && this.charLayer) BirdFlocks.init(this.charLayer);
+      if (typeof HNBlimps !== 'undefined' && this.charLayer) HNBlimps.init({ charLayer: this.charLayer });
       if (typeof SupplyChain !== 'undefined' && this.carLayer) SupplyChain.init(this.carLayer);
       
       // ─── LAZY ZONE BOOT: Defer heavy visual animations until camera enters each zone ───
@@ -1880,6 +1881,7 @@ const G = {
               CourtData: typeof CourtData !== 'undefined' ? CourtData : null,
               CityPark: typeof CityPark !== 'undefined' ? CityPark : null,
               BirdFlocks: typeof BirdFlocks !== 'undefined' ? BirdFlocks : null,
+              HNBlimps: typeof HNBlimps !== 'undefined' ? HNBlimps : null,
               AIIndex: typeof AIIndex !== 'undefined' ? AIIndex : null,
               SupplyChain: typeof SupplyChain !== 'undefined' ? SupplyChain : null,
               BlackMarket: typeof BlackMarket !== 'undefined' ? BlackMarket : null,
@@ -1920,6 +1922,7 @@ const G = {
       if (S.CourtData) S.CourtData.update();
       if (S.CityPark) S.CityPark.update();
       if (this.tick % 2 === 0 && S.BirdFlocks) S.BirdFlocks.update(); // every other frame for perf
+      if (S.HNBlimps) S.HNBlimps.update();
       if (S.ConferenceData) S.ConferenceData.update();
       if (S.Kardashev) S.Kardashev.tick();
       if (S.AIIndex) S.AIIndex.tick();

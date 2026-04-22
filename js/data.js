@@ -85,7 +85,8 @@ const ACHIEVEMENTS = {
     'holiday_spirit': { name: 'Holiday Spirit', desc: 'Visit during 3+ seasonal events.', icon: '🎄' },
     'peer_reviewed': { name: 'Peer Reviewed', desc: 'Visit a conference during session week.', icon: '🎓' },
     'graduation_day': { name: 'Graduation Day', desc: 'Witness a model graduate from AI Academy.', icon: '🎓' },
-    'shadow_market': { name: 'Shadow Market', desc: 'Discover the hidden entrance to The Underground.', icon: '🕶️' }
+    'shadow_market': { name: 'Shadow Market', desc: 'Discover the hidden entrance to The Underground.', icon: '🕶️' },
+    'hn_read': { name: 'Ear to the Ground', desc: 'Read a HackerNews story from a sky blimp.', icon: '🗞️' }
 };
 
 const STAGES = { baby: { label: 'Pre-Training', size: .6, headR: .6, speed: .5, emoji: '👶' }, kid: { label: 'Training/RLHF', size: .8, headR: .5, speed: .8, emoji: '🧒' }, adult: { label: 'Released', size: 1, headR: .4, speed: 1.2, emoji: '🧑' }, retired: { label: 'Retired', size: 1, headR: .4, speed: .4, emoji: '👻' }, rumored: { label: 'Rumored', size: .9, headR: .45, speed: 1.5, emoji: '🔮' } };
