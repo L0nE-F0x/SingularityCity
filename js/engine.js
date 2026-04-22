@@ -1422,8 +1422,12 @@ const G = {
       this.staticLightsGfx = new PIXI.Graphics();
       this.lightLayer.addChild(this.staticLightsGfx);
       this.fxGfx = new PIXI.Graphics();
-      
-      this.world.addChild(this.starsLayer, this.celestialGfx, this.cloudLayer, this.bldLayer, this.undergroundLayer, this.groundGfx, this.trainLayer, this.reflectionLayer, this.charLayer, this.carLayer, this.lightLayer, this.fxGfx);
+      // ─── Phase 6: shadow layer sits on top of groundGfx, below everything else ───
+      this.shadowLayer = new PIXI.Container();
+
+      this.world.addChild(this.starsLayer, this.celestialGfx, this.cloudLayer, this.bldLayer, this.undergroundLayer, this.groundGfx, this.shadowLayer, this.trainLayer, this.reflectionLayer, this.charLayer, this.carLayer, this.lightLayer, this.fxGfx);
+
+      if (typeof Shadows !== 'undefined') Shadows.init(this.shadowLayer);
       
       if (typeof Environment !== 'undefined') {
           Environment.init({ starsLayer: this.starsLayer, celestialGfx: this.celestialGfx, cloudLayer: this.cloudLayer, bldLayer: this.bldLayer, groundGfx: this.groundGfx, reflectionLayer: this.reflectionLayer, staticLightsGfx: this.staticLightsGfx, lightLayer: this.lightLayer, fxGfx: this.fxGfx });
@@ -1896,6 +1900,7 @@ const G = {
               HNBlimps: typeof HNBlimps !== 'undefined' ? HNBlimps : null,
               EmbassyRow: typeof EmbassyRow !== 'undefined' ? EmbassyRow : null,
               AlignmentForest: typeof AlignmentForest !== 'undefined' ? AlignmentForest : null,
+              Shadows: typeof Shadows !== 'undefined' ? Shadows : null,
               AIIndex: typeof AIIndex !== 'undefined' ? AIIndex : null,
               SupplyChain: typeof SupplyChain !== 'undefined' ? SupplyChain : null,
               BlackMarket: typeof BlackMarket !== 'undefined' ? BlackMarket : null,
@@ -1939,6 +1944,7 @@ const G = {
       if (S.HNBlimps) S.HNBlimps.update();
       if (S.EmbassyRow && this.tick % 2 === 0) S.EmbassyRow.update();
       if (S.AlignmentForest) S.AlignmentForest.update();
+      if (S.Shadows && this.tick % 30 === 0) S.Shadows.update(dp);
       if (S.ConferenceData) S.ConferenceData.update();
       if (S.Kardashev) S.Kardashev.tick();
       if (S.AIIndex) S.AIIndex.tick();
