@@ -973,3 +973,226 @@ a.tm-deal-headline:hover { color: #fbbf24; text-decoration: underline; }
     .tm-footer { font-size: 8px; padding: 0 8px; }
     .tm-foot-mid { display: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════
+   INTERACTIVITY LAYER — tooltips, info icons, filter badges, click affordances
+   Added in v417. Every data-tip element gets a floating amber tooltip; every data-action element
+   becomes clickable with a filter/focus behavior. Bloomberg terminal visual language throughout.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Floating Tooltip ─── */
+.tm-tooltip {
+    position: fixed;
+    z-index: 10001;
+    background: linear-gradient(180deg, rgba(14,14,26,0.98), rgba(6,6,14,0.98));
+    border: 1px solid rgba(251,191,36,0.55);
+    border-radius: 3px;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.85),
+                0 0 14px rgba(251,191,36,0.14),
+                inset 0 1px 0 rgba(251,191,36,0.08);
+    padding: 7px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #d8d8e0;
+    letter-spacing: 0.2px;
+    line-height: 1.55;
+    pointer-events: none;
+    max-width: 300px;
+    min-width: 120px;
+    font-variant-numeric: tabular-nums;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+.tm-tooltip b { color: #fbbf24; font-weight: 700; }
+.tm-tooltip .tm-tip-hd {
+    font-size: 8px;
+    letter-spacing: 1.4px;
+    color: #fbbf24;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding-bottom: 4px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid rgba(251,191,36,0.25);
+}
+.tm-tooltip .tm-tip-body {
+    font-size: 10px;
+    color: #c8c8d8;
+    margin: 2px 0 4px;
+    letter-spacing: 0.15px;
+    line-height: 1.5;
+}
+.tm-tooltip .tm-tip-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 14px;
+    font-size: 10px;
+    padding: 1px 0;
+}
+.tm-tooltip .tm-tip-k {
+    color: #6a6a80;
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+.tm-tooltip .tm-tip-foot {
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px dashed rgba(26,26,42,0.7);
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    color: #6a6a80;
+    font-style: italic;
+}
+.tm-tooltip .tm-tip-good  { color: #34d399; }
+.tm-tooltip .tm-tip-warn  { color: #fbbf24; }
+.tm-tooltip .tm-tip-bad   { color: #f87171; }
+.tm-tooltip .tm-tip-muted { color: #6a6a80; }
+.tm-tooltip .tm-tip-crown {
+    color: #fbbf24;
+    text-shadow: 0 0 6px rgba(251,191,36,0.6);
+}
+/* Per-category event headers — colored accent to match the activity stream */
+.tm-tooltip .tm-tip-hd-launch  { color: #34d399; border-bottom-color: rgba(52,211,153,0.3); }
+.tm-tooltip .tm-tip-hd-deal    { color: #fbbf24; border-bottom-color: rgba(251,191,36,0.3); }
+.tm-tooltip .tm-tip-hd-trophy  { color: #facc15; border-bottom-color: rgba(250,204,21,0.3); }
+.tm-tooltip .tm-tip-hd-build   { color: #22d3ee; border-bottom-color: rgba(34,211,238,0.3); }
+.tm-tooltip .tm-tip-hd-policy  { color: #a78bfa; border-bottom-color: rgba(167,139,250,0.3); }
+.tm-tooltip .tm-tip-hd-env     { color: #f472b6; border-bottom-color: rgba(244,114,182,0.3); }
+.tm-tooltip .tm-tip-hd-model   { color: #818cf8; border-bottom-color: rgba(129,140,248,0.3); }
+
+/* Hide tooltip entirely when not in terminal mode (safety) */
+body:not(.terminal-mode) .tm-tooltip { display: none !important; }
+
+/* ─── Panel header info icon ─── */
+.tm-panel-info {
+    display: inline-flex;
+    align-items: center; justify-content: center;
+    width: 13px; height: 13px;
+    margin-left: auto;
+    margin-right: 6px;
+    font-size: 9px;
+    font-weight: 700;
+    font-style: italic;
+    font-family: 'Georgia', serif;
+    color: rgba(138,138,160,0.45);
+    border: 1px solid rgba(138,138,160,0.3);
+    border-radius: 50%;
+    cursor: help;
+    transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    user-select: none;
+}
+.tm-panel-info:hover {
+    color: #fbbf24;
+    border-color: rgba(251,191,36,0.55);
+    box-shadow: 0 0 6px rgba(251,191,36,0.35);
+}
+/* Repack header so info sits between title and tag */
+.tm-panel-h { gap: 6px; }
+.tm-panel-title { margin-right: 0; }
+
+/* ─── Clickable affordances ─── */
+[data-action],
+.tm-clickable {
+    cursor: pointer;
+}
+/* Subtle hover feedback for clickables (donut legends, matrix cells, population rows, etc) */
+.tm-legend-row[data-action]:hover {
+    background: rgba(251,191,36,0.06);
+    border-radius: 2px;
+}
+.tm-pop-row.tm-clickable:hover {
+    background: rgba(251,191,36,0.05);
+    border-radius: 2px;
+}
+.tm-matrix td.tm-clickable {
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+.tm-matrix td.tm-clickable:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 8px rgba(251,191,36,0.4);
+    z-index: 2;
+    position: relative;
+}
+
+/* ─── Dim / active (filter feedback) ─── */
+.tm-dim {
+    opacity: 0.22;
+    transition: opacity 0.25s ease-out;
+}
+.tm-active {
+    outline: 1px solid #fbbf24;
+    outline-offset: 1px;
+    background: rgba(251,191,36,0.08);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(251,191,36,0.25);
+}
+.tm-legend-row.tm-active .tm-legend-lbl { color: #fbbf24; font-weight: 700; }
+.tm-pop-row.tm-active .tm-pop-lbl { color: #fbbf24; }
+
+/* ─── Filter badge (shown above labs table when region filter active) ─── */
+.tm-filter-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin: 5px 10px 0;
+    padding: 3px 9px;
+    background: rgba(251,191,36,0.12);
+    border: 1px solid rgba(251,191,36,0.55);
+    border-radius: 2px;
+    color: #fbbf24;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    user-select: none;
+}
+.tm-filter-badge:hover {
+    background: rgba(251,191,36,0.2);
+    box-shadow: 0 0 10px rgba(251,191,36,0.35);
+}
+.tm-filter-x {
+    color: #fbbf24;
+    font-size: 12px;
+    line-height: 1;
+    margin-left: 2px;
+}
+.tm-filter-inline {
+    margin-left: auto;
+    margin-right: 0;
+    margin-top: 0;
+    font-size: 8px;
+    padding: 2px 7px;
+}
+
+/* ─── Labs rows with filter behavior: the entire row now has data-tip too ─── */
+.tm-table tbody tr[data-tip] {
+    transition: background 0.1s;
+}
+.tm-table tbody tr[data-tip]:hover td {
+    background: rgba(251,191,36,0.05);
+}
+
+/* ─── News / deal / event items get pointer cursor feel on hover ─── */
+.tm-news-item[data-tip],
+.tm-deal-item[data-tip],
+.tm-event-item[data-tip],
+.tm-align-card[data-tip],
+.tm-long-cell[data-tip],
+.tm-bar-row[data-tip],
+.tm-bn-row[data-tip] {
+    cursor: default;
+}
+.tm-news-item[data-tip]:hover,
+.tm-deal-item[data-tip]:hover,
+.tm-event-item[data-tip]:hover {
+    background: rgba(251,191,36,0.04);
+}
+
+/* ─── Topbar stats: show subtle underline on hover to signal info ─── */
+.tm-stat[data-tip] { cursor: help; }
+
+/* ─── Allow panel header tag to push to far right even with info icon present ─── */
+.tm-panel-h .tm-panel-live,
+.tm-panel-h .tm-panel-tag {
+    margin-left: 0;
+}
+
