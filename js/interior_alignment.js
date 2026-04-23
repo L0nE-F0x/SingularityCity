@@ -399,6 +399,12 @@ const InteriorAlignment = {
             InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, cabinX, cabinW, surfaceY, belowBasementY, undFloorH);
         }
 
+        // ─── CABIN BASEMENT — research archive beneath the cabin ───
+        // The strip between surfaceY and belowBasementY sits inside the cabin's footprint
+        // but below the ground floor. Filled with institute-themed archive props so the
+        // basement feels like a lived-in research storeroom rather than empty void.
+        this._drawBasement(cabinX, cabinW, surfaceY, undFloorH, belowBasementY, accent);
+
         // ─── FIREPLACE (center of ground floor) ───
         const fpW = 90, fpH = 80;
         const fpX = cabinX + cabinW / 2 - fpW / 2;
@@ -723,16 +729,7 @@ const InteriorAlignment = {
             cont.scale.x = -1; // face the terminal (terminal is to their left)
         }
 
-        // Research-id label floating above head (faint, small)
-        if (role === 'board' || role === 'desk') {
-            const tag = new PIXI.Text(theme.researcherTag || '', {
-                fontFamily: 'JetBrains Mono', fontSize: 5, fill: accent,
-                letterSpacing: 0.5, padding: 2
-            });
-            tag.anchor.set(0.5, 1);
-            tag.x = 0; tag.y = -24;
-            cont.addChild(tag);
-        }
+        // (Floating researcher-id tag removed — hover tooltip + info panel cover this.)
 
         cont._role = role;
         cont._accent = accent;
@@ -857,6 +854,310 @@ const InteriorAlignment = {
                 }
             });
         }
+    },
+
+    // ─── CABIN BASEMENT — research archive beneath the cabin ───
+    // Called from build() after the zone-underground has been drawn. Paints the
+    // strip inside the cabin's footprint (surfaceY → belowBasementY) with a
+    // lived-in research storeroom: foundation walls, joists, concrete floor,
+    // crates with institute-accent stencil, filing cabinet with spilling papers,
+    // leaning whiteboard with faded scribbles, book stack, wine/tea rack,
+    // workbench with tea mug + green banker's lamp, hanging bulb, and a cobweb.
+    _drawBasement(cabinX, cabinW, surfaceY, undFloorH, belowBasementY, accent) {
+        const g = new PIXI.Graphics();
+        const bx = cabinX, bw = cabinW;
+        const by = surfaceY, bh = undFloorH;
+        const bBot = belowBasementY;
+
+        // ─── Dark earth back wall ───
+        g.beginFill(0x2a1e14);
+        g.drawRect(bx, by, bw, bh);
+        g.endFill();
+
+        // ─── Wooden ceiling joists ───
+        g.beginFill(0x1a1008);
+        g.drawRect(bx, by, bw, 5);
+        g.endFill();
+        g.beginFill(0x3a2814);
+        for (let jx = bx + 14; jx < bx + bw - 10; jx += 22) {
+            g.drawRect(jx, by + 5, 4, 3);
+        }
+        g.endFill();
+
+        // ─── Stone foundation walls (inner edges) ───
+        g.beginFill(0x3a3226);
+        g.drawRect(bx, by + 4, 6, bh - 4);
+        g.drawRect(bx + bw - 6, by + 4, 6, bh - 4);
+        g.endFill();
+        // Stone block pattern
+        g.beginFill(0x2a221a);
+        for (let sy = by + 10; sy < bBot - 8; sy += 10) {
+            g.drawRect(bx, sy, 6, 1);
+            g.drawRect(bx + bw - 6, sy, 6, 1);
+        }
+        g.endFill();
+
+        // ─── Dusty concrete floor ───
+        const floorY = bBot - 7;
+        g.beginFill(0x3a342a);
+        g.drawRect(bx + 6, floorY, bw - 12, 7);
+        g.endFill();
+        g.beginFill(0x2a241a);
+        g.drawRect(bx + 6, floorY, bw - 12, 1);
+        g.endFill();
+        // Floor seams
+        g.beginFill(0x241e14);
+        g.drawRect(bx + 6 + (bw - 12) / 3, floorY, 1, 7);
+        g.drawRect(bx + 6 + 2 * (bw - 12) / 3, floorY, 1, 7);
+        g.endFill();
+        // Water stain
+        g.beginFill(0x1a1a0e, 0.45);
+        g.drawEllipse(bx + bw / 2 + 22, floorY + 4, 14, 3);
+        g.endFill();
+
+        // ─── CRATES (left, stacked) ───
+        const crateX = bx + 10;
+        // Bottom crate
+        g.beginFill(0x5a3e22);
+        g.drawRect(crateX, floorY - 16, 18, 16);
+        g.endFill();
+        g.beginFill(0x6e4e2e);
+        g.drawRect(crateX + 2, floorY - 14, 14, 2);
+        g.drawRect(crateX + 2, floorY - 4, 14, 2);
+        g.endFill();
+        g.beginFill(0x3a2414);
+        g.drawRect(crateX, floorY - 16, 18, 1);
+        g.drawRect(crateX, floorY - 1, 18, 1);
+        g.endFill();
+        // Institute-accent stencil
+        g.beginFill(accent, 0.75);
+        g.drawRect(crateX + 4, floorY - 10, 10, 1);
+        g.drawRect(crateX + 5, floorY - 8, 8, 1);
+        g.endFill();
+        // Top crate (smaller, offset)
+        g.beginFill(0x5a3e22);
+        g.drawRect(crateX + 2, floorY - 28, 14, 12);
+        g.endFill();
+        g.beginFill(0x6e4e2e);
+        g.drawRect(crateX + 4, floorY - 26, 10, 2);
+        g.drawRect(crateX + 4, floorY - 20, 10, 2);
+        g.endFill();
+        g.beginFill(0x3a2414);
+        g.drawRect(crateX + 2, floorY - 28, 14, 1);
+        g.drawRect(crateX + 2, floorY - 17, 14, 1);
+        g.endFill();
+
+        // ─── FILING CABINET (next to crates) ───
+        const fcX = crateX + 22;
+        const fcY = floorY - 28;
+        g.beginFill(0x5a5a5e);
+        g.drawRect(fcX, fcY, 18, 28);
+        g.endFill();
+        g.beginFill(0x6a6a6e);
+        g.drawRect(fcX + 1, fcY + 1, 16, 1);
+        g.endFill();
+        g.beginFill(0x3a3a3e);
+        g.drawRect(fcX, fcY + 27, 18, 1);
+        g.endFill();
+        // 3 drawers
+        for (let d = 0; d < 3; d++) {
+            const dy = fcY + 2 + d * 8;
+            g.beginFill(0x4a4a4e);
+            g.drawRect(fcX + 1, dy, 16, 7);
+            g.endFill();
+            g.beginFill(0x9a9a9e);
+            g.drawRect(fcX + 7, dy + 3, 4, 1);
+            g.endFill();
+            g.beginFill(0x2a2a2e);
+            g.drawRect(fcX + 1, dy + 7, 16, 1);
+            g.endFill();
+        }
+        // Papers spilling out of top drawer
+        g.beginFill(0xf0ead8);
+        g.drawRect(fcX + 2, fcY - 1, 5, 4);
+        g.drawRect(fcX + 9, fcY - 2, 6, 5);
+        g.endFill();
+        g.beginFill(0x4a4a5a);
+        g.drawRect(fcX + 3, fcY + 1, 3, 1);
+        g.drawRect(fcX + 10, fcY, 4, 1);
+        g.endFill();
+
+        // ─── LEANING WHITEBOARD ───
+        const wbX = fcX + 22;
+        const wbY = floorY - 30;
+        g.beginFill(0x3a2814);
+        g.drawRect(wbX - 1, wbY - 1, 26, 32);
+        g.endFill();
+        g.beginFill(0xf0ece0);
+        g.drawRect(wbX, wbY, 24, 30);
+        g.endFill();
+        g.beginFill(0x5a3e22);
+        g.drawRect(wbX - 1, wbY - 1, 26, 2);
+        g.drawRect(wbX - 1, wbY + 29, 26, 2);
+        g.drawRect(wbX - 1, wbY - 1, 2, 32);
+        g.drawRect(wbX + 23, wbY - 1, 2, 32);
+        g.endFill();
+        // Faded grey scribbles
+        g.beginFill(0x8a8a8a, 0.55);
+        g.drawRect(wbX + 3, wbY + 4, 14, 1);
+        g.drawRect(wbX + 3, wbY + 7, 10, 1);
+        g.drawRect(wbX + 5, wbY + 10, 12, 1);
+        g.drawRect(wbX + 3, wbY + 14, 8, 1);
+        g.drawRect(wbX + 13, wbY + 14, 6, 1);
+        g.endFill();
+        // Accent-color scribbles + arrow
+        g.beginFill(accent, 0.75);
+        g.drawRect(wbX + 3, wbY + 18, 14, 1);
+        g.drawRect(wbX + 3, wbY + 21, 10, 1);
+        g.drawRect(wbX + 5, wbY + 24, 8, 1);
+        g.endFill();
+        g.lineStyle(1, accent, 0.8);
+        g.moveTo(wbX + 14, wbY + 19);
+        g.lineTo(wbX + 19, wbY + 19);
+        g.moveTo(wbX + 17, wbY + 17);
+        g.lineTo(wbX + 19, wbY + 19);
+        g.moveTo(wbX + 17, wbY + 21);
+        g.lineTo(wbX + 19, wbY + 19);
+        g.lineStyle(0);
+
+        // ─── BOOK STACK ───
+        const bsX = wbX + 28;
+        const bsY = floorY - 2;
+        const bookColors = [0x3a3a8a, 0x8a3a3a, 0x3a6a3a, 0x8a5a7a, 0x6a3a8a];
+        for (let i = 0; i < bookColors.length; i++) {
+            g.beginFill(bookColors[i]);
+            g.drawRect(bsX, bsY - (i + 1) * 3, 12, 3);
+            g.endFill();
+            g.beginFill(0xf0ead8);
+            g.drawRect(bsX + 1, bsY - (i + 1) * 3 + 1, 10, 1);
+            g.endFill();
+        }
+
+        // ─── WINE / TEA RACK ───
+        const wrX = bsX + 16;
+        const wrY = floorY - 22;
+        if (wrX + 26 < bx + bw - 50) {
+            g.beginFill(0x3a2814);
+            g.drawRect(wrX, wrY, 26, 22);
+            g.endFill();
+            g.beginFill(0x5a3e22);
+            g.drawRect(wrX, wrY, 26, 2);
+            g.drawRect(wrX, wrY + 20, 26, 2);
+            g.drawRect(wrX, wrY + 10, 26, 2);
+            g.drawRect(wrX, wrY, 2, 22);
+            g.drawRect(wrX + 24, wrY, 2, 22);
+            g.endFill();
+            const bottleColors = [0x3a6a3a, 0x5a3a3a, 0x3a5a6a];
+            for (let b = 0; b < 3; b++) {
+                g.beginFill(bottleColors[b]);
+                g.drawRect(wrX + 4 + b * 7, wrY + 3, 4, 7);
+                g.endFill();
+            }
+            for (let b = 0; b < 3; b++) {
+                g.beginFill(bottleColors[(b + 1) % 3]);
+                g.drawRect(wrX + 4 + b * 7, wrY + 13, 4, 7);
+                g.endFill();
+            }
+        }
+
+        // ─── WORKBENCH (right side) ───
+        const wbchX = Math.max(wrX + 30, bx + bw - 90);
+        const wbchY = floorY - 12;
+        const wbchW = (bx + bw - 10) - wbchX;
+        if (wbchW > 40) {
+            // Top + shadow
+            g.beginFill(0x5a3e22);
+            g.drawRect(wbchX, wbchY, wbchW, 4);
+            g.endFill();
+            g.beginFill(0x3a2414);
+            g.drawRect(wbchX, wbchY + 3, wbchW, 1);
+            g.endFill();
+            // Legs
+            g.beginFill(0x3a2414);
+            g.drawRect(wbchX + 2, wbchY + 4, 3, 8);
+            g.drawRect(wbchX + wbchW - 5, wbchY + 4, 3, 8);
+            g.endFill();
+            // Stacked papers
+            g.beginFill(0xf0ead8);
+            g.drawRect(wbchX + 4, wbchY - 4, 10, 4);
+            g.endFill();
+            g.beginFill(0x4a4a5a);
+            g.drawRect(wbchX + 5, wbchY - 3, 7, 1);
+            g.drawRect(wbchX + 5, wbchY - 1, 6, 1);
+            g.endFill();
+            // Tea mug
+            const mugX = wbchX + 18;
+            g.beginFill(0xf0f0e8);
+            g.drawRect(mugX, wbchY - 5, 5, 5);
+            g.endFill();
+            g.beginFill(0x5a3a1a);
+            g.drawRect(mugX + 1, wbchY - 5, 3, 1);
+            g.endFill();
+            g.lineStyle(1, 0xf0f0e8);
+            g.moveTo(mugX + 5, wbchY - 4);
+            g.lineTo(mugX + 7, wbchY - 3);
+            g.lineTo(mugX + 5, wbchY - 1);
+            g.lineStyle(0);
+            // Green banker's lamp
+            const lmpX = wbchX + wbchW - 16;
+            const lmpY = wbchY - 12;
+            g.beginFill(0x2a6a3a);
+            g.drawRect(lmpX, lmpY, 10, 3);
+            g.endFill();
+            g.beginFill(0x3a8a4a);
+            g.drawRect(lmpX, lmpY, 10, 1);
+            g.endFill();
+            g.beginFill(0x1a4a2a);
+            g.drawRect(lmpX, lmpY + 3, 10, 1);
+            g.endFill();
+            g.beginFill(0x8a6a2a);
+            g.drawRect(lmpX + 4, lmpY + 3, 2, 8);
+            g.drawRect(lmpX + 2, lmpY + 11, 6, 1);
+            g.endFill();
+            // Warm glow
+            g.beginFill(0xffd060, 0.28);
+            g.drawEllipse(lmpX + 5, lmpY + 4, 10, 3);
+            g.endFill();
+        }
+
+        // ─── HANGING BULB (center) ───
+        const blbX = bx + bw / 2;
+        const blbY = by + 5;
+        g.lineStyle(1, 0x3a3a3a);
+        g.moveTo(blbX, blbY);
+        g.lineTo(blbX, blbY + 18);
+        g.lineStyle(0);
+        g.beginFill(0x7a6a3a);
+        g.drawRect(blbX - 1, blbY + 17, 2, 2);
+        g.endFill();
+        g.beginFill(0xfff0c0, 0.95);
+        g.drawCircle(blbX, blbY + 22, 3);
+        g.endFill();
+        // Soft glow
+        g.beginFill(0xffd060, 0.16);
+        g.drawCircle(blbX, blbY + 22, 14);
+        g.endFill();
+        g.beginFill(0xffd060, 0.08);
+        g.drawCircle(blbX, blbY + 22, 22);
+        g.endFill();
+
+        // ─── COBWEB (top-right corner) ───
+        const cwX = bx + bw - 10;
+        const cwY = by + 6;
+        g.lineStyle(1, 0xa0a0a0, 0.45);
+        g.moveTo(cwX, cwY);
+        g.lineTo(cwX - 10, cwY + 10);
+        g.moveTo(cwX, cwY);
+        g.lineTo(cwX + 2, cwY + 12);
+        g.moveTo(cwX, cwY);
+        g.lineTo(cwX - 4, cwY + 14);
+        g.moveTo(cwX - 8, cwY + 4);
+        g.lineTo(cwX + 1, cwY + 6);
+        g.moveTo(cwX - 6, cwY + 9);
+        g.lineTo(cwX + 1, cwY + 11);
+        g.lineStyle(0);
+
+        this.scene.addChild(g);
     },
 
     _popBubble(av, text) {

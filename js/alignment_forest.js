@@ -74,7 +74,12 @@ const AlignmentForest = {
         this._inited = true;
         this.BLDS.forEach(def => {
             if (!BLDS.find(b => b.id === def.id)) {
-                const bld = { ...def, x: 0, lab: null };
+                // `tip` is used by the generic pointerover handler (environment.js)
+                // to populate the hover tooltip. Default was `b.desc`, which is
+                // long (120-180 chars) and blew the tooltip wide. Use the concise
+                // `focus` line instead — reads cleanly and fits in the 260px
+                // max-width defined in .game-tt.
+                const bld = { ...def, x: 0, lab: null, tip: def.focus };
                 BLDS.push(bld);
                 if (typeof G !== 'undefined' && G.bldById) G.bldById[def.id] = bld;
             }

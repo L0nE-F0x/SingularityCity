@@ -188,7 +188,7 @@ h1, h2, h3, p { margin: 0; }
 .tick-txt { padding: 0 15px; color: var(--t2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ─── TOOLTIPS & TOASTS ─── */
-.game-tt { position: absolute; background: rgba(10,10,25,0.95); border: 1px solid var(--bd); border-radius: 4px; padding: 8px 12px; pointer-events: none; z-index: 50; transform: translate(-50%, -100%); backdrop-filter: blur(2px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.game-tt { position: absolute; background: rgba(10,10,25,0.95); border: 1px solid var(--bd); border-radius: 4px; padding: 8px 12px; pointer-events: none; z-index: 50; transform: translate(-50%, -100%); backdrop-filter: blur(2px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); max-width: 260px; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
 .tt-name { font-size: 11px; font-weight: bold; color: #fff; margin-bottom: 4px; }
 .tt-sub { font-size: 9px; color: var(--t2); }
 .tt-hint { font-size: 8px; color: var(--ac); margin-top: 4px; font-style: italic; }
