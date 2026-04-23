@@ -66,9 +66,9 @@ const G = {
             this.bldById['metro_east'] = mEast;
         }
 
-        // Longevity Line — terminus station between Longevity Wing and Silicon Woods
+        // Innovation Line — terminus station serving all innovation zones (Backbone, Robotics, Longevity, Agents, Alignment)
         if (!BLDS.find(b => b.id === 'metro_longevity')) {
-            const mLong = { id: 'metro_longevity', name: 'Longevity Line', w: 120, x: 0, fl: 1, emoji: '🚇', lab: null, desc: 'Terminus station serving Longevity Wing, Robotics Factory and Backbone workers.' };
+            const mLong = { id: 'metro_longevity', name: 'Innovation Line', w: 120, x: 0, fl: 1, emoji: '🚇', lab: null, desc: 'Terminus station serving the Innovation Corridor — Backbone, Robotics, Longevity, Agent District and Alignment Forest workers.' };
             BLDS.push(mLong);
             this.bldById['metro_longevity'] = mLong;
         }
@@ -85,6 +85,13 @@ const G = {
             const mon = { id: 'visitor_monument', name: 'Visitor Monument', w: 80, x: 0, fl: 1, emoji: '🌐', lab: null, desc: 'A monument tracking every unique visitor to Singularity City. Your presence is recorded.' };
             BLDS.push(mon);
             this.bldById['visitor_monument'] = mon;
+        }
+
+        // Model Graveyard — final resting place for retired/deprecated AI models (haunted by ghosts)
+        if (!BLDS.find(b => b.id === 'graveyard')) {
+            const grave = { id: 'graveyard', name: 'Model Graveyard', w: 200, x: 0, fl: 1, emoji: '⚰️', lab: null, desc: 'A memorial park honoring retired and deprecated AI models. Quiet, reverent, eternal.' };
+            BLDS.push(grave);
+            this.bldById['graveyard'] = grave;
         }
 
         // The Singularity City Times — weekly newspaper of record
@@ -252,9 +259,10 @@ const G = {
         const isSpecialId = (id) => id.startsWith('res_') || id === 'metro_res' || id.startsWith('house_') ||
             id === 'metro_east' || id === 'metro_dc' || id === 'metro_mid' || id === 'metro_longevity' || id.startsWith('npc_apt_') ||
             id.startsWith('suburb_') ||
-            id === 'neon_bar' || id === 'visitor_monument' || id === 'times_hq' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
+            id === 'neon_bar' || id === 'visitor_monument' || id === 'times_hq' || id === 'graveyard' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
             id.startsWith('uni_') || id.startsWith('court_') || id === 'city_park' || id === 'ai_index' || id === 'black_market' || id === 'convention_center' || id.startsWith('backbone_') ||
-            id.startsWith('vcrow_') || id.startsWith('robotics_') || id.startsWith('longevity_') || id.startsWith('agents_');
+            id.startsWith('vcrow_') || id.startsWith('robotics_') || id.startsWith('longevity_') || id.startsWith('agents_') ||
+            id.startsWith('embassy_') || id.startsWith('align_');
 
         const techBldsList = BLDS.filter(b =>
             !isSpecialId(b.id) && !isDcBld(b) && !isSpaceOrForestSep(b)
@@ -358,6 +366,13 @@ const G = {
         if (tHQ) {
             tHQ.x = currentX;
             currentX += tHQ.w + 90; // Extra gap for dumpster entrance
+        }
+
+        // Model Graveyard — memorial park for retired AI models (haunted by ghosts)
+        const grave = BLDS.find(b => b.id === 'graveyard');
+        if (grave) {
+            grave.x = currentX;
+            currentX += grave.w + 60;
         }
 
         // Neon Bar — nightlife strip
