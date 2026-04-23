@@ -108,18 +108,25 @@ const Terminal = {
             this.toggle();
         });
 
-        // URL deep-link only — auto-bootstrap if explicit ?mode=terminal. No preference persistence.
-        let urlWantsTerminal = false;
+        // Defensive: strip any stale ?mode=terminal from the URL. Previously the URL
+        // was pinned while Terminal was open, so closing the tab stranded the param
+        // and auto-booted Terminal on every subsequent visit. We no longer auto-boot
+        // from URL at all — the landing page ALWAYS shows so the user can choose.
         try {
             const p = new URLSearchParams(window.location.search);
-            const mode = p.get('mode');
-            if (mode === 'terminal' || mode === 'data') urlWantsTerminal = true;
+            if (p.has('mode')) {
+                p.delete('mode');
+                const q = p.toString();
+                const newUrl = window.location.pathname + (q ? '?' + q : '') + window.location.hash;
+                window.history.replaceState(null, '', newUrl);
+            }
         } catch (e) {}
 
-        if (urlWantsTerminal) {
-            this._pendingOpen = true;
-            this._autoBootstrap();
-        }
+        // Defensive: clear any stale preference key from the pre-Phase-4 version.
+        try { localStorage.removeItem('sc_terminal_pref'); } catch (e) {}
+
+        // No auto-bootstrap. Terminal opens only when the user clicks the landing
+        // button or presses D after entering the city.
     },
 
     _autoBootstrap() {
@@ -152,13 +159,17 @@ const Terminal = {
         document.body.classList.add('terminal-mode');
         this._buildShell();
         this._startUpdateLoop();
-        this._syncUrl(true);
+        // NOTE: We no longer pin ?mode=terminal to the URL while Terminal is open.
+        // Doing so used to mean that closing the tab stranded the param in the
+        // address bar, and the next visit auto-booted Terminal before the user
+        // could choose. The param is consumed once on init() and never re-emitted.
     },
 
     close() {
         if (!this.isOpen) return;
         this.isOpen = false;
         document.body.classList.remove('terminal-mode');
+        // Defensive — strip ?mode=terminal if anything put it back.
         this._syncUrl(false);
     },
 
@@ -167,8 +178,8 @@ const Terminal = {
     _syncUrl(terminalOn) {
         try {
             const url = new URL(window.location.href);
-            if (terminalOn) url.searchParams.set('mode', 'terminal');
-            else url.searchParams.delete('mode');
+            // We only ever clear the param now. Never set it.
+            url.searchParams.delete('mode');
             window.history.replaceState(null, '', url);
         } catch (e) {}
     },
