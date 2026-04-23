@@ -252,6 +252,262 @@ body.terminal-mode #minimap {
     transform: translateY(-2px);
 }
 
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════
+   PHASE 2 — DATA WIDGETS
+   Tables, lists and cards for the four anchor panels. Same Bloomberg DNA as Phase 1: dense mono
+   type, flat panels, colour-coded accents. Each widget lives inside `.tm-scroll` so it scrolls
+   independently inside its panel without bleeding past the panel border.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── LIVE BADGE (replaces .tm-panel-tag for panels with live data) ─── */
+.tm-panel-live {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: #34d399; font-size: 8px; font-weight: 700;
+    padding: 2px 6px;
+    border: 1px solid #1a4a30;
+    background: rgba(52,211,153,0.06);
+    border-radius: 2px;
+    letter-spacing: 1px;
+}
+.tm-live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 6px #34d399;
+    animation: tm-pulse 1.5s infinite ease-in-out;
+}
+
+/* ─── SCROLL CONTAINER + EMPTY STATE ─── */
+.tm-scroll {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+.tm-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.tm-scroll::-webkit-scrollbar-track { background: transparent; }
+.tm-scroll::-webkit-scrollbar-thumb { background: #1a1a2a; border-radius: 3px; }
+.tm-scroll::-webkit-scrollbar-thumb:hover { background: #2a2a3a; }
+.tm-empty {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%;
+    padding: 14px;
+    color: #6a6a80; font-size: 10px;
+    text-align: center; letter-spacing: 0.5px;
+}
+
+/* ─── DATA TABLE (used by AI LABS) ─── */
+.tm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    color: #c8c8d8;
+}
+.tm-table thead th {
+    position: sticky; top: 0;
+    background: #0d0d18;
+    color: #8a8aa0;
+    font-weight: 700;
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid #1a1a2a;
+    white-space: nowrap;
+    z-index: 1;
+}
+.tm-table th[data-col] {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s, background 0.15s;
+}
+.tm-table th[data-col]:hover {
+    color: #fbbf24;
+    background: #14142a;
+}
+.tm-table tbody td {
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(26,26,42,0.5);
+    white-space: nowrap;
+}
+.tm-table tbody tr:nth-child(odd) td { background: rgba(255,255,255,0.012); }
+.tm-table tbody tr:hover td { background: rgba(34,211,238,0.06); }
+.tm-table .tm-num { text-align: right; }
+
+/* Labs-specific table cells */
+.tm-labs-table .tm-rank {
+    color: #6a6a80;
+    width: 28px;
+    text-align: right;
+    padding-right: 10px;
+    font-size: 9px;
+}
+.tm-labs-table .tm-lab-name {
+    display: flex; align-items: center; gap: 6px;
+    font-weight: 600;
+    color: #e8e8f0;
+}
+.tm-lab-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 4px currentColor;
+}
+.tm-apex {
+    color: #fbbf24;
+    font-size: 11px;
+    margin-left: 4px;
+    text-shadow: 0 0 6px rgba(251,191,36,0.6);
+}
+.tm-region {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-radius: 2px;
+    border: 1px solid currentColor;
+    background: rgba(255,255,255,0.02);
+    color: #8a8aa0; /* default fallback for unknown jurisdictions */
+}
+.tm-region-us { color: #60a5fa; }
+.tm-region-eu { color: #a78bfa; }
+.tm-region-cn { color: #f87171; }
+.tm-labs-table .tm-flagship {
+    color: #a0a0b8;
+    font-size: 9px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tm-labs-table .tm-elo { color: #22d3ee; font-weight: 700; }
+
+/* ─── ALIGNMENT CARDS ─── */
+.tm-align-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 6px;
+}
+.tm-align-card {
+    background: #0d0d18;
+    border: 1px solid #1a1a2a;
+    border-left: 3px solid #8a8aa0;
+    padding: 6px 8px;
+    border-radius: 2px;
+    transition: background 0.15s, transform 0.15s;
+}
+.tm-align-card:hover {
+    background: #11111e;
+    transform: translateX(1px);
+}
+.tm-align-top {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 8px;
+}
+.tm-align-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.tm-align-year {
+    font-size: 8px;
+    color: #6a6a80;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+}
+.tm-align-focus {
+    font-size: 9px;
+    color: #a0a0b8;
+    margin-top: 3px;
+    line-height: 1.4;
+}
+.tm-align-meta {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 3px;
+}
+.tm-align-lead {
+    font-size: 9px;
+    color: #d8d8e0;
+}
+.tm-align-loc {
+    font-size: 8px;
+    color: #6a6a80;
+    margin-top: 1px;
+    letter-spacing: 0.3px;
+}
+
+/* ─── NEWS LIST ─── */
+.tm-news-list { padding: 3px 0; }
+.tm-news-item {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 5px 10px;
+    border-bottom: 1px solid rgba(26,26,42,0.4);
+    font-size: 10px;
+    line-height: 1.35;
+}
+.tm-news-item:hover { background: rgba(34,211,238,0.04); }
+.tm-news-source {
+    flex-shrink: 0;
+    font-size: 8px; font-weight: 700;
+    letter-spacing: 1px;
+    padding: 1px 5px;
+    border-radius: 2px;
+    border: 1px solid currentColor;
+    background: rgba(255,255,255,0.02);
+    min-width: 38px;
+    text-align: center;
+}
+.tm-tag-hn { color: #fb923c; }
+.tm-tag-news { color: #22d3ee; }
+.tm-news-title {
+    flex: 1; min-width: 0;
+    color: #d8d8e0; text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    transition: color 0.15s;
+}
+.tm-news-title:hover {
+    color: #fbbf24;
+    text-decoration: underline;
+}
+.tm-news-score {
+    flex-shrink: 0;
+    font-size: 9px; font-weight: 600;
+    color: #fb923c;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ─── EVENTS LIST ─── */
+.tm-events-list { padding: 3px 0; }
+.tm-event-item {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 4px 10px 4px 8px;
+    border-left: 2px solid transparent;
+    border-bottom: 1px solid rgba(26,26,42,0.3);
+    font-size: 10px;
+    line-height: 1.35;
+}
+.tm-event-item:hover { background: rgba(255,255,255,0.02); }
+.tm-event-time {
+    flex-shrink: 0;
+    color: #6a6a80;
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+    min-width: 44px;
+}
+.tm-event-msg {
+    flex: 1; min-width: 0;
+    color: #c8c8d8;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tm-ev-launch  { border-left-color: #34d399; }
+.tm-ev-deal    { border-left-color: #fbbf24; }
+.tm-ev-trophy  { border-left-color: #facc15; }
+.tm-ev-build   { border-left-color: #22d3ee; }
+.tm-ev-policy  { border-left-color: #a78bfa; }
+.tm-ev-env     { border-left-color: #f472b6; }
+.tm-ev-model   { border-left-color: #818cf8; }
+.tm-ev-other   { border-left-color: rgba(106,106,128,0.3); }
+
 /* ═══ RESPONSIVE ═══ */
 @media (max-width: 1100px) {
     .tm-size-lg { grid-column: span 8; }
@@ -272,4 +528,15 @@ body.terminal-mode #minimap {
     .tm-size-lg, .tm-size-md, .tm-size-sm { grid-column: 1 / -1; grid-row: auto; }
     .tm-footer { font-size: 8px; padding: 0 8px; }
     .tm-foot-mid { display: none; }
+}
+
+/* Phase 2 widget density tweaks on narrow viewports */
+@media (max-width: 780px) {
+    .tm-table { font-size: 9px; }
+    .tm-table thead th { padding: 5px 6px; }
+    .tm-table tbody td { padding: 4px 6px; }
+    .tm-labs-table .tm-flagship { max-width: 90px; }
+    .tm-news-item, .tm-event-item { padding: 4px 8px; font-size: 9px; }
+    .tm-align-card { padding: 5px 7px; }
+    .tm-align-name { font-size: 10px; }
 }
