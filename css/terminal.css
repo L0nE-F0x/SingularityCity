@@ -540,3 +540,381 @@ body.terminal-mode #minimap {
     .tm-align-card { padding: 5px 7px; }
     .tm-align-name { font-size: 10px; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════
+   PHASE 3 — DATA WIDGETS (10 remaining panels)
+   Shared stat-card primitives (big number + unit + sub-label) + specialised widgets: MW bars,
+   progress meter, 6×6 relations matrix, deal ticker, bottleneck indicators, K-scale progress.
+   Same density rules as Phase 2 — everything lives inside `.tm-scroll` so it scrolls cleanly.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── SHARED STAT PRIMITIVES ─── */
+.tm-stat-block {
+    padding: 9px 11px 7px;
+    border-bottom: 1px solid rgba(26,26,42,0.6);
+}
+.tm-head-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 11px 6px;
+    gap: 10px;
+    border-bottom: 1px solid rgba(26,26,42,0.6);
+}
+.tm-stat-big {
+    display: flex; align-items: baseline; gap: 3px;
+    font-variant-numeric: tabular-nums;
+}
+.tm-stat-num {
+    color: #e8e8f0;
+    font-size: 22px; font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.5px;
+}
+.tm-stat-num-m { font-size: 16px; }
+.tm-stat-num-s { font-size: 13px; }
+.tm-stat-unit {
+    color: #8a8aa0;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+}
+.tm-stat-sub {
+    color: #8a8aa0;
+    font-size: 9px;
+    letter-spacing: 0.4px;
+    margin-top: 3px;
+}
+.tm-head-meta {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+    font-size: 9px;
+    color: #8a8aa0;
+    letter-spacing: 0.4px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.tm-head-n {
+    color: #e8e8f0;
+    font-weight: 700;
+}
+.tm-subhd {
+    padding: 5px 11px 3px;
+    color: #6a6a80;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+.tm-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    padding: 8px;
+}
+.tm-stat-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.tm-stat-cell {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #0d0d18;
+    border: 1px solid #1a1a2a;
+    border-radius: 2px;
+    padding: 7px 4px;
+    text-align: center;
+    min-height: 50px;
+}
+.tm-stat-cell .tm-stat-num,
+.tm-stat-cell .tm-stat-num-m,
+.tm-stat-cell .tm-stat-num-s { color: #e8e8f0; }
+.tm-stat-lbl {
+    color: #6a6a80;
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+    line-height: 1.2;
+    text-transform: lowercase;
+}
+
+/* ─── BARS (POWER / SUPPLY) ─── */
+.tm-bars {
+    padding: 8px 11px;
+    display: flex; flex-direction: column; gap: 5px;
+}
+.tm-bars-dense { gap: 3px; padding: 6px 10px; }
+.tm-bar-row {
+    display: grid;
+    grid-template-columns: 58px 1fr 42px;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+}
+.tm-bar-lbl {
+    color: #c8c8d8;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tm-bar-track {
+    height: 7px;
+    background: #101020;
+    border-radius: 2px;
+    overflow: hidden;
+    border: 1px solid rgba(26,26,42,0.6);
+}
+.tm-bar-fill {
+    height: 100%;
+    transition: width 0.3s ease-out;
+    box-shadow: 0 0 4px currentColor;
+}
+.tm-bar-val {
+    color: #a0a0b8;
+    text-align: right;
+}
+
+/* ─── METER (ROBOTICS) ─── */
+.tm-meter {
+    padding: 7px 11px 9px;
+}
+.tm-meter-top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 4px;
+    font-size: 8px;
+}
+.tm-meter-lbl {
+    color: #6a6a80;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+.tm-meter-val {
+    color: #22d3ee;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.tm-meter-track {
+    height: 6px;
+    background: #101020;
+    border: 1px solid rgba(26,26,42,0.6);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.tm-meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #22d3ee, #34d399);
+    box-shadow: 0 0 6px rgba(34,211,238,0.5);
+    transition: width 0.3s ease-out;
+}
+
+/* ─── COMPUTE BODY (table + subtle accent bar) ─── */
+.tm-compute-body { margin-top: 0; }
+.tm-compute-name {
+    padding-left: 10px !important;
+    color: #d8d8e0;
+    font-weight: 500;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ─── CAPITAL DEALS LIST ─── */
+.tm-deals-list { padding: 3px 0; }
+.tm-deal-item {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 5px 10px;
+    border-bottom: 1px solid rgba(26,26,42,0.4);
+    border-left: 2px solid #fbbf24;
+    font-size: 10px;
+    line-height: 1.35;
+}
+.tm-deal-item:hover { background: rgba(251,191,36,0.05); }
+.tm-deal-amt {
+    flex-shrink: 0;
+    color: #34d399;
+    font-weight: 700;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.3px;
+    min-width: 52px;
+}
+.tm-deal-headline {
+    flex: 1; min-width: 0;
+    color: #d8d8e0; text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+a.tm-deal-headline:hover { color: #fbbf24; text-decoration: underline; }
+.tm-deal-round {
+    flex-shrink: 0;
+    color: #8a8aa0;
+    font-size: 8px; font-weight: 700;
+    letter-spacing: 0.8px;
+    padding: 1px 5px;
+    border: 1px solid #2a2a3a;
+    border-radius: 2px;
+    text-transform: uppercase;
+}
+
+/* ─── EMBASSY RELATIONS MATRIX ─── */
+.tm-matrix-wrap { padding: 6px 8px 8px; }
+.tm-matrix {
+    border-collapse: collapse;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    margin: 0 auto;
+}
+.tm-matrix th,
+.tm-matrix td {
+    padding: 5px 7px;
+    text-align: center;
+    border: 1px solid #1a1a2a;
+    min-width: 26px;
+    letter-spacing: 0.5px;
+}
+.tm-matrix thead th {
+    background: #0d0d18;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1px;
+}
+.tm-matrix tbody th {
+    background: #0d0d18;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1px;
+}
+.tm-m-self    { background: #101020;         color: #3a3a4a; }
+.tm-m-good    { background: rgba(52,211,153,0.22);  color: #34d399; font-weight: 700; }
+.tm-m-neutral { background: rgba(251,191,36,0.14);  color: #fbbf24; font-weight: 600; }
+.tm-m-cool    { background: rgba(251,146,60,0.16);  color: #fb923c; font-weight: 600; }
+.tm-m-cold    { background: rgba(248,113,113,0.22); color: #f87171; font-weight: 700; }
+.tm-m-legend {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 10px;
+    margin-top: 8px;
+    font-size: 8px;
+    color: #6a6a80;
+    letter-spacing: 0.5px;
+}
+.tm-m-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 3px;
+    vertical-align: -1px;
+}
+.tm-m-legend .tm-m-good    { background: #34d399; }
+.tm-m-legend .tm-m-neutral { background: #fbbf24; }
+.tm-m-legend .tm-m-cool    { background: #fb923c; }
+.tm-m-legend .tm-m-cold    { background: #f87171; }
+
+/* ─── KARDASHEV PROGRESS ─── */
+.tm-k-next {
+    color: #fbbf24;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.tm-kprog {
+    padding: 7px 11px 6px;
+}
+.tm-kprog-track {
+    height: 10px;
+    background: #101020;
+    border: 1px solid rgba(26,26,42,0.8);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+.tm-kprog-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #fbbf24, #34d399);
+    box-shadow: 0 0 8px rgba(251,191,36,0.45);
+    transition: width 0.4s ease-out;
+}
+.tm-kprog-labels {
+    display: flex; justify-content: space-between;
+    margin-top: 3px;
+    font-size: 8px;
+    color: #6a6a80;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+}
+.tm-k-pillars {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    padding: 3px 10px 8px;
+}
+.tm-k-pillar {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 4px 2px;
+    background: #0d0d18;
+    border: 1px solid #1a1a2a;
+    border-radius: 2px;
+}
+.tm-k-pillar-name {
+    color: #6a6a80;
+    font-size: 7px;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+}
+.tm-k-pillar-val {
+    color: #22d3ee;
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin-top: 1px;
+}
+
+/* ─── SUPPLY CHAIN BOTTLENECKS ─── */
+.tm-bn-list {
+    padding: 2px 10px 6px;
+    display: flex; flex-direction: column; gap: 2px;
+}
+.tm-bn-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 9px;
+    line-height: 1.3;
+}
+.tm-bn-name {
+    color: #c8c8d8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 6px;
+}
+.tm-bn-load {
+    flex-shrink: 0;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.3px;
+}
+
+/* ─── POPULATION LIST ─── */
+.tm-pop-list {
+    padding: 4px 10px 8px;
+    display: flex; flex-direction: column; gap: 3px;
+}
+.tm-pop-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 0;
+    font-size: 9px;
+    border-bottom: 1px solid rgba(26,26,42,0.5);
+}
+.tm-pop-row:last-child { border-bottom: none; }
+.tm-pop-lbl {
+    color: #c8c8d8;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+.tm-pop-val {
+    color: #22d3ee;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Phase 3 responsive tweaks */
+@media (max-width: 780px) {
+    .tm-stat-num { font-size: 18px; }
+    .tm-stat-num-m { font-size: 14px; }
+    .tm-stat-num-s { font-size: 11px; }
+    .tm-matrix th, .tm-matrix td { padding: 4px 5px; min-width: 22px; font-size: 9px; }
+    .tm-bar-row { grid-template-columns: 50px 1fr 36px; font-size: 8px; }
+    .tm-k-pillars { gap: 2px; padding: 3px 6px 6px; }
+    .tm-k-pillar-val { font-size: 10px; }
+}
