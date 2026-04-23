@@ -15,9 +15,13 @@ const Shadows = {
     ]),
     SKIP_PREFIXES: ['forest_', 'align_'],
 
-    LEN_MULT: 2.6,
-    Y_EXTENT_MULT: 0.22,
-    MAX_LEN: 200,
+    // Shadow geometry tuning
+    LEN_MULT: 2.2,          // horizontal shear per unit of effective height (sunrise/sunset stretch)
+    Y_EXTENT_MULT: 0.08,    // ground-perspective tilt — keep small so shadows lie flat on the ground
+    MAX_EFF_H: 200,         // cap applied to the *effective* shadow height, so both hShift AND yExt scale
+                            //   together for super-tall buildings — preserves a consistent shear angle
+                            //   across every shadow in the frame (parallel-sun rule).
+    BASE_INSET_Y: 24,       // buildings render their bottom at (groundY - 24); align shadow top to match.
 
     init(layer) {
         this.layer = layer;
@@ -41,7 +45,9 @@ const Shadows = {
         if (!this.layer || typeof BLDS === 'undefined' || typeof G === 'undefined') return;
         this.items.length = 0;
         this.layer.removeChildren();
-        const gY = G.groundY;
+        // Shadow top edge must align with the building's visible base (groundY - 24), not raw groundY,
+        // otherwise shadows float 24px below their owner and look disconnected.
+        const gY = G.groundY - this.BASE_INSET_Y;
         for (let i = 0; i < BLDS.length; i++) {
             const b = BLDS[i];
             if (!this._shouldShadow(b)) continue;
@@ -86,16 +92,18 @@ const Shadows = {
 
         const lenMult = this.LEN_MULT;
         const yMult = this.Y_EXTENT_MULT;
-        const maxLen = this.MAX_LEN;
+        const maxEffH = this.MAX_EFF_H;
 
         for (let i = 0; i < this.items.length; i++) {
             const it = this.items[i];
-            const h = it.h;
+            // Cap the EFFECTIVE height (not the final hShift) so both the horizontal shear and the
+            // ground y-extent scale by the same factor — every shadow ends up at the same angle,
+            // which is how parallel sunlight should look. Short buildings → short shadows,
+            // tall buildings → long shadows, but shear ratio (yExt/hShift) is identical for all.
+            const effH = it.h > maxEffH ? maxEffH : it.h;
             const w = it.b.w;
-            let hShift = -sunX * h * lenMult;
-            if (hShift > maxLen) hShift = maxLen;
-            else if (hShift < -maxLen) hShift = -maxLen;
-            const yExt = h * yMult;
+            const hShift = -sunX * effH * lenMult;
+            const yExt = effH * yMult;
             const g = it.gfx;
             g.clear();
             g.beginFill(0x000000, alpha);
