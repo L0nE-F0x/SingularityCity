@@ -292,6 +292,16 @@ const G = {
             techStartX = CityPark.positionZone(techStartX);
         }
 
+        // ─── MODEL GRAVEYARD: Memorial park at the very start of the Tech District
+        // Positioned between Central Park and the Legacy Systems Museum — where ghosts
+        // haunt retired AI models. Placed explicitly (not compacted) so it keeps its
+        // home between the green space and the first tech building.
+        const graveEarly = BLDS.find(b => b.id === 'graveyard');
+        if (graveEarly) {
+            graveEarly.x = techStartX;
+            techStartX += graveEarly.w + 65;
+        }
+
         // Compact tech buildings with consistent 50px gaps
         let techX = techStartX;
         techBldsList.forEach(b => {
@@ -366,13 +376,6 @@ const G = {
         if (tHQ) {
             tHQ.x = currentX;
             currentX += tHQ.w + 90; // Extra gap for dumpster entrance
-        }
-
-        // Model Graveyard — memorial park for retired AI models (haunted by ghosts)
-        const grave = BLDS.find(b => b.id === 'graveyard');
-        if (grave) {
-            grave.x = currentX;
-            currentX += grave.w + 60;
         }
 
         // Neon Bar — nightlife strip

@@ -247,7 +247,7 @@ const EntitiesGfx = {
         ];
         if (mDcX) stationDefs.splice(0, 0, { x: mDcX, label: "COMPUTE DISTRICT", col: 0x06b6d4, bldId: 'metro_dc' });
         if (mMidX) stationDefs.splice(stationDefs.findIndex(s => s.label === "EASTERN HUB"), 0, { x: mMidX, label: "CENTRAL LINE", col: 0xf97316, bldId: 'metro_mid' });
-        if (mLongX) stationDefs.push({ x: mLongX, label: "LONGEVITY LINE", col: 0x22c55e, bldId: 'metro_longevity' });
+        if (mLongX) stationDefs.push({ x: mLongX, label: "INNOVATION LINE", col: 0x22c55e, bldId: 'metro_longevity' });
         
         stationDefs.forEach((sd, idx) => {
             const sx = sd.x;

@@ -28,7 +28,7 @@ const InteriorMetroStation = {
         'metro_hq':        { col: 0xfacc15, label: 'TECH DISTRICT',      sub: 'Line 1 · Lab Row Interchange' },
         'metro_mid':       { col: 0xf97316, label: 'CENTRAL LINE',       sub: 'Line 2 · Mid-Tech' },
         'metro_east':      { col: 0xa855f7, label: 'EASTERN HUB',        sub: 'Line 2 · Neon Quarter' },
-        'metro_longevity': { col: 0x22c55e, label: 'LONGEVITY LINE',     sub: 'Line 2 · Eastern Terminus' }
+        'metro_longevity': { col: 0x22c55e, label: 'INNOVATION LINE',    sub: 'Line 2 · Innovation Corridor Terminus' }
     },
 
     build(bld, layer) {
