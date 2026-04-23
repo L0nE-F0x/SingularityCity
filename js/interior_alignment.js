@@ -382,6 +382,23 @@ const InteriorAlignment = {
         groundG.endFill();
         this.scene.addChild(groundG);
 
+        // ─── EARTH STRIP + ZONE-AWARE UNDERGROUND ───
+        // Match the convention used by other zone interiors (agents, robotics, longevity,
+        // backbone, embassy): draw a strip of soil flanking the building, then delegate
+        // to InteriorCity._drawZoneUnderground which renders the metro tunnel, utility
+        // lines (water/elec/sewage) and live trains beneath the ground level.
+        const surfaceY = groundBot;
+        const undFloorH = 82;
+        const belowBasementY = surfaceY + undFloorH;
+        const earth = new PIXI.Graphics();
+        earth.beginFill(0x0a1020); earth.drawRect(0, surfaceY, cabinX - 6, undFloorH); earth.drawRect(cabinX + cabinW + 6, surfaceY, W - cabinX - cabinW - 6, undFloorH); earth.endFill();
+        earth.beginFill(0x141e30); earth.drawRect(0, surfaceY, cabinX - 6, 6); earth.drawRect(cabinX + cabinW + 6, surfaceY, W - cabinX - cabinW - 6, 6); earth.endFill();
+        earth.beginFill(0x1a2a3a); earth.drawRect(0, surfaceY - 2, cabinX - 6, 4); earth.drawRect(cabinX + cabinW + 6, surfaceY - 2, W - cabinX - cabinW - 6, 4); earth.endFill();
+        this.scene.addChild(earth);
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._drawZoneUnderground) {
+            InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, cabinX, cabinW, surfaceY, belowBasementY, undFloorH);
+        }
+
         // ─── FIREPLACE (center of ground floor) ───
         const fpW = 90, fpH = 80;
         const fpX = cabinX + cabinW / 2 - fpW / 2;
@@ -419,22 +436,31 @@ const InteriorAlignment = {
         fp.drawRect(fpX + 24, fpY + fpH - 20, fpW - 48, 6);
         fp.drawRect(fpX + 28, fpY + fpH - 26, fpW - 56, 6);
         fp.endFill();
-        // Flames (animated later via light pulse) — store ref for update()
+        // Flames (animated later via light pulse) — store ref for update().
+        // Drawn with LOCAL coordinates (origin = base centre of the fire) so that
+        // `flames.scale.set(1, flick)` pivots from the hearth and the base of the
+        // flames stays grounded in the fireplace. Previously vertices were drawn
+        // in world coords which caused the fire to jump up & down on the Y axis.
         const flames = new PIXI.Graphics();
+        flames.x = fpX + fpW / 2;
+        flames.y = fpY + fpH - 18; // base centre — pivot point for flicker
+        // Outer flame (yellow)
         flames.beginFill(0xfbbf24, 0.9);
-        flames.moveTo(fpX + 28, fpY + fpH - 18);
-        flames.lineTo(fpX + fpW / 2, fpY + fpH - 46);
-        flames.lineTo(fpX + fpW - 28, fpY + fpH - 18);
+        flames.moveTo(-(fpW / 2 - 28), 0);
+        flames.lineTo(0, -28);
+        flames.lineTo(fpW / 2 - 28, 0);
         flames.closePath();
         flames.endFill();
+        // Inner flame (red, taller core)
         flames.beginFill(0xef4444, 0.7);
-        flames.moveTo(fpX + 34, fpY + fpH - 18);
-        flames.lineTo(fpX + fpW / 2, fpY + fpH - 38);
-        flames.lineTo(fpX + fpW - 34, fpY + fpH - 18);
+        flames.moveTo(-(fpW / 2 - 34), 0);
+        flames.lineTo(0, -20);
+        flames.lineTo(fpW / 2 - 34, 0);
         flames.closePath();
         flames.endFill();
+        // Hot core glow
         flames.beginFill(0xfde68a, 0.85);
-        flames.drawCircle(fpX + fpW / 2, fpY + fpH - 30, 6);
+        flames.drawCircle(0, -12, 6);
         flames.endFill();
         this._flames = flames; // animate in update()
         this.scene.addChild(fp);
@@ -627,9 +653,11 @@ const InteriorAlignment = {
         window.addEventListener('pointermove', this._onMove);
         window.addEventListener('pointerup', this._onUp);
 
-        // Scroll bounds — cabin is short enough to fit on screen, so minimal scroll
-        this.minY = -roofPeakH - 10;
-        this.maxY = 60;
+        // Scroll bounds — allow scrolling UP (negative scene.y) so the underground
+        // (utilities + metro tunnel beneath the cabin) becomes visible, and a
+        // little DOWN to see more of the roof/forest backdrop.
+        this.minY = -(undFloorH + 260); // far enough up to reveal the deep void
+        this.maxY = roofPeakH + 30;
         this.scene.y = 0;
 
         this._tick = 0;
@@ -712,6 +740,43 @@ const InteriorAlignment = {
         cont._bubbleTimer = 200 + Math.floor(Math.random() * 400);
         cont._baseX = x;
         cont._phase = Math.random() * Math.PI * 2;
+
+        // ─── HOVER + CLICK — match the rest of the city's NPC interaction pattern ───
+        const tagName = theme.researcherTag || 'Researcher';
+        const labName = (this.bld && this.bld.name) || 'Alignment Forest';
+        // Friendlier role labels per slot
+        const roleLabels = {
+            board: 'Whiteboard Researcher', desk: 'Senior Research Engineer',
+            chair_left: 'Visiting Fellow', chair_right: 'Reading Fellow'
+        };
+        const roleLabel = roleLabels[role] || 'Researcher';
+        const npcId = 'npc_align_' + (this.bld ? this.bld.id : 'x') + '_' + role;
+        const desc = roleLabel + ' at ' + labName + '. ' +
+            ((this.bld && this.bld.desc) ? this.bld.desc : 'Alignment safety research.');
+        cont.eventMode = 'static';
+        cont.cursor = 'pointer';
+        // Hit area expanded above the head for the role tag and bubbles. Note: this
+        // hit area lives in LOCAL space, so it works correctly even when the
+        // container is mirrored (scale.x = -1).
+        cont.hitArea = new PIXI.Rectangle(-12, -28, 24, 36);
+        cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined' && UI.selectModel) {
+                UI.selectModel({
+                    id: npcId, name: tagName + ' ' + roleLabel,
+                    isNPC: true, _trackType: 'npc',
+                    role: roleLabel, lab: 'alignment', desc
+                });
+            }
+        });
+        cont.on('pointerover', (e) => {
+            if (typeof UI !== 'undefined' && UI.showTooltip) {
+                UI.showTooltip(e, tagName + ' — ' + roleLabel, labName);
+            }
+        });
+        cont.on('pointerout', () => {
+            if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
+        });
+
         this.scene.addChild(cont);
         return cont;
     },
@@ -725,6 +790,16 @@ const InteriorAlignment = {
             this.starsLayer.children.forEach((s, i) => {
                 s.alpha = 0.55 + 0.35 * Math.sin(t * 0.02 + (s._phase || i));
             });
+        }
+
+        // Day/night sky tint + sun/moon — shared with the rest of the city
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._applyDynamicSky && this.celestialGfx) {
+            InteriorCity._applyDynamicSky(this.celestialGfx, this.starsLayer);
+        }
+
+        // Live trains beneath the cabin (added by InteriorCity._drawZoneUnderground)
+        if (typeof InteriorCity !== 'undefined' && InteriorCity._liveTrains) {
+            InteriorCity._liveTrains.update();
         }
 
         // Fire flicker
@@ -768,8 +843,11 @@ const InteriorAlignment = {
                     this._popBubble(av, av._bubbles[Math.floor(Math.random() * av._bubbles.length)]);
                     av._bubbleTimer = 600 + Math.floor(Math.random() * 800);
                 }
-                // Update active bubble
+                // Update active bubble — bubble lives on this.scene now (not as an
+                // avatar child) so we have to manually track the avatar's position.
                 if (av._bubble && !av._bubble.destroyed) {
+                    av._bubble.x = av.x + (av._bubble._offX || 6);
+                    av._bubble.y = av.y + (av._bubble._offY || -30);
                     av._bubble._life--;
                     av._bubble.alpha = Math.min(1, av._bubble._life / 30) * Math.min(1, (240 - av._bubble._life) / 30);
                     if (av._bubble._life <= 0) {
@@ -805,9 +883,14 @@ const InteriorAlignment = {
         txt.x = padX;
         cont.addChild(bg);
         cont.addChild(txt);
-        cont.x = 6; cont.y = -30;
+        // Parent to the scene (NOT to the avatar) so the bubble does not inherit
+        // the avatar's scale.x = -1 flip (which used to mirror the text). The
+        // bubble's world position is updated each frame in update() to follow
+        // the avatar's head.
+        cont.x = av.x + 6; cont.y = av.y - 30;
         cont._life = 220;
-        av.addChild(cont);
+        cont._offX = 6; cont._offY = -30;
+        this.scene.addChild(cont);
         av._bubble = cont;
     }
 };

@@ -769,29 +769,43 @@ const InteriorVCRow = {
     },
 
     _npc(c, x, y, name, col, wallLeft, wallRight) {
-        const cont = new PIXI.Container(); cont.x = x; cont.y = y; cont.zIndex = 5;
-        const bw = 16, h = 32;
-        const sh = new PIXI.Graphics(); sh.beginFill(0x000000, 0.25); sh.drawEllipse(0, 2, bw * 0.6, 3); sh.endFill();
-        const legL = new PIXI.Graphics(); legL.beginFill(0x1a1a28); legL.drawRect(-2, 0, 3, 4); legL.endFill(); legL.x = -bw * 0.15;
-        const legR = new PIXI.Graphics(); legR.beginFill(0x1a1a28); legR.drawRect(-1, 0, 3, 4); legR.endFill(); legR.x = bw * 0.15;
-        const body = new PIXI.Graphics(); body.beginFill(col); body.drawRoundedRect(-bw / 2, -h + 11, bw, 16, 2); body.endFill();
-        // Tie / lapel accent
-        body.beginFill(0x0f0f18); body.drawRect(-1, -h + 12, 2, 8); body.endFill();
-        const head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, 11, 3); head.endFill();
-        head.beginFill(0x2c1810); head.drawCircle(-bw * 0.1, 4, 1); head.drawCircle(bw * 0.1, 4, 1); head.endFill();
-        // Hair
-        head.beginFill(0x1a1008); head.drawRoundedRect(-bw * 0.42, -1, bw * 0.84, 4, 2); head.endFill();
-        head.y = -h;
-        const dot = new PIXI.Graphics(); dot.beginFill(col); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 5;
-        cont.addChild(sh, legL, legR, body, head, dot);
-        cont.eventMode = 'static'; cont.cursor = 'pointer';
-        cont.hitArea = new PIXI.Rectangle(-bw, -h - 10, bw * 2, h + 14);
         const bldName = this.bld ? this.bld.name : 'VC Row';
         const vcNpcId = 'npc_vc_' + name.toLowerCase().replace(/\s/g, '_');
+        const bw = 16, h = 32;
+        let cont, head, body, legL, legR;
+        // ─── HUMAN PATH — VC Row is full of bankers, traders, founders. Render
+        //     them in the unified human pixel-art style (researcher-cosy with a
+        //     suit jacket since this is the financial district). ────────────────
+        if (typeof HumanAvatar !== 'undefined' && !HumanAvatar.isBot(name, vcNpcId)) {
+            const av = HumanAvatar.draw(c, {
+                x, y, name: null, shirt: col, accent: col,
+                suit: true, tieColor: col,
+                glasses: Math.random() < 0.4,
+                seed: vcNpcId, showTag: false, showDot: true
+            });
+            cont = av.cont; head = av.head; body = av.body; legL = av.legL; legR = av.legR;
+            cont.zIndex = 5;
+        } else {
+            // ─── BOT PATH — Algo Bot etc keep the angular/synthetic look ──────
+            cont = new PIXI.Container(); cont.x = x; cont.y = y; cont.zIndex = 5;
+            const sh = new PIXI.Graphics(); sh.beginFill(0x000000, 0.25); sh.drawEllipse(0, 2, bw * 0.6, 3); sh.endFill();
+            legL = new PIXI.Graphics(); legL.beginFill(0x1a1a28); legL.drawRect(-2, 0, 3, 4); legL.endFill(); legL.x = -bw * 0.15;
+            legR = new PIXI.Graphics(); legR.beginFill(0x1a1a28); legR.drawRect(-1, 0, 3, 4); legR.endFill(); legR.x = bw * 0.15;
+            body = new PIXI.Graphics(); body.beginFill(col); body.drawRoundedRect(-bw / 2, -h + 11, bw, 16, 2); body.endFill();
+            body.beginFill(0x0f0f18); body.drawRect(-1, -h + 12, 2, 8); body.endFill();
+            head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, 11, 3); head.endFill();
+            head.beginFill(0x2c1810); head.drawCircle(-bw * 0.1, 4, 1); head.drawCircle(bw * 0.1, 4, 1); head.endFill();
+            head.beginFill(0x1a1008); head.drawRoundedRect(-bw * 0.42, -1, bw * 0.84, 4, 2); head.endFill();
+            head.y = -h;
+            const dot = new PIXI.Graphics(); dot.beginFill(col); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 5;
+            cont.addChild(sh, legL, legR, body, head, dot);
+            c.addChild(cont);
+        }
+        cont.eventMode = 'static'; cont.cursor = 'pointer';
+        cont.hitArea = new PIXI.Rectangle(-bw, -h - 10, bw * 2, h + 14);
         cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel({ id: vcNpcId, name, isNPC: true, _trackType: 'vc_commuter', role: name, lab: 'other', desc: name + ' at ' + bldName + '. Part of the financial district workforce.' }); });
         cont.on('pointerover', (e) => { if (typeof UI !== 'undefined' && UI.showTooltip) UI.showTooltip(e, name, bldName); });
         cont.on('pointerout', () => { if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip(); });
-        c.addChild(cont);
         // Clamp walk bounds to building interior walls (before elevator shaft)
         const minX = Math.max(wallLeft || (x - 30), x - 50);
         const maxX = Math.min(wallRight || (x + 30), x + 50);

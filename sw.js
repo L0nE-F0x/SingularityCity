@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v404';
+const CACHE_NAME = 'singularity-city-v405';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -39,6 +39,7 @@ const CORE_ASSETS = [
     '/js/port_env.js',
     '/js/interior_dc.js',
     '/js/interior_bar.js',
+    '/js/human_avatar.js',
     '/js/npc_housing.js',
     '/js/street_vendors.js',
     '/js/interior_npc.js',

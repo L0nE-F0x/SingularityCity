@@ -396,23 +396,37 @@ const InteriorNPC = {
     _lbl(c, x, y, text, col) { const t = new PIXI.Text(text, { fontFamily:'JetBrains Mono', fontSize:7, fill:col, letterSpacing:2 }); t.anchor.set(0.5,0); t.x=x; t.y=y; t.zIndex=10; c.addChild(t); },
     
     _npc(c, x, y, name, col) {
-        const cont = new PIXI.Container(); cont.x=x; cont.y=y; cont.zIndex=5;
-        const bw=16, h=32, headH=12;
-        const sh = new PIXI.Graphics(); sh.beginFill(0x000000,0.25); sh.drawEllipse(0,2,bw*0.6,3); sh.endFill();
-        const lw = Math.max(2, bw*0.25);
-        const legL = new PIXI.Graphics(); legL.beginFill(0x3d2914); legL.drawRect(-lw/2,0,lw,4); legL.endFill(); legL.x=-bw*0.15;
-        const legR = new PIXI.Graphics(); legR.beginFill(0x3d2914); legR.drawRect(-lw/2,0,lw,4); legR.endFill(); legR.x=bw*0.15;
-        const body = new PIXI.Graphics(); body.beginFill(col); body.drawRoundedRect(-bw/2,0,bw,14,bw*0.1); body.endFill(); body.y=-h+headH;
-        const head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw*0.4,0,bw*0.8,headH,headH*0.25); head.endFill();
-        head.beginFill(0x2c1810); head.drawCircle(-bw*0.1,headH*0.38,1); head.drawCircle(bw*0.1,headH*0.38,1); head.endFill(); head.y=-h;
-        const dot = new PIXI.Graphics(); dot.beginFill(col); dot.drawCircle(0,0,2); dot.endFill(); dot.y=-h-6;
-        cont.addChild(sh,legL,legR,body,head,dot);
-        cont.eventMode='static'; cont.cursor='pointer'; cont.hitArea=new PIXI.Rectangle(-bw,-h-12,bw*2,h+16);
         const npcId = 'npc_'+name.toLowerCase().replace(/\s/g,'_');
+        const bw=16, h=32, headH=12;
+        let cont, head, body, legL, legR;
+        // ─── HUMAN PATH — most apartment residents are flesh-and-blood workers ─
+        if (typeof HumanAvatar !== 'undefined' && !HumanAvatar.isBot(name, npcId)) {
+            const av = HumanAvatar.draw(c, {
+                x, y, name: null,             // tag drawn separately below for layout
+                shirt: col, accent: col,
+                glasses: Math.random() < 0.5,
+                seed: npcId, showTag: false, showDot: true
+            });
+            cont = av.cont; head = av.head; body = av.body; legL = av.legL; legR = av.legR;
+            cont.zIndex = 5;
+        } else {
+            // ─── BOT PATH — preserve the old square-headed look for bots/AI ──
+            cont = new PIXI.Container(); cont.x=x; cont.y=y; cont.zIndex=5;
+            const sh = new PIXI.Graphics(); sh.beginFill(0x000000,0.25); sh.drawEllipse(0,2,bw*0.6,3); sh.endFill();
+            const lw = Math.max(2, bw*0.25);
+            legL = new PIXI.Graphics(); legL.beginFill(0x3d2914); legL.drawRect(-lw/2,0,lw,4); legL.endFill(); legL.x=-bw*0.15;
+            legR = new PIXI.Graphics(); legR.beginFill(0x3d2914); legR.drawRect(-lw/2,0,lw,4); legR.endFill(); legR.x=bw*0.15;
+            body = new PIXI.Graphics(); body.beginFill(col); body.drawRoundedRect(-bw/2,0,bw,14,bw*0.1); body.endFill(); body.y=-h+headH;
+            head = new PIXI.Graphics(); head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw*0.4,0,bw*0.8,headH,headH*0.25); head.endFill();
+            head.beginFill(0x2c1810); head.drawCircle(-bw*0.1,headH*0.38,1); head.drawCircle(bw*0.1,headH*0.38,1); head.endFill(); head.y=-h;
+            const dot = new PIXI.Graphics(); dot.beginFill(col); dot.drawCircle(0,0,2); dot.endFill(); dot.y=-h-6;
+            cont.addChild(sh,legL,legR,body,head,dot);
+            c.addChild(cont);
+        }
+        cont.eventMode='static'; cont.cursor='pointer'; cont.hitArea=new PIXI.Rectangle(-bw,-h-12,bw*2,h+16);
         cont.on('pointertap', () => { if(typeof UI!=='undefined') UI.selectModel({ id:npcId, name, isNPC:true, _trackType:'npc', role:name, lab:'other', desc:'Building staff.' }); });
         cont.on('pointerover', (e) => { if(typeof UI!=='undefined') UI.showTooltip(e, name, 'Building Staff'); });
         cont.on('pointerout', () => { if(typeof UI!=='undefined') UI.hideTooltip(); });
-        c.addChild(cont);
         const avObj = { cont, head, body, legL, legR, _minX:x-50, _maxX:x+50, _phase:Math.random()*Math.PI*2, _walkTimer:0, _walkDir:0 };
         // Tracking highlight
         if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {

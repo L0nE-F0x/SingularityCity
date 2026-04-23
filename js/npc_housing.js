@@ -79,8 +79,38 @@ const NPCHousing = {
     },
 
     _drawAvatar(parent, npc) {
-        const c = new PIXI.Container();
         const col = parseInt(npc.color.replace('#',''), 16);
+
+        // ─── HUMAN PATH — diplomats, founders, NOC leads, professors etc. ───
+        // Use the shared HumanAvatar helper so every flesh-and-blood citizen
+        // shares the cosy researcher pixel-art aesthetic.
+        if (typeof HumanAvatar !== 'undefined' && !HumanAvatar.isBot(npc.name, npc.id)) {
+            const isDiplomat = (npc.id || '').startsWith('npc_dip_');
+            const isExec     = npc.role && /Director|Commander|Commissioner|Ambassador|Representative|Foreman|Senior/.test(npc.role);
+            const av = HumanAvatar.draw(parent, {
+                x: 0, y: 0,
+                name: npc.name,
+                role: npc.role,
+                shirt: col,
+                accent: col,
+                suit: isDiplomat || isExec,
+                tieColor: col,
+                glasses: !isDiplomat && Math.random() < 0.5, // diplomats keep clean look
+                seed: npc.id || npc.name
+            });
+            const c = av.cont;
+            // Click/hover wiring (keep parity with the bot path below)
+            c.eventMode = 'static'; c.cursor = 'pointer';
+            const bw = 16, h = 32;
+            c.hitArea = new PIXI.Rectangle(-bw, -h - 12, bw * 2, h + 16);
+            c.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel({ id: npc.id, name: npc.name, isNPC: true, _trackType: 'npc', role: npc.role, lab: 'other', desc: npc.role + '. Lives in the Worker Housing District.' }); });
+            c.on('pointerover', (e) => { if (typeof UI !== 'undefined') UI.showTooltip(e, npc.name, npc.role); });
+            c.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+            return { c, head: av.head, body: av.body, legL: av.legL, legR: av.legR, tag: av.tag };
+        }
+
+        // ─── BOT PATH — BaristaBot, NannyBot, Baker Bot, Grim Reaper etc. ───
+        const c = new PIXI.Container();
         const bw = 16, h = 32, headH = 12, bodyH = 14, legH = 4;
         const eyeS = Math.max(1, bw * 0.08);
         // Shadow
