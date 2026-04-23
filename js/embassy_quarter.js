@@ -539,21 +539,15 @@ const EmbassyQuarter = {
         pole.beginFill(0x7a7a7a); pole.drawRect(-1, -20, 2, 22); pole.endFill();
         pole.beginFill(0xfbbf24); pole.drawCircle(0, -20, 1.4); pole.endFill();
         flagCont.addChild(pole);
-        // Flag rectangle (smaller than embassy flag)
+        // Flag rectangle — country-accurate (Union Jack, Stars & Stripes, etc.)
         const flag = new PIXI.Graphics();
         const fw = 16, fh = 10;
-        if (flagCols.length === 1) {
-            flag.beginFill(flagCols[0]); flag.drawRect(0, 0, fw, fh); flag.endFill();
-        } else if (flagCols.length === 2) {
-            flag.beginFill(flagCols[0]); flag.drawRect(0, 0, fw, fh); flag.endFill();
-            flag.beginFill(flagCols[1]); flag.drawCircle(fw * 0.3, fh * 0.5, fh * 0.32); flag.endFill();
+        if (typeof EmbassyRow !== 'undefined' && EmbassyRow.drawCountryFlag) {
+            EmbassyRow.drawCountryFlag(flag, b.country, fw, fh);
         } else {
-            const sh = fh / flagCols.length;
-            flagCols.forEach((c, i) => {
-                flag.beginFill(c); flag.drawRect(0, i * sh, fw, sh); flag.endFill();
-            });
+            const sh = fh / Math.max(1, flagCols.length);
+            flagCols.forEach((c, i) => { flag.beginFill(c); flag.drawRect(0, i * sh, fw, sh); flag.endFill(); });
         }
-        flag.lineStyle(0.4, 0x000000, 0.4); flag.drawRect(0, 0, fw, fh); flag.lineStyle(0);
         flag.x = 1;
         flag.y = -19;
         flag.pivot.set(0, fh * 0.5);

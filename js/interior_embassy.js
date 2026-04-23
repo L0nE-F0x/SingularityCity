@@ -206,15 +206,19 @@ const InteriorEmbassy = {
             });
             fl.anchor.set(0.5, 0); fl.x = startX + bldW / 2; fl.y = fy + 6; this.scene.addChild(fl);
 
-            // Props + NPCs per floor
+            // Props + NPCs per floor — reserve a 50px right-side bay for the elevator
+            // so desks/printer/cabinets never sit underneath the cabin or shaft.
+            const ELEV_BAY = 50;
+            const propBw = bldW - ELEV_BAY;
             const fc = new PIXI.Container(); fc.sortableChildren = true; this.scene.addChild(fc);
             const pY = fy + floorH - 6;
-            this._drawFloorProps(fc, startX, bldW, pY, fy, floorH, floorDef.key, accent, warm, country, flagCols);
+            this._drawFloorProps(fc, startX, propBw, pY, fy, floorH, floorDef.key, accent, warm, country, flagCols);
 
-            // NPC spawn per floor (night: only security + one desk attaché stays late)
+            // NPC spawn per floor. At night the embassy is empty except for the Marine Guard
+            // on the reception floor — the rest of the diplomats are home in their residences.
             const dpNow = G.getDayPhase();
             const isNight = dpNow > 0.83 || dpNow < 0.25;
-            const floorNpcs = this._getNPCsForFloor(floorDef.key, bldW, accent, warm, country);
+            const floorNpcs = this._getNPCsForFloor(floorDef.key, propBw, accent, warm, country);
             floorNpcs.forEach(npcDef => {
                 if (isNight && !npcDef.nightShift) return;
                 this.drawNPC(fc, startX + npcDef.xOff, pY, npcDef.role, npcDef.col, country);
@@ -315,18 +319,14 @@ const InteriorEmbassy = {
         flagCont.addChild(pole);
         const flag = new PIXI.Graphics();
         const fw = 42, fh = 26;
-        if (flagCols.length === 1) {
-            flag.beginFill(flagCols[0]); flag.drawRect(0, 0, fw, fh); flag.endFill();
-        } else if (flagCols.length === 2) {
-            flag.beginFill(flagCols[0]); flag.drawRect(0, 0, fw, fh); flag.endFill();
-            flag.beginFill(flagCols[1]); flag.drawCircle(fw * 0.28, fh * 0.5, fh * 0.32); flag.endFill();
+        // Country-accurate flag (Union Jack, Stars & Stripes, 5-star China, EU stars, etc.)
+        const country = (this.bld && this.bld.country) || (this.bld && this.bld.id ? this.bld.id.replace('embassy_', '') : 'us');
+        if (typeof EmbassyRow !== 'undefined' && EmbassyRow.drawCountryFlag) {
+            EmbassyRow.drawCountryFlag(flag, country, fw, fh);
         } else {
-            const sh = fh / flagCols.length;
-            flagCols.forEach((col, i) => {
-                flag.beginFill(col); flag.drawRect(0, i * sh, fw, sh); flag.endFill();
-            });
+            const sh = fh / Math.max(1, flagCols.length);
+            flagCols.forEach((col, i) => { flag.beginFill(col); flag.drawRect(0, i * sh, fw, sh); flag.endFill(); });
         }
-        flag.lineStyle(0.6, 0x000000, 0.35); flag.drawRect(0, 0, fw, fh); flag.lineStyle(0);
         flag.x = 2; flag.y = -55; flag.pivot.set(0, fh * 0.5);
         flagCont.addChild(flag);
         c.addChild(flagCont);
@@ -610,23 +610,31 @@ const InteriorEmbassy = {
             plqTxt.anchor.set(0.5, 0.5); plqTxt.x = dx + dw / 2; plqTxt.y = pY - 18;
             if (plqTxt.width > 38) plqTxt.scale.set(38 / plqTxt.width);
             c.addChild(plqTxt);
-            // Flag pair flanking desk — country flag + city flag
+            // Flag pair flanking desk — country flag + Singularity City flag
             for (let fi = 0; fi < 2; fi++) {
                 const fx = fi === 0 ? dx - 18 : dx + dw + 12;
                 const fg = new PIXI.Graphics(); fg.eventMode = 'none';
                 fg.beginFill(0x7a7a7a); fg.drawRect(fx, pY - 42, 1.6, 42); fg.endFill();
                 fg.beginFill(0xfbbf24); fg.drawCircle(fx + 0.8, pY - 42, 1.5); fg.endFill();
-                // Flag fabric
                 if (fi === 0) {
-                    // Country flag - vertical hang
-                    const fw = 12, fh = 16;
-                    flagCols.forEach((col, ci) => {
-                        fg.beginFill(col); fg.drawRect(fx + 2, pY - 40 + ci * (fh / flagCols.length), fw, fh / flagCols.length); fg.endFill();
-                    });
+                    // Country flag — horizontal hanging from short crossbar
+                    const fw = 14, fh = 9;
+                    if (typeof EmbassyRow !== 'undefined' && EmbassyRow.drawCountryFlag) {
+                        const flagSub = new PIXI.Graphics(); flagSub.eventMode = 'none';
+                        EmbassyRow.drawCountryFlag(flagSub, (this.bld && this.bld.country) || 'us', fw, fh);
+                        flagSub.x = fx + 2; flagSub.y = pY - 38;
+                        c.addChild(flagSub);
+                    } else {
+                        flagCols.forEach((col, ci) => {
+                            fg.beginFill(col); fg.drawRect(fx + 2, pY - 38 + ci * (fh / flagCols.length), fw, fh / flagCols.length); fg.endFill();
+                        });
+                    }
                 } else {
-                    // Singularity City flag
-                    fg.beginFill(0x0a0a14); fg.drawRect(fx - 12, pY - 40, 12, 16); fg.endFill();
-                    fg.beginFill(0x22d3ee); fg.drawCircle(fx - 6, pY - 32, 3); fg.endFill();
+                    // Singularity City flag — black with cyan circle/orbit
+                    fg.beginFill(0x0a0a14); fg.drawRect(fx - 14, pY - 38, 14, 9); fg.endFill();
+                    fg.beginFill(0x22d3ee); fg.drawCircle(fx - 7, pY - 33, 2.5); fg.endFill();
+                    fg.lineStyle(0.4, 0x22d3ee, 0.7); fg.drawCircle(fx - 7, pY - 33, 4); fg.lineStyle(0);
+                    fg.beginFill(0xfbbf24); fg.drawCircle(fx - 7, pY - 29, 0.6); fg.endFill();
                 }
                 c.addChild(fg);
             }
@@ -905,6 +913,9 @@ const InteriorEmbassy = {
     // ════════════════════════════════════════════════════
 
     _getNPCsForFloor(key, bw, accent, warm, country) {
+        // Night: only the Marine Guard remains at his post. Everyone else
+        // (consul, attaché, ambassador, chief of staff, archivist) commutes home
+        // to the diplomat villas in Embassy Quarter and is asleep there.
         if (key === 'reception') {
             return [
                 { role: 'Receptionist', col: 0x94a3b8, xOff: bw * 0.45, nightShift: false },
@@ -918,7 +929,7 @@ const InteriorEmbassy = {
             ];
         } else if (key === 'attache') {
             return [
-                { role: 'AI Policy Attaché', col: 0xfbbf24, xOff: bw * 0.55, nightShift: true },
+                { role: 'AI Policy Attaché', col: 0xfbbf24, xOff: bw * 0.55, nightShift: false },
                 { role: 'Tech Analyst',      col: 0x22d3ee, xOff: bw * 0.78, nightShift: false }
             ];
         } else if (key === 'ambassador') {
@@ -928,7 +939,7 @@ const InteriorEmbassy = {
             ];
         } else if (key === 'archive') {
             return [
-                { role: 'Archivist', col: 0x64748b, xOff: bw * 0.5, nightShift: true }
+                { role: 'Archivist', col: 0x64748b, xOff: bw * 0.5, nightShift: false }
             ];
         }
         return [];

@@ -114,5 +114,140 @@ const EmbassyRow = {
             const flagIdx = this.BLDS.indexOf(def);
             bld._flagGfx.skew.x = Math.sin(t + flagIdx * 0.8) * 0.18;
         });
+    },
+
+    /* ──────────────────────────────────────────────────────────────────────
+       drawCountryFlag(g, country, w, h)
+       Country-accurate flag rendering into a PIXI.Graphics object. Origin
+       (0,0) is the top-left of the flag. Scales cleanly from ~12×8 pole
+       flags up to ~64×40 ceremonial flags. Falls back to grey if unknown.
+
+       Implemented countries: us, uk, cn, eu, in, ae. Used by:
+         • environment.js  (embassy exterior flying flag)
+         • embassy_quarter.js  (residence rooftop pole)
+         • interior_embassy.js  (interior pediment + ambassador desk pair)
+         • interior_ambassador_res.js  (residence interior accents)
+       ────────────────────────────────────────────────────────────────────── */
+    drawCountryFlag(g, country, w, h) {
+        const c = (country || '').toLowerCase();
+
+        if (c === 'us') {
+            // 13 horizontal stripes (7 red, 6 white) + blue canton w/ stars
+            const sH = h / 13;
+            g.beginFill(0xbf0a30); g.drawRect(0, 0, w, h); g.endFill();
+            g.beginFill(0xffffff);
+            for (let i = 1; i < 13; i += 2) g.drawRect(0, i * sH, w, sH);
+            g.endFill();
+            // Blue canton — upper-hoist, ~40% wide × 7 stripes tall
+            const cW = w * 0.4, cH = sH * 7;
+            g.beginFill(0x002868); g.drawRect(0, 0, cW, cH); g.endFill();
+            // Star field (5 rows × 6 cols, alternating offset for dense feel)
+            g.beginFill(0xffffff);
+            const sCols = 6, sRows = 5;
+            const dx = cW / (sCols + 1), dy = cH / (sRows + 1);
+            const sR = Math.max(0.35, Math.min(dx, dy) * 0.28);
+            for (let r = 0; r < sRows; r++) {
+                for (let cc = 0; cc < sCols; cc++) {
+                    const offset = (r % 2) * (dx * 0.5);
+                    g.drawCircle(dx + cc * dx + offset, dy + r * dy, sR);
+                }
+            }
+            g.endFill();
+
+        } else if (c === 'uk') {
+            // Union Jack — blue field, white+red saltire (X), white+red cross (+)
+            g.beginFill(0x012169); g.drawRect(0, 0, w, h); g.endFill();
+            // White saltire (full diagonals)
+            g.lineStyle(Math.max(1.6, h * 0.20), 0xffffff, 1);
+            g.moveTo(0, 0); g.lineTo(w, h);
+            g.moveTo(w, 0); g.lineTo(0, h);
+            // Red saltire on top (thinner)
+            g.lineStyle(Math.max(0.8, h * 0.10), 0xc8102e, 1);
+            g.moveTo(0, 0); g.lineTo(w, h);
+            g.moveTo(w, 0); g.lineTo(0, h);
+            g.lineStyle(0);
+            // White cross (over the saltire — wider than red cross)
+            g.beginFill(0xffffff);
+            g.drawRect(0, h * 0.4, w, h * 0.2);
+            g.drawRect(w * 0.4, 0, w * 0.2, h);
+            g.endFill();
+            // Red cross (St George — narrower, on top)
+            g.beginFill(0xc8102e);
+            g.drawRect(0, h * 0.45, w, h * 0.1);
+            g.drawRect(w * 0.45, 0, w * 0.1, h);
+            g.endFill();
+
+        } else if (c === 'cn') {
+            // Red field + 5 yellow stars (1 large + 4 small arc'd to its right)
+            g.beginFill(0xde2910); g.drawRect(0, 0, w, h); g.endFill();
+            const drawStar = (sx, sy, sR) => {
+                g.beginFill(0xffde00);
+                if (g.drawStar) g.drawStar(sx, sy, 5, sR, sR * 0.42);
+                else g.drawCircle(sx, sy, sR);
+                g.endFill();
+            };
+            const bigR = Math.max(1.4, h * 0.18);
+            drawStar(w * 0.20, h * 0.30, bigR);
+            const smR = Math.max(0.6, h * 0.07);
+            // 4 small stars arc'd around the big one
+            drawStar(w * 0.36, h * 0.13, smR);
+            drawStar(w * 0.46, h * 0.28, smR);
+            drawStar(w * 0.46, h * 0.46, smR);
+            drawStar(w * 0.36, h * 0.62, smR);
+
+        } else if (c === 'eu') {
+            // Blue field + 12 gold stars in a circle
+            g.beginFill(0x003399); g.drawRect(0, 0, w, h); g.endFill();
+            const cx = w / 2, cy = h / 2;
+            const rr = Math.min(w, h) * 0.32;
+            const sR = Math.max(0.6, h * 0.07);
+            g.beginFill(0xffcc00);
+            for (let i = 0; i < 12; i++) {
+                const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+                const sx = cx + Math.cos(a) * rr;
+                const sy = cy + Math.sin(a) * rr;
+                if (g.drawStar) g.drawStar(sx, sy, 5, sR, sR * 0.42);
+                else g.drawCircle(sx, sy, sR);
+            }
+            g.endFill();
+
+        } else if (c === 'in') {
+            // 3 horizontal bands (saffron, white, green) + Ashoka Chakra
+            const sH = h / 3;
+            g.beginFill(0xff9933); g.drawRect(0, 0, w, sH); g.endFill();
+            g.beginFill(0xffffff); g.drawRect(0, sH, w, sH); g.endFill();
+            g.beginFill(0x138808); g.drawRect(0, sH * 2, w, sH); g.endFill();
+            // Chakra — navy wheel with 8 simplified spokes (24 in real flag, but 8 reads cleaner small)
+            const ckCx = w / 2, ckCy = sH * 1.5;
+            const ckR = sH * 0.42;
+            g.lineStyle(Math.max(0.4, h * 0.025), 0x000080, 1);
+            g.drawCircle(ckCx, ckCy, ckR);
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                g.moveTo(ckCx, ckCy);
+                g.lineTo(ckCx + Math.cos(a) * ckR, ckCy + Math.sin(a) * ckR);
+            }
+            g.lineStyle(0);
+            // Tiny navy hub at center
+            g.beginFill(0x000080); g.drawCircle(ckCx, ckCy, Math.max(0.6, ckR * 0.12)); g.endFill();
+
+        } else if (c === 'ae') {
+            // Vertical red hoist (1/4 width) + 3 horizontal bands (green/white/black)
+            const redW = w * 0.25;
+            g.beginFill(0xce1126); g.drawRect(0, 0, redW, h); g.endFill();
+            const fW = w - redW;
+            const sH = h / 3;
+            g.beginFill(0x00732f); g.drawRect(redW, 0, fW, sH); g.endFill();
+            g.beginFill(0xffffff); g.drawRect(redW, sH, fW, sH); g.endFill();
+            g.beginFill(0x000000); g.drawRect(redW, sH * 2, fW, sH); g.endFill();
+
+        } else {
+            g.beginFill(0xcccccc); g.drawRect(0, 0, w, h); g.endFill();
+        }
+
+        // Subtle dark border for legibility against bright skies
+        g.lineStyle(0.4, 0x000000, 0.4);
+        g.drawRect(0, 0, w, h);
+        g.lineStyle(0);
     }
 };

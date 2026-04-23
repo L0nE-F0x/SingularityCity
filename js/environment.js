@@ -2730,22 +2730,16 @@ const Environment = {
           pole.beginFill(0x7a7a7a); pole.drawRect(-1, -28, 2, 30); pole.endFill();
           pole.beginFill(0xfbbf24); pole.drawCircle(0, -28, 1.8); pole.endFill();
           flagCont.addChild(pole);
-          // Flag rectangle
+          // Flag rectangle — country-accurate (Union Jack, Stars & Stripes, etc.)
           const flag = new PIXI.Graphics();
           const fw = 22, fh = 13;
-          if (flagCols.length === 1) {
-              flag.beginFill(flagCols[0]); flag.drawRect(0, 0, fw, fh); flag.endFill();
-          } else if (flagCols.length === 2) {
-              flag.beginFill(flagCols[0]); flag.drawRect(0, 0, fw, fh); flag.endFill();
-              flag.beginFill(flagCols[1]); flag.drawCircle(fw * 0.28, fh * 0.5, fh * 0.35); flag.endFill();
+          if (typeof EmbassyRow !== 'undefined' && EmbassyRow.drawCountryFlag) {
+              EmbassyRow.drawCountryFlag(flag, b.country, fw, fh);
           } else {
-              // Horizontal stripes for 3+ color flags
-              const sh = fh / flagCols.length;
-              flagCols.forEach((c, i) => {
-                  flag.beginFill(c); flag.drawRect(0, i * sh, fw, sh); flag.endFill();
-              });
+              // Defensive fallback: simple stripes if helper missing
+              const sh = fh / Math.max(1, flagCols.length);
+              flagCols.forEach((c, i) => { flag.beginFill(c); flag.drawRect(0, i * sh, fw, sh); flag.endFill(); });
           }
-          flag.lineStyle(0.5, 0x000000, 0.35); flag.drawRect(0, 0, fw, fh); flag.lineStyle(0);
           flag.x = 1;
           flag.y = -26;
           flag.pivot.set(0, fh * 0.5);
