@@ -364,6 +364,11 @@ const G = {
             currentX = EmbassyRow.positionZone(currentX);
         }
 
+        // ─── EMBASSY QUARTER: Ambassador residences east of Embassy Row (Stage 5) ───
+        if (typeof EmbassyQuarter !== 'undefined') {
+            currentX = EmbassyQuarter.positionZone(currentX);
+        }
+
         // ─── GLOBAL AI INDEX: Billboard after Embassy Row ───
         if (typeof AIIndex !== 'undefined' && AIIndex.BLDS.length > 0) {
             currentX = AIIndex.positionZone(currentX);
@@ -1330,6 +1335,7 @@ const G = {
       if (typeof ConferenceData !== 'undefined') ConferenceData.init();
       if (typeof VCRow !== 'undefined') VCRow.init();
       if (typeof EmbassyRow !== 'undefined') EmbassyRow.init();
+      if (typeof EmbassyQuarter !== 'undefined') EmbassyQuarter.init();
       if (typeof BackboneZone !== 'undefined') BackboneZone.init();
       if (typeof RoboticsZone !== 'undefined') RoboticsZone.init();
       if (typeof LongevityZone !== 'undefined') LongevityZone.init();
@@ -1917,6 +1923,7 @@ const G = {
               BirdFlocks: typeof BirdFlocks !== 'undefined' ? BirdFlocks : null,
               HNBlimps: typeof HNBlimps !== 'undefined' ? HNBlimps : null,
               EmbassyRow: typeof EmbassyRow !== 'undefined' ? EmbassyRow : null,
+              EmbassyQuarter: typeof EmbassyQuarter !== 'undefined' ? EmbassyQuarter : null,
               AlignmentForest: typeof AlignmentForest !== 'undefined' ? AlignmentForest : null,
               Shadows: typeof Shadows !== 'undefined' ? Shadows : null,
               AIIndex: typeof AIIndex !== 'undefined' ? AIIndex : null,
@@ -1961,6 +1968,7 @@ const G = {
       if (this.tick % 2 === 0 && S.BirdFlocks) S.BirdFlocks.update(); // every other frame for perf
       if (S.HNBlimps) S.HNBlimps.update();
       if (S.EmbassyRow && this.tick % 2 === 0) S.EmbassyRow.update();
+      if (S.EmbassyQuarter && this.tick % 2 === 0) S.EmbassyQuarter.update();
       if (S.AlignmentForest) S.AlignmentForest.update();
       if (S.Shadows && this.tick % 30 === 0) S.Shadows.update(dp);
       if (S.ConferenceData) S.ConferenceData.update();

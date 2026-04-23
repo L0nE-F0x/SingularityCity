@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v405';
+const CACHE_NAME = 'singularity-city-v407';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -56,6 +56,7 @@ const CORE_ASSETS = [
     '/js/vc_row_env.js',
     '/js/interior_vcrow.js',
     '/js/embassy_row.js',
+    '/js/embassy_quarter.js',
     '/js/alignment_forest.js',
     '/js/backbone_zone.js',
     '/js/backbone_env.js',

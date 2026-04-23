@@ -156,10 +156,16 @@ const NPCHousing = {
         if (wp.startsWith('power_') || wp === 'forest' || wp === 'port') {
             return 'npc_apt_6';
         }
-        // Embassy diplomats live in the eastern worker blocks for now — they'll
-        // graduate to proper diplomat villas in Stage 5.
+        // Embassy diplomats live in the country-themed villas of the Embassy Quarter.
+        // Mapping: embassy_us → diplomat_villa_us, embassy_cn → diplomat_villa_cn, etc.
         if (wp.startsWith('embassy_')) {
-            return 'npc_apt_' + (5 + (i % 2));  // alternates between apt_5 and apt_6
+            const country = wp.substring('embassy_'.length);
+            const villaId = 'diplomat_villa_' + country;
+            if (typeof G !== 'undefined' && G.bldById && G.bldById[villaId]) {
+                return villaId;
+            }
+            // Fallback if the villa module failed to load for any reason
+            return 'npc_apt_' + (5 + (i % 2));
         }
         // Everything else (DC, fab, HQ, space, museum, uni, court, etc) → blocks 1-3
         return 'npc_apt_' + (1 + (i % 3));

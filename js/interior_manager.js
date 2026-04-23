@@ -29,6 +29,8 @@ const Interior = {
             this.activeModule = InteriorNPC;
         } else if (bld.id.startsWith('suburb_') && typeof InteriorNPC !== 'undefined') {
             this.activeModule = InteriorNPC;
+        } else if (bld.id.startsWith('diplomat_villa_') && typeof InteriorNPC !== 'undefined') {
+            this.activeModule = InteriorNPC;
         } else if (bld.type === 'university' && typeof UniversityInterior !== 'undefined') {
             this.activeModule = UniversityInterior;
         } else if (bld.type === 'court' && typeof CourtInterior !== 'undefined') {

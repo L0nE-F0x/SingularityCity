@@ -936,57 +936,39 @@ const InteriorEmbassy = {
 
     drawNPC(c, x, y, role, col, country) {
         const colHex = col || 0x64748b;
-        const bw = 16, h = 32, headH = Math.round(32 * 0.38), bodyH = h - headH - 4, legH = 4;
-        const cont = new PIXI.Container();
+        const bw = 16, h = 32;
+        // Seed from role + country so the same diplomat renders identically across
+        // visits (hair/skin tone are picked from the seed inside HumanAvatar).
+        const seed = 'embassy_' + (country ? country.full : 'x') + '_' + role;
 
-        const shadow = new PIXI.Graphics();
-        shadow.beginFill(0x000000, 0.25); shadow.drawEllipse(0, 2, bw * 0.6, 3); shadow.endFill();
+        // ─── Delegate the pixel art to the shared HumanAvatar helper ───
+        // Diplomats are humans in suits, so `suit: true` renders the jacket +
+        // lapels + tie + pocket pin automatically. We suppress HumanAvatar's
+        // default tag and add a smaller role tag below so the caption keeps
+        // the previous two-line diplomat look (accent dot + role label).
+        const av = HumanAvatar.draw(c, {
+            x, y,
+            name: null,                  // role tag drawn manually below
+            shirt: 0x1a1a28,             // dark navy suit jacket
+            accent: colHex,              // country colour → dot + tie + pin
+            suit: true,
+            tieColor: colHex,
+            glasses: false,              // diplomats keep a clean look
+            seed,
+            showTag: false, showDot: true
+        });
+        const cont = av.cont, head = av.head, body = av.body;
+        const legL = av.legL, legR = av.legR, dot = av.dot, shadow = av.shadow;
 
-        // Head — slight jaw definition (diplomat has clean-cut vibe)
-        const head = new PIXI.Graphics();
-        head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw * 0.38, 0, bw * 0.76, headH, headH * 0.22); head.endFill();
-        // Hair cap
-        head.beginFill(0x2c1810); head.drawRect(-bw * 0.38, 0, bw * 0.76, headH * 0.28); head.endFill();
-        // Eyes
-        head.beginFill(0x1a1a28); head.drawCircle(-bw * 0.12, headH * 0.55, 0.9); head.drawCircle(bw * 0.12, headH * 0.55, 0.9); head.endFill();
-        // Mouth
-        head.beginFill(0x000000, 0.4); head.drawRect(-bw * 0.07, headH * 0.78, bw * 0.14, 0.9); head.endFill();
-        head.y = -h;
-
-        // Body — suit jacket with lapel + tie
-        const body = new PIXI.Graphics();
-        body.beginFill(0x1a1a28); body.drawRoundedRect(-bw / 2, 0, bw, bodyH, bw * 0.1); body.endFill();
-        // White shirt V
-        body.beginFill(0xfffbe8); body.drawPolygon([-bw * 0.15, 0, bw * 0.15, 0, 0, bodyH * 0.5]); body.endFill();
-        // Tie (country accent)
-        body.beginFill(colHex); body.drawPolygon([-bw * 0.06, 0, bw * 0.06, 0, bw * 0.035, bodyH * 0.7, -bw * 0.035, bodyH * 0.7]); body.endFill();
-        // Lapel
-        body.beginFill(0x0a0a14); body.drawPolygon([-bw * 0.4, 0, -bw * 0.15, 0, -bw * 0.25, bodyH * 0.45]); body.endFill();
-        body.beginFill(0x0a0a14); body.drawPolygon([bw * 0.4, 0, bw * 0.15, 0, bw * 0.25, bodyH * 0.45]); body.endFill();
-        // Country pin on lapel
-        body.beginFill(colHex, 0.95); body.drawCircle(-bw * 0.28, bodyH * 0.18, 0.9); body.endFill();
-        body.y = -h + headH;
-
-        // Legs — dress trousers
-        const lw = Math.max(2, bw * 0.25), lh = Math.max(legH, 2);
-        const legL = new PIXI.Graphics();
-        legL.beginFill(0x0a0a14); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill(); legL.x = -bw * 0.15;
-        const legR = new PIXI.Graphics();
-        legR.beginFill(0x0a0a14); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill(); legR.x = bw * 0.15;
-
-        // Dot above head (accent)
-        const dot = new PIXI.Graphics();
-        dot.beginFill(colHex); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 8;
-
-        // Role tag above head
+        // Role tag above head — country-accent coloured, two-line caption with
+        // the accent dot above (matches v404 diplomat look)
         const tag = new PIXI.Text(role, {
             fontFamily: 'JetBrains Mono', fontSize: 5.5, fill: colHex, fontWeight: 'bold'
         });
         tag.anchor.set(0.5, 1); tag.y = -h - 12;
+        cont.addChild(tag);
 
-        cont.addChild(shadow, legL, legR, body, head, dot, tag);
-        cont.x = x; cont.y = y;
-
+        // Hover / click wiring (preserved from v404)
         cont.eventMode = 'static'; cont.cursor = 'pointer';
         cont.hitArea = new PIXI.Rectangle(-bw, -h - 16, bw * 2, h + 20);
         cont.on('pointertap', () => {
@@ -1004,16 +986,14 @@ const InteriorEmbassy = {
         });
         cont.on('pointerout', () => { if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip(); });
 
-        c.addChild(cont);
-
-        const av = {
+        const avObj = {
             cont, head, body, legL, legR, dot, shadow, tag,
             state: 'working', timer: 60 + Math.floor(Math.random() * 220),
             deskX: x, floorY: y, targetX: x, speed: 0.6,
             role, _h: h, _country: country
         };
-        this.avatars.push(av);
-        return av;
+        this.avatars.push(avObj);
+        return avObj;
     },
 
     // ════════════════════════════════════════════════════

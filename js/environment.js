@@ -2774,6 +2774,15 @@ const Environment = {
           if (plaqueTxt.width > 78) plaqueTxt.scale.set(78 / plaqueTxt.width);
           container.addChild(plaqueTxt);
 
+        } else if (b.type === 'diplomat_villa' && typeof EmbassyQuarter !== 'undefined') {
+          // ── DIPLOMAT VILLA — country-themed ambassador's residence ──
+          // Delegates to EmbassyQuarter.renderExterior so each country's architectural
+          // vernacular (Georgian, pagoda, Haussmann, Victorian, haveli, Arabian) stays
+          // together in embassy_quarter.js rather than sprawling across this file.
+          EmbassyQuarter.renderExterior(b, container, gfx, h);
+          // Shadow (consistent with other buildings)
+          gfx.beginFill(0x000000, 0.22); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
+
         } else {
           gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, 4, 6, h - 4);
           gfx.endFill();
