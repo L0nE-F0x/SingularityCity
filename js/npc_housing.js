@@ -39,7 +39,14 @@ const NPCHousing = {
         { id: 'npc_yoga_inst',  name: 'Yoga Sensei',   role: 'Yoga Instructor',      workplace: 'gym',    color: '#a855f7', shift: 'day' },
         { id: 'npc_commentator',name: 'Commentator',   role: 'Arena Commentator',    workplace: 'arena',  color: '#f97316', shift: 'day' },
         { id: 'npc_maintainer', name: 'Maintainer',    role: 'Lead Maintainer',      workplace: 'open_square', color: '#a855f7', shift: 'day' },
-        { id: 'npc_contributor',name: 'Contributor',   role: 'Core Contributor',     workplace: 'open_square', color: '#22c55e', shift: 'day' }
+        { id: 'npc_contributor',name: 'Contributor',   role: 'Core Contributor',     workplace: 'open_square', color: '#22c55e', shift: 'day' },
+        // ─── DIPLOMATS — one ambassador per embassy, day-shift ───
+        { id: 'npc_dip_us',     name: 'US Amb.',       role: 'US Ambassador',        workplace: 'embassy_us', color: '#002868', shift: 'day' },
+        { id: 'npc_dip_cn',     name: 'CN Amb.',       role: 'Chinese Ambassador',   workplace: 'embassy_cn', color: '#de2910', shift: 'day' },
+        { id: 'npc_dip_eu',     name: 'EU Amb.',       role: 'EU Representative',    workplace: 'embassy_eu', color: '#003399', shift: 'day' },
+        { id: 'npc_dip_uk',     name: 'UK HC',         role: 'UK High Commissioner', workplace: 'embassy_uk', color: '#012169', shift: 'day' },
+        { id: 'npc_dip_in',     name: 'IN HC',         role: 'Indian High Commissioner', workplace: 'embassy_in', color: '#ff9933', shift: 'day' },
+        { id: 'npc_dip_ae',     name: 'UAE Amb.',      role: 'UAE Ambassador',       workplace: 'embassy_ae', color: '#00732f', shift: 'day' }
     ],
 
     buildings: [
@@ -118,6 +125,11 @@ const NPCHousing = {
         }
         if (wp.startsWith('power_') || wp === 'forest' || wp === 'port') {
             return 'npc_apt_6';
+        }
+        // Embassy diplomats live in the eastern worker blocks for now — they'll
+        // graduate to proper diplomat villas in Stage 5.
+        if (wp.startsWith('embassy_')) {
+            return 'npc_apt_' + (5 + (i % 2));  // alternates between apt_5 and apt_6
         }
         // Everything else (DC, fab, HQ, space, museum, uni, court, etc) → blocks 1-3
         return 'npc_apt_' + (1 + (i % 3));

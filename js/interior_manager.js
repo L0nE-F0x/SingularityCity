@@ -47,6 +47,8 @@ const Interior = {
             this.activeModule = InteriorAgents;
         } else if (bld.type === 'alignment' && typeof InteriorAlignment !== 'undefined') {
             this.activeModule = InteriorAlignment;
+        } else if (bld.type === 'embassy' && typeof InteriorEmbassy !== 'undefined') {
+            this.activeModule = InteriorEmbassy;
         } else if (bld.id && bld.id.startsWith('metro_') && typeof InteriorMetroStation !== 'undefined') {
             this.activeModule = InteriorMetroStation;
         } else if (bld.id === 'times_hq' && typeof InteriorNewspaper !== 'undefined') {
