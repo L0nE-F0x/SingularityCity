@@ -2406,120 +2406,225 @@ const Environment = {
           gfx.beginFill(0x000000, 0.18); gfx.drawRect(0, h - 2, b.w, 4); gfx.endFill();
 
         } else if (b.type === 'alignment') {
-          // ── ALIGNMENT FOREST — Green-roof glass pavilion with shield particle ring ──
-          const shieldCol = b.shield || 0x22d3ee;
+          // ── ALIGNMENT FOREST — Wooden research cabin nestled in a pine forest ──
+          // Replaces the old glass-pavilion look. Each institute is a small log-cabin lodge
+          // with a pitched shingle roof, stone chimney (smoke at night), warm lit windows,
+          // wooden name plaque, and 6–8 flanking pine trees that extend outside the building
+          // footprint — creating a continuous woodland between cabins when the zone scrolls by.
+          const accentCol = b.shield || 0x6ab868; // kept `b.shield` as the accent hook — each
+                                                  // institute still gets its identifying color.
 
-          // Dark stone base
-          gfx.beginFill(0x1e2a22); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
-          gfx.beginFill(0x162018); gfx.drawRect(2, 2, b.w - 4, h - 4); gfx.endFill();
+          // Deterministic tree scatter using b.x as seed — same cabin renders identical trees
+          // every rebuild (so trees don't flicker on rebuild), but different cabins get
+          // different arrangements.
+          let treeSeed = 1013904223 + (b.x | 0);
+          const sr = () => { treeSeed = (treeSeed * 1664525 + 1013904223) >>> 0; return (treeSeed & 0xffffff) / 0x1000000; };
 
-          // Flanking trees (outside building footprint, added in bg first)
-          for (const tx of [-6, b.w + 6]) {
+          // ── FOREST FLOOR: moss / forest-duff ground strip extending beyond footprint ──
+          // Drawn first (behind everything) so trees and cabin sit on it. Extends left/right
+          // beyond b.w so adjacent cabins' floor strips join up into a seamless forest ground.
+          gfx.beginFill(0x1a3321); gfx.drawRect(-55, h - 6, b.w + 110, 6); gfx.endFill();
+          gfx.beginFill(0x264a30); gfx.drawRect(-55, h - 4, b.w + 110, 2); gfx.endFill();
+          // Moss tufts dotted along the floor
+          for (let mx = -50; mx < b.w + 55; mx += 8 + sr() * 6) {
+              gfx.beginFill(0x4a8a4e, 0.55);
+              gfx.drawCircle(mx, h - 3, 1 + sr() * 1.2);
+              gfx.endFill();
+          }
+          // A fallen log off to one side, every other cabin (adds organic randomness)
+          if (sr() > 0.5) {
+              const lgX = -40 + sr() * 30;
+              gfx.beginFill(0x3a2a18); gfx.drawRect(lgX, h - 7, 26, 3); gfx.endFill();
+              gfx.beginFill(0x5a4028); gfx.drawRect(lgX, h - 7, 26, 1); gfx.endFill();
+              gfx.beginFill(0x2a5a30); gfx.drawCircle(lgX + 2, h - 7, 1.8); gfx.endFill(); // moss on the log
+          }
+
+          // ── BACKGROUND PINES (left flank, behind cabin) ──
+          const drawPine = (tx, scale) => {
+              const trunkH = 18 * scale;
+              const canopyH = 42 * scale;
+              const canopyW = 18 * scale;
+              const baseY = h - 4;
               // Trunk
-              gfx.beginFill(0x3a2a18); gfx.drawRect(tx - 1.5, h - 14, 3, 14); gfx.endFill();
-              gfx.beginFill(0x26180a); gfx.drawRect(tx + 0.5, h - 14, 1, 14); gfx.endFill();
-              // Three-puff canopy
-              gfx.beginFill(0x1f4a28); gfx.drawCircle(tx, h - 22, 7.5); gfx.endFill();
-              gfx.beginFill(0x2e6a38); gfx.drawCircle(tx - 2.5, h - 24, 5.5); gfx.endFill();
-              gfx.beginFill(0x4a9a4e); gfx.drawCircle(tx + 2.5, h - 20, 4.5); gfx.endFill();
-              // Highlight
-              gfx.beginFill(0x7acc7e, 0.6); gfx.drawCircle(tx - 3.5, h - 25.5, 1.3); gfx.endFill();
+              gfx.beginFill(0x3a2818); gfx.drawRect(tx - 1.5 * scale, baseY - trunkH, 3 * scale, trunkH); gfx.endFill();
+              gfx.beginFill(0x26170a); gfx.drawRect(tx + 0.5 * scale, baseY - trunkH, 1 * scale, trunkH); gfx.endFill();
+              // Three-tier canopy — dark at base, lit at tip, for that coniferous depth
+              const capBase = baseY - trunkH + 4 * scale;
+              gfx.beginFill(0x0e3b20);
+              gfx.drawPolygon([tx - canopyW * 0.55, capBase, tx, capBase - canopyH * 0.4, tx + canopyW * 0.55, capBase]);
+              gfx.endFill();
+              gfx.beginFill(0x154a28);
+              gfx.drawPolygon([tx - canopyW * 0.45, capBase - canopyH * 0.25, tx, capBase - canopyH * 0.65, tx + canopyW * 0.45, capBase - canopyH * 0.25]);
+              gfx.endFill();
+              gfx.beginFill(0x1f6030);
+              gfx.drawPolygon([tx - canopyW * 0.35, capBase - canopyH * 0.5, tx, capBase - canopyH * 0.95, tx + canopyW * 0.35, capBase - canopyH * 0.5]);
+              gfx.endFill();
+              // A dab of sunlit highlight
+              gfx.beginFill(0x6fbb6f, 0.55); gfx.drawCircle(tx - canopyW * 0.15, capBase - canopyH * 0.6, 1 * scale); gfx.endFill();
+          };
+
+          // 3 pines on the left (beyond the cabin's left edge)
+          drawPine(-48 + sr() * 6, 0.95 + sr() * 0.25);
+          drawPine(-28 + sr() * 4, 0.85 + sr() * 0.2);
+          drawPine(-10 + sr() * 4, 0.7 + sr() * 0.15); // closer to cabin, smaller
+          // 3 pines on the right
+          drawPine(b.w + 10 + sr() * 4, 0.7 + sr() * 0.15);
+          drawPine(b.w + 30 + sr() * 4, 0.85 + sr() * 0.2);
+          drawPine(b.w + 52 + sr() * 6, 0.95 + sr() * 0.25);
+
+          // ── CABIN BODY: stacked horizontal logs ──
+          const bodyTop = Math.max(h * 0.3, 18); // leaves headroom for the roof
+          const bodyH = h - 8 - bodyTop;          // footprint from bodyTop down to a 4px porch step
+          // Cabin sits inset 10px from each side so trees read as "beside" the cabin
+          const cbX = 10, cbW = b.w - 20;
+          // Shadow under the cabin
+          gfx.beginFill(0x000000, 0.22); gfx.drawEllipse(b.w / 2, h - 4, cbW * 0.48, 3); gfx.endFill();
+          // Log rows — alternating two wood tones for that chinked-log cabin look
+          const logH = 7;
+          for (let ly = bodyTop; ly < h - 8; ly += logH) {
+              const darker = ((ly - bodyTop) / logH) % 2 < 1;
+              gfx.beginFill(darker ? 0x5a3d24 : 0x6b4a2c); gfx.drawRect(cbX, ly, cbW, logH); gfx.endFill();
+              // Chinking highlight between logs
+              gfx.beginFill(0x2a1a0e); gfx.drawRect(cbX, ly + logH - 1, cbW, 1); gfx.endFill();
+              // End-grain circles at log tips for that stacked-log "notched corner" read
+              gfx.beginFill(0x3a240e); gfx.drawCircle(cbX + 2, ly + logH / 2, 1.6); gfx.drawCircle(cbX + cbW - 2, ly + logH / 2, 1.6); gfx.endFill();
           }
 
-          // Large glass facade — tinted teal/green
-          gfx.beginFill(0x08120f); gfx.drawRect(8, 12, b.w - 16, h - 24); gfx.endFill();
-          gfx.beginFill(shieldCol, 0.16); gfx.drawRect(10, 14, b.w - 20, h - 28); gfx.endFill();
-          // Glass reflections
-          gfx.beginFill(0xffffff, 0.08); gfx.drawRect(12, 16, (b.w - 24) * 0.3, h - 32); gfx.endFill();
-          gfx.beginFill(shieldCol, 0.06); gfx.drawRect(12 + (b.w - 24) * 0.3, 16, (b.w - 24) * 0.7, h - 32); gfx.endFill();
+          // ── PORCH STEP ──
+          gfx.beginFill(0x3a2818); gfx.drawRect(cbX - 4, h - 8, cbW + 8, 4); gfx.endFill();
+          gfx.beginFill(0x4a3020); gfx.drawRect(cbX - 4, h - 8, cbW + 8, 1); gfx.endFill();
 
-          // Vertical glass mullions
-          for (let mx = 20; mx < b.w - 18; mx += 18) {
-              gfx.beginFill(0x0a1a18, 0.7); gfx.drawRect(mx, 14, 1, h - 28); gfx.endFill();
+          // ── WARM LIT WINDOWS (two per cabin, symmetric) ──
+          const winW = 14, winH = 16;
+          const winY = bodyTop + Math.floor(bodyH * 0.35);
+          const winL = cbX + 14, winR = cbX + cbW - winW - 14;
+          for (const wx of [winL, winR]) {
+              // Frame (dark wood)
+              gfx.beginFill(0x2a1a0e); gfx.drawRect(wx - 2, winY - 2, winW + 4, winH + 4); gfx.endFill();
+              // Warm glow — amber at night, soft yellow by day
+              gfx.beginFill(0xffd37a, 0.92); gfx.drawRect(wx, winY, winW, winH); gfx.endFill();
+              gfx.beginFill(0xffeaa0, 0.55); gfx.drawRect(wx, winY, winW, winH * 0.4); gfx.endFill();
+              // Cross mullions (little wooden lattice)
+              gfx.beginFill(0x2a1a0e);
+              gfx.drawRect(wx + winW / 2 - 0.5, winY, 1, winH);
+              gfx.drawRect(wx, winY + winH / 2 - 0.5, winW, 1);
+              gfx.endFill();
+              // Sill
+              gfx.beginFill(0x3a240e); gfx.drawRect(wx - 3, winY + winH, winW + 6, 2); gfx.endFill();
           }
-          // Horizontal mullion band (mid-floor)
-          gfx.beginFill(0x0a1a18, 0.7); gfx.drawRect(10, Math.floor(h / 2), b.w - 20, 1); gfx.endFill();
 
-          // Rim light along glass top edge
-          gfx.beginFill(shieldCol, 0.55); gfx.drawRect(10, 13, b.w - 20, 1); gfx.endFill();
-
-          // Green living roof — tufted foliage across the top
-          for (let rx = 0; rx < b.w; rx += 6) {
-              const th = 2 + ((rx * 7) % 4);
-              gfx.beginFill(0x2a5a30); gfx.drawRect(rx, -th, 6, th + 2); gfx.endFill();
-              gfx.beginFill(0x3e8040); gfx.drawRect(rx + 1, -th + 1, 4, 2); gfx.endFill();
-          }
-          // Mossy highlights
-          for (let rx = 3; rx < b.w; rx += 11) {
-              gfx.beginFill(0x6ab868, 0.55); gfx.drawCircle(rx, -1, 1.2); gfx.endFill();
-          }
-          // Solar/skylight in the middle of the roof
-          gfx.beginFill(0x0a1a18); gfx.drawRect(b.w * 0.38, -3, b.w * 0.24, 3); gfx.endFill();
-          gfx.beginFill(shieldCol, 0.45); gfx.drawRect(b.w * 0.38 + 1, -3, b.w * 0.24 - 2, 2); gfx.endFill();
-
-          // Entrance: dark glass door with glowing outline
-          const doorW = 18, doorH = 22;
+          // ── DOOR (warm wood, slightly inset, with glow spill) ──
+          const doorW = 16, doorH = 24;
           const doorX = b.w / 2 - doorW / 2;
-          const doorY = h - doorH - 4;
-          gfx.beginFill(0x000000, 0.5); gfx.drawRect(doorX, doorY, doorW, doorH); gfx.endFill();
-          gfx.beginFill(shieldCol, 0.28); gfx.drawRect(doorX + 1, doorY + 1, doorW - 2, doorH - 2); gfx.endFill();
-          gfx.lineStyle(1, shieldCol, 0.85);
-          gfx.drawRect(doorX, doorY, doorW, doorH);
-          gfx.lineStyle(0);
-          // Door handle
-          gfx.beginFill(shieldCol, 0.9); gfx.drawRect(doorX + doorW - 4, doorY + doorH / 2 - 2, 1.5, 4); gfx.endFill();
+          const doorY = h - doorH - 8;
+          // Glow spill on the porch floor
+          gfx.beginFill(0xffd37a, 0.18); gfx.drawEllipse(b.w / 2, h - 6, 20, 3); gfx.endFill();
+          // Door frame
+          gfx.beginFill(0x2a1a0e); gfx.drawRect(doorX - 2, doorY - 2, doorW + 4, doorH + 4); gfx.endFill();
+          // Door leaves
+          gfx.beginFill(0x4a2e18); gfx.drawRect(doorX, doorY, doorW, doorH); gfx.endFill();
+          gfx.beginFill(0x5a3a20); gfx.drawRect(doorX + 1, doorY + 1, winW / 3, doorH - 2); gfx.endFill();
+          // Vertical plank lines
+          gfx.beginFill(0x2a1a0e);
+          gfx.drawRect(doorX + doorW / 3 - 0.5, doorY, 1, doorH);
+          gfx.drawRect(doorX + 2 * doorW / 3 - 0.5, doorY, 1, doorH);
+          gfx.endFill();
+          // Brass doorknob
+          gfx.beginFill(0xfbbf24); gfx.drawCircle(doorX + doorW - 3, doorY + doorH / 2, 1.3); gfx.endFill();
+          // Accent lantern above the door — institute-colored glow
+          gfx.beginFill(0x2a1a0e); gfx.drawRect(doorX + doorW / 2 - 3, doorY - 7, 6, 6); gfx.endFill();
+          gfx.beginFill(accentCol, 0.9); gfx.drawRect(doorX + doorW / 2 - 2, doorY - 6, 4, 4); gfx.endFill();
+          gfx.beginFill(accentCol, 0.25); gfx.drawCircle(doorX + doorW / 2, doorY - 4, 6); gfx.endFill();
 
-          // Base step
-          gfx.beginFill(0x162018); gfx.drawRect(-2, h - 4, b.w + 4, 4); gfx.endFill();
-          gfx.beginFill(0x0e1610); gfx.drawRect(-1, h - 1, b.w + 2, 2); gfx.endFill();
-
-          // Ground shadow
-          gfx.beginFill(0x000000, 0.22); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
-
-          // ── SHIELD PARTICLE RING — 10 orbiting dots around building center ──
-          const shieldCont = new PIXI.Container();
-          shieldCont.x = b.w / 2;
-          shieldCont.y = h * 0.45;
-          const particles = [];
-          for (let i = 0; i < 10; i++) {
-              const p = new PIXI.Graphics();
-              p.beginFill(shieldCol, 0.85);
-              p.drawCircle(0, 0, 2);
-              p.endFill();
-              p.beginFill(shieldCol, 0.28);
-              p.drawCircle(0, 0, 5);
-              p.endFill();
-              p.blendMode = PIXI.BLEND_MODES.ADD;
-              shieldCont.addChild(p);
-              particles.push(p);
+          // ── PITCHED SHINGLE ROOF ──
+          // Overhangs the cabin body by 6px each side. Two slopes meeting at a ridge.
+          const roofEaveY = bodyTop;
+          const roofPeakY = Math.max(-8, bodyTop - Math.min(bodyTop - 2, 26));
+          const roofOH = 6;
+          // Underside shadow
+          gfx.beginFill(0x0a0805); gfx.drawPolygon([
+              cbX - roofOH, roofEaveY,
+              b.w / 2, roofPeakY + 2,
+              cbX + cbW + roofOH, roofEaveY,
+              cbX + cbW + roofOH, roofEaveY + 3,
+              cbX - roofOH, roofEaveY + 3
+          ]); gfx.endFill();
+          // Main roof surface
+          gfx.beginFill(0x3a2a1a); gfx.drawPolygon([
+              cbX - roofOH, roofEaveY,
+              b.w / 2, roofPeakY,
+              cbX + cbW + roofOH, roofEaveY
+          ]); gfx.endFill();
+          // Shingle rows (horizontal stripes on the pitched triangle)
+          const rowCount = 4;
+          for (let rr = 1; rr <= rowCount; rr++) {
+              const ty = roofPeakY + (roofEaveY - roofPeakY) * (rr / (rowCount + 1));
+              const tw = (cbX + cbW + roofOH) - (cbX - roofOH);
+              const widthFrac = (ty - roofPeakY) / (roofEaveY - roofPeakY);
+              const rowLeft = b.w / 2 - (tw / 2) * widthFrac;
+              gfx.beginFill(0x2a1d10, 0.9);
+              gfx.drawRect(rowLeft + 1, ty, tw * widthFrac - 2, 1);
+              gfx.endFill();
+              gfx.beginFill(0x4a3824, 0.5);
+              gfx.drawRect(rowLeft + 1, ty + 1, tw * widthFrac - 2, 0.8);
+              gfx.endFill();
           }
-          container.addChild(shieldCont);
-          b._shieldParticles = particles;
-          b._shieldRingR = Math.max(b.w, h) * 0.55;
-          b._shieldPhase = Math.random() * Math.PI * 2;
+          // Ridge cap
+          gfx.beginFill(0x1a110a); gfx.drawRect(b.w / 2 - 4, roofPeakY - 1, 8, 2); gfx.endFill();
 
-          // Name plaque (glowing, matches shield color)
-          const plaque = new PIXI.Graphics();
-          const plW = Math.max(70, Math.min(b.w - 20, 90));
-          plaque.beginFill(0x08120f, 0.92);
-          plaque.drawRoundedRect(-plW / 2, -7, plW, 14, 3);
-          plaque.endFill();
-          plaque.lineStyle(1, shieldCol, 0.9);
-          plaque.drawRoundedRect(-plW / 2, -7, plW, 14, 3);
-          plaque.lineStyle(0);
-          plaque.x = b.w / 2;
-          plaque.y = doorY - 14;
-          container.addChild(plaque);
+          // ── STONE CHIMNEY (right of centre, puffs of smoke drift off static here) ──
+          const chimX = cbX + cbW - 22;
+          const chimBaseY = roofEaveY + (roofPeakY - roofEaveY) * 0.45;
+          const chimTopY = roofPeakY - 8;
+          const chimW = 10;
+          gfx.beginFill(0x4a4a4a); gfx.drawRect(chimX, chimTopY, chimW, chimBaseY - chimTopY); gfx.endFill();
+          // Stone dappling
+          gfx.beginFill(0x3a3a3a);
+          gfx.drawRect(chimX, chimTopY + 2, chimW, 2);
+          gfx.drawRect(chimX, chimTopY + 8, chimW, 2);
+          gfx.drawRect(chimX, chimTopY + 14, chimW, 2);
+          gfx.endFill();
+          gfx.beginFill(0x5a5a5a); gfx.drawRect(chimX, chimTopY, chimW, 1); gfx.endFill();
+          gfx.beginFill(0x2a2a2a); gfx.drawRect(chimX - 1, chimTopY - 2, chimW + 2, 2); gfx.endFill(); // cap
+          // Soft smoke puff
+          gfx.beginFill(0xe5e7eb, 0.35); gfx.drawCircle(chimX + chimW / 2 + 1, chimTopY - 6, 3.5); gfx.endFill();
+          gfx.beginFill(0xd1d5db, 0.22); gfx.drawCircle(chimX + chimW / 2 + 3, chimTopY - 10, 3); gfx.endFill();
+
+          // ── FOREGROUND PINES (smaller, cast in front of cabin edges for depth) ──
+          // Drawn AFTER cabin body so they partially occlude the corners, selling depth.
+          drawPine(-6 + sr() * 2, 0.55 + sr() * 0.1);
+          drawPine(b.w + 4 + sr() * 2, 0.55 + sr() * 0.1);
+
+          // ── WOODEN NAME PLAQUE (carved sign on a post, next to the door) ──
+          const plaqueW = Math.max(72, Math.min(b.w - 30, 96));
+          const plaqueH = 14;
+          const plaqueY = doorY - 18;
+          const plaqueX = b.w / 2 - plaqueW / 2;
+          // Sign post
+          gfx.beginFill(0x3a2818); gfx.drawRect(b.w / 2 - 1.5, plaqueY + plaqueH, 3, 6); gfx.endFill();
+          // Wooden sign background
+          gfx.beginFill(0x3a2818); gfx.drawRect(plaqueX - 1, plaqueY - 1, plaqueW + 2, plaqueH + 2); gfx.endFill();
+          gfx.beginFill(0x5a3a20); gfx.drawRect(plaqueX, plaqueY, plaqueW, plaqueH); gfx.endFill();
+          gfx.beginFill(0x4a2e18); gfx.drawRect(plaqueX, plaqueY + plaqueH - 2, plaqueW, 2); gfx.endFill();
+          // Two small brass nails
+          gfx.beginFill(0xfbbf24);
+          gfx.drawCircle(plaqueX + 3, plaqueY + 2, 0.6);
+          gfx.drawCircle(plaqueX + plaqueW - 3, plaqueY + 2, 0.6);
+          gfx.endFill();
           const plaqueTxt = new PIXI.Text((b.name || '').toUpperCase(), {
-              fontFamily: 'JetBrains Mono', fontSize: 6.5, fontWeight: 'bold',
-              fill: shieldCol, letterSpacing: 0.7,
-              dropShadow: true, dropShadowColor: shieldCol, dropShadowBlur: 5, dropShadowDistance: 0, padding: 3
+              fontFamily: 'JetBrains Mono', fontSize: 7, fontWeight: 'bold',
+              fill: 0x1a0f06, letterSpacing: 0.8, padding: 2
           });
           plaqueTxt.anchor.set(0.5, 0.5);
           plaqueTxt.x = b.w / 2;
-          plaqueTxt.y = doorY - 14;
-          if (plaqueTxt.width > plW - 8) plaqueTxt.scale.set((plW - 8) / plaqueTxt.width);
+          plaqueTxt.y = plaqueY + plaqueH / 2;
+          if (plaqueTxt.width > plaqueW - 8) plaqueTxt.scale.set((plaqueW - 8) / plaqueTxt.width);
           container.addChild(plaqueTxt);
+
+          // Keep the module's particle hook live but drop the visible ring — the cabin is the
+          // statement now. If we want fireflies later, alignment_forest.update() still has the
+          // update loop wired up and will just no-op while b._shieldParticles stays null.
+          b._shieldParticles = null;
 
         } else if (b.type === 'embassy') {
           // ── EMBASSY — Classical columned facade with flying flag ──

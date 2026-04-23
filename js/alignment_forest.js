@@ -1,13 +1,14 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   ALIGNMENT FOREST (v1.0.0 — Phase 4, Roadmap Feature #2)
-   A contemplative research quarter for AI safety. Five institutes nestled among trees, each
-   with a green living roof, glass facade, and a rotating particle shield ring that conveys
-   the "defence-in-depth" posture of alignment research.
+   ALIGNMENT FOREST (v2.0.0 — Stage 3, Actual Forest)
+   A genuine woodland research retreat for AI safety. Five wooden cabin lodges (MIRI, METR,
+   Apollo, Redwood, FAR AI) sit among dense pine trees and moss-covered forest floor, far
+   from the city's glass towers. Each cabin is small, warm, and lit from within — a research
+   sanctuary where alignment papers are written over tea and whiteboard debates.
 
-   Clicking an institute opens an AI Safety Brief panel with the lab's research focus,
-   lead researcher, and flagship papers. Pure data layer — no live API.
+   Clicking a cabin opens an AI Safety Brief panel; entering opens a themed cabin interior
+   (reading room, whiteboard loft, fireplace) handled by interior_alignment.js.
 
-   Sits east of Agent District, before the Longevity metro terminus.
+   Sits east of Agent District, before the Innovation Line metro terminus.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const AlignmentForest = {
@@ -81,13 +82,20 @@ const AlignmentForest = {
     },
 
     positionZone(afterX) {
-        let x = afterX + 50;
+        // Enter the forest: a wider buffer so the tree canopy from the first cabin can spill into
+        // the clearing between districts without overlapping the neighbouring zone.
+        let x = afterX + 90;
         this.zoneStartX = x;
         this.BLDS.forEach(def => {
             const bld = BLDS.find(b => b.id === def.id);
-            if (bld) { bld.x = x; x += bld.w + 40; } // larger gap than Embassy Row — trees need room
+            if (bld) {
+                bld.x = x;
+                // 110px gap between cabins — enough room for 3–4 pine trees per flank to fill the
+                // space visually, creating the illusion of a continuous woodland path.
+                x += bld.w + 110;
+            }
         });
-        this.zoneEndX = x + 30;
+        this.zoneEndX = x + 80;
         return this.zoneEndX;
     },
 
