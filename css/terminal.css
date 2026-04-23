@@ -1,0 +1,275 @@
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════
+   TERMINAL MODE (v1.0 — Phase 1)
+   Bloomberg-inspired data dashboard. Black base, amber/cyan/green accents, JetBrains Mono everywhere.
+   All Terminal-only rules are scoped under `body.terminal-mode` or `#terminal-shell` to keep the
+   pixel-city styles untouched.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── SHELL (hidden by default, shown when body.terminal-mode) ─── */
+#terminal-shell {
+    position: fixed;
+    inset: 0;
+    z-index: 95;               /* above viewport, below orientation overlay */
+    background: #050509;
+    color: #d8d8e0;
+    font-family: 'JetBrains Mono', monospace;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: text;          /* Terminal IS about reading data — selection feels right */
+}
+body.terminal-mode #terminal-shell { display: flex; }
+
+/* When terminal is active, hide the pixel-art chrome (canvas, HUD, ticker, toasts, macro
+   overlay, minimap). We use visibility + pointer-events:none instead of display:none so
+   PixiJS continues to run and resize correctly behind the shell. */
+body.terminal-mode #gameWrap .top,
+body.terminal-mode #gameWrap .vp,
+body.terminal-mode #gameWrap .tick,
+body.terminal-mode #gameWrap #macroUI,
+body.terminal-mode #toasts,
+body.terminal-mode #minimap {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* ═══ TOP BAR ═══ */
+.tm-topbar {
+    display: flex;
+    align-items: stretch;
+    background: #0a0a14;
+    border-bottom: 1px solid #1a1a2a;
+    padding: 0 14px;
+    height: 44px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 0 rgba(251,191,36,0.04), 0 0 24px rgba(0,0,0,0.6);
+}
+
+.tm-logo {
+    display: flex; align-items: center; gap: 8px;
+    padding-right: 20px; margin-right: 18px;
+    border-right: 1px solid #1a1a2a;
+    font-size: 11px; letter-spacing: 2px;
+    white-space: nowrap;
+}
+.tm-logo-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #fbbf24;
+    box-shadow: 0 0 8px #fbbf24, 0 0 2px #fff inset;
+    animation: tm-pulse 1.8s infinite ease-in-out;
+}
+.tm-logo-main { color: #fbbf24; font-weight: 700; }
+.tm-logo-suf  { color: #6a6a80; font-weight: 500; letter-spacing: 1.5px; margin-left: 4px; }
+@keyframes tm-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.tm-status {
+    display: flex; align-items: center; gap: 22px;
+    flex: 1; min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.tm-status::-webkit-scrollbar { display: none; }
+.tm-stat {
+    display: flex; align-items: baseline; gap: 6px;
+    white-space: nowrap;
+}
+.tm-lbl {
+    font-size: 8px; letter-spacing: 1.5px;
+    color: #6a6a80; text-transform: uppercase;
+}
+.tm-val {
+    font-size: 13px; font-weight: 600;
+    color: #e8e8f0;
+    font-variant-numeric: tabular-nums;
+    min-width: 34px;
+}
+
+.tm-topbar-right { display: flex; align-items: center; gap: 10px; padding-left: 20px; border-left: 1px solid #1a1a2a; margin-left: 18px; }
+.tm-cta-btn {
+    background: linear-gradient(180deg, #0e2418, #061a10);
+    border: 1px solid #34d399;
+    color: #34d399;
+    padding: 7px 14px; border-radius: 3px;
+    font-family: inherit; font-size: 10px; font-weight: 700;
+    letter-spacing: 1.5px;
+    cursor: pointer; transition: all 0.15s;
+    text-transform: uppercase;
+}
+.tm-cta-btn:hover {
+    background: #0f2e1e;
+    color: #fff;
+    box-shadow: 0 0 14px rgba(52,211,153,0.4);
+}
+
+/* ═══ GRID ═══
+   12-column Bloomberg-style grid. grid-auto-flow:dense lets larger panels claim their
+   rows while smaller ones fill gaps. Row height is fixed so panels feel consistent. */
+.tm-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: 168px;
+    grid-auto-flow: dense;
+    gap: 8px;
+    padding: 8px;
+    overflow-y: auto;
+    align-content: start;
+}
+.tm-grid::-webkit-scrollbar { width: 6px; }
+.tm-grid::-webkit-scrollbar-track { background: transparent; }
+.tm-grid::-webkit-scrollbar-thumb { background: #1a1a2a; border-radius: 3px; }
+.tm-grid::-webkit-scrollbar-thumb:hover { background: #2a2a3a; }
+
+/* ─── Panel ─── */
+.tm-panel {
+    background: #0a0a14;
+    border: 1px solid #1a1a2a;
+    border-radius: 2px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tm-panel:hover {
+    border-color: #2a2a44;
+    box-shadow: 0 0 0 1px rgba(34,211,238,0.06) inset;
+}
+
+/* Size helpers (span in col-units of the 12-wide grid) */
+.tm-size-lg { grid-column: span 6; grid-row: span 2; }  /* 1× big panel */
+.tm-size-md { grid-column: span 4; }                     /* medium */
+.tm-size-sm { grid-column: span 3; }                     /* small */
+
+.tm-panel-h {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 10px;
+    background: #0d0d18;
+    border-bottom: 1px solid #1a1a2a;
+    font-size: 9px; letter-spacing: 1.5px;
+    flex-shrink: 0;
+}
+.tm-panel-title {
+    color: #c8c8d8; font-weight: 700;
+}
+.tm-panel-tag {
+    color: #8a6a20; font-size: 8px;
+    padding: 2px 6px;
+    border: 1px solid #3a2a10;
+    background: rgba(251,191,36,0.05);
+    border-radius: 2px;
+    letter-spacing: 1px;
+}
+.tm-panel-body {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    font-size: 11px;
+    color: #a0a0b8;
+}
+
+/* ─── Phase 1 Placeholder ─── */
+.tm-placeholder {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative;
+    padding: 10px;
+}
+.tm-placeholder-grid {
+    position: absolute; inset: 0;
+    background-image:
+        linear-gradient(rgba(80,80,110,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(80,80,110,0.06) 1px, transparent 1px);
+    background-size: 18px 18px;
+    pointer-events: none;
+}
+.tm-placeholder-grid::after {
+    /* Subtle diagonal "under construction" scan-stripe */
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent 0, transparent 14px,
+        rgba(251,191,36,0.018) 14px, rgba(251,191,36,0.018) 28px
+    );
+    pointer-events: none;
+}
+.tm-placeholder-hint {
+    position: relative; z-index: 1;
+    font-size: 10px; color: #7a7a94; line-height: 1.55;
+    padding: 7px 11px;
+    background: rgba(6,6,14,0.85);
+    border: 1px dashed #2a2a3a;
+    border-radius: 2px;
+    text-align: center;
+    max-width: 94%;
+}
+
+/* ═══ FOOTER ═══ */
+.tm-footer {
+    flex-shrink: 0;
+    height: 24px;
+    background: #0a0a14;
+    border-top: 1px solid #1a1a2a;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14px;
+    font-size: 9px; letter-spacing: 1.2px;
+    color: #6a6a80;
+    white-space: nowrap;
+}
+.tm-foot-chunk { display: flex; align-items: center; gap: 6px; }
+.tm-foot-chunk kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    background: #14142a;
+    border: 1px solid #2a2a3a;
+    border-radius: 2px;
+    font-family: inherit; font-size: 9px;
+    color: #c8c8d8;
+}
+.tm-foot-mid { color: #8a8aa0; }
+
+/* ═══ LANDING PAGE — TERMINAL CTA ═══
+   Amber-outlined button distinguishes it from the green pixel-city CTA. Matches the
+   terminal's logo accent so users recognize the visual language before they click. */
+.land-terminal {
+    background: transparent;
+    color: #fbbf24;
+    border: 1px solid rgba(251,191,36,0.55);
+    padding: clamp(10px, 1.5vh, 14px) clamp(18px, 3vw, 28px);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(11px, 1.3vw, 14px);
+    font-weight: 700;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    text-shadow: 0 0 12px rgba(251,191,36,0.25);
+}
+.land-terminal:hover {
+    background: rgba(251,191,36,0.08);
+    border-color: #fbbf24;
+    box-shadow: 0 0 18px rgba(251,191,36,0.28);
+    transform: translateY(-2px);
+}
+
+/* ═══ RESPONSIVE ═══ */
+@media (max-width: 1100px) {
+    .tm-size-lg { grid-column: span 8; }
+    .tm-size-md { grid-column: span 4; }
+    .tm-size-sm { grid-column: span 4; }
+}
+@media (max-width: 780px) {
+    .tm-topbar { height: auto; padding: 8px 12px; flex-wrap: wrap; }
+    .tm-logo { padding-right: 12px; margin-right: 12px; }
+    .tm-status { gap: 12px; }
+    .tm-topbar-right { padding-left: 12px; margin-left: 12px; border-left: none; }
+    .tm-grid { grid-template-columns: repeat(4, 1fr); grid-auto-rows: 150px; }
+    .tm-size-lg { grid-column: span 4; grid-row: span 2; }
+    .tm-size-md, .tm-size-sm { grid-column: span 4; grid-row: auto; }
+}
+@media (max-width: 480px) {
+    .tm-grid { grid-template-columns: 1fr; }
+    .tm-size-lg, .tm-size-md, .tm-size-sm { grid-column: 1 / -1; grid-row: auto; }
+    .tm-footer { font-size: 8px; padding: 0 8px; }
+    .tm-foot-mid { display: none; }
+}

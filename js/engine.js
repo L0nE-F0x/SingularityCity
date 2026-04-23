@@ -2152,4 +2152,10 @@ async function enterCity() {
       const ib = document.getElementById('installBanner');
       if (ib) ib.style.display = 'none';
   }
+
+  // ─── TERMINAL MODE HOOK ───
+  // If the user arrived via ?mode=terminal, enterTerminal(), or a saved preference,
+  // flip the dashboard on now that the sim is fully booted. The Terminal module runs
+  // its own 4 Hz update loop and can be toggled back to pixel view via the D hotkey.
+  if (typeof Terminal !== 'undefined' && Terminal.tryAutoOpen) Terminal.tryAutoOpen();
 }
