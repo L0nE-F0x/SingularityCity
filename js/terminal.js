@@ -1441,7 +1441,10 @@ if (typeof window !== 'undefined') {
 
     window.enterTerminal = function () {
         Terminal._pendingOpen = true;
-        if (typeof enterCity === 'function') enterCity();
+        // Pass the terminal flag so enterCity() animates the correct button and
+        // themes the loading screen amber. enterCity() will call Terminal.open()
+        // once the sim is booted.
+        if (typeof enterCity === 'function') enterCity({ terminal: true });
     };
 
     if (document.readyState === 'loading') {

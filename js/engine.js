@@ -2074,31 +2074,69 @@ Object.assign(G, EasterEggs, Persistence, MacroView);
   }
 })();
 
-async function enterCity() {
-  const btn = document.querySelector('.land-enter');
-  if (btn) {
-      btn.innerHTML = '⏳ Downloading City Data...';
-      btn.disabled = true;
-      btn.style.opacity = '0.7';
+async function enterCity(opts = {}) {
+  const isTerminal = !!opts.terminal;
+
+  // ─── BUTTON ANIMATION — only the clicked button animates ───
+  // The other button gets locked out (disabled + dim) to show it's no longer interactive.
+  const cityBtn = document.querySelector('.land-enter');
+  const termBtn = document.querySelector('.land-terminal');
+  const clickedBtn = isTerminal ? termBtn : cityBtn;
+  const otherBtn   = isTerminal ? cityBtn : termBtn;
+
+  if (clickedBtn) {
+      const label = isTerminal ? 'Booting Terminal…' : 'Downloading City Data…';
+      clickedBtn.classList.add('land-btn-loading');
+      clickedBtn.innerHTML = `<span class="land-btn-spin"></span>${label}`;
+      clickedBtn.disabled = true;
+  }
+  if (otherBtn) {
+      otherBtn.disabled = true;
+      otherBtn.style.opacity = '0.35';
+      otherBtn.style.pointerEvents = 'none';
   }
 
   // ─── LOADING SCREEN helpers ───
   const loader = document.getElementById('sc-loader');
-  const loaderFill = document.getElementById('sc-loader-fill');
+  const loaderFill   = document.getElementById('sc-loader-fill');
+  const loaderPct    = document.getElementById('sc-loader-pct');
   const loaderStatus = document.getElementById('sc-loader-status');
+  const loaderBadge  = document.getElementById('sc-loader-badge');
+  const loaderSub    = document.getElementById('sc-loader-sub');
+  const tasksEl      = document.getElementById('sc-loader-tasks');
+
+  // Theme the loader for Terminal boot (amber) vs City (cyan/default)
+  if (isTerminal) {
+      if (loaderBadge) loaderBadge.textContent = 'TERMINAL BOOT · v415';
+      if (loaderSub)   loaderSub.textContent   = 'REAL-TIME AI INDUSTRY DASHBOARD';
+      if (loader)      loader.classList.add('sc-loader-terminal');
+  }
+
   const setProgress = (pct, msg) => {
-      if (loaderFill) loaderFill.style.width = pct + '%';
+      if (loaderFill)   loaderFill.style.width = pct + '%';
+      if (loaderPct)    loaderPct.textContent  = Math.round(pct) + '%';
       if (loaderStatus) loaderStatus.textContent = msg;
   };
 
-  setProgress(5, 'Connecting to cloud...');
-  if (typeof API !== 'undefined') {
-      API.initSupabase();
-      await API.fetchCoreData();
-  }
-  setProgress(30, 'Building city layout...');
+  // Task state machine: pending (○) → running (amber pulse) → done (✓ green)
+  const setTask = (key, state) => {
+      if (!tasksEl) return;
+      const el = tasksEl.querySelector(`.sc-task[data-task="${key}"]`);
+      if (!el) return;
+      el.classList.remove('sc-task-running', 'sc-task-done');
+      const icon = el.querySelector('.sc-task-icon');
+      if (state === 'running') {
+          el.classList.add('sc-task-running');
+          if (icon) icon.textContent = '●';
+      } else if (state === 'done') {
+          el.classList.add('sc-task-done');
+          if (icon) icon.textContent = '✓';
+      } else {
+          if (icon) icon.textContent = '○';
+      }
+  };
 
-  // Show loader, start fading landing page
+  // Show loader, start fading landing page EARLY so the boot sequence is visible
   if (loader) loader.style.display = '';
   const instrOv = document.getElementById('instrOv');
   if (instrOv) instrOv.classList.remove('open');
@@ -2109,31 +2147,64 @@ async function enterCity() {
   // Yield a frame so the loader paints before heavy init
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-  setProgress(40, 'Initializing engine...');
+  // ── PHASE 1: CONNECT CLOUD ──
+  setTask('net', 'running');
+  setProgress(5, 'Connecting to cloud…');
+  if (typeof API !== 'undefined') {
+      API.initSupabase();
+      await API.fetchCoreData();
+  }
+  setTask('net', 'done');
+
+  // ── PHASE 2: BUILD CITY LAYOUT ──
+  setTask('layout', 'running');
+  setProgress(30, 'Building city layout…');
+  // (layout work happens inside G.init — we mark it running here so the UI reflects it)
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  setTask('layout', 'done');
+
+  // ── PHASE 3: INIT ENGINE ──
+  setTask('engine', 'running');
+  setProgress(40, 'Initializing simulation engine…');
   G.init();
+  setTask('engine', 'done');
 
-  setProgress(55, 'Loading 3D holomap...');
-  // Initialize 3D Holomap (Three.js galaxy view)
+  // ── PHASE 4: LOAD 3D HOLOMAP ──
+  setTask('holomap', 'running');
+  setProgress(55, 'Loading 3D holomap…');
   if (typeof Holomap !== 'undefined') Holomap.init();
+  setTask('holomap', 'done');
 
-  setProgress(65, 'Fetching AI models...');
+  // ── PHASE 5: FETCH AI MODELS ──
+  setTask('models', 'running');
+  setProgress(65, 'Fetching AI models…');
   if (typeof API !== 'undefined') {
       await API.fetchCloudModels();
   }
+  setTask('models', 'done');
 
-  setProgress(85, 'Rendering city...');
+  // ── PHASE 6: RENDER CITY ──
+  setTask('render', 'running');
+  setProgress(85, 'Rendering city…');
   // Yield again so loader updates before final render burst
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   const gw = document.getElementById('gameWrap');
   if (gw) gw.classList.add('active');
+  setTask('render', 'done');
 
-  setProgress(100, 'Welcome to Singularity City');
-  // Fade out loader after a beat
+  setProgress(100, isTerminal ? 'Terminal online' : 'Welcome to Singularity City');
+
+  // Fade out loader after a beat (longer if terminal so the user sees the "online" state)
   setTimeout(() => {
       if (loader) loader.classList.add('hidden');
-      setTimeout(() => { if (loader) loader.style.display = 'none'; }, 700);
-  }, 400);
+      setTimeout(() => {
+          if (loader) {
+              loader.style.display = 'none';
+              loader.classList.remove('sc-loader-terminal');
+          }
+      }, 700);
+  }, 500);
 
   if (typeof SND !== 'undefined') {
       SND.init();
@@ -2154,8 +2225,12 @@ async function enterCity() {
   }
 
   // ─── TERMINAL MODE HOOK ───
-  // If the user arrived via ?mode=terminal, enterTerminal(), or a saved preference,
+  // If the user clicked "Open the Terminal", or a saved preference / auto-open flag is set,
   // flip the dashboard on now that the sim is fully booted. The Terminal module runs
   // its own 4 Hz update loop and can be toggled back to pixel view via the D hotkey.
-  if (typeof Terminal !== 'undefined' && Terminal.tryAutoOpen) Terminal.tryAutoOpen();
+  if (isTerminal && typeof Terminal !== 'undefined' && Terminal.open) {
+      Terminal.open();
+  } else if (typeof Terminal !== 'undefined' && Terminal.tryAutoOpen) {
+      Terminal.tryAutoOpen();
+  }
 }
