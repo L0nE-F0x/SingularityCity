@@ -1,34 +1,42 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   TERMINAL MODE (v1.0 — Phase 1)
+   TERMINAL MODE (v4.0 — Phase 4)
    Bloomberg-inspired data dashboard. Black base, amber/cyan/green accents, JetBrains Mono everywhere.
-   All Terminal-only rules are scoped under `body.terminal-mode` or `#terminal-shell` to keep the
-   pixel-city styles untouched.
+   All Terminal-only rules scoped under `body.terminal-mode` or `#terminal-shell` so pixel-city is untouched.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 /* ─── SHELL (hidden by default, shown when body.terminal-mode) ─── */
 #terminal-shell {
     position: fixed;
     inset: 0;
-    z-index: 95;               /* above viewport, below orientation overlay */
+    z-index: 9999;              /* above every city HUD — they can't bleed through */
     background: #050509;
     color: #d8d8e0;
     font-family: 'JetBrains Mono', monospace;
     display: none;
     flex-direction: column;
     overflow: hidden;
-    user-select: text;          /* Terminal IS about reading data — selection feels right */
+    user-select: text;
 }
 body.terminal-mode #terminal-shell { display: flex; }
 
-/* When terminal is active, hide the pixel-art chrome (canvas, HUD, ticker, toasts, macro
-   overlay, minimap). We use visibility + pointer-events:none instead of display:none so
-   PixiJS continues to run and resize correctly behind the shell. */
+/* When terminal is active, hide every piece of pixel-art chrome. Uses visibility + pointer-events
+   (not display:none) so PixiJS continues to run and resize correctly behind the shell.
+   ─────────────────────────────────────────────────────────────────────────────────────────────── */
 body.terminal-mode #gameWrap .top,
 body.terminal-mode #gameWrap .vp,
 body.terminal-mode #gameWrap .tick,
 body.terminal-mode #gameWrap #macroUI,
+body.terminal-mode #gameWrap .slog,
+body.terminal-mode #gameWrap #scanLog,
 body.terminal-mode #toasts,
-body.terminal-mode #minimap {
+body.terminal-mode #minimap,
+body.terminal-mode #kardashevHUD,
+body.terminal-mode .mp-reactions,
+body.terminal-mode #zoomPill,
+body.terminal-mode #orbit-hud,
+body.terminal-mode #xrayPanel,
+body.terminal-mode #holomapUI,
+body.terminal-mode #ai-index-hud {
     visibility: hidden !important;
     pointer-events: none !important;
 }
@@ -44,7 +52,6 @@ body.terminal-mode #minimap {
     flex-shrink: 0;
     box-shadow: 0 2px 0 rgba(251,191,36,0.04), 0 0 24px rgba(0,0,0,0.6);
 }
-
 .tm-logo {
     display: flex; align-items: center; gap: 8px;
     padding-right: 20px; margin-right: 18px;
@@ -69,10 +76,7 @@ body.terminal-mode #minimap {
     scrollbar-width: none;
 }
 .tm-status::-webkit-scrollbar { display: none; }
-.tm-stat {
-    display: flex; align-items: baseline; gap: 6px;
-    white-space: nowrap;
-}
+.tm-stat { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
 .tm-lbl {
     font-size: 8px; letter-spacing: 1.5px;
     color: #6a6a80; text-transform: uppercase;
@@ -102,18 +106,18 @@ body.terminal-mode #minimap {
 }
 
 /* ═══ GRID ═══
-   12-column Bloomberg-style grid. grid-auto-flow:dense lets larger panels claim their
-   rows while smaller ones fill gaps. Row height is fixed so panels feel consistent. */
+   12-column grid. Per-panel grid-column/grid-row spans are emitted inline by terminal.js
+   (see PANELS[].cols/rows). Row height scales with viewport via minmax so the grid fills
+   the available space without empty gutter rows. */
 .tm-grid {
     flex: 1;
     display: grid;
     grid-template-columns: repeat(12, 1fr);
-    grid-auto-rows: 168px;
-    grid-auto-flow: dense;
+    grid-auto-rows: minmax(140px, 1fr);
     gap: 8px;
     padding: 8px;
     overflow-y: auto;
-    align-content: start;
+    align-content: stretch;
 }
 .tm-grid::-webkit-scrollbar { width: 6px; }
 .tm-grid::-webkit-scrollbar-track { background: transparent; }
@@ -128,17 +132,13 @@ body.terminal-mode #minimap {
     display: flex; flex-direction: column;
     overflow: hidden;
     transition: border-color 0.15s, box-shadow 0.15s;
+    min-width: 0;               /* allow grid cells to shrink below content */
+    min-height: 0;
 }
 .tm-panel:hover {
     border-color: #2a2a44;
     box-shadow: 0 0 0 1px rgba(34,211,238,0.06) inset;
 }
-
-/* Size helpers (span in col-units of the 12-wide grid) */
-.tm-size-lg { grid-column: span 6; grid-row: span 2; }  /* 1× big panel */
-.tm-size-md { grid-column: span 4; }                     /* medium */
-.tm-size-sm { grid-column: span 3; }                     /* small */
-
 .tm-panel-h {
     display: flex; justify-content: space-between; align-items: center;
     padding: 7px 10px;
@@ -147,9 +147,7 @@ body.terminal-mode #minimap {
     font-size: 9px; letter-spacing: 1.5px;
     flex-shrink: 0;
 }
-.tm-panel-title {
-    color: #c8c8d8; font-weight: 700;
-}
+.tm-panel-title { color: #c8c8d8; font-weight: 700; }
 .tm-panel-tag {
     color: #8a6a20; font-size: 8px;
     padding: 2px 6px;
@@ -166,7 +164,7 @@ body.terminal-mode #minimap {
     color: #a0a0b8;
 }
 
-/* ─── Phase 1 Placeholder ─── */
+/* ─── Phase 1 Placeholder (kept for any non-live panels) ─── */
 .tm-placeholder {
     width: 100%; height: 100%;
     display: flex; flex-direction: column;
@@ -180,17 +178,6 @@ body.terminal-mode #minimap {
         linear-gradient(rgba(80,80,110,0.06) 1px, transparent 1px),
         linear-gradient(90deg, rgba(80,80,110,0.06) 1px, transparent 1px);
     background-size: 18px 18px;
-    pointer-events: none;
-}
-.tm-placeholder-grid::after {
-    /* Subtle diagonal "under construction" scan-stripe */
-    content: '';
-    position: absolute; inset: 0;
-    background: repeating-linear-gradient(
-        45deg,
-        transparent 0, transparent 14px,
-        rgba(251,191,36,0.018) 14px, rgba(251,191,36,0.018) 28px
-    );
     pointer-events: none;
 }
 .tm-placeholder-hint {
@@ -228,9 +215,7 @@ body.terminal-mode #minimap {
 }
 .tm-foot-mid { color: #8a8aa0; }
 
-/* ═══ LANDING PAGE — TERMINAL CTA ═══
-   Amber-outlined button distinguishes it from the green pixel-city CTA. Matches the
-   terminal's logo accent so users recognize the visual language before they click. */
+/* ═══ LANDING PAGE — TERMINAL CTA ═══ */
 .land-terminal {
     background: transparent;
     color: #fbbf24;
@@ -253,13 +238,10 @@ body.terminal-mode #minimap {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   PHASE 2 — DATA WIDGETS
-   Tables, lists and cards for the four anchor panels. Same Bloomberg DNA as Phase 1: dense mono
-   type, flat panels, colour-coded accents. Each widget lives inside `.tm-scroll` so it scrolls
-   independently inside its panel without bleeding past the panel border.
+   PHASE 2/3 DATA WIDGETS (shared primitives)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-/* ─── LIVE BADGE (replaces .tm-panel-tag for panels with live data) ─── */
+/* ─── LIVE BADGE ─── */
 .tm-panel-live {
     display: inline-flex; align-items: center; gap: 5px;
     color: #34d399; font-size: 8px; font-weight: 700;
@@ -277,11 +259,7 @@ body.terminal-mode #minimap {
 }
 
 /* ─── SCROLL CONTAINER + EMPTY STATE ─── */
-.tm-scroll {
-    height: 100%;
-    overflow-y: auto;
-    overflow-x: auto;
-}
+.tm-scroll { height: 100%; overflow-y: auto; overflow-x: auto; }
 .tm-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
 .tm-scroll::-webkit-scrollbar-track { background: transparent; }
 .tm-scroll::-webkit-scrollbar-thumb { background: #1a1a2a; border-radius: 3px; }
@@ -294,7 +272,7 @@ body.terminal-mode #minimap {
     text-align: center; letter-spacing: 0.5px;
 }
 
-/* ─── DATA TABLE (used by AI LABS) ─── */
+/* ─── DATA TABLE ─── */
 .tm-table {
     width: 100%;
     border-collapse: collapse;
@@ -316,15 +294,8 @@ body.terminal-mode #minimap {
     white-space: nowrap;
     z-index: 1;
 }
-.tm-table th[data-col] {
-    cursor: pointer;
-    user-select: none;
-    transition: color 0.15s, background 0.15s;
-}
-.tm-table th[data-col]:hover {
-    color: #fbbf24;
-    background: #14142a;
-}
+.tm-table th[data-col] { cursor: pointer; user-select: none; transition: color 0.15s, background 0.15s; }
+.tm-table th[data-col]:hover { color: #fbbf24; background: #14142a; }
 .tm-table tbody td {
     padding: 5px 8px;
     border-bottom: 1px solid rgba(26,26,42,0.5);
@@ -334,60 +305,32 @@ body.terminal-mode #minimap {
 .tm-table tbody tr:hover td { background: rgba(34,211,238,0.06); }
 .tm-table .tm-num { text-align: right; }
 
-/* Labs-specific table cells */
-.tm-labs-table .tm-rank {
-    color: #6a6a80;
-    width: 28px;
-    text-align: right;
-    padding-right: 10px;
-    font-size: 9px;
-}
+/* Labs-specific cells */
+.tm-labs-table .tm-rank { color: #6a6a80; width: 28px; text-align: right; padding-right: 10px; font-size: 9px; }
 .tm-labs-table .tm-lab-name {
     display: flex; align-items: center; gap: 6px;
-    font-weight: 600;
-    color: #e8e8f0;
+    font-weight: 600; color: #e8e8f0;
 }
-.tm-lab-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    flex-shrink: 0;
-    box-shadow: 0 0 4px currentColor;
-}
-.tm-apex {
-    color: #fbbf24;
-    font-size: 11px;
-    margin-left: 4px;
-    text-shadow: 0 0 6px rgba(251,191,36,0.6);
-}
+.tm-lab-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px currentColor; }
+.tm-apex { color: #fbbf24; font-size: 11px; margin-left: 4px; text-shadow: 0 0 6px rgba(251,191,36,0.6); }
 .tm-region {
     display: inline-block;
     padding: 1px 5px;
-    font-size: 9px;
-    font-weight: 700;
+    font-size: 9px; font-weight: 700;
     letter-spacing: 1px;
     border-radius: 2px;
     border: 1px solid currentColor;
     background: rgba(255,255,255,0.02);
-    color: #8a8aa0; /* default fallback for unknown jurisdictions */
+    color: #8a8aa0;
 }
 .tm-region-us { color: #60a5fa; }
 .tm-region-eu { color: #a78bfa; }
 .tm-region-cn { color: #f87171; }
-.tm-labs-table .tm-flagship {
-    color: #a0a0b8;
-    font-size: 9px;
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+.tm-labs-table .tm-flagship { color: #a0a0b8; font-size: 9px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 .tm-labs-table .tm-elo { color: #22d3ee; font-weight: 700; }
 
 /* ─── ALIGNMENT CARDS ─── */
-.tm-align-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: 6px;
-}
+.tm-align-grid { display: flex; flex-direction: column; gap: 5px; padding: 6px; }
 .tm-align-card {
     background: #0d0d18;
     border: 1px solid #1a1a2a;
@@ -396,45 +339,14 @@ body.terminal-mode #minimap {
     border-radius: 2px;
     transition: background 0.15s, transform 0.15s;
 }
-.tm-align-card:hover {
-    background: #11111e;
-    transform: translateX(1px);
-}
-.tm-align-top {
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: 8px;
-}
-.tm-align-name {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-}
-.tm-align-year {
-    font-size: 8px;
-    color: #6a6a80;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.5px;
-}
-.tm-align-focus {
-    font-size: 9px;
-    color: #a0a0b8;
-    margin-top: 3px;
-    line-height: 1.4;
-}
-.tm-align-meta {
-    display: flex; align-items: center; gap: 8px;
-    margin-top: 3px;
-}
-.tm-align-lead {
-    font-size: 9px;
-    color: #d8d8e0;
-}
-.tm-align-loc {
-    font-size: 8px;
-    color: #6a6a80;
-    margin-top: 1px;
-    letter-spacing: 0.3px;
-}
+.tm-align-card:hover { background: #11111e; transform: translateX(1px); }
+.tm-align-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.tm-align-name { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+.tm-align-year { font-size: 8px; color: #6a6a80; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+.tm-align-focus { font-size: 9px; color: #a0a0b8; margin-top: 3px; line-height: 1.4; }
+.tm-align-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+.tm-align-lead { font-size: 9px; color: #d8d8e0; }
+.tm-align-loc { font-size: 8px; color: #6a6a80; margin-top: 1px; letter-spacing: 0.3px; }
 
 /* ─── NEWS LIST ─── */
 .tm-news-list { padding: 3px 0; }
@@ -442,8 +354,7 @@ body.terminal-mode #minimap {
     display: flex; align-items: baseline; gap: 8px;
     padding: 5px 10px;
     border-bottom: 1px solid rgba(26,26,42,0.4);
-    font-size: 10px;
-    line-height: 1.35;
+    font-size: 10px; line-height: 1.35;
 }
 .tm-news-item:hover { background: rgba(34,211,238,0.04); }
 .tm-news-source {
@@ -465,10 +376,7 @@ body.terminal-mode #minimap {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     transition: color 0.15s;
 }
-.tm-news-title:hover {
-    color: #fbbf24;
-    text-decoration: underline;
-}
+.tm-news-title:hover { color: #fbbf24; text-decoration: underline; }
 .tm-news-score {
     flex-shrink: 0;
     font-size: 9px; font-weight: 600;
@@ -483,8 +391,7 @@ body.terminal-mode #minimap {
     padding: 4px 10px 4px 8px;
     border-left: 2px solid transparent;
     border-bottom: 1px solid rgba(26,26,42,0.3);
-    font-size: 10px;
-    line-height: 1.35;
+    font-size: 10px; line-height: 1.35;
 }
 .tm-event-item:hover { background: rgba(255,255,255,0.02); }
 .tm-event-time {
@@ -494,11 +401,7 @@ body.terminal-mode #minimap {
     font-variant-numeric: tabular-nums;
     min-width: 44px;
 }
-.tm-event-msg {
-    flex: 1; min-width: 0;
-    color: #c8c8d8;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+.tm-event-msg { flex: 1; min-width: 0; color: #c8c8d8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tm-ev-launch  { border-left-color: #34d399; }
 .tm-ev-deal    { border-left-color: #fbbf24; }
 .tm-ev-trophy  { border-left-color: #facc15; }
@@ -508,44 +411,9 @@ body.terminal-mode #minimap {
 .tm-ev-model   { border-left-color: #818cf8; }
 .tm-ev-other   { border-left-color: rgba(106,106,128,0.3); }
 
-/* ═══ RESPONSIVE ═══ */
-@media (max-width: 1100px) {
-    .tm-size-lg { grid-column: span 8; }
-    .tm-size-md { grid-column: span 4; }
-    .tm-size-sm { grid-column: span 4; }
-}
-@media (max-width: 780px) {
-    .tm-topbar { height: auto; padding: 8px 12px; flex-wrap: wrap; }
-    .tm-logo { padding-right: 12px; margin-right: 12px; }
-    .tm-status { gap: 12px; }
-    .tm-topbar-right { padding-left: 12px; margin-left: 12px; border-left: none; }
-    .tm-grid { grid-template-columns: repeat(4, 1fr); grid-auto-rows: 150px; }
-    .tm-size-lg { grid-column: span 4; grid-row: span 2; }
-    .tm-size-md, .tm-size-sm { grid-column: span 4; grid-row: auto; }
-}
-@media (max-width: 480px) {
-    .tm-grid { grid-template-columns: 1fr; }
-    .tm-size-lg, .tm-size-md, .tm-size-sm { grid-column: 1 / -1; grid-row: auto; }
-    .tm-footer { font-size: 8px; padding: 0 8px; }
-    .tm-foot-mid { display: none; }
-}
-
-/* Phase 2 widget density tweaks on narrow viewports */
-@media (max-width: 780px) {
-    .tm-table { font-size: 9px; }
-    .tm-table thead th { padding: 5px 6px; }
-    .tm-table tbody td { padding: 4px 6px; }
-    .tm-labs-table .tm-flagship { max-width: 90px; }
-    .tm-news-item, .tm-event-item { padding: 4px 8px; font-size: 9px; }
-    .tm-align-card { padding: 5px 7px; }
-    .tm-align-name { font-size: 10px; }
-}
-
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   PHASE 3 — DATA WIDGETS (10 remaining panels)
-   Shared stat-card primitives (big number + unit + sub-label) + specialised widgets: MW bars,
-   progress meter, 6×6 relations matrix, deal ticker, bottleneck indicators, K-scale progress.
-   Same density rules as Phase 2 — everything lives inside `.tm-scroll` so it scrolls cleanly.
+   PHASE 4 — VISUAL WIDGETS
+   SVG chart primitives + compound layouts (row / col / grid) that panels build from.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 /* ─── SHARED STAT PRIMITIVES ─── */
@@ -566,8 +434,7 @@ body.terminal-mode #minimap {
 .tm-stat-num {
     color: #e8e8f0;
     font-size: 22px; font-weight: 700;
-    line-height: 1;
-    letter-spacing: -0.5px;
+    line-height: 1; letter-spacing: -0.5px;
 }
 .tm-stat-num-m { font-size: 16px; }
 .tm-stat-num-s { font-size: 13px; }
@@ -591,49 +458,181 @@ body.terminal-mode #minimap {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
-.tm-head-n {
-    color: #e8e8f0;
-    font-weight: 700;
-}
+.tm-head-n { color: #e8e8f0; font-weight: 700; }
 .tm-subhd {
     padding: 5px 11px 3px;
     color: #6a6a80;
-    font-size: 8px;
-    font-weight: 700;
+    font-size: 8px; font-weight: 700;
     letter-spacing: 1.5px;
     text-transform: uppercase;
 }
-.tm-stat-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-    padding: 8px;
+.tm-ministats {
+    display: flex; gap: 10px;
+    margin-top: 6px;
+    font-size: 9px;
+    color: #8a8aa0;
+    letter-spacing: 0.4px;
+    flex-wrap: wrap;
 }
-.tm-stat-grid-3 { grid-template-columns: repeat(3, 1fr); }
-.tm-stat-cell {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: #0d0d18;
-    border: 1px solid #1a1a2a;
-    border-radius: 2px;
-    padding: 7px 4px;
-    text-align: center;
-    min-height: 50px;
+.tm-ministats b { color: #e8e8f0; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ─── COMPOUND LAYOUTS ─── */
+.tm-row-layout {
+    display: flex; align-items: stretch;
+    width: 100%; height: 100%;
+    padding: 8px 10px;
+    gap: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
 }
-.tm-stat-cell .tm-stat-num,
-.tm-stat-cell .tm-stat-num-m,
-.tm-stat-cell .tm-stat-num-s { color: #e8e8f0; }
-.tm-stat-lbl {
+.tm-row-layout.tm-row-tight { padding: 6px 10px; gap: 8px; }
+.tm-col-layout {
+    display: flex; flex-direction: column;
+    width: 100%; height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+.tm-col {
+    display: flex; flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+.tm-col-stat { flex: 0 0 auto; min-width: 90px; justify-content: center; }
+.tm-col-donut {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 10px;
+}
+.tm-col-spark { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.tm-col-wide { flex: 1; min-width: 0; }
+
+/* ─── SPARKLINE ─── */
+.tm-spark { display: block; }
+.tm-spark-empty { fill: #3a3a4a; font-size: 10px; font-family: inherit; }
+.tm-spark-block {
+    display: flex; gap: 12px;
+    margin-top: auto;
+    padding: 4px 10px 6px;
+    border-top: 1px solid rgba(26,26,42,0.5);
+}
+.tm-spark-block-pad { padding: 6px 10px; border-top: 1px solid rgba(26,26,42,0.5); }
+.tm-spark-hd { flex: 1; min-width: 0; }
+.tm-spark-t {
+    display: block;
+    font-size: 7px; font-weight: 700;
     color: #6a6a80;
-    font-size: 8px;
-    letter-spacing: 0.5px;
-    margin-top: 4px;
-    line-height: 1.2;
-    text-transform: lowercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 2px;
+}
+.tm-spark-lbl {
+    font-size: 7px; font-weight: 700;
+    color: #6a6a80;
+    letter-spacing: 1.2px;
+    margin-bottom: 3px;
 }
 
-/* ─── BARS (POWER / SUPPLY) ─── */
+/* ─── DONUT ─── */
+.tm-donut { display: block; }
+.tm-donut-c {
+    fill: #e8e8f0;
+    font-size: 15px; font-weight: 700;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+}
+.tm-donut-cs {
+    fill: #6a6a80;
+    font-size: 7px; font-weight: 700;
+    letter-spacing: 1px;
+    font-family: inherit;
+    text-transform: uppercase;
+}
+.tm-donut-legend {
+    display: flex; flex-direction: column; gap: 2px;
+    font-size: 8px;
+}
+
+/* ─── LEGEND ─── */
+.tm-legend-row {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 9px;
+    color: #a0a0b8;
+}
+.tm-legend-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 4px currentColor;
+}
+.tm-legend-lbl {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.3px;
+}
+.tm-legend-val {
+    color: #c8c8d8;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    font-size: 8px;
+}
+
+/* ─── RADAR ─── */
+.tm-radar { display: block; margin: 0 auto; }
+.tm-radar-lbl {
+    fill: #8a8aa0;
+    font-size: 8px; font-weight: 700;
+    letter-spacing: 1px;
+    font-family: inherit;
+}
+
+/* ─── GAUGE ─── */
+.tm-gauge { display: block; margin: 0 auto; }
+.tm-gauge-v {
+    fill: #e8e8f0;
+    font-size: 14px; font-weight: 700;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+}
+.tm-gauge-s {
+    fill: #6a6a80;
+    font-size: 7px; font-weight: 700;
+    letter-spacing: 1.2px;
+    font-family: inherit;
+}
+
+/* ─── POWER GRID LAYOUT ─── */
+.tm-power-hero {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 10px 4px;
+}
+.tm-power-readouts {
+    display: flex; flex-direction: column; gap: 5px;
+    flex: 1;
+    min-width: 0;
+}
+.tm-readout {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 6px;
+    font-size: 9px;
+}
+.tm-readout-lbl { color: #6a6a80; letter-spacing: 1px; font-weight: 700; }
+.tm-readout-val {
+    color: #e8e8f0; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+}
+.tm-power-legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 10px;
+    padding: 4px 10px 6px;
+    border-top: 1px solid rgba(26,26,42,0.5);
+    font-size: 8px;
+}
+
+/* ─── BARS ─── */
 .tm-bars {
-    padding: 8px 11px;
+    padding: 8px 10px 6px;
     display: flex; flex-direction: column; gap: 5px;
 }
 .tm-bars-dense { gap: 3px; padding: 6px 10px; }
@@ -664,32 +663,19 @@ body.terminal-mode #minimap {
     transition: width 0.3s ease-out;
     box-shadow: 0 0 4px currentColor;
 }
-.tm-bar-val {
-    color: #a0a0b8;
-    text-align: right;
-}
+.tm-bar-val { color: #a0a0b8; text-align: right; }
 
-/* ─── METER (ROBOTICS) ─── */
-.tm-meter {
-    padding: 7px 11px 9px;
-}
+/* ─── STACKBAR ─── */
+.tm-stackbar { display: block; border-radius: 2px; overflow: hidden; }
+
+/* ─── METER (Robotics capability) ─── */
+.tm-meter { padding: 7px 11px 9px; }
 .tm-meter-top {
     display: flex; justify-content: space-between; align-items: baseline;
-    margin-bottom: 4px;
-    font-size: 8px;
+    margin-bottom: 4px; font-size: 8px;
 }
-.tm-meter-lbl {
-    color: #6a6a80;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    font-weight: 700;
-}
-.tm-meter-val {
-    color: #22d3ee;
-    font-size: 12px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-}
+.tm-meter-lbl { color: #6a6a80; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; }
+.tm-meter-val { color: #22d3ee; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .tm-meter-track {
     height: 6px;
     background: #101020;
@@ -704,22 +690,138 @@ body.terminal-mode #minimap {
     transition: width 0.3s ease-out;
 }
 
-/* ─── COMPUTE BODY (table + subtle accent bar) ─── */
-.tm-compute-body { margin-top: 0; }
-.tm-compute-name {
-    padding-left: 10px !important;
-    color: #d8d8e0;
-    font-weight: 500;
-    max-width: 180px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+/* ─── CAPABILITY (Robotics) ─── */
+.tm-cap-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 8px;
+    margin-bottom: 3px;
+}
+.tm-cap-lbl { color: #6a6a80; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; }
+.tm-cap-val { color: #a78bfa; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ─── LONGEVITY ─── */
+.tm-long-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 8px 10px;
+    height: 100%;
+    box-sizing: border-box;
+}
+.tm-long-cell {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #0d0d18;
+    border: 1px solid #1a1a2a;
+    border-radius: 2px;
+    padding: 6px 4px;
+}
+.tm-long-num {
+    font-size: 18px; font-weight: 700;
+    color: #e8e8f0;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: -0.3px;
+}
+.tm-long-lbl {
+    font-size: 8px;
+    color: #6a6a80;
+    letter-spacing: 0.8px;
+    margin: 2px 0 4px;
+    text-transform: lowercase;
 }
 
-/* ─── CAPITAL DEALS LIST ─── */
+/* ─── AGENTS ─── */
+.tm-agents-hero {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 11px 6px;
+    border-bottom: 1px solid rgba(26,26,42,0.5);
+    gap: 10px;
+}
+.tm-agents-spark { padding: 4px 11px 2px; }
+.tm-agents-gauge {
+    display: flex; justify-content: center;
+    padding: 6px 10px 8px;
+    margin-top: auto;
+}
+
+/* ─── KARDASHEV ─── */
+.tm-k-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%; height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+.tm-k-left {
+    padding: 10px 11px;
+    display: flex; flex-direction: column;
+    gap: 8px;
+    border-right: 1px solid rgba(26,26,42,0.6);
+    overflow: hidden;
+}
+.tm-k-big .tm-stat-num { font-size: 26px; color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,0.35); }
+.tm-k-big .tm-stat-unit { color: #fbbf24; font-size: 10px; }
+.tm-kprog {
+    padding: 0;
+}
+.tm-kprog-track {
+    height: 8px;
+    background: #101020;
+    border: 1px solid rgba(26,26,42,0.8);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.tm-kprog-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #fbbf24, #34d399);
+    box-shadow: 0 0 8px rgba(251,191,36,0.45);
+    transition: width 0.4s ease-out;
+}
+.tm-kprog-labels {
+    display: flex; justify-content: space-between;
+    margin-top: 3px;
+    font-size: 8px;
+    color: #6a6a80;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+}
+.tm-k-next {
+    color: #fbbf24;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    background: rgba(251,191,36,0.05);
+    border-left: 2px solid #fbbf24;
+    border-radius: 2px;
+}
+.tm-k-spark { margin-top: auto; }
+.tm-k-right {
+    padding: 8px 11px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px;
+    overflow: hidden;
+}
+.tm-k-pillars {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(38px, 1fr));
+    gap: 3px;
+    width: 100%;
+}
+.tm-k-pillar {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 3px 2px;
+    background: #0d0d18;
+    border: 1px solid #1a1a2a;
+    border-radius: 2px;
+}
+.tm-k-pillar-name { color: #6a6a80; font-size: 7px; letter-spacing: 0.8px; font-weight: 700; }
+.tm-k-pillar-val { color: #22d3ee; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 1px; }
+
+/* ─── CAPITAL DEALS ─── */
 .tm-deals-list { padding: 3px 0; }
 .tm-deal-item {
     display: flex; align-items: baseline; gap: 8px;
-    padding: 5px 10px;
+    padding: 4px 10px;
     border-bottom: 1px solid rgba(26,26,42,0.4);
     border-left: 2px solid #fbbf24;
     font-size: 10px;
@@ -752,7 +854,7 @@ a.tm-deal-headline:hover { color: #fbbf24; text-decoration: underline; }
     text-transform: uppercase;
 }
 
-/* ─── EMBASSY RELATIONS MATRIX ─── */
+/* ─── EMBASSY MATRIX ─── */
 .tm-matrix-wrap { padding: 6px 8px 8px; }
 .tm-matrix {
     border-collapse: collapse;
@@ -768,17 +870,9 @@ a.tm-deal-headline:hover { color: #fbbf24; text-decoration: underline; }
     min-width: 26px;
     letter-spacing: 0.5px;
 }
-.tm-matrix thead th {
-    background: #0d0d18;
-    font-size: 9px; font-weight: 700;
-    letter-spacing: 1px;
-}
-.tm-matrix tbody th {
-    background: #0d0d18;
-    font-size: 9px; font-weight: 700;
-    letter-spacing: 1px;
-}
-.tm-m-self    { background: #101020;         color: #3a3a4a; }
+.tm-matrix thead th,
+.tm-matrix tbody th { background: #0d0d18; font-size: 9px; font-weight: 700; letter-spacing: 1px; }
+.tm-m-self    { background: #101020;                color: #3a3a4a; }
 .tm-m-good    { background: rgba(52,211,153,0.22);  color: #34d399; font-weight: 700; }
 .tm-m-neutral { background: rgba(251,191,36,0.14);  color: #fbbf24; font-weight: 600; }
 .tm-m-cool    { background: rgba(251,146,60,0.16);  color: #fb923c; font-weight: 600; }
@@ -803,79 +897,18 @@ a.tm-deal-headline:hover { color: #fbbf24; text-decoration: underline; }
 .tm-m-legend .tm-m-cool    { background: #fb923c; }
 .tm-m-legend .tm-m-cold    { background: #f87171; }
 
-/* ─── KARDASHEV PROGRESS ─── */
-.tm-k-next {
-    color: #fbbf24;
-    font-size: 9px; font-weight: 700;
-    letter-spacing: 0.5px;
-}
-.tm-kprog {
-    padding: 7px 11px 6px;
-}
-.tm-kprog-track {
-    height: 10px;
-    background: #101020;
-    border: 1px solid rgba(26,26,42,0.8);
-    border-radius: 3px;
-    overflow: hidden;
-    position: relative;
-}
-.tm-kprog-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #fbbf24, #34d399);
-    box-shadow: 0 0 8px rgba(251,191,36,0.45);
-    transition: width 0.4s ease-out;
-}
-.tm-kprog-labels {
-    display: flex; justify-content: space-between;
-    margin-top: 3px;
-    font-size: 8px;
-    color: #6a6a80;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.5px;
-}
-.tm-k-pillars {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 3px;
-    padding: 3px 10px 8px;
-}
-.tm-k-pillar {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 4px 2px;
-    background: #0d0d18;
-    border: 1px solid #1a1a2a;
-    border-radius: 2px;
-}
-.tm-k-pillar-name {
-    color: #6a6a80;
-    font-size: 7px;
-    letter-spacing: 0.8px;
-    font-weight: 700;
-}
-.tm-k-pillar-val {
-    color: #22d3ee;
-    font-size: 11px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    margin-top: 1px;
-}
-
-/* ─── SUPPLY CHAIN BOTTLENECKS ─── */
+/* ─── SUPPLY BOTTLENECKS ─── */
 .tm-bn-list {
     padding: 2px 10px 6px;
     display: flex; flex-direction: column; gap: 2px;
 }
 .tm-bn-row {
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 9px;
-    line-height: 1.3;
+    font-size: 9px; line-height: 1.3;
 }
 .tm-bn-name {
     color: #c8c8d8;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     padding-right: 6px;
 }
 .tm-bn-load {
@@ -887,34 +920,56 @@ a.tm-deal-headline:hover { color: #fbbf24; text-decoration: underline; }
 
 /* ─── POPULATION LIST ─── */
 .tm-pop-list {
-    padding: 4px 10px 8px;
-    display: flex; flex-direction: column; gap: 3px;
+    padding: 4px 10px;
+    display: flex; flex-direction: column;
+    gap: 3px;
+    justify-content: center;
+    height: 100%;
+    box-sizing: border-box;
 }
 .tm-pop-row {
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; align-items: center; gap: 6px;
     padding: 2px 0;
     font-size: 9px;
     border-bottom: 1px solid rgba(26,26,42,0.5);
 }
 .tm-pop-row:last-child { border-bottom: none; }
-.tm-pop-lbl {
-    color: #c8c8d8;
-    font-weight: 600;
-    letter-spacing: 1px;
-}
-.tm-pop-val {
-    color: #22d3ee;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-}
+.tm-pop-lbl { color: #c8c8d8; font-weight: 600; letter-spacing: 1px; flex: 1; }
+.tm-pop-val { color: #22d3ee; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* Phase 3 responsive tweaks */
+/* ═══ RESPONSIVE ═══ */
+@media (max-width: 1100px) {
+    /* Allow panels to reflow — they use inline grid-column from terminal.js, so we override */
+    .tm-panel { grid-column: span 6 !important; }
+}
 @media (max-width: 780px) {
+    .tm-topbar { height: auto; padding: 8px 12px; flex-wrap: wrap; }
+    .tm-logo { padding-right: 12px; margin-right: 12px; }
+    .tm-status { gap: 12px; }
+    .tm-topbar-right { padding-left: 12px; margin-left: 12px; border-left: none; }
+    .tm-grid { grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(150px, auto); }
+    .tm-panel { grid-column: span 4 !important; grid-row: auto !important; }
+
+    .tm-table { font-size: 9px; }
+    .tm-table thead th { padding: 5px 6px; }
+    .tm-table tbody td { padding: 4px 6px; }
+    .tm-labs-table .tm-flagship { max-width: 90px; }
+    .tm-news-item, .tm-event-item { padding: 4px 8px; font-size: 9px; }
+    .tm-align-card { padding: 5px 7px; }
+    .tm-align-name { font-size: 10px; }
+
     .tm-stat-num { font-size: 18px; }
     .tm-stat-num-m { font-size: 14px; }
     .tm-stat-num-s { font-size: 11px; }
     .tm-matrix th, .tm-matrix td { padding: 4px 5px; min-width: 22px; font-size: 9px; }
     .tm-bar-row { grid-template-columns: 50px 1fr 36px; font-size: 8px; }
-    .tm-k-pillars { gap: 2px; padding: 3px 6px 6px; }
     .tm-k-pillar-val { font-size: 10px; }
+    .tm-k-layout { grid-template-columns: 1fr; }
+    .tm-k-left { border-right: none; border-bottom: 1px solid rgba(26,26,42,0.6); }
+}
+@media (max-width: 480px) {
+    .tm-grid { grid-template-columns: 1fr; }
+    .tm-panel { grid-column: 1 / -1 !important; }
+    .tm-footer { font-size: 8px; padding: 0 8px; }
+    .tm-foot-mid { display: none; }
 }

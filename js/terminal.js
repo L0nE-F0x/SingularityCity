@@ -1,24 +1,19 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   TERMINAL MODE (v3.0 — Phase 3: Full Dashboard)
+   TERMINAL MODE (v4.0 — Phase 4: Visual Dashboard)
    A Bloomberg-inspired data dashboard that runs alongside the PixiJS pixel-art city. Same sim,
    no art. For users who want the data without the toy.
 
-   Phase 1 delivered the plumbing: landing CTA, URL routing, D hotkey, shell + placeholders.
-   Phase 2 populated the anchor-four: AI Labs, Alignment Orgs, Live News, Events Log.
-   Phase 3 populates the remaining ten:
-     • COMPUTE INFRA   — operational datacenters, sorted by MW (from DC_FACILITIES)
-     • CAPITAL FLOWS   — top-10 VC deal ticker (from API.vcDeals)
-     • EMBASSY RELATIONS — 6×6 bilateral matrix (AI policy + trade alignment heuristic)
-     • POWER GRID      — supply/demand balance + source mix bars (PowerZone)
-     • ROBOTICS        — cumulative units + capability index (RoboticsZone)
-     • LONGEVITY       — compounds screened / trials / genomes (LongevityZone)
-     • AGENTS          — active agents + tasks/tools per hour (AgentsZone.agentStats)
-     • SUPPLY CHAIN    — inventory bars + bottleneck indicators (SupplyChain + SUPPLY_CHAIN)
-     • KARDASHEV       — 0.7→1.0 progress bar + pillar breakdown (Kardashev.score + pillars)
-     • POPULATION      — roles grouped by workplace zone (NPCHousing.REGISTRY)
-
-   Every panel uses a signature cache so the 4 Hz refresh only rewrites DOM when the underlying
-   data has actually changed. Sim keeps ticking regardless.
+   Phase 4 changes:
+     • Auto-boot only on explicit ?mode=terminal (no localStorage preference)
+     • Comprehensive city-HUD hide list (Kardashev speedometer, reactions, zoom pill, scan log)
+     • Fixed citizen count + K-scale data sources (NPCHousing.REGISTRY + Kardashev.score)
+     • Fixed population panel data source
+     • Default labs sort: ELO desc (apex first, obscure labs sink)
+     • Dense 12×8 grid — 96 cells, no empty space
+     • SVG chart primitives: sparkline, donut, pentagon radar, semicircular gauge
+     • History ring buffers for time-series visualisations
+     • Panels rebuilt with charts: donuts (POWER, COMPUTE, POPULATION), radar (KARDASHEV),
+       gauge (AGENTS), sparklines (ROBOTICS, LONGEVITY, SUPPLY, AGENTS)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const Terminal = {
@@ -29,8 +24,68 @@ const Terminal = {
     _initialized: false,
 
     // Per-panel state
-    _labsSort: { col: 'score', dir: 'desc' },
+    _labsSort: { col: 'elo', dir: 'desc' },
     _sigCache: {},          // Panel-id → last-rendered signature (cheap change-detection)
+
+    // History ring buffers for sparklines (64 samples × 250ms = 16s window)
+    _HISTORY_MAX: 64,
+    _history: {
+        supply_mw: [], demand_mw: [],
+        dc_total_mw: [],
+        robotics_units: [],
+        longevity_compounds: [], longevity_trials: [], longevity_genomes: [],
+        agents_active: [], agents_tasks: [], agents_errors: [],
+        kardashev_score: [],
+        supply_gpu: [], supply_hbm: []
+    },
+
+    _pushHistory(key, val) {
+        const h = this._history[key];
+        if (!h) return;
+        h.push(val);
+        if (h.length > this._HISTORY_MAX) h.shift();
+    },
+
+    _captureHistory() {
+        try {
+            if (typeof PowerZone !== 'undefined') {
+                if (typeof PowerZone.getTotalSupply === 'function')
+                    this._pushHistory('supply_mw', PowerZone.getTotalSupply() || 0);
+                if (typeof PowerZone.getTotalDemand === 'function')
+                    this._pushHistory('demand_mw', PowerZone.getTotalDemand() || 0);
+            }
+            if (typeof DC_FACILITIES !== 'undefined' && Array.isArray(DC_FACILITIES)) {
+                const mw = DC_FACILITIES.filter(d => d && d.status === 'operational' && d.type !== 'chipfab')
+                    .reduce((s, d) => s + (d.power_mw || 0), 0);
+                this._pushHistory('dc_total_mw', mw);
+            }
+            if (typeof RoboticsZone !== 'undefined')
+                this._pushHistory('robotics_units', RoboticsZone.unitsProduced || 0);
+            if (typeof LongevityZone !== 'undefined') {
+                this._pushHistory('longevity_compounds', LongevityZone.compoundsScreened || 0);
+                this._pushHistory('longevity_trials', LongevityZone.trialsActive || 0);
+                this._pushHistory('longevity_genomes', LongevityZone.genomesSequenced || 0);
+            }
+            if (typeof AgentsZone !== 'undefined' && AgentsZone.agentStats) {
+                const s = AgentsZone.agentStats;
+                this._pushHistory('agents_active', s.activeAgents || 0);
+                this._pushHistory('agents_tasks', s.tasksPerHour || 0);
+                this._pushHistory('agents_errors', s.errorRate || 0);
+            }
+            if (typeof Kardashev !== 'undefined') {
+                const k = (typeof Kardashev.score === 'number') ? Kardashev.score
+                        : (typeof Kardashev.currentLevel === 'function') ? Kardashev.currentLevel()
+                        : (typeof Kardashev.level === 'number') ? Kardashev.level : 0;
+                this._pushHistory('kardashev_score', k);
+            }
+            if (typeof SupplyChain !== 'undefined' && SupplyChain.inventory) {
+                const inv = SupplyChain.inventory;
+                const gpuStock = (inv.gpu_h100 && inv.gpu_h100.stock || 0) + (inv.gpu_b200 && inv.gpu_b200.stock || 0);
+                this._pushHistory('supply_gpu', gpuStock);
+                this._pushHistory('supply_hbm', (inv.hbm_memory && inv.hbm_memory.stock) || 0);
+            }
+        } catch (e) {}
+    },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // INIT + LIFECYCLE
@@ -53,7 +108,7 @@ const Terminal = {
             this.toggle();
         });
 
-        // URL + preference — auto-bootstrap if explicit deep-link or saved preference
+        // URL deep-link only — auto-bootstrap if explicit ?mode=terminal. No preference persistence.
         let urlWantsTerminal = false;
         try {
             const p = new URLSearchParams(window.location.search);
@@ -61,12 +116,7 @@ const Terminal = {
             if (mode === 'terminal' || mode === 'data') urlWantsTerminal = true;
         } catch (e) {}
 
-        let prefWantsTerminal = false;
-        try {
-            if (localStorage.getItem('sc_terminal_pref') === '1') prefWantsTerminal = true;
-        } catch (e) {}
-
-        if (urlWantsTerminal || prefWantsTerminal) {
+        if (urlWantsTerminal) {
             this._pendingOpen = true;
             this._autoBootstrap();
         }
@@ -76,7 +126,7 @@ const Terminal = {
         const tryBoot = () => {
             if (typeof enterCity === 'function') {
                 const landing = document.getElementById('landing');
-                if (landing && landing.classList.contains('exit')) return; // already booting
+                if (landing && landing.classList.contains('exit')) return;
                 enterCity();
             } else {
                 setTimeout(tryBoot, 40);
@@ -103,7 +153,6 @@ const Terminal = {
         this._buildShell();
         this._startUpdateLoop();
         this._syncUrl(true);
-        try { localStorage.setItem('sc_terminal_pref', '1'); } catch (e) {}
     },
 
     close() {
@@ -111,7 +160,6 @@ const Terminal = {
         this.isOpen = false;
         document.body.classList.remove('terminal-mode');
         this._syncUrl(false);
-        try { localStorage.removeItem('sc_terminal_pref'); } catch (e) {}
     },
 
     toggle() { if (this.isOpen) this.close(); else this.open(); },
@@ -126,26 +174,31 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // SHELL
-    // Panels flagged `live: true` get populated by the refresh loop. Others keep Phase-1
-    // placeholder cards until the next phase fills them.
+    // SHELL — 12×8 grid, 96 cells, no empty space.
+    // cols/rows per panel let us fill the grid exactly.
+    //
+    //   Row 1-2: [LABS 6×2]        [NEWS 3×2]     [EVENTS 3×2]
+    //   Row 3-4: [ALIGN 3×2]       [EMBASSY 4×2]  [KARDASHEV 5×2]
+    //   Row 5:   [COMPUTE 6×1]     [CAPITAL 6×1]
+    //   Row 6-7: [POWER 4×2]       [SUPPLY 4×2]   [AGENTS 4×2]
+    //   Row 8:   [POPULATION 4×1]  [ROBOTICS 4×1] [LONGEVITY 4×1]
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     PANELS: [
-        { id: 'labs',       title: 'AI LABS',           size: 'lg', live: true,  hint: 'Sortable table — capability tier, compute, valuation, latest model, safety score' },
-        { id: 'alignment',  title: 'ALIGNMENT ORGS',    size: 'md', live: true,  hint: 'Five cards — focus, lead, papers, funding' },
-        { id: 'news',       title: 'LIVE NEWS',         size: 'md', live: true,  hint: 'Hacker News + tech headline feed, refreshed from live APIs' },
-        { id: 'events',     title: 'EVENTS LOG',        size: 'md', live: true,  hint: 'Scrolling sim events — deals, releases, policy moves' },
-        { id: 'compute',    title: 'COMPUTE INFRA',     size: 'md', live: true, hint: 'Datacenter table · total EFLOPS sparkline · power draw' },
-        { id: 'capital',    title: 'CAPITAL FLOWS',     size: 'md', live: true, hint: 'VC → lab sankey · top-10 deal ticker' },
-        { id: 'embassy',    title: 'EMBASSY RELATIONS', size: 'md', live: true, hint: '6×6 country matrix · green/red trade cells' },
-        { id: 'power',      title: 'POWER GRID',        size: 'sm', live: true, hint: 'MW draw · source mix · reserve margin' },
-        { id: 'robotics',   title: 'ROBOTICS',          size: 'sm', live: true, hint: 'Units shipped · capability curve' },
-        { id: 'longevity',  title: 'LONGEVITY',         size: 'sm', live: true, hint: 'Treatments · biomarkers' },
-        { id: 'agents',     title: 'AGENTS',            size: 'sm', live: true, hint: 'Deployment · tasks per minute' },
-        { id: 'supply',     title: 'SUPPLY CHAIN',      size: 'sm', live: true, hint: 'Chips → fab → datacenter bottlenecks' },
-        { id: 'kardashev',  title: 'KARDASHEV',         size: 'sm', live: true, hint: 'Progress bar + milestones' },
-        { id: 'population', title: 'POPULATION',        size: 'sm', live: true, hint: 'NPC by role · commute flow' }
+        { id: 'labs',       title: 'AI LABS',           cols: 6, rows: 2, live: true, hint: 'Sortable table — ELO, compute, valuation, flagship' },
+        { id: 'news',       title: 'LIVE NEWS',         cols: 3, rows: 2, live: true, hint: 'Hacker News + tech headlines' },
+        { id: 'events',     title: 'ACTIVITY STREAM',   cols: 3, rows: 2, live: true, hint: 'Scrolling sim events' },
+        { id: 'alignment',  title: 'ALIGNMENT',         cols: 3, rows: 2, live: true, hint: 'Five orgs — focus, lead, location' },
+        { id: 'embassy',    title: 'EMBASSY RELATIONS', cols: 4, rows: 2, live: true, hint: '6×6 bilateral matrix' },
+        { id: 'kardashev',  title: 'KARDASHEV',         cols: 5, rows: 2, live: true, hint: 'K-scale + 5-pillar radar' },
+        { id: 'compute',    title: 'COMPUTE INFRA',     cols: 6, rows: 1, live: true, hint: 'MW capacity · operator donut · trend' },
+        { id: 'capital',    title: 'CAPITAL FLOWS',     cols: 6, rows: 1, live: true, hint: 'VC deal ticker' },
+        { id: 'power',      title: 'POWER GRID',        cols: 4, rows: 2, live: true, hint: 'Source donut · demand trend' },
+        { id: 'supply',     title: 'SUPPLY CHAIN',      cols: 4, rows: 2, live: true, hint: 'Inventory bars · bottlenecks' },
+        { id: 'agents',     title: 'AGENTS',            cols: 4, rows: 2, live: true, hint: 'Active · error gauge · task trend' },
+        { id: 'population', title: 'POPULATION',        cols: 4, rows: 1, live: true, hint: 'NPC count · workplace donut' },
+        { id: 'robotics',   title: 'ROBOTICS',          cols: 4, rows: 1, live: true, hint: 'Units · capability curve' },
+        { id: 'longevity',  title: 'LONGEVITY',         cols: 4, rows: 1, live: true, hint: 'Compound / trial / genome trends' }
     ],
 
     _buildShell() {
@@ -156,21 +209,24 @@ const Terminal = {
 
         const tag = (p) => p.live
             ? '<span class="tm-panel-live"><span class="tm-live-dot"></span>LIVE</span>'
-            : `<span class="tm-panel-tag">${p.phase}</span>`;
+            : `<span class="tm-panel-tag">${p.phase || ''}</span>`;
 
         const body = (p) => p.live
             ? `<div class="tm-panel-body tm-body-${p.id}" id="tm-body-${p.id}"></div>`
             : `<div class="tm-panel-body"><div class="tm-placeholder"><div class="tm-placeholder-grid"></div><div class="tm-placeholder-hint">${p.hint}</div></div></div>`;
 
-        const panelsHtml = this.PANELS.map(p => `
-            <div class="tm-panel tm-size-${p.size}${p.live ? ' tm-panel-live-on' : ''}" data-panel="${p.id}">
-                <div class="tm-panel-h">
-                    <span class="tm-panel-title">${p.title}</span>
-                    ${tag(p)}
+        const panelsHtml = this.PANELS.map(p => {
+            const style = `grid-column: span ${p.cols}; grid-row: span ${p.rows};`;
+            return `
+                <div class="tm-panel${p.live ? ' tm-panel-live-on' : ''}" data-panel="${p.id}" style="${style}">
+                    <div class="tm-panel-h">
+                        <span class="tm-panel-title">${p.title}</span>
+                        ${tag(p)}
+                    </div>
+                    ${body(p)}
                 </div>
-                ${body(p)}
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         shell.innerHTML = `
             <div class="tm-topbar">
@@ -194,7 +250,7 @@ const Terminal = {
             <div class="tm-grid">${panelsHtml}</div>
             <div class="tm-footer">
                 <span class="tm-foot-chunk"><kbd>D</kbd> toggle city / terminal</span>
-                <span class="tm-foot-chunk tm-foot-mid">PHASE 3 · all 14 panels live · sim running behind shell</span>
+                <span class="tm-foot-chunk tm-foot-mid">PHASE 4 · 14 panels · charts live · sim running behind shell</span>
                 <span class="tm-foot-chunk" id="tm-version">—</span>
             </div>
         `;
@@ -207,12 +263,9 @@ const Terminal = {
         }
 
         this._bindInteractions();
-
-        // One-shot alignment render (data is static after init)
-        this._renderAlignment();
+        this._renderAlignment(); // Static — rendered once on build
     },
 
-    // Click handlers — delegated from the shell root. Currently just the labs-table column sort.
     _bindInteractions() {
         const shell = document.getElementById('terminal-shell');
         if (!shell) return;
@@ -224,13 +277,175 @@ const Terminal = {
                     this._labsSort.dir = this._labsSort.dir === 'asc' ? 'desc' : 'asc';
                 } else {
                     this._labsSort.col = col;
-                    // Sensible default: text cols ascend, numeric cols descend
                     this._labsSort.dir = (col === 'name' || col === 'region') ? 'asc' : 'desc';
                 }
-                this._sigCache.labs = null; // force re-render
+                this._sigCache.labs = null;
                 this._renderLabs();
             }
         });
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // SVG CHART PRIMITIVES
+    // All helpers return an inline SVG string ready to drop into innerHTML.
+    // No dependencies, CSS-stylable, scales cleanly.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    _svgSpark(vals, opts = {}) {
+        const w = opts.w || 120;
+        const h = opts.h || 32;
+        const color = opts.color || '#22d3ee';
+        const fill = opts.fill !== false;
+        if (!vals || vals.length < 2) {
+            return `<svg class="tm-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><text x="${w/2}" y="${h/2}" text-anchor="middle" class="tm-spark-empty">—</text></svg>`;
+        }
+        const min = Math.min(...vals);
+        const max = Math.max(...vals);
+        const range = (max - min) || Math.abs(max) || 1;
+        const stepX = w / (vals.length - 1);
+        const y = (v) => h - ((v - min) / range) * (h - 6) - 3;
+        const points = vals.map((v, i) => `${(i * stepX).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+        const areaPoints = `0,${h} ${points} ${w},${h}`;
+        const lastX = (vals.length - 1) * stepX;
+        const lastY = y(vals[vals.length - 1]);
+        return `
+            <svg class="tm-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+                ${fill ? `<polygon points="${areaPoints}" fill="${color}" opacity="0.14"/>` : ''}
+                <polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2.2" fill="${color}" style="filter:drop-shadow(0 0 3px ${color})"/>
+            </svg>
+        `;
+    },
+
+    _svgDonut(segments, opts = {}) {
+        const size = opts.size || 80;
+        const thick = opts.thick || 12;
+        const cx = size / 2, cy = size / 2;
+        const r = (size - thick) / 2 - 1;
+        const c = 2 * Math.PI * r;
+        const total = segments.reduce((s, x) => s + (x.value || 0), 0);
+        if (total <= 0) {
+            return `<svg class="tm-donut" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#14142a" stroke-width="${thick}"/>
+            </svg>`;
+        }
+        let offset = 0;
+        const parts = segments.map(seg => {
+            const frac = (seg.value || 0) / total;
+            const dash = frac * c;
+            if (dash <= 0.01) return '';
+            const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+                stroke="${seg.color || '#8a8aa0'}" stroke-width="${thick}"
+                stroke-dasharray="${dash.toFixed(2)} ${(c - dash).toFixed(2)}"
+                stroke-dashoffset="${(-offset).toFixed(2)}"
+                transform="rotate(-90 ${cx} ${cy})"/>`;
+            offset += dash;
+            return el;
+        }).join('');
+        const center = opts.center || '';
+        const centerSub = opts.centerSub || '';
+        return `
+            <svg class="tm-donut" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#14142a" stroke-width="${thick}"/>
+                ${parts}
+                ${center ? `<text x="${cx}" y="${cy + 1}" text-anchor="middle" class="tm-donut-c">${center}</text>` : ''}
+                ${centerSub ? `<text x="${cx}" y="${cy + 12}" text-anchor="middle" class="tm-donut-cs">${centerSub}</text>` : ''}
+            </svg>
+        `;
+    },
+
+    _svgRadar(values, opts = {}) {
+        const size = opts.size || 140;
+        const cx = size / 2, cy = size / 2;
+        const pad = opts.pad || 18;
+        const r = size / 2 - pad;
+        const n = values.length || 1;
+        if (n < 3) {
+            return `<svg class="tm-radar" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"></svg>`;
+        }
+        const axisPts = [];
+        const ringPts = [[], [], [], []];
+        const dataPts = [];
+        for (let i = 0; i < n; i++) {
+            const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
+            const cosA = Math.cos(a), sinA = Math.sin(a);
+            axisPts.push({
+                x: cx + cosA * r, y: cy + sinA * r,
+                lx: cx + cosA * (r + 11), ly: cy + sinA * (r + 11),
+                label: values[i].label || ''
+            });
+            const v = Math.max(0, Math.min(1, values[i].value || 0));
+            dataPts.push({ x: cx + cosA * r * v, y: cy + sinA * r * v });
+            [0.25, 0.5, 0.75, 1.0].forEach((k, ki) => {
+                ringPts[ki].push(`${(cx + cosA * r * k).toFixed(1)},${(cy + sinA * r * k).toFixed(1)}`);
+            });
+        }
+        const rings = ringPts.map((pts, i) => {
+            const alpha = 0.06 + i * 0.03;
+            return `<polygon points="${pts.join(' ')}" fill="none" stroke="rgba(138,138,160,${alpha})" stroke-width="0.7"/>`;
+        }).join('');
+        const axes = axisPts.map(p =>
+            `<line x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" stroke="rgba(138,138,160,0.12)" stroke-width="0.7"/>`
+        ).join('');
+        const labels = axisPts.map(p =>
+            `<text x="${p.lx.toFixed(1)}" y="${p.ly.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" class="tm-radar-lbl">${p.label}</text>`
+        ).join('');
+        const polyPts = dataPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+        const poly = `<polygon points="${polyPts}" fill="rgba(34,211,238,0.22)" stroke="#22d3ee" stroke-width="1.4" style="filter:drop-shadow(0 0 4px rgba(34,211,238,0.4))"/>`;
+        const dots = dataPts.map(p =>
+            `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.2" fill="#22d3ee"/>`
+        ).join('');
+        return `
+            <svg class="tm-radar" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                ${rings}${axes}${poly}${dots}${labels}
+            </svg>
+        `;
+    },
+
+    _svgGauge(value, opts = {}) {
+        const w = opts.w || 120;
+        const h = opts.h || 72;
+        const cx = w / 2;
+        const cy = h - 10;
+        const r = Math.min(w / 2 - 10, h - 18);
+        const v = Math.max(0, Math.min(1, value));
+        const pt = (a) => ({
+            x: cx + Math.cos(a) * r,
+            y: cy - Math.sin(a) * r
+        });
+        const start = pt(Math.PI);   // left
+        const end = pt(0);            // right
+        const valPt = pt(Math.PI * (1 - v));
+        const trackPath = `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} A ${r} ${r} 0 0 1 ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
+        const fillPath = v > 0.001
+            ? `M ${start.x.toFixed(1)} ${start.y.toFixed(1)} A ${r} ${r} 0 0 1 ${valPt.x.toFixed(1)} ${valPt.y.toFixed(1)}`
+            : '';
+        const color = opts.color || (v < 0.33 ? '#34d399' : v < 0.66 ? '#fbbf24' : '#f87171');
+        const label = opts.label || '';
+        const sub = opts.sub || '';
+        return `
+            <svg class="tm-gauge" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+                <path d="${trackPath}" fill="none" stroke="#14142a" stroke-width="9" stroke-linecap="round"/>
+                ${fillPath ? `<path d="${fillPath}" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round" style="filter:drop-shadow(0 0 4px ${color})"/>` : ''}
+                ${label ? `<text x="${cx}" y="${cy - 8}" text-anchor="middle" class="tm-gauge-v" fill="${color}">${label}</text>` : ''}
+                ${sub ? `<text x="${cx}" y="${cy + 4}" text-anchor="middle" class="tm-gauge-s">${sub}</text>` : ''}
+            </svg>
+        `;
+    },
+
+    // Stacked horizontal bar — [{label, value, color}]
+    _svgStackBar(segments, opts = {}) {
+        const w = opts.w || 240;
+        const h = opts.h || 14;
+        const total = segments.reduce((s, x) => s + (x.value || 0), 0) || 1;
+        let off = 0;
+        const parts = segments.map(seg => {
+            const width = (seg.value || 0) / total * w;
+            const rect = `<rect x="${off.toFixed(1)}" y="0" width="${width.toFixed(1)}" height="${h}" fill="${seg.color || '#8a8aa0'}"/>`;
+            off += width;
+            return rect;
+        }).join('');
+        return `<svg class="tm-stackbar" width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${parts}</svg>`;
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -241,6 +456,7 @@ const Terminal = {
         if (this._loopTimer) return;
         const tick = () => {
             if (!this.isOpen) return;
+            this._captureHistory();
             this._refresh();
         };
         this._loopTimer = setInterval(tick, 250);
@@ -249,12 +465,10 @@ const Terminal = {
 
     _refresh() {
         this._refreshTopBar();
-        // Phase 2 — anchor four
         this._renderLabs();
         this._renderNews();
         this._renderEvents();
         // Alignment is static — rendered once on build
-        // Phase 3 — remaining ten (signature cache keeps static panels cheap)
         this._renderCompute();
         this._renderCapital();
         this._renderEmbassy();
@@ -276,21 +490,23 @@ const Terminal = {
 
         set('tm-tick', G_ ? String(G_.tick || 0) : '—');
 
+        // FIX: citizens from NPCHousing.REGISTRY (authoritative) not G.agents/G.humans
         let citizens = '—';
-        if (G_) {
-            let n = 0;
-            if (Array.isArray(G_.agents)) n += G_.agents.length;
-            if (Array.isArray(G_.humans)) n += G_.humans.length;
-            citizens = n.toLocaleString();
-        }
+        try {
+            if (typeof NPCHousing !== 'undefined' && Array.isArray(NPCHousing.REGISTRY)) {
+                citizens = NPCHousing.REGISTRY.length.toLocaleString();
+            }
+        } catch (e) {}
         set('tm-citizens', citizens);
 
         set('tm-buildings', (typeof BLDS !== 'undefined') ? BLDS.length.toLocaleString() : '—');
 
+        // FIX: K-scale reads Kardashev.score first (the actual live field)
         let kscale = '—';
         try {
             if (typeof Kardashev !== 'undefined') {
-                if (typeof Kardashev.currentLevel === 'function') kscale = Kardashev.currentLevel().toFixed(3);
+                if (typeof Kardashev.score === 'number') kscale = Kardashev.score.toFixed(3);
+                else if (typeof Kardashev.currentLevel === 'function') kscale = Kardashev.currentLevel().toFixed(3);
                 else if (typeof Kardashev.level === 'number') kscale = Kardashev.level.toFixed(3);
             }
         } catch (e) {}
@@ -304,25 +520,20 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · AI LABS — sortable table of every lab
+    // PANEL · AI LABS — sortable table, default ELO desc
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
-    // Compute per-lab stats directly from the sim's live state. Doesn't rely on evolveCity()'s
-    // `perLab` (which is local to engine.js) — iterates G.models instead so we always read
-    // the latest data.
     _computeLabRows() {
         const rows = [];
         if (typeof LABS === 'undefined' || typeof G === 'undefined' || !Array.isArray(G.models)) return rows;
-
         const BM_ = (typeof BM !== 'undefined') ? BM : {};
 
         Object.keys(LABS).forEach(labId => {
             const lab = LABS[labId];
             if (!lab) return;
             const models = G.models.filter(m => m.lab === labId);
-            if (!models.length && labId !== 'other') return; // skip truly empty labs
+            if (!models.length && labId !== 'other') return;
 
-            // Average benchmark score across all models with any benchmark data
             let scoreSum = 0, scoreN = 0;
             let topElo = null, flagshipName = null;
             for (const m of models) {
@@ -342,7 +553,6 @@ const Terminal = {
             }
             const avgScore = scoreN ? (scoreSum / scoreN) : null;
 
-            // Is this the apex lab?
             const hq = (G.bldById && G.bldById['bld_' + labId]) || null;
             const isApex = !!(hq && hq.isTopLab);
 
@@ -376,21 +586,24 @@ const Terminal = {
             }
         };
         return rows.slice().sort((a, b) => {
+            // Primary: selected column
             const av = get(a), bv = get(b);
             if (av < bv) return -1 * mul;
             if (av > bv) return 1 * mul;
-            return 0;
+            // Secondary tiebreak: apex always wins
+            if (a.apex !== b.apex) return a.apex ? -1 : 1;
+            // Tertiary: ELO desc (labs with ELO rank above those without)
+            const ae = a.elo == null ? -1 : a.elo;
+            const be = b.elo == null ? -1 : b.elo;
+            return be - ae;
         });
     },
 
     _renderLabs() {
         const host = document.getElementById('tm-body-labs');
         if (!host) return;
-
         const rows = this._computeLabRows();
         const sorted = this._sortLabRows(rows);
-
-        // Cheap change-detection: sig is the sort state + row count + a rolling hash of scores
         const sig = this._labsSort.col + ':' + this._labsSort.dir + ':' + sorted.length + ':' +
                     sorted.slice(0, 6).map(r => r.id + (r.score || 0).toFixed(1) + (r.elo || 0)).join('|');
         if (this._sigCache.labs === sig) return;
@@ -401,11 +614,7 @@ const Terminal = {
             return;
         }
 
-        const arrow = (c) => {
-            if (this._labsSort.col !== c) return '';
-            return this._labsSort.dir === 'asc' ? ' ▴' : ' ▾';
-        };
-
+        const arrow = (c) => this._labsSort.col !== c ? '' : (this._labsSort.dir === 'asc' ? ' ▴' : ' ▾');
         const fmtScore = (s) => s == null ? '—' : s.toFixed(0);
         const fmtElo   = (e) => e == null ? '—' : e.toFixed(0);
         const escape = (s) => String(s || '').replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
@@ -416,7 +625,7 @@ const Terminal = {
                 <td class="tm-lab-name">
                     <span class="tm-lab-dot" style="background:${r.color}"></span>
                     ${escape(r.name)}
-                    ${r.apex ? '<span class="tm-apex" title="Apex lab (highest ELO)">♕</span>' : ''}
+                    ${r.apex ? '<span class="tm-apex" title="Apex lab">♕</span>' : ''}
                 </td>
                 <td class="tm-region tm-region-${r.region.toLowerCase()}">${escape(r.region)}</td>
                 <td class="tm-num">${r.models}</td>
@@ -447,7 +656,7 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · ALIGNMENT ORGS — 5 compact cards, static after init
+    // PANEL · ALIGNMENT ORGS — static cards
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderAlignment() {
@@ -480,25 +689,17 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · LIVE NEWS — merged HN + tech feed
+    // PANEL · LIVE NEWS
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _collectNewsItems() {
         const items = [];
-        // Hacker News (tagged so we can surface the score)
         if (typeof HNBlimps !== 'undefined' && Array.isArray(HNBlimps._stories)) {
             for (const s of HNBlimps._stories) {
                 if (!s || !s.title) continue;
-                items.push({
-                    source: 'HN',
-                    title: s.title,
-                    url: s.url,
-                    score: s.score,
-                    comments: s.descendants
-                });
+                items.push({ source: 'HN', title: s.title, url: s.url, score: s.score, comments: s.descendants });
             }
         }
-        // Tech/RSS feeds
         if (typeof API !== 'undefined' && Array.isArray(API.liveNews)) {
             for (const n of API.liveNews) {
                 if (!n) continue;
@@ -516,7 +717,6 @@ const Terminal = {
         const host = document.getElementById('tm-body-news');
         if (!host) return;
         const items = this._collectNewsItems();
-
         const sig = 'n:' + items.length + ':' + (items[0] ? (items[0].title || '').slice(0, 40) : '');
         if (this._sigCache.news === sig) return;
         this._sigCache.news = sig;
@@ -525,7 +725,6 @@ const Terminal = {
             host.innerHTML = '<div class="tm-empty">Waiting for headlines…</div>';
             return;
         }
-
         const escape = (s) => String(s || '').replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
         const MAX = 24;
 
@@ -535,8 +734,7 @@ const Terminal = {
                     const url = n.url ? ` href="${escape(n.url)}" target="_blank" rel="noopener"` : '';
                     const tag = n.source === 'HN' ? 'tm-tag-hn' : 'tm-tag-news';
                     const score = (n.source === 'HN' && typeof n.score === 'number')
-                        ? `<span class="tm-news-score" title="${n.comments || 0} comments">▲ ${n.score}</span>`
-                        : '';
+                        ? `<span class="tm-news-score" title="${n.comments || 0} comments">▲ ${n.score}</span>` : '';
                     return `
                         <div class="tm-news-item">
                             <span class="tm-news-source ${tag}">${escape(n.source)}</span>
@@ -550,26 +748,21 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · EVENTS LOG — scrolling list of recent sim events
+    // PANEL · ACTIVITY STREAM (was EVENTS LOG)
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderEvents() {
         const host = document.getElementById('tm-body-events');
         if (!host) return;
-
         const log = (typeof UI !== 'undefined' && Array.isArray(UI.scanLog)) ? UI.scanLog : [];
         const sig = 'e:' + log.length + ':' + (log[0] ? ((log[0].t || '') + (log[0].msg || '').slice(0, 24)) : '');
         if (this._sigCache.events === sig) return;
         this._sigCache.events = sig;
 
         if (!log.length) {
-            host.innerHTML = '<div class="tm-empty">No events yet · fire a scan to populate</div>';
+            host.innerHTML = '<div class="tm-empty">No events yet</div>';
             return;
         }
-
-        // UI.addLog prepends (newest first). Take up to 30.
-        const escape = (s) => String(s || '').replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
-        // scanLog entries' msg is HTML (from existing UI). We keep HTML but classify by leading emoji.
         const classify = (msg) => {
             const s = String(msg || '');
             if (/^🚀|^🛰️/.test(s))                        return 'launch';
@@ -581,6 +774,7 @@ const Terminal = {
             if (/^📊|^👻/.test(s))                          return 'model';
             return 'other';
         };
+        const escape = (s) => String(s || '').replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
 
         host.innerHTML = `
             <div class="tm-scroll tm-events-list">
@@ -595,7 +789,7 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · COMPUTE INFRA — headline MW + top 8 operational datacenters
+    // PANEL · COMPUTE INFRA (6×1) — big MW · operator donut · MW trend sparkline · mini stats
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderCompute() {
@@ -611,54 +805,63 @@ const Terminal = {
         const totalMW = op.reduce((s, d) => s + (d.power_mw || 0), 0);
         const construction = DC_FACILITIES.filter(d => d && d.status === 'construction').length;
 
-        const sig = 'c:' + op.length + ':' + totalMW + ':' + fabs.length + ':' + construction;
+        // Operator aggregation (top 5 by MW)
+        const byOp = {};
+        op.forEach(d => {
+            const o = d.operator || d.name || 'other';
+            byOp[o] = (byOp[o] || 0) + (d.power_mw || 0);
+        });
+        const opColors = ['#22d3ee', '#fbbf24', '#a78bfa', '#34d399', '#fb923c', '#f472b6'];
+        const topOps = Object.entries(byOp).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const otherMW = Object.entries(byOp).sort((a, b) => b[1] - a[1]).slice(5).reduce((s, [,v]) => s + v, 0);
+        const segments = topOps.map(([name, mw], i) => ({ label: name, value: mw, color: opColors[i] }));
+        if (otherMW > 0) segments.push({ label: 'other', value: otherMW, color: '#4a4a5a' });
+
+        const hist = this._history.dc_total_mw;
+        const lastMW = hist[hist.length - 1] || 0;
+        const sig = 'c:' + op.length + ':' + totalMW + ':' + fabs.length + ':' + construction + ':' + lastMW + ':' + (hist.length || 0);
         if (this._sigCache.compute === sig) return;
         this._sigCache.compute = sig;
 
-        const escape = (s) => String(s || '').replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
-        const top = op.slice().sort((a, b) => (b.power_mw || 0) - (a.power_mw || 0)).slice(0, 8);
+        const fmtMW = (n) => n >= 1000 ? (n / 1000).toFixed(1) + ' GW' : Math.round(n).toLocaleString() + ' MW';
 
         host.innerHTML = `
-            <div class="tm-head-row">
-                <div class="tm-stat-big">
-                    <span class="tm-stat-num">${totalMW.toLocaleString()}</span>
-                    <span class="tm-stat-unit">MW</span>
+            <div class="tm-row-layout">
+                <div class="tm-col tm-col-stat">
+                    <div class="tm-stat-big">
+                        <span class="tm-stat-num">${(totalMW >= 1000 ? (totalMW/1000).toFixed(1) : Math.round(totalMW).toLocaleString())}</span>
+                        <span class="tm-stat-unit">${totalMW >= 1000 ? 'GW' : 'MW'}</span>
+                    </div>
+                    <div class="tm-ministats">
+                        <span><b>${op.length}</b> DCs</span>
+                        <span><b>${fabs.length}</b> fabs</span>
+                        <span><b>${construction}</b> build</span>
+                    </div>
                 </div>
-                <div class="tm-head-meta">
-                    <div><span class="tm-head-n">${op.length}</span> DCs</div>
-                    <div><span class="tm-head-n">${fabs.length}</span> fabs</div>
-                    <div><span class="tm-head-n">${construction}</span> building</div>
-                </div>
-            </div>
-            <div class="tm-scroll tm-compute-body">
-                <table class="tm-table">
-                    <thead><tr>
-                        <th>FACILITY</th>
-                        <th class="tm-num">MW</th>
-                    </tr></thead>
-                    <tbody>
-                        ${top.map(d => `
-                            <tr>
-                                <td class="tm-compute-name" style="box-shadow:inset 2px 0 0 ${d.color || '#8a8aa0'}">${escape(d.name)}</td>
-                                <td class="tm-num">${(d.power_mw || 0).toLocaleString()}</td>
-                            </tr>
+                <div class="tm-col tm-col-donut">
+                    ${this._svgDonut(segments, { size: 88, thick: 13, center: fmtMW(totalMW) })}
+                    <div class="tm-donut-legend">
+                        ${segments.slice(0, 4).map(s => `
+                            <div class="tm-legend-row"><span class="tm-legend-dot" style="background:${s.color}"></span><span class="tm-legend-lbl">${s.label}</span></div>
                         `).join('')}
-                    </tbody>
-                </table>
+                    </div>
+                </div>
+                <div class="tm-col tm-col-spark">
+                    <div class="tm-spark-lbl">MW TREND</div>
+                    ${this._svgSpark(hist, { w: 200, h: 54, color: '#22d3ee' })}
+                </div>
             </div>
         `;
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · CAPITAL FLOWS — live VC deal ticker
+    // PANEL · CAPITAL FLOWS (6×1) — horizontal deal ticker
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderCapital() {
         const host = document.getElementById('tm-body-capital');
         if (!host) return;
-
         const deals = (typeof API !== 'undefined' && Array.isArray(API.vcDeals)) ? API.vcDeals : [];
-
         const sig = 'cap:' + deals.length + ':' + (deals[0] ? (deals[0].headline || '').slice(0, 30) : '');
         if (this._sigCache.capital === sig) return;
         this._sigCache.capital = sig;
@@ -667,12 +870,11 @@ const Terminal = {
             host.innerHTML = '<div class="tm-empty">Waiting for deal flow…</div>';
             return;
         }
-
         const escape = (s) => String(s || '').replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
 
         host.innerHTML = `
             <div class="tm-scroll tm-deals-list">
-                ${deals.slice(0, 12).map(d => {
+                ${deals.slice(0, 10).map(d => {
                     const url = d.url ? ` href="${escape(d.url)}" target="_blank" rel="noopener"` : '';
                     const amt = d.amount ? `<span class="tm-deal-amt">${escape(d.amount)}</span>` : '';
                     const round = d.round ? `<span class="tm-deal-round">${escape(d.round)}</span>` : '';
@@ -689,9 +891,7 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · EMBASSY RELATIONS — 6×6 bilateral matrix
-    // Scores are a curated heuristic (AI policy + trade alignment), 0–100. Not tracked by the
-    // sim, so this is static data — can be swapped for a Supabase feed later.
+    // PANEL · EMBASSY RELATIONS — 6×6 matrix
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     EMBASSY_RELATIONS: {
@@ -709,7 +909,6 @@ const Terminal = {
             host.innerHTML = '<div class="tm-empty">Embassy data unavailable</div>';
             return;
         }
-
         const countries = EmbassyRow.BLDS.map(b => ({
             id: String(b.country || '').toLowerCase(),
             code: String(b.country || '').toUpperCase(),
@@ -725,7 +924,7 @@ const Terminal = {
             if (a === b) return null;
             if (relations[a + '_' + b] != null) return relations[a + '_' + b];
             if (relations[b + '_' + a] != null) return relations[b + '_' + a];
-            return 50; // unknown → neutral
+            return 50;
         };
         const cellCls = (s) => {
             if (s === null) return 'tm-m-self';
@@ -768,7 +967,7 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · POWER GRID — supply MW + source mix + reserve margin
+    // PANEL · POWER GRID (4×2) — donut source mix + sparkline supply/demand + reserve readout
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderPower() {
@@ -785,50 +984,72 @@ const Terminal = {
         const reserveP = supply > 0 ? (balance / supply * 100) : 0;
         const sources = Array.isArray(PowerZone.SOURCES) ? PowerZone.SOURCES : [];
 
-        const sig = 'p:' + supply.toFixed(0) + ':' + demand.toFixed(0) + ':' + sources.length;
+        const sig = 'p:' + supply.toFixed(0) + ':' + demand.toFixed(0) + ':' + sources.length + ':' + (this._history.supply_mw.length || 0);
         if (this._sigCache.power === sig) return;
         this._sigCache.power = sig;
 
-        const total = sources.reduce((s, x) => s + (x.mw || 0), 0) || 1;
         const srcColors = {
-            solar: '#facc15',
-            wind: '#22d3ee',
-            nuclear: '#a78bfa',
-            coal: '#78716c',
-            hydro: '#60a5fa',
-            gas: '#fb923c'
+            solar: '#facc15', wind: '#22d3ee', nuclear: '#a78bfa',
+            coal: '#78716c', hydro: '#60a5fa', gas: '#fb923c',
+            geothermal: '#f472b6', fusion: '#c084fc'
         };
+        const segments = sources.map(s => ({
+            label: s.name || s.id,
+            value: s.mw || 0,
+            color: srcColors[s.id] || srcColors[(s.name || '').toLowerCase()] || '#8a8aa0'
+        })).filter(s => s.value > 0);
+
         const reserveColor = reserveP >= 10 ? '#34d399' : reserveP >= 0 ? '#fbbf24' : '#f87171';
+        const fmtMW = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'GW' : Math.round(n) + 'MW';
 
         host.innerHTML = `
-            <div class="tm-head-row">
-                <div class="tm-stat-big">
-                    <span class="tm-stat-num">${Math.round(supply).toLocaleString()}</span>
-                    <span class="tm-stat-unit">MW</span>
-                </div>
-                <div class="tm-head-meta">
-                    <div><span class="tm-head-n">${Math.round(demand).toLocaleString()}</span> demand</div>
-                    <div><span class="tm-head-n" style="color:${reserveColor}">${reserveP.toFixed(0)}%</span> reserve</div>
-                </div>
-            </div>
-            <div class="tm-bars tm-bars-dense">
-                ${sources.map(s => {
-                    const pct = (s.mw || 0) / total * 100;
-                    const color = srcColors[s.id] || srcColors[(s.name || '').toLowerCase()] || '#8a8aa0';
-                    return `
-                        <div class="tm-bar-row">
-                            <span class="tm-bar-lbl">${s.name || s.id}</span>
-                            <div class="tm-bar-track"><div class="tm-bar-fill" style="width:${pct.toFixed(1)}%;background:${color}"></div></div>
-                            <span class="tm-bar-val">${(s.mw || 0).toLocaleString()}</span>
+            <div class="tm-col-layout">
+                <div class="tm-power-hero">
+                    ${this._svgDonut(segments, {
+                        size: 110, thick: 16,
+                        center: (supply >= 1000 ? (supply/1000).toFixed(1) : Math.round(supply)),
+                        centerSub: (supply >= 1000 ? 'GW' : 'MW') + ' supply'
+                    })}
+                    <div class="tm-power-readouts">
+                        <div class="tm-readout">
+                            <span class="tm-readout-lbl">DEMAND</span>
+                            <span class="tm-readout-val">${fmtMW(demand)}</span>
                         </div>
-                    `;
-                }).join('')}
+                        <div class="tm-readout">
+                            <span class="tm-readout-lbl">RESERVE</span>
+                            <span class="tm-readout-val" style="color:${reserveColor}">${reserveP >= 0 ? '+' : ''}${reserveP.toFixed(0)}%</span>
+                        </div>
+                        <div class="tm-readout">
+                            <span class="tm-readout-lbl">SOURCES</span>
+                            <span class="tm-readout-val">${segments.length}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tm-power-legend">
+                    ${segments.slice(0, 6).map(s => `
+                        <div class="tm-legend-row">
+                            <span class="tm-legend-dot" style="background:${s.color}"></span>
+                            <span class="tm-legend-lbl">${s.label}</span>
+                            <span class="tm-legend-val">${fmtMW(s.value)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="tm-spark-block">
+                    <div class="tm-spark-hd">
+                        <span class="tm-spark-t">SUPPLY</span>
+                        ${this._svgSpark(this._history.supply_mw, { w: 120, h: 28, color: '#34d399' })}
+                    </div>
+                    <div class="tm-spark-hd">
+                        <span class="tm-spark-t">DEMAND</span>
+                        ${this._svgSpark(this._history.demand_mw, { w: 120, h: 28, color: '#fbbf24' })}
+                    </div>
+                </div>
             </div>
         `;
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · ROBOTICS — cumulative units + capability index
+    // PANEL · ROBOTICS (4×1) — units + capability curve
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderRobotics() {
@@ -838,39 +1059,41 @@ const Terminal = {
             host.innerHTML = '<div class="tm-empty">Robotics unavailable</div>';
             return;
         }
-
         const units = RoboticsZone.unitsProduced || 0;
         const facilities = Array.isArray(RoboticsZone.BLDS) ? RoboticsZone.BLDS.length : 0;
+        const hist = this._history.robotics_units;
+        const lastVal = hist[hist.length - 1] || 0;
 
-        const sig = 'r:' + units + ':' + facilities;
+        const sig = 'r:' + units + ':' + facilities + ':' + lastVal + ':' + hist.length;
         if (this._sigCache.robotics === sig) return;
         this._sigCache.robotics = sig;
 
-        // Capability index — soft log curve so it grows visibly in early game
         const capability = units > 0 ? Math.min(100, Math.log10(units + 1) * 22) : 0;
+        const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(1) + 'K' : n.toString();
 
         host.innerHTML = `
-            <div class="tm-stat-block">
-                <div class="tm-stat-big">
-                    <span class="tm-stat-num">${units.toLocaleString()}</span>
-                    <span class="tm-stat-unit">units</span>
+            <div class="tm-row-layout tm-row-tight">
+                <div class="tm-col tm-col-stat">
+                    <div class="tm-stat-big">
+                        <span class="tm-stat-num">${fmt(units)}</span>
+                        <span class="tm-stat-unit">units</span>
+                    </div>
+                    <div class="tm-stat-sub">${facilities} facilities</div>
                 </div>
-                <div class="tm-stat-sub">lifetime · ${facilities} facilities</div>
-            </div>
-            <div class="tm-meter">
-                <div class="tm-meter-top">
-                    <span class="tm-meter-lbl">CAPABILITY</span>
-                    <span class="tm-meter-val">${capability.toFixed(0)}</span>
-                </div>
-                <div class="tm-meter-track">
-                    <div class="tm-meter-fill" style="width:${capability.toFixed(1)}%"></div>
+                <div class="tm-col tm-col-wide">
+                    <div class="tm-cap-row">
+                        <span class="tm-cap-lbl">CAPABILITY</span>
+                        <span class="tm-cap-val">${capability.toFixed(0)}</span>
+                    </div>
+                    <div class="tm-meter-track"><div class="tm-meter-fill" style="width:${capability.toFixed(1)}%"></div></div>
+                    ${this._svgSpark(hist, { w: 180, h: 30, color: '#a78bfa' })}
                 </div>
             </div>
         `;
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · LONGEVITY — compounds / trials / genomes triplet
+    // PANEL · LONGEVITY (4×1) — three stat cells with sparklines each
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderLongevity() {
@@ -880,37 +1103,42 @@ const Terminal = {
             host.innerHTML = '<div class="tm-empty">Longevity unavailable</div>';
             return;
         }
-
         const compounds = LongevityZone.compoundsScreened || 0;
         const trials = LongevityZone.trialsActive || 0;
         const genomes = LongevityZone.genomesSequenced || 0;
+        const hC = this._history.longevity_compounds;
+        const hT = this._history.longevity_trials;
+        const hG = this._history.longevity_genomes;
 
-        const sig = 'l:' + compounds + ':' + trials + ':' + genomes;
+        const sig = 'l:' + compounds + ':' + trials + ':' + genomes + ':' + hC.length;
         if (this._sigCache.longevity === sig) return;
         this._sigCache.longevity = sig;
 
         const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(1) + 'K' : n.toString();
 
         host.innerHTML = `
-            <div class="tm-stat-grid tm-stat-grid-3">
-                <div class="tm-stat-cell">
-                    <span class="tm-stat-num tm-stat-num-m">${fmt(compounds)}</span>
-                    <span class="tm-stat-lbl">compounds<br>screened</span>
+            <div class="tm-long-grid">
+                <div class="tm-long-cell">
+                    <span class="tm-long-num">${fmt(compounds)}</span>
+                    <span class="tm-long-lbl">compounds</span>
+                    ${this._svgSpark(hC, { w: 110, h: 24, color: '#34d399' })}
                 </div>
-                <div class="tm-stat-cell">
-                    <span class="tm-stat-num tm-stat-num-m">${trials}</span>
-                    <span class="tm-stat-lbl">active<br>trials</span>
+                <div class="tm-long-cell">
+                    <span class="tm-long-num">${trials}</span>
+                    <span class="tm-long-lbl">trials</span>
+                    ${this._svgSpark(hT, { w: 110, h: 24, color: '#fbbf24' })}
                 </div>
-                <div class="tm-stat-cell">
-                    <span class="tm-stat-num tm-stat-num-m">${fmt(genomes)}</span>
-                    <span class="tm-stat-lbl">genomes<br>sequenced</span>
+                <div class="tm-long-cell">
+                    <span class="tm-long-num">${fmt(genomes)}</span>
+                    <span class="tm-long-lbl">genomes</span>
+                    ${this._svgSpark(hG, { w: 110, h: 24, color: '#22d3ee' })}
                 </div>
             </div>
         `;
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · AGENTS — deployed count + tasks/tools/errors
+    // PANEL · AGENTS (4×2) — active + gauge + tasks sparkline + swarm/tool metrics
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderAgents() {
@@ -926,40 +1154,47 @@ const Terminal = {
         const tasks  = s.tasksPerHour || 0;
         const tools  = s.toolCalls    || 0;
         const err    = s.errorRate    || 0;
+        const swarms = s.swarmSize    || 0;
+        const hTasks = this._history.agents_tasks;
+        const hActive = this._history.agents_active;
 
-        const sig = 'a:' + active + ':' + tasks + ':' + tools + ':' + err.toFixed(2);
+        const sig = 'a:' + active + ':' + tasks + ':' + tools + ':' + err.toFixed(2) + ':' + hTasks.length;
         if (this._sigCache.agents === sig) return;
         this._sigCache.agents = sig;
 
         const fmtK = (n) => n >= 1000 ? (n / 1000).toFixed(1) + 'K' : n.toString();
+        // Error gauge: clamp 0..5% → 0..1 (so 2.5% fills half the gauge)
+        const errNorm = Math.min(1, err / 5);
 
         host.innerHTML = `
-            <div class="tm-stat-block">
-                <div class="tm-stat-big">
-                    <span class="tm-stat-num">${active.toLocaleString()}</span>
-                    <span class="tm-stat-unit">agents</span>
+            <div class="tm-col-layout">
+                <div class="tm-agents-hero">
+                    <div class="tm-stat-big">
+                        <span class="tm-stat-num">${active.toLocaleString()}</span>
+                        <span class="tm-stat-unit">active</span>
+                    </div>
+                    <div class="tm-ministats">
+                        <span><b>${swarms}</b> swarms</span>
+                        <span><b>${fmtK(tools)}</b> tool calls/hr</span>
+                    </div>
                 </div>
-                <div class="tm-stat-sub">active · ${s.swarmSize || 0} swarms</div>
-            </div>
-            <div class="tm-stat-grid tm-stat-grid-3">
-                <div class="tm-stat-cell">
-                    <span class="tm-stat-num tm-stat-num-s">${fmtK(tasks)}</span>
-                    <span class="tm-stat-lbl">tasks/hr</span>
+                <div class="tm-agents-spark">
+                    <div class="tm-spark-lbl">TASKS/HR · ${fmtK(tasks)}</div>
+                    ${this._svgSpark(hTasks, { w: 240, h: 36, color: '#22d3ee' })}
                 </div>
-                <div class="tm-stat-cell">
-                    <span class="tm-stat-num tm-stat-num-s">${fmtK(tools)}</span>
-                    <span class="tm-stat-lbl">tool calls/hr</span>
+                <div class="tm-agents-spark">
+                    <div class="tm-spark-lbl">ACTIVE AGENTS</div>
+                    ${this._svgSpark(hActive, { w: 240, h: 30, color: '#34d399' })}
                 </div>
-                <div class="tm-stat-cell">
-                    <span class="tm-stat-num tm-stat-num-s" style="color:${err > 0.4 ? '#f87171' : '#34d399'}">${err.toFixed(2)}%</span>
-                    <span class="tm-stat-lbl">error rate</span>
+                <div class="tm-agents-gauge">
+                    ${this._svgGauge(errNorm, { w: 140, h: 72, label: err.toFixed(2) + '%', sub: 'ERROR RATE' })}
                 </div>
             </div>
         `;
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · SUPPLY CHAIN — inventory utilization + bottleneck indicators
+    // PANEL · SUPPLY CHAIN (4×2) — bars + sparklines + bottlenecks
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderSupply() {
@@ -974,19 +1209,15 @@ const Terminal = {
             host.innerHTML = '<div class="tm-empty">Supply chain unavailable</div>';
             return;
         }
-
         const keys = Object.keys(inv);
-        const sig = 's:' + keys.map(k => k + ':' + ((inv[k] && inv[k].stock) | 0)).join('|') + '|b:' + bottlenecks.length;
+        const sig = 's:' + keys.map(k => k + ':' + ((inv[k] && inv[k].stock) | 0)).join('|') + '|b:' + bottlenecks.length + ':' + this._history.supply_gpu.length;
         if (this._sigCache.supply === sig) return;
         this._sigCache.supply = sig;
 
         const names = {
-            gpu_h100: 'H100 GPU',
-            gpu_b200: 'B200 GPU',
-            helium: 'Helium',
-            hbm_memory: 'HBM',
-            coolant_sys: 'Coolant',
-            electricity: 'Power'
+            gpu_h100: 'H100', gpu_b200: 'B200',
+            helium: 'He', hbm_memory: 'HBM',
+            coolant_sys: 'Coolant', electricity: 'Power'
         };
         const pctColor = (p) => p >= 60 ? '#34d399' : p >= 30 ? '#fbbf24' : '#f87171';
 
@@ -995,34 +1226,46 @@ const Terminal = {
             const cap = v.capacity || 1;
             const pct = Math.max(0, Math.min(100, (v.stock || 0) / cap * 100));
             return { k, pct, stock: v.stock || 0 };
-        }).sort((a, b) => a.pct - b.pct); // most stressed first
+        }).sort((a, b) => a.pct - b.pct);
 
         host.innerHTML = `
-            <div class="tm-bars tm-bars-dense">
-                ${rows.slice(0, 4).map(r => `
-                    <div class="tm-bar-row">
-                        <span class="tm-bar-lbl">${names[r.k] || r.k}</span>
-                        <div class="tm-bar-track"><div class="tm-bar-fill" style="width:${r.pct.toFixed(0)}%;background:${pctColor(r.pct)}"></div></div>
-                        <span class="tm-bar-val">${r.pct.toFixed(0)}%</span>
-                    </div>
-                `).join('')}
-            </div>
-            ${bottlenecks.length ? `
-                <div class="tm-subhd">Bottlenecks</div>
-                <div class="tm-bn-list">
-                    ${bottlenecks.slice(0, 3).map(b => `
-                        <div class="tm-bn-row">
-                            <span class="tm-bn-name">${b.name}</span>
-                            <span class="tm-bn-load" style="color:${pctColor(100 - (b.load || 0))}">${b.load || 0}%</span>
+            <div class="tm-col-layout">
+                <div class="tm-bars tm-bars-dense">
+                    ${rows.slice(0, 5).map(r => `
+                        <div class="tm-bar-row">
+                            <span class="tm-bar-lbl">${names[r.k] || r.k}</span>
+                            <div class="tm-bar-track"><div class="tm-bar-fill" style="width:${r.pct.toFixed(0)}%;background:${pctColor(r.pct)}"></div></div>
+                            <span class="tm-bar-val">${r.pct.toFixed(0)}%</span>
                         </div>
                     `).join('')}
                 </div>
-            ` : ''}
+                <div class="tm-spark-block tm-spark-block-pad">
+                    <div class="tm-spark-hd">
+                        <span class="tm-spark-t">GPU STOCK</span>
+                        ${this._svgSpark(this._history.supply_gpu, { w: 120, h: 24, color: '#22d3ee' })}
+                    </div>
+                    <div class="tm-spark-hd">
+                        <span class="tm-spark-t">HBM</span>
+                        ${this._svgSpark(this._history.supply_hbm, { w: 120, h: 24, color: '#a78bfa' })}
+                    </div>
+                </div>
+                ${bottlenecks.length ? `
+                    <div class="tm-subhd">Bottlenecks</div>
+                    <div class="tm-bn-list">
+                        ${bottlenecks.slice(0, 3).map(b => `
+                            <div class="tm-bn-row">
+                                <span class="tm-bn-name">${b.name}</span>
+                                <span class="tm-bn-load" style="color:${pctColor(100 - (b.load || 0))}">${b.load || 0}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            </div>
         `;
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · KARDASHEV — progress bar 0.7→1.0 + pillar breakdown
+    // PANEL · KARDASHEV (5×2) — big K + progress + pentagon radar + sparkline
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderKardashev() {
@@ -1039,58 +1282,63 @@ const Terminal = {
         else if (typeof K.currentLevel === 'function') { try { score = K.currentLevel(); } catch (e) {} }
         else if (typeof K.level === 'number') score = K.level;
 
-        // Map 0.700..1.000 → 0..100 for the progress bar
         const pct = Math.max(0, Math.min(100, ((score - 0.7) / 0.3) * 100));
-
-        const sig = 'k:' + score.toFixed(4);
+        const sig = 'k:' + score.toFixed(4) + ':' + this._history.kardashev_score.length;
         if (this._sigCache.kardashev === sig) return;
         this._sigCache.kardashev = sig;
 
-        // Find next milestone above current score
+        // Next milestone — MILESTONES uses `k` field
         let next = null;
         if (Array.isArray(K.MILESTONES)) {
             for (const m of K.MILESTONES) {
-                const t = (typeof m.score === 'number') ? m.score : m.threshold;
-                if (typeof t === 'number' && t > score) { next = m; break; }
+                const t = (typeof m.k === 'number') ? m.k
+                        : (typeof m.score === 'number') ? m.score
+                        : (typeof m.threshold === 'number') ? m.threshold : null;
+                if (t !== null && t > score) { next = { obj: m, threshold: t }; break; }
             }
         }
 
-        // Pillars — may be { energy: number, ... } or { energy: { score: num } }
+        // Pillar entries for radar
         const pillars = K.pillars || {};
         const pillarEntries = Object.entries(pillars).map(([k, v]) => {
             const val = (typeof v === 'number') ? v : (v && typeof v.score === 'number') ? v.score : 0;
-            return { k, val };
-        });
+            return { label: k.slice(0, 4).toUpperCase(), value: val <= 1 ? val : val / 100 };
+        }).slice(0, 6);
 
         host.innerHTML = `
-            <div class="tm-head-row">
-                <div class="tm-stat-big">
-                    <span class="tm-stat-unit">K</span>
-                    <span class="tm-stat-num">${score.toFixed(3)}</span>
+            <div class="tm-k-layout">
+                <div class="tm-k-left">
+                    <div class="tm-stat-big tm-k-big">
+                        <span class="tm-stat-unit">K</span>
+                        <span class="tm-stat-num">${score.toFixed(3)}</span>
+                    </div>
+                    <div class="tm-kprog">
+                        <div class="tm-kprog-track"><div class="tm-kprog-fill" style="width:${pct.toFixed(1)}%"></div></div>
+                        <div class="tm-kprog-labels"><span>0.700</span><span>1.000</span></div>
+                    </div>
+                    <div class="tm-k-next">${next ? `▲ NEXT: ${((next.obj && (next.obj.name || next.obj.id)) || 'milestone')} @ ${next.threshold.toFixed(3)}` : '⟡ APEX'}</div>
+                    <div class="tm-k-spark">
+                        <div class="tm-spark-lbl">K-SCORE TREND</div>
+                        ${this._svgSpark(this._history.kardashev_score, { w: 220, h: 32, color: '#fbbf24' })}
+                    </div>
                 </div>
-                <div class="tm-head-meta">
-                    <div class="tm-k-next">${next ? `▲ ${next.name || next.id || 'next'}` : '⟡ apex'}</div>
+                <div class="tm-k-right">
+                    ${pillarEntries.length >= 3 ? this._svgRadar(pillarEntries, { size: 180, pad: 24 }) : '<div class="tm-empty">No pillars</div>'}
+                    <div class="tm-k-pillars">
+                        ${pillarEntries.map(p => `
+                            <div class="tm-k-pillar">
+                                <span class="tm-k-pillar-name">${p.label}</span>
+                                <span class="tm-k-pillar-val">${Math.round(p.value * 100)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             </div>
-            <div class="tm-kprog">
-                <div class="tm-kprog-track"><div class="tm-kprog-fill" style="width:${pct.toFixed(1)}%"></div></div>
-                <div class="tm-kprog-labels"><span>0.700</span><span>1.000</span></div>
-            </div>
-            ${pillarEntries.length ? `
-                <div class="tm-k-pillars">
-                    ${pillarEntries.map(p => `
-                        <div class="tm-k-pillar">
-                            <span class="tm-k-pillar-name">${p.k.slice(0, 6).toUpperCase()}</span>
-                            <span class="tm-k-pillar-val">${Math.round((p.val <= 1 ? p.val * 100 : p.val))}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            ` : ''}
         `;
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · POPULATION — role count + top workplace zones
+    // PANEL · POPULATION (4×1) — NPC count + workplace donut
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
     _renderPopulation() {
@@ -1099,31 +1347,26 @@ const Terminal = {
         const NH = (typeof NPCHousing !== 'undefined' && Array.isArray(NPCHousing.REGISTRY)) ? NPCHousing : null;
         const reg = NH ? NH.REGISTRY : [];
 
-        // Sim population (live)
-        let sim = 0;
-        if (typeof G !== 'undefined') {
-            if (Array.isArray(G.agents)) sim += G.agents.length;
-            if (Array.isArray(G.humans)) sim += G.humans.length;
-        }
-
-        const sig = 'pop:' + reg.length + ':' + sim;
+        // FIX: use NPCHousing.REGISTRY.length as the authoritative citizen count
+        const sim = reg.length;
+        const sig = 'pop:' + sim;
         if (this._sigCache.population === sig) return;
         this._sigCache.population = sig;
 
-        if (!reg.length) {
+        if (!sim) {
             host.innerHTML = `
                 <div class="tm-stat-block">
                     <div class="tm-stat-big">
-                        <span class="tm-stat-num">${sim.toLocaleString()}</span>
+                        <span class="tm-stat-num">0</span>
                         <span class="tm-stat-unit">NPCs</span>
                     </div>
-                    <div class="tm-stat-sub">roster unavailable</div>
+                    <div class="tm-stat-sub">no registry</div>
                 </div>
             `;
             return;
         }
 
-        // Group registry by workplace zone prefix
+        // Group by workplace zone prefix
         const byZone = {};
         for (const n of reg) {
             const w = String(n.workplace || 'other').toLowerCase();
@@ -1132,23 +1375,51 @@ const Terminal = {
             if (zone === 'other' && w.includes('court')) zone = 'court';
             byZone[zone] = (byZone[zone] || 0) + 1;
         }
-        const sorted = Object.entries(byZone).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        const zoneColors = {
+            compute:  '#22d3ee',
+            power:    '#fbbf24',
+            agents:   '#a78bfa',
+            embassy:  '#60a5fa',
+            vcrow:    '#34d399',
+            robotics: '#fb923c',
+            longev:   '#f472b6',
+            backbone: '#c084fc',
+            align:    '#f87171',
+            univ:     '#818cf8',
+            court:    '#facc15',
+            space:    '#38bdf8',
+            port:     '#4ade80',
+            other:    '#6a6a80'
+        };
+        const sorted = Object.entries(byZone).sort((a, b) => b[1] - a[1]);
+        const top = sorted.slice(0, 6);
+        const other = sorted.slice(6).reduce((s, [, v]) => s + v, 0);
+        const segments = top.map(([z, n]) => ({ label: z, value: n, color: zoneColors[z] || '#8a8aa0' }));
+        if (other) segments.push({ label: 'other', value: other, color: '#4a4a5a' });
 
         host.innerHTML = `
-            <div class="tm-stat-block">
-                <div class="tm-stat-big">
-                    <span class="tm-stat-num">${sim.toLocaleString()}</span>
-                    <span class="tm-stat-unit">NPCs</span>
-                </div>
-                <div class="tm-stat-sub">${reg.length} named roles</div>
-            </div>
-            <div class="tm-pop-list">
-                ${sorted.map(([z, n]) => `
-                    <div class="tm-pop-row">
-                        <span class="tm-pop-lbl">${z.toUpperCase()}</span>
-                        <span class="tm-pop-val">${n}</span>
+            <div class="tm-row-layout tm-row-tight">
+                <div class="tm-col tm-col-stat">
+                    <div class="tm-stat-big">
+                        <span class="tm-stat-num">${sim.toLocaleString()}</span>
+                        <span class="tm-stat-unit">NPCs</span>
                     </div>
-                `).join('')}
+                    <div class="tm-stat-sub">${sorted.length} zones</div>
+                </div>
+                <div class="tm-col tm-col-donut">
+                    ${this._svgDonut(segments, { size: 70, thick: 11 })}
+                </div>
+                <div class="tm-col tm-col-wide">
+                    <div class="tm-pop-list">
+                        ${top.slice(0, 4).map(([z, n]) => `
+                            <div class="tm-pop-row">
+                                <span class="tm-legend-dot" style="background:${zoneColors[z] || '#8a8aa0'}"></span>
+                                <span class="tm-pop-lbl">${z.toUpperCase()}</span>
+                                <span class="tm-pop-val">${n}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
             </div>
         `;
     }
