@@ -262,7 +262,7 @@ const G = {
             id === 'neon_bar' || id === 'visitor_monument' || id === 'times_hq' || id === 'graveyard' || id === 'forest_0' || id === 'forest_1' || id.startsWith('port_') || id.startsWith('power_') ||
             id.startsWith('uni_') || id.startsWith('court_') || id === 'city_park' || id === 'ai_index' || id === 'black_market' || id === 'convention_center' || id.startsWith('backbone_') ||
             id.startsWith('vcrow_') || id.startsWith('robotics_') || id.startsWith('longevity_') || id.startsWith('agents_') ||
-            id.startsWith('embassy_') || id.startsWith('align_');
+            id.startsWith('embassy_') || id.startsWith('diplomat_villa_') || id.startsWith('align_');
 
         const techBldsList = BLDS.filter(b =>
             !isSpecialId(b.id) && !isDcBld(b) && !isSpaceOrForestSep(b)
