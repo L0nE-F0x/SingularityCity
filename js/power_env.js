@@ -19,9 +19,13 @@ const PowerEnv = {
                 const p = new PIXI.Graphics();
                 p.beginFill(0xffffff, 0.15 + Math.random() * 0.15);
                 p.drawCircle(0, 0, 3 + Math.random() * 5); p.endFill();
-                p.x = nucBld.x + nucBld.w / 2 + (Math.random() - 0.5) * 20;
+                // Store offset relative to building so particles stay locked even if
+                // recalculateZoning moves Power Zone after buildAnimations ran.
+                p._bld = nucBld;
+                p._offX = nucBld.w / 2 + (Math.random() - 0.5) * 20;
+                p.x = nucBld.x + p._offX;
                 p.y = gy - 80 - Math.random() * 40;
-                p._baseX = p.x; p._speed = 0.3 + Math.random() * 0.4; p._phase = Math.random() * Math.PI * 2;
+                p._speed = 0.3 + Math.random() * 0.4; p._phase = Math.random() * Math.PI * 2;
                 p._resetY = gy - 60;
                 charLayer.addChild(p);
                 this.steamParts.push(p);
@@ -34,9 +38,11 @@ const PowerEnv = {
                 const p = new PIXI.Graphics();
                 p.beginFill(0x333333, 0.2 + Math.random() * 0.15);
                 p.drawCircle(0, 0, 2 + Math.random() * 4); p.endFill();
-                p.x = coalBld.x + coalBld.w * 0.7 + (Math.random() - 0.5) * 10;
+                p._bld = coalBld;
+                p._offX = coalBld.w * 0.7 + (Math.random() - 0.5) * 10;
+                p.x = coalBld.x + p._offX;
                 p.y = gy - 60 - Math.random() * 30;
-                p._baseX = p.x; p._speed = 0.2 + Math.random() * 0.3; p._phase = Math.random() * Math.PI * 2;
+                p._speed = 0.2 + Math.random() * 0.3; p._phase = Math.random() * Math.PI * 2;
                 p._resetY = gy - 40;
                 charLayer.addChild(p);
                 this.smokeParts.push(p);
@@ -46,9 +52,11 @@ const PowerEnv = {
         const windBld = BLDS.find(b => b.id === 'power_wind');
         if (windBld) {
             for (let ti = 0; ti < 3; ti++) {
-                const tx = windBld.x + 40 + ti * 45;
                 const bladeC = new PIXI.Container();
-                bladeC.x = tx; bladeC.y = gy - 72;
+                bladeC._bld = windBld;
+                bladeC._offX = 40 + ti * 45;
+                bladeC.x = windBld.x + bladeC._offX;
+                bladeC.y = gy - 72;
                 // 3 blades
                 const bg = new PIXI.Graphics();
                 for (let a = 0; a < 3; a++) {
@@ -73,11 +81,12 @@ const PowerEnv = {
         const w = typeof Environment !== 'undefined' ? Environment.weather : 'clear';
         const windMult = w === 'thunderstorm' ? 3.2 : (w === 'rain' || w === 'drizzle') ? 2.5 : w === 'snow' ? 1.8 : w === 'sandstorm' ? 3.0 : w === 'fog' ? 0.4 : 1.0;
 
-        // Steam particles rise and reset
+        // Steam particles rise and reset (x tracks live building x — survives re-zoning)
         this.steamParts.forEach(p => {
             if (!p || p.destroyed) return;
             p.y -= p._speed;
-            p.x = p._baseX + Math.sin(G.tick * 0.02 + p._phase) * 8;
+            const baseX = (p._bld ? p._bld.x : 0) + p._offX;
+            p.x = baseX + Math.sin(G.tick * 0.02 + p._phase) * 8;
             p.alpha = Math.max(0, 0.25 - (p._resetY - p.y) * 0.002);
             if (p.y < p._resetY - 80) { p.y = p._resetY; p.alpha = 0.25; }
         });
@@ -85,13 +94,15 @@ const PowerEnv = {
         this.smokeParts.forEach(p => {
             if (!p || p.destroyed) return;
             p.y -= p._speed * 0.8;
-            p.x = p._baseX + Math.sin(G.tick * 0.015 + p._phase) * 12;
+            const baseX = (p._bld ? p._bld.x : 0) + p._offX;
+            p.x = baseX + Math.sin(G.tick * 0.015 + p._phase) * 12;
             p.alpha = Math.max(0, 0.2 - (p._resetY - p.y) * 0.002);
             if (p.y < p._resetY - 60) { p.y = p._resetY; p.alpha = 0.2; }
         });
-        // Wind turbine rotation
+        // Wind turbine rotation (also re-anchor x in case Power Zone was re-zoned)
         this.turbineBlades.forEach(tb => {
             if (!tb.cont || tb.cont.destroyed) return;
+            if (tb.cont._bld) tb.cont.x = tb.cont._bld.x + tb.cont._offX;
             tb.cont.rotation += tb.speed * windMult;
         });
     },
