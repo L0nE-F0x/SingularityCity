@@ -29,13 +29,15 @@ const RoboticsEnv = {
                 p.beginFill(col, 0.9);
                 p.drawCircle(0, 0, 0.5 + Math.random() * 1.2);
                 p.endFill();
-                p.x = assembly.x + 30 + Math.random() * (assembly.w - 60);
+                // Anchor to building so respawn origin tracks re-zoning
+                p._bld = assembly;
+                p._offX = 30 + Math.random() * (assembly.w - 60);
+                p.x = assembly.x + p._offX;
                 p.y = gy - 30 - Math.random() * 50;
                 p._vy = 0.3 + Math.random() * 1.0;
                 p._vx = (Math.random() - 0.5) * 1.5;
                 p._life = 60 + Math.random() * 80;
                 p._maxLife = p._life;
-                p._originX = p.x;
                 p._originY = p.y;
                 charLayer.addChild(p);
                 this.sparks.push(p);
@@ -53,8 +55,9 @@ const RoboticsEnv = {
                 dot.x = assembly.x + i * ((testing.x + testing.w - assembly.x) / 12);
                 dot.y = beltY;
                 dot._speed = 0.4;
-                dot._minX = assembly.x;
-                dot._maxX = testing.x + testing.w;
+                // Store refs — min/max recomputed each frame so belt spans the live buildings
+                dot._assBld = assembly;
+                dot._testBld = testing;
                 charLayer.addChild(dot);
                 this.conveyorDots.push(dot);
             }
@@ -102,8 +105,8 @@ const RoboticsEnv = {
                 r.y = gy - 2;
                 r._dir = Math.random() > 0.5 ? 1 : -1;
                 r._speed = 0.15 + Math.random() * 0.25;
-                r._minX = testing.x + 10;
-                r._maxX = testing.x + testing.w - 10;
+                // Track the testing building — min/max derived live in update
+                r._bld = testing;
                 r._wobblePhase = Math.random() * Math.PI * 2;
                 r._col = col;
                 r.scale.x = r._dir;
@@ -123,7 +126,9 @@ const RoboticsEnv = {
                 light.beginFill(col, 0.8);
                 light.drawCircle(0, 0, 1.5);
                 light.endFill();
-                light.x = bld.x + 8 + Math.random() * (bld.w - 16);
+                light._bld = bld;
+                light._offX = 8 + Math.random() * (bld.w - 16);
+                light.x = bld.x + light._offX;
                 light.y = gy - bldH + 16 + Math.random() * (bldH - 30);
                 light._phase = Math.random() * 200;
                 light._rate = 20 + Math.random() * 60;
@@ -139,13 +144,14 @@ const RoboticsEnv = {
                 puff.beginFill(0x94a3b8, 0.3);
                 puff.drawCircle(0, 0, 2 + Math.random() * 3);
                 puff.endFill();
-                puff.x = deploy.x + deploy.w - 20 + Math.random() * 30;
+                puff._bld = deploy;
+                puff._offX = deploy.w - 20 + Math.random() * 30;
+                puff.x = deploy.x + puff._offX;
                 puff.y = gy - 5 - Math.random() * 15;
                 puff._vy = -0.2 - Math.random() * 0.3;
                 puff._vx = 0.1 + Math.random() * 0.2;
                 puff._life = 80 + Math.random() * 60;
                 puff._maxLife = puff._life;
-                puff._originX = puff.x;
                 puff._originY = puff.y;
                 charLayer.addChild(puff);
                 this.smokePuffs.push(puff);
@@ -157,7 +163,7 @@ const RoboticsEnv = {
         if (!this._built) return;
         const fc = G.tick;
 
-        // ─── SPARKS: drift down, fade, respawn ───
+        // ─── SPARKS: drift down, fade, respawn (respawn tracks live building) ───
         this.sparks.forEach(p => {
             if (!p || p.destroyed) return;
             p.x += p._vx;
@@ -165,8 +171,9 @@ const RoboticsEnv = {
             p._life--;
             p.alpha = Math.max(0, (p._life / p._maxLife) * 0.9);
             if (p._life <= 0) {
-                // Respawn at origin
-                p.x = p._originX + (Math.random() - 0.5) * 20;
+                // Respawn at live building position
+                const originX = (p._bld ? p._bld.x : 0) + p._offX;
+                p.x = originX + (Math.random() - 0.5) * 20;
                 p.y = p._originY;
                 p._life = p._maxLife;
                 p._vx = (Math.random() - 0.5) * 1.5;
@@ -175,14 +182,18 @@ const RoboticsEnv = {
             }
         });
 
-        // ─── CONVEYOR BELT: move right, wrap ───
+        // ─── CONVEYOR BELT: move right, wrap (span tracks live buildings) ───
         this.conveyorDots.forEach(dot => {
             if (!dot || dot.destroyed) return;
             dot.x += dot._speed;
-            if (dot.x > dot._maxX) dot.x = dot._minX;
+            const minX = dot._assBld ? dot._assBld.x : 0;
+            const maxX = dot._testBld ? (dot._testBld.x + dot._testBld.w) : minX + 1;
+            if (dot.x > maxX) dot.x = minX;
+            // If a re-zone put the dot behind the assembly line, snap it back
+            if (dot.x < minX) dot.x = minX;
         });
 
-        // ─── ROBOTS: walk back and forth with wobble ───
+        // ─── ROBOTS: walk back and forth with wobble (bounds track live building) ───
         this.robots.forEach(r => {
             if (!r || r.destroyed) return;
             r.x += r._speed * r._dir;
@@ -190,18 +201,21 @@ const RoboticsEnv = {
             // Leg wobble effect via slight Y oscillation
             r.y = G.groundY - 2 + Math.sin(r._wobblePhase) * 1.5;
 
-            // Reverse at boundaries
-            if (r.x > r._maxX) { r._dir = -1; r.scale.x = -1; }
-            if (r.x < r._minX) { r._dir = 1; r.scale.x = 1; }
+            // Reverse at boundaries (re-derived each frame so bounds survive re-zoning)
+            const minX = r._bld ? (r._bld.x + 10) : -Infinity;
+            const maxX = r._bld ? (r._bld.x + r._bld.w - 10) : Infinity;
+            if (r.x > maxX) { r.x = maxX; r._dir = -1; r.scale.x = -1; }
+            if (r.x < minX) { r.x = minX; r._dir = 1; r.scale.x = 1; }
         });
 
-        // ─── STATUS LIGHTS: blink ───
+        // ─── STATUS LIGHTS: blink (re-anchor x to live building) ───
         this.statusLights.forEach(light => {
             if (!light || light.destroyed) return;
+            if (light._bld) light.x = light._bld.x + light._offX;
             light.visible = ((fc + light._phase) % light._rate) < light._rate * 0.6;
         });
 
-        // ─── SMOKE PUFFS: rise, fade, respawn ───
+        // ─── SMOKE PUFFS: rise, fade, respawn (respawn tracks live building) ───
         this.smokePuffs.forEach(puff => {
             if (!puff || puff.destroyed) return;
             puff.x += puff._vx;
@@ -209,7 +223,8 @@ const RoboticsEnv = {
             puff._life--;
             puff.alpha = Math.max(0, (puff._life / puff._maxLife) * 0.3);
             if (puff._life <= 0) {
-                puff.x = puff._originX + (Math.random() - 0.5) * 10;
+                const originX = (puff._bld ? puff._bld.x : 0) + puff._offX;
+                puff.x = originX + (Math.random() - 0.5) * 10;
                 puff.y = puff._originY;
                 puff._life = puff._maxLife;
                 puff.alpha = 0.3;

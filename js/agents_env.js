@@ -75,8 +75,7 @@ const AgentsEnv = {
                 bot.y = gy - 2;
                 bot._dir = Math.random() > 0.5 ? 1 : -1;
                 bot._speed = 0.2 + Math.random() * 0.3;
-                bot._minX = AgentsZone.zoneStartX + 10;
-                bot._maxX = AgentsZone.zoneEndX - 10;
+                // Bounds derived live from AgentsZone.zoneStartX/endX in update()
                 bot._wobblePhase = Math.random() * Math.PI * 2;
                 bot._col = col;
                 bot.scale.x = bot._dir;
@@ -96,7 +95,9 @@ const AgentsEnv = {
                 led.beginFill(ledCol, 0.8);
                 led.drawRect(0, 0, 2, 2);
                 led.endFill();
-                led.x = bld.x + 8 + Math.random() * (bld.w - 16);
+                led._bld = bld;
+                led._offX = 8 + Math.random() * (bld.w - 16);
+                led.x = bld.x + led._offX;
                 led.y = gy - 24 - h + 20 + Math.random() * (h - 40);
                 led._phase = Math.random() * 200;
                 led._rate = 20 + Math.random() * 60;
@@ -114,7 +115,9 @@ const AgentsEnv = {
                 bar.beginFill(col, 0.5);
                 bar.drawRect(0, 0, 30, 2);
                 bar.endFill();
-                bar.x = orch.x + 20 + i * 45;
+                bar._bld = orch;
+                bar._offX = 20 + i * 45;
+                bar.x = orch.x + bar._offX;
                 bar.y = gy - orchH - 6;
                 bar._phase = i * 1.2;
                 bar._col = col;
@@ -143,26 +146,30 @@ const AgentsEnv = {
             p.alpha = 0.4 + Math.sin(fc * 0.05 + p._phase) * 0.3;
         });
 
-        // ─── Bot sprites: walk back and forth with wobble ───
+        // ─── Bot sprites: walk back and forth with wobble (bounds live-track zone) ───
+        const botMinX = AgentsZone.zoneStartX + 10;
+        const botMaxX = AgentsZone.zoneEndX - 10;
         this.botSprites.forEach(bot => {
             if (!bot || bot.destroyed) return;
             bot.x += bot._speed * bot._dir;
             bot._wobblePhase += 0.1;
             bot.y = G.groundY - 2 + Math.sin(bot._wobblePhase) * 1;
 
-            if (bot.x > bot._maxX) { bot._dir = -1; bot.scale.x = -1; }
-            if (bot.x < bot._minX) { bot._dir = 1; bot.scale.x = 1; }
+            if (bot.x > botMaxX) { bot.x = botMaxX; bot._dir = -1; bot.scale.x = -1; }
+            if (bot.x < botMinX) { bot.x = botMinX; bot._dir = 1; bot.scale.x = 1; }
         });
 
-        // ─── Status LEDs: stochastic blinking ───
+        // ─── Status LEDs: stochastic blinking (re-anchor x to live building) ───
         this.statusLEDs.forEach(led => {
             if (!led || led.destroyed) return;
+            if (led._bld) led.x = led._bld.x + led._offX;
             led.visible = ((fc + led._phase) % led._rate) < led._rate * 0.6;
         });
 
-        // ─── Pulse bars: width oscillation ───
+        // ─── Pulse bars: width oscillation (re-anchor x to live building) ───
         this.pulseBars.forEach(bar => {
             if (!bar || bar.destroyed) return;
+            if (bar._bld) bar.x = bar._bld.x + bar._offX;
             bar.scale.x = 0.5 + Math.abs(Math.sin(fc * 0.02 + bar._phase)) * 0.8;
             bar.alpha = 0.3 + Math.abs(Math.sin(fc * 0.015 + bar._phase)) * 0.5;
         });

@@ -33,7 +33,9 @@ const LongevityEnv = {
                 p.endFill();
                 p._phase = (i / 24) * Math.PI * 4;
                 p._strand = strand;
-                p._centerX = helixCenterX;
+                // Store building refs so helix center re-derives live after re-zoning.
+                p._discBld = discovery;
+                p._trialBld = trials;
                 p._baseY = gy - 80 + (i / 24) * 60;
                 p._amplitude = 12;
                 p.x = helixCenterX;
@@ -56,13 +58,14 @@ const LongevityEnv = {
                     m.moveTo(-rad * 0.5, -rad * 0.3);
                     m.lineTo(rad * 0.5, -rad * 0.3);
                 }
-                m.x = discovery.x + 20 + Math.random() * (discovery.w - 40);
+                m._bld = discovery;
+                m._offX = 20 + Math.random() * (discovery.w - 40);
+                m.x = discovery.x + m._offX;
                 m.y = gy - 10 - Math.random() * 60;
                 m._vy = -0.15 - Math.random() * 0.25;
                 m._vx = (Math.random() - 0.5) * 0.3;
                 m._life = 100 + Math.random() * 80;
                 m._maxLife = m._life;
-                m._originX = m.x;
                 m._originY = gy - 10 - Math.random() * 20;
                 charLayer.addChild(m);
                 this.molecules.push(m);
@@ -77,7 +80,9 @@ const LongevityEnv = {
                 pulse.beginFill(0xef4444, 0.7);
                 pulse.drawCircle(0, 0, 1.5);
                 pulse.endFill();
-                pulse.x = trials.x + 15 + i * ((trials.w - 30) / 5);
+                pulse._bld = trials;
+                pulse._offX = 15 + i * ((trials.w - 30) / 5);
+                pulse.x = trials.x + pulse._offX;
                 pulse.y = gy - bldH + 20 + Math.random() * (bldH - 40);
                 pulse._phase = Math.random() * 120;
                 pulse._beatRate = 60 + Math.random() * 30; // heartbeat rhythm
@@ -96,7 +101,9 @@ const LongevityEnv = {
                 led.beginFill(col, 0.8);
                 led.drawRect(0, 0, 2, 3);
                 led.endFill();
-                led.x = genomics.x + 10 + (i % 8) * ((genomics.w - 20) / 8);
+                led._bld = genomics;
+                led._offX = 10 + (i % 8) * ((genomics.w - 20) / 8);
+                led.x = genomics.x + led._offX;
                 led.y = gy - bldH + 15 + Math.floor(i / 8) * 20;
                 led._phase = i * 15;
                 led._rate = 8 + Math.random() * 12; // rapid sequencer tick
@@ -112,13 +119,14 @@ const LongevityEnv = {
                 v.beginFill(0x93c5fd, 0.25);
                 v.drawCircle(0, 0, 2 + Math.random() * 4);
                 v.endFill();
-                v.x = cryo.x + 10 + Math.random() * (cryo.w - 20);
+                v._bld = cryo;
+                v._offX = 10 + Math.random() * (cryo.w - 20);
+                v.x = cryo.x + v._offX;
                 v.y = gy - 3 - Math.random() * 10;
                 v._vy = -0.08 - Math.random() * 0.15;
                 v._vx = (Math.random() - 0.5) * 0.4;
                 v._life = 120 + Math.random() * 80;
                 v._maxLife = v._life;
-                v._originX = v.x;
                 v._originY = v.y;
                 v._sway = Math.random() * Math.PI * 2;
                 charLayer.addChild(v);
@@ -131,19 +139,23 @@ const LongevityEnv = {
         if (!this._built) return;
         const fc = G.tick;
 
-        // ─── DNA HELIX: rotate in 3D-projected double helix ───
+        // ─── DNA HELIX: rotate in 3D-projected double helix (center re-derived live) ───
         this.dnaParticles.forEach(p => {
             if (!p || p.destroyed) return;
             p._phase += 0.03;
             const offset = p._strand === 0 ? 0 : Math.PI;
-            p.x = p._centerX + Math.sin(p._phase + offset) * p._amplitude;
+            // Live helix center — stays between Discovery and Trials even after re-zoning
+            const centerX = (p._discBld && p._trialBld)
+                ? (p._discBld.x + p._discBld.w + (p._trialBld.x - p._discBld.x - p._discBld.w) / 2)
+                : 0;
+            p.x = centerX + Math.sin(p._phase + offset) * p._amplitude;
             // Depth simulation: scale and alpha based on cos
             const depth = Math.cos(p._phase + offset);
             p.alpha = 0.4 + depth * 0.4;
             p.scale.set(0.6 + depth * 0.4);
         });
 
-        // ─── MOLECULES: float up, fade, respawn ───
+        // ─── MOLECULES: float up, fade, respawn (respawn origin tracks live building) ───
         this.molecules.forEach(m => {
             if (!m || m.destroyed) return;
             m.x += m._vx;
@@ -151,7 +163,8 @@ const LongevityEnv = {
             m._life--;
             m.alpha = Math.max(0, (m._life / m._maxLife) * 0.6);
             if (m._life <= 0) {
-                m.x = m._originX + (Math.random() - 0.5) * 30;
+                const originX = (m._bld ? m._bld.x : 0) + m._offX;
+                m.x = originX + (Math.random() - 0.5) * 30;
                 m.y = m._originY;
                 m._life = m._maxLife;
                 m._vx = (Math.random() - 0.5) * 0.3;
@@ -160,9 +173,10 @@ const LongevityEnv = {
             }
         });
 
-        // ─── HEARTBEATS: rhythmic pulse (expand + fade) ───
+        // ─── HEARTBEATS: rhythmic pulse (expand + fade; re-anchor x) ───
         this.heartbeats.forEach(pulse => {
             if (!pulse || pulse.destroyed) return;
+            if (pulse._bld) pulse.x = pulse._bld.x + pulse._offX;
             const beat = (fc + pulse._phase) % pulse._beatRate;
             const t = beat / pulse._beatRate;
             // Double-beat pattern: two spikes per cycle
@@ -173,13 +187,14 @@ const LongevityEnv = {
             pulse.alpha = 0.3 + intensity * 0.7;
         });
 
-        // ─── SEQUENCER LEDs: rapid cascade pattern ───
+        // ─── SEQUENCER LEDs: rapid cascade pattern (re-anchor x to live building) ───
         this.sequencerLEDs.forEach(led => {
             if (!led || led.destroyed) return;
+            if (led._bld) led.x = led._bld.x + led._offX;
             led.visible = ((fc + led._phase) % led._rate) < led._rate * 0.5;
         });
 
-        // ─── CRYO VAPOR: slow rise with sway, fade, respawn ───
+        // ─── CRYO VAPOR: slow rise with sway, fade, respawn (respawn tracks building) ───
         this.cryoVapor.forEach(v => {
             if (!v || v.destroyed) return;
             v._sway += 0.02;
@@ -188,7 +203,8 @@ const LongevityEnv = {
             v._life--;
             v.alpha = Math.max(0, (v._life / v._maxLife) * 0.25);
             if (v._life <= 0) {
-                v.x = v._originX + (Math.random() - 0.5) * 15;
+                const originX = (v._bld ? v._bld.x : 0) + v._offX;
+                v.x = originX + (Math.random() - 0.5) * 15;
                 v.y = v._originY;
                 v._life = v._maxLife;
                 v._sway = Math.random() * Math.PI * 2;

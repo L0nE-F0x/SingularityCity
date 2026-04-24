@@ -29,7 +29,11 @@ const VCRowEnv = {
                     g.drawRect(-2, -1, 4, 2);
                 }
                 g.endFill();
-                g.x = bld.x + 20 + Math.random() * (bld.w - 40);
+                // Anchor to building so coins respawn over the right VC HQ even after
+                // re-zoning pushes VC Row east (new labs arriving, tech district growing).
+                g._bld = bld;
+                g._offX = 20 + Math.random() * (bld.w - 40);
+                g.x = bld.x + g._offX;
                 g.y = gy - bldH - 10;
                 g._startY = g.y;
                 g._driftX = (Math.random() - 0.5) * 0.3;
@@ -70,7 +74,7 @@ const VCRowEnv = {
         const dp = G.getDayPhase();
         const isBusinessHours = dp >= 0.33 && dp < 0.75;
 
-        // ─── MONEY PARTICLES (float upward, reset) ───
+        // ─── MONEY PARTICLES (float upward, reset — x re-anchors to live building on respawn) ───
         this.moneyParts.forEach(p => {
             if (!p || p.destroyed) return;
             if (!isBusinessHours) { p.alpha = 0; return; }
@@ -80,6 +84,8 @@ const VCRowEnv = {
             p.rotation += 0.02;
             if (p.y < p._startY - 80) {
                 p.y = p._startY;
+                // Re-anchor to current building x (handles re-zoning)
+                if (p._bld) p.x = p._bld.x + p._offX;
                 p.alpha = 0;
                 p._driftX = (Math.random() - 0.5) * 0.3;
             }
