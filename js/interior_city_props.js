@@ -580,14 +580,186 @@ const InteriorCityProps = {
     drawDeskAndPC(c, x, y, col) {
         const cHex = this._parseCol(col);
         const g = new PIXI.Graphics(); g.eventMode = 'none';
-        g.beginFill(0x33334a); g.drawRect(x-10, y-15, 2, 15); g.drawRect(x+8, y-15, 2, 15); g.endFill();
-        g.beginFill(0x1e293b); g.drawRect(x-12, y-18, 24, 4); g.endFill();
-        g.beginFill(0x0f172a); g.drawRect(x-6, y-28, 12, 10); g.endFill();
+
+        // Deterministic per-desk seed so a given cubicle keeps the same monitor content / clutter.
+        const seed  = (Math.abs(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453)) % 1;
+        const cSeed = (Math.abs(Math.sin(x * 31.41   + y * 27.18 ) * 19283.1   )) % 1;
+
+        // ─── Desk slab + fascia ───
+        g.beginFill(0x1e293b); g.drawRect(x - 18, y - 20, 36, 4); g.endFill();
+        g.beginFill(0x0f172a); g.drawRect(x - 18, y - 16, 36, 1); g.endFill();
+        // Front desk legs
+        g.beginFill(0x33334a);
+        g.drawRect(x - 16, y - 15, 2, 13);
+        g.drawRect(x + 14, y - 15, 2, 13);
+        g.endFill();
+
+        // ─── Drawer pedestal under desk (right) ───
+        g.beginFill(0x252538); g.drawRect(x + 5, y - 15, 11, 13); g.endFill();
+        g.beginFill(0x1a1a2a);
+        g.drawRect(x + 5, y - 11, 11, 1);
+        g.drawRect(x + 5, y - 7,  11, 1);
+        g.endFill();
+        g.beginFill(0xcbd5e1);
+        g.drawRect(x + 9, y - 13, 3, 1);
+        g.drawRect(x + 9, y - 9,  3, 1);
+        g.endFill();
+
+        // ─── Dual monitor stands ───
+        g.beginFill(0x0f172a);
+        g.drawRect(x - 8, y - 22, 6, 2);
+        g.drawRect(x + 2, y - 22, 6, 2);
+        g.endFill();
+        g.beginFill(0x33334a);
+        g.drawRect(x - 6, y - 24, 2, 2);
+        g.drawRect(x + 4, y - 24, 2, 2);
+        g.endFill();
+
+        // ─── Monitor bezels ───
+        g.beginFill(0x0a0a14);
+        g.drawRect(x - 14, y - 33, 12, 11);
+        g.drawRect(x + 2,  y - 33, 12, 11);
+        g.endFill();
+        g.beginFill(0x000005);
+        g.drawRect(x - 13, y - 32, 10, 9);
+        g.drawRect(x + 3,  y - 32, 10, 9);
+        g.endFill();
+
+        // ─── Screen content (chart / code / dashboard) ───
+        const mode = seed < 0.34 ? 'chart' : seed < 0.67 ? 'code' : 'dashboard';
+
+        if (mode === 'chart') {
+            // Left: bar chart in lab color
+            for (let i = 0; i < 5; i++) {
+                const bh = 1 + ((i * 17 + Math.floor(seed * 100)) % 7);
+                g.beginFill(cHex, 0.75);
+                g.drawRect(x - 12 + i * 2, y - 24 - bh, 1, bh);
+                g.endFill();
+            }
+            // Right: tiny line graph
+            g.lineStyle(1, 0x4ade80, 0.7);
+            let pX = x + 4, pY = y - 27;
+            for (let i = 1; i < 7; i++) {
+                const nX = x + 4 + i * 1.4;
+                const nY = y - 24 - ((i * 3 + Math.floor(seed * 17)) % 6);
+                g.moveTo(pX, pY); g.lineTo(nX, nY);
+                pX = nX; pY = nY;
+            }
+            g.lineStyle(0);
+        } else if (mode === 'code') {
+            // Left: indented code lines (blue / green / yellow tokens)
+            for (let i = 0; i < 6; i++) {
+                const lw = 3 + ((i * 7 + Math.floor(seed * 50)) % 6);
+                const indent = (i % 3) * 1.5;
+                const lcol = i % 3 === 0 ? 0x60a5fa : i % 3 === 1 ? 0x86efac : 0xfde68a;
+                g.beginFill(lcol, 0.65);
+                g.drawRect(x - 12 + indent, y - 31 + i * 1.5, lw, 0.8);
+                g.endFill();
+            }
+            // Right: side panel + code
+            g.beginFill(0x1e293b, 0.6); g.drawRect(x + 3, y - 31, 2.5, 8); g.endFill();
+            for (let i = 0; i < 5; i++) {
+                const lw = 3 + ((i * 11 + Math.floor(seed * 40)) % 5);
+                g.beginFill(0xc4b5fd, 0.6);
+                g.drawRect(x + 6.5, y - 30 + i * 1.6, lw, 0.8);
+                g.endFill();
+            }
+        } else {
+            // Left: terminal prompt rows
+            for (let i = 0; i < 5; i++) {
+                g.beginFill(0x22c55e, 0.6);
+                g.drawRect(x - 12, y - 30 + i * 1.7, 1, 0.8);
+                g.drawRect(x - 10, y - 30 + i * 1.7, 3 + ((i + Math.floor(seed * 13)) % 5), 0.8);
+                g.endFill();
+            }
+            // Right: dashboard tiles
+            const tCols = [cHex, 0xf472b6, 0x22d3ee, 0xfacc15];
+            for (let i = 0; i < 4; i++) {
+                g.beginFill(tCols[i], 0.55);
+                g.drawRect(x + 4 + (i % 2) * 5, y - 31 + Math.floor(i / 2) * 4, 4, 3);
+                g.endFill();
+            }
+        }
+
+        // ─── Keyboard + key dots ───
+        g.beginFill(0x0f172a); g.drawRect(x - 9, y - 22, 12, 2); g.endFill();
+        g.beginFill(0x1e293b); g.drawRect(x - 9, y - 22, 12, 0.5); g.endFill();
+        for (let kx = -8; kx < 3; kx += 2) {
+            g.beginFill(0x475569, 0.7);
+            g.drawRect(x + kx, y - 21, 1, 0.5);
+            g.endFill();
+        }
+
+        // ─── Mousepad + mouse ───
+        g.beginFill(0x33334a, 0.6); g.drawRect(x + 4,  y - 22, 8, 2  ); g.endFill();
+        g.beginFill(0x0f172a);      g.drawRect(x + 7,  y - 22, 3, 1.5); g.endFill();
+
+        // ─── Clutter (deterministic per-desk) ───
+        if (cSeed > 0.30) {
+            // Mug — red / amber / white ceramic
+            const mugCol = cSeed > 0.66 ? 0xe11d48 : cSeed > 0.45 ? 0xf59e0b : 0xf1f5f9;
+            g.beginFill(mugCol);          g.drawRect(x - 17, y - 23, 3, 3); g.endFill();
+            g.beginFill(0x000000, 0.35);  g.drawRect(x - 14, y - 22, 1, 1.5); g.endFill();
+            if (cSeed > 0.7) {
+                g.beginFill(0xffffff, 0.3); g.drawCircle(x - 15.5, y - 26, 0.8); g.endFill();
+            }
+        }
+        if (cSeed > 0.55) {
+            // Sticky note on monitor edge
+            g.beginFill(0xfde68a); g.drawRect(x - 2, y - 26, 2.5, 2); g.endFill();
+        }
+        if (cSeed > 0.40 && cSeed < 0.70) {
+            // Paper stack
+            g.beginFill(0xf1f5f9); g.drawRect(x - 5, y - 21, 5, 1); g.endFill();
+            g.beginFill(0x94a3b8, 0.55); g.drawRect(x - 4, y - 20.5, 3, 0.4); g.endFill();
+        }
+        if (cSeed > 0.62) {
+            // Tiny desk plant on right corner
+            g.beginFill(0x854d0e); g.drawRect (x + 14, y - 22, 3, 2  ); g.endFill();
+            g.beginFill(0x166534); g.drawCircle(x + 15, y - 23, 1.5); g.endFill();
+            g.beginFill(0x22c55e); g.drawCircle(x + 16, y - 24, 1.2); g.endFill();
+        }
+        if (cSeed > 0.85) {
+            // Headphones hanging on left monitor
+            g.lineStyle(1, 0x1e293b, 1);
+            g.drawCircle(x - 8, y - 33, 2);
+            g.lineStyle(0);
+            g.beginFill(0x1e293b); g.drawCircle(x - 8, y - 31, 1); g.endFill();
+        }
+
+        // ─── Cable to floor ───
+        g.beginFill(0x111118, 0.6); g.drawRect(x - 4, y - 22, 0.6, 6); g.endFill();
+
+        // ─── Screen glow (lab-color tinted, ties to indoor light system) ───
         const glow = new PIXI.Graphics();
-        glow.beginFill(cHex, 0.4); glow.drawRect(x-5, y-27, 10, 8); glow.endFill();
-        glow.blendMode = PIXI.BLEND_MODES.ADD; c.addChild(g, glow);
+        glow.beginFill(cHex, 0.35);
+        glow.drawRect(x - 13, y - 32, 10, 9);
+        glow.drawRect(x + 3,  y - 32, 10, 9);
+        glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+
+        c.addChild(g, glow);
         if (!this.indoorLights) this.indoorLights = [];
         this.indoorLights.push({ g: glow, maxA: 0.6, type: 'screen' });
+    },
+
+    // Cubicle privacy divider — sits between adjacent desks to make a row of desks
+    // read as a proper bullpen of cubicles. Drawn in a cool office-fabric tone.
+    drawCubicleDivider(c, x, y) {
+        const g = new PIXI.Graphics(); g.eventMode = 'none';
+        // Panel
+        g.beginFill(0x3a4a5e); g.drawRect(x - 1, y - 28, 2, 28); g.endFill();
+        // Top trim
+        g.beginFill(0x64748b); g.drawRect(x - 2, y - 29, 4, 2); g.endFill();
+        // Subtle vertical fabric texture
+        g.beginFill(0x2a3647, 0.6);
+        for (let dy = -26; dy < 0; dy += 4) {
+            g.drawRect(x - 1, y + dy, 0.5, 2);
+        }
+        g.endFill();
+        // Foot/base
+        g.beginFill(0x1e293b); g.drawRect(x - 3, y - 1, 6, 1); g.endFill();
+        c.addChild(g);
     },
 
     drawCollaborationPod(c, x, y, col) {

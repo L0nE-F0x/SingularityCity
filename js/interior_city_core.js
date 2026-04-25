@@ -192,12 +192,14 @@ const InteriorCity = {
             } else if (bld.id === 'neon_bar') {
                 const barThemes = ['bar_lounge', 'bar_karaoke', 'bar_vip'];
                 floorTheme = barThemes[f % 3];
-            } else if (f === 1) floorTheme = 'arcade';
-            else if (f === 2) floorTheme = 'server_core';
-            else if (f === 3 && !isCeo) floorTheme = 'zen_garden';
-            else if (f > 3 && !isCeo) {
-                const themes = ['general', 'arcade', 'server_core', 'zen_garden'];
-                floorTheme = themes[f % 4];
+            } else if (isHQ && !isCeo) {
+                // Cubicle workspace ('general') is the default for an AI lab.
+                // Reserve exactly one fun floor (arcade) and one wellness floor (zen_garden) per HQ;
+                // every other non-CEO floor is cubicles. server_core moves to basement-only territory.
+                const topNonCeoFloor = numFloors - 2;
+                if (f === 1) floorTheme = 'arcade';
+                else if (f === topNonCeoFloor && topNonCeoFloor >= 3) floorTheme = 'zen_garden';
+                else floorTheme = 'general';
             }
             
             this.floors[f] = { y: fy + floorH - 4, elevatorX: shaftX + 15, breakSpots: [] };
@@ -412,21 +414,24 @@ const InteriorCity = {
                         
                         while (currX < this.startX + this.usableW - 130) {
                             let r = Math.random();
-                            if (r < 0.55) { 
-                                this.drawChair(floorCont, currX + 10, fy + floorH - 4); 
-                                this.drawDeskAndPC(floorCont, currX + 34, fy + floorH - 4, colHex); 
-                                currX += 55; 
-                            } else if (r < 0.70) { 
-                                this.drawCollaborationPod(floorCont, currX + 25, fy + floorH - 4, colHex); 
-                                this.floors[f].breakSpots.push(currX + 25); 
-                                currX += 50; 
-                            } else if (r < 0.85) { 
-                                this.drawLoungeNook(floorCont, currX + 30, fy + floorH - 4, colHex); 
-                                this.floors[f].breakSpots.push(currX + 30); 
-                                currX += 60; 
-                            } else { 
-                                this.drawBiophilicDivider(floorCont, currX + 15, fy + floorH - 4); 
-                                currX += 30; 
+                            if (r < 0.78) {
+                                // Cubicle: divider on the left edge → chair → desk-and-PC.
+                                // Back-to-back desks share dividers, producing a proper bullpen row.
+                                this.drawCubicleDivider(floorCont, currX + 4, fy + floorH - 4);
+                                this.drawChair(floorCont, currX + 10, fy + floorH - 4);
+                                this.drawDeskAndPC(floorCont, currX + 34, fy + floorH - 4, colHex);
+                                currX += 55;
+                            } else if (r < 0.86) {
+                                this.drawCollaborationPod(floorCont, currX + 25, fy + floorH - 4, colHex);
+                                this.floors[f].breakSpots.push(currX + 25);
+                                currX += 50;
+                            } else if (r < 0.94) {
+                                this.drawLoungeNook(floorCont, currX + 30, fy + floorH - 4, colHex);
+                                this.floors[f].breakSpots.push(currX + 30);
+                                currX += 60;
+                            } else {
+                                this.drawBiophilicDivider(floorCont, currX + 15, fy + floorH - 4);
+                                currX += 30;
                             }
                         }
                     }
