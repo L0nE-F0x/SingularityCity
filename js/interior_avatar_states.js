@@ -645,23 +645,56 @@ const InteriorAvatarStates = {
                             this.spawnBubble(av, ["Leveling my starter...", "Match point.", "Decompressing.", "High score!"][Math.floor(Math.random()*4)]);
                         }
                     } else {
+                        // Default 'general' (cubicle) workspace — avatar sits at their desk.
                         av.cont.x = av.deskX;
                         av.cont.y = av.floorY;
-                        av.cont.scale.x = 1;
-                        av.head.y = -32 + 4 + Math.sin(G.tick * 0.15 + i) * 1.5;
-                        av.body.y = -32 + 12 + 4 + (Math.sin(G.tick * 0.15 + i) * 1.5 * 0.5);
-                        if (av.legL && av.legR) {
-                            av.legL.y = 0;
-                            av.legR.y = 0;
+                        av.cont.scale.x = 1; // face the monitors to the right
+
+                        if (av.isSeated) {
+                            // Sit pose: body lower, legs folded back like CEO seated pose.
+                            av.head.y = -32 + 6 + Math.sin(G.tick * 0.10 + i) * 1.2;
+                            av.body.y = -32 + 14;
+                            if (av.legL && av.legR) {
+                                av.legL.rotation = -Math.PI / 2;
+                                av.legR.rotation = -Math.PI / 2;
+                                av.legL.y = -4;
+                                av.legR.y = -4;
+                            }
+                        } else {
+                            // Standing fallback for non-seat floors / leftover avatars.
+                            av.head.y = -32 + 4 + Math.sin(G.tick * 0.15 + i) * 1.5;
+                            av.body.y = -32 + 12 + 4 + (Math.sin(G.tick * 0.15 + i) * 1.5 * 0.5);
+                            if (av.legL && av.legR) {
+                                av.legL.rotation = 0;
+                                av.legR.rotation = 0;
+                                av.legL.y = 0;
+                                av.legR.y = 0;
+                            }
                         }
 
                         if (Math.random() < 0.002 && this.bubbles.length < 15) {
                             this.spawnBubble(av);
                         }
-                        if (Math.random() < 0.0005) {
-                            const props = this.floors[av.floorIdx].breakSpots;
-                            av.targetX = props.length > 0 ? props[Math.floor(Math.random() * props.length)] : leftWall + Math.random() * (rightWall - leftWall);
+
+                        // Scheduled break: every ~30–90s, get up and head somewhere fun
+                        // (water cooler / canteen / collab pod / lounge nook). The
+                        // nextBreakTick is set when the avatar is created and re-rolled
+                        // each time they return from a break.
+                        if (typeof av.nextBreakTick === 'number' && G.tick >= av.nextBreakTick) {
+                            const props = this.floors[av.floorIdx] && this.floors[av.floorIdx].breakSpots;
+                            av.targetX = (props && props.length > 0)
+                                ? props[Math.floor(Math.random() * props.length)]
+                                : leftWall + Math.random() * (rightWall - leftWall);
+                            // Reset seated leg rotation BEFORE walking, otherwise legs
+                            // remain folded sideways and the avatar moonwalks to coffee.
+                            if (av.legL && av.legR) {
+                                av.legL.rotation = 0;
+                                av.legR.rotation = 0;
+                                av.legL.y = 0;
+                                av.legR.y = 0;
+                            }
                             av.state = 'walking_to_prop';
+                            av.nextBreakTick = G.tick + 9999999; // re-rolled in 'returning'
                         }
                     }
                     break;
@@ -783,6 +816,34 @@ const InteriorAvatarStates = {
                     break;
                 }
 
+                case 'at_prop': {
+                    // Standing at a break spot (water cooler, canteen, lounge, collab pod).
+                    // Idle bob, occasional speech bubble, then head back.
+                    av.cont.y = av.floorY;
+                    av.head.y = -32 + 4 + Math.sin(G.tick * 0.05 + i) * 1;
+                    av.body.y = -32 + 12 + 4;
+                    if (av.legL && av.legR) {
+                        av.legL.rotation = 0;
+                        av.legR.rotation = 0;
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
+                    if (Math.random() < 0.003 && this.bubbles.length < 10) {
+                        const breakChats = [
+                            "\u2615 Refilling.", "Brain reset.", "Quick stretch.",
+                            "Need caffeine.", "Hot take incoming.", "Did you see the leaderboard?",
+                            "Compute is up today.", "Back in five."
+                        ];
+                        this.spawnBubble(av, breakChats[Math.floor(Math.random() * breakChats.length)]);
+                    }
+                    av.timer--;
+                    if (av.timer <= 0) {
+                        av.state = 'returning';
+                        av.targetX = av.deskX;
+                    }
+                    break;
+                }
+
                 case 'walking_to_prop':
                 case 'returning': {
                     this.animateWalk(av);
@@ -802,6 +863,8 @@ const InteriorAvatarStates = {
                                        this.bld.id === 'graveyard' ? 'resting' :
                                        (this.bld.id === 'open_square' || this.bld.id === 'os_hub') ? 'collaborating' :
                                        'working';
+                            // Re-roll the next break: sit for another 30s\u201390s.
+                            av.nextBreakTick = G.tick + 1800 + Math.floor(Math.random() * 3600);
                         }
                     } else {
                         av.cont.x += Math.sign(distProp) * av.speed;

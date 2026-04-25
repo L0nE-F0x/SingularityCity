@@ -431,6 +431,10 @@ const InteriorCityAI = {
         av.head.y = -32 + 4 + Math.sin(G.tick * 0.12) * 1.5;
         av.body.y = -32 + 12 + 4 + Math.abs(Math.sin(G.tick * 0.12)) * 1.5;
         if (av.legL && av.legR) {
+            // Always clear seated leg rotation before walking, otherwise an avatar
+            // that gets up from a desk drags folded legs sideways.
+            av.legL.rotation = 0;
+            av.legR.rotation = 0;
             av.legL.y = Math.sin(G.tick * 0.15) * 2.5;
             av.legR.y = -Math.sin(G.tick * 0.15) * 2.5;
         }

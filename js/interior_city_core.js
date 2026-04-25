@@ -202,7 +202,7 @@ const InteriorCity = {
                 else floorTheme = 'general';
             }
             
-            this.floors[f] = { y: fy + floorH - 4, elevatorX: shaftX + 15, breakSpots: [] };
+            this.floors[f] = { y: fy + floorH - 4, elevatorX: shaftX + 15, breakSpots: [], cubicleSeats: [] };
             
             const roomGfx = new PIXI.Graphics();
             if (['arena', 'graveyard'].includes(bld.id)) {
@@ -420,6 +420,8 @@ const InteriorCity = {
                                 this.drawCubicleDivider(floorCont, currX + 4, fy + floorH - 4);
                                 this.drawChair(floorCont, currX + 10, fy + floorH - 4);
                                 this.drawDeskAndPC(floorCont, currX + 34, fy + floorH - 4, colHex);
+                                // Worker sits on the chair, facing the monitors to their right.
+                                this.floors[f].cubicleSeats.push(currX + 10);
                                 currX += 55;
                             } else if (r < 0.86) {
                                 this.drawCollaborationPod(floorCont, currX + 25, fy + floorH - 4, colHex);
@@ -441,11 +443,22 @@ const InteriorCity = {
                     floorModelsQueue.forEach((m, idx) => {
                         const refs = G.charRefs[m.id];
                         if (refs && refs.bld === bld.id) {
-                            let deskX = this.startX + 80 + (idx * 40);
+                            // Snap onto an actual cubicle seat when this floor has them
+                            // (general-theme floors). Falls back to the old 40px grid for
+                            // arcade / zen / server floors that have no chairs to sit in.
+                            const seats = this.floors[f].cubicleSeats;
+                            const isSeated = floorTheme === 'general' && seats.length > 0;
+                            const deskX = isSeated
+                                ? seats[idx % seats.length]
+                                : this.startX + 80 + (idx * 40);
                             let av = this.drawAvatar(m, deskX, fy + floorH - 4, floorCont, f, false);
-                            av.jobTheme = floorTheme; 
+                            av.jobTheme = floorTheme;
                             av.deskX = deskX;
-                            av.floorY = fy + floorH - 4; 
+                            av.floorY = fy + floorH - 4;
+                            av.isSeated = isSeated;
+                            // Stagger the first wander so a freshly-loaded floor doesn't all
+                            // get up at once. 30s–90s before the first break.
+                            av.nextBreakTick = G.tick + 1800 + Math.floor(Math.random() * 3600);
 
                             if (refs.wantsToEnter) { 
                                 av.state = 'entering_lobby'; 
