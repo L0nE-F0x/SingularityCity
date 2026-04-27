@@ -62,38 +62,56 @@ const SpaceEntities = {
         flame.visible = false;
         flame.zIndex = 5;
         cont.addChild(flame);
-        
-        // Countdown text
+
+        // Pre-launch beacon (rotating red light at top of tower) — drawn in pad-relative space
+        const beacon = new PIXI.Graphics();
+        beacon.visible = false;
+        beacon.zIndex = 12;
+        cont.addChild(beacon);
+
+        // Spotlight cone behind rocket — visible during prep/countdown/ignition
+        const spotlight = new PIXI.Graphics();
+        spotlight.visible = false;
+        spotlight.zIndex = 2;
+        spotlight.blendMode = PIXI.BLEND_MODES.ADD;
+        cont.addChild(spotlight);
+
+        // Countdown text — bigger, with stroke for readability, floats above the rocket nose
         const countdownTxt = new PIXI.Text('', {
             fontFamily: '"JetBrains Mono", monospace',
-            fontSize: 8,
+            fontSize: 11,
             fill: 0x22d3ee,
             fontWeight: 'bold',
-            align: 'center'
+            align: 'center',
+            stroke: 0x000000,
+            strokeThickness: 3
         });
-        countdownTxt.anchor.set(0.5, 0);
-        countdownTxt.y = 10;
+        countdownTxt.anchor.set(0.5, 1);
+        countdownTxt.y = -70; // above rocket nose
         countdownTxt.zIndex = 20;
         cont.addChild(countdownTxt);
-        
+
         // Position on pad
         const towerX = padBld.w / 2 - 8;
         const rocketLocalX = towerX + 28;
         const padH = (padBld.dynamicFl || padBld.fl || 1) * 18 + 24;
-        
+
         cont.x = padBld.x + rocketLocalX;
         cont.y = G.groundY - 24 - 8; // sits on pad surface
-        
+
         this.layer.addChild(cont);
-        
+
         const rocket = {
             padId: padBld.id,
             org: padBld.org,
             cont,
             body,
             flame,
+            beacon,
+            spotlight,
             countdownTxt,
-            state: 'idle',   // idle | countdown | ignition | liftoff | ascending | orbit | resetting
+            // idle | preparation | countdown | ignition | liftoff | ascending | orbit | resetting
+            state: 'idle',
             timer: 0,
             launchData: null, // matched launch from API
             baseY: cont.y,
@@ -102,7 +120,7 @@ const SpaceEntities = {
             shakeIntensity: 0,
             trailParticles: []
         };
-        
+
         this.rockets[padBld.id] = rocket;
         this.countdownTexts[padBld.id] = countdownTxt;
     },
@@ -110,47 +128,79 @@ const SpaceEntities = {
     // ─── Match real launches to pads ───
     matchLaunchesToPads() {
         if (typeof SpaceData === 'undefined' || !SpaceData.launches.length) return;
-        
+
         const now = new Date();
-        
+
         Object.values(this.rockets).forEach(r => {
-            if (r.state !== 'idle') return; // don't reassign mid-sequence
-            
-            // Find the next upcoming launch for this org (or one that just happened within 5 min)
+            // Skip if mid-flight — don't reassign once a launch is in progress
+            const inFlight = ['ignition', 'liftoff', 'ascending', 'orbit', 'resetting'].includes(r.state);
+            if (inFlight) return;
+
             const orgKey = r.org;
             const match = SpaceData.launches.find(l => {
                 const provider = SpaceData.getOrgForProvider(l.provider);
                 const diff = new Date(l.net) - now;
-                return provider === orgKey && diff > -300000; // within 5 minutes past or any future
+                return provider === orgKey && diff > -300000; // future or within 5 min past
             });
-            
-            if (match) {
-                r.launchData = match;
-                const diff = new Date(match.net) - now;
-                
-                // Launch just passed (within 5 min) — trigger immediately
-                if (diff <= 0 && diff > -300000 && !r._launchTriggered) {
-                    r._launchTriggered = match.id;
-                    this.triggerLaunch(r.padId);
-                }
-                // Launch within 2 minutes — start countdown
-                else if (diff < 120000 && diff > 0) {
-                    r.state = 'countdown';
-                    r.timer = Math.floor(diff / 1000) * 60; // convert seconds to frames (60fps)
-                }
+
+            if (!match) {
+                // No match — return to idle baseline
+                if (r.state !== 'idle') r.state = 'idle';
+                r.launchData = null;
+                return;
+            }
+
+            r.launchData = match;
+            const diff = new Date(match.net) - now;
+
+            // Already-launched (NET in past, within 5 min): trigger if we haven't for THIS launch id
+            if (diff <= 0 && diff > -300000 && r._launchTriggered !== match.id) {
+                r._launchTriggered = match.id;
+                this.triggerLaunch(r.padId);
+                return;
+            }
+
+            // T-1:00 → countdown state (final 60 seconds, intense shake, smoke begins)
+            if (diff > 0 && diff <= 60000 && r.state !== 'countdown') {
+                r.state = 'countdown';
+                r.timer = Math.floor(diff / 1000) * 60;
+                this.notifyImminent(match, '1 minute');
+                return;
+            }
+
+            // T-5:00 → preparation state (visible zone activity, vapor, beacon)
+            if (diff > 60000 && diff <= 300000 && r.state !== 'preparation' && r.state !== 'countdown') {
+                r.state = 'preparation';
+                r.timer = 0;
+                this.notifyImminent(match, '5 minutes');
+                return;
             }
         });
+    },
+
+    // ─── Toast user about imminent launch (deduped per launch id + label) ───
+    notifyImminent(launch, label) {
+        if (!this._notified) this._notified = {};
+        const key = launch.id + '|' + label;
+        if (this._notified[key]) return;
+        this._notified[key] = true;
+        if (typeof UI !== 'undefined') {
+            UI.addToast(`🚀 T-${label} · ${launch.name} · head to Space Zone`);
+        }
     },
     
     // ─── Manual launch trigger (for demo / when API reports T-0) ───
     triggerLaunch(padId) {
         const r = this.rockets[padId];
-        if (!r || (r.state !== 'idle' && r.state !== 'countdown')) return;
-        
+        if (!r) return;
+        // Only block if mid-flight; allow from idle/preparation/countdown
+        const blocked = ['ignition', 'liftoff', 'ascending', 'orbit', 'resetting'].includes(r.state);
+        if (blocked) return;
+
         r.state = 'ignition';
         r.timer = 180; // 3 seconds of ignition before liftoff
         r.shakeIntensity = 2;
-        
+
         const org = SPACE_ORGS[r.org];
         if (typeof UI !== 'undefined') {
             const name = r.launchData ? r.launchData.name : `${org.name} Launch`;
@@ -262,13 +312,17 @@ const SpaceEntities = {
         // Update each rocket
         Object.values(this.rockets).forEach(r => {
             switch (r.state) {
-                case 'idle':
+                case 'idle': {
                     r.cont.x = r.baseX;
                     r.cont.y = r.baseY;
+                    r.cont.scale.set(1);
+                    r.cont.alpha = 1;
+                    r.cont.visible = true;
                     r.body.visible = true;
                     r.flame.visible = false;
-                    
-                    // Show countdown if launch data exists
+                    r.beacon.visible = false;
+                    r.spotlight.visible = false;
+
                     if (r.launchData) {
                         const cd = SpaceData.getCountdown(r.launchData);
                         if (cd) {
@@ -280,114 +334,201 @@ const SpaceEntities = {
                         r.countdownTxt.style.fill = 0x475569;
                     }
                     break;
-                    
-                case 'countdown':
+                }
+
+                case 'preparation': {
+                    r.timer++;
+                    r.cont.x = r.baseX;
+                    r.cont.y = r.baseY;
+                    r.cont.scale.set(1);
+                    r.cont.alpha = 1;
+                    r.body.visible = true;
+                    r.flame.visible = false;
+
+                    // Live countdown text — yellow during preparation
+                    const cd = r.launchData ? SpaceData.getCountdown(r.launchData) : null;
+                    r.countdownTxt.text = cd || 'PREP';
+                    r.countdownTxt.style.fill = 0xfbbf24;
+
+                    // Rotating beacon at top of tower (red, slow strobe)
+                    r.beacon.visible = true;
+                    const pulse = 0.4 + 0.6 * Math.abs(Math.sin(G.tick * 0.06));
+                    r.beacon.clear();
+                    r.beacon.beginFill(0xef4444, pulse);
+                    r.beacon.drawCircle(-12, -68, 3);
+                    r.beacon.endFill();
+                    r.beacon.beginFill(0xef4444, pulse * 0.3);
+                    r.beacon.drawCircle(-12, -68, 6);
+                    r.beacon.endFill();
+
+                    // Soft spotlight halo around rocket base
+                    r.spotlight.visible = true;
+                    r.spotlight.clear();
+                    r.spotlight.beginFill(0xfbbf24, 0.08 + 0.04 * Math.sin(G.tick * 0.05));
+                    r.spotlight.drawEllipse(0, 4, 30, 14);
+                    r.spotlight.endFill();
+
+                    // Vapor venting at base — slow, sparse white puffs
+                    if (G.tick % 25 === 0) {
+                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 10, r.baseY - 6, 'smoke', 0xe2e8f0);
+                    }
+
+                    // Transition to countdown if NET drops under 60 sec
+                    if (r.launchData) {
+                        const diff = new Date(r.launchData.net) - new Date();
+                        if (diff <= 60000 && diff > 0) {
+                            r.state = 'countdown';
+                            r.timer = Math.floor(diff / 1000) * 60;
+                            this.notifyImminent(r.launchData, '1 minute');
+                        } else if (diff <= 0 && diff > -300000 && r._launchTriggered !== r.launchData.id) {
+                            r._launchTriggered = r.launchData.id;
+                            this.triggerLaunch(r.padId);
+                        }
+                    }
+                    break;
+                }
+
+                case 'countdown': {
                     r.timer--;
-                    const secs = Math.ceil(r.timer / 60);
+                    const secs = Math.max(0, Math.ceil(r.timer / 60));
                     r.countdownTxt.text = `T-${secs}s`;
                     r.countdownTxt.style.fill = secs < 10 ? 0xef4444 : 0xfbbf24;
-                    
-                    // Pad shaking increases as countdown nears zero
-                    if (secs < 30) {
-                        r.cont.x = r.baseX + (Math.random() - 0.5) * (30 - secs) * 0.05;
+
+                    // Shake increases as we approach zero
+                    const shake = (60 - secs) * 0.06;
+                    r.cont.x = r.baseX + (Math.random() - 0.5) * shake;
+                    r.cont.alpha = 1;
+
+                    // Fast strobe beacon
+                    r.beacon.visible = true;
+                    const stroboscope = (G.tick % 20 < 10) ? 1 : 0.2;
+                    r.beacon.clear();
+                    r.beacon.beginFill(0xef4444, stroboscope);
+                    r.beacon.drawCircle(-12, -68, 4);
+                    r.beacon.endFill();
+
+                    // Glowing red spotlight
+                    r.spotlight.visible = true;
+                    r.spotlight.clear();
+                    r.spotlight.beginFill(0xef4444, 0.15 + 0.1 * Math.sin(G.tick * 0.2));
+                    r.spotlight.drawEllipse(0, 4, 36, 16);
+                    r.spotlight.endFill();
+
+                    // Heavier vapor + occasional flame puff at base
+                    if (G.tick % 5 === 0) {
+                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 14, r.baseY - 4, 'smoke', 0xcbd5e1);
                     }
-                    
+                    if (secs < 15 && G.tick % 8 === 0) {
+                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 6, r.baseY, 'flame', 0xfbbf24);
+                    }
+
                     if (r.timer <= 0) {
                         r.state = 'ignition';
-                        r.timer = 180; // 3 seconds at 60fps
+                        r.timer = 180;
                         r.shakeIntensity = 2;
                     }
                     break;
-                    
-                case 'ignition':
+                }
+
+                case 'ignition': {
                     r.timer--;
                     r.countdownTxt.text = 'IGNITION';
                     r.countdownTxt.style.fill = 0xef4444;
-                    
-                    // Shake the rocket
+
                     r.cont.x = r.baseX + (Math.random() - 0.5) * r.shakeIntensity;
                     r.shakeIntensity = Math.min(4, r.shakeIntensity + 0.02);
-                    
-                    // Draw growing flame
+
                     const ignitionProgress = 1 - (r.timer / 180);
-                    this.drawFlame(r, ignitionProgress * 2);
-                    
-                    // Spawn smoke and flame particles
+                    this.drawFlame(r, ignitionProgress * 2.2);
+
+                    // Massive smoke plume + flame jets
                     if (G.tick % 2 === 0) {
-                        this.spawnParticle(r.cont.x + (Math.random()-0.5)*8, r.baseY + 4, 'smoke', 0x94a3b8);
-                        this.spawnParticle(r.cont.x + (Math.random()-0.5)*4, r.baseY, 'flame', 0xfbbf24);
+                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 18, r.baseY + 4, 'smoke', 0x94a3b8);
+                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 8, r.baseY, 'flame', 0xfbbf24);
                     }
-                    
+                    if (G.tick % 3 === 0) {
+                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 24, r.baseY + 2, 'smoke', 0xe5e7eb);
+                    }
+
+                    // Spotlight blazing
+                    r.spotlight.visible = true;
+                    r.spotlight.clear();
+                    r.spotlight.beginFill(0xef4444, 0.4 + 0.2 * Math.sin(G.tick * 0.4));
+                    r.spotlight.drawEllipse(0, 4, 40, 18);
+                    r.spotlight.endFill();
+                    r.beacon.visible = false;
+
                     if (r.timer <= 0) {
                         r.state = 'liftoff';
                         r.timer = 0;
-                        r.ascentSpeed = 0.3;
+                        r.ascentSpeed = 0.4;
+                        r.spotlight.visible = false;
                         if (typeof G !== 'undefined') G.unlockAchieve('rocket_scientist');
                     }
                     break;
-                    
-                case 'liftoff':
+                }
+
+                case 'liftoff': {
                     r.timer++;
-                    r.countdownTxt.text = `T+${Math.floor(r.timer/60)}s`;
+                    r.countdownTxt.text = `T+${Math.floor(r.timer / 60)}s`;
                     r.countdownTxt.style.fill = 0x4ade80;
-                    
-                    // Accelerate upward
-                    r.ascentSpeed = Math.min(4, r.ascentSpeed + 0.015);
+
+                    // Steady acceleration upward
+                    r.ascentSpeed = Math.min(6, r.ascentSpeed + 0.04);
                     r.cont.y -= r.ascentSpeed;
-                    
-                    // Reduce shake as it clears the tower
+
                     r.shakeIntensity = Math.max(0, r.shakeIntensity - 0.02);
                     r.cont.x = r.baseX + (Math.random() - 0.5) * r.shakeIntensity;
-                    
-                    // Full flame
-                    this.drawFlame(r, 2 + Math.sin(G.tick * 0.2) * 0.5);
-                    
-                    // Heavy smoke at base
+
+                    this.drawFlame(r, 2.4 + Math.sin(G.tick * 0.2) * 0.5);
+
+                    // Heavy smoke at pad + flame at exhaust
                     if (G.tick % 2 === 0) {
-                        this.spawnParticle(r.cont.x + (Math.random()-0.5)*12, r.baseY + 4, 'smoke', 0x94a3b8);
-                        this.spawnParticle(r.cont.x + (Math.random()-0.5)*6, r.cont.y + 4, 'flame', 
+                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 16, r.baseY + 4, 'smoke', 0x94a3b8);
+                        this.spawnParticle(r.cont.x + (Math.random() - 0.5) * 6, r.cont.y + 4, 'flame',
                             Math.random() > 0.5 ? 0xfbbf24 : 0xef4444);
                     }
-                    // Exhaust trail
-                    if (G.tick % 4 === 0) {
-                        this.spawnParticle(r.cont.x + (Math.random()-0.5)*3, r.cont.y + 2, 'smoke', 0xffffff);
+                    if (G.tick % 3 === 0) {
+                        this.spawnParticle(r.cont.x + (Math.random() - 0.5) * 4, r.cont.y + 2, 'smoke', 0xffffff);
                     }
-                    
-                    // Switch to ascending after clearing frame
-                    if (r.cont.y < r.baseY - 120) {
+
+                    // Switch to ascending once clear of the gantry
+                    if (r.cont.y < r.baseY - 200) {
                         r.state = 'ascending';
                     }
                     break;
-                    
-                case 'ascending':
+                }
+
+                case 'ascending': {
                     r.timer++;
-                    r.countdownTxt.text = `T+${Math.floor(r.timer/60)}s`;
-                    
-                    // Continue acceleration, start shrinking
-                    r.ascentSpeed = Math.min(6, r.ascentSpeed + 0.01);
+                    r.countdownTxt.text = `T+${Math.floor(r.timer / 60)}s`;
+
+                    // Keep accelerating, no shrinking — feels like it's leaving Earth
+                    r.ascentSpeed = Math.min(16, r.ascentSpeed + 0.06);
                     r.cont.y -= r.ascentSpeed;
-                    
-                    const ascentProgress = Math.min(1, (r.baseY - r.cont.y - 120) / 300);
-                    r.cont.scale.set(1 - ascentProgress * 0.7);
-                    r.cont.alpha = 1 - ascentProgress * 0.8;
-                    
-                    // Diminishing flame and trail
-                    if (ascentProgress < 0.7) {
-                        this.drawFlame(r, 1.5 * (1 - ascentProgress));
-                        if (G.tick % 6 === 0) {
-                            this.spawnParticle(r.cont.x, r.cont.y + 2, 'smoke', 0xffffff);
-                        }
-                    } else {
-                        r.flame.visible = false;
+
+                    const altitude = r.baseY - r.cont.y;
+
+                    // Only fade out very late — when the rocket is unambiguously off-screen
+                    if (altitude > 1800) {
+                        r.cont.alpha = Math.max(0, 1 - (altitude - 1800) / 400);
                     }
-                    
-                    // Reached orbit
-                    if (r.cont.y < r.baseY - 500 || r.cont.alpha < 0.1) {
+
+                    // Persistent flame + exhaust trail
+                    this.drawFlame(r, 2 + Math.sin(G.tick * 0.2) * 0.4);
+                    if (G.tick % 3 === 0) {
+                        this.spawnParticle(r.cont.x + (Math.random() - 0.5) * 4, r.cont.y + 4, 'smoke', 0xffffff);
+                    }
+                    if (G.tick % 5 === 0) {
+                        this.spawnParticle(r.cont.x + (Math.random() - 0.5) * 6, r.cont.y + 6, 'flame', 0xfbbf24);
+                    }
+
+                    if (altitude > 2200 || r.cont.alpha < 0.02) {
                         r.state = 'orbit';
-                        r.timer = 600; // 10 seconds before respawn
+                        r.timer = 600;
                         r.cont.visible = false;
                         r.flame.visible = false;
-                        
+
                         const org = SPACE_ORGS[r.org];
                         if (typeof UI !== 'undefined') {
                             const name = r.launchData ? r.launchData.name : `${org.name} mission`;
@@ -395,35 +536,42 @@ const SpaceEntities = {
                         }
                     }
                     break;
-                    
-                case 'orbit':
+                }
+
+                case 'orbit': {
                     r.timer--;
                     r.countdownTxt.text = '';
                     if (r.timer <= 0) {
                         r.state = 'resetting';
-                        r.timer = 120; // 2 second fade-in
+                        r.timer = 120;
                     }
                     break;
-                    
-                case 'resetting':
+                }
+
+                case 'resetting': {
                     r.timer--;
-                    // Reset position, fade back in
                     r.cont.x = r.baseX;
                     r.cont.y = r.baseY;
                     r.cont.scale.set(1);
                     r.cont.visible = true;
                     r.cont.alpha = 1 - (r.timer / 120);
                     r.flame.visible = false;
+                    r.beacon.visible = false;
+                    r.spotlight.visible = false;
                     r.countdownTxt.text = 'STANDBY';
                     r.countdownTxt.style.fill = 0x475569;
-                    
+
                     if (r.timer <= 0) {
                         r.cont.alpha = 1;
                         r.state = 'idle';
                         r.launchData = null;
                         r.shakeIntensity = 0;
+                        // Note: don't clear _launchTriggered — keep it scoped to the
+                        // last-fired launch.id so the same launch isn't re-triggered,
+                        // but a new launch (different id) will trigger fine.
                     }
                     break;
+                }
             }
         });
         
