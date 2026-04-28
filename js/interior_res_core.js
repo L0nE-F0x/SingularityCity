@@ -88,27 +88,26 @@ const InteriorRes = {
         const roofH = 80; 
         this.totalH = roofH + (numFloors - minFloor) * floorH; 
         
-        const voidMask = new PIXI.Graphics();
-        voidMask.beginFill(0x05050a);
-        voidMask.drawRect(0, this.totalH, G.vpW, 2000);
-        voidMask.endFill();
-        this.scene.addChild(voidMask);
-
-        // ─── ZONE-AWARE UNDERGROUND below the deepest floor — mirrors the exterior view.
-        //     Estates (Billionaire's Row) sit on the silo profile (bunker walls + missile
-        //     levels flanking the building); regular residentials use the city profile. ───
+        // ─── BELOW THE DEEPEST FLOOR — matches what the exterior shows.
+        //     Estates: brown bedrock + rock veins (the same earth that flanks each
+        //     silo shaft in the city view; the silo itself is the f=-2 floor).
+        //     Regular residentials: standard city stack (cables/metro/pipes). ───
+        const ugGfx = new PIXI.Graphics();
+        const ugTopY = this.totalH;
+        const earthH = 2000;
         if (typeof Underground !== 'undefined') {
-            const profile = isEstate ? 'silo' : 'city';
-            const profileDepth = Underground.depthOf(profile);
-            const totalDepth = Math.max(profileDepth + 60, 320);
-            const ugGfx = new PIXI.Graphics();
-            Underground.drawBasementStack(
-                ugGfx, 0, this.totalH, G.vpW, totalDepth, profile, (bld.x | 0),
-                profile === 'silo' ? { buildingX: this.startX, buildingW: this.bldW } : null
-            );
-            ugGfx.beginFill(0x050508); ugGfx.drawRect(0, this.totalH + totalDepth, G.vpW, 1500); ugGfx.endFill();
-            this.scene.addChild(ugGfx);
+            if (isEstate) {
+                Underground.drawDeepEarth(ugGfx, 0, ugTopY, G.vpW, earthH, 'tech', (bld.x | 0));
+            } else {
+                const cityDepth = Underground.depthOf('city');
+                Underground.drawBasementStack(ugGfx, 0, ugTopY, G.vpW, cityDepth, 'city', (bld.x | 0));
+                Underground.drawDeepEarth(ugGfx, 0, ugTopY + cityDepth, G.vpW, earthH - cityDepth, 'tech', (bld.x | 0));
+            }
+        } else {
+            ugGfx.beginFill(0x05050a); ugGfx.drawRect(0, ugTopY, G.vpW, earthH); ugGfx.endFill();
         }
+        ugGfx.beginFill(0x05050a); ugGfx.drawRect(0, ugTopY + earthH, G.vpW, 800); ugGfx.endFill();
+        this.scene.addChild(ugGfx);
 
         this.bldW = isEstate ? Math.min(G.vpW, 800) : G.vpW; 
         this.startX = isEstate ? (G.vpW - this.bldW) / 2 : 0;
