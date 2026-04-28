@@ -11,21 +11,35 @@ const SND = {
     
     _sfxEnabled: true,
     _musicEnabled: true,
-    
+    _sfxMutedByContext: false,  // Terminal mode mutes SFX/ambient without touching user pref
+
     currentAmbient: null,
     ambientNodes: [],
     ambientInterval: null,
 
+    _sfxAudible() { return this._sfxEnabled && !this._sfxMutedByContext; },
+
     // Getters/Setters to maintain compatibility with engine.js save states
     get enabled() { return this._sfxEnabled; },
-    set enabled(v) { 
-        this._sfxEnabled = v; 
+    set enabled(v) {
+        this._sfxEnabled = v;
+        this._applySfxGain();
+    },
+
+    _applySfxGain() {
+        if (!this.ctx) return;
+        const audible = this._sfxAudible();
         if (this.sfxGain) {
-            this.sfxGain.gain.setTargetAtTime(v ? 0.6 : 0, this.ctx.currentTime, 0.1);
+            this.sfxGain.gain.setTargetAtTime(audible ? 0.6 : 0, this.ctx.currentTime, 0.1);
         }
         if (this.ambientGain) {
-            this.ambientGain.gain.setTargetAtTime(v ? 0.4 : 0, this.ctx.currentTime, 0.5);
+            this.ambientGain.gain.setTargetAtTime(audible ? 0.4 : 0, this.ctx.currentTime, 0.5);
         }
+    },
+
+    setContextMute(muted) {
+        this._sfxMutedByContext = !!muted;
+        this._applySfxGain();
     },
 
     get musicEnabled() { return this._musicEnabled; },
@@ -53,11 +67,11 @@ const SND = {
         
         this.sfxGain = this.ctx.createGain();
         this.sfxGain.connect(this.masterGain);
-        this.sfxGain.gain.value = this._sfxEnabled ? 0.6 : 0;
-        
+        this.sfxGain.gain.value = this._sfxAudible() ? 0.6 : 0;
+
         this.ambientGain = this.ctx.createGain();
         this.ambientGain.connect(this.masterGain);
-        this.ambientGain.gain.value = this._sfxEnabled ? 0.4 : 0;
+        this.ambientGain.gain.value = this._sfxAudible() ? 0.4 : 0;
 
         // Initialize Background Music
         this.musicEl = new Audio('SingularityCity.mp3?v=362');

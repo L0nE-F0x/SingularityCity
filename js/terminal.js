@@ -165,6 +165,8 @@ const Terminal = {
         document.body.classList.add('terminal-mode');
         this._buildShell();
         this._startUpdateLoop();
+        // Mute SFX & ambient while in Terminal; soundtrack stays on.
+        if (typeof SND !== 'undefined' && SND.setContextMute) SND.setContextMute(true);
         // NOTE: We no longer pin ?mode=terminal to the URL while Terminal is open.
         // Doing so used to mean that closing the tab stranded the param in the
         // address bar, and the next visit auto-booted Terminal before the user
@@ -176,6 +178,7 @@ const Terminal = {
         this.isOpen = false;
         document.body.classList.remove('terminal-mode');
         this._hideTip();
+        if (typeof SND !== 'undefined' && SND.setContextMute) SND.setContextMute(false);
         // Defensive — strip ?mode=terminal if anything put it back.
         this._syncUrl(false);
     },
@@ -204,8 +207,7 @@ const Terminal = {
 
     PANELS: [
         { id: 'labs',       title: 'AI LABS',           cols: 6, rows: 2, live: true, hint: 'Sortable table — ELO, compute, valuation, flagship' },
-        { id: 'news',       title: 'LIVE NEWS',         cols: 3, rows: 2, live: true, hint: 'Hacker News + tech headlines' },
-        { id: 'events',     title: 'ACTIVITY STREAM',   cols: 3, rows: 2, live: true, hint: 'Scrolling sim events' },
+        { id: 'news',       title: 'LIVE NEWS',         cols: 6, rows: 2, live: true, hint: 'Hacker News + tech headlines' },
         { id: 'alignment',  title: 'ALIGNMENT',         cols: 3, rows: 2, live: true, hint: 'Five orgs — focus, lead, location' },
         { id: 'embassy',    title: 'EMBASSY RELATIONS', cols: 4, rows: 2, live: true, hint: '6×6 bilateral matrix' },
         { id: 'kardashev',  title: 'KARDASHEV',         cols: 5, rows: 2, live: true, hint: 'K-scale + 5-pillar radar' },
@@ -273,7 +275,7 @@ const Terminal = {
             <div class="tm-grid">${panelsHtml}</div>
             <div class="tm-footer">
                 <span class="tm-foot-chunk"><kbd>D</kbd> toggle city / terminal</span>
-                <span class="tm-foot-chunk tm-foot-mid">PHASE 4 · 14 panels · charts live · sim running behind shell</span>
+                <span class="tm-foot-chunk tm-foot-mid">PHASE 4 · 13 panels · charts live · sim running behind shell</span>
                 <span class="tm-foot-chunk" id="tm-version">—</span>
             </div>
         `;
@@ -611,7 +613,6 @@ const Terminal = {
         this._refreshTopBar();
         this._renderLabs();
         this._renderNews();
-        this._renderEvents();
         // Alignment is static — rendered once on build
         this._renderCompute();
         this._renderCapital();
