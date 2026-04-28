@@ -127,13 +127,20 @@ const InteriorBlackMarket = {
         earth.beginFill(0x3a3028); earth.drawRect(startX + bldW + 6, grdY - 2, G.vpW - startX - bldW - 6, 4); earth.endFill();
         this.scene.addChild(earth);
 
-        // ─── BELOW-BASEMENT VOID — black market is the deepest layer in the city,
-        //     so nothing useful sits beneath it. Only deep earth fills the void. ───
+        // ─── BELOW-BASEMENT DEEP EARTH — black market is the deepest layer in the city,
+        //     so nothing useful sits beneath it. Bedrock + rock veins fill the void. ───
         const basementBottom = roofH + (numFloors + 1) * floorH;
-        const voidMask = new PIXI.Graphics();
-        voidMask.beginFill(0x0a0806); voidMask.drawRect(0, basementBottom - 4, G.vpW, 10); voidMask.endFill();
-        voidMask.beginFill(0x030304); voidMask.drawRect(0, basementBottom + 6, G.vpW, 3000); voidMask.endFill();
-        this.scene.addChild(voidMask);
+        const deepEarth = new PIXI.Graphics();
+        deepEarth.beginFill(0x0a0806); deepEarth.drawRect(0, basementBottom - 4, G.vpW, 10); deepEarth.endFill();
+        if (typeof Underground !== 'undefined') {
+            const deepH = 1600;
+            Underground.drawDeepEarth(deepEarth, 0, basementBottom + 6, G.vpW, deepH, 'tech', (bld.x | 0) + 9001);
+            // Bottom-most fade to near-black so very deep scrolling doesn't reveal a hard edge
+            deepEarth.beginFill(0x0a0604); deepEarth.drawRect(0, basementBottom + 6 + deepH, G.vpW, 1500); deepEarth.endFill();
+        } else {
+            deepEarth.beginFill(0x1a120a); deepEarth.drawRect(0, basementBottom + 6, G.vpW, 3000); deepEarth.endFill();
+        }
+        this.scene.addChild(deepEarth);
 
         // ─── ABOVE-ROOF STACK (city profile sits ABOVE the speakeasy — metro/cables/pipes
         //     are shallower than the underground, so they appear overhead, not below). ───
