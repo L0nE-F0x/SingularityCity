@@ -130,13 +130,9 @@ const InteriorAlignment = {
         this.totalH = totalInteriorH + roofPeakH + 40;
 
         // ─── OUTDOOR FOREST BACKDROP (seen through windows & above the cabin) ───
-        // Pines silhouetted behind the cabin, softer with distance.
+        // Just the pine silhouettes at ground level — the DOM sky (dynamic, day/night)
+        // shows through above them so it stays in sync with the rest of the city.
         const backdrop = new PIXI.Graphics();
-        const skyTop = loftTop - roofPeakH - 20;
-        backdrop.beginFill(0x1a2636);
-        backdrop.drawRect(0, skyTop, W, groundBot - skyTop + 40);
-        backdrop.endFill();
-        // Distant pine tree silhouettes
         for (let tx = 0; tx < W; tx += 22 + Math.random() * 20) {
             const th = 40 + Math.random() * 70;
             const tw = 10 + Math.random() * 10;

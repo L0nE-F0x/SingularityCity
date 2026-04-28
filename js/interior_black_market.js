@@ -127,22 +127,30 @@ const InteriorBlackMarket = {
         earth.beginFill(0x3a3028); earth.drawRect(startX + bldW + 6, grdY - 2, G.vpW - startX - bldW - 6, 4); earth.endFill();
         this.scene.addChild(earth);
 
-        // ─── BELOW-BASEMENT STACK (city profile — black market sits in the central city) ───
+        // ─── BELOW-BASEMENT VOID — black market is the deepest layer in the city,
+        //     so nothing useful sits beneath it. Only deep earth fills the void. ───
         const basementBottom = roofH + (numFloors + 1) * floorH;
-        const undergroundY = basementBottom + 6;
-        const undergroundH = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH : 238;
         const voidMask = new PIXI.Graphics();
         voidMask.beginFill(0x0a0806); voidMask.drawRect(0, basementBottom - 4, G.vpW, 10); voidMask.endFill();
-        voidMask.beginFill(0x030304); voidMask.drawRect(0, undergroundY + undergroundH, G.vpW, 3000); voidMask.endFill();
+        voidMask.beginFill(0x030304); voidMask.drawRect(0, basementBottom + 6, G.vpW, 3000); voidMask.endFill();
         this.scene.addChild(voidMask);
+
+        // ─── ABOVE-ROOF STACK (city profile sits ABOVE the speakeasy — metro/cables/pipes
+        //     are shallower than the underground, so they appear overhead, not below). ───
+        const undergroundH = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH : 238;
+        const stackTopY = -(undergroundH + 40);
         if (typeof Underground !== 'undefined') {
+            const earthAbove = new PIXI.Graphics();
+            earthAbove.beginFill(0x1a120a); earthAbove.drawRect(0, stackTopY - 600, G.vpW, 600); earthAbove.endFill();
+            earthAbove.beginFill(0x1a120a); earthAbove.drawRect(0, stackTopY + undergroundH, G.vpW, 40); earthAbove.endFill();
+            this.scene.addChild(earthAbove);
             const ug = new PIXI.Graphics();
-            Underground.drawBasementStack(ug, 0, undergroundY, G.vpW, undergroundH, 'city', (bld.x | 0));
+            Underground.drawBasementStack(ug, 0, stackTopY, G.vpW, undergroundH, 'city', (bld.x | 0));
             this.scene.addChild(ug);
             if (this._liveTrains) this._liveTrains.destroy();
             this._liveTrains = Underground.attachLiveTrains(
                 this.scene, bld.x + bld.w / 2, 0,
-                undergroundY + Underground.H_CABLE_TRAY, G.vpW, 1200);
+                stackTopY + Underground.H_CABLE_TRAY, G.vpW, 1200);
         }
 
         // ─── VISITOR AVATARS ───
@@ -180,10 +188,10 @@ const InteriorBlackMarket = {
             av.floorTheme = floorTheme; av._minX = startX + 30; av._maxX = startX + bldW - 30;
         }
 
-        // Position & scroll
+        // Position & scroll — allow scrolling UP to reveal the city stack overhead
         this.scene.y = G.vpH - 56 - this.totalH + floorH;
-        this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - 56 - this.totalH - undergroundH - 6);
-        this.maxY = this.scene.y + floorH * 3;
+        this.minY = this.scene.y - floorH * 3;
+        this.maxY = this.scene.y + floorH * 3 + undergroundH + 40;
 
         this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
         window.removeEventListener('pointermove', this._onMove); window.removeEventListener('pointerup', this._onUp);

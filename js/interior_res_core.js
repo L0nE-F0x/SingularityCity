@@ -90,9 +90,25 @@ const InteriorRes = {
         
         const voidMask = new PIXI.Graphics();
         voidMask.beginFill(0x05050a);
-        voidMask.drawRect(0, this.totalH, G.vpW, 2000); 
+        voidMask.drawRect(0, this.totalH, G.vpW, 2000);
         voidMask.endFill();
         this.scene.addChild(voidMask);
+
+        // ─── ZONE-AWARE UNDERGROUND below the deepest floor — mirrors the exterior view.
+        //     Estates (Billionaire's Row) sit on the silo profile (bunker walls + missile
+        //     levels flanking the building); regular residentials use the city profile. ───
+        if (typeof Underground !== 'undefined') {
+            const profile = isEstate ? 'silo' : 'city';
+            const profileDepth = Underground.depthOf(profile);
+            const totalDepth = Math.max(profileDepth + 60, 320);
+            const ugGfx = new PIXI.Graphics();
+            Underground.drawBasementStack(
+                ugGfx, 0, this.totalH, G.vpW, totalDepth, profile, (bld.x | 0),
+                profile === 'silo' ? { buildingX: this.startX, buildingW: this.bldW } : null
+            );
+            ugGfx.beginFill(0x050508); ugGfx.drawRect(0, this.totalH + totalDepth, G.vpW, 1500); ugGfx.endFill();
+            this.scene.addChild(ugGfx);
+        }
 
         this.bldW = isEstate ? Math.min(G.vpW, 800) : G.vpW; 
         this.startX = isEstate ? (G.vpW - this.bldW) / 2 : 0;
