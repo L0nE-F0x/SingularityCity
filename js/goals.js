@@ -45,8 +45,8 @@ const Goals = {
             schedule: (dp) => {
                 if (dp < 0.16) return { act: 'sleep', bid: null };           // brief sleep ~00:00-03:50
                 if (dp < 0.22) return { act: 'commute', bid: null };          // early commute
-                if (dp < 0.48) return { act: 'work', bid: null };             // morning grind
-                if (dp < 0.52) return { act: 'lunch', bid: 'cafe' };          // quick bite
+                if (dp < 0.50) return { act: 'work', bid: null };             // morning grind to noon
+                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' };        // quick bite
                 if (dp < 0.92) return { act: 'work', bid: null };             // back to HQ until late
                 return { act: 'commute', bid: null };                         // 22:05–00:00 wrap up & commute home
             },
@@ -95,8 +95,8 @@ const Goals = {
             schedule: (dp) => {
                 if (dp < 0.18) return { act: 'sleep', bid: null };
                 if (dp < 0.28) return { act: 'train', bid: 'gym' };           // morning workout
-                if (dp < 0.45) return { act: 'work', bid: null };             // efficient work block
-                if (dp < 0.50) return { act: 'lunch', bid: 'cafe' };          // protein shake
+                if (dp < 0.50) return { act: 'work', bid: null };             // efficient work block to noon
+                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' };        // protein shake
                 if (dp < 0.70) return { act: 'work', bid: null };
                 if (dp < 0.82) return { act: 'train', bid: 'gym' };           // evening workout
                 return { act: 'sleep', bid: null };
@@ -120,10 +120,10 @@ const Goals = {
             schedule: (dp) => {
                 if (dp < 0.20) return { act: 'sleep', bid: null };
                 if (dp < 0.28) return { act: 'lunch', bid: 'cafe' };          // breakfast
-                if (dp < 0.42) return { act: 'work', bid: null };
-                if (dp < 0.50) return { act: 'lunch', bid: 'cafe' };          // lunch #1
-                if (dp < 0.62) return { act: 'work', bid: null };
-                if (dp < 0.68) return { act: 'lunch', bid: 'cafe' };          // afternoon snack
+                if (dp < 0.50) return { act: 'work', bid: null };             // morning work to noon
+                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' };        // lunch #1
+                if (dp < 0.65) return { act: 'work', bid: null };
+                if (dp < 0.70) return { act: 'lunch', bid: 'cafe' };          // afternoon snack
                 if (dp < 0.78) return { act: 'work', bid: null };
                 if (dp < 0.90) return { act: 'lunch', bid: 'cafe' };          // dinner
                 return { act: 'sleep', bid: null };
@@ -172,7 +172,7 @@ const Goals = {
                 if (dp < 0.20) return { act: 'sleep', bid: null };
                 if (dp < 0.35) return { act: 'arena', bid: 'arena' };         // morning warmup
                 if (dp < 0.50) return { act: 'work', bid: null };
-                if (dp < 0.55) return { act: 'lunch', bid: 'cafe' };
+                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' };
                 if (dp < 0.68) return { act: 'work', bid: null };
                 if (dp < 0.96) return { act: 'arena', bid: 'arena' };         // all evening arena
                 return { act: 'sleep', bid: null };

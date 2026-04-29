@@ -325,21 +325,21 @@ function getAct(stg, dp, seed, model) {
       else return { act: 'commute', bid: null, _commuting: true };
   }
   
-  // 08:24–10:48  Morning work block (everyone at their HQ)
-  if (dp >= 0.35 && dp < 0.45) return { act: 'work', bid: null };
+  // 08:24–12:00  Morning work block (everyone at their HQ)
+  if (dp >= 0.35 && dp < 0.50) return { act: 'work', bid: null };
 
-  // 10:48–13:12  Lunch break — cafe or wander outside (personality biased)
-  if (dp >= .45 && dp < .55) {
+  // 12:00–13:30  Lunch break — cafe or wander outside (personality biased)
+  if (dp >= .50 && dp < .5625) {
       const traitBid = (typeof Personality !== 'undefined') ? Personality.getBuildingBias(model, 'lunch', dp) : null;
       if (traitBid) return { act: 'lunch', bid: traitBid };
-      if (s < 35) return { act: 'lunch', bid: 'cafe' };
-      if (s < 55) return { act: 'socialize', bid: 'park' };
+      if (s < 45) return { act: 'lunch', bid: 'cafe' };
+      if (s < 60) return { act: 'socialize', bid: 'park' };
       if (s < 70) return { act: 'socialize', bid: 'city_park' };
       return { act: 'work', bid: null };
   }
 
-  // 13:12–15:36  Afternoon work block
-  if (dp >= 0.55 && dp < 0.65) return { act: 'work', bid: null };
+  // 13:30–15:36  Afternoon work block
+  if (dp >= 0.5625 && dp < 0.65) return { act: 'work', bid: null };
 
   // 15:36–17:17  Late afternoon — open source devs share, some leave early
   if (dp >= .65 && dp < .72) {
