@@ -88,5 +88,104 @@ const Interior = {
         if (this.activeModule && this.activeModule.update) {
             this.activeModule.update();
         }
+        // After the module's own update has positioned avatars, pan the scene
+        // to keep the tracked avatar centered. Runs once per frame so elevator
+        // / walking motion is followed smoothly.
+        this._updateInteriorCamera();
+    },
+
+    // ─────────────────────────────────────────────────────────────
+    //   INTERIOR CAMERA FOLLOW (used while G.tracking is active)
+    // ─────────────────────────────────────────────────────────────
+    _updateInteriorCamera() {
+        if (typeof G === 'undefined') return;
+        const m = this.activeModule;
+        if (!m) return;
+        const scene = m.scene;
+        if (!scene || scene.destroyed) return;
+
+        // Lazily remember the scene's resting transform so we can restore it
+        // when tracking ends (or when the user starts dragging the interior).
+        if (typeof scene._restX === 'undefined') {
+            scene._restX = scene.x || 0;
+            scene._restY = scene.y || 0;
+            scene._restScale = scene.scale ? scene.scale.x : 1;
+        }
+
+        if (!G.tracking) {
+            // Smoothly return scene to its resting transform.
+            if (scene._cameraEngaged) {
+                const lerp = 0.1;
+                scene.x += (scene._restX - scene.x) * lerp;
+                scene.y += (scene._restY - scene.y) * lerp;
+                if (scene.scale) {
+                    const ns = scene.scale.x + (scene._restScale - scene.scale.x) * lerp;
+                    scene.scale.set(ns);
+                }
+                if (Math.abs(scene.x - scene._restX) < 0.5
+                    && Math.abs(scene.y - scene._restY) < 0.5
+                    && (!scene.scale || Math.abs(scene.scale.x - scene._restScale) < 0.005)) {
+                    scene.x = scene._restX;
+                    scene.y = scene._restY;
+                    if (scene.scale) scene.scale.set(scene._restScale);
+                    scene._cameraEngaged = false;
+                }
+            }
+            return;
+        }
+
+        const av = this._findTrackedAvatar();
+        if (!av || !av.cont || av.cont.destroyed) return;
+
+        // Use the avatar's pre-scale local position; we apply scale ourselves
+        // so the centering math stays correct as we zoom in.
+        const targetScale = 1.45;
+        const curScale = scene.scale ? scene.scale.x : 1;
+        const newScale = curScale + (targetScale - curScale) * 0.05;
+        if (scene.scale) scene.scale.set(newScale);
+
+        const avX = av.cont.x;
+        const avY = av.cont.y;
+        // Sit the avatar in the lower-middle of the viewport so we can see
+        // the floor they're walking on plus the ceiling above.
+        const targetSceneX = G.vpW / 2 - avX * newScale;
+        const targetSceneY = G.vpH * 0.55 - avY * newScale;
+
+        const lerp = 0.08;
+        scene.x += (targetSceneX - scene.x) * lerp;
+        scene.y += (targetSceneY - scene.y) * lerp;
+        scene._cameraEngaged = true;
+    },
+
+    _findTrackedAvatar() {
+        if (typeof G === 'undefined' || !G.tracking) return null;
+        const m = this.activeModule;
+        if (!m) return null;
+        const t = G.tracking;
+        const tid = t.id;
+
+        // Most modules expose `avatars` (an array of objects with .m and .cont).
+        if (Array.isArray(m.avatars)) {
+            for (const av of m.avatars) {
+                if (!av || !av.m || !av.cont) continue;
+                if (t.type === 'ceo' && av.m.isCeo && av.m.lab === t.lab) return av;
+                if (av.m.id === tid) return av;
+            }
+        }
+        // InteriorCityAI alt path uses `workers`.
+        if (Array.isArray(m.workers)) {
+            for (const w of m.workers) {
+                if (!w || !w.m || !w.c) continue;
+                if (w.m.id === tid) return { cont: w.c, m: w.m };
+            }
+        }
+        // Metro stations / DC / a few others use a Map keyed by id.
+        if (m.avatarPool && typeof m.avatarPool.get === 'function') {
+            const direct = m.avatarPool.get(tid);
+            if (direct && direct.cont && direct.cont.visible) return direct;
+            const npc = m.avatarPool.get('npc_' + tid);
+            if (npc && npc.cont && npc.cont.visible) return npc;
+        }
+        return null;
     }
 };

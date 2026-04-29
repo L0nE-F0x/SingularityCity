@@ -118,6 +118,10 @@ const InteriorBackbone = {
                 if (_isNight && !_nightRoles.includes(npcDef.role)) return;
                 this.drawNPC(fc, startX + npcDef.xOff, pY, npcDef.role, npcDef.col);
             });
+            if (f === 0) {
+                this._drawReceptionDesk(fc, startX + 80, pY, layout.col);
+                this.drawNPC(fc, startX + 95, pY, 'Receptionist', layout.col);
+            }
         }
 
         // ─── GROUND (fills sides beyond the building footprint) ───
@@ -379,6 +383,18 @@ const InteriorBackbone = {
     //   PIXEL ART NPC
     // ════════════════════════════════════════════════════
 
+    _drawReceptionDesk(c, x, y, col) {
+        const g = new PIXI.Graphics();
+        g.beginFill(0x1a2540); g.drawRect(x, y - 14, 60, 14); g.endFill();
+        g.beginFill(0x0f1a2d); g.drawRect(x, y - 14, 60, 2); g.endFill();
+        g.beginFill(col, 0.4); g.drawRect(x + 4, y - 12, 52, 1); g.endFill();
+        g.beginFill(0x0a0f1a); g.drawRect(x + 36, y - 24, 18, 10); g.endFill();
+        g.beginFill(col, 0.45); g.drawRect(x + 38, y - 22, 14, 6); g.endFill();
+        g.beginFill(0xfbbf24); g.drawRect(x + 8, y - 18, 8, 6); g.endFill();
+        g.beginFill(0xffffff, 0.6); g.drawRect(x + 9, y - 17, 6, 4); g.endFill();
+        c.addChild(g);
+    },
+
     drawNPC(c, x, y, role, col) {
         const colHex = col || 0x64748b;
         const bw = 16, h = 32, headH = Math.round(32 * 0.4), bodyH = h - headH - 4, legH = 4, eyeS = Math.max(1, 16 * 0.08);
@@ -427,10 +443,15 @@ const InteriorBackbone = {
             if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
         });
 
+        const npcId = 'bb_' + role.replace(/\s/g, '_').toLowerCase();
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            G._addTrackHighlight(cont, { id: npcId }, false);
+        }
+
         c.addChild(cont);
 
         const agent = {
-            m: { id: 'bb_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true },
+            m: { id: npcId, name: role, isNPC: true },
             cont, head, body, legL, legR, dot, shadow, label: txt,
             state: 'working', timer: 60 + Math.floor(Math.random() * 200),
             deskX: x, floorY: y, targetX: x, speed: 0.8,

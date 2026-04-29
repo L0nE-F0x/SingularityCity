@@ -762,7 +762,24 @@ const InteriorLongevity = {
             floorNpcs.forEach(def => {
                 this.drawNPC(cont, sx + def.xOff, ny, def.role, def.col, def.prop);
             });
+            // Reception on the lowest floor — clipboard greeter.
+            if (fi === 0) {
+                this._drawReceptionDesk(cont, sx + bw * 0.15, ny, layout.col);
+                this.drawNPC(cont, sx + bw * 0.18, ny, 'Receptionist', layout.col, 'clipboard');
+            }
         }
+    },
+
+    _drawReceptionDesk(c, x, y, col) {
+        const g = new PIXI.Graphics();
+        g.beginFill(0x1a2540); g.drawRect(x, y - 14, 60, 14); g.endFill();
+        g.beginFill(0x0f1a2d); g.drawRect(x, y - 14, 60, 2); g.endFill();
+        g.beginFill(col, 0.4); g.drawRect(x + 4, y - 12, 52, 1); g.endFill();
+        g.beginFill(0x0a0f1a); g.drawRect(x + 36, y - 24, 18, 10); g.endFill();
+        g.beginFill(col, 0.45); g.drawRect(x + 38, y - 22, 14, 6); g.endFill();
+        g.beginFill(0xfbbf24); g.drawRect(x + 8, y - 18, 8, 6); g.endFill();
+        g.beginFill(0xffffff, 0.6); g.drawRect(x + 9, y - 17, 6, 4); g.endFill();
+        c.addChild(g);
     },
 
     // ════════════════════════════════════════════════════
@@ -954,10 +971,15 @@ const InteriorLongevity = {
             if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
         });
 
+        const npcId = 'longev_' + role.replace(/\s/g, '_').toLowerCase();
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            G._addTrackHighlight(cont, { id: npcId }, false);
+        }
+
         c.addChild(cont);
 
         const agent = {
-            m: { id: 'longev_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true },
+            m: { id: npcId, name: role, isNPC: true },
             cont, head, body, legL, legR, dot, shadow, label: txt,
             state: 'working', timer: 60 + Math.floor(Math.random() * 200),
             deskX: x, floorY: y, targetX: x, speed: 0.7,

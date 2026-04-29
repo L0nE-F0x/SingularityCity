@@ -483,6 +483,17 @@ const InteriorRes = {
                 this.drawPottedPlant(floorCont, this.startX + 180, fy + floorH - 4, 1);
                 this.drawWaterCooler(floorCont, this.startX + 220, fy + floorH - 4);
                 this.drawReceptionDesk(floorCont, this.startX + 300, fy + floorH - 4, colHex);
+                // Receptionist NPC sits at the front desk so a tracked
+                // resident has a recognisable face to walk past on entry.
+                const _dpRes = G.getDayPhase();
+                const _isNightRes = _dpRes > 0.83 || _dpRes < 0.25;
+                if (!_isNightRes) {
+                    this.drawAvatar({
+                        id: 'res_rec_' + bld.id, name: 'Concierge', isNPC: true,
+                        role: 'Concierge', phase: 'released', lab: bld.lab || 'other',
+                        desc: 'Greeting residents and signing for packages.'
+                    }, this.startX + 285, fy + floorH - 4, floorCont, f, true);
+                }
                 
                 G.models.forEach((m) => {
                     const refs = G.charRefs[m.id];

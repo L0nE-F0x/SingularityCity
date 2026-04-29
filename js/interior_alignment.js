@@ -770,6 +770,12 @@ const InteriorAlignment = {
             if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
         });
 
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            G._addTrackHighlight(cont, { id: npcId }, false);
+        }
+        if (!this.avatars) this.avatars = [];
+        this.avatars.push({ m: { id: npcId, name: roleLabel, isNPC: true }, cont });
+
         this.scene.addChild(cont);
         return cont;
     },

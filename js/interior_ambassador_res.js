@@ -1099,7 +1099,13 @@ const InteriorAmbassadorRes = {
         });
         cont.on('pointerout', () => { if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip(); });
 
+        const npcId = 'amb_res_' + role.replace(/\s/g, '_').toLowerCase() + '_' + (country ? country.full.split(' ')[0].toLowerCase() : 'x');
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            G._addTrackHighlight(cont, { id: npcId }, false);
+        }
+
         const avObj = {
+            m: { id: npcId, name: role, isNPC: true },
             cont, head, body, legL, legR, dot, shadow, tag,
             state: 'working', timer: 60 + Math.floor(Math.random() * 220),
             deskX: x, floorY: y, targetX: x, speed: 0.5,

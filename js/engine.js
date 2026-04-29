@@ -893,6 +893,9 @@ const G = {
         if (typeof Camera !== 'undefined') this._savedTrackingZoom = Camera.targetZoom;
         this.tracking = { type, id, lab, _lastBld: null };
         this._transitioning = false;
+        // If the entity is already inside a building, force-replay the lobby
+        // entry choreography so the first transition shows them walking in.
+        this._forceEnteringChoreography(this.tracking, null);
 
         // Show persistent tracking HUD
         let hud = document.getElementById('trackingHud');
@@ -1137,10 +1140,14 @@ const G = {
         const wasInside = this.tracking._lastBld;
         const isNowInside = entityBld;
 
-        // Entity just entered a building — follow them in (with fade)
+        // Entity just entered a building — follow them in (with fade).
+        // Force the lobby-walk choreography so we see them step through the
+        // front door, past reception, into the elevator and over to their
+        // desk/bed instead of teleporting to their final pose.
         if (!wasInside && isNowInside && !this._transitioning) {
             const bld = this.bldById[isNowInside];
             if (bld && !this.activeInterior) {
+                this._forceEnteringChoreography(this.tracking, isNowInside);
                 this._transitionEnter(bld);
             }
         }
@@ -1203,6 +1210,27 @@ const G = {
             ov.style.opacity = '0';
             setTimeout(() => { this._transitioning = false; }, 300);
         }, 200);
+    },
+
+    // ─── Force entering-lobby choreography for the tracked entity ────────
+    // Without this, an interior built mid-tracking sees `wantsToEnter=false`
+    // and spawns the avatar at their desk/bed, looking like a teleport.
+    _forceEnteringChoreography(t, _bldId) {
+        if (!t) return;
+        if (t.type === 'model') {
+            const refs = G.charRefs[t.id];
+            if (refs) {
+                refs.wantsToEnter = true;
+                refs.wantsToLeave = false;
+                refs._indoorArrived = false;
+            }
+        } else if (t.type === 'ceo') {
+            const ceo = G.ceoRefs ? G.ceoRefs[t.lab] : null;
+            if (ceo) {
+                ceo.wantsToEnter = true;
+                ceo.wantsToLeave = false;
+            }
+        }
     },
 
     _transitionExit() {

@@ -114,6 +114,14 @@ const InteriorAgents = {
                 if (_isNight && !_nightRoles.includes(npcDef.role)) return;
                 this.drawNPC(fc, startX + npcDef.xOff, pY, npcDef.role, npcDef.col);
             });
+            // ─── Lobby receptionist (always present) ────────────────
+            // Floor 0 is the ground-floor lobby. A receptionist sits behind
+            // a small desk near the entrance so any tracked entity walking
+            // in has someone to walk past.
+            if (f === 0) {
+                this._drawReceptionDesk(fc, startX + 80, pY, layout.col);
+                this.drawNPC(fc, startX + 95, pY, 'Receptionist', layout.col);
+            }
         }
 
         // ─── GROUND ───
@@ -171,6 +179,24 @@ const InteriorAgents = {
         };
         window.addEventListener('pointermove', this._onMove);
         window.addEventListener('pointerup', this._onUp);
+    },
+
+    // Compact reception desk for the lobby floor — a slab with a counter,
+    // a monitor screen and a small clipboard prop. Sits next to the
+    // Receptionist NPC so tracked entities visibly walk past it.
+    _drawReceptionDesk(c, x, y, col) {
+        const g = new PIXI.Graphics();
+        g.beginFill(0x1a2540); g.drawRect(x, y - 14, 60, 14); g.endFill();
+        g.beginFill(0x0f1a2d); g.drawRect(x, y - 14, 60, 2); g.endFill();
+        g.beginFill(col, 0.4); g.drawRect(x + 4, y - 12, 52, 1); g.endFill();
+        // Monitor on the desk
+        g.beginFill(0x0a0f1a); g.drawRect(x + 36, y - 24, 18, 10); g.endFill();
+        g.beginFill(col, 0.45); g.drawRect(x + 38, y - 22, 14, 6); g.endFill();
+        g.beginFill(0x222a40); g.drawRect(x + 43, y - 14, 4, 2); g.endFill();
+        // Clipboard
+        g.beginFill(0xfbbf24); g.drawRect(x + 8, y - 18, 8, 6); g.endFill();
+        g.beginFill(0xffffff, 0.6); g.drawRect(x + 9, y - 17, 6, 4); g.endFill();
+        c.addChild(g);
     },
 
     _drawFloorProps(c, sx, bw, pY, fy, fh, floorName, col, bldId) {
@@ -490,10 +516,15 @@ const InteriorAgents = {
             if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
         });
 
+        const npcId = 'agent_' + role.replace(/\s/g, '_').toLowerCase();
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            G._addTrackHighlight(cont, { id: npcId }, false);
+        }
+
         c.addChild(cont);
 
         const agent = {
-            m: { id: 'agent_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true },
+            m: { id: npcId, name: role, isNPC: true },
             cont, head, body, legL, legR, dot, shadow, antenna,
             state: 'working', timer: 60 + Math.floor(Math.random() * 200),
             deskX: x, floorY: y, targetX: x, speed: 0.8,
