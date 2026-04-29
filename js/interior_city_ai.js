@@ -278,6 +278,13 @@ const InteriorCityAI = {
     // ─── AVATAR FACTORY (required by InteriorCityCore.build) ───
     // Renders characters pixel-identical to exterior updateCharStateVisuals.
     drawAvatar(m, x, y, container, floorIdx, isStatic = false, isCeo = false) {
+        // ─── CEOs/Founders render as humans, not AI bots ───
+        // Routes through HumanAvatar so each founder is recognizable inside their HQ
+        // (per-founder fingerprints in HumanAvatar.FOUNDER_LOOKS).
+        if (isCeo && m.founderData && typeof HumanAvatar !== 'undefined') {
+            return this._drawCeoAvatar(m, x, y, container, floorIdx, isStatic);
+        }
+
         const cont = new PIXI.Container();
         const stg = getStage(m.rel, m.ret, m.phase);
         const sd = STAGES[stg] || STAGES.adult;
@@ -420,6 +427,49 @@ const InteriorCityAI = {
         // Tracking highlight for followed entity
         if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
             const hl = G._addTrackHighlight(cont, m, isCeo);
+            if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
+        }
+
+        this.avatars.push(agent);
+        return agent;
+    },
+
+    // ─── CEO/Founder pixel-art via HumanAvatar ──────────────────────────────
+    // Returns the same agent shape as drawAvatar() (head/body/legL/legR/dot/shadow,
+    // plus the city-only floorY/targetX/jobTheme/propGfx fields), so the existing
+    // animation, click and visibility logic in interior_city_core.js works unchanged.
+    _drawCeoAvatar(m, x, y, container, floorIdx, isStatic) {
+        const av = HumanAvatar.drawFounder(container, m.founderData, {
+            x, y,
+            showTag: false,    // interiors render their own role labels above CEOs
+            showDot: true,
+            seed: 'founder_' + (m.founderData && m.founderData.name)
+        });
+
+        av.cont.eventMode = 'static';
+        av.cont.cursor = 'pointer';
+        av.cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
+        av.cont.on('pointerover', (e) => {
+            if (typeof UI === 'undefined') return;
+            const role = (m.founderData && m.founderData.role) ? m.founderData.role : 'Founder';
+            UI.showTooltip(e, m.name, role, true);
+        });
+        av.cont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+
+        const agent = {
+            m, cont: av.cont, head: av.head, body: av.body,
+            legL: av.legL, legR: av.legR, dot: av.dot, shadow: av.shadow,
+            // Humans don't render MoE ghost bodies — left null so the existing
+            // `if (av.ghostL)` guards skip them cleanly.
+            ghostL: null, ghostR: null, isMoE: false,
+            state: 'working', timer: 0, deskX: x, floorIdx, speed: 1.5,
+            floorY: y, targetX: x, jobTheme: null, propGfx: null,
+            isStaticRole: isStatic, isCeo: true,
+            bedX: 0, bedY: 0, resumeState: null
+        };
+
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(av.cont, m, true);
             if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
         }
 

@@ -226,6 +226,76 @@ const HumanAvatar = {
         if (parent) parent.addChild(cont);
 
         return { cont, head, body, legL, legR, dot, tag, shadow };
+    },
+
+    // ─── Per-founder pixel-art fingerprints ─────────────────────────────────
+    // Hand-tuned look for each well-known founder so Sam Altman, Elon Musk, etc.
+    // are individually recognizable inside their HQs and cars. Anyone not in this
+    // table falls back to a seeded random outfit (still HumanAvatar style, just
+    // not specifically themed).
+    //
+    // Fields:
+    //   skin, hair       0xRRGGBB → passed through to draw() as skinColor/hairColor
+    //   glasses, beard   bool      → passed through unchanged
+    //   suit             bool      → render suit jacket vs. casual sweater
+    //   shirt            0xRRGGBB → jacket / sweater colour
+    FOUNDER_LOOKS: {
+        'Sam Altman':       { skin: 0xfdd7b0, hair: 0x4a2e18, glasses: false, beard: false, suit: false, shirt: 0x6b7280 },
+        'Dario Amodei':     { skin: 0xfdd7b0, hair: 0x2a1a0e, glasses: false, beard: true,  suit: false, shirt: 0x374151 },
+        'Demis Hassabis':   { skin: 0xfdd7b0, hair: 0x2a1a0e, glasses: false, beard: false, suit: true,  shirt: 0x14213d },
+        'Mark Zuckerberg':  { skin: 0xfdd7b0, hair: 0x4a2e18, glasses: false, beard: false, suit: false, shirt: 0x9ca3af }, // signature gray tee
+        'Elon Musk':        { skin: 0xfdd7b0, hair: 0x8b5a2b, glasses: false, beard: false, suit: false, shirt: 0x111827 }, // dark tee
+        'Liang Wenfeng':    { skin: 0xe8b68a, hair: 0x1a1008, glasses: true,  beard: false, suit: false, shirt: 0x374151 },
+        'Eddie Wu':         { skin: 0xe8b68a, hair: 0x1a1008, glasses: true,  beard: false, suit: true,  shirt: 0x14213d },
+        'Arthur Mensch':    { skin: 0xfdd7b0, hair: 0x2a1a0e, glasses: false, beard: true,  suit: false, shirt: 0x064e3b },
+        'Najwa Aaraj':      { skin: 0xd19867, hair: 0x1a1008, glasses: false, beard: false, suit: true,  shirt: 0x14213d },
+        'Satya Nadella':    { skin: 0xd19867, hair: 0x1a1008, glasses: true,  beard: false, suit: true,  shirt: 0x1a1a28 },
+        'Jensen Huang':     { skin: 0xe8b68a, hair: 0xd4d4d4, glasses: true,  beard: false, suit: false, shirt: 0x0a0a0a }, // signature leather jacket
+        'Robin Li':         { skin: 0xe8b68a, hair: 0x1a1008, glasses: false, beard: false, suit: true,  shirt: 0x14213d },
+        'Emad Mostaque':    { skin: 0xd19867, hair: 0x1a1008, glasses: false, beard: true,  suit: false, shirt: 0x581c87 },
+        'Aidan Gomez':      { skin: 0xfdd7b0, hair: 0x2a1a0e, glasses: false, beard: false, suit: false, shirt: 0x0e7490 },
+        'Tim Cook':         { skin: 0xfdd7b0, hair: 0xd4d4d4, glasses: false, beard: false, suit: false, shirt: 0x525252 }, // silver hair
+        'Arvind Krishna':   { skin: 0xd19867, hair: 0x1a1008, glasses: true,  beard: false, suit: true,  shirt: 0x14213d },
+        'Ori Goshen':       { skin: 0xe8b68a, hair: 0x2a1a0e, glasses: false, beard: true,  suit: false, shirt: 0x374151 },
+        'Julien Chaumond':  { skin: 0xfdd7b0, hair: 0x4a2e18, glasses: false, beard: false, suit: false, shirt: 0xfbbf24 }, // HF yellow
+        'Andy Jassy':       { skin: 0xfdd7b0, hair: 0x4a2e18, glasses: false, beard: false, suit: true,  shirt: 0x374151 },
+        'Tang Jie':         { skin: 0xe8b68a, hair: 0x1a1008, glasses: true,  beard: false, suit: true,  shirt: 0x14213d },
+    },
+
+    lookupFounder(name) {
+        if (!name) return null;
+        return this.FOUNDER_LOOKS[name] || null;
+    },
+
+    // Convenience: draw a founder by their REAL_FOUNDERS object. Falls back to
+    // seeded random + accent=lab color when the founder isn't in FOUNDER_LOOKS,
+    // so newly-discovered founders still render as humans (just generic ones).
+    drawFounder(parent, founder, opts) {
+        opts = opts || {};
+        const look = this.lookupFounder(founder && founder.name);
+        const labColHex = (founder && founder.color)
+            ? parseInt(String(founder.color).replace('#', ''), 16)
+            : 0x64748b;
+
+        const merged = Object.assign({}, opts);
+        merged.seed   = opts.seed   || ('founder_' + (founder && founder.name));
+        merged.accent = (opts.accent != null) ? opts.accent : labColHex;
+        merged.name   = (opts.name !== undefined) ? opts.name : (founder && founder.name);
+
+        if (look) {
+            if (merged.skinColor == null) merged.skinColor = look.skin;
+            if (merged.hairColor == null) merged.hairColor = look.hair;
+            if (merged.glasses   == null) merged.glasses   = look.glasses;
+            if (merged.beard     == null) merged.beard     = look.beard;
+            if (merged.suit      == null) merged.suit      = look.suit;
+            if (merged.shirt     == null) merged.shirt     = look.shirt;
+            if (merged.tieColor  == null) merged.tieColor  = labColHex;
+        } else {
+            // Unknown founder — default to suit so they still read as a CEO
+            if (merged.suit == null) merged.suit = true;
+            if (merged.tieColor == null) merged.tieColor = labColHex;
+        }
+        return this.draw(parent, merged);
     }
 };
 

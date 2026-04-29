@@ -5,6 +5,13 @@
 const InteriorResAI = {
 
     drawAvatar(m, x, y, container, floorIdx, isStatic = false, isCeo = false) {
+        // ─── CEOs/Founders render as humans, not AI bots ───
+        // Routes through HumanAvatar so Sam looks like Sam, Elon looks like Elon, etc.
+        // (See FOUNDER_LOOKS in human_avatar.js for the per-founder fingerprints.)
+        if (isCeo && m.founderData && typeof HumanAvatar !== 'undefined') {
+            return this._drawCeoAvatar(m, x, y, container, floorIdx, isStatic);
+        }
+
         const cont = new PIXI.Container();
         const stg = getStage(m.rel, m.ret, m.phase);
         const sd = STAGES[stg] || STAGES.adult;
@@ -140,6 +147,42 @@ const InteriorResAI = {
         // Tracking highlight for followed entity
         if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
             const hl = G._addTrackHighlight(cont, m, false);
+            if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
+        }
+
+        this.avatars.push(agent);
+        return agent;
+    },
+
+    // ─── CEO/Founder pixel-art via HumanAvatar ──────────────────────────────
+    // Returns the same agent shape as drawAvatar() (head/body/legL/legR/dot/shadow),
+    // so the existing animation, click and visibility logic in interior_res_core.js
+    // works without modification.
+    _drawCeoAvatar(m, x, y, container, floorIdx, isStatic) {
+        const av = HumanAvatar.drawFounder(container, m.founderData, {
+            x, y,
+            showTag: false,    // interiors render their own role labels above CEOs
+            showDot: true,
+            seed: 'founder_' + (m.founderData && m.founderData.name)
+        });
+
+        av.cont.eventMode = 'static';
+        av.cont.cursor = 'pointer';
+        av.cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
+
+        const agent = {
+            m, cont: av.cont, head: av.head, body: av.body,
+            legL: av.legL, legR: av.legR, dot: av.dot, shadow: av.shadow,
+            // Humans never render MoE ghost bodies — left null so the existing
+            // `if (av.ghostL)` guards in interior_res_core.js skip them cleanly.
+            ghostL: null, ghostR: null, isMoE: false,
+            state: 'working', timer: 0, deskX: x, floorIdx, speed: 1.5,
+            isStaticRole: isStatic,
+            bedX: 0, bedY: 0
+        };
+
+        if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
+            const hl = G._addTrackHighlight(av.cont, m, false);
             if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
         }
 
