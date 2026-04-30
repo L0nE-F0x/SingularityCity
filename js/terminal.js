@@ -78,11 +78,8 @@ const Terminal = {
                 this._pushHistory('agents_tasks', s.tasksPerHour || 0);
                 this._pushHistory('agents_errors', s.errorRate || 0);
             }
-            if (typeof Kardashev !== 'undefined') {
-                const k = (typeof Kardashev.score === 'number') ? Kardashev.score
-                        : (typeof Kardashev.currentLevel === 'function') ? Kardashev.currentLevel()
-                        : (typeof Kardashev.level === 'number') ? Kardashev.level : 0;
-                this._pushHistory('kardashev_score', k);
+            if (typeof Kardashev !== 'undefined' && typeof Kardashev.score === 'number') {
+                this._pushHistory('kardashev_score', Kardashev.score);
             }
             if (typeof SupplyChain !== 'undefined' && SupplyChain.inventory) {
                 const inv = SupplyChain.inventory;
@@ -133,23 +130,6 @@ const Terminal = {
 
         // No auto-bootstrap. Terminal opens only when the user clicks the landing
         // button or presses D after entering the city.
-    },
-
-    _autoBootstrap() {
-        const tryBoot = () => {
-            if (typeof enterCity === 'function') {
-                const landing = document.getElementById('landing');
-                if (landing && landing.classList.contains('exit')) return;
-                enterCity();
-            } else {
-                setTimeout(tryBoot, 40);
-            }
-        };
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => setTimeout(tryBoot, 0));
-        } else {
-            setTimeout(tryBoot, 0);
-        }
     },
 
     tryAutoOpen() {

@@ -2,7 +2,7 @@
 
 **The entire AI industry — alive in your browser.**
 
-A globally synced, real-time pixel-art simulation where every AI model is a citizen, every lab is a district, and every benchmark, launch, and price war happens in real time. Built with PixiJS 7, Three.js r128, and vanilla JS — zero bundler, ~70 JS files, ~35K lines.
+A globally synced, real-time pixel-art simulation where every AI model is a citizen, every lab is a district, and every benchmark, launch, and price war happens in real time. Built with PixiJS 7, Three.js r128, and vanilla JS — zero bundler, ~92 JS files, ~58K lines.
 
 🌐 **[Play Live](https://singularitycity.net)** · 📰 **[Read the Paper](https://singularitycity.net)** · 🖼️ **[Embed it](https://singularitycity.net/embed.html)**
 
@@ -202,7 +202,7 @@ Session 15 (v225-v233) shipped a full perf pass:
 | Backend | Supabase (cross-player cloud sync) |
 | Hosting | Netlify (auto-deploy on push to main) |
 | Tooling | ESLint flat config + Prettier + editorconfig |
-| Code | ~35K lines vanilla JavaScript, ~70 files, zero bundler |
+| Code | ~58K lines vanilla JavaScript, ~92 files, zero bundler |
 
 ## Development
 
@@ -213,8 +213,8 @@ cd SingularityCity
 npx http-server -p 5500   # or: python -m http.server 5500
 
 # Bump cache versions after code changes
-node tools/cachebust.mjs 291        # rewrites ?v= on local script tags
-# Then manually bump CACHE_NAME in sw.js to match
+node tools/cachebust.mjs            # auto-pick max(local, remote) + 1; also syncs sw.js CACHE_NAME
+node tools/cachebust.mjs 433        # or pin a specific version
 
 # Lint
 npx eslint js/
@@ -253,44 +253,57 @@ js/
   street_vendors.js     — Food cart NPCs
 
   # Interiors
-  interior_manager.js       — Routes building types to interior modules
-  interior_city_core.js     — HQ building interior system
-  interior_city_props.js    — HQ interior furniture
-  interior_city_ai.js       — Interior character AI behaviors
-  interior_res_core.js      — Residential/estate interior system
-  interior_res_props.js     — Furniture, elevator, luxury props
-  interior_res_ai.js        — Interior character AI behaviors
-  interior_avatar_states.js — Avatar sleeping/sitting/working states
-  interior_dc.js            — Data center interiors
-  interior_bar.js           — Neon bar interior
-  interior_npc.js           — NPC housing interiors
-  interior_legacy.js        — Legacy building interiors
-  interior_backbone.js      — Backbone network interiors
-  interior_vcrow.js         — VC Row interiors
-  interior_robotics.js      — Robotics factory interiors
-  interior_longevity.js     — Longevity research interiors
+  interior_manager.js          — Routes building types to interior modules
+  interior_city_core.js        — HQ building interior system
+  interior_city_props.js       — HQ interior furniture
+  interior_city_ai.js          — Interior character AI behaviors
+  interior_res_core.js         — Residential/estate interior system
+  interior_res_props.js        — Furniture, elevator, luxury props
+  interior_res_ai.js           — Interior character AI behaviors
+  interior_avatar_states.js    — Avatar sleeping/sitting/working states
+  interior_dc.js               — Data center interiors
+  interior_bar.js              — Neon bar interior
+  interior_npc.js              — NPC housing interiors
+  interior_legacy.js           — Legacy building interiors
+  interior_metro.js            — Metro station / underground platform interiors
+  interior_newspaper.js        — Singularity City Times printing-press interior
+  interior_backbone.js         — Backbone network interiors
+  interior_vcrow.js            — VC Row interiors
+  interior_robotics.js         — Robotics factory interiors
+  interior_longevity.js        — Longevity research interiors
+  interior_agents.js           — Agent District tower interiors
+  interior_alignment.js        — Alignment Forest cabin interiors
+  interior_embassy.js          — Embassy Row consulate interiors (per-country)
+  interior_ambassador_res.js   — Ambassador villa interiors (Embassy Quarter)
+  interior_black_market.js     — Underground / Black Market interior
 
   # Zones (logic / env pairs)
-  orbit_mode.js         — LEO orbit view with real satellite data
-  xray_mode.js          — Diagnostic wireframe overlay
-  robotics_zone.js      — Robotics factory zone data & NPCs
-  robotics_env.js       — Robotics factory animations
-  longevity_zone.js     — Longevity research zone data & NPCs
-  longevity_env.js      — Longevity research animations
-  backbone_zone.js      — Backbone network zone data & NPCs
-  backbone_env.js       — Backbone network animations
-  power_zone.js         — Power grid zone data
-  power_env.js          — Power grid animations
+  orbit_mode.js          — LEO orbit view with real satellite data
+  xray_mode.js           — Diagnostic wireframe overlay
+  robotics_zone.js       — Robotics factory zone data & NPCs
+  robotics_env.js        — Robotics factory animations
+  longevity_zone.js      — Longevity research zone data & NPCs
+  longevity_env.js       — Longevity research animations
+  backbone_zone.js       — Backbone network zone data & NPCs
+  backbone_env.js        — Backbone network animations
+  agents_zone.js         — Agent District zone data, NPCs, status ticker
+  agents_env.js          — Agent District animations (data flow, bots, LEDs)
+  alignment_forest.js    — AI safety institute cabins (MIRI / METR / Apollo / Redwood / FAR AI)
+  embassy_row.js         — Embassy Row consulates with country flags & policy briefs
+  embassy_quarter.js     — Ambassador villas with per-country architecture
+  power_zone.js          — Power grid zone data
+  power_env.js           — Power grid animations
   power_zone_interior.js — Power plant interiors
-  port_zone.js          — Port district zone data
-  port_env.js           — Port district animations (ships, ocean)
-  vc_row.js             — VC Row zone data & cars
-  vc_row_env.js         — VC Row animations
-  space_data.js         — Launch Library 2 API integration
-  space_environment.js  — Desert biome rendering
-  space_entities.js     — Rocket launch system
-  space_interior.js     — Mission control interior
-  datacenter_data.js    — DC facility data
+  port_zone.js           — Port district zone data
+  port_env.js            — Port district animations (ships, ocean)
+  vc_row.js              — VC Row zone data & cars
+  vc_row_env.js          — VC Row animations
+  space_data.js          — Launch Library 2 API integration
+  space_environment.js   — Desert biome rendering
+  space_entities.js      — Rocket launch system
+  space_interior.js      — Mission control interior
+  datacenter_data.js     — DC facility data
+  underground.js         — Shared sub-surface rendering (cables, strata, pipes)
 
   # Events & effects
   seasonal.js           — Seasonal events (snow, fireworks, etc.)
@@ -312,8 +325,16 @@ js/
   bird_flocks.js        — Procedural V-formation birds with landing & scatter
   ai_index.js           — Global AI Index: composite 0-1000 score billboard
   supply_chain.js       — Port→DC supply chain: trucks, inventory, shortage effects
-  research_papers.js    — arXiv API paper delivery to lab HQs
   black_market.js       — Underground zone for jailbroken models (3-tier detection)
+
+  # Sessions 17+ — terminal mode, civilisation scoring, world expansion
+  terminal.js           — Bloomberg-style data dashboard (D hotkey, 14 panels, charts)
+  kardashev.js          — Kardashev-scale civilisation score (0.700 → 1.000 Type I)
+  quests.js             — Quest log: 29 quests across 6 categories, derived from achievements
+  hn_blimps.js          — HackerNews AI-story blimps drifting across the sky
+  tutorial.js           — Opt-in 30-step interactive walkthrough
+  shadows.js            — Dynamic building shadows tied to the sun's day/night arc
+  crowd_separation.js   — Local NPC avoidance via spatial-hash neighbour queries
 ```
 
 ## License

@@ -2133,9 +2133,18 @@ async function enterCity(opts = {}) {
   const loaderSub    = document.getElementById('sc-loader-sub');
   const tasksEl      = document.getElementById('sc-loader-tasks');
 
+  // Derive the running version from the cache-bust query on our own script tags
+  // (all js/*.js tags share the same ?v= which cachebust.mjs keeps in sync with
+  // sw.js CACHE_NAME). Falls back gracefully if no tag matches.
+  const _verMatch = (document.querySelector('script[src*="js/"][src*="?v="]')?.src || '').match(/\?v=(\d+)/);
+  const _ver = _verMatch ? _verMatch[1] : '';
+
   // Theme the loader for Terminal boot (amber) vs City (cyan/default)
+  if (loaderBadge) {
+      const prefix = isTerminal ? 'TERMINAL BOOT' : 'SYSTEM BOOT';
+      loaderBadge.textContent = _ver ? `${prefix} · v${_ver}` : prefix;
+  }
   if (isTerminal) {
-      if (loaderBadge) loaderBadge.textContent = 'TERMINAL BOOT · v415';
       if (loaderSub)   loaderSub.textContent   = 'REAL-TIME AI INDUSTRY DASHBOARD';
       if (loader)      loader.classList.add('sc-loader-terminal');
   }
