@@ -26,7 +26,10 @@ const Newspaper = {
     _printStyleEl: null,
     _isOpen: false,
     _volumeStart: new Date(2025, 0, 1), // Vol 1 Issue 1 = 2025-01-01
-    _activeEdition: 'daily',           // 'daily' | 'weekly' — set on open()
+    _activeEdition: 'daily',           // 'daily' | 'weekly' | 'archive' — set on open()
+    _archiveList: null,                // Cached array of {id, edition_date, kind, ...} once fetched
+    _archiveHtmlCache: {},             // editionId → cached HTML body (string)
+    _viewingArchiveId: null,           // If non-null, archive HTML for that id is on-screen
 
     // Called once during engine boot — installs the print stylesheet
     init() {
@@ -204,6 +207,56 @@ const Newspaper = {
                 font-size: 9px; font-style: italic;
                 color: #5a3e1a; letter-spacing: 0.5px;
             }
+            .np-archive-intro {
+                margin: 14px 0 12px;
+                padding: 10px 14px;
+                background: rgba(122, 90, 40, 0.08);
+                border-left: 3px solid #7a5a28;
+                font-size: 11px; line-height: 1.5;
+                color: #2a1f0c;
+            }
+            .np-archive-list {
+                margin-top: 10px;
+                display: flex; flex-direction: column; gap: 4px;
+            }
+            .np-archive-row {
+                display: grid;
+                grid-template-columns: 110px 70px 1fr;
+                align-items: center;
+                gap: 12px;
+                padding: 10px 12px;
+                background: rgba(255, 255, 255, 0.18);
+                border: 1px solid rgba(122, 90, 40, 0.4);
+                border-radius: 3px;
+                cursor: pointer;
+                transition: background 0.12s ease, transform 0.12s ease;
+                font-size: 11px; color: #2a1f0c;
+                text-align: left;
+            }
+            .np-archive-row:hover {
+                background: rgba(255, 255, 255, 0.42);
+                transform: translateX(2px);
+            }
+            .np-archive-row .np-ar-date  { font-weight: bold; color: #1a1308; font-variant-numeric: tabular-nums; }
+            .np-archive-row .np-ar-kind  { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #5a3e1a; }
+            .np-archive-row .np-ar-lead  { color: #2a1f0c; line-height: 1.3; }
+            .np-archive-row .np-ar-lead i { color: #7a5a28; }
+            .np-archive-empty, .np-archive-loading {
+                padding: 24px 12px;
+                text-align: center;
+                color: #5a3e1a; font-style: italic;
+            }
+            .np-archive-back {
+                display: inline-block;
+                margin: 0 0 12px;
+                padding: 6px 12px;
+                background: #7a5a28; color: #f4ecd6;
+                border: none; border-radius: 3px;
+                font: bold 10px/1 Georgia, serif;
+                letter-spacing: 1px;
+                cursor: pointer;
+            }
+            .np-archive-back:hover { background: #9b7436; }
             @media (max-width: 768px) {
                 #newspaperPaper {
                     margin: 8px auto; padding: 16px 14px 20px;
@@ -289,17 +342,41 @@ const Newspaper = {
         modal.querySelectorAll('.np-tab').forEach(btn => {
             btn.addEventListener('click', () => this._setEdition(btn.dataset.edition));
         });
+        // Archive row clicks → load and display that issue
+        modal.querySelectorAll('.np-archive-row[data-archive-id]').forEach(row => {
+            row.addEventListener('click', () => {
+                const id = row.dataset.archiveId;
+                if (!id) return;
+                this._viewingArchiveId = id;
+                this._loadArchiveIssue(id);
+                this._refreshArchiveView();
+            });
+        });
+        // "Back to all issues" button when viewing a single archived edition
+        const back = modal.querySelector('[data-action="archive-back"]');
+        if (back) {
+            back.addEventListener('click', () => {
+                this._viewingArchiveId = null;
+                this._refreshArchiveView();
+            });
+        }
         // Click-outside-to-close on the dim background only
         modal.addEventListener('click', (e) => { if (e.target === modal) this.close(); });
     },
 
     _setEdition(edition) {
         if (!this._isOpen || !this._modalEl) return;
-        if (edition !== 'daily' && edition !== 'weekly') return;
-        if (this._activeEdition === edition) return;
+        if (edition !== 'daily' && edition !== 'weekly' && edition !== 'archive') return;
+        if (this._activeEdition === edition && !this._viewingArchiveId) return;
         this._activeEdition = edition;
+        this._viewingArchiveId = null;        // any tab swap returns to the list
         this._modalEl.innerHTML = this._buildModalHTML();
         this._wireModal(this._modalEl);
+
+        // Lazy-fetch archive list on first switch to that tab
+        if (edition === 'archive' && this._archiveList === null) {
+            this._loadArchiveList();
+        }
     },
 
     close() {
@@ -319,17 +396,21 @@ const Newspaper = {
     // CONTENT GENERATION — real-world AI news from API feeds + RSS + HackerNews
     // ──────────────────────────────────────────────────────────────────────────────────
 
-    // Top-level dispatcher: returns Daily or Weekly HTML based on _activeEdition.
+    // Top-level dispatcher: returns Daily / Weekly / Archive HTML based on _activeEdition.
     _buildModalHTML() {
-        return this._activeEdition === 'weekly' ? this._buildWeeklyHTML() : this._buildDailyHTML();
+        if (this._activeEdition === 'archive') return this._buildArchiveHTML();
+        if (this._activeEdition === 'weekly')  return this._buildWeeklyHTML();
+        return this._buildDailyHTML();
     },
 
     _buildTabs() {
         const d = this._activeEdition === 'daily' ? ' active' : '';
         const w = this._activeEdition === 'weekly' ? ' active' : '';
+        const a = this._activeEdition === 'archive' ? ' active' : '';
         return `<div class="np-tabs">
             <button class="np-tab${d}" data-edition="daily" title="Today's brief">📰 TODAY</button>
             <button class="np-tab${w}" data-edition="weekly" title="The week in review">📚 THIS WEEK</button>
+            <button class="np-tab${a}" data-edition="archive" title="Archived editions from past press cycles">🗄 BACK ISSUES</button>
         </div>`;
     },
 
@@ -579,6 +660,141 @@ const Newspaper = {
 
         html += `</div>`;
         return html;
+    },
+
+    // ──────────────────────────────────────────────────────────────────────────────────
+    // BACK ISSUES — archived editions read from Supabase
+    // ──────────────────────────────────────────────────────────────────────────────────
+    _buildArchiveHTML() {
+        let html = `<div id="newspaperPaper">`;
+        html += `<button class="np-pdf" title="Print / save as PDF">🖨 SAVE AS PDF</button>`;
+        html += `<button class="np-close" aria-label="Close">✕</button>`;
+        html += this._buildTabs();
+
+        // Viewing a specific archived issue
+        if (this._viewingArchiveId) {
+            const cached = this._archiveHtmlCache[this._viewingArchiveId];
+            html += `<button class="np-archive-back" data-action="archive-back">← Back to all issues</button>`;
+            if (cached === undefined) {
+                html += `<div class="np-archive-loading">Loading archived issue…</div>`;
+            } else if (cached === null) {
+                html += `<div class="np-archive-empty">This issue couldn't be loaded.</div>`;
+            } else {
+                html += cached;
+            }
+            html += `</div>`;
+            return html;
+        }
+
+        // Index view — list of available editions
+        html += `<div class="np-masthead">
+            <div class="np-tagline">— THE ARCHIVE · BACK ISSUES OF THE SINGULARITY CITY TIMES —</div>
+            <h1>The Singularity City Times</h1>
+            <div class="np-meta">
+                <span><b>ARCHIVE</b></span>
+                <span>${(this._archiveList || []).length} issues on file</span>
+                <span>READ-ONLY</span>
+            </div>
+        </div>`;
+
+        html += `<div class="np-archive-intro">
+            Every Daily Brief and Weekly Edition is committed to the archive at 00:00 UTC.
+            Click any issue below to read it as it ran. The archive is read-only — for the
+            live newsroom, use <b>📰 TODAY</b> or <b>📚 THIS WEEK</b> above.
+        </div>`;
+
+        if (this._archiveList === null) {
+            html += `<div class="np-archive-loading">Pulling the archive from cold storage…</div>`;
+        } else if (this._archiveList.length === 0) {
+            html += `<div class="np-archive-empty">No back issues yet — the first edition will be archived at the next 00:00 UTC.</div>`;
+        } else {
+            html += `<div class="np-archive-list">`;
+            for (const row of this._archiveList) {
+                const dateLabel = this._formatArchiveDate(row.edition_date);
+                const kindLabel = row.kind === 'weekly' ? '📚 WEEKLY' : '📰 DAILY';
+                const lead = row.lead_headline
+                    ? `<b>${this._esc(row.lead_headline)}</b>` + (row.lead_source ? ` <i>· ${this._esc(row.lead_source)}</i>` : '')
+                    : '<i>No lead recorded</i>';
+                html += `<button class="np-archive-row" data-archive-id="${this._esc(row.id)}">
+                    <span class="np-ar-date">${this._esc(dateLabel)}</span>
+                    <span class="np-ar-kind">${kindLabel}</span>
+                    <span class="np-ar-lead">${lead}</span>
+                </button>`;
+            }
+            html += `</div>`;
+        }
+
+        html += `</div>`;
+        return html;
+    },
+
+    _formatArchiveDate(iso) {
+        // iso is YYYY-MM-DD; format as e.g. "Fri · May 1, 2026"
+        const [y, m, d] = (iso || '').split('-').map(Number);
+        if (!y) return iso || '';
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    },
+
+    // Fetches the list of archived editions from Supabase. Anon key + RLS allow read.
+    async _loadArchiveList() {
+        const url = (typeof G !== 'undefined' && G.supabaseUrl) || '';
+        const key = (typeof G !== 'undefined' && G.supabaseKey) || '';
+        if (!url || !key) {
+            this._archiveList = [];
+            this._refreshArchiveView();
+            return;
+        }
+        try {
+            const r = await fetch(
+                `${url}/rest/v1/newspaper_editions?select=id,edition_date,kind,issue_number,volume_number,lead_headline,lead_source,lead_url&order=edition_date.desc,kind.asc&limit=60`,
+                { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+            );
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            this._archiveList = await r.json();
+        } catch (e) {
+            console.warn('[Newspaper] archive list fetch failed:', e.message);
+            this._archiveList = [];
+        }
+        this._refreshArchiveView();
+    },
+
+    // Fetches the HTML body of one archived edition. Cached after first load.
+    async _loadArchiveIssue(id) {
+        if (this._archiveHtmlCache[id] !== undefined && this._archiveHtmlCache[id] !== null) return;
+        // Mark as loading so the modal shows a placeholder during fetch
+        this._archiveHtmlCache[id] = undefined;
+        this._refreshArchiveView();
+
+        const url = (typeof G !== 'undefined' && G.supabaseUrl) || '';
+        const key = (typeof G !== 'undefined' && G.supabaseKey) || '';
+        if (!url || !key) {
+            this._archiveHtmlCache[id] = null;
+            this._refreshArchiveView();
+            return;
+        }
+        try {
+            const r = await fetch(
+                `${url}/rest/v1/newspaper_edition_html?edition_id=eq.${encodeURIComponent(id)}&select=html`,
+                { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+            );
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const arr = await r.json();
+            this._archiveHtmlCache[id] = (arr[0] && arr[0].html) || null;
+        } catch (e) {
+            console.warn('[Newspaper] archive issue fetch failed:', e.message);
+            this._archiveHtmlCache[id] = null;
+        }
+        this._refreshArchiveView();
+    },
+
+    // Re-render archive view if it's the active tab. No-op otherwise so slow
+    // network responses arriving after the user navigated away don't clobber things.
+    _refreshArchiveView() {
+        if (!this._isOpen || !this._modalEl) return;
+        if (this._activeEdition !== 'archive') return;
+        this._modalEl.innerHTML = this._buildModalHTML();
+        this._wireModal(this._modalEl);
     },
 
     // Build a numeric issue (Vol/Issue) from weeks elapsed since launch date
