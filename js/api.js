@@ -1514,7 +1514,7 @@ Respond with ONLY minified JSON, no markdown:
     _maxKnownVersions: {
         // Western
         'gemini': 3.1, 'gemma': 3, 'gpt': 5.4, 'claude': 4.6, 'llama': 4,
-        'grok': 4.2, 'phi': 4, 'palm': 2, 'bard': 1, 'codellama': 1,
+        'grok': 4.3, 'phi': 4, 'palm': 2, 'bard': 1, 'codellama': 1,
         'mistral': 3, 'mixtral': 2, 'codestral': 1, 'ministral': 3, 'pixtral': 1, 'devstral': 1.5,
         'mathstral': 1, 'magistral': 2,
         'command': 2, 'nova': 2, 'titan': 1, 'nemotron': 4,
@@ -1808,7 +1808,7 @@ Respond with ONLY minified JSON, no markdown:
             'gemini 3.1 pro', 'gemini 3.1 ultra', 'gemini 3.1 flash', 'gemini 3.1 flash lite',
             'gemma 3', 'gemma 2', 'gemma 7b', 'codegemma', 'recurrentgemma', 'palm 2',
             // xAI
-            'grok 1', 'grok 2', 'grok 3', 'grok 3 mini', 'grok 4', 'grok 4 mini', 'grok 4.20',
+            'grok 1', 'grok 2', 'grok 3', 'grok 3 mini', 'grok 4', 'grok 4 mini', 'grok 4.20', 'grok 4.3',
             // Meta
             'llama 4 scout', 'llama 4 maverick', 'llama 4 behemoth',
             'llama 3.3', 'llama 3.2', 'llama 3.1', 'llama 3', 'llama 2', 'codellama',
