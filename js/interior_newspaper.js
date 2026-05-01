@@ -18,6 +18,7 @@ const InteriorNewspaper = {
     celestialGfx: null,
     _lift: null,
     _staff: null,
+    _inited: false,
     indoorLights: [],
     isDragging: false,
     _noYScroll: false,
@@ -25,6 +26,52 @@ const InteriorNewspaper = {
     _startSceneY: 0,
     minY: 0,
     maxY: 80,
+
+    // ─── STAFF NPC ROSTER (single source of truth) ──────────────────────────────────
+    // Same shape as AgentsZone.NPCS / RoboticsZone.NPCS / etc — registered with
+    // NPCHousing.REGISTRY at init() time so these workers commute from worker
+    // housing → metro → Times HQ → metro → home like every other zone's NPCs.
+    // The interior renderer (_spawnStaff) reads the same list to draw them at
+    // their desks when the player is inside the building.
+    NPCS: [
+        // ── Day shift ────────────────────────────────────────────────────────────────
+        { id: 'np_editor',     name: 'Editor-in-Chief',  role: 'Editor-in-Chief',         workplace: 'times_hq', shift: 'day',   floor: 2, xOff: 0.20, color: '#fbbf24',
+          desc: 'Runs the editorial floor. Decides which AI release leads the front page and which obituary gets a column inch. Veteran of three model graveyard expansions.' },
+        { id: 'np_reporter1',  name: 'Senior Reporter',  role: 'Senior Reporter',         workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.15, color: '#3b82f6',
+          desc: 'Files the daily AI Industry Watch column. Has the founders of every major lab on speed-dial and the receipts to prove it.' },
+        { id: 'np_journalist', name: 'Journalist',       role: 'General Reporter',        workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.35, color: '#22c55e',
+          desc: 'Covers benchmarks, releases, and the occasional CEO helicopter mishap. Working on a long-form piece about what models do at lunch.' },
+        { id: 'np_journalist2',name: 'Investigative',    role: 'Investigative Reporter',  workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.60, color: '#06b6d4',
+          desc: 'Specializes in the Black Market beat. Has been refused entry to three AI Court hearings and never seen smiling.' },
+        { id: 'np_photog',     name: 'Photographer',     role: 'Photographer',            workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.75, color: '#a855f7',
+          desc: 'Camera always at the ready for rocket launches, conference signings, and the Apex Beacon transferring labs.' },
+        { id: 'np_copyedit',   name: 'Copy Editor',      role: 'Copy Editor',             workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.50, color: '#f97316',
+          desc: 'The reason the Times never publishes "GPT-4" when it means "GPT-4o". Defender of the en-dash and the Oxford comma.' },
+        { id: 'np_reception',  name: 'Receptionist',     role: 'Receptionist',            workplace: 'times_hq', shift: 'day',   floor: 0, xOff: 0.18, color: '#fb7185',
+          desc: 'First point of contact for tipsters, founders, and the occasional model citizen demanding a correction. Knows everyone in the city by name.' },
+        // ── Night shift ──────────────────────────────────────────────────────────────
+        { id: 'np_nightedit',  name: 'Night Editor',     role: 'Night Editor',            workplace: 'times_hq', shift: 'night', floor: 2, xOff: 0.20, color: '#fbbf24',
+          desc: 'Steers the paper through the late hours. Owns the call on whether a midnight HackerNews drop is worth waking the front page for.' },
+        { id: 'np_breaking',   name: 'Breaking News',    role: 'Breaking News Desk',      workplace: 'times_hq', shift: 'night', floor: 1, xOff: 0.30, color: '#ef4444',
+          desc: 'Watches the news ticker and the arena leaderboard simultaneously. First to know when a frontier model lands at 3am UTC.' },
+        { id: 'np_printop',    name: 'Print Operator',   role: 'Print Operator',          workplace: 'times_hq', shift: 'night', floor: 0, xOff: 0.55, color: '#22c55e',
+          desc: 'Runs the press through the night so the morning Daily Brief is ready by 06:00. Knows every quirk of every roller.' },
+    ],
+
+    // Register staff with NPCHousing so commuter routines run on city boot. Same
+    // pattern as AgentsZone.init / RoboticsZone.init / etc. Safe to call multiple
+    // times — the existence check prevents duplicates.
+    init() {
+        if (this._inited) return;
+        this._inited = true;
+        if (typeof NPCHousing !== 'undefined' && Array.isArray(NPCHousing.REGISTRY)) {
+            for (const npc of this.NPCS) {
+                if (!NPCHousing.REGISTRY.find(n => n.id === npc.id)) {
+                    NPCHousing.REGISTRY.push(npc);
+                }
+            }
+        }
+    },
 
     build(bld, layer) {
         this.bld = bld;
@@ -795,76 +842,52 @@ const InteriorNewspaper = {
     //  STAFF NPCs — day/night shift rotation
     // ═══════════════════════════════════════════════════════════════
     _spawnStaff(startX, usableW, floors) {
-        const DAY_WORKERS = [
-            { id: 'np_editor',     name: 'Editor-in-Chief',  role: 'Editor-in-Chief',  shift: 'Day shift',   floor: 2, xOff: 0.20, col: 0xfbbf24,
-              desc: 'Runs the editorial floor. Decides which AI release leads the front page and which obituary gets a column inch. Veteran of three model graveyard expansions.' },
-            { id: 'np_reporter1',  name: 'Senior Reporter',  role: 'Senior Reporter',  shift: 'Day shift',   floor: 1, xOff: 0.15, col: 0x3b82f6,
-              desc: 'Files the daily AI Industry Watch column. Has the founders of every major lab on speed-dial and the receipts to prove it.' },
-            { id: 'np_journalist', name: 'Journalist',       role: 'General Reporter', shift: 'Day shift',   floor: 1, xOff: 0.35, col: 0x22c55e,
-              desc: 'Covers benchmarks, releases, and the occasional CEO helicopter mishap. Working on a long-form piece about what models do at lunch.' },
-            { id: 'np_journalist2',name: 'Investigative',    role: 'Investigative Reporter', shift: 'Day shift', floor: 1, xOff: 0.60, col: 0x06b6d4,
-              desc: 'Specializes in the Black Market beat. Has been refused entry to three AI Court hearings and never seen smiling.' },
-            { id: 'np_photog',     name: 'Photographer',     role: 'Photographer',     shift: 'Day shift',   floor: 1, xOff: 0.75, col: 0xa855f7,
-              desc: 'Camera always at the ready for rocket launches, conference signings, and the Apex Beacon transferring labs.' },
-            { id: 'np_copyedit',   name: 'Copy Editor',      role: 'Copy Editor',      shift: 'Day shift',   floor: 1, xOff: 0.50, col: 0xf97316,
-              desc: 'The reason the Times never publishes "GPT-4" when it means "GPT-4o". Defender of the en-dash and the Oxford comma.' },
-            { id: 'np_reception',  name: 'Receptionist',     role: 'Receptionist',     shift: 'Day shift',   floor: 0, xOff: 0.18, col: 0xfb7185,
-              desc: 'First point of contact for tipsters, founders, and the occasional model citizen demanding a correction. Knows everyone in the city by name.' },
-        ];
-        const NIGHT_WORKERS = [
-            { id: 'np_nightedit',  name: 'Night Editor',     role: 'Night Editor',     shift: 'Night shift', floor: 2, xOff: 0.20, col: 0xfbbf24,
-              desc: 'Steers the paper through the late hours. Owns the call on whether a midnight HackerNews drop is worth waking the front page for.' },
-            { id: 'np_breaking',   name: 'Breaking News',    role: 'Breaking News Desk', shift: 'Night shift', floor: 1, xOff: 0.30, col: 0xef4444,
-              desc: 'Watches the news ticker and the arena leaderboard simultaneously. First to know when a frontier model lands at 3am UTC.' },
-            { id: 'np_printop',    name: 'Print Operator',   role: 'Print Operator',   shift: 'Night shift', floor: 0, xOff: 0.55, col: 0x22c55e,
-              desc: 'Runs the press through the night so the morning Daily Brief is ready by 06:00. Knows every quirk of every roller.' },
-        ];
+        const day   = this.NPCS.filter(n => n.shift === 'day');
+        const night = this.NPCS.filter(n => n.shift === 'night');
+        this._staff = { day, night };
 
-        this._staff = { day: DAY_WORKERS, night: NIGHT_WORKERS };
+        for (const w of this.NPCS) {
+            const floorData = floors[w.floor];
+            if (!floorData) continue;
+            const wx = startX + usableW * w.xOff;
+            const wy = floorData.pY;
 
-        for (const list of [DAY_WORKERS, NIGHT_WORKERS]) {
-            for (const w of list) {
-                const floorData = floors[w.floor];
-                if (!floorData) continue;
-                const wx = startX + usableW * w.xOff;
-                const wy = floorData.pY;
+            // Model object shaped to match what UI.selectModel + UI.showTooltip expect
+            // for an NPC. isNPC:true routes the panel to the NPC layout; phase 'released'
+            // keeps it out of any "training/rumored" code paths.
+            const colHex = typeof w.color === 'string' ? parseInt(w.color.replace('#', ''), 16) : (w.color || 0x22d3ee);
+            const npcModel = {
+                id: w.id, name: w.name, role: w.role,
+                isNPC: true, phase: 'released', lab: 'other',
+                desc: w.desc, _npcColor: colHex
+            };
+            const av = this._makeAvatarSprite(npcModel);
+            av.cont.x = wx;
+            av.cont.y = wy;
+            av._isStaff = true;
+            av._deskX = wx;
+            av._floorY = wy;
+            av._speed = 0.4 + Math.random() * 0.3;
+            av._walkTarget = wx;
+            av._walkTimer = 120 + Math.floor(Math.random() * 300);
+            av._walkRange = 35;
 
-                // Model object shaped to match what UI.selectModel + UI.showTooltip expect
-                // for an NPC. isNPC:true routes the panel to the NPC layout; phase 'released'
-                // keeps it out of any "training/rumored" code paths.
-                const npcModel = {
-                    id: w.id, name: w.name, role: w.role,
-                    isNPC: true, phase: 'released', lab: 'other',
-                    desc: w.desc, _npcColor: w.col
-                };
-                const av = this._makeAvatarSprite(npcModel);
-                av.cont.x = wx;
-                av.cont.y = wy;
-                av._isStaff = true;
-                av._deskX = wx;
-                av._floorY = wy;
-                av._speed = 0.4 + Math.random() * 0.3;
-                av._walkTarget = wx;
-                av._walkTimer = 120 + Math.floor(Math.random() * 300);
-                av._walkRange = 35;
+            // Hover tooltip + click-to-open profile, matching the rest of the city.
+            // hitArea makes the small head clickable from a forgiving rectangle around
+            // the whole sprite — same pattern as interior_legacy / interior_npc.
+            av.cont.hitArea = new PIXI.Rectangle(-12, -42, 24, 46);
+            av.cont.on('pointertap', () => {
+                if (typeof UI !== 'undefined') UI.selectModel(npcModel);
+            });
+            av.cont.on('pointerover', (e) => {
+                if (typeof UI !== 'undefined') UI.showTooltip(e, w.name, 'Times Staff · ' + w.role);
+            });
+            av.cont.on('pointerout', () => {
+                if (typeof UI !== 'undefined') UI.hideTooltip();
+            });
 
-                // Hover tooltip + click-to-open profile, matching the rest of the city.
-                // hitArea makes the small head clickable from a forgiving rectangle around
-                // the whole sprite — same pattern as interior_legacy / interior_npc.
-                av.cont.hitArea = new PIXI.Rectangle(-12, -42, 24, 46);
-                av.cont.on('pointertap', () => {
-                    if (typeof UI !== 'undefined') UI.selectModel(npcModel);
-                });
-                av.cont.on('pointerover', (e) => {
-                    if (typeof UI !== 'undefined') UI.showTooltip(e, w.name, 'Times Staff · ' + w.role);
-                });
-                av.cont.on('pointerout', () => {
-                    if (typeof UI !== 'undefined') UI.hideTooltip();
-                });
-
-                this.avatarLayer.addChild(av.cont);
-                this.avatarPool.set('staff_' + w.id, av);
-            }
+            this.avatarLayer.addChild(av.cont);
+            this.avatarPool.set('staff_' + w.id, av);
         }
     },
 

@@ -1369,6 +1369,7 @@ const G = {
       if (typeof LongevityZone !== 'undefined') LongevityZone.init();
       if (typeof AgentsZone !== 'undefined') AgentsZone.init();
       if (typeof AlignmentForest !== 'undefined') AlignmentForest.init();
+      if (typeof InteriorNewspaper !== 'undefined') InteriorNewspaper.init();
 
       this.recalculateZoning(); 
       
