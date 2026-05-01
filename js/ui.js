@@ -691,31 +691,62 @@ const UI = {
       </div>`;
     },
   
+    _censusQuery: '',
+
     showCensus() {
-      G.unlockAchieve('census_view'); 
-      const dp = G.getDayPhase(); 
+      G.unlockAchieve('census_view');
       document.getElementById('censusOv').classList.add('open');
-      
+
       const alive = G.models.filter(m => !m.ret || new Date(m.ret) > new Date()).length;
-      let h = `<button class="ipanel-x" onclick="document.getElementById('censusOv').classList.remove('open')">✕</button>
+      const q = UI._censusQuery || '';
+      const h = `<button class="ipanel-x" onclick="document.getElementById('censusOv').classList.remove('open')">✕</button>
                <div class="ov-title">📊 CENSUS — ${G.models.length} Citizens</div>
-               <div style="display:flex;justify-content:center;gap:16px;margin-bottom:14px;font-size:9px">
+               <div style="display:flex;justify-content:center;gap:16px;margin-bottom:10px;font-size:9px">
                   <span style="color:var(--ac)">● ${alive} Active</span>
                   <span style="color:#8b5cf6">● ${G.models.filter(m => ['rumored', 'pre_training', 'training'].includes(m.phase)).length} Pre-Training</span>
                   <span style="color:#7a7f8a">● ${G.models.length - alive} Retired</span>
                </div>
-               <div style="display:flex;flex-direction:column;gap:12px;max-height:70vh;overflow-y:auto;padding-right:8px;">`;
-      
-      const gr = {}; 
-      G.models.forEach((m, i) => { 
-          const l = m.lab || 'other'; 
-          if (!gr[l]) gr[l] = []; 
-          gr[l].push({ m, i }); 
+               <div style="margin-bottom:12px;position:relative">
+                  <input id="censusSearch" type="text" placeholder="🔍 Search by name, lab, talent, or year…" value="${escapeHTML(q)}"
+                         oninput="UI._censusQuery=this.value;UI.renderCensusList()"
+                         style="width:100%;padding:8px 30px 8px 12px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;color:#fff;font-family:inherit;font-size:10px;outline:none;box-sizing:border-box"
+                         onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--bd)'">
+                  ${q ? `<button onclick="UI._censusQuery='';document.getElementById('censusSearch').value='';UI.renderCensusList();document.getElementById('censusSearch').focus()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--t2);cursor:pointer;font-size:14px;padding:0 6px">✕</button>` : ''}
+               </div>
+               <div id="censusList" style="display:flex;flex-direction:column;gap:12px;max-height:65vh;overflow-y:auto;padding-right:8px;"></div>`;
+
+      document.getElementById('censusPan').innerHTML = h;
+      UI.renderCensusList();
+    },
+
+    renderCensusList() {
+      const list = document.getElementById('censusList');
+      if (!list) return;
+      const dp = G.getDayPhase();
+      const q = (UI._censusQuery || '').trim().toLowerCase();
+
+      const matches = (m) => {
+        if (!q) return true;
+        const lab = LABS[m.lab];
+        const relYear = m.rel ? String(new Date(m.rel).getFullYear()) : '';
+        const hay = [m.name, m.tal, m.lab, lab?.name, m.phase, relYear, m.arch?.params].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      };
+
+      const gr = {};
+      G.models.forEach((m, i) => {
+        if (!matches(m)) return;
+        const l = m.lab || 'other';
+        if (!gr[l]) gr[l] = [];
+        gr[l].push({ m, i });
       });
 
+      let h = '';
+      let total = 0;
       Object.keys(LABS).forEach(lk => {
-        if (!gr[lk] || !gr[lk].length) return; 
+        if (!gr[lk] || !gr[lk].length) return;
         const li = LABS[lk];
+        total += gr[lk].length;
 
         h += `<div style="background:var(--cd);border:1px solid var(--bd);border-radius:6px;padding:12px">
                 <div style="font-size:12px;font-weight:bold;color:${li.color};margin-bottom:10px;display:flex;align-items:center;gap:8px">
@@ -724,16 +755,16 @@ const UI = {
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">`;
 
         gr[lk].forEach(({ m, i }) => {
-          const s = getStage(m.rel, m.ret, m.phase); 
-          const avg = typeof avgBM === 'function' ? avgBM(m.id) : 0; 
-          const { act } = getAct(s, dp, i, m); 
+          const s = getStage(m.rel, m.ret, m.phase);
+          const avg = typeof avgBM === 'function' ? avgBM(m.id) : 0;
+          const { act } = getAct(s, dp, i, m);
           const ai = ACTS[act] || {icon: '💻', verb: 'processing'};
           const isPre = ['rumored', 'pre_training', 'training'].includes(m.phase);
           const statCol = isPre ? '#8b5cf6' : s === 'retired' ? '#7a7f8a' : '#4ade80';
           const relYear = m.rel ? new Date(m.rel).getFullYear() : 'Unknown';
 
-          h += `<div style="background:var(--sf);border:1px solid var(--bd);border-radius:4px;padding:8px;cursor:pointer;transition:border-color 0.2s" 
-                     onclick="document.getElementById('censusOv').classList.remove('open');UI.selectModel(G.models[${i}])" 
+          h += `<div style="background:var(--sf);border:1px solid var(--bd);border-radius:4px;padding:8px;cursor:pointer;transition:border-color 0.2s"
+                     onclick="document.getElementById('censusOv').classList.remove('open');UI.selectModel(G.models[${i}])"
                      onmouseover="this.style.borderColor='${li.color}'" onmouseout="this.style.borderColor='var(--bd)'">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
                       <div style="display:flex;align-items:center;gap:6px;max-width:80%;">
@@ -757,8 +788,14 @@ const UI = {
         });
         h += '</div></div>';
       });
-      h += '</div>'; 
-      document.getElementById('censusPan').innerHTML = h;
+
+      if (q && total === 0) {
+        h = `<div style="text-align:center;padding:40px 20px;color:var(--t2);font-size:11px">No citizens match "${escapeHTML(UI._censusQuery)}"</div>`;
+      } else if (q) {
+        h = `<div style="font-size:9px;color:var(--t2);margin-bottom:4px">${total} match${total === 1 ? '' : 'es'}</div>` + h;
+      }
+
+      list.innerHTML = h;
     },
   
     _benchSort: 'avg',
