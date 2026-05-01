@@ -751,9 +751,11 @@ const InteriorNewspaper = {
             fontFamily: 'Press Start 2P, monospace', fontSize: 5,
             fill: 0xfbbf24, letterSpacing: 0.5
         });
-        pressLabel.anchor.set(0.5, 0);
+        // Anchor bottom-center so the label hovers just above the press
+        // machine instead of crossing into the basement wall.
+        pressLabel.anchor.set(0.5, 1);
         pressLabel.x = pressX + pressW / 2;
-        pressLabel.y = pY + 2;
+        pressLabel.y = pressY - 4;
         cont.addChild(pressLabel);
         this._pressLabel = pressLabel;
 

@@ -1,22 +1,23 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   THE SINGULARITY CITY TIMES (v1.0.0 — Phase 3a)
+   THE SINGULARITY CITY TIMES (v2.0 — Daily + Weekly editions)
    ────────────────────────────────────────────────────────────────────────────────────────────────
-   Weekly newspaper generated from live game state. Opens as a full-screen sepia modal overlay
-   when the player clicks the "Singularity City Times" HQ building in downtown.
+   Two editions sharing the same data sources, sliced differently:
+     • DAILY BRIEF — punchy snapshot. Lead pulled from HackerNews top AI story (or liveNews if
+       no HN data yet). Compact sections: HN top 5, two wire headlines, one paper, market line,
+       one classified. Default on Mon-Sat.
+     • WEEKLY EDITION — full broadsheet retrospective. Lead, AI Industry Watch, Research
+       Frontiers, Regulation, Market Ticker, Classifieds, Colophon. Default on Sundays.
 
-   Content sections (all pulled from G.models / BM / LABS at open time):
-     • Masthead — title, date, vol/issue, city weather
-     • Top Story — highest-avg-benchmark model released in the last 30 days
-     • Launches — three most recent model releases
-     • Lab Standings — top 5 labs by active model count
-     • Obituaries — three most recently retired models
-     • Classifieds — playful flavor ads that reference real buildings/entities
-     • Colophon — masthead attribution + "save as PDF" hint
+   Both are live-rendered each open. A tab strip at the top lets the reader switch freely.
 
-   The "🖨️ Save as PDF" button calls window.print(). A print-only @media rule strips the chrome
-   and scales the article body onto letter-sized paper so browsers emit a clean PDF directly.
+   Data sources (all read at render time — never persisted in this module):
+     • API.liveNews / arxivPapers / regulationNews / stockPrices  (RSS + arXiv + Finnhub)
+     • HNBlimps._stories                                          (HackerNews top AI)
 
-   This is a zero-dependency module: no jsPDF / html2canvas / server. Pure DOM + window.print().
+   The "🖨 SAVE AS PDF" button calls window.print(). A print-only @media rule strips the chrome
+   and scales the active edition onto letter-sized paper so browsers emit a clean PDF directly.
+
+   Zero-dependency module: no jsPDF / html2canvas / server. Pure DOM + window.print().
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const Newspaper = {
@@ -25,6 +26,7 @@ const Newspaper = {
     _printStyleEl: null,
     _isOpen: false,
     _volumeStart: new Date(2025, 0, 1), // Vol 1 Issue 1 = 2025-01-01
+    _activeEdition: 'daily',           // 'daily' | 'weekly' — set on open()
 
     // Called once during engine boot — installs the print stylesheet
     init() {
@@ -78,6 +80,32 @@ const Newspaper = {
                 z-index: 2;
             }
             .np-pdf:hover { background: #9b7436; }
+            .np-tabs {
+                display: flex; gap: 4px;
+                margin: -8px -12px 14px;
+                padding: 4px 4px 0;
+                border-bottom: 1px solid #7a5a28;
+            }
+            .np-tab {
+                flex: 1;
+                background: rgba(122, 90, 40, 0.08);
+                border: 1px solid #7a5a28;
+                border-bottom: none;
+                color: #5a3e1a;
+                font: bold 11px/1 Georgia, serif;
+                padding: 9px 12px;
+                cursor: pointer;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                border-radius: 4px 4px 0 0;
+                transition: background 0.15s ease, color 0.15s ease;
+            }
+            .np-tab:hover { background: rgba(122, 90, 40, 0.18); color: #1a1308; }
+            .np-tab.active {
+                background: linear-gradient(180deg, #f4ecd6, #efe3c0);
+                color: #1a1308;
+                box-shadow: 0 -1px 0 #f4ecd6 inset;
+            }
             .np-masthead {
                 text-align: center;
                 border-bottom: 4px double #3b2a12;
@@ -190,6 +218,8 @@ const Newspaper = {
                 .np-classifieds { columns: 1; font-size: 9px; }
                 .np-close { top: 8px; right: 8px; padding: 6px 10px; font-size: 12px; }
                 .np-pdf { top: 8px; right: 46px; padding: 6px 10px; font-size: 9px; }
+                .np-tabs { margin: -4px -6px 10px; padding: 4px 4px 0; }
+                .np-tab { font-size: 10px; padding: 7px 6px; letter-spacing: 0.5px; }
             }
             @media (max-height: 500px) {
                 #newspaperPaper { margin: 4px auto; padding: 12px 10px 14px; max-height: calc(100vh - 8px); overflow-y: auto; }
@@ -213,29 +243,33 @@ const Newspaper = {
                 background: #fff !important;
                 page-break-inside: avoid;
             }
-            .np-close, .np-pdf { display: none !important; }
+            .np-close, .np-pdf, .np-tabs { display: none !important; }
             @page { size: letter; margin: 0.4in; }
         `;
         document.head.appendChild(print);
         this._printStyleEl = print;
     },
 
-    open() {
+    open(edition) {
         if (!this._styleEl) this.init();
         if (this._isOpen) return;
+
+        // Default edition: Sundays feature the Weekly retrospective; the rest of the
+        // week the Daily Brief leads. Caller can force either via the argument.
+        if (edition === 'daily' || edition === 'weekly') {
+            this._activeEdition = edition;
+        } else {
+            this._activeEdition = (new Date().getDay() === 0) ? 'weekly' : 'daily';
+        }
 
         // Build the modal DOM
         const modal = document.createElement('div');
         modal.id = 'newspaperModal';
         modal.className = 'open';
-        modal.innerHTML = this._buildHTML();
+        modal.innerHTML = this._buildModalHTML();
         document.body.appendChild(modal);
 
-        // Wire the buttons
-        modal.querySelector('.np-close').addEventListener('click', () => this.close());
-        modal.querySelector('.np-pdf').addEventListener('click', () => this.savePDF());
-        // Click-outside-to-close on the dim background only
-        modal.addEventListener('click', (e) => { if (e.target === modal) this.close(); });
+        this._wireModal(modal);
 
         this._modalEl = modal;
         this._isOpen = true;
@@ -245,6 +279,27 @@ const Newspaper = {
             AutoTour.stop('newspaper');
             AutoTour._lastInputAt = performance.now();
         }
+    },
+
+    // Wire close / pdf / tab handlers — called fresh after every render so swapping
+    // editions doesn't leak listeners.
+    _wireModal(modal) {
+        modal.querySelector('.np-close').addEventListener('click', () => this.close());
+        modal.querySelector('.np-pdf').addEventListener('click', () => this.savePDF());
+        modal.querySelectorAll('.np-tab').forEach(btn => {
+            btn.addEventListener('click', () => this._setEdition(btn.dataset.edition));
+        });
+        // Click-outside-to-close on the dim background only
+        modal.addEventListener('click', (e) => { if (e.target === modal) this.close(); });
+    },
+
+    _setEdition(edition) {
+        if (!this._isOpen || !this._modalEl) return;
+        if (edition !== 'daily' && edition !== 'weekly') return;
+        if (this._activeEdition === edition) return;
+        this._activeEdition = edition;
+        this._modalEl.innerHTML = this._buildModalHTML();
+        this._wireModal(this._modalEl);
     },
 
     close() {
@@ -261,17 +316,32 @@ const Newspaper = {
     },
 
     // ──────────────────────────────────────────────────────────────────────────────────
-    // CONTENT GENERATION — real-world AI news from API feeds + RSS
+    // CONTENT GENERATION — real-world AI news from API feeds + RSS + HackerNews
     // ──────────────────────────────────────────────────────────────────────────────────
 
-    _buildHTML() {
+    // Top-level dispatcher: returns Daily or Weekly HTML based on _activeEdition.
+    _buildModalHTML() {
+        return this._activeEdition === 'weekly' ? this._buildWeeklyHTML() : this._buildDailyHTML();
+    },
+
+    _buildTabs() {
+        const d = this._activeEdition === 'daily' ? ' active' : '';
+        const w = this._activeEdition === 'weekly' ? ' active' : '';
+        return `<div class="np-tabs">
+            <button class="np-tab${d}" data-edition="daily" title="Today's brief">📰 TODAY</button>
+            <button class="np-tab${w}" data-edition="weekly" title="The week in review">📚 THIS WEEK</button>
+        </div>`;
+    },
+
+    _buildWeeklyHTML() {
         const now = new Date();
         const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         const issueNum = this._computeIssueNum(now);
         const weather = this._getWeatherText();
 
-        // Pull real-world news from API feeds
-        const headlines = this._getLiveHeadlines(8);
+        // Pull real-world news from API feeds + HackerNews
+        const hnStories = this._getHNStories(5);
+        const headlines = this._mergeHeadlines(this._getLiveHeadlines(8), hnStories, 8);
         const papers = this._getArxivPapers(4);
         const regulation = this._getRegulationNews(4);
         const stocks = this._getStockTicker();
@@ -279,6 +349,7 @@ const Newspaper = {
         let html = `<div id="newspaperPaper">`;
         html += `<button class="np-pdf" title="Print / save as PDF">🖨 SAVE AS PDF</button>`;
         html += `<button class="np-close" aria-label="Close">✕</button>`;
+        html += this._buildTabs();
 
         // Masthead
         html += `<div class="np-masthead">
@@ -368,10 +439,142 @@ const Newspaper = {
 
         // Colophon
         html += `<div class="np-colophon">
-            THE SINGULARITY CITY TIMES is printed daily at the Times HQ downtown.
-            News sourced live from TechCrunch, The Verge, VentureBeat, Ars Technica & arXiv.
+            THE SINGULARITY CITY TIMES — Weekly Edition. Printed Sundays at the Times HQ downtown.
+            News sourced live from TechCrunch, The Verge, VentureBeat, Ars Technica, arXiv &amp; Hacker News.
             Editor-in-Chief: The Autonomous Bureau · Design: The Neon Atelier
             <br>— Press <b>Save as PDF</b> above to archive this issue —
+        </div>`;
+
+        html += `</div>`;
+        return html;
+    },
+
+    // ──────────────────────────────────────────────────────────────────────────────────
+    // DAILY BRIEF — punchy snapshot, HackerNews-led when available
+    // ──────────────────────────────────────────────────────────────────────────────────
+    _buildDailyHTML() {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        const issueNum = this._computeDailyIssueNum(now);
+        const weather = this._getWeatherText();
+
+        const hnStories = this._getHNStories(5);
+        const headlines = this._getLiveHeadlines(3);
+        const papers = this._getArxivPapers(1);
+        const regulation = this._getRegulationNews(1);
+        const stocks = this._getStockTicker();
+        const lead = this._pickDailyLead(hnStories, headlines);
+
+        let html = `<div id="newspaperPaper">`;
+        html += `<button class="np-pdf" title="Print / save as PDF">🖨 SAVE AS PDF</button>`;
+        html += `<button class="np-close" aria-label="Close">✕</button>`;
+        html += this._buildTabs();
+
+        // Masthead (compact daily variant)
+        html += `<div class="np-masthead">
+            <div class="np-tagline">— TODAY ON THE FRONTIER · DAILY BRIEF —</div>
+            <h1>The Singularity City Times</h1>
+            <div class="np-meta">
+                <span><b>DAILY</b> · No. ${issueNum}</span>
+                <span>${dateStr}</span>
+                <span>${weather} · ONE CREDIT</span>
+            </div>
+        </div>`;
+
+        // ─── LEAD ───
+        if (lead) {
+            const subAttr = lead.source === 'Hacker News'
+                ? `▲ Hacker News · ${lead.score || 0} points · ${lead.comments || 0} comments`
+                : `Source: ${this._esc(lead.source)}`;
+            html += `<div class="np-top-story">
+                <h2><a href="${this._esc(lead.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(lead.headline)}</a></h2>
+                <div class="np-sub">${subAttr} · <a href="${this._esc(lead.url)}" target="_blank" rel="noopener" style="color:#5a3e1a">Read full article →</a></div>
+            </div>`;
+        } else {
+            html += `<div class="np-top-story">
+                <h2>The Wires Are Quiet</h2>
+                <div class="np-sub">Headlines fetch on a 5-minute cycle. Try again in a moment.</div>
+            </div>`;
+        }
+
+        // ─── TWO-COLUMN GRID ───
+        html += `<div class="np-grid">`;
+
+        // Column 1: HackerNews top AI stories
+        html += `<div class="np-section"><h3>▲ Hacker News — AI Top</h3>`;
+        if (hnStories.length > 0) {
+            for (const s of hnStories) {
+                html += `<div class="np-item">
+                    <b><a href="${this._esc(s.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(s.headline)}</a></b>
+                    <span class="np-byline">▲ ${s.score || 0} · ${s.comments || 0} comments · <a href="https://news.ycombinator.com/item?id=${this._esc(s.id)}" target="_blank" rel="noopener" style="color:#5a3e1a">discuss</a></span>
+                </div>`;
+            }
+        } else {
+            html += `<div class="np-item"><i>HackerNews fetch in progress — top AI stories appear here.</i></div>`;
+        }
+        html += `</div>`;
+
+        // Column 2: On the Wires + Paper of the Day
+        html += `<div class="np-section"><h3>📡 On the Wires</h3>`;
+        if (headlines.length > 0) {
+            for (const h of headlines.slice(0, 3)) {
+                html += `<div class="np-item">
+                    <b><a href="${this._esc(h.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(h.headline)}</a></b>
+                    <span class="np-byline">${this._esc(h.source)}</span>
+                </div>`;
+            }
+        } else {
+            html += `<div class="np-item"><i>RSS feeds loading.</i></div>`;
+        }
+        html += `</div>`;
+
+        html += `</div>`; // end grid
+
+        // ─── PAPER + REGULATION ROW (one item each) ───
+        html += `<div class="np-grid" style="margin-top:14px">`;
+        html += `<div class="np-section"><h3>📄 Paper of the Day</h3>`;
+        if (papers.length > 0) {
+            const p = papers[0];
+            html += `<div class="np-item">
+                <b><a href="https://arxiv.org/abs/${this._esc(p.id)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(p.title)}</a></b>
+                <span class="np-byline">arXiv: ${this._esc(p.id)} · ${this._esc(p.published)}</span>
+            </div>`;
+        } else {
+            html += `<div class="np-item"><i>arXiv feed loading.</i></div>`;
+        }
+        html += `</div>`;
+
+        html += `<div class="np-section"><h3>⚖ Policy Beat</h3>`;
+        if (regulation.length > 0) {
+            const r = regulation[0];
+            html += `<div class="np-item">
+                <b><a href="${this._esc(r.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(r.headline)}</a></b>
+                <span class="np-byline">${this._esc(r.source)}</span>
+            </div>`;
+        } else {
+            html += `<div class="np-item"><i>Policy desk: nothing fresh today.</i></div>`;
+        }
+        html += `</div>`;
+        html += `</div>`; // end second grid
+
+        // ─── MARKET ONE-LINER ───
+        if (stocks.length > 0) {
+            html += `<div class="np-section" style="margin-top:14px"><h3>📈 Markets</h3>`;
+            html += `<div class="np-item" style="font-family:monospace;font-size:10px;line-height:1.8">`;
+            html += stocks.slice(0, 6).map(s =>
+                `<b>${this._esc(s.sym)}</b> $${this._esc(s.price)} <span style="color:${s.color}">${this._esc(s.change)}</span>`
+            ).join(' · ');
+            html += `</div></div>`;
+        }
+
+        // ─── ONE CLASSIFIED (rotated daily) ───
+        html += this._buildDailyClassified(now);
+
+        // Colophon
+        html += `<div class="np-colophon">
+            THE SINGULARITY CITY TIMES — Daily Brief. Refreshed live each visit.
+            For the full weekly retrospective, switch to <b>📚 THIS WEEK</b> above.
+            <br>— Press <b>Save as PDF</b> to archive today's brief —
         </div>`;
 
         html += `</div>`;
@@ -386,6 +589,12 @@ const Newspaper = {
         const vol = Math.floor((weeks - 1) / issuesPerVolume) + 1;
         const issue = ((weeks - 1) % issuesPerVolume) + 1;
         return { vol, issue };
+    },
+
+    // Daily issue number = days elapsed since launch.
+    _computeDailyIssueNum(now) {
+        const ms = now - this._volumeStart;
+        return Math.max(1, Math.floor(ms / (24 * 3600 * 1000)) + 1);
     },
 
     _getWeatherText() {
@@ -427,6 +636,70 @@ const Newspaper = {
             change: data.change,
             color: data.color || '#666',
         }));
+    },
+
+    // Adapter: pulls from HNBlimps._stories and normalizes to the same shape as
+    // liveNews items so they can flow through the same render path. HN data is
+    // populated by hn_blimps.js (10-min cache via Netlify function).
+    _getHNStories(n) {
+        if (typeof HNBlimps === 'undefined' || !HNBlimps._stories || !HNBlimps._stories.length) return [];
+        return HNBlimps._stories.slice(0, n).map(s => ({
+            id: s.id,
+            headline: s.title,
+            source: 'Hacker News',
+            url: s.url || `https://news.ycombinator.com/item?id=${s.id}`,
+            score: s.score || 0,
+            comments: s.descendants || 0,
+        }));
+    },
+
+    // Daily lead picker: prefer a hot HN story (>=200 score) when available, otherwise
+    // fall back to the freshest wire headline. Keeps the daily relevant on quiet news days.
+    _pickDailyLead(hnStories, headlines) {
+        const hot = hnStories.find(s => (s.score || 0) >= 200);
+        if (hot) return hot;
+        if (hnStories.length > 0) return hnStories[0];
+        if (headlines.length > 0) return headlines[0];
+        return null;
+    },
+
+    // Merge wire headlines + HN top into a single dedup'd list for the weekly's
+    // "AI Industry Watch" column. URL is the dedupe key.
+    _mergeHeadlines(wires, hn, n) {
+        const seen = new Set();
+        const out = [];
+        const push = (item) => {
+            const key = (item.url || item.headline || '').toLowerCase();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            out.push(item);
+        };
+        // Interleave: wires first (already sorted by recency), HN sprinkled in after the lead.
+        if (wires[0]) push(wires[0]);
+        for (let i = 0; i < Math.max(wires.length, hn.length) && out.length < n; i++) {
+            if (hn[i]) push(hn[i]);
+            if (wires[i + 1]) push(wires[i + 1]);
+        }
+        return out.slice(0, n);
+    },
+
+    // Daily classified rotates by day-of-year so the same ad runs all day but the
+    // city sees a fresh one each morning. Ad pool is independent from the weekly's
+    // 8-slot grid.
+    _buildDailyClassified(now) {
+        const ads = [
+            ['HELP WANTED', 'Junior reasoner. Must show work. Loop unrolling a plus. Apply at any HQ.'],
+            ['FOR TRADE', 'Surplus 8K context tokens. Will swap for verified citations.'],
+            ['NOTICE', 'Black Market Dumpster has been moved. New entrance is the OTHER suspicious alley.'],
+            ['SERVICES', 'Eval-cert\'d bench-pressing — flex your attention heads at RLHF Gym.'],
+            ['LOST', 'A single coherent thought. Last seen near the Embassy Quarter at 2am.'],
+            ['UPCOMING', 'Newspaper HQ tour every Thursday — see the press in action.'],
+            ['SEEKING', 'Reviewer #2 for a paper that just needs ONE more accept.'],
+        ];
+        const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+        const ad = ads[dayOfYear % ads.length];
+        return `<div class="np-classifieds" style="margin-top:14px"><h4>— TODAY'S CLASSIFIED —</h4>
+            <div class="np-ad"><b>${ad[0]}:</b> ${ad[1]}</div></div>`;
     },
 
     _buildClassifieds() {
