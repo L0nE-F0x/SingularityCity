@@ -308,25 +308,6 @@ const SpaceEntities = {
         if (G.tick % 60 === 0) {
             this.matchLaunchesToPads();
         }
-
-        // ─── Demo launch fallback ─────────────────────────────────────────────
-        // Real-world launches are sparse and the LL2 API often has none matching
-        // our seven orgs within a 5-min window, so the user can wait forever and
-        // never see liftoff. Every ~3 min, if no rocket is currently flying AND
-        // no rocket has a real launch imminent, kick off a demo on a random pad.
-        if (G.tick % (180 * 60) === 0 && G.tick > 0) {
-            const anyFlying = Object.values(this.rockets).some(r =>
-                ['preparation', 'countdown', 'ignition', 'liftoff', 'ascending', 'orbit', 'resetting'].includes(r.state)
-            );
-            const realLaunchSoon = Object.values(this.rockets).some(r => {
-                if (!r.launchData) return false;
-                const diff = new Date(r.launchData.net) - new Date();
-                return diff > 0 && diff <= 600000; // within 10 min
-            });
-            if (!anyFlying && !realLaunchSoon) {
-                this.triggerRandomLaunch();
-            }
-        }
         
         // Update each rocket
         Object.values(this.rockets).forEach(r => {
