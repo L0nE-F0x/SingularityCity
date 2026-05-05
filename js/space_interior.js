@@ -23,6 +23,7 @@ const SpaceInterior = {
         this.avatars = [];
         this.bubbles = [];
         this.indoorLights = [];
+        this.observationWindows = [];
 
         // ─── SKY LAYER (behind scene — DOM sky shows through window cutouts) ───
         if (typeof InteriorCity !== 'undefined' && InteriorCity._createSkyLayer) {
@@ -238,16 +239,21 @@ const SpaceInterior = {
                     // Ground floor: launch consoles + countdown + fire suppression
                     this.drawLaunchConsole(floorCont, startX + 80, propY, colHex);
                     this.drawLaunchConsole(floorCont, startX + 240, propY, colHex);
-                    this.drawLaunchConsole(floorCont, startX + 400, propY, colHex);
-                    this.drawCountdownClock(floorCont, startX + bldW / 2, fy + 10, bld);
+                    this.drawCountdownClock(floorCont, startX + bldW / 2 - 80, fy + 10, bld);
                     this.drawNPC(floorCont, startX + 160, propY, 'Launch Dir', 0xef4444);
                     this.drawNPC(floorCont, startX + 320, propY, 'Range Safety', 0xfacc15);
-                } else {
-                    // Upper floor: observation + comms
-                    this.drawCommRack(floorCont, startX + 60, propY, colHex);
-                    this.drawServerCabinet(floorCont, startX + 180, propY, colHex);
                     this.drawCoffeeMachine(floorCont, startX + bldW - 80, propY);
-                    this.drawNPC(floorCont, startX + 300, propY, 'Weather', 0x38bdf8);
+                } else {
+                    // Upper floor: OBSERVATION DECK — a giant window onto the
+                    // launch pad with a live rocket whose state mirrors the
+                    // exterior pad. When liftoff fires, you watch from inside.
+                    const obsW = Math.min(bldW - 120, 520);
+                    const obsX = startX + (bldW - obsW) / 2;
+                    const obsY = fy + 8;
+                    const obsH = floorH - 18;
+                    this.drawObservationWindow(floorCont, obsX, obsY, obsW, obsH, bld, colHex);
+                    this.drawNPC(floorCont, startX + 60, propY, 'Weather', 0x38bdf8);
+                    this.drawNPC(floorCont, startX + bldW - 70, propY, 'Capsule Comm', colHex);
                 }
             }
             
@@ -369,6 +375,9 @@ const SpaceInterior = {
 
         // Animate space NPCs
         this.updateAvatars();
+
+        // Live observation windows (launchpad interiors)
+        this.updateObservationWindows();
     },
     
     // ════════════════════════════════════════════════════
@@ -633,6 +642,267 @@ const SpaceInterior = {
         txt.x = cx; txt.y = y + 15;
         c.addChild(g, txt);
         bld._countdownClock = txt;
+    },
+
+    // ════════════════════════════════════════════════════
+    //   OBSERVATION WINDOW — live view onto the launch pad
+    //   Mirrors SpaceEntities.rockets[bld.id] state so the
+    //   user can watch a real liftoff from inside the building.
+    // ════════════════════════════════════════════════════
+    drawObservationWindow(c, x, y, w, h, bld, colHex) {
+        if (!this.observationWindows) this.observationWindows = [];
+
+        const frame = new PIXI.Graphics(); frame.eventMode = 'none';
+        // Outer mullion (bezel)
+        frame.beginFill(0x1f2937);
+        frame.drawRect(x - 6, y - 6, w + 12, h + 12);
+        frame.endFill();
+        frame.beginFill(0x111827);
+        frame.drawRect(x - 4, y - 4, w + 8, h + 8);
+        frame.endFill();
+        c.addChild(frame);
+
+        // Inner clipping container — rocket animation lives here
+        const inner = new PIXI.Container();
+        inner.x = x; inner.y = y;
+        // Mask so the rocket disappears off the top during liftoff
+        const mask = new PIXI.Graphics();
+        mask.beginFill(0xffffff);
+        mask.drawRect(x, y, w, h);
+        mask.endFill();
+        c.addChild(mask);
+        inner.mask = mask;
+        c.addChild(inner);
+
+        // Sky gradient (light desert blue, darkening upward)
+        const sky = new PIXI.Graphics();
+        const skyBands = 6;
+        for (let i = 0; i < skyBands; i++) {
+            const t = i / (skyBands - 1);
+            const r = Math.round(0x6b + t * (0xc8 - 0x6b));
+            const gC = Math.round(0xa8 + t * (0xe0 - 0xa8));
+            const b = Math.round(0xd8 + t * (0xf2 - 0xd8));
+            sky.beginFill((r << 16) | (gC << 8) | b);
+            sky.drawRect(0, (h * i) / skyBands, w, h / skyBands + 1);
+            sky.endFill();
+        }
+        inner.addChild(sky);
+
+        // Distant gantry tower (centered)
+        const cx = w / 2;
+        const groundY = h - 14;
+        const towerH = h * 0.7;
+        const towerW = 8;
+        const tower = new PIXI.Graphics();
+        tower.beginFill(0x475569);
+        tower.drawRect(cx - 16 - towerW, groundY - towerH, towerW, towerH);
+        tower.endFill();
+        tower.beginFill(0x334155);
+        tower.drawRect(cx - 16 - towerW, groundY - towerH, 2, towerH);
+        tower.endFill();
+        // Crossbeams
+        tower.lineStyle(1, 0x64748b, 0.7);
+        for (let by = groundY - towerH + 8; by < groundY; by += 10) {
+            tower.moveTo(cx - 16 - towerW, by);
+            tower.lineTo(cx - 16, by);
+        }
+        tower.lineStyle(0);
+        // Beacon at top
+        tower.beginFill(0xef4444);
+        tower.drawCircle(cx - 16 - towerW / 2, groundY - towerH - 2, 1.5);
+        tower.endFill();
+        inner.addChild(tower);
+
+        // Concrete pad
+        const pad = new PIXI.Graphics();
+        pad.beginFill(0x9ca3af);
+        pad.drawRect(0, groundY, w, h - groundY);
+        pad.endFill();
+        pad.beginFill(0x6b7280);
+        pad.drawRect(cx - 30, groundY, 60, 4);
+        pad.endFill();
+        inner.addChild(pad);
+
+        // Rocket — same palette as exterior entity
+        const rocketCont = new PIXI.Container();
+        rocketCont.sortableChildren = true;
+        const rocketBody = new PIXI.Graphics();
+        // Fuselage
+        rocketBody.beginFill(0xf1f5f9);
+        rocketBody.drawRect(-4, -36, 8, 36);
+        rocketBody.endFill();
+        // Nose cone
+        rocketBody.beginFill(colHex);
+        rocketBody.drawPolygon([-4, -36, 0, -48, 4, -36]);
+        rocketBody.endFill();
+        // Stripe
+        rocketBody.beginFill(colHex);
+        rocketBody.drawRect(-3, -24, 6, 9);
+        rocketBody.endFill();
+        // Window
+        rocketBody.beginFill(0x38bdf8, 0.6);
+        rocketBody.drawCircle(0, -30, 1.5);
+        rocketBody.endFill();
+        // Fins
+        rocketBody.beginFill(0x94a3b8);
+        rocketBody.drawPolygon([-4, -4, -8, 2, -4, 1]);
+        rocketBody.drawPolygon([4, -4, 8, 2, 4, 1]);
+        rocketBody.endFill();
+        rocketCont.addChild(rocketBody);
+
+        // Flame
+        const flameGfx = new PIXI.Graphics();
+        flameGfx.blendMode = PIXI.BLEND_MODES.ADD;
+        flameGfx.visible = false;
+        rocketCont.addChild(flameGfx);
+
+        rocketCont.x = cx;
+        rocketCont.y = groundY;
+        const baseY = rocketCont.y;
+        inner.addChild(rocketCont);
+
+        // Status readout (top-left of window)
+        const statusBg = new PIXI.Graphics();
+        statusBg.beginFill(0x000000, 0.55);
+        statusBg.drawRect(4, 4, 80, 14);
+        statusBg.endFill();
+        inner.addChild(statusBg);
+        const statusTxt = new PIXI.Text('STANDBY', {
+            fontFamily: '"JetBrains Mono", monospace', fontSize: 9, fill: 0x22d3ee, fontWeight: 'bold'
+        });
+        statusTxt.x = 8; statusTxt.y = 6;
+        inner.addChild(statusTxt);
+
+        // Smoke particles container (clipped by mask)
+        const smokeLayer = new PIXI.Container();
+        inner.addChild(smokeLayer);
+
+        this.observationWindows.push({
+            bldId: bld.id,
+            inner, rocketCont, rocketBody, flameGfx, statusTxt,
+            smokeLayer, smokeParticles: [],
+            baseY, groundY, w, h, cx,
+            ascentSpeed: 0
+        });
+    },
+
+    updateObservationWindows() {
+        if (!this.observationWindows || !this.observationWindows.length) return;
+        if (typeof SpaceEntities === 'undefined') return;
+
+        for (const ow of this.observationWindows) {
+            const r = SpaceEntities.rockets[ow.bldId];
+            if (!r) continue;
+            const state = r.state;
+
+            // Status text + color
+            let label = '', color = 0x22d3ee;
+            if (r.launchData && (state === 'idle' || state === 'preparation' || state === 'countdown')) {
+                if (typeof SpaceData !== 'undefined') {
+                    label = SpaceData.getCountdown(r.launchData) || '';
+                }
+                color = state === 'countdown' ? 0xef4444 : state === 'preparation' ? 0xfbbf24 : 0x22d3ee;
+            } else if (state === 'ignition') { label = 'IGNITION'; color = 0xef4444; }
+            else if (state === 'liftoff' || state === 'ascending') { label = `T+${Math.floor((r.timer || 0) / 60)}s`; color = 0x4ade80; }
+            else if (state === 'orbit') { label = 'ORBIT'; color = 0x4ade80; }
+            else if (state === 'idle') { label = ''; }
+            ow.statusTxt.text = label;
+            ow.statusTxt.style.fill = color;
+            ow.statusTxt.visible = !!label;
+
+            // Reset rocket visibility for non-flying states
+            if (state === 'idle' || state === 'preparation' || state === 'countdown') {
+                ow.rocketCont.visible = true;
+                ow.rocketCont.y = ow.baseY;
+                ow.rocketCont.alpha = 1;
+                ow.flameGfx.visible = false;
+                ow.ascentSpeed = 0;
+                // Light shake during countdown
+                if (state === 'countdown') {
+                    ow.rocketCont.x = ow.cx + (Math.random() - 0.5) * 0.6;
+                } else {
+                    ow.rocketCont.x = ow.cx;
+                }
+            } else if (state === 'ignition') {
+                ow.rocketCont.visible = true;
+                ow.rocketCont.y = ow.baseY;
+                ow.rocketCont.x = ow.cx + (Math.random() - 0.5) * 1.2;
+                ow.rocketCont.alpha = 1;
+                this._drawWindowFlame(ow.flameGfx, 1.4);
+                ow.flameGfx.visible = true;
+                if (G.tick % 3 === 0) this._spawnWindowSmoke(ow);
+                ow.ascentSpeed = 0;
+            } else if (state === 'liftoff' || state === 'ascending') {
+                ow.rocketCont.visible = true;
+                ow.ascentSpeed = Math.min(2.4, ow.ascentSpeed + 0.04);
+                ow.rocketCont.y -= ow.ascentSpeed;
+                ow.rocketCont.x = ow.cx + (Math.random() - 0.5) * 0.8;
+                this._drawWindowFlame(ow.flameGfx, 1.6 + Math.sin(G.tick * 0.2) * 0.2);
+                ow.flameGfx.visible = true;
+                if (G.tick % 4 === 0) this._spawnWindowSmoke(ow);
+                // Fade out as it leaves the window top
+                if (ow.rocketCont.y < -20) ow.rocketCont.alpha = Math.max(0, ow.rocketCont.alpha - 0.04);
+            } else if (state === 'orbit' || state === 'resetting') {
+                ow.rocketCont.visible = false;
+                ow.flameGfx.visible = false;
+                if (state === 'resetting' && r.timer < 30) {
+                    // Fade rocket back in for next cycle
+                    ow.rocketCont.visible = true;
+                    ow.rocketCont.y = ow.baseY;
+                    ow.rocketCont.x = ow.cx;
+                    ow.rocketCont.alpha = 1;
+                    ow.ascentSpeed = 0;
+                }
+            }
+
+            // Update smoke particles
+            for (let i = ow.smokeParticles.length - 1; i >= 0; i--) {
+                const p = ow.smokeParticles[i];
+                p.g.x += p.vx; p.g.y += p.vy;
+                p.life--;
+                p.g.scale.set(1 + (1 - p.life / p.maxLife) * 1.3);
+                p.g.alpha = (p.life / p.maxLife) * 0.55;
+                if (p.life <= 0) {
+                    ow.smokeLayer.removeChild(p.g); p.g.destroy();
+                    ow.smokeParticles.splice(i, 1);
+                }
+            }
+        }
+    },
+
+    _drawWindowFlame(g, intensity) {
+        g.clear();
+        const h = 4 + intensity * 8;
+        g.beginFill(0xef4444, 0.8);
+        g.drawPolygon([-3 - intensity, 0, 0, h + Math.sin(G.tick * 0.3) * 2, 3 + intensity, 0]);
+        g.endFill();
+        g.beginFill(0xfbbf24, 0.9);
+        g.drawPolygon([-2, 0, 0, h * 0.6, 2, 0]);
+        g.endFill();
+        g.beginFill(0xffffff, 0.7);
+        g.drawPolygon([-1, 0, 0, h * 0.3, 1, 0]);
+        g.endFill();
+    },
+
+    _spawnWindowSmoke(ow) {
+        const g = new PIXI.Graphics();
+        g.beginFill(0xe2e8f0, 0.5);
+        g.drawCircle(0, 0, 2 + Math.random() * 3);
+        g.endFill();
+        g.x = ow.cx + (Math.random() - 0.5) * 14;
+        g.y = ow.groundY - 2;
+        ow.smokeLayer.addChild(g);
+        ow.smokeParticles.push({
+            g,
+            vx: (Math.random() - 0.5) * 1.2,
+            vy: 0.2 + Math.random() * 0.6,
+            life: 30 + Math.random() * 30,
+            maxLife: 60
+        });
+        if (ow.smokeParticles[ow.smokeParticles.length - 1]) {
+            const p = ow.smokeParticles[ow.smokeParticles.length - 1];
+            p.maxLife = p.life;
+        }
     },
 
     // Deterministic PRNG seeded by building world-X — keeps sand texture stable per visit.

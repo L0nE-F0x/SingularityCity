@@ -1877,6 +1877,9 @@ const G = {
           if (typeof StreetVendors !== 'undefined') StreetVendors.update(dp);
           if (typeof VCRow !== 'undefined') { VCRow.update(); VCRow.updateCommuters(dp); }
           if (typeof SupplyChain !== 'undefined') SupplyChain.update();
+          // Keep rocket state machine ticking so launchpad observation windows
+          // can mirror live liftoffs while the player is inside.
+          if (typeof SpaceEntities !== 'undefined') SpaceEntities.update();
           // Camera keeps tracking target updated for seamless interior↔exterior transitions
           if (typeof Camera !== 'undefined') Camera.update();
           return;

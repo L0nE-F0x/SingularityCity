@@ -303,10 +303,29 @@ const SpaceEntities = {
     // ─── Main update loop — called every frame ───
     update() {
         if (!this.layer) return;
-        
-        // Match launches every ~5 seconds
-        if (G.tick % 300 === 0) {
+
+        // Match launches every ~1 second (was 5s — speeds up trigger when NET crosses)
+        if (G.tick % 60 === 0) {
             this.matchLaunchesToPads();
+        }
+
+        // ─── Demo launch fallback ─────────────────────────────────────────────
+        // Real-world launches are sparse and the LL2 API often has none matching
+        // our seven orgs within a 5-min window, so the user can wait forever and
+        // never see liftoff. Every ~3 min, if no rocket is currently flying AND
+        // no rocket has a real launch imminent, kick off a demo on a random pad.
+        if (G.tick % (180 * 60) === 0 && G.tick > 0) {
+            const anyFlying = Object.values(this.rockets).some(r =>
+                ['preparation', 'countdown', 'ignition', 'liftoff', 'ascending', 'orbit', 'resetting'].includes(r.state)
+            );
+            const realLaunchSoon = Object.values(this.rockets).some(r => {
+                if (!r.launchData) return false;
+                const diff = new Date(r.launchData.net) - new Date();
+                return diff > 0 && diff <= 600000; // within 10 min
+            });
+            if (!anyFlying && !realLaunchSoon) {
+                this.triggerRandomLaunch();
+            }
         }
         
         // Update each rocket
@@ -328,10 +347,11 @@ const SpaceEntities = {
                         if (cd) {
                             r.countdownTxt.text = cd;
                             r.countdownTxt.style.fill = cd.startsWith('T-0') ? 0xef4444 : 0x22d3ee;
+                            r.countdownTxt.visible = true;
                         }
                     } else {
-                        r.countdownTxt.text = 'STANDBY';
-                        r.countdownTxt.style.fill = 0x475569;
+                        r.countdownTxt.text = '';
+                        r.countdownTxt.visible = false;
                     }
                     break;
                 }
@@ -558,8 +578,8 @@ const SpaceEntities = {
                     r.flame.visible = false;
                     r.beacon.visible = false;
                     r.spotlight.visible = false;
-                    r.countdownTxt.text = 'STANDBY';
-                    r.countdownTxt.style.fill = 0x475569;
+                    r.countdownTxt.text = '';
+                    r.countdownTxt.visible = false;
 
                     if (r.timer <= 0) {
                         r.cont.alpha = 1;
