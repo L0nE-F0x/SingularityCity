@@ -1954,6 +1954,7 @@ const G = {
               CityPark: typeof CityPark !== 'undefined' ? CityPark : null,
               BirdFlocks: typeof BirdFlocks !== 'undefined' ? BirdFlocks : null,
               HNBlimps: typeof HNBlimps !== 'undefined' ? HNBlimps : null,
+              NewsReactivity: typeof NewsReactivity !== 'undefined' ? NewsReactivity : null,
               EmbassyRow: typeof EmbassyRow !== 'undefined' ? EmbassyRow : null,
               EmbassyQuarter: typeof EmbassyQuarter !== 'undefined' ? EmbassyQuarter : null,
               AlignmentForest: typeof AlignmentForest !== 'undefined' ? AlignmentForest : null,
@@ -1999,6 +2000,7 @@ const G = {
       if (S.CityPark) S.CityPark.update();
       if (this.tick % 2 === 0 && S.BirdFlocks) S.BirdFlocks.update(); // every other frame for perf
       if (S.HNBlimps) S.HNBlimps.update();
+      if (S.NewsReactivity) S.NewsReactivity.update();
       if (S.EmbassyRow && this.tick % 2 === 0) S.EmbassyRow.update();
       if (S.EmbassyQuarter && this.tick % 2 === 0) S.EmbassyQuarter.update();
       if (S.AlignmentForest) S.AlignmentForest.update();
