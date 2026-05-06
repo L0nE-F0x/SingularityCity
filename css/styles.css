@@ -1282,7 +1282,7 @@ h1, h2, h3, p { margin: 0; }
 /* ════════════════════════════════════════════════════════════════════════════════
    NEWS REACTIVITY ENGINE — share toast.
    When the city auto-reacts to real news, this floating card appears in the
-   lower-right with a tweet-ready draft + Copy / Tweet / Show-Me buttons.
+   lower-right with a post-ready draft + Copy / Post / Show-Me buttons.
    Auto-fades after 45s. Single instance — newest reaction replaces the previous.
    ════════════════════════════════════════════════════════════════════════════════ */
 #sc-news-share {
@@ -1385,12 +1385,13 @@ h1, h2, h3, p { margin: 0; }
     box-shadow: 0 0 12px -2px rgba(34,211,238,0.45);
     transform: translateY(-1px);
 }
-.sc-news-share-tweet {
+.sc-news-share-post {
     border-color: #fbbf24;
     background: rgba(251,191,36,0.1);
     color: #fbbf24;
+    font-size: 11px;
 }
-.sc-news-share-tweet:hover {
+.sc-news-share-post:hover {
     background: rgba(251,191,36,0.22);
     box-shadow: 0 0 12px -2px rgba(251,191,36,0.55);
 }

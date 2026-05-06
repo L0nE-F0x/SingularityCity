@@ -16,8 +16,8 @@
           ⚖️ COURT CONVENE  — summon models to the AI Court hearing chamber
      4. The source headline gets unshifted into API.liveNews so the existing
         bottom-of-screen news ticker crawls it within seconds.
-     5. An in-canvas share toast appears with a pre-written tweet draft + a
-        "Copy" button + "Tweet" button (opens X compose intent). User decides
+     5. An in-canvas share toast appears with a pre-written post draft + a
+        "Copy" button + "Post" button (opens X compose intent). User decides
         whether to actually post.
 
    Cooldown: 3 minutes between any two reactions so the city isn't a constant
@@ -243,21 +243,63 @@ window.NewsReactivity = (function() {
             }
             const bld = G.bldById[f.bldId];
             if (!bld) { STATE.activeFlickers.splice(i, 1); continue; }
-            // Pulse: 2.5 Hz sine, plus rare bright flickers (random skipped frames)
-            const phase = (tick * 0.16) % (Math.PI * 2);
-            const pulse = 0.55 + 0.45 * Math.abs(Math.sin(phase));
-            const flick = Math.random() < 0.12 ? 0.35 : 1.0; // brief strobe glitches
-            const alpha = pulse * flick * f.intensity * 0.55;
+
             const flH = (bld.dynamicFl || 3) * 45;
             const x = bld.x;
             const y = G.groundY - flH;
-            gfx.beginFill(f.color, alpha);
-            gfx.drawRect(x - 2, y - 2, bld.w + 4, flH + 4);
+            const w = bld.w;
+            const cx = x + w / 2;
+
+            // Slow ~1 Hz pulse so the eye reads "alarm cadence", not strobe
+            const pulse = 0.5 + 0.5 * Math.sin(tick * 0.085);
+            const intens = f.intensity;
+
+            // 1. Subtle bottom-up red haze — strong at the base, fades at the
+            //    top. Looks like emergency lighting bleeding up the facade
+            //    instead of a solid wash. Drawn as 6 thin rect bands stepping
+            //    up the building so the alpha gradient is convincing.
+            const bands = 6;
+            for (let b = 0; b < bands; b++) {
+                const t = b / (bands - 1); // 0 at bottom, 1 at top
+                const bandAlpha = (1 - t) * (0.10 + pulse * 0.06) * intens;
+                gfx.beginFill(f.color, bandAlpha);
+                gfx.drawRect(x, y + flH * t, w, flH / bands + 1);
+                gfx.endFill();
+            }
+
+            // 2. Bright rooftop beacon — the load-bearing visual cue. Small,
+            //    pulsing, high-contrast. Reads from anywhere in the city.
+            const beaconAlpha = (0.55 + pulse * 0.45) * intens;
+            const beaconR = 3.5 + pulse * 2.5;
+            // Halo (soft outer)
+            gfx.beginFill(f.color, beaconAlpha * 0.18);
+            gfx.drawCircle(cx, y - 6, beaconR * 4);
             gfx.endFill();
-            // Top glow halo
-            gfx.beginFill(f.color, alpha * 0.6);
-            gfx.drawRect(x - 6, y - 14, bld.w + 12, 14);
+            // Mid glow
+            gfx.beginFill(f.color, beaconAlpha * 0.45);
+            gfx.drawCircle(cx, y - 6, beaconR * 2);
             gfx.endFill();
+            // Hot core
+            gfx.beginFill(f.color, beaconAlpha);
+            gfx.drawCircle(cx, y - 6, beaconR);
+            gfx.endFill();
+
+            // 3. Sparse "alarm window" strobes — a few small red squares
+            //    flicker on at pseudo-random positions across the facade.
+            //    Stable seed so the same windows blink each cycle (not noisy
+            //    random repaint every frame).
+            const seed = ((bld.id || '').length + 1) * 17;
+            const winCount = Math.min(6, Math.max(2, Math.floor(flH / 80)));
+            for (let k = 0; k < winCount; k++) {
+                const cyc = (tick + k * 23 + seed) % 90;
+                if (cyc > 18) continue; // off ~80% of the time
+                const blink = Math.max(0, 1 - cyc / 18);
+                const px = x + 6 + ((seed * 7 + k * 41) % Math.max(1, w - 18));
+                const py = y + 18 + ((seed * 11 + k * 53) % Math.max(1, flH - 30));
+                gfx.beginFill(f.color, 0.75 * blink * intens);
+                gfx.drawRect(px, py, 5, 5);
+                gfx.endFill();
+            }
         }
     }
 
@@ -308,7 +350,7 @@ window.NewsReactivity = (function() {
         showShareToast(r);
     }
 
-    function tweetTextFor(r) {
+    function postTextFor(r) {
         const lab = labName(r.labId);
         const headline = (r.story && r.story.title) || 'AI news';
         const linePerType = {
@@ -333,7 +375,7 @@ window.NewsReactivity = (function() {
         }
         const lab = labName(r.labId);
         const headline = (r.story && r.story.title) || '';
-        const tweet = tweetTextFor(r);
+        const post = postTextFor(r);
         host.innerHTML = `
             <div class="sc-news-share-head">
                 <span class="sc-news-share-emoji">${r.emoji}</span>
@@ -343,7 +385,7 @@ window.NewsReactivity = (function() {
             </div>
             <div class="sc-news-share-body">${escape(headline)}</div>
             <div class="sc-news-share-actions">
-                <button class="sc-news-share-btn sc-news-share-tweet">🐦 Tweet</button>
+                <button class="sc-news-share-btn sc-news-share-post">𝕏 Post</button>
                 <button class="sc-news-share-btn sc-news-share-copy">📋 Copy</button>
                 <a class="sc-news-share-btn sc-news-share-camera" href="#">🎥 Show Me</a>
             </div>
@@ -351,18 +393,18 @@ window.NewsReactivity = (function() {
         host.classList.add('sc-news-share-in');
 
         const closeBtn = host.querySelector('.sc-news-share-close');
-        const tweetBtn = host.querySelector('.sc-news-share-tweet');
+        const postBtn  = host.querySelector('.sc-news-share-post');
         const copyBtn  = host.querySelector('.sc-news-share-copy');
         const camBtn   = host.querySelector('.sc-news-share-camera');
 
         closeBtn.onclick = () => host.classList.remove('sc-news-share-in');
-        tweetBtn.onclick = () => {
-            const intent = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(tweet);
+        postBtn.onclick = () => {
+            const intent = 'https://x.com/intent/post?text=' + encodeURIComponent(post);
             window.open(intent, '_blank', 'noopener');
         };
         copyBtn.onclick = async () => {
             try {
-                await navigator.clipboard.writeText(tweet);
+                await navigator.clipboard.writeText(post);
                 copyBtn.textContent = '✓ Copied';
                 setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 1500);
             } catch (_e) {
