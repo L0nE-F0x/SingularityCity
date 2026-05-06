@@ -42,6 +42,19 @@
   status = 200
   force = true
 
+# ─── FOUNDER TRACKER PAGES (per-founder pretty URLs with SEO meta) ───
+[[redirects]]
+  from = "/founder/*"
+  to = "/.netlify/functions/founder-page"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/founders"
+  to = "/.netlify/functions/founders-index"
+  status = 200
+  force = true
+
 
 [[headers]]
   for = "/*"
