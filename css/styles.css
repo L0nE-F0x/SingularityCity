@@ -1563,3 +1563,169 @@ h1, h2, h3, p { margin: 0; }
         bottom: 76px;
     }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════════
+   DAILY BRIEFING — auto-prompt toast + stop button + post-record share toast
+   ════════════════════════════════════════════════════════════════════════════════ */
+
+/* Prompt toast (lower-right corner) */
+#sc-briefing-prompt {
+    position: fixed;
+    right: 20px;
+    bottom: 130px;        /* stacks above the news-engine share toast spot */
+    width: clamp(280px, 26vw, 360px);
+    z-index: 9992;
+    background: linear-gradient(180deg, rgba(10,10,26,0.96) 0%, rgba(6,6,18,0.92) 100%);
+    border: 1px solid rgba(251,191,36,0.5);
+    border-radius: 6px;
+    padding: 12px 14px;
+    box-shadow: 0 18px 40px -12px rgba(0,0,0,0.7), 0 0 18px -6px rgba(251,191,36,0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #e8e8f0;
+    font-family: 'JetBrains Mono', monospace;
+    opacity: 0;
+    transform: translateY(14px);
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.2,0.85,0.3,1.05);
+}
+#sc-briefing-prompt.sc-bp-in {
+    opacity: 1; transform: translateY(0); pointer-events: auto;
+}
+.sc-bp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.sc-bp-emoji { font-size: 18px; }
+.sc-bp-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px; letter-spacing: 1.5px; color: #fbbf24;
+    text-shadow: 0 0 6px rgba(251,191,36,0.4);
+    flex: 1;
+}
+.sc-bp-close {
+    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent; color: #888;
+    font-size: 14px; width: 22px; height: 22px;
+    border-radius: 50%; cursor: pointer; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s ease;
+}
+.sc-bp-close:hover { border-color: #f87171; color: #f87171; background: rgba(239,68,68,0.1); }
+.sc-bp-body {
+    font-size: 11px; line-height: 1.5; color: #c8c8dc; margin-bottom: 12px;
+}
+.sc-bp-actions { display: flex; gap: 6px; }
+.sc-bp-btn {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid rgba(34,211,238,0.4);
+    background: rgba(34,211,238,0.06);
+    color: #22d3ee;
+    font: 700 10px/1 'JetBrains Mono', monospace;
+    text-transform: uppercase; letter-spacing: 1px;
+    border-radius: 4px; cursor: pointer; text-align: center;
+    transition: all 0.15s ease;
+}
+.sc-bp-btn:hover { background: rgba(34,211,238,0.18); transform: translateY(-1px); box-shadow: 0 0 12px -2px rgba(34,211,238,0.45); }
+.sc-bp-go {
+    border-color: #fbbf24; background: rgba(251,191,36,0.12); color: #fbbf24;
+}
+.sc-bp-go:hover { background: rgba(251,191,36,0.24); box-shadow: 0 0 12px -2px rgba(251,191,36,0.55); }
+
+/* Stop button (centered top during briefing) */
+#sc-briefing-stop {
+    position: fixed;
+    top: 18px;
+    left: 50%;
+    transform: translate(-50%, -16px);
+    z-index: 9994;
+    padding: 10px 18px;
+    background: rgba(239,68,68,0.92);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 6px;
+    font: 700 12px/1 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.2,0.85,0.3,1.05);
+    box-shadow: 0 8px 22px -8px rgba(239,68,68,0.7), 0 0 0 1px rgba(255,255,255,0.05) inset;
+}
+#sc-briefing-stop.sc-bs-in {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+}
+#sc-briefing-stop:hover { background: #ef4444; transform: translate(-50%, -1px); }
+
+/* Post-recording share toast (lower-right) */
+#sc-briefing-share {
+    position: fixed;
+    right: 20px;
+    bottom: 130px;
+    width: clamp(280px, 26vw, 360px);
+    z-index: 9993;
+    background: linear-gradient(180deg, rgba(10,10,26,0.96) 0%, rgba(6,6,18,0.92) 100%);
+    border: 1px solid rgba(34,211,238,0.5);
+    border-radius: 6px;
+    padding: 12px 14px;
+    box-shadow: 0 18px 40px -12px rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #e8e8f0;
+    font-family: 'JetBrains Mono', monospace;
+    opacity: 0;
+    transform: translateY(14px);
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.2,0.85,0.3,1.05);
+}
+#sc-briefing-share.sc-bs-show-in {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.sc-bs-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.sc-bs-emoji { font-size: 18px; }
+.sc-bs-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px; letter-spacing: 1.5px; color: #22d3ee; flex: 1;
+}
+.sc-bs-close {
+    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent; color: #888;
+    font-size: 14px; width: 22px; height: 22px;
+    border-radius: 50%; cursor: pointer; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s ease;
+}
+.sc-bs-close:hover { border-color: #f87171; color: #f87171; background: rgba(239,68,68,0.1); }
+.sc-bs-body {
+    font-size: 11px; line-height: 1.5; color: #c8c8dc; margin-bottom: 12px;
+}
+.sc-bs-actions { display: flex; gap: 6px; }
+.sc-bs-btn {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid rgba(34,211,238,0.4);
+    background: rgba(34,211,238,0.06);
+    color: #22d3ee;
+    font: 700 10px/1 'JetBrains Mono', monospace;
+    text-transform: uppercase; letter-spacing: 1px;
+    border-radius: 4px; cursor: pointer; text-align: center;
+    transition: all 0.15s ease;
+}
+.sc-bs-btn:hover { background: rgba(34,211,238,0.18); transform: translateY(-1px); }
+.sc-bs-post {
+    border-color: #fbbf24; background: rgba(251,191,36,0.12); color: #fbbf24;
+    font-size: 11px;
+}
+.sc-bs-post:hover { background: rgba(251,191,36,0.24); box-shadow: 0 0 12px -2px rgba(251,191,36,0.55); }
+
+@media (max-width: 720px) {
+    #sc-briefing-prompt, #sc-briefing-share {
+        right: 10px;
+        left: 10px;
+        width: auto;
+        bottom: 120px;
+    }
+}

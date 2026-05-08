@@ -40,7 +40,9 @@ window.NewsReactivity = (function() {
         bootGraceTicks: 600,        // skip the first ~10s of HN data so we don't
                                     // dump a parade of reactions on first boot
         bootedAt: -1,
-        disabled: false
+        disabled: false,
+        replayMode: false   // set by Daily Briefing during replay; suppresses
+                            // persistEvent + share toast for re-fired events
     };
 
     const LS_SEEN_KEY    = 'sc_news_seen_ids_v1';
@@ -349,8 +351,12 @@ window.NewsReactivity = (function() {
         STATE.recent.unshift(r);
         if (STATE.recent.length > 10) STATE.recent.length = 10;
         STATE.lastReactionTick = (typeof G !== 'undefined' ? G.tick : 0);
-        persistEvent(r);
-        showShareToast(r);
+        // During briefing-replay we don't want to (a) re-persist yesterday's
+        // events as today's, or (b) flood the user with N share toasts.
+        if (!STATE.replayMode) {
+            persistEvent(r);
+            showShareToast(r);
+        }
     }
 
     // Persist a slim record of every reaction so other modules (CitizenOfDay,
@@ -572,7 +578,31 @@ window.NewsReactivity = (function() {
         if (STATE.disabled) console.info('[NewsReactivity] disabled (localStorage flag).');
     }
 
-    return { init, update, _test, _state: STATE };
+    // ─── PUBLIC: re-fire a persisted event (used by Daily Briefing replay) ───
+    // Bypasses cooldown + dedupe — caller (Daily Briefing) is sequencing its
+    // own playback. The visual reaction still records to STATE.recent so the
+    // briefing reel can drive `_drawFlickers` / `_drawFireworks` normally.
+    function fire(event) {
+        if (!event || !event.type) return false;
+        const synthStory = {
+            id: 'replay-' + (event.ts || Date.now()),
+            title: event.title || 'AI news',
+            url: event.url || 'https://news.ycombinator.com'
+        };
+        STATE.lastReactionTick = -100000; // bypass cooldown for the replay
+        const labId = event.lab;
+        switch (event.type) {
+            case 'celebrate':  return reactLaunchParty(labId, synthStory);
+            case 'crisis':     return reactCrisisFlicker(labId, synthStory);
+            case 'emergency':  return reactEmergencyHuddle(labId, synthStory);
+            case 'regulatory': return reactCourtConvene(labId, synthStory);
+            default:           return false;
+        }
+    }
+
+    function setReplayMode(on) { STATE.replayMode = !!on; }
+
+    return { init, update, _test, fire, setReplayMode, _state: STATE };
 })();
 
 // Auto-init on DOM ready (idempotent — safe even if engine.js calls init too)

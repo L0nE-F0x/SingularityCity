@@ -1956,6 +1956,7 @@ const G = {
               HNBlimps: typeof HNBlimps !== 'undefined' ? HNBlimps : null,
               NewsReactivity: typeof NewsReactivity !== 'undefined' ? NewsReactivity : null,
               CitizenOfDay: typeof CitizenOfDay !== 'undefined' ? CitizenOfDay : null,
+              DailyBriefing: typeof DailyBriefing !== 'undefined' ? DailyBriefing : null,
               EmbassyRow: typeof EmbassyRow !== 'undefined' ? EmbassyRow : null,
               EmbassyQuarter: typeof EmbassyQuarter !== 'undefined' ? EmbassyQuarter : null,
               AlignmentForest: typeof AlignmentForest !== 'undefined' ? AlignmentForest : null,
@@ -2003,6 +2004,7 @@ const G = {
       if (S.HNBlimps) S.HNBlimps.update();
       if (S.NewsReactivity) S.NewsReactivity.update();
       if (S.CitizenOfDay) S.CitizenOfDay.update();
+      if (S.DailyBriefing) S.DailyBriefing.update();
       if (S.EmbassyRow && this.tick % 2 === 0) S.EmbassyRow.update();
       if (S.EmbassyQuarter && this.tick % 2 === 0) S.EmbassyQuarter.update();
       if (S.AlignmentForest) S.AlignmentForest.update();
