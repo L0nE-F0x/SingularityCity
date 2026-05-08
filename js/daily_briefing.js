@@ -281,26 +281,30 @@ window.DailyBriefing = (function() {
         const hq = blds.find(b => !b.id.startsWith('house_'));
         if (!hq) return;
         const cx = hq.x + hq.w / 2;
-        const flH = (hq.dynamicFl || 3) * 45;
-        const cy = G.groundY - flH * 0.45;
         // Disable any active tracking so we own the camera target
         G.tracking = null;
         if (typeof Camera !== 'undefined') {
-            const targetZoom = 1.15;
+            // Match the city's natural Y framing: targetY = 0 keeps screen_y=0
+            // mapped to world_y=0 (top of the sky). Anything more negative
+            // looks above the sky's bounded geometry → black void.
+            // Zoom matches the player's default city view (~0.85) so the shot
+            // feels familiar, not zoomed-in surveillance-cam.
+            const targetZoom = 0.85;
             Camera.targetX = -(cx) + (G.vpW / 2) / targetZoom;
-            Camera.targetY = -(cy) + (G.vpH * 0.6) / targetZoom;
+            Camera.targetY = 0;
             Camera.targetZoom = targetZoom;
         }
     }
 
     function camWideAerial() {
         if (typeof Camera === 'undefined') return;
-        // Slightly above-the-action wide shot
         G.tracking = null;
         const cw = G.cityW || 4000;
-        const targetZoom = 0.55;
+        // Wider shot for the intro/outro. Same Y=0 rule — never frame above
+        // the sky's draw bounds.
+        const targetZoom = 0.6;
         Camera.targetX = -(cw / 2) + (G.vpW / 2) / targetZoom;
-        Camera.targetY = -(G.groundY * 0.4) + (G.vpH * 0.5) / targetZoom;
+        Camera.targetY = 0;
         Camera.targetZoom = targetZoom;
     }
 
@@ -328,7 +332,10 @@ window.DailyBriefing = (function() {
         const mimeType = pickBestMimeType();
         let rec;
         try {
-            rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_000_000 });
+            // Pixel art at native canvas resolution looks crisp at high bitrate;
+            // 8 Mbps is the sweet spot for hard-edge pixel content without
+            // breaking X's upload limit (X allows up to 512 MB / 140s).
+            rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
         } catch (_e) {
             // Fallback without explicit mime
             try { rec = new MediaRecorder(stream); } catch { return false; }
