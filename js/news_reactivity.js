@@ -43,9 +43,11 @@ window.NewsReactivity = (function() {
         disabled: false
     };
 
-    const LS_SEEN_KEY = 'sc_news_seen_ids_v1';
-    const LS_OFF_KEY  = 'sc_news_reactivity_off';
-    const SEEN_CAP    = 250;
+    const LS_SEEN_KEY    = 'sc_news_seen_ids_v1';
+    const LS_OFF_KEY     = 'sc_news_reactivity_off';
+    const LS_EVENTS_KEY  = 'sc_news_events_v1';   // shared with citizen_of_day.js — keep in sync
+    const SEEN_CAP       = 250;
+    const EVENTS_CAP     = 200;
 
     // ─── LAB ROUTER ──────────────────────────────────────────────────────────
     // Order matters — first match wins. Founder names are intentionally listed
@@ -347,7 +349,33 @@ window.NewsReactivity = (function() {
         STATE.recent.unshift(r);
         if (STATE.recent.length > 10) STATE.recent.length = 10;
         STATE.lastReactionTick = (typeof G !== 'undefined' ? G.tick : 0);
+        persistEvent(r);
         showShareToast(r);
+    }
+
+    // Persist a slim record of every reaction so other modules (CitizenOfDay,
+    // Daily Briefing) can read "what happened yesterday" across reloads.
+    function persistEvent(r) {
+        try {
+            const d = new Date();
+            const date = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+            const entry = {
+                date,
+                ts: d.toISOString(),
+                type: r.type,
+                archetype: r.archetype,
+                emoji: r.emoji,
+                lab: r.labId || null,
+                title: (r.story && r.story.title) || '',
+                url: (r.story && r.story.url) || ''
+            };
+            const raw = localStorage.getItem(LS_EVENTS_KEY);
+            const arr = raw ? JSON.parse(raw) : [];
+            arr.push(entry);
+            // Trim oldest if over cap
+            const trimmed = arr.slice(-EVENTS_CAP);
+            localStorage.setItem(LS_EVENTS_KEY, JSON.stringify(trimmed));
+        } catch (_e) { /* ignore quota / parse errors */ }
     }
 
     function postTextFor(r) {

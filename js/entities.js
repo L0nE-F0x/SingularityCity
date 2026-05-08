@@ -247,8 +247,12 @@ const Entities = {
         const ai = (typeof ACTS !== 'undefined' && ACTS[act]) ? ACTS[act] : { indoor: true }; 
         if (!ai || ai.indoor) return; 
         
-        // Use expanded CHAT_MSGS pool, fallback to work
-        const pool = (CHAT_MSGS && CHAT_MSGS[act]) ? CHAT_MSGS[act] : (CHAT_MSGS ? CHAT_MSGS.work : ['...']);
+        // Citizen of the Day: ~50% of chat picks are "press" lines so the
+        // spotlight feels harassed by the paparazzi entourage trailing them.
+        const isCotd = (typeof CitizenOfDay !== 'undefined' && CitizenOfDay.isCotd && CitizenOfDay.isCotd(m.id));
+        const pool = (isCotd && CHAT_MSGS && CHAT_MSGS.press && Math.random() < 0.5)
+            ? CHAT_MSGS.press
+            : ((CHAT_MSGS && CHAT_MSGS[act]) ? CHAT_MSGS[act] : (CHAT_MSGS ? CHAT_MSGS.work : ['...']));
 
         // Occasionally inject personalized messages using model's actual data
         let msg;
