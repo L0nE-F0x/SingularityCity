@@ -44,6 +44,12 @@ window.DailyBriefing = (function() {
         overlayBg: null,
         overlayTitle: null,
         overlaySub: null,
+        // PIXI sky backdrop (for canvas-captured sky gradient — Environment paints
+        // the sky as a CSS gradient on the viewport DIV, which captureStream
+        // can't see. Briefing draws a matching gradient INTO the canvas.)
+        backdrop: null,
+        backdropGfx: null,
+        backdropLastTick: -1,
         // Recording
         recorder: null,
         chunks: [],
@@ -180,6 +186,93 @@ window.DailyBriefing = (function() {
         const el = STATE.stopBtnEl;
         STATE.stopBtnEl = null;
         setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 280);
+    }
+
+    // ─── SKY BACKDROP (drawn INTO the canvas so MediaRecorder captures the
+    //     gradient that Environment normally paints on the viewport DIV via
+    //     CSS — invisible to canvas captureStream). Lives at the BOTTOM of
+    //     stage children so it draws behind everything else. ────────────────
+    function buildBackdrop() {
+        if (!G.app || !G.app.stage) return null;
+        if (STATE.backdrop) return STATE.backdrop;
+        const cont = new PIXI.Container();
+        const g = new PIXI.Graphics();
+        cont.addChild(g);
+        // addChildAt(0) → first child, rendered first → behind everything else
+        G.app.stage.addChildAt(cont, 0);
+        STATE.backdrop = cont;
+        STATE.backdropGfx = g;
+        updateBackdrop();
+        return cont;
+    }
+
+    function destroyBackdrop() {
+        if (!STATE.backdrop) return;
+        if (STATE.backdrop.parent) STATE.backdrop.parent.removeChild(STATE.backdrop);
+        STATE.backdrop.destroy({ children: true });
+        STATE.backdrop = null;
+        STATE.backdropGfx = null;
+    }
+
+    // Read the viewport DIV's current CSS gradient and parse the rgb() stops
+    // back to PIXI hex colors. Avoids reimplementing Environment's day-phase /
+    // weather logic — whatever the user sees, the canvas mirrors.
+    function getSkyStops() {
+        try {
+            const vp = document.getElementById('viewport');
+            if (!vp) return null;
+            const bg = getComputedStyle(vp).backgroundImage;
+            const matches = bg && bg.match(/rgb\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\)/g);
+            if (!matches || !matches.length) {
+                // Maybe a solid color in backgroundColor instead
+                const bc = getComputedStyle(vp).backgroundColor;
+                const m = bc && bc.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+                if (m) {
+                    const r = +m[1], gn = +m[2], b = +m[3];
+                    const c = (r << 16) | (gn << 8) | b;
+                    return [c, c, c];
+                }
+                return null;
+            }
+            const hexes = matches.map(s => {
+                const p = s.match(/\d+/g).map(Number);
+                return ((p[0] & 0xff) << 16) | ((p[1] & 0xff) << 8) | (p[2] & 0xff);
+            });
+            while (hexes.length < 3) hexes.push(hexes[hexes.length - 1]);
+            return hexes.slice(0, 3);
+        } catch (_e) { return null; }
+    }
+
+    function lerpColor(a, b, t) {
+        const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
+        const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
+        const r = Math.round(ar + (br - ar) * t);
+        const g = Math.round(ag + (bg - ag) * t);
+        const bv = Math.round(ab + (bb - ab) * t);
+        return (r << 16) | (g << 8) | bv;
+    }
+
+    function updateBackdrop() {
+        if (!STATE.backdropGfx) return;
+        const stops = getSkyStops();
+        if (!stops) return;
+        const [top, mid, bot] = stops;
+        const w = G.vpW || (G.app && G.app.renderer && G.app.renderer.width) || 1280;
+        const h = G.vpH || (G.app && G.app.renderer && G.app.renderer.height) || 720;
+        const g = STATE.backdropGfx;
+        g.clear();
+        // 30-band approximation of a smooth 3-stop vertical gradient.
+        const BANDS = 30;
+        const bandH = h / BANDS;
+        for (let i = 0; i < BANDS; i++) {
+            const t = i / (BANDS - 1);
+            const c = (t < 0.5)
+                ? lerpColor(top, mid, t * 2)
+                : lerpColor(mid, bot, (t - 0.5) * 2);
+            g.beginFill(c, 1);
+            g.drawRect(0, i * bandH, w, bandH + 1);
+            g.endFill();
+        }
     }
 
     // ─── PIXI OVERLAY (intro/outro banners drawn into the canvas so
@@ -456,6 +549,7 @@ window.DailyBriefing = (function() {
         // Tell NewsReactivity to not flood share toasts during replay
         try { if (typeof NewsReactivity !== 'undefined' && NewsReactivity.setReplayMode) NewsReactivity.setReplayMode(true); } catch (_e) { /* ignore */ }
 
+        buildBackdrop();
         buildOverlay();
         camWideAerial();
         showStopButton();
@@ -489,6 +583,7 @@ window.DailyBriefing = (function() {
         STATE.phase = cancelled ? 'cancelled' : 'done';
         clearOverlay();
         destroyOverlay();
+        destroyBackdrop();
         hideStopButton();
 
         try { if (typeof NewsReactivity !== 'undefined' && NewsReactivity.setReplayMode) NewsReactivity.setReplayMode(false); } catch (_e) { /* ignore */ }
@@ -511,6 +606,13 @@ window.DailyBriefing = (function() {
 
         if (!STATE.active) return;
         const elapsed = now - STATE.phaseStartMs;
+
+        // Refresh the canvas sky backdrop ~once per second so it tracks
+        // any dp/weather changes the Environment makes mid-briefing.
+        if (STATE.backdropGfx && (G.tick - STATE.backdropLastTick) > 60) {
+            STATE.backdropLastTick = G.tick;
+            updateBackdrop();
+        }
 
         switch (STATE.phase) {
             case 'intro': {
