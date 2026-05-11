@@ -276,6 +276,244 @@ async function collectFromLaunchLib() {
     return out;
 }
 
+// ─── ARXIV (recent AI papers, classified by lab-keyword match in title/abstract) ─
+async function collectFromArxiv() {
+    // 30 most recent cs.AI / cs.CL / cs.LG submissions.
+    const url = 'http://export.arxiv.org/api/query?' +
+        'search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.LG' +
+        '&sortBy=submittedDate&sortOrder=descending&max_results=30';
+    let xml;
+    try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        xml = await res.text();
+    } catch (e) {
+        console.warn('[arXiv] fetch failed:', e.message);
+        return [];
+    }
+
+    // Parse Atom feed with regex (avoid bundling an XML parser).
+    const entries = [];
+    const entryRe = /<entry>([\s\S]*?)<\/entry>/g;
+    let m;
+    while ((m = entryRe.exec(xml)) !== null) {
+        const block = m[1];
+        const tag = (t) => {
+            const rr = new RegExp('<' + t + '[^>]*>([\\s\\S]*?)<\\/' + t + '>');
+            const mm = block.match(rr);
+            return mm ? mm[1].replace(/\s+/g, ' ').trim() : null;
+        };
+        const arxivIdUrl = tag('id') || '';
+        const arxivId = arxivIdUrl.replace(/^.*\/abs\//, '');
+        if (!arxivId) continue;
+        const title = tag('title');
+        const summary = tag('summary');
+        const published = tag('published');
+        if (!title) continue;
+
+        const haystack = title + ' ' + (summary || '');
+        const { lab } = classifyTitle(haystack);
+        // arXiv: only log if we matched a known lab — pure academic papers
+        // without industry ties produce too much noise.
+        if (!lab) continue;
+
+        const ts = published ? new Date(published) : new Date();
+        const ageDays = (Date.now() - ts.getTime()) / 86400000;
+        if (ageDays > 14) continue;
+
+        entries.push({
+            id: 'arxiv:' + arxivId,
+            source: 'arxiv',
+            event_type: 'celebrate',
+            archetype: 'Launch Party',
+            emoji: '🎉',
+            lab,
+            title: `[arXiv] ${title}`,
+            url: `https://arxiv.org/abs/${arxivId}`,
+            score: 65,
+            ts: ts.toISOString(),
+            event_date: utcDateString(ts)
+        });
+    }
+    return entries;
+}
+
+// ─── ZEROEVAL (leaderboard #1 — first time each model holds #1) ─────────────
+async function collectFromZeroEval() {
+    const data = await fetchJSON(
+        'https://api.zeroeval.com/leaderboard/models/full?justCanonicals=true',
+        {},
+        12000
+    );
+    if (!Array.isArray(data) || !data.length) return [];
+
+    // The top model is the leaderboard #1. We dedup by model_id so this only
+    // produces an event the FIRST time a given model reaches #1 — subsequent
+    // hours where it remains #1 are no-ops via the PK.
+    const top = data[0];
+    if (!top || !top.name) return [];
+
+    // ZeroEval `organization_id` doesn't always match our lab id lexicon
+    // exactly — fall back to a name-based classifier so we always end up
+    // anchored to one of our lab HQs.
+    let lab = null;
+    const orgLower = (top.organization_id || '').toLowerCase();
+    const orgMap = {
+        anthropic: 'anthropic', openai: 'openai', google: 'google',
+        'google-deepmind': 'google', deepmind: 'google',
+        meta: 'meta', mistral: 'mistral', mistralai: 'mistral',
+        xai: 'xai', deepseek: 'deepseek', microsoft: 'microsoft',
+        nvidia: 'nvidia', alibaba: 'alibaba', cohere: 'cohere'
+    };
+    if (orgMap[orgLower]) lab = orgMap[orgLower];
+    if (!lab) lab = classifyTitle(top.name).lab;
+    if (!lab) return [];
+
+    const modelId = top.model_id || top.name;
+    const ts = new Date();
+    return [{
+        id: 'zeroeval:#1:' + modelId,
+        source: 'zeroeval',
+        event_type: 'celebrate',
+        archetype: 'Launch Party',
+        emoji: '🎉',
+        lab,
+        title: `${top.name} just took #1 on the ZeroEval leaderboard`,
+        url: 'https://zeroeval.com',
+        score: 90,
+        ts: ts.toISOString(),
+        event_date: utcDateString(ts)
+    }];
+}
+
+// ─── FINNHUB (AI-related stocks, big intraday moves) ────────────────────────
+const FINNHUB_KEY = process.env.FINNHUB_KEY;
+const STOCK_LAB_MAP = [
+    { sym: 'NVDA',  lab: 'nvidia'    },
+    { sym: 'MSFT',  lab: 'microsoft' },
+    { sym: 'GOOGL', lab: 'google'    },
+    { sym: 'META',  lab: 'meta'      },
+    { sym: 'TSLA',  lab: 'tesla'     },
+    { sym: 'BABA',  lab: 'alibaba'   }
+];
+
+async function collectFromFinnhub() {
+    if (!FINNHUB_KEY) {
+        console.warn('[Finnhub] FINNHUB_KEY env var not set — skipping');
+        return [];
+    }
+    const quotes = await Promise.all(STOCK_LAB_MAP.map(async ({ sym, lab }) => {
+        const q = await fetchJSON(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_KEY}`);
+        return { sym, lab, q };
+    }));
+
+    const out = [];
+    const today = utcDateString();
+    for (const { sym, lab, q } of quotes) {
+        if (!q || typeof q.c !== 'number' || typeof q.pc !== 'number' || q.pc <= 0) continue;
+        const pct = ((q.c - q.pc) / q.pc) * 100;
+        // Threshold: 3% in either direction is "big move" for a mega-cap.
+        if (Math.abs(pct) < 3) continue;
+
+        const pctStr = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%';
+        const dir = pct >= 0 ? 'up' : 'down';
+        // Event type by severity. Big drops register as emergencies.
+        let event_type, archetype, emoji;
+        if (pct <= -5)      { event_type = 'emergency'; archetype = 'Emergency Huddle'; emoji = '🚁'; }
+        else if (pct < 0)   { event_type = 'crisis';    archetype = 'Crisis Flicker';   emoji = '😰'; }
+        else                { event_type = 'celebrate'; archetype = 'Launch Party';     emoji = '🎉'; }
+
+        // Dedup per day per symbol per direction — only one event per stock per
+        // direction-bucket per UTC day, even if intraday volatility spikes
+        // multiple times.
+        const id = `finnhub:${sym}:${today}:${dir}`;
+        out.push({
+            id,
+            source: 'finnhub',
+            event_type,
+            archetype,
+            emoji,
+            lab,
+            title: `${sym} ${pct >= 0 ? 'jumps' : 'drops'} ${pctStr} (${labLabel(lab)})`,
+            url: `https://finance.yahoo.com/quote/${sym}`,
+            score: Math.min(100, Math.round(Math.abs(pct) * 10)),
+            ts: new Date().toISOString(),
+            event_date: today
+        });
+    }
+    return out;
+}
+
+// ─── LAB MODEL APIs (new flagship-model releases) ───────────────────────────
+// Only enabled when corresponding env var is set. Each API returns models
+// with different shapes; we extract a creation timestamp and only emit
+// events for models created in the last 30 days. Models without a parseable
+// timestamp are silently skipped so the first run doesn't flood the table.
+
+async function collectFromAnthropic() {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return [];
+    const data = await fetchJSON('https://api.anthropic.com/v1/models', {
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' }
+    });
+    if (!data || !Array.isArray(data.data)) return [];
+    return data.data
+        .map(m => emitLabApiEvent('anthropic_official', 'anthropic', m.id, m.display_name || m.id, m.created_at))
+        .filter(Boolean);
+}
+
+async function collectFromOpenAI() {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) return [];
+    const data = await fetchJSON('https://api.openai.com/v1/models', {
+        headers: { Authorization: 'Bearer ' + key }
+    });
+    if (!data || !Array.isArray(data.data)) return [];
+    return data.data
+        .map(m => {
+            // OpenAI returns Unix epoch seconds
+            const ts = m.created ? new Date(m.created * 1000).toISOString() : null;
+            return emitLabApiEvent('openai_official', 'openai', m.id, m.id, ts);
+        })
+        .filter(Boolean);
+}
+
+async function collectFromXai() {
+    const key = process.env.XAI_API_KEY;
+    if (!key) return [];
+    const data = await fetchJSON('https://api.x.ai/v1/models', {
+        headers: { Authorization: 'Bearer ' + key }
+    });
+    if (!data || !Array.isArray(data.data)) return [];
+    return data.data
+        .map(m => {
+            const ts = m.created ? new Date(m.created * 1000).toISOString() : null;
+            return emitLabApiEvent('xai_official', 'xai', m.id, m.id, ts);
+        })
+        .filter(Boolean);
+}
+
+function emitLabApiEvent(source, lab, modelId, displayName, tsIso) {
+    if (!modelId || !tsIso) return null;       // skip undated → first-run flood guard
+    const ts = new Date(tsIso);
+    if (isNaN(ts.getTime())) return null;
+    const ageDays = (Date.now() - ts.getTime()) / 86400000;
+    if (ageDays > 30) return null;
+    return {
+        id: source + ':' + modelId,
+        source,
+        event_type: 'celebrate',
+        archetype: 'Launch Party',
+        emoji: '🎉',
+        lab,
+        title: `${labLabel(lab)} released ${displayName}`,
+        url: 'https://singularitycity.net',
+        score: 95,                              // direct lab release = highest signal
+        ts: ts.toISOString(),
+        event_date: utcDateString(ts)
+    };
+}
+
 // ─── SUPABASE UPSERT ────────────────────────────────────────────────────────
 async function upsertEvents(events) {
     if (!events.length) return { written: 0, failed: 0 };
@@ -313,20 +551,36 @@ export default async (_req) => {
     const startedAt = Date.now();
     console.log('🛰️  collect-events running…');
 
-    const [hn, hf, ll] = await Promise.all([
-        collectFromHN().catch(e => { console.warn('HN error:', e.message); return []; }),
-        collectFromHF().catch(e => { console.warn('HF error:', e.message); return []; }),
-        collectFromLaunchLib().catch(e => { console.warn('LL2 error:', e.message); return []; })
+    // All sources in parallel. Each catches its own errors so one source
+    // failing (e.g. arXiv timeout) never tanks the whole run.
+    const [hn, hf, ll, arxiv, ze, fh, anth, oai, xai] = await Promise.all([
+        collectFromHN().catch(e        => { console.warn('HN error:',        e.message); return []; }),
+        collectFromHF().catch(e        => { console.warn('HF error:',        e.message); return []; }),
+        collectFromLaunchLib().catch(e => { console.warn('LL2 error:',       e.message); return []; }),
+        collectFromArxiv().catch(e     => { console.warn('arXiv error:',     e.message); return []; }),
+        collectFromZeroEval().catch(e  => { console.warn('ZeroEval error:',  e.message); return []; }),
+        collectFromFinnhub().catch(e   => { console.warn('Finnhub error:',   e.message); return []; }),
+        collectFromAnthropic().catch(e => { console.warn('Anthropic error:', e.message); return []; }),
+        collectFromOpenAI().catch(e    => { console.warn('OpenAI error:',    e.message); return []; }),
+        collectFromXai().catch(e       => { console.warn('xAI error:',       e.message); return []; })
     ]);
-    console.log(`  sources: ${hn.length} HN · ${hf.length} HF · ${ll.length} LL2`);
+    console.log(
+        `  sources: ${hn.length} HN · ${hf.length} HF · ${ll.length} LL2 · ` +
+        `${arxiv.length} arXiv · ${ze.length} ZeroEval · ${fh.length} Finnhub · ` +
+        `${anth.length} Anthropic · ${oai.length} OpenAI · ${xai.length} xAI`
+    );
 
-    const all = [...hn, ...hf, ...ll];
+    const all = [...hn, ...hf, ...ll, ...arxiv, ...ze, ...fh, ...anth, ...oai, ...xai];
     const { written, failed } = await upsertEvents(all);
 
     const elapsed = Math.round((Date.now() - startedAt) / 100) / 10;
     const summary = {
         ok: failed === 0,
-        sources: { hn: hn.length, hf: hf.length, ll: ll.length },
+        sources: {
+            hn: hn.length, hf: hf.length, ll: ll.length,
+            arxiv: arxiv.length, zeroeval: ze.length, finnhub: fh.length,
+            anthropic: anth.length, openai: oai.length, xai: xai.length
+        },
         written,
         failed,
         elapsedSec: elapsed
