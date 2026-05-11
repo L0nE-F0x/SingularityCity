@@ -1416,6 +1416,18 @@ h1, h2, h3, p { margin: 0; }
     box-shadow: 0 0 8px -2px rgba(251,191,36,0.4);
     animation: cotd-glow 2.4s ease-in-out infinite;
 }
+.briefing-btn {
+    /* Sister button to .cotd-btn — sits next to it in the mp-reactions row */
+    border-color: rgba(34,211,238,0.55) !important;
+    background: rgba(34,211,238,0.08) !important;
+    color: #22d3ee;
+    box-shadow: 0 0 8px -2px rgba(34,211,238,0.4);
+}
+.briefing-btn:hover {
+    transform: scale(1.18) !important;
+    border-color: #22d3ee !important;
+    box-shadow: 0 0 14px rgba(34,211,238,0.7) !important;
+}
 .cotd-btn:hover {
     transform: scale(1.18) !important;
     border-color: #fbbf24 !important;

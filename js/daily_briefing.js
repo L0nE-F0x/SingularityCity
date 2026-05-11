@@ -697,17 +697,85 @@ window.DailyBriefing = (function() {
     }
 
     // ─── AUTO-PROMPT DETECTION ───────────────────────────────────────────────
+    // Walks back from yesterday up to LOOKBACK_DAYS, picking the most recent
+    // UTC day with ≥3 logged events. Necessary because users away for several
+    // days have an empty log for "literal yesterday" — but might still have a
+    // good briefing waiting from an older session.
+    const LOOKBACK_DAYS = 7;
+
+    function findMostRecentBriefingDate(minEvents) {
+        const min = minEvents != null ? minEvents : 3;
+        const today = utcDateString();
+        for (let off = 1; off <= LOOKBACK_DAYS; off++) {
+            const d = utcDateString(new Date(Date.now() - off * 86400000));
+            if (d === today) continue;
+            const events = pickEventsForDate(d);
+            if (events.length >= min) return { date: d, events };
+        }
+        return null;
+    }
+
     function maybeShowPrompt() {
         if (typeof G === 'undefined' || !G.app) return;   // wait for boot
         if (STATE.promptEl) return;                        // already shown
         const today = utcDateString();
-        const yest = yesterdayUtcDateString();
         const brief = loadBriefState();
         if (brief.generatedDate === today) return;         // already generated today
         if (brief.skippedDate === today) return;           // user said skip today
-        const events = pickEventsForDate(yest);
-        if (events.length < 3) return;                     // not enough drama
-        showPrompt(events, yest);
+        const result = findMostRecentBriefingDate(3);
+        if (!result) return;                               // no recent day has enough drama
+        showPrompt(result.events, result.date);
+    }
+
+    // ─── MANUAL TRIGGER (hotkey + 📽 button) ─────────────────────────────────
+    // Skips the prompt — user already opted in by hitting the trigger.
+    // Falls back through: 3+ events in last 7d → 1+ event in last 14d →
+    // synthesized demo events so the feature is always demonstrable.
+    function triggerManual() {
+        if (STATE.active) return;
+        dismissPrompt();
+        let result = findMostRecentBriefingDate(3);
+        if (!result) result = findMostRecentBriefingDate(1);
+        if (!result) {
+            // Truly empty log — show demo briefing with synthesized events
+            console.info('[DailyBriefing] No real events logged — running demo briefing.');
+            _test();
+            return;
+        }
+        startBriefing(result.events, result.date);
+    }
+
+    function setupHotkey() {
+        window.addEventListener('keydown', (e) => {
+            // Shift+B (or shift+b) — only when not typing in an input
+            if (!e.shiftKey) return;
+            if (e.key !== 'B' && e.key !== 'b') return;
+            const tag = (document.activeElement && document.activeElement.tagName) || '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) return;
+            e.preventDefault();
+            triggerManual();
+        }, { passive: false });
+    }
+
+    function buildTriggerButton() {
+        if (document.getElementById('briefing-btn')) return;
+        const bar = document.getElementById('mpReactions');
+        if (!bar) return;
+        const btn = document.createElement('button');
+        btn.id = 'briefing-btn';
+        btn.className = 'mp-react-btn briefing-btn';
+        btn.title = 'Daily Briefing (Shift+B)';
+        btn.textContent = '📽';
+        btn.onclick = triggerManual;
+        bar.appendChild(btn);
+    }
+
+    function tryAttachTriggerButton(retries) {
+        retries = retries || 0;
+        if (document.getElementById('briefing-btn')) return;
+        if (document.getElementById('mpReactions')) { buildTriggerButton(); return; }
+        if (retries > 100) return;
+        setTimeout(() => tryAttachTriggerButton(retries + 1), 100);
     }
 
     // ─── PUBLIC TEST HOOK ────────────────────────────────────────────────────
@@ -750,7 +818,22 @@ window.DailyBriefing = (function() {
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    function init() { /* nothing — update() handles auto-prompt */ }
+    function init() {
+        setupHotkey();
+        tryAttachTriggerButton();
+    }
 
-    return { init, update, _test, abort: abortBriefing, _state: STATE };
+    return { init, update, _test, abort: abortBriefing, triggerManual, _state: STATE };
+})();
+
+// Auto-init on DOM ready
+(function() {
+    function tryInit() {
+        if (typeof DailyBriefing !== 'undefined') DailyBriefing.init();
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryInit);
+    } else {
+        tryInit();
+    }
 })();
