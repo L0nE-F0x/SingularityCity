@@ -81,6 +81,10 @@ const ARCHETYPES = {
     regulatory: { archetype: 'Court Convene',    emoji: '⚖️' }
 };
 
+// Skip these prefixes when defaulting unscored stories to 'celebrate' — they
+// indicate user-content / tutorials / Q&A rather than industry news.
+const NOT_NEWS_PREFIX = /^(show hn|ask hn|how to|tutorial|guide|why does|why is|why are|explained|the case for|the case against|q&a|interview with)/i;
+
 function classifyTitle(title) {
     const t = String(title || '');
     let lab = null;
@@ -92,6 +96,14 @@ function classifyTitle(title) {
     else if (SENTIMENT.regulatory.test(t)) sentiment = 'regulatory';
     else if (SENTIMENT.crisis.test(t))     sentiment = 'crisis';
     else if (SENTIMENT.celebrate.test(t))  sentiment = 'celebrate';
+    // Fallback: lab matched clearly but no sentiment verb — default to
+    // 'celebrate' (Launch Party) UNLESS the headline is obviously a tutorial,
+    // Show HN, or Q&A. This loosens the gate so we capture stories like
+    // "GPT-4 architecture deep dive" or "Anthropic publishes research paper"
+    // where the headline mentions a lab but lacks an explicit sentiment verb.
+    else if (lab && !NOT_NEWS_PREFIX.test(t)) {
+        sentiment = 'celebrate';
+    }
     return { lab, sentiment };
 }
 
@@ -167,11 +179,12 @@ async function collectFromHN() {
 
 // ─── HUGGINGFACE TRENDING ───────────────────────────────────────────────────
 async function collectFromHF() {
-    // HF API: list top 20 most-downloaded models in the last 24h-ish window.
-    // We can't filter by recency directly, but `sort=downloads&direction=-1`
-    // gives us the trending head. We then filter to models we recognize.
+    // Pull the 100 most-recently-CREATED models and filter to recognized
+    // major-lab authors. sort=downloads was returning all-time classics
+    // (Llama-2 etc.) which always fail the <14-day freshness gate. sort by
+    // creation date gives us actual new releases.
     const models = await fetchJSON(
-        'https://huggingface.co/api/models?sort=downloads&direction=-1&limit=30&full=false'
+        'https://huggingface.co/api/models?sort=createdAt&direction=-1&limit=100&full=false'
     );
     if (!Array.isArray(models)) return [];
 
@@ -188,10 +201,14 @@ async function collectFromHF() {
         if (seenLabs.has(lab)) continue;
         seenLabs.add(lab);
 
-        const ts = m.createdAt ? new Date(m.createdAt) : new Date();
-        // Only log if released in the last 14 days — otherwise it's not "new"
+        // HF API inconsistently returns createdAt vs lastModified vs
+        // created_at depending on version — try all three.
+        const tsRaw = m.createdAt || m.lastModified || m.created_at;
+        const ts = tsRaw ? new Date(tsRaw) : new Date();
+        // Window: 30 days. Gives us breathing room when no fresh release in a
+        // given week, and a month-old flagship still makes a fine briefing.
         const ageDays = (Date.now() - ts.getTime()) / 86400000;
-        if (ageDays > 14) continue;
+        if (ageDays > 30) continue;
 
         out.push({
             id: 'hf:' + m.id,
