@@ -41,8 +41,11 @@ window.NewsReactivity = (function() {
                                     // dump a parade of reactions on first boot
         bootedAt: -1,
         disabled: false,
-        replayMode: false   // set by Daily Briefing during replay; suppresses
-                            // persistEvent + share toast for re-fired events
+        replayMode: false,        // Briefing replay — suppresses persistEvent
+                                  // AND share toast (full silent replay)
+        skipPersistOnly: false    // Cloud-driven reaction — suppresses just
+                                  // persistEvent (event is already in Supabase);
+                                  // share toast still fires so user is alerted
     };
 
     const LS_SEEN_KEY    = 'sc_news_seen_ids_v1';
@@ -354,7 +357,10 @@ window.NewsReactivity = (function() {
         // During briefing-replay we don't want to (a) re-persist yesterday's
         // events as today's, or (b) flood the user with N share toasts.
         if (!STATE.replayMode) {
-            persistEvent(r);
+            // skipPersistOnly = cloud-driven reaction; the event already lives
+            // in the server-side sc_events table so we don't write it locally
+            // again. Share toast still fires so the user sees the alert.
+            if (!STATE.skipPersistOnly) persistEvent(r);
             showShareToast(r);
         }
     }
@@ -520,23 +526,58 @@ window.NewsReactivity = (function() {
             return;
         }
 
+        // Periodically refresh cloud events from Supabase
+        maybeRefreshCloud();
+
         // Cooldown gate
         if (G.tick - STATE.lastReactionTick < STATE.cooldownTicks) return;
 
+        // ─── PRIMARY SOURCE: cloud events (pre-classified by collect-events.mjs) ───
+        // These already have archetype + emoji + lab so we just fire directly.
+        // Iterate newest-first; bail after firing one. skipPersistOnly is set
+        // so the local localStorage doesn't double-store events that already
+        // live in the server-side sc_events table.
+        const cloudEvents = readCloudEvents();
+        for (const ev of cloudEvents) {
+            if (!ev || !ev.id) continue;
+            if (STATE.seenIds.has(ev.id)) continue;
+            STATE.seenIds.add(ev.id);
+            saveSeen();
+            if (!ev.event_type || !ARCHETYPE_TO_REACT[ev.event_type]) continue;
+            STATE.skipPersistOnly = true;
+            let fired = false;
+            try {
+                fired = fire({
+                    type: ev.event_type, archetype: ev.archetype, emoji: ev.emoji,
+                    lab: ev.lab, title: ev.title, url: ev.url, ts: ev.ts
+                });
+            } finally {
+                STATE.skipPersistOnly = false;
+            }
+            if (fired) return;
+        }
+
+        // ─── FALLBACK SOURCE: live HN poll (used until cloud is populated) ───
         const stories = readHnStories();
         for (const s of stories) {
             if (!s || s.id == null) continue;
-            if (STATE.seenIds.has(s.id)) continue;
-            // Mark seen up-front even if we don't react, so we don't loop on it
-            STATE.seenIds.add(s.id);
+            const sid = 'hn:' + s.id;
+            if (STATE.seenIds.has(sid)) continue;
+            STATE.seenIds.add(sid);
             saveSeen();
 
             const c = classifyStory(s);
-            if (!c.sentiment) continue; // not interesting enough
+            if (!c.sentiment) continue;
             const fired = dispatch(s, c);
-            if (fired) return;          // one reaction per scan cycle
+            if (fired) return;
         }
     }
+
+    // Lookup table so the cloud-events path knows which event_type values
+    // map to firable reactions (skip non-reactive types like 'launch'/'paper').
+    const ARCHETYPE_TO_REACT = {
+        celebrate: true, crisis: true, emergency: true, regulatory: true
+    };
 
     function readHnStories() {
         // Source of truth: HNBlimps already polls every 15min and caches the
@@ -545,6 +586,26 @@ window.NewsReactivity = (function() {
             return HNBlimps._stories;
         }
         return [];
+    }
+
+    // Read pre-classified events from the server-accumulated sc_events table
+    // (via API.cloudEvents). These come pre-tagged with archetype + emoji +
+    // lab, so we don't re-run the classifier — just fire the reaction.
+    function readCloudEvents() {
+        if (typeof API === 'undefined' || !Array.isArray(API.cloudEvents)) return [];
+        return API.cloudEvents;
+    }
+
+    // Refetch cloud events from Supabase ~every 10 min so the news engine
+    // picks up events the hourly collector wrote while we were idle.
+    let _cloudRefetchAt = 0;
+    function maybeRefreshCloud() {
+        const now = Date.now();
+        if (now - _cloudRefetchAt < 10 * 60 * 1000) return;
+        _cloudRefetchAt = now;
+        if (typeof API !== 'undefined' && typeof API.fetchCloudEvents === 'function') {
+            API.fetchCloudEvents().catch(() => {});
+        }
     }
 
     // ─── PUBLIC TEST HOOK (console-fired for QA) ─────────────────────────────

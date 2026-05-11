@@ -9,7 +9,15 @@ const API = {
     supplyChainNews: [],
     newsIdx: 0,
     stockPrices: {},
-    
+
+    // Server-accumulated AI industry events (HN + HuggingFace + Launch Library
+    // + ... — written hourly by netlify/functions/collect-events.mjs). The
+    // News Reactivity engine, Citizen of the Day, and Daily Briefing all read
+    // from this so reactions/briefings still work even when nobody had the
+    // app open during a breaking story. See sc_events_schema.sql.
+    cloudEvents: [],
+    cloudEventsFetchedAt: 0,
+
     supabase: null,
     
     // Convert any model object to Supabase-safe format (matching scan nm schema)
@@ -169,6 +177,72 @@ const API = {
         }
     },
     
+    // ─── CLOUD EVENTS (server-accumulated AI industry signal) ──────────────
+    // Pulls last 14 days of events from the sc_events table. Cheap query
+    // (table indexed on event_date desc). Caches result on API.cloudEvents.
+    // Returns the array, or empty on failure.
+    async fetchCloudEvents() {
+        if (!this.supabase) return [];
+        try {
+            // Filter to events from the last 14 UTC days
+            const since = new Date(Date.now() - 14 * 86400000);
+            const sinceDate = `${since.getUTCFullYear()}-${String(since.getUTCMonth()+1).padStart(2,'0')}-${String(since.getUTCDate()).padStart(2,'0')}`;
+            const { data, error } = await this.supabase
+                .from('sc_events')
+                .select('*')
+                .gte('event_date', sinceDate)
+                .order('ts', { ascending: false })
+                .limit(500);
+            if (error) throw error;
+            this.cloudEvents = Array.isArray(data) ? data : [];
+            this.cloudEventsFetchedAt = Date.now();
+            console.log(`☁️  Cloud events loaded: ${this.cloudEvents.length} (last 14 days)`);
+            return this.cloudEvents;
+        } catch (err) {
+            // Likely cause: sc_events table not created yet. Soft-fail so the
+            // app still works in local-only mode.
+            console.warn('[CloudEvents] fetch failed (table may not exist yet):', err && err.message || err);
+            return [];
+        }
+    },
+
+    // Merge cloud events + local localStorage events for a given UTC date.
+    // Returns a deduplicated array sorted by ts (newest first). Used by COTD
+    // and Daily Briefing as the canonical "what happened on day X" lookup.
+    getEventsByDate(dateStr) {
+        const out = [];
+        const seen = new Set();
+        // Cloud events (preferred)
+        for (const e of (this.cloudEvents || [])) {
+            if (!e || e.event_date !== dateStr) continue;
+            if (seen.has(e.id)) continue;
+            seen.add(e.id);
+            // Normalize cloud shape → match local shape (lab vs labId, ts vs date+ts)
+            out.push({
+                id: e.id, date: e.event_date, ts: e.ts, type: e.event_type,
+                archetype: e.archetype, emoji: e.emoji, lab: e.lab,
+                title: e.title, url: e.url, score: e.score || 50,
+                source: e.source || 'cloud'
+            });
+        }
+        // Local fallback (older client-fired events not yet on the server)
+        try {
+            const raw = localStorage.getItem('sc_news_events_v1');
+            if (raw) {
+                const local = JSON.parse(raw);
+                for (const e of (local || [])) {
+                    if (!e || e.date !== dateStr) continue;
+                    const lid = e.id || `local:${e.ts}:${e.lab || ''}`;
+                    if (seen.has(lid)) continue;
+                    seen.add(lid);
+                    out.push(Object.assign({ id: lid, score: 50, source: 'local' }, e));
+                }
+            }
+        } catch (_e) { /* ignore */ }
+        out.sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+        return out;
+    },
+
     async fetchCloudModels() {
         if (!this.supabase) return;
         try {

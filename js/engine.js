@@ -2227,6 +2227,10 @@ async function enterCity(opts = {}) {
   setProgress(65, 'Fetching AI models…');
   if (typeof API !== 'undefined') {
       await API.fetchCloudModels();
+      // Cloud events (sc_events) — server-accumulated AI signal. Non-blocking
+      // so missing table doesn't slow city boot. Refetched every 10 min by
+      // News Reactivity for fresh server-side events.
+      API.fetchCloudEvents().catch(() => {});
   }
   setTask('models', 'done');
 

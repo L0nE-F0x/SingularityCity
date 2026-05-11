@@ -107,8 +107,15 @@ window.DailyBriefing = (function() {
 
     // ─── EVENT SELECTION ─────────────────────────────────────────────────────
     function pickEventsForDate(dateStr) {
-        const all = loadNewsEvents();
-        const filtered = all.filter(e => e && e.date === dateStr && e.lab);
+        // Merged cloud + local lookup via the API helper. Falls back to
+        // raw localStorage when API isn't loaded yet (very early boot).
+        let all;
+        if (typeof API !== 'undefined' && typeof API.getEventsByDate === 'function') {
+            all = API.getEventsByDate(dateStr);
+        } else {
+            all = loadNewsEvents().filter(e => e && e.date === dateStr);
+        }
+        const filtered = all.filter(e => e && e.lab);
         // Up to 6 events. Prefer one per lab for variety, then fill chronologically.
         const seenLabs = new Set();
         const primary = [];

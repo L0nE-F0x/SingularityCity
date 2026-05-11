@@ -71,15 +71,24 @@ window.CitizenOfDay = (function() {
     }
 
     function tryPickFromNewsLab(active, today) {
-        // Find which lab was most-mentioned in yesterday's news. Pick the
+        // Find which lab was most-mentioned in yesterday's events. Pick the
         // alphabetically-first active model from that lab so the choice is
         // still deterministic across visitors.
         try {
-            const log = JSON.parse(localStorage.getItem(LS_NEWS_KEY) || '[]');
             const yest = yesterdayUtcDateString();
+            // Prefer the merged cloud + local lookup if API is available so
+            // server-accumulated events count even when the user's local log
+            // is empty. Falls back to raw localStorage if API isn't loaded.
+            let events = [];
+            if (typeof API !== 'undefined' && typeof API.getEventsByDate === 'function') {
+                events = API.getEventsByDate(yest);
+            } else {
+                const log = JSON.parse(localStorage.getItem(LS_NEWS_KEY) || '[]');
+                events = (log || []).filter(e => e && e.date === yest);
+            }
             const labCounts = {};
-            for (const ev of log) {
-                if (!ev || ev.date !== yest || !ev.lab) continue;
+            for (const ev of events) {
+                if (!ev || !ev.lab) continue;
                 labCounts[ev.lab] = (labCounts[ev.lab] || 0) + 1;
             }
             const labIds = Object.keys(labCounts);
