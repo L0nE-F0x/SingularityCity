@@ -120,6 +120,48 @@ const InteriorTrain = {
             benchTop, winY, winH, winPitch, winInsideW, winFrameT, ceilingH, winBandH, wallH, floorH, underH
         };
 
+        // ── 0. UNDERGROUND BACKDROP (full viewport) — mirrors Underground.drawBasementStack
+        //      so the area ABOVE the ceiling shows the cable tray that sits above the metro
+        //      tunnel in the exterior, and the area BELOW the wheels shows infrastructure.
+        //      All empty viewport space defaults to tunnel-cavity void instead of pure black. ──
+        const backdrop = new PIXI.Graphics();
+        // Fill the whole viewport with tunnel-cavity void (Underground.TUNNEL_CAVITY = 0x050508)
+        backdrop.beginFill(0x050508);
+        backdrop.drawRect(0, 0, W, H);
+        backdrop.endFill();
+        // Cable tray ABOVE the ceiling (mirrors exterior stack — the strip directly above
+        // the metro tunnel is the fiber-optic cable tray, 38px tall in Underground).
+        const cableTrayBot = yCeilTop;
+        const cableTrayTop = Math.max(0, cableTrayBot - 38);
+        if (cableTrayBot > 0 && typeof Underground !== 'undefined') {
+            Underground.drawCableTray(backdrop, 0, cableTrayTop, W, (bld.x || 0) + 17, false);
+        }
+        // Top fill above the cable tray — deep earth (Underground EARTH_DEEP = 0x2d1a11)
+        if (cableTrayTop > 0) {
+            backdrop.beginFill(0x2d1a11);
+            backdrop.drawRect(0, 0, W, cableTrayTop);
+            backdrop.endFill();
+            // A few rock specks for texture
+            const rng = (() => { let s = (bld.x || 17) + 31337; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })();
+            backdrop.beginFill(0x3d261a, 0.7);
+            for (let i = 0; i < 60; i++) {
+                backdrop.drawRect(rng() * W, rng() * cableTrayTop, 2 + rng() * 3, 1 + rng() * 2);
+            }
+            backdrop.endFill();
+        }
+        // Below the wheels — infrastructure backdrop (water/sewer pipes + junction boxes)
+        const infraTop = yUnderBot;
+        const infraH = Math.max(0, H - infraTop);
+        if (infraH > 0 && typeof Underground !== 'undefined') {
+            Underground.drawInfrastructure(backdrop, 0, infraTop, W, (bld.x || 0) + 42);
+            // Anything past the 100px infrastructure depth → deep earth
+            const earthStart = infraTop + 100;
+            if (earthStart < H) {
+                Underground.drawDeepEarth(backdrop, 0, earthStart, W, H - earthStart, 'tech', (bld.x || 0) + 99);
+            }
+        }
+        this.scene.addChild(backdrop);
+
         // ── 1. TUNNEL BACKDROP (full-width; visible only through window cutouts via mask) ──
         const tunnelHost = new PIXI.Container();
         tunnelHost.x = 0;
@@ -483,92 +525,55 @@ const InteriorTrain = {
         this.update();
     },
 
-    /* ─── Tunnel scenery drawn inside winBandH; only visible through window mask. ─── */
+    /* ─── Tunnel scenery seen through the windows. MUST mirror the exterior tunnel
+       (Underground.drawTunnelCavity / entities_gfx.initMetro): dark void with passing
+       structural pillars + red status lights. NO brick walls — the exterior tunnel
+       has no brick texture. ─── */
     _drawTunnelStrip(g, scroll, W, winBandH) {
         g.clear();
-        // Solid void background
+        // Tunnel cavity void — Underground.TUNNEL_CAVITY = 0x050508
         g.beginFill(0x050508);
         g.drawRect(0, 0, W, winBandH);
         g.endFill();
-        // Cable run along the top of the tunnel
-        g.beginFill(0x12161f);
-        g.drawRect(0, 6, W, 8);
+        // Far-back tunnel wall — barely different from the void, just enough to read depth
+        g.beginFill(0x09090e, 0.7);
+        g.drawRect(0, 8, W, winBandH - 16);
         g.endFill();
-        const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6];
-        cableCols.forEach((c, i) => {
-            g.beginFill(c, 0.7);
-            g.drawRect(0, 7 + i * 1.3, W, 1);
-            g.endFill();
-        });
-        // Brick/concrete wall behind the train (brighter so it reads through the windows)
-        const wallY = 18;
-        const wallH = winBandH - 36;
-        g.beginFill(0x2a2f3b);
-        g.drawRect(0, wallY, W, wallH);
-        g.endFill();
-        // Variable brightness bands so the wall feels textured, not flat
-        g.beginFill(0x1a1f29, 0.6);
-        g.drawRect(0, wallY + wallH * 0.55, W, wallH * 0.45);
-        g.endFill();
-        // Brick grout lines scrolling
-        const brickW = 56, brickH = 16;
-        const phaseX = ((scroll * 0.9) % brickW + brickW) % brickW;
-        g.lineStyle(1, 0x0a0b10, 0.95);
-        for (let by = wallY; by < wallY + wallH; by += brickH) {
-            g.moveTo(0, by);
-            g.lineTo(W, by);
-            const off = ((by - wallY) / brickH) % 2 === 0 ? 0 : brickW / 2;
-            for (let bx = -phaseX + off; bx < W + brickW; bx += brickW) {
-                g.moveTo(bx, by);
-                g.lineTo(bx, by + brickH);
-            }
-        }
-        g.lineStyle(0);
-        // Brick highlights — a few brighter individual bricks
-        const phaseHL = ((scroll * 0.9) % brickW + brickW) % brickW;
-        g.beginFill(0x3a4150, 0.55);
-        for (let by = wallY; by < wallY + wallH; by += brickH) {
-            const off = ((by - wallY) / brickH) % 2 === 0 ? 0 : brickW / 2;
-            for (let bx = -phaseHL + off; bx < W + brickW; bx += brickW * 3) {
-                g.drawRect(bx + 2, by + 2, brickW - 4, brickH - 4);
-            }
+        // Scrolling structural pillars — Underground.TUNNEL_PILLAR = 0x111115, 20×100 at 150px pitch (exterior).
+        // In a 110px-tall window strip, the pillars span the full height.
+        const pillarPitch = 150;
+        const pillarW = 20;
+        const pillarPhase = ((scroll * 1.05) % pillarPitch + pillarPitch) % pillarPitch;
+        g.beginFill(0x111115);
+        for (let px = -pillarPhase; px < W + pillarPitch; px += pillarPitch) {
+            g.drawRect(px, 0, pillarW, winBandH);
         }
         g.endFill();
-        // Red warning lights bobbing past (faster — close to camera)
-        const lightPitch = 220;
-        const lightPhase = ((scroll * 1.3) % lightPitch + lightPitch) % lightPitch;
-        for (let lx = -lightPhase; lx < W + lightPitch; lx += lightPitch) {
-            g.beginFill(0xfca5a5, 0.35);
-            g.drawCircle(lx, wallY + 18, 7);
+        // Pillar inner highlight (subtle vertical edge)
+        g.beginFill(0x1a1a22, 0.7);
+        for (let px = -pillarPhase; px < W + pillarPitch; px += pillarPitch) {
+            g.drawRect(px + pillarW - 2, 0, 1, winBandH);
+        }
+        g.endFill();
+        // Red status lights on each pillar — Underground.TUNNEL_LIGHT = 0xef4444
+        const lightY = 16;
+        for (let px = -pillarPhase; px < W + pillarPitch; px += pillarPitch) {
+            g.beginFill(0xef4444, 0.3);
+            g.drawCircle(px + pillarW / 2, lightY, 7);
             g.endFill();
             g.beginFill(0xef4444);
-            g.drawCircle(lx, wallY + 18, 2.6);
+            g.drawCircle(px + pillarW / 2, lightY, 2);
             g.endFill();
         }
-        // Structural pillars passing by
-        const pillarPitch = 320;
-        const pillarPhase = ((scroll * 1.1) % pillarPitch + pillarPitch) % pillarPitch;
-        g.beginFill(0x05050a);
-        for (let px = -pillarPhase; px < W + pillarPitch; px += pillarPitch) {
-            g.drawRect(px, wallY - 4, 18, wallH + 8);
-        }
-        g.endFill();
-        // Tunnel floor (rails) at the bottom of the visible band
-        const flrY = winBandH - 18;
+        // Track-bed strip at the very bottom of the window strip — TUNNEL_FLOOR 0x1a1a24
+        // (this is what you'd see at the far edge of the platform, beyond the train)
+        const flrY = winBandH - 14;
         g.beginFill(0x1a1a24);
-        g.drawRect(0, flrY, W, 18);
+        g.drawRect(0, flrY, W, 14);
         g.endFill();
-        g.beginFill(0x4a4a5a);
-        g.drawRect(0, flrY + 4, W, 2);
-        g.drawRect(0, flrY + 11, W, 2);
-        g.endFill();
-        // Wooden ties scrolling
-        const tiePitch = 18;
-        const tiePhase = ((scroll * 1.2) % tiePitch + tiePitch) % tiePitch;
-        g.beginFill(0xd97706);
-        for (let tx = -tiePhase; tx < W + tiePitch; tx += tiePitch) {
-            g.drawRect(tx, flrY + 7, 9, 4);
-        }
+        // Yellow safety stripe just above the track bed — TUNNEL safety stripe 0xfacc15
+        g.beginFill(0xfacc15, 0.55);
+        g.drawRect(0, flrY - 1, W, 1);
         g.endFill();
     },
 
