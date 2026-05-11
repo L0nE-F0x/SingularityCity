@@ -179,50 +179,54 @@ async function collectFromHN() {
 
 // ─── HUGGINGFACE TRENDING ───────────────────────────────────────────────────
 async function collectFromHF() {
-    // Pull the 100 most-recently-CREATED models and filter to recognized
-    // major-lab authors. sort=downloads was returning all-time classics
-    // (Llama-2 etc.) which always fail the <14-day freshness gate. sort by
-    // creation date gives us actual new releases.
-    const models = await fetchJSON(
-        'https://huggingface.co/api/models?sort=createdAt&direction=-1&limit=100&full=false'
-    );
-    if (!Array.isArray(models)) return [];
+    // Per-author queries: ask each known lab org for their 3 most recent
+    // models. A global sort=createdAt query was hopeless — major-lab models
+    // (~few per week) are drowned out of the top 100 by personal uploads.
+    // Querying each org directly lets us reliably capture their newest model
+    // even if it's days old.
+    const authors = Object.keys(HF_AUTHOR_LAB);
+    const requests = authors.map(async (author) => {
+        const list = await fetchJSON(
+            `https://huggingface.co/api/models?author=${encodeURIComponent(author)}&sort=lastModified&direction=-1&limit=3&full=true`
+        );
+        return { author, list: Array.isArray(list) ? list : [] };
+    });
+    const settled = await Promise.all(requests);
 
     const out = [];
-    const seenLabs = new Set();  // limit one event per lab per run so HF
-                                  // mass-uploaders don't dominate
-    for (const m of models) {
-        if (!m || !m.id) continue;
-        const parts = String(m.id).split('/');
-        if (parts.length < 2) continue;
-        const author = parts[0].toLowerCase();
+    const seenLabs = new Set();   // one event per lab per run
+    for (const { author, list } of settled) {
+        if (!list.length) continue;
         const lab = HF_AUTHOR_LAB[author];
-        if (!lab) continue;                  // skip random uploaders
-        if (seenLabs.has(lab)) continue;
-        seenLabs.add(lab);
+        if (!lab || seenLabs.has(lab)) continue;
 
-        // HF API inconsistently returns createdAt vs lastModified vs
-        // created_at depending on version — try all three.
-        const tsRaw = m.createdAt || m.lastModified || m.created_at;
-        const ts = tsRaw ? new Date(tsRaw) : new Date();
-        // Window: 30 days. Gives us breathing room when no fresh release in a
-        // given week, and a month-old flagship still makes a fine briefing.
-        const ageDays = (Date.now() - ts.getTime()) / 86400000;
-        if (ageDays > 30) continue;
+        // Pick the freshest model from this org that's within the window
+        for (const m of list) {
+            if (!m || !m.id) continue;
+            const tsRaw = m.createdAt || m.lastModified || m.created_at;
+            const ts = tsRaw ? new Date(tsRaw) : new Date();
+            // Window: 30 days. Wide enough that a slow-week lab still
+            // contributes; tight enough that we don't briefing-spam old news.
+            const ageDays = (Date.now() - ts.getTime()) / 86400000;
+            if (ageDays > 30) continue;
 
-        out.push({
-            id: 'hf:' + m.id,
-            source: 'hf',
-            event_type: 'celebrate',
-            archetype: 'Launch Party',
-            emoji: '🎉',
-            lab,
-            title: `New release from ${labLabel(lab)}: ${parts[1]}`,
-            url: `https://huggingface.co/${m.id}`,
-            score: Math.min(100, Math.floor(Math.log10((m.downloads || 0) + 1) * 12)),
-            ts: ts.toISOString(),
-            event_date: utcDateString(ts)
-        });
+            const modelName = String(m.id).split('/')[1] || m.id;
+            out.push({
+                id: 'hf:' + m.id,
+                source: 'hf',
+                event_type: 'celebrate',
+                archetype: 'Launch Party',
+                emoji: '🎉',
+                lab,
+                title: `New release from ${labLabel(lab)}: ${modelName}`,
+                url: `https://huggingface.co/${m.id}`,
+                score: Math.min(100, Math.floor(Math.log10((m.downloads || 0) + 1) * 12)),
+                ts: ts.toISOString(),
+                event_date: utcDateString(ts)
+            });
+            seenLabs.add(lab);
+            break;        // one per lab
+        }
     }
     return out;
 }
