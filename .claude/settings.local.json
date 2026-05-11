@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node tools/cachebust.mjs)",
+      "Bash(git -C \"C:\\\\Users\\\\Temple Lodge\\\\Desktop\\\\ApexForge\\\\SingularityCity\" status --short)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
