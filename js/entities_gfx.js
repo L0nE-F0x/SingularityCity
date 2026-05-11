@@ -350,6 +350,49 @@ const EntitiesGfx = {
         trainLayer.addChild(riderCont);
         [tW, tE, tM, tD, tL].forEach(t => { if (t) trainLayer.addChild(t.front); });
 
+        // ─── Click-to-board: trains route into the train interior just like buildings ───
+        const trainLabels = {
+            trainWest:      'Line 1 · Westbound',
+            trainEast:      'Line 1 · Eastbound',
+            trainMid:       'Line 2 · Central',
+            trainDC:        'Compute Spur',
+            trainLongevity: 'Innovation Line'
+        };
+        const wireTrainClick = (t, key) => {
+            if (!t) return;
+            const name = trainLabels[key] || 'Metro Train';
+            const onTap = () => {
+                if (typeof SND !== 'undefined' && SND.uiClick) SND.uiClick();
+                if (typeof G !== 'undefined' && typeof G.enterInterior === 'function') {
+                    G.enterInterior({
+                        id: 'train_' + key,
+                        name: name,
+                        type: 'train',
+                        _trainKey: key,
+                        x: 0, w: 0
+                    });
+                }
+            };
+            [t.c, t.front].forEach(node => {
+                if (!node) return;
+                node.eventMode = 'static';
+                node.cursor = 'pointer';
+                node.hitArea = new PIXI.Rectangle(-185, -40, 370, 75);
+                node.on('pointertap', onTap);
+                node.on('pointerover', e => {
+                    if (typeof UI !== 'undefined' && UI.showTooltip) UI.showTooltip(e, '🚇 ' + name, 'Tap to board this train');
+                });
+                node.on('pointerout', () => {
+                    if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
+                });
+            });
+        };
+        wireTrainClick(tW, 'trainWest');
+        wireTrainClick(tE, 'trainEast');
+        wireTrainClick(tM, 'trainMid');
+        wireTrainClick(tD, 'trainDC');
+        wireTrainClick(tL, 'trainLongevity');
+
         return {
             trainWest: tW, trainEast: tE, trainMid: tM, trainDC: tD, trainLongevity: tL,
             riderCont: riderCont,
