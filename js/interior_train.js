@@ -14,7 +14,9 @@ const InteriorTrain = {
     _tunnelG: null,
     _stationG: null,
     _windowMask: null,
-    _passengersG: null,
+    _passengersCont: null,
+    _paxAvatars: null,
+    _lastPaxCount: -1,
     _doorL: null,
     _doorR: null,
     _doorOpen: 0,
@@ -85,10 +87,16 @@ const InteriorTrain = {
         const winPitch   = 150;                          // distance between window centers
         const winFrameT  = 4;                            // window frame thickness
         const winInsideW = 110;                          // window opening width
-        const wallH      = 220;                          // wall section that holds seats/standees
-        const floorH     = 16;
+        const wallH      = 240;                          // wall section that holds seats/standees
+        const floorH     = 14;
+        // Undercarriage proportions: hull skirt + bogey truck + wheels/rails — kept thin so
+        // the cabin (not the wheels) dominates the view and there's no floating-train gap.
+        const skirtH     = 10;                           // hull plating directly below floor
+        const bogeyH     = 26;                           // truck assembly height
+        const railsH     = 22;                           // rails + ties strip at the very bottom
+        const wheelR     = 12;                           // wheel radius (visible at the bottom edge of the bogey)
+        const underH     = skirtH + bogeyH + railsH;
         const bandsTotal = ceilingH + winBandH + wallH + floorH;
-        const underH     = Math.min(220, Math.max(120, H - bandsTotal - 40));
         const totalH     = bandsTotal + underH;
 
         // Vertical offset so the car is centered vertically when the viewport is taller than needed
@@ -305,9 +313,11 @@ const InteriorTrain = {
         wallBand.endFill();
         this.scene.addChild(wallBand);
 
-        // Passenger silhouettes (re-rendered each frame)
-        this._passengersG = new PIXI.Graphics();
-        this.scene.addChild(this._passengersG);
+        // Passenger container — HumanAvatar instances added/recycled each frame
+        this._passengersCont = new PIXI.Container();
+        this.scene.addChild(this._passengersCont);
+        this._paxAvatars = [];     // pool of { cont, slot, kind, seed }
+        this._lastPaxCount = -1;
 
         // ── 5. FLOOR ──────────────────────────────────────────────────────────
         const floor = new PIXI.Graphics();
@@ -325,47 +335,67 @@ const InteriorTrain = {
         floor.endFill();
         this.scene.addChild(floor);
 
-        // ── 6. UNDERCARRIAGE / RAILS (visible below the cutaway) ──────────────
+        // ── 6. UNDERCARRIAGE / RAILS — car sits FLUSH on the rails, no floating gap ──
+        // Layout from top to bottom: hull skirt → bogey trucks → wheels → ties+rails.
+        const skirtY = yUnderTop;
+        const bogeyY = skirtY + skirtH;
+        const railY  = yUnderBot - railsH;
         const underside = new PIXI.Graphics();
-        underside.beginFill(0x111115);
+        // Tunnel void as the backdrop (lets the under-the-train area read as "in the tunnel")
+        underside.beginFill(0x05050a);
         underside.drawRect(0, yUnderTop, W, underH);
         underside.endFill();
-        // Cyan trim hugging the floor
-        underside.beginFill(0x0284c7);
-        underside.drawRect(0, yUnderTop, W, 4);
-        underside.endFill();
-        // Twin rails along bottom
-        const railY = yUnderBot - 18;
-        underside.beginFill(0x4a4a5a);
-        underside.drawRect(0, railY, W, 3);
-        underside.drawRect(0, railY + 10, W, 3);
-        underside.endFill();
-        // Wooden ties (drawn once, scroll handled by separate graphic)
-        // Bogey trucks (two)
-        const bogeyX = [W * 0.25, W * 0.75];
+        // Hull skirt — same dark slate as the exterior train body, mounted right under the floor
         underside.beginFill(0x1e293b);
-        bogeyX.forEach(bx => underside.drawRoundedRect(bx - 70, yUnderTop + 18, 140, 26, 6));
+        underside.drawRect(0, skirtY, W, skirtH);
         underside.endFill();
-        // Wheel hubs (static dark; spinning detail comes from _wheelGfx)
+        underside.beginFill(0x0ea5e9);                  // cyan trim line (mirrors exterior accent)
+        underside.drawRect(0, skirtY + skirtH - 2, W, 2);
+        underside.endFill();
+        // Bogey trucks (two, anchored under quarter points of the car)
+        const bogeyX = [Math.round(W * 0.25), Math.round(W * 0.75)];
+        underside.beginFill(0x0f172a);
+        bogeyX.forEach(bx => underside.drawRoundedRect(bx - 78, bogeyY, 156, bogeyH, 6));
+        underside.endFill();
+        // Bogey trim
+        underside.beginFill(0x334155);
+        bogeyX.forEach(bx => underside.drawRect(bx - 78, bogeyY + 2, 156, 2));
+        underside.endFill();
+        // Wheel hubs — bottom of each bogey kisses the rail line
+        const wheelY = bogeyY + bogeyH - 2;
         underside.beginFill(0x0a0a12);
         bogeyX.forEach(bx => {
-            underside.drawCircle(bx - 40, yUnderTop + 50, 13);
-            underside.drawCircle(bx + 40, yUnderTop + 50, 13);
+            underside.drawCircle(bx - 42, wheelY, wheelR);
+            underside.drawCircle(bx + 42, wheelY, wheelR);
         });
+        underside.endFill();
+        underside.beginFill(0x475569);
+        bogeyX.forEach(bx => {
+            underside.drawCircle(bx - 42, wheelY, wheelR - 5);
+            underside.drawCircle(bx + 42, wheelY, wheelR - 5);
+        });
+        underside.endFill();
+        // Rails + ballast under the wheels — twin rails the car is riding on
+        underside.beginFill(0x1a1a24);
+        underside.drawRect(0, railY, W, railsH);
+        underside.endFill();
+        underside.beginFill(0x4a4a5a);                  // twin rail steel
+        underside.drawRect(0, railY + 4, W, 3);
+        underside.drawRect(0, railY + railsH - 6, W, 3);
         underside.endFill();
         this.scene.addChild(underside);
 
-        // Scrolling ties graphic (over rails)
+        // Scrolling ties graphic (drawn over rails)
         this._tiesG = new PIXI.Graphics();
-        this._tiesG.y = railY + 5;
+        this._tiesG.y = railY + 8;
         this.scene.addChild(this._tiesG);
 
-        // Wheel spokes (over hubs)
+        // Wheel spokes (drawn over hubs; spin with motion)
         this._wheelGfx = new PIXI.Graphics();
         this._wheelCenters = [];
         bogeyX.forEach(bx => {
-            this._wheelCenters.push({ x: bx - 40, y: yUnderTop + 50 });
-            this._wheelCenters.push({ x: bx + 40, y: yUnderTop + 50 });
+            this._wheelCenters.push({ x: bx - 42, y: wheelY });
+            this._wheelCenters.push({ x: bx + 42, y: wheelY });
         });
         this.scene.addChild(this._wheelGfx);
 
@@ -602,99 +632,118 @@ const InteriorTrain = {
         }
     },
 
-    /* ─── Passenger silhouettes inside the car. Count = Entities[key].passengers. ─── */
-    _drawPassengers(g, count) {
-        g.clear();
-        if (!count || count <= 0) return;
-        const L = this._L;
-        const seatedCap = Math.min(count, 14);
-        const standCap  = Math.max(0, Math.min(count - seatedCap, 10));
-        const skinTones = [0xfcd5b4, 0xe0a899, 0xc69076, 0x8d5524, 0xf5c8a7];
-        const shirtCols = [0x0ea5e9, 0xef4444, 0x22c55e, 0xfacc15, 0xa855f7, 0xf97316, 0x06b6d4];
-        const keySeed = this._trainKey ? this._trainKey.charCodeAt(5) || 0 : 0;
-        const keySeed2 = this._trainKey ? this._trainKey.charCodeAt(0) || 0 : 0;
-        const doorCx = L.doorCx, doorHalf = L.doorPanelW;
-        const inDoor = (px) => px > doorCx - doorHalf - 14 && px < doorCx + doorHalf + 14;
-
-        // Seated — distributed across the bench but skipping over the door gap
-        const benchY = L.benchTop;
-        const tries = seatedCap * 3;
-        let placed = 0;
-        const slots = [];
-        const usable = L.W - 40;
-        for (let i = 0; i < tries && placed < seatedCap; i++) {
-            const t = (i + 0.5) / tries;
-            const px = 20 + t * usable;
-            if (inDoor(px)) continue;
-            if (slots.some(s => Math.abs(s - px) < 22)) continue;
-            slots.push(px);
-            placed++;
+    /* ─── Discover the actual riders attached to this train (so the cabin shows the
+       AI models that are mid-trip rather than random extras). G.charRefs is the source
+       of truth — riders set refs._ridingTrain to the train object while riding. ─── */
+    _gatherRiders(train) {
+        const riders = [];
+        if (typeof G === 'undefined' || !G.charRefs || !G.models) return riders;
+        for (let i = 0; i < G.models.length; i++) {
+            const m = G.models[i];
+            const refs = G.charRefs[m.id];
+            if (!refs || refs._ridingTrain !== train) continue;
+            // Lab color drives the accent dot (matches exterior city look)
+            const labCol = (typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].color)
+                ? parseInt(String(LABS[m.lab].color).replace('#', ''), 16)
+                : 0x4ade80;
+            riders.push({ id: m.id, name: m.name, lab: m.lab, labCol });
+            if (riders.length >= 24) break;
         }
-        slots.forEach((px, i) => {
-            const py = benchY - 22;
-            const sk = skinTones[(i + keySeed) % skinTones.length];
-            const sh = shirtCols[(i * 3 + keySeed2) % shirtCols.length];
-            // body
-            g.beginFill(sh);
-            g.drawRoundedRect(px - 8, py, 16, 22, 3);
-            g.endFill();
-            // head
-            g.beginFill(sk);
-            g.drawCircle(px, py - 5, 6);
-            g.endFill();
-            // legs
-            g.beginFill(0x1e293b);
-            g.drawRect(px - 7, py + 20, 5, 14);
-            g.drawRect(px + 2, py + 20, 5, 14);
-            g.endFill();
-            // phone glow for some
-            if ((i * 7 + 3) % 3 === 0) {
-                g.beginFill(0x38bdf8, 0.9);
-                g.drawRect(px - 2, py + 7, 4, 5);
-                g.endFill();
+        return riders;
+    },
+
+    /* ─── Build/refresh passenger avatars using the city's HumanAvatar pixel-art style,
+       seating real riders first, then padding remaining seats with seeded extras. ─── */
+    _refreshPassengers(count, train) {
+        const L = this._L;
+        if (!this._passengersCont) return;
+        const wantCount = Math.max(0, Math.min(count | 0, 24));
+
+        // If count unchanged, just animate; full rebuild only when count changes.
+        if (wantCount === this._lastPaxCount) return;
+        this._lastPaxCount = wantCount;
+
+        // Destroy old avatars
+        if (this._paxAvatars) {
+            this._paxAvatars.forEach(a => { if (a.cont && !a.cont.destroyed) a.cont.destroy({ children: true }); });
+        }
+        this._paxAvatars = [];
+        this._passengersCont.removeChildren();
+
+        if (wantCount <= 0 || typeof HumanAvatar === 'undefined') return;
+
+        const riders = this._gatherRiders(train);
+
+        // Plan seat slots: skip the door gap so nobody sits in the doorway.
+        const doorCx = L.doorCx, doorHalf = L.doorPanelW + 12;
+        const inDoor = (px) => px > doorCx - doorHalf && px < doorCx + doorHalf;
+        const benchY = L.yFloorTop - 2;                 // avatar y aligns to floor (avatar grows upward)
+        const seatedTarget = Math.min(wantCount, 14);
+        const standingTarget = Math.max(0, wantCount - seatedTarget);
+
+        // Distribute seated slots evenly, skipping door area
+        const seatSlots = [];
+        const usable = L.W - 40;
+        const tries = seatedTarget * 4;
+        for (let i = 0; i < tries && seatSlots.length < seatedTarget; i++) {
+            const px = 20 + ((i + 0.5) / tries) * usable;
+            if (inDoor(px)) continue;
+            if (seatSlots.some(s => Math.abs(s - px) < 22)) continue;
+            seatSlots.push(px);
+        }
+        // Standing slots
+        const standSlots = [];
+        const sUsable = L.W - 80;
+        const sTries = standingTarget * 4;
+        for (let i = 0; i < sTries && standSlots.length < standingTarget; i++) {
+            const px = 40 + ((i + 0.5) / sTries) * sUsable;
+            if (inDoor(px)) continue;
+            if (standSlots.some(s => Math.abs(s - px) < 26)) continue;
+            standSlots.push(px);
+        }
+
+        // Place avatars: seated first (real riders take front-row seats), then standing
+        const allSlots = seatSlots.map(px => ({ px, py: benchY, standing: false }))
+            .concat(standSlots.map(px => ({ px, py: L.yFloorTop - 2, standing: true })));
+
+        allSlots.forEach((slot, idx) => {
+            const rider = riders[idx]; // may be undefined → seeded extra
+            const seed = rider ? rider.id : (this._trainKey + '_pax_' + idx);
+            const accent = rider ? rider.labCol : null;
+            const av = HumanAvatar.draw(this._passengersCont, {
+                x: slot.px,
+                y: slot.py,
+                seed: seed,
+                accent: accent != null ? accent : 0x4ade80,
+                showTag: false,
+                showDot: !!rider,                  // only real riders get the accent dot
+                glasses: !rider ? false : undefined
+            });
+            // Scale down slightly so 16×32 pixel-dolls fit nicely in the cabin
+            const s = slot.standing ? 1.05 : 0.95;
+            av.cont.scale.set(s);
+            this._paxAvatars.push({
+                cont: av.cont, head: av.head, body: av.body, legL: av.legL, legR: av.legR,
+                slot: slot, baseY: slot.py, idx: idx, isReal: !!rider
+            });
+        });
+    },
+
+    /* Subtle per-frame animation on existing avatars (sway/bob, no rebuild). */
+    _animatePassengers() {
+        if (!this._paxAvatars) return;
+        const t = this._tick || 0;
+        this._paxAvatars.forEach(a => {
+            if (!a.cont || a.cont.destroyed) return;
+            if (a.slot.standing) {
+                // Standing: small horizontal sway
+                a.cont.x = a.slot.px + Math.sin(t * 0.07 + a.idx * 0.8) * 1.2;
+                a.cont.y = a.baseY + Math.sin(t * 0.11 + a.idx) * 0.5;
+            } else {
+                // Seated: tiny head bob only
+                if (a.head) a.head.y = -32 + Math.sin(t * 0.05 + a.idx) * 0.4;
             }
         });
-
-        // Standing — between the bench and the door / scattered along the floor
-        if (standCap > 0) {
-            const standY = L.yFloorTop - 56;
-            const standUsable = L.W - 80;
-            const standSlots = [];
-            const standTries = standCap * 3;
-            let sPlaced = 0;
-            for (let i = 0; i < standTries && sPlaced < standCap; i++) {
-                const t = (i + 0.5) / standTries;
-                const px = 40 + t * standUsable;
-                if (inDoor(px)) continue;
-                if (standSlots.some(s => Math.abs(s - px) < 26)) continue;
-                standSlots.push(px);
-                sPlaced++;
-            }
-            standSlots.forEach((px, j) => {
-                const sway = Math.sin((this._tick || 0) * 0.07 + j * 0.8) * 1.2;
-                const py = standY;
-                const sk = skinTones[(j + 2) % skinTones.length];
-                const sh = shirtCols[(j * 5 + 1) % shirtCols.length];
-                g.beginFill(sh);
-                g.drawRoundedRect(px - 7 + sway, py, 14, 32, 3);
-                g.endFill();
-                g.beginFill(sk);
-                g.drawCircle(px + sway, py - 5, 6);
-                g.endFill();
-                // raised arm to grab handle
-                g.beginFill(sh);
-                g.drawRect(px + 5 + sway, py - 12, 3, 18);
-                g.endFill();
-                g.beginFill(sk);
-                g.drawCircle(px + 6 + sway, py - 14, 2.6);
-                g.endFill();
-                // legs
-                g.beginFill(0x1e293b);
-                g.drawRect(px - 6 + sway, py + 30, 5, 12);
-                g.drawRect(px + 1 + sway, py + 30, 5, 12);
-                g.endFill();
-            });
-        }
     },
 
     update() {
@@ -789,8 +838,9 @@ const InteriorTrain = {
             });
         }
 
-        // Passengers
-        if (this._passengersG) this._drawPassengers(this._passengersG, t.passengers || 0);
+        // Passengers — rebuild list on count change, then animate each frame
+        this._refreshPassengers(t.passengers || 0, t);
+        this._animatePassengers();
 
         // Subtle vertical bob while moving
         const moving = !isWaiting && Math.abs(dx) > 0.05;
@@ -807,7 +857,12 @@ const InteriorTrain = {
         this._stationG = null;
         this._windowMask = null;
         this._stationLabelTxt = null;
-        this._passengersG = null;
+        if (this._paxAvatars) {
+            this._paxAvatars.forEach(a => { if (a.cont && !a.cont.destroyed) a.cont.destroy({ children: true }); });
+        }
+        this._paxAvatars = null;
+        this._passengersCont = null;
+        this._lastPaxCount = -1;
         this._doorL = null;
         this._doorR = null;
         this._destTxt = null;
