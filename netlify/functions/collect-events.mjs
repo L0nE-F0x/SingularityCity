@@ -7,15 +7,14 @@
 // Citizen of the Day picks, and Daily Briefings work even when the user
 // hasn't had the city open for days — events accumulate server-side.
 //
-// Phase 1 sources (this file):
+// Sources:
 //   • Hacker News AI-tagged stories  → reaction archetypes via keywords
-//   • HuggingFace trending models    → 'release' / Launch Party at author lab
+//   • HuggingFace lab orgs           → 'release' / Launch Party at author lab
 //   • Launch Library 2 launches      → 'launch' (informational; reaction
-//                                       archetype is a future Phase 2 addition)
-//
-// Phase 2 sources (later):
-//   • arXiv AI papers, ZeroEval ELO shake-ups, Finnhub AI-stock moves,
-//     direct Anthropic/OpenAI/xAI/Google new-model releases
+//                                       archetype is a future addition)
+//   • arXiv AI papers                → only those tied to a known lab
+//   • ZeroEval leaderboard           → first time each model holds #1
+//   • Finnhub AI-stock moves         → ≥3% moves trigger celebrate/crisis
 //
 // Required env vars:
 //   SUPABASE_URL          — Project URL
@@ -444,76 +443,6 @@ async function collectFromFinnhub() {
     return out;
 }
 
-// ─── LAB MODEL APIs (new flagship-model releases) ───────────────────────────
-// Only enabled when corresponding env var is set. Each API returns models
-// with different shapes; we extract a creation timestamp and only emit
-// events for models created in the last 30 days. Models without a parseable
-// timestamp are silently skipped so the first run doesn't flood the table.
-
-async function collectFromAnthropic() {
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) return [];
-    const data = await fetchJSON('https://api.anthropic.com/v1/models', {
-        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' }
-    });
-    if (!data || !Array.isArray(data.data)) return [];
-    return data.data
-        .map(m => emitLabApiEvent('anthropic_official', 'anthropic', m.id, m.display_name || m.id, m.created_at))
-        .filter(Boolean);
-}
-
-async function collectFromOpenAI() {
-    const key = process.env.OPENAI_API_KEY;
-    if (!key) return [];
-    const data = await fetchJSON('https://api.openai.com/v1/models', {
-        headers: { Authorization: 'Bearer ' + key }
-    });
-    if (!data || !Array.isArray(data.data)) return [];
-    return data.data
-        .map(m => {
-            // OpenAI returns Unix epoch seconds
-            const ts = m.created ? new Date(m.created * 1000).toISOString() : null;
-            return emitLabApiEvent('openai_official', 'openai', m.id, m.id, ts);
-        })
-        .filter(Boolean);
-}
-
-async function collectFromXai() {
-    const key = process.env.XAI_API_KEY;
-    if (!key) return [];
-    const data = await fetchJSON('https://api.x.ai/v1/models', {
-        headers: { Authorization: 'Bearer ' + key }
-    });
-    if (!data || !Array.isArray(data.data)) return [];
-    return data.data
-        .map(m => {
-            const ts = m.created ? new Date(m.created * 1000).toISOString() : null;
-            return emitLabApiEvent('xai_official', 'xai', m.id, m.id, ts);
-        })
-        .filter(Boolean);
-}
-
-function emitLabApiEvent(source, lab, modelId, displayName, tsIso) {
-    if (!modelId || !tsIso) return null;       // skip undated → first-run flood guard
-    const ts = new Date(tsIso);
-    if (isNaN(ts.getTime())) return null;
-    const ageDays = (Date.now() - ts.getTime()) / 86400000;
-    if (ageDays > 30) return null;
-    return {
-        id: source + ':' + modelId,
-        source,
-        event_type: 'celebrate',
-        archetype: 'Launch Party',
-        emoji: '🎉',
-        lab,
-        title: `${labLabel(lab)} released ${displayName}`,
-        url: 'https://singularitycity.net',
-        score: 95,                              // direct lab release = highest signal
-        ts: ts.toISOString(),
-        event_date: utcDateString(ts)
-    };
-}
-
 // ─── SUPABASE UPSERT ────────────────────────────────────────────────────────
 async function upsertEvents(events) {
     if (!events.length) return { written: 0, failed: 0 };
@@ -553,24 +482,20 @@ export default async (_req) => {
 
     // All sources in parallel. Each catches its own errors so one source
     // failing (e.g. arXiv timeout) never tanks the whole run.
-    const [hn, hf, ll, arxiv, ze, fh, anth, oai, xai] = await Promise.all([
+    const [hn, hf, ll, arxiv, ze, fh] = await Promise.all([
         collectFromHN().catch(e        => { console.warn('HN error:',        e.message); return []; }),
         collectFromHF().catch(e        => { console.warn('HF error:',        e.message); return []; }),
         collectFromLaunchLib().catch(e => { console.warn('LL2 error:',       e.message); return []; }),
         collectFromArxiv().catch(e     => { console.warn('arXiv error:',     e.message); return []; }),
         collectFromZeroEval().catch(e  => { console.warn('ZeroEval error:',  e.message); return []; }),
-        collectFromFinnhub().catch(e   => { console.warn('Finnhub error:',   e.message); return []; }),
-        collectFromAnthropic().catch(e => { console.warn('Anthropic error:', e.message); return []; }),
-        collectFromOpenAI().catch(e    => { console.warn('OpenAI error:',    e.message); return []; }),
-        collectFromXai().catch(e       => { console.warn('xAI error:',       e.message); return []; })
+        collectFromFinnhub().catch(e   => { console.warn('Finnhub error:',   e.message); return []; })
     ]);
     console.log(
         `  sources: ${hn.length} HN · ${hf.length} HF · ${ll.length} LL2 · ` +
-        `${arxiv.length} arXiv · ${ze.length} ZeroEval · ${fh.length} Finnhub · ` +
-        `${anth.length} Anthropic · ${oai.length} OpenAI · ${xai.length} xAI`
+        `${arxiv.length} arXiv · ${ze.length} ZeroEval · ${fh.length} Finnhub`
     );
 
-    const all = [...hn, ...hf, ...ll, ...arxiv, ...ze, ...fh, ...anth, ...oai, ...xai];
+    const all = [...hn, ...hf, ...ll, ...arxiv, ...ze, ...fh];
     const { written, failed } = await upsertEvents(all);
 
     const elapsed = Math.round((Date.now() - startedAt) / 100) / 10;
@@ -578,8 +503,7 @@ export default async (_req) => {
         ok: failed === 0,
         sources: {
             hn: hn.length, hf: hf.length, ll: ll.length,
-            arxiv: arxiv.length, zeroeval: ze.length, finnhub: fh.length,
-            anthropic: anth.length, openai: oai.length, xai: xai.length
+            arxiv: arxiv.length, zeroeval: ze.length, finnhub: fh.length
         },
         written,
         failed,
