@@ -1580,8 +1580,9 @@ h1, h2, h3, p { margin: 0; }
    DAILY BRIEFING — auto-prompt toast + stop button + post-record share toast
    ════════════════════════════════════════════════════════════════════════════════ */
 
-/* Prompt toast (lower-right corner) */
-#sc-briefing-prompt {
+/* Prompt toast (lower-right corner) — shared with the no-data toast */
+#sc-briefing-prompt,
+#sc-briefing-nodata {
     position: fixed;
     right: 20px;
     bottom: 130px;        /* stacks above the news-engine share toast spot */
@@ -1601,7 +1602,8 @@ h1, h2, h3, p { margin: 0; }
     pointer-events: none;
     transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.2,0.85,0.3,1.05);
 }
-#sc-briefing-prompt.sc-bp-in {
+#sc-briefing-prompt.sc-bp-in,
+#sc-briefing-nodata.sc-bp-in {
     opacity: 1; transform: translateY(0); pointer-events: auto;
 }
 .sc-bp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }

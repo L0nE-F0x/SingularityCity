@@ -729,20 +729,49 @@ window.DailyBriefing = (function() {
 
     // ─── MANUAL TRIGGER (hotkey + 📽 button) ─────────────────────────────────
     // Skips the prompt — user already opted in by hitting the trigger.
-    // Falls back through: 3+ events in last 7d → 1+ event in last 14d →
-    // synthesized demo events so the feature is always demonstrable.
+    // Falls back through: 3+ events in last 7d → 1+ event in last 14d.
+    // If neither, refuses rather than synthesizing fake events — the user
+    // would otherwise see (and possibly tweet) demo placeholders thinking
+    // they're real news.
     function triggerManual() {
         if (STATE.active) return;
         dismissPrompt();
         let result = findMostRecentBriefingDate(3);
         if (!result) result = findMostRecentBriefingDate(1);
         if (!result) {
-            // Truly empty log — show demo briefing with synthesized events
-            console.info('[DailyBriefing] No real events logged — running demo briefing.');
-            _test();
+            showNoDataToast();
             return;
         }
         startBriefing(result.events, result.date);
+    }
+
+    // Short corner toast when no real events are logged. Tells the user how
+    // to bootstrap their first briefing without showing fake data.
+    function showNoDataToast() {
+        const old = document.getElementById('sc-briefing-nodata');
+        if (old) old.remove();
+        const host = document.createElement('div');
+        host.id = 'sc-briefing-nodata';
+        host.innerHTML = `
+            <div class="sc-bp-head">
+                <span class="sc-bp-emoji">📽</span>
+                <span class="sc-bp-title">No briefing yet</span>
+                <button class="sc-bp-close" aria-label="Dismiss">×</button>
+            </div>
+            <div class="sc-bp-body">No real AI news events have been logged in the last 14 days. The briefing builds from headlines the city auto-reacts to — keep the app open during breaking news to populate your first briefing.</div>
+        `;
+        document.body.appendChild(host);
+        requestAnimationFrame(() => host.classList.add('sc-bp-in'));
+        host.querySelector('.sc-bp-close').onclick = () => {
+            host.classList.remove('sc-bp-in');
+            setTimeout(() => host.remove(), 280);
+        };
+        setTimeout(() => {
+            if (host.parentNode) {
+                host.classList.remove('sc-bp-in');
+                setTimeout(() => host.remove(), 280);
+            }
+        }, 8000);
     }
 
     function setupHotkey() {
