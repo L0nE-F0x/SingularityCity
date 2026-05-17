@@ -1606,6 +1606,17 @@ Respond with ONLY minified JSON, no markdown:
         'minicpm': 4, 'llava': 2, 'lfm': 2, 'dolphin': 3, 'nvlm': 1, 'arctic': 2
     },
 
+    // Closed-weight frontier families NEVER appear on HuggingFace and lag weeks on
+    // OpenRouter/ZeroEval, so the _autoDetectVersionCaps auto-heal path is structurally
+    // broken for them — a genuinely-released new flagship (e.g. GPT-5.5 right after
+    // GPT-5.4) gets rejected until an aggregator catches up. For these families we
+    // allow a bounded forward step above the floor: real incremental releases pass,
+    // but absurd hallucinations ("GPT-9", "Claude 8") are still rejected. Open-weight
+    // families stay STRICT (they self-heal from HF/OpenRouter within hours).
+    _frontierForwardTolerance: {
+        'gpt': 1.0, 'claude': 1.0, 'gemini': 1.0, 'grok': 1.0
+    },
+
     // Family → known producing lab(s). Used to validate that "Cohere Command R+" really
     // is a Cohere model (lab matches family) vs a Nous-Hermes finetune of Llama (lab mismatch).
     _familyToLab: {
@@ -1778,15 +1789,18 @@ Respond with ONLY minified JSON, no markdown:
         // This is the PRIMARY hallucination defense — uses flexible token-based matching
         // so "Claude Opus 7.5" gets caught (version after a word) and "Cohere Command R+ 08-2024"
         // doesn't (the date is filtered as a date code, not a version).
-        // STRICT: no buffer above maxVer. New flagship versions get auto-raised when seen
-        // from a trusted source (ZeroEval/HuggingFace) via _autoDetectVersionCaps.
+        // Open-weight families: STRICT, no buffer (they auto-raise from ZeroEval/
+        // HuggingFace within hours via _autoDetectVersionCaps). Closed frontier
+        // families (gpt/claude/gemini/grok) get a bounded forward tolerance because
+        // their auto-heal path is structurally broken — see _frontierForwardTolerance.
         let detectedFamily = null;
         for (const [family, maxVer] of Object.entries(this._maxKnownVersions)) {
             const result = this._extractVersionNear(name, family);
             if (!result.found) continue;
             detectedFamily = family;
-            if (result.max != null && result.max > maxVer) {
-                return { ok: false, reason: `Version ${result.max} exceeds max known ${family} version ${maxVer}` };
+            const tol = this._frontierForwardTolerance[family] || 0;
+            if (result.max != null && result.max > maxVer + tol) {
+                return { ok: false, reason: `Version ${result.max} exceeds max known ${family} version ${maxVer}${tol ? ` (+${tol} frontier tolerance)` : ''}` };
             }
         }
 
@@ -2148,6 +2162,15 @@ Respond with ONLY minified JSON, no markdown:
                 });
                 const flagshipGap = missingFlagships.slice(0, 12).join(', ');
 
+                // ─── FORWARD NUDGE (self-maintaining) ───
+                // Derived from the auto-raising version caps so it NEVER goes stale.
+                // Tells the scan model the highest version we currently know per
+                // closed frontier family and explicitly asks for anything newer.
+                const frontierFams = { gpt: 'OpenAI GPT', claude: 'Anthropic Claude', gemini: 'Google Gemini', grok: 'xAI Grok' };
+                const forwardNudge = Object.entries(frontierFams)
+                    .map(([fam, label]) => `${label}: we currently know up to v${this._maxKnownVersions[fam]} — if a NEWER one has been officially released, RETURN IT`)
+                    .join('\n');
+
                 // ─── GAP ANALYSIS: Tell the AI which major labs are thin ───
                 const majorLabs = ['openai', 'anthropic', 'google', 'meta', 'xai', 'microsoft', 'deepseek', 'alibaba', 'mistral', 'apple', 'amazon', 'nvidia', 'cohere'];
                 const labCounts = {};
@@ -2174,6 +2197,9 @@ Respond with ONLY minified JSON, no markdown:
 MISSING FLAGSHIPS — These specific cutting-edge models are NOT yet in our database and should be prioritized:
 ${flagshipGap || 'All major flagships tracked!'}
 
+LATEST-VERSION CHECK — push past what we know if reality has moved on:
+${forwardNudge}
+
 CONTEXT:
 - Underrepresented labs needing priority: ${underrepresented || 'Good coverage'}
 - Labs MISSING a founder/CEO: ${founderGap || 'All tracked'}
@@ -2182,12 +2208,10 @@ CONTEXT:
 
 CRITICAL ACCURACY RULES — VIOLATIONS WILL CORRUPT A PUBLIC DATABASE:
 1. ONLY return models that have been OFFICIALLY ANNOUNCED by the lab with a public blog post, API endpoint, or press release.
-2. Do NOT invent, extrapolate, or speculate about future model versions. For example:
-   - If the latest known Gemini is 3.1, do NOT return "Gemini 5", "Gemini 6", "Gemini 8 Ultra", etc.
-   - If the latest known GPT is 5.4, do NOT return "GPT-6", "GPT-7", etc.
-   - If the latest known Claude is Opus 4.6, do NOT return "Claude 6", "Claude 7", etc.
-   - If the latest known Llama is 4, do NOT return "Llama 6", "Llama 7", etc.
-   - If the latest known Grok is 4.20, do NOT return "Grok 6", "Grok 7", etc.
+2. ALWAYS return the genuinely LATEST officially-released model from each major lab, even if it is newer than anything you think we already track — recency is the entire point. Our internal list is deliberately stale; do not anchor to it. The ONLY thing to avoid is FABRICATING a version with no public announcement:
+   - If a lab has genuinely shipped a new flagship (e.g. a new GPT-5.x, Claude 4.x/5, Gemini 3.x/4, Grok 4.x/5, Llama 5), RETURN IT — that is exactly what we want.
+   - Do NOT speculate multiple versions ahead of reality (e.g. if GPT-5.5 is the real latest, do NOT also invent "GPT-6" or "GPT-7"; if Gemini 3.5 is real, do NOT invent "Gemini 8 Ultra").
+   - Rule of thumb: the next real increment past the current release = YES; a fabricated jump with no blog post / API / press release = NO.
 3. Version numbers must match real, publicly documented versions. If unsure, SKIP that model entirely.
 4. Release dates must be real dates when the model became publicly available. If unsure, use null.
 5. Benchmarks must be from official papers or leaderboards (e.g. LMSYS, ZeroEval). If unsure, omit the benchmark.
