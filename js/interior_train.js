@@ -1,12 +1,15 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   METRO TRAIN INTERIOR (v1.2.0 — exterior-matched cutaway, real-rider cabin)
-   Cutaway side view of one car. Palette is locked to the exterior train sprite
-   (EntitiesGfx.buildTrainSprite / InteriorMetro._drawExteriorTrain) so inside ↔ outside never drift:
-     hull 0x1e293b · cyan stripe 0x0284c7 · cyan accent 0x0ea5e9 · silver 0x94a3b8/0xcbd5e1 · glass 0x0f172a
-   Passengers shown inside are the ACTUAL AI models / NPCs riding this train object (G.charRefs
-   refs._ridingTrain === this train) — not random extras — so the cabin tracks ridership exactly
-   the way building interiors track occupants. An empty train shows an empty (truthful) cabin.
-   Tunnel scenery through the windows mirrors the exterior tunnel: dark void + pillars + red lights.
+   METRO TRAIN INTERIOR (v1.3.0 — realistic proportions, exterior-matched)
+   Cutaway side view of one car. Palette + undercarriage are locked to the exterior train
+   (EntitiesGfx.buildTrainSprite / InteriorMetro._drawExteriorTrain): hull 0x1e293b ·
+   cyan stripe 0x0284c7 · accent 0x0ea5e9 · silver 0x94a3b8/0xcbd5e1 · glass 0x0f172a.
+   The exterior train has NO wheels/bogeys — just a slate body on the tunnel rail bed —
+   so the inside shows the same: a hull skirt sitting straight on 0x1a1a24 ballast + twin
+   0x4a4a5a rails, nothing else. Windows sit at standing-passenger HEAD height (you see
+   heads in the windows from outside, so it must read that way inside too). The car is kept
+   short so there's always tunnel void between the roof and the top of the screen.
+   Passengers are the ACTUAL riders attached to this train (refs._ridingTrain === train) —
+   never padded with fakes — so the cabin tracks ridership like a building tracks occupants.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const InteriorTrain = {
@@ -31,8 +34,6 @@ const InteriorTrain = {
     _destTxt: null,
     _speedTxt: null,
     _stationLabelTxt: null,
-    _wheelGfx: null,
-    _wheelCenters: null,
     _strapsG: null,
     _tiesG: null,
     _tick: 0,
@@ -87,77 +88,77 @@ const InteriorTrain = {
         this.scene = new PIXI.Container();
         layer.addChild(this.scene);
 
-        // ── Layout (centered subway-car cross-section) ───────────────────────
-        const ceilingH   = 58;
-        const winTopGap  = 14;                           // slate sill above window
-        const winH        = 122;                         // tall windows (exterior glass reads big)
-        const sillH       = 18;                          // cyan-striped sill below window
-        const winBandH    = winTopGap + winH + sillH;    // 154
-        const wallH       = 226;                         // cabin: bench + standees + grab poles
-        const floorH      = 16;
-        const skirtH      = 10;                           // hull plating below floor (exterior skirt)
-        const bogeyH      = 26;
-        const railsH      = 22;
-        const wheelR      = 12;
-        const underH      = skirtH + bogeyH + railsH;
-        const winPitch    = 212;                          // window-center spacing
-        const winInsideW  = 152;                          // window opening width
+        // ── Layout — a SHORT, realistic car cross-section ─────────────────────
+        //   roof gap (offsetY) │ ceiling │ signage strip │ WINDOWS │ low wall │
+        //   floor │ skirt │ rail bed │ … tunnel void …
+        // Windows bottom-edge ≈ standing shoulder height; standing heads cross
+        // into the glass (matches what you see from outside the train).
+        const ceilingH   = 44;
+        const topBandH   = 22;                          // route/signage strip above the glass
+        const winH        = 104;
+        const lowerWallH  = 34;                          // window-bottom → floor (wall behind bench)
+        const floorH      = 14;
+        const skirtH      = 10;                           // hull plating below the floor
+        const railBedH    = 22;                           // ballast + twin rails (exterior style)
+        const underH      = skirtH + railBedH;
+        const winPitch    = 212;
+        const winInsideW  = 152;
 
-        const totalH = ceilingH + winBandH + wallH + floorH + underH;
-        const offsetY = Math.max(0, Math.round((H - totalH) / 2));
+        const totalH = ceilingH + topBandH + winH + lowerWallH + floorH + underH;
+        // Always keep tunnel void above the roof (and centre when there's room).
+        const offsetY = Math.max(40, Math.round((H - totalH) / 2));
 
         const yCeilTop  = offsetY;
         const yCeilBot  = yCeilTop + ceilingH;
-        const yWinTop   = yCeilBot;
-        const yWinBot   = yWinTop + winBandH;
-        const yWallTop  = yWinBot;
-        const yFloorTop = yWallTop + wallH;
+        const yTopBand  = yCeilBot;
+        const yWinTop   = yTopBand + topBandH;
+        const yWinBot   = yWinTop + winH;
+        const yWallTop  = yWinBot;                        // low wall below the glass
+        const yFloorTop = yWallTop + lowerWallH;
         const yFloorBot = yFloorTop + floorH;
-        const yUnderTop = yFloorBot;
-        const yUnderBot = yUnderTop + underH;
-        const winY      = yWinTop + winTopGap;
-        const benchTop  = yFloorTop - 70;                 // bench cushion top (seated avatars read here)
+        const ySkirtTop = yFloorBot;
+        const yRailTop  = ySkirtTop + skirtH;
+        const yUnderBot = yRailTop + railBedH;
+        const winY      = yWinTop;
 
         this._L = {
             W, H, theme,
-            yCeilTop, yCeilBot, yWinTop, yWinBot, yWallTop, yFloorTop, yFloorBot, yUnderTop, yUnderBot,
-            benchTop, winY, winH, winPitch, winInsideW, ceilingH, winBandH, wallH, floorH, underH
+            yCeilTop, yCeilBot, yTopBand, yWinTop, yWinBot, yWallTop,
+            yFloorTop, yFloorBot, ySkirtTop, yRailTop, yUnderBot,
+            winY, winH, winPitch, winInsideW, ceilingH, topBandH, lowerWallH, floorH
         };
 
-        // ── 0. TUNNEL VOID BACKDROP — mirrors the exterior metro tunnel
-        //      (EntitiesGfx.initMetro: 0x050508 cavity, 0x111115 pillars @150px, red lights).
-        //      NO cable tray / earth strata — keep it the same dark tunnel the train runs in
-        //      so the cabin reads as a car inside that tunnel, not a sealed sci-fi box. ──
+        // ── 0. TUNNEL VOID BACKDROP — same dark tunnel the train runs in
+        //      (EntitiesGfx.initMetro: 0x050508 cavity, 0x111115 pillars @150,
+        //      red status lights). Fills the screen ABOVE the roof and BELOW the
+        //      rails so the car reads as a slice inside the tunnel. ──
         const backdrop = new PIXI.Graphics();
         backdrop.beginFill(0x050508);
         backdrop.drawRect(0, 0, W, H);
         backdrop.endFill();
-        // Far tunnel-wall sheen (barely lifts the void so depth reads)
         backdrop.beginFill(0x09090e, 0.6);
         backdrop.drawRect(0, 0, W, H);
         backdrop.endFill();
-        // Static structural pillars in the dead space above & below the car
-        const pillarPitch = 150, pillarW = 20;
+        const pPitch = 150, pW = 20;
         backdrop.beginFill(0x111115);
-        for (let px = 30; px < W + pillarW; px += pillarPitch) {
-            if (yCeilTop > 2)  backdrop.drawRect(px, 0, pillarW, yCeilTop);
-            if (yUnderBot < H) backdrop.drawRect(px, yUnderBot, pillarW, H - yUnderBot);
+        for (let px = 30; px < W + pW; px += pPitch) {
+            if (yCeilTop > 2)  backdrop.drawRect(px, 0, pW, yCeilTop);
+            if (yUnderBot < H) backdrop.drawRect(px, yUnderBot, pW, H - yUnderBot);
         }
         backdrop.endFill();
-        // Red status lights on the upper pillars (exterior tunnel signature, 0xef4444)
-        if (yCeilTop > 26) {
-            for (let px = 30; px < W + pillarW; px += pillarPitch) {
-                backdrop.beginFill(0xef4444, 0.28);
-                backdrop.drawCircle(px + pillarW / 2, yCeilTop - 18, 6);
+        if (yCeilTop > 28) {
+            for (let px = 30; px < W + pW; px += pPitch) {
+                backdrop.beginFill(0xef4444, 0.26);
+                backdrop.drawCircle(px + pW / 2, yCeilTop - 20, 6);
                 backdrop.endFill();
                 backdrop.beginFill(0xef4444, 0.9);
-                backdrop.drawCircle(px + pillarW / 2, yCeilTop - 18, 2);
+                backdrop.drawCircle(px + pW / 2, yCeilTop - 20, 2);
                 backdrop.endFill();
             }
         }
         this.scene.addChild(backdrop);
 
-        // ── 1. TUNNEL STRIP (full-width; visible only through window cutouts via mask) ──
+        // ── 1. TUNNEL STRIP (visible only through window cutouts via mask) ──
         const tunnelHost = new PIXI.Container();
         tunnelHost.x = 0;
         tunnelHost.y = winY;
@@ -188,39 +189,18 @@ const InteriorTrain = {
         this._L.winCount = winCount;
         const lastWinEnd = winStartX + (winCount - 1) * winPitch + winInsideW;
 
-        // ── 2. WINDOW BAND — slate hull plating drawn only OUTSIDE the cutouts ──
+        // ── 2. HULL PLATING around the windows (slate, only OUTSIDE the cutouts) ──
         const wall = new PIXI.Graphics();
-        // Slate sliver above the windows (between ceiling and glass)
         wall.beginFill(0x1e293b);
-        wall.drawRect(0, yWinTop, W, winTopGap);
-        wall.endFill();
-        // Sill below the windows
-        const winOpenBot = winY + winH;
-        wall.beginFill(0x1e293b);
-        wall.drawRect(0, winOpenBot, W, yWinBot - winOpenBot);
-        wall.endFill();
-        // Side caps (full band height) + piers between windows
-        wall.beginFill(0x1e293b);
-        if (winStartX > 0) wall.drawRect(0, yWinTop, winStartX, winBandH);
-        if (lastWinEnd < W) wall.drawRect(lastWinEnd, yWinTop, W - lastWinEnd, winBandH);
+        // Side caps + piers between windows (full glass-band height)
+        if (winStartX > 0) wall.drawRect(0, yWinTop, winStartX, winH);
+        if (lastWinEnd < W) wall.drawRect(lastWinEnd, yWinTop, W - lastWinEnd, winH);
         for (let i = 0; i < winCount - 1; i++) {
             const mx = winStartX + i * winPitch + winInsideW;
             wall.drawRect(mx, winY, winPitch - winInsideW, winH);
         }
         wall.endFill();
-        // Exterior accent line just under the ceiling (0x0ea5e9 — mirrors exterior accent)
-        wall.beginFill(0x0ea5e9);
-        wall.drawRect(0, yWinTop + 3, W, 2);
-        wall.endFill();
-        // Cyan body stripe across the lower sill (mirrors exterior 0x0284c7 body stripe)
-        wall.beginFill(0x0284c7);
-        wall.drawRect(0, yWinBot - 10, W, 7);
-        wall.endFill();
-        // Silver trim line capping the sill (exterior 0x94a3b8)
-        wall.beginFill(0x94a3b8);
-        wall.drawRect(0, yWinBot - 3, W, 3);
-        wall.endFill();
-        // Pier highlight (silver center rib on each pier — echoes exterior railings)
+        // Silver rib down the centre of each pier (echoes exterior railings)
         wall.beginFill(0x94a3b8, 0.85);
         for (let i = 0; i < winCount - 1; i++) {
             const mx = winStartX + i * winPitch + winInsideW;
@@ -230,7 +210,7 @@ const InteriorTrain = {
         wall.endFill();
         this.scene.addChild(wall);
 
-        // Window frames (silver bezel + dark outer frame), drawn ABOVE the masked tunnel
+        // Window frames (dark outer + silver bezel), drawn ABOVE the masked tunnel
         const winFrames = new PIXI.Graphics();
         winRects.forEach(r => {
             winFrames.lineStyle(3, 0x0f172a, 1);
@@ -238,11 +218,9 @@ const InteriorTrain = {
             winFrames.lineStyle(2, 0x94a3b8, 0.95);
             winFrames.drawRoundedRect(r.x + 1, r.y + 1, r.w - 2, r.h - 2, 4);
             winFrames.lineStyle(0);
-            // Glass tint sheen (exterior 0xe0f2fe @0.15)
-            winFrames.beginFill(0xe0f2fe, 0.13);
-            winFrames.drawRect(r.x + 3, r.y + 3, r.w - 6, r.h * 0.30);
+            winFrames.beginFill(0xe0f2fe, 0.12);          // glass sheen (exterior tint)
+            winFrames.drawRect(r.x + 3, r.y + 3, r.w - 6, r.h * 0.26);
             winFrames.endFill();
-            // Corner rivets
             winFrames.beginFill(0xcbd5e1);
             [[r.x + 5, r.y + 5], [r.x + r.w - 6, r.y + 5], [r.x + 5, r.y + r.h - 6], [r.x + r.w - 6, r.y + r.h - 6]]
                 .forEach(([cx, cy]) => winFrames.drawCircle(cx, cy, 1.4));
@@ -255,148 +233,111 @@ const InteriorTrain = {
         ceiling.beginFill(0x1e293b);
         ceiling.drawRect(0, yCeilTop, W, ceilingH);
         ceiling.endFill();
-        // Exterior roof lip (silver, like the exterior front cap 0xcbd5e1 → 0x94a3b8)
-        ceiling.beginFill(0xcbd5e1);
-        ceiling.drawRect(0, yCeilTop, W, 6);
+        ceiling.beginFill(0xcbd5e1);                      // exterior silver roof cap
+        ceiling.drawRect(0, yCeilTop, W, 5);
         ceiling.endFill();
         ceiling.beginFill(0x94a3b8);
-        ceiling.drawRect(0, yCeilTop + 6, W, 4);
+        ceiling.drawRect(0, yCeilTop + 5, W, 3);
         ceiling.endFill();
-        // Inner roof panel
-        ceiling.beginFill(0x334155);
-        ceiling.drawRoundedRect(10, yCeilTop + 13, W - 20, ceilingH - 22, 12);
+        ceiling.beginFill(0x334155);                      // inner roof panel
+        ceiling.drawRoundedRect(10, yCeilTop + 11, W - 20, ceilingH - 18, 10);
         ceiling.endFill();
-        // LED strip — continuous glow with bright tiles
-        ceiling.beginFill(0xfde68a, 0.22);
-        ceiling.drawRect(22, yCeilTop + ceilingH - 17, W - 44, 7);
+        ceiling.beginFill(0xfde68a, 0.20);                // LED glow
+        ceiling.drawRect(20, yCeilTop + ceilingH - 13, W - 40, 6);
         ceiling.endFill();
         ceiling.beginFill(0xfef9c3);
-        for (let lx = 28; lx < W - 28; lx += 74) {
-            ceiling.drawRoundedRect(lx, yCeilTop + ceilingH - 16, 50, 4, 2);
+        for (let lx = 26; lx < W - 26; lx += 72) {
+            ceiling.drawRoundedRect(lx, yCeilTop + ceilingH - 12, 48, 3, 2);
         }
         ceiling.endFill();
-        // Destination LED display (theme-tinted, like exterior station signage)
         const destBg = new PIXI.Graphics();
         destBg.beginFill(0x05050a);
         destBg.lineStyle(1, theme.col, 0.85);
-        destBg.drawRoundedRect(W / 2 - 150, yCeilTop + 9, 300, 22, 4);
+        destBg.drawRoundedRect(W / 2 - 150, yCeilTop + 11, 300, 20, 4);
         destBg.lineStyle(0);
         destBg.endFill();
         ceiling.addChild(destBg);
         this._destTxt = new PIXI.Text('— — —', {
-            fontFamily: 'Silkscreen, monospace', fontSize: 11, fill: theme.col,
+            fontFamily: 'Silkscreen, monospace', fontSize: 10, fill: theme.col,
             dropShadow: true, dropShadowColor: theme.col, dropShadowBlur: 4, dropShadowDistance: 0
         });
         this._destTxt.anchor.set(0.5, 0.5);
         this._destTxt.x = W / 2;
-        this._destTxt.y = yCeilTop + 20;
+        this._destTxt.y = yCeilTop + 21;
         ceiling.addChild(this._destTxt);
         this.scene.addChild(ceiling);
 
-        // Line subtitle pill under the ceiling
+        // ── 4. SIGNAGE STRIP (between ceiling and glass: line subtitle + route map) ──
+        const sign = new PIXI.Graphics();
+        sign.beginFill(0x1e293b);
+        sign.drawRect(0, yTopBand, W, topBandH);
+        sign.endFill();
+        sign.beginFill(0x0ea5e9);                         // exterior accent line
+        sign.drawRect(0, yTopBand + 2, W, 2);
+        sign.endFill();
+        // Route-map line with station nodes
+        const mapY = yTopBand + topBandH - 8;
+        sign.beginFill(theme.col, 0.85);
+        sign.drawRect(60, mapY, W - 120, 3);
+        sign.endFill();
+        const nodeN = Math.min(Object.keys(this.STATION_LABELS).length, 6);
+        for (let i = 0; i < nodeN; i++) {
+            const nx = 60 + (i / (nodeN - 1)) * (W - 120);
+            sign.beginFill(0x0f172a); sign.drawCircle(nx, mapY + 1.5, 5); sign.endFill();
+            sign.beginFill(theme.col); sign.drawCircle(nx, mapY + 1.5, 3); sign.endFill();
+        }
+        this.scene.addChild(sign);
         const lineTxt = new PIXI.Text(theme.line, {
             fontFamily: 'Press Start 2P, monospace', fontSize: 7,
             fill: theme.col, letterSpacing: 2
         });
         lineTxt.anchor.set(0.5, 0);
         lineTxt.x = W / 2;
-        lineTxt.y = yCeilTop + ceilingH - 7;
+        lineTxt.y = yTopBand + 5;
         this.scene.addChild(lineTxt);
 
-        // ── 4. CABIN WALL + ROUTE MAP + ADS + BENCH ───────────────────────────
+        // ── 5. LOW WALL BELOW THE GLASS + BENCH (exterior cyan body stripe) ───
         const cabin = new PIXI.Graphics();
-        // Slate hull interior (exterior body colour, NOT a black void)
         cabin.beginFill(0x1e293b);
-        cabin.drawRect(0, yWallTop, W, wallH);
+        cabin.drawRect(0, yWallTop, W, lowerWallH + floorH);
         cabin.endFill();
-        // Lighter inner liner panel
-        cabin.beginFill(0x273548);
-        cabin.drawRect(8, yWallTop + 8, W - 16, wallH - 8);
+        cabin.beginFill(0x94a3b8);                        // silver sill capping the glass
+        cabin.drawRect(0, yWallTop, W, 3);
         cabin.endFill();
-        // Vertical panel seams
-        cabin.beginFill(0x1e293b, 0.6);
-        for (let px = 0; px < W; px += winPitch) cabin.drawRect(px + 40, yWallTop + 8, 2, wallH - 8);
+        cabin.beginFill(0x0284c7);                        // exterior cyan body stripe
+        cabin.drawRect(0, yWallTop + 5, W, 6);
         cabin.endFill();
-        // Header band directly under the sill
-        cabin.beginFill(0x0f172a);
-        cabin.drawRect(0, yWallTop, W, 10);
+        cabin.beginFill(0x273548);                        // bench cushion
+        cabin.drawRoundedRect(10, yWallTop + 14, W - 20, lowerWallH - 14, 5);
         cabin.endFill();
-        cabin.beginFill(0x0284c7);
-        cabin.drawRect(0, yWallTop + 10, W, 2);
+        cabin.beginFill(theme.col, 0.45);
+        cabin.drawRect(10, yWallTop + 17, W - 20, 3);
         cabin.endFill();
-
-        // Route-map strip (theme-coloured line with station nodes — fills the upper wall)
-        const mapY = yWallTop + 30;
-        cabin.beginFill(theme.col, 0.85);
-        cabin.drawRect(40, mapY, W - 80, 3);
-        cabin.endFill();
-        const stIds = Object.keys(this.STATION_LABELS);
-        const nodeN = Math.min(stIds.length, 6);
-        for (let i = 0; i < nodeN; i++) {
-            const nx = 40 + (i / (nodeN - 1)) * (W - 80);
-            cabin.beginFill(0x0f172a);
-            cabin.drawCircle(nx, mapY + 1.5, 6);
-            cabin.endFill();
-            cabin.beginFill(theme.col);
-            cabin.drawCircle(nx, mapY + 1.5, 3.5);
-            cabin.endFill();
-        }
-
-        // Ad / info panels between the grab poles
-        const adY = mapY + 18;
-        for (let ax = 70; ax < W - 180; ax += winPitch) {
-            cabin.beginFill(0x0f172a);
-            cabin.drawRoundedRect(ax, adY, 150, 30, 3);
-            cabin.endFill();
-            cabin.lineStyle(1, theme.col, 0.4);
-            cabin.drawRoundedRect(ax, adY, 150, 30, 3);
-            cabin.lineStyle(0);
-            cabin.beginFill(theme.col, 0.22);
-            cabin.drawRect(ax + 8, adY + 7, 40, 4);
-            cabin.drawRect(ax + 8, adY + 16, 90, 3);
-            cabin.drawRect(ax + 8, adY + 22, 70, 3);
-            cabin.endFill();
-        }
-
-        // Long bench cushion (continuous run, exterior-slate base + theme accent)
-        cabin.beginFill(0x0f172a);
-        cabin.drawRoundedRect(12, benchTop, W - 24, yFloorTop - benchTop, 6);
-        cabin.endFill();
-        cabin.beginFill(0x273548);
-        cabin.drawRoundedRect(14, benchTop + 2, W - 28, 34, 6);
-        cabin.endFill();
-        cabin.beginFill(theme.col, 0.5);
-        cabin.drawRect(14, benchTop + 5, W - 28, 4);
-        cabin.endFill();
-        // Seat dividers
-        cabin.beginFill(0x1e293b);
-        for (let bx = 60; bx < W - 30; bx += 92) cabin.drawRect(bx, benchTop + 2, 3, 34);
+        cabin.beginFill(0x1e293b);                         // seat dividers
+        for (let bx = 70; bx < W - 30; bx += 96) cabin.drawRect(bx, yWallTop + 14, 3, lowerWallH - 14);
         cabin.endFill();
         this.scene.addChild(cabin);
 
-        // Grab poles (floor-to-ceiling silver bars at piers) — drawn BEHIND passengers
-        const polesBack = new PIXI.Graphics();
+        // Grab poles (signage-strip → floor) behind passengers
+        const poles = new PIXI.Graphics();
         const poleXs = [];
-        for (let i = 0; i < winCount; i++) {
-            const cxp = winStartX + i * winPitch + winInsideW / 2;
-            poleXs.push(cxp);
-        }
-        polesBack.beginFill(0x64748b);
-        poleXs.forEach(px => polesBack.drawRect(px - 2, yWallTop + 12, 4, yFloorTop - yWallTop - 12));
-        polesBack.endFill();
-        polesBack.beginFill(0x94a3b8, 0.7);
-        poleXs.forEach(px => polesBack.drawRect(px - 2, yWallTop + 12, 1.5, yFloorTop - yWallTop - 12));
-        polesBack.endFill();
-        this.scene.addChild(polesBack);
+        for (let i = 0; i < winCount; i++) poleXs.push(winStartX + i * winPitch + winInsideW / 2);
+        poles.beginFill(0x64748b);
+        poleXs.forEach(px => poles.drawRect(px - 2, yTopBand + 6, 4, yFloorTop - (yTopBand + 6)));
+        poles.endFill();
+        poles.beginFill(0x94a3b8, 0.7);
+        poleXs.forEach(px => poles.drawRect(px - 2, yTopBand + 6, 1.5, yFloorTop - (yTopBand + 6)));
+        poles.endFill();
+        this.scene.addChild(poles);
 
-        // Hanging hand-straps along the ceiling rail (animated sway in update)
+        // Hand-straps hanging from the ceiling rail (animated in update)
         this._strapsG = new PIXI.Graphics();
-        this._L.strapTopY = yWallTop + 14;
+        this._L.strapTopY = yTopBand + 4;
         this._L.strapXs = [];
-        for (let sx = 90; sx < W - 60; sx += 84) this._L.strapXs.push(sx);
+        for (let sx = 96; sx < W - 60; sx += 86) this._L.strapXs.push(sx);
         this.scene.addChild(this._strapsG);
 
-        // Passenger container — real-rider HumanAvatar instances
+        // Passenger container (real riders only)
         this._passengersCont = new PIXI.Container();
         this.scene.addChild(this._passengersCont);
         this._paxAvatars = [];
@@ -404,20 +345,17 @@ const InteriorTrain = {
         this._visiblePax = 0;
         this._totalPax = 0;
 
-        // Bench FRONT lip — drawn OVER seated avatars' legs so they read as seated
+        // Bench front lip — over the lower legs of the back row → depth
         const benchFront = new PIXI.Graphics();
         benchFront.beginFill(0x1e293b);
-        benchFront.drawRect(12, benchTop + 30, W - 24, yFloorTop - (benchTop + 30));
+        benchFront.drawRect(10, yFloorTop - 12, W - 20, 12);
         benchFront.endFill();
         benchFront.beginFill(0x0f172a);
-        benchFront.drawRect(12, benchTop + 30, W - 24, 3);
-        benchFront.endFill();
-        benchFront.beginFill(0x334155);
-        for (let bx = 28; bx < W - 16; bx += 92) benchFront.drawRect(bx, yFloorTop - 18, 4, 18);
+        benchFront.drawRect(10, yFloorTop - 12, W - 20, 2);
         benchFront.endFill();
         this.scene.addChild(benchFront);
 
-        // ── 5. FLOOR ──────────────────────────────────────────────────────────
+        // ── 6. FLOOR ──────────────────────────────────────────────────────────
         const floor = new PIXI.Graphics();
         floor.beginFill(0x334155);
         floor.drawRect(0, yFloorTop, W, floorH);
@@ -425,7 +363,7 @@ const InteriorTrain = {
         floor.beginFill(0x475569);
         for (let fx = 6; fx < W - 6; fx += 14) {
             floor.drawCircle(fx, yFloorTop + 5, 1.1);
-            floor.drawCircle(fx + 7, yFloorTop + 11, 1.1);
+            floor.drawCircle(fx + 7, yFloorTop + 10, 1.1);
         }
         floor.endFill();
         floor.beginFill(0xfacc15, 0.85);
@@ -433,67 +371,37 @@ const InteriorTrain = {
         floor.endFill();
         this.scene.addChild(floor);
 
-        // ── 6. UNDERCARRIAGE / RAILS (flush on the rails, no floating gap) ─────
-        const skirtY = yUnderTop;
-        const bogeyY = skirtY + skirtH;
-        const railY  = yUnderBot - railsH;
-        const underside = new PIXI.Graphics();
-        underside.beginFill(0x050508);
-        underside.drawRect(0, yUnderTop, W, underH);
-        underside.endFill();
-        // Hull skirt (exterior body slate + cyan trim)
-        underside.beginFill(0x1e293b);
-        underside.drawRect(0, skirtY, W, skirtH);
-        underside.endFill();
-        underside.beginFill(0x0ea5e9);
-        underside.drawRect(0, skirtY + skirtH - 2, W, 2);
-        underside.endFill();
-        // Bogey trucks
-        const bogeyX = [Math.round(W * 0.25), Math.round(W * 0.75)];
-        underside.beginFill(0x0f172a);
-        bogeyX.forEach(bx => underside.drawRoundedRect(bx - 78, bogeyY, 156, bogeyH, 6));
-        underside.endFill();
-        underside.beginFill(0x334155);
-        bogeyX.forEach(bx => underside.drawRect(bx - 78, bogeyY + 2, 156, 2));
-        underside.endFill();
-        // Wheel hubs
-        const wheelY = bogeyY + bogeyH - 2;
-        underside.beginFill(0x0a0a12);
-        bogeyX.forEach(bx => { underside.drawCircle(bx - 42, wheelY, wheelR); underside.drawCircle(bx + 42, wheelY, wheelR); });
-        underside.endFill();
-        underside.beginFill(0x475569);
-        bogeyX.forEach(bx => { underside.drawCircle(bx - 42, wheelY, wheelR - 5); underside.drawCircle(bx + 42, wheelY, wheelR - 5); });
-        underside.endFill();
-        // Rails + ballast
-        underside.beginFill(0x1a1a24);
-        underside.drawRect(0, railY, W, railsH);
-        underside.endFill();
-        underside.beginFill(0x4a4a5a);
-        underside.drawRect(0, railY + 4, W, 3);
-        underside.drawRect(0, railY + railsH - 6, W, 3);
-        underside.endFill();
-        this.scene.addChild(underside);
+        // ── 7. UNDERCARRIAGE — EXACTLY like the exterior: slate skirt sitting
+        //      straight on the tunnel rail bed. The exterior train sprite has NO
+        //      wheels or bogeys, so neither does this. ──
+        const under = new PIXI.Graphics();
+        under.beginFill(0x1e293b);                         // hull skirt (exterior body slate)
+        under.drawRect(0, ySkirtTop, W, skirtH);
+        under.endFill();
+        under.beginFill(0x0ea5e9);                         // cyan trim (exterior accent)
+        under.drawRect(0, ySkirtTop + skirtH - 2, W, 2);
+        under.endFill();
+        under.beginFill(0x1a1a24);                          // ballast bed (exterior 0x1a1a24)
+        under.drawRect(0, yRailTop, W, railBedH);
+        under.endFill();
+        under.beginFill(0x4a4a5a);                          // twin steel rails (exterior 0x4a4a5a)
+        under.drawRect(0, yRailTop + 5, W, 3);
+        under.drawRect(0, yRailTop + railBedH - 7, W, 3);
+        under.endFill();
+        this.scene.addChild(under);
 
-        // Scrolling ties
+        // Scrolling sleeper ties over the ballast (sense of motion)
         this._tiesG = new PIXI.Graphics();
-        this._tiesG.y = railY + 8;
+        this._tiesG.y = yRailTop + 10;
+        this._L.railBedH = railBedH;
         this.scene.addChild(this._tiesG);
 
-        // Wheel spokes
-        this._wheelGfx = new PIXI.Graphics();
-        this._wheelCenters = [];
-        bogeyX.forEach(bx => {
-            this._wheelCenters.push({ x: bx - 42, y: wheelY });
-            this._wheelCenters.push({ x: bx + 42, y: wheelY });
-        });
-        this.scene.addChild(this._wheelGfx);
-
-        // ── 7. SLIDING DOOR PAIR ──────────────────────────────────────────────
+        // ── 8. SLIDING DOOR PAIR (glass aligned to the car windows) ──────────
         const doorCx = W / 2;
-        const doorTop = yWallTop + 14;
+        const doorTop = yWinTop - 4;
         const doorBot = yFloorTop;
         const doorH = doorBot - doorTop;
-        const doorPanelW = 58;
+        const doorPanelW = 56;
         const doorTotalW = doorPanelW * 2;
         const doorFrame = new PIXI.Graphics();
         doorFrame.beginFill(0x0f172a);
@@ -502,33 +410,28 @@ const InteriorTrain = {
         doorFrame.lineStyle(2, theme.col, 0.7);
         doorFrame.drawRect(doorCx - doorTotalW / 2 - 5, doorTop - 5, doorTotalW + 10, doorH + 10);
         doorFrame.lineStyle(0);
-        doorFrame.beginFill(0x1e293b);
-        doorFrame.drawRect(doorCx - doorTotalW / 2 - 5, doorTop - 15, doorTotalW + 10, 10);
-        doorFrame.endFill();
-        doorFrame.beginFill(theme.col, 0.9);
-        doorFrame.drawCircle(doorCx, doorTop - 10, 2.5);
-        doorFrame.endFill();
         this.scene.addChild(doorFrame);
         const makePanel = () => {
             const g = new PIXI.Graphics();
             g.beginFill(0x1e293b);
             g.drawRect(0, 0, doorPanelW, doorH);
             g.endFill();
-            g.beginFill(0x0284c7);
-            g.drawRect(0, doorH * 0.55, doorPanelW, 5);
+            g.beginFill(0x0284c7);                          // cyan body stripe (matches sill)
+            g.drawRect(0, (yWallTop - doorTop) + 5, doorPanelW, 6);
             g.endFill();
-            // Door window
+            // Door window aligned with the car glass band
+            const dwTop = 6, dwH = (yWinBot - yWinTop) - 10;
             g.beginFill(0x0f172a);
-            g.drawRect(7, 14, doorPanelW - 14, doorH * 0.42);
+            g.drawRect(7, dwTop, doorPanelW - 14, dwH);
             g.endFill();
             g.beginFill(0xe0f2fe, 0.12);
-            g.drawRect(7, 14, doorPanelW - 14, 6);
+            g.drawRect(7, dwTop, doorPanelW - 14, 6);
             g.endFill();
             g.lineStyle(2, 0x94a3b8, 0.85);
-            g.drawRect(7, 14, doorPanelW - 14, doorH * 0.42);
+            g.drawRect(7, dwTop, doorPanelW - 14, dwH);
             g.lineStyle(0);
             g.beginFill(0x94a3b8);
-            g.drawRect(doorPanelW - 11, doorH * 0.64, 4, 26);
+            g.drawRect(doorPanelW - 11, dwTop + dwH + 8, 4, 22);
             g.endFill();
             return g;
         };
@@ -546,13 +449,13 @@ const InteriorTrain = {
         this._L.doorTop = doorTop;
         this._L.doorBot = doorBot;
 
-        // ── 8. HUD (speed / load pill) ────────────────────────────────────────
+        // ── 9. HUD ────────────────────────────────────────────────────────────
         this._speedTxt = new PIXI.Text('', {
             fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 0xfef9c3
         });
         this._speedTxt.anchor.set(1, 0);
         this._speedTxt.x = W - 14;
-        this._speedTxt.y = yWinTop + 6;
+        this._speedTxt.y = yTopBand + 6;
         this.scene.addChild(this._speedTxt);
 
         this._stationLabelTxt = new PIXI.Text('— STATION —', {
@@ -568,8 +471,7 @@ const InteriorTrain = {
     },
 
     /* ─── Tunnel scenery seen through the windows. Mirrors the exterior tunnel
-       (EntitiesGfx.initMetro): 0x050508 void + 0x111115 structural pillars @150px
-       + red status lights. No brick texture. ─── */
+       (EntitiesGfx.initMetro): 0x050508 void + 0x111115 pillars @150 + red lights. ─── */
     _drawTunnelStrip(g, scroll, W, winBandH) {
         g.clear();
         g.beginFill(0x050508);
@@ -590,7 +492,7 @@ const InteriorTrain = {
             g.drawRect(px + pillarW - 2, 0, 1, winBandH);
         }
         g.endFill();
-        const lightY = 18;
+        const lightY = Math.min(20, winBandH * 0.18);
         for (let px = -pillarPhase; px < W + pillarPitch; px += pillarPitch) {
             g.beginFill(0xef4444, 0.3);
             g.drawCircle(px + pillarW / 2, lightY, 7);
@@ -599,9 +501,9 @@ const InteriorTrain = {
             g.drawCircle(px + pillarW / 2, lightY, 2);
             g.endFill();
         }
-        const flrY = winBandH - 16;
+        const flrY = winBandH - 14;
         g.beginFill(0x1a1a24);
-        g.drawRect(0, flrY, W, 16);
+        g.drawRect(0, flrY, W, 14);
         g.endFill();
         g.beginFill(0xfacc15, 0.5);
         g.drawRect(0, flrY - 1, W, 1);
@@ -615,18 +517,18 @@ const InteriorTrain = {
         g.drawRect(0, 0, W, winBandH);
         g.endFill();
         g.lineStyle(1, 0x1e1e2f, 0.6);
-        for (let tx = 0; tx < W; tx += 24) { g.moveTo(tx, 6); g.lineTo(tx, winBandH - 28); }
-        for (let ty = 12; ty < winBandH - 22; ty += 18) { g.moveTo(0, ty); g.lineTo(W, ty); }
+        for (let tx = 0; tx < W; tx += 24) { g.moveTo(tx, 6); g.lineTo(tx, winBandH - 26); }
+        for (let ty = 12; ty < winBandH - 20; ty += 18) { g.moveTo(0, ty); g.lineTo(W, ty); }
         g.lineStyle(0);
         g.beginFill(0x11111a);
-        for (let px = 60; px < W; px += 220) g.drawRect(px, 6, 14, winBandH - 34);
+        for (let px = 60; px < W; px += 220) g.drawRect(px, 6, 14, winBandH - 32);
         g.endFill();
         g.beginFill(0x05050a);
         g.lineStyle(1, theme.col, 0.85);
-        g.drawRect(W / 2 - 120, 22, 240, 26);
+        g.drawRect(W / 2 - 120, 16, 240, 24);
         g.lineStyle(0);
         g.endFill();
-        const platY = winBandH - 28;
+        const platY = winBandH - 26;
         g.beginFill(0x2a2a3e);
         g.drawRect(0, platY, W, 22);
         g.endFill();
@@ -644,24 +546,24 @@ const InteriorTrain = {
             const pxp = 24 + rng() * (W - 48);
             const sway = Math.sin((this._tick || 0) * 0.04 + i) * 0.6;
             g.beginFill(0x0f172a);
-            g.drawRect(pxp - 4, platY - 24 + sway, 8, 20);
+            g.drawRect(pxp - 4, platY - 22 + sway, 8, 18);
             g.endFill();
             g.beginFill(0x1e293b);
-            g.drawCircle(pxp, platY - 26 + sway, 3.6);
+            g.drawCircle(pxp, platY - 24 + sway, 3.4);
             g.endFill();
             if (rng() > 0.65) {
                 g.beginFill(0x38bdf8, 0.85);
-                g.drawRect(pxp - 1, platY - 15 + sway, 2, 2);
+                g.drawRect(pxp - 1, platY - 14 + sway, 2, 2);
                 g.endFill();
             }
         }
     },
 
-    /* ─── The ACTUAL riders attached to this train. G.charRefs is the source of
-       truth — a model/NPC sets refs._ridingTrain to this train object while it is
-       aboard (entities.js metro state machine). So the cabin shows exactly the
-       AI models that are mid-commute, the same way a building interior shows its
-       real occupants. Returns them in a stable order so the seating is steady. ─── */
+    /* ─── The ACTUAL riders attached to this train. Source of truth is
+       G.charRefs — a model/NPC sets refs._ridingTrain to this train object
+       while aboard (entities.js metro state machine), so the cabin shows
+       exactly the AI models mid-commute, the way a building shows its real
+       occupants. No padding with fakes; an empty train → an empty cabin. ─── */
     _gatherRiders(train) {
         const riders = [];
         if (!train || typeof G === 'undefined' || !G.charRefs || !G.models) return riders;
@@ -677,20 +579,20 @@ const InteriorTrain = {
         return riders;
     },
 
-    /* ─── Build/refresh the cabin from the REAL rider list (no padding with fakes).
-       Rebuild only when the rider set changes (id signature) so it's cheap. ─── */
+    /* ─── Build the cabin from the real rider list. Rebuild only when the rider
+       set changes (id signature) so it's cheap. ─── */
     _refreshPassengers(train) {
         const L = this._L;
         if (!this._passengersCont) return;
 
         const riders = this._gatherRiders(train);
         this._totalPax = riders.length;
-        const VIS_CAP = 18;                         // one car only renders so many cleanly
+        const VIS_CAP = 18;
         const shown = riders.slice(0, VIS_CAP);
         this._visiblePax = shown.length;
 
         const sig = shown.map(r => r.id).join('|') + '#' + riders.length;
-        if (sig === this._paxSig) return;           // rider set unchanged → just animate
+        if (sig === this._paxSig) return;
         this._paxSig = sig;
 
         if (this._paxAvatars) {
@@ -704,27 +606,24 @@ const InteriorTrain = {
         const doorCx = L.doorCx, doorHalf = L.doorPanelW + 18;
         const inDoor = (px) => px > doorCx - doorHalf && px < doorCx + doorHalf;
 
-        // Two standing rows for a packed-commuter-car feel with depth:
-        //  • back row  — near the bench, slightly smaller & dimmer, higher up
-        //  • front row — in the aisle, larger, at the floor
-        // Riders alternate front/back so the crowd interleaves naturally.
+        // Two standing rows for a packed-car feel with depth. Feet are placed so
+        // standing HEADS rise into the window band (matches the exterior view).
         const back = [], front = [];
         shown.forEach((r, i) => (i % 2 === 0 ? front : back).push(r));
 
-        const marginX = 44;
+        const marginX = 46;
         const usable = L.W - marginX * 2;
         const slotsFor = (arr, py, scale, dim) => {
             const n = arr.length;
             return arr.map((rider, i) => {
-                // Evenly space across the car; nudge riders out of the doorway.
                 let px = marginX + (n === 1 ? usable / 2 : (i / (n - 1)) * usable);
                 if (inDoor(px)) px += (px < doorCx ? -1 : 1) * doorHalf;
                 px = Math.max(marginX, Math.min(L.W - marginX, px));
                 return { rider, px, py, scale, dim };
             });
         };
-        const backRow  = slotsFor(back,  L.yFloorTop - 30, 1.55, true);
-        const frontRow = slotsFor(front, L.yFloorTop - 2,  1.9,  false);
+        const backRow  = slotsFor(back,  L.yFloorTop - 14, 1.55, true);
+        const frontRow = slotsFor(front, L.yFloorTop - 1,  1.85, false);
         const allSlots = backRow.concat(frontRow);
 
         allSlots.forEach((slot, idx) => {
@@ -736,10 +635,10 @@ const InteriorTrain = {
                 seed: rider.id,
                 accent: rider.labCol,
                 showTag: false,
-                showDot: true               // every avatar here is a real tracked rider
+                showDot: true
             });
             av.cont.scale.set(slot.scale);
-            if (slot.dim) av.cont.alpha = 0.82;     // back row recedes
+            if (slot.dim) av.cont.alpha = 0.82;
             this._paxAvatars.push({
                 cont: av.cont, head: av.head, body: av.body, legL: av.legL, legR: av.legR,
                 slot, baseX: slot.px, baseY: slot.py, idx
@@ -780,15 +679,15 @@ const InteriorTrain = {
         const stationLabel = atStation ? this.STATION_LABELS[atStation] : null;
         const nextLabel = nextStationId ? this.STATION_LABELS[nextStationId] : null;
 
-        this._drawTunnelStrip(this._tunnelG, this._scroll, L.W, L.winBandH);
+        this._drawTunnelStrip(this._tunnelG, this._scroll, L.W, L.winH);
 
         if (isWaiting && stationLabel) {
-            this._drawStationView(this._stationG, L.theme, L.W, L.winBandH);
+            this._drawStationView(this._stationG, L.theme, L.W, L.winH);
             this._stationG.alpha = Math.min(1, (this._stationG.alpha || 0) + 0.12);
             if (this._stationLabelTxt && !this._stationLabelTxt.destroyed) {
                 this._stationLabelTxt.text = stationLabel;
                 this._stationLabelTxt.x = L.W / 2;
-                this._stationLabelTxt.y = 34;
+                this._stationLabelTxt.y = 28;
                 this._stationLabelTxt.visible = true;
             }
         } else {
@@ -812,7 +711,7 @@ const InteriorTrain = {
             else this._destTxt.text = '— in transit —';
         }
 
-        // Passengers — driven by the real rider list (truthful, tracked)
+        // Passengers — real rider list (truthful, tracked)
         this._refreshPassengers(t);
         this._animatePassengers();
 
@@ -824,7 +723,7 @@ const InteriorTrain = {
             this._speedTxt.text = `${isWaiting ? 'STOPPED' : speed.toFixed(1) + ' u/t'}   ${paxStr}`;
         }
 
-        // Hanging hand-straps sway with motion
+        // Hand-straps sway with motion
         if (this._strapsG && L.strapXs) {
             this._strapsG.clear();
             const lean = (isWaiting ? 0 : Math.max(-1, Math.min(1, dx * 0.4)));
@@ -832,45 +731,27 @@ const InteriorTrain = {
                 const swing = Math.sin(this._tick * 0.06 + i) * 2 + lean * 6;
                 this._strapsG.lineStyle(2, 0x64748b, 0.9);
                 this._strapsG.moveTo(sx, L.strapTopY);
-                this._strapsG.lineTo(sx + swing, L.strapTopY + 26);
+                this._strapsG.lineTo(sx + swing, L.strapTopY + 24);
                 this._strapsG.lineStyle(0);
                 this._strapsG.beginFill(0x94a3b8);
-                this._strapsG.drawCircle(sx + swing, L.strapTopY + 30, 4);
+                this._strapsG.drawCircle(sx + swing, L.strapTopY + 28, 4);
                 this._strapsG.endFill();
                 this._strapsG.beginFill(0x0f172a);
-                this._strapsG.drawCircle(sx + swing, L.strapTopY + 30, 2);
+                this._strapsG.drawCircle(sx + swing, L.strapTopY + 28, 2);
                 this._strapsG.endFill();
             });
         }
 
-        // Scrolling ties under the wheels
+        // Scrolling sleeper ties (exterior-style rail bed, no wheels)
         if (this._tiesG) {
             this._tiesG.clear();
             const tiePitch = 18;
             const tiePhase = ((this._scroll * 1.2) % tiePitch + tiePitch) % tiePitch;
             this._tiesG.beginFill(0xd97706);
             for (let tx = -tiePhase; tx < L.W + tiePitch; tx += tiePitch) {
-                this._tiesG.drawRect(tx, 0, 9, 4);
+                this._tiesG.drawRect(tx, 0, 9, 3);
             }
             this._tiesG.endFill();
-        }
-
-        // Spinning wheel spokes
-        if (this._wheelGfx && this._wheelCenters) {
-            this._wheelGfx.clear();
-            const ang = (this._scroll * 0.05);
-            this._wheelCenters.forEach(c => {
-                this._wheelGfx.beginFill(0x475569);
-                this._wheelGfx.drawCircle(c.x, c.y, 6);
-                this._wheelGfx.endFill();
-                this._wheelGfx.lineStyle(1.2, 0xe0f2fe, 0.85);
-                for (let k = 0; k < 4; k++) {
-                    const a = ang + k * Math.PI / 2;
-                    this._wheelGfx.moveTo(c.x + Math.cos(a) * 8, c.y + Math.sin(a) * 8);
-                    this._wheelGfx.lineTo(c.x - Math.cos(a) * 8, c.y - Math.sin(a) * 8);
-                }
-                this._wheelGfx.lineStyle(0);
-            });
         }
 
         // Subtle vertical bob while moving
@@ -900,8 +781,6 @@ const InteriorTrain = {
         this._doorR = null;
         this._destTxt = null;
         this._speedTxt = null;
-        this._wheelGfx = null;
-        this._wheelCenters = null;
         this._strapsG = null;
         this._tiesG = null;
         this._L = null;
