@@ -28,6 +28,8 @@ const InteriorTrain = {
     _totalPax: 0,
     _doorL: null,
     _doorR: null,
+    _doorViewG: null,
+    _doorMask: null,
     _doorOpen: 0,
     _lastTrainX: null,
     _scroll: 0,
@@ -411,6 +413,20 @@ const InteriorTrain = {
         doorFrame.drawRect(doorCx - doorTotalW / 2 - 5, doorTop - 5, doorTotalW + 10, doorH + 10);
         doorFrame.lineStyle(0);
         this.scene.addChild(doorFrame);
+
+        // Platform seen THROUGH the doorway (full height: sign → platform → edge).
+        // Sits behind the sliding panels, clipped to the door opening, so when the
+        // doors part at a station you look straight out onto the platform — the
+        // same station that's visible through the windows.
+        this._doorViewG = new PIXI.Graphics();
+        this._doorMask = new PIXI.Graphics();
+        this._doorMask.beginFill(0xffffff);
+        this._doorMask.drawRect(doorCx - doorTotalW / 2, doorTop, doorTotalW, doorH);
+        this._doorMask.endFill();
+        this.scene.addChild(this._doorMask);
+        this._doorViewG.mask = this._doorMask;
+        this.scene.addChild(this._doorViewG);
+        this._L.doorTotalW = doorTotalW;
         const makePanel = () => {
             const g = new PIXI.Graphics();
             g.beginFill(0x1e293b);
@@ -513,23 +529,29 @@ const InteriorTrain = {
     /* ─── Station view shown through windows when waiting. ─── */
     _drawStationView(g, theme, W, winBandH) {
         g.clear();
-        g.beginFill(0x0a0a14);
+        // Lit station hall — kept brighter than the tunnel so it clearly reads
+        // as "pulled into a station" through the glass.
+        g.beginFill(0x15151f);
         g.drawRect(0, 0, W, winBandH);
         g.endFill();
-        g.lineStyle(1, 0x1e1e2f, 0.6);
+        g.lineStyle(1, 0x2a2a3a, 0.55);
         for (let tx = 0; tx < W; tx += 24) { g.moveTo(tx, 6); g.lineTo(tx, winBandH - 26); }
         for (let ty = 12; ty < winBandH - 20; ty += 18) { g.moveTo(0, ty); g.lineTo(W, ty); }
         g.lineStyle(0);
-        g.beginFill(0x11111a);
+        g.beginFill(0x1c1c28);
         for (let px = 60; px < W; px += 220) g.drawRect(px, 6, 14, winBandH - 32);
         g.endFill();
+        // Lit signage band
         g.beginFill(0x05050a);
-        g.lineStyle(1, theme.col, 0.85);
-        g.drawRect(W / 2 - 120, 16, 240, 24);
+        g.lineStyle(1, theme.col, 0.9);
+        g.drawRect(W / 2 - 120, 14, 240, 22);
         g.lineStyle(0);
         g.endFill();
+        g.beginFill(theme.col, 0.45);
+        g.drawRect(W / 2 - 110, 21, 220, 4);
+        g.endFill();
         const platY = winBandH - 26;
-        g.beginFill(0x2a2a3e);
+        g.beginFill(0x3a3a52);
         g.drawRect(0, platY, W, 22);
         g.endFill();
         g.beginFill(0xfacc15);
@@ -545,15 +567,98 @@ const InteriorTrain = {
         for (let i = 0; i < peopleCount; i++) {
             const pxp = 24 + rng() * (W - 48);
             const sway = Math.sin((this._tick || 0) * 0.04 + i) * 0.6;
-            g.beginFill(0x0f172a);
+            g.beginFill(0x1e293b);
             g.drawRect(pxp - 4, platY - 22 + sway, 8, 18);
             g.endFill();
-            g.beginFill(0x1e293b);
+            g.beginFill(0x334155);
             g.drawCircle(pxp, platY - 24 + sway, 3.4);
             g.endFill();
-            if (rng() > 0.65) {
-                g.beginFill(0x38bdf8, 0.85);
+            if (rng() > 0.6) {
+                g.beginFill(theme.col, 0.85);
                 g.drawRect(pxp - 1, platY - 14 + sway, 2, 2);
+                g.endFill();
+            }
+        }
+    },
+
+    /* ─── Full-height platform seen through the OPEN DOORS. Drawn in scene
+       coords inside the door aperture (clipped by _doorMask), so it lines up
+       with the same station shown through the windows: station back wall +
+       sign up top, platform floor + safety strip at the bottom, a couple of
+       commuters waiting. When in the tunnel it falls back to the dark cavity
+       (the doors are shut then anyway). ─── */
+    _drawDoorStation(g, theme, atStation) {
+        const L = this._L;
+        g.clear();
+        const x0 = L.doorCx - L.doorTotalW / 2;
+        const w = L.doorTotalW;
+        const y0 = L.doorTop;
+        const yB = L.doorBot;
+        const hh = yB - y0;
+
+        if (!atStation) {
+            // Tunnel cavity (doors are closed in transit; this is just a fallback)
+            g.beginFill(0x050508); g.drawRect(x0, y0, w, hh); g.endFill();
+            g.beginFill(0x111115);
+            g.drawRect(x0 + 6, y0, 14, hh);
+            g.drawRect(x0 + w - 20, y0, 14, hh);
+            g.endFill();
+            return;
+        }
+
+        // Station back wall — same lit palette as the window station view
+        g.beginFill(0x15151f);
+        g.drawRect(x0, y0, w, hh);
+        g.endFill();
+        g.lineStyle(1, 0x2a2a3a, 0.5);
+        for (let tx = x0; tx < x0 + w; tx += 22) { g.moveTo(tx, y0 + 4); g.lineTo(tx, yB - 22); }
+        for (let ty = y0 + 10; ty < yB - 18; ty += 18) { g.moveTo(x0, ty); g.lineTo(x0 + w, ty); }
+        g.lineStyle(0);
+        // Side pillars framing the doorway
+        g.beginFill(0x1c1c28);
+        g.drawRect(x0, y0, 12, hh);
+        g.drawRect(x0 + w - 12, y0, 12, hh);
+        g.endFill();
+        // Lit station sign up top (theme-coloured, mirrors the window sign)
+        g.beginFill(0x05050a);
+        g.lineStyle(1, theme.col, 0.85);
+        g.drawRect(x0 + 16, y0 + 12, w - 32, 20);
+        g.lineStyle(0);
+        g.endFill();
+        g.beginFill(theme.col, 0.5);
+        g.drawRect(x0 + 22, y0 + 19, w - 44, 3);
+        g.endFill();
+        g.beginFill(theme.col, 0.22);
+        g.drawRect(x0 + 22, y0 + 25, (w - 44) * 0.7, 2);
+        g.endFill();
+        // Platform floor + tactile edge at the bottom (aligns to car floor)
+        const platTop = yB - 22;
+        g.beginFill(0x3a3a52);
+        g.drawRect(x0, platTop, w, 22);
+        g.endFill();
+        g.beginFill(0xfacc15);
+        g.drawRect(x0, platTop - 2, w, 2);
+        g.endFill();
+        g.beginFill(0xd97706);
+        for (let dx = x0; dx < x0 + w; dx += 12) g.drawRect(dx, platTop, 8, 3);
+        g.endFill();
+        // A couple of commuters waiting on the platform (silhouettes, slight sway)
+        const seed = ((this._lastTrainX | 0) + (L.doorCx | 0)) || 1;
+        let s = seed;
+        const rng = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+        const n = 2 + Math.floor(rng() * 2);
+        for (let i = 0; i < n; i++) {
+            const px = x0 + 20 + rng() * (w - 40);
+            const sway = Math.sin((this._tick || 0) * 0.05 + i * 1.7) * 0.8;
+            g.beginFill(0x1e293b);
+            g.drawRect(px - 5, platTop - 34 + sway, 10, 30);
+            g.endFill();
+            g.beginFill(0x334155);
+            g.drawCircle(px, platTop - 38 + sway, 5);
+            g.endFill();
+            if (rng() > 0.55) {
+                g.beginFill(theme.col, 0.8);
+                g.drawRect(px - 1.5, platTop - 24 + sway, 3, 3);
                 g.endFill();
             }
         }
@@ -697,6 +802,13 @@ const InteriorTrain = {
             }
         }
 
+        // Platform visible through the doorway — the sliding panels reveal it
+        // as they part, so an arriving train opens onto the same station the
+        // windows show.
+        if (this._doorViewG && !this._doorViewG.destroyed) {
+            this._drawDoorStation(this._doorViewG, L.theme, !!(isWaiting && stationLabel));
+        }
+
         // Doors
         const doorTarget = isWaiting ? 1 : 0;
         this._doorOpen += (doorTarget - this._doorOpen) * 0.12;
@@ -779,6 +891,8 @@ const InteriorTrain = {
         this._passengersCont = null;
         this._doorL = null;
         this._doorR = null;
+        this._doorViewG = null;
+        this._doorMask = null;
         this._destTxt = null;
         this._speedTxt = null;
         this._strapsG = null;
