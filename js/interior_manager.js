@@ -51,8 +51,8 @@ const Interior = {
             this.activeModule = InteriorAlignment;
         } else if (bld.type === 'embassy' && typeof InteriorEmbassy !== 'undefined') {
             this.activeModule = InteriorEmbassy;
-        } else if (bld.type === 'train' && typeof InteriorTrain !== 'undefined') {
-            this.activeModule = InteriorTrain;
+        // NB: trains are NOT a building interior — clicking one calls G.enterTrainFocus()
+        // (a real-world camera cutaway), so there is no 'train' route here.
         } else if (bld.id && bld.id.startsWith('metro_') && typeof InteriorMetroStation !== 'undefined') {
             this.activeModule = InteriorMetroStation;
         } else if (bld.id === 'times_hq' && typeof InteriorNewspaper !== 'undefined') {

@@ -174,6 +174,7 @@ const AutoTour = {
     _canStart() {
         if (typeof G === 'undefined' || !G.app) return false;
         if (G.activeInterior) return false;
+        if (G.trainFocus) return false;            // don't hijack the camera while riding a train
         if (G.viewMode === 'macro') return false;
         if (G.tracking) return false;
         if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) return false;

@@ -46,7 +46,8 @@ const G = {
     
     interiorLayer: null,
     activeInterior: null,
-  
+    trainFocus: null,        // train key while "boarded" — the camera-cutaway ride view
+
     getDayPhase() { 
         const n = new Date();
         return (n.getHours() * 60 + n.getMinutes()) / 1440; 
@@ -823,13 +824,14 @@ const G = {
         if (!exitBtn) {
             exitBtn = document.createElement('button');
             exitBtn.id = 'btnExitInterior';
-            exitBtn.innerHTML = '🚪 EXIT BUILDING';
             exitBtn.style.cssText = 'position:fixed; top:0px; right:20px; z-index:9999; background:#f43f5e; color:#fff; border:none; border-bottom: 3px solid #be123c; padding:12px 20px; border-radius:0 0 6px 6px; cursor:pointer; font-size:12px; font-weight:bold; font-family:"Press Start 2P", monospace; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: background 0.2s; max-width: calc(100vw - 16px);';
             exitBtn.onmouseover = () => { exitBtn.style.background = '#e11d48'; };
             exitBtn.onmouseout = () => { exitBtn.style.background = '#f43f5e'; };
-            exitBtn.onclick = () => { if(typeof SND !== 'undefined') SND.uiClick(); this.exitInterior(); };
             document.body.appendChild(exitBtn);
         }
+        // Reset label + handler every time (train focus relabels/rebinds this same button).
+        exitBtn.innerHTML = '🚪 EXIT BUILDING';
+        exitBtn.onclick = () => { if(typeof SND !== 'undefined') SND.uiClick(); this.exitInterior(); };
         exitBtn.style.display = 'block';
 
         const topUI = document.querySelector('.top');
@@ -885,9 +887,58 @@ const G = {
     },
 
     // ═══════════════════════════════════════════════
+    //   TRAIN FOCUS — "board" a train as a real-world camera cutaway.
+    //   Unlike building interiors, the world stays VISIBLE: we zoom the camera
+    //   onto the chosen train and slice its near wall off (hide the front panel),
+    //   so the REAL city, tunnel, NPCs, other trains and riders all show in their
+    //   true positions, going past exactly as they do outside.
+    // ═══════════════════════════════════════════════
+    enterTrainFocus(key) {
+        if (!key || typeof Entities === 'undefined' || !Entities[key]) return;
+        if (this.activeInterior) this._performExitInterior();   // leave any building first
+        if (typeof Camera !== 'undefined') this._savedTrainZoom = Camera.targetZoom;
+        this.trainFocus = key;
+        if (typeof SND !== 'undefined') SND.setAmbient('train');
+        if (typeof InteriorTrain !== 'undefined' && InteriorTrain.enter) InteriorTrain.enter(key);
+
+        let exitBtn = document.getElementById('btnExitInterior');
+        if (!exitBtn) {
+            exitBtn = document.createElement('button');
+            exitBtn.id = 'btnExitInterior';
+            exitBtn.style.cssText = 'position:fixed; top:0px; right:20px; z-index:9999; background:#f43f5e; color:#fff; border:none; border-bottom: 3px solid #be123c; padding:12px 20px; border-radius:0 0 6px 6px; cursor:pointer; font-size:12px; font-weight:bold; font-family:"Press Start 2P", monospace; box-shadow: 0 4px 8px rgba(0,0,0,0.5); transition: background 0.2s; max-width: calc(100vw - 16px);';
+            exitBtn.onmouseover = () => { exitBtn.style.background = '#e11d48'; };
+            exitBtn.onmouseout = () => { exitBtn.style.background = '#f43f5e'; };
+            document.body.appendChild(exitBtn);
+        }
+        exitBtn.innerHTML = '🚪 GET OFF TRAIN';
+        exitBtn.onclick = () => { if(typeof SND !== 'undefined') SND.uiClick(); this.exitTrainFocus(); };
+        exitBtn.style.display = 'block';
+
+        const topUI = document.querySelector('.top');
+        if (topUI) topUI.style.display = 'none';
+        if (typeof UI !== 'undefined') UI.hideTooltip();
+    },
+
+    exitTrainFocus() {
+        if (!this.trainFocus) return;
+        if (typeof InteriorTrain !== 'undefined' && InteriorTrain.exit) InteriorTrain.exit();
+        this.trainFocus = null;
+        if (typeof SND !== 'undefined') SND.setAmbient('outside');
+
+        const exitBtn = document.getElementById('btnExitInterior');
+        if (exitBtn) { exitBtn.style.display = 'none'; exitBtn.innerHTML = '🚪 EXIT BUILDING'; }
+        const topUI = document.querySelector('.top');
+        if (topUI) topUI.style.display = '';
+
+        if (typeof Camera !== 'undefined') {
+            Camera.targetZoom = this.tracking ? 1.3 : (this._savedTrainZoom || 0.80);
+        }
+    },
+
+    // ═══════════════════════════════════════════════
     //   CAMERA TRACKING SYSTEM
     // ═══════════════════════════════════════════════
-    
+
     startTracking(type, id, lab) {
         // Save zoom so stopTracking can restore it
         if (typeof Camera !== 'undefined') this._savedTrackingZoom = Camera.targetZoom;
@@ -1903,6 +1954,10 @@ const G = {
       }
 
       if (typeof Camera !== 'undefined') Camera.update();
+
+      // Keep the train-cutaway in sync (front held open, riders/seats positioned)
+      // while "boarded". Runs in the normal path so the whole city stays live.
+      if (this.trainFocus && typeof InteriorTrain !== 'undefined' && InteriorTrain.update) InteriorTrain.update();
 
       // Zone-based ambient sound (every ~30 frames ≈ 0.5s)
       if (!this.activeInterior && typeof SND !== 'undefined' && typeof Camera !== 'undefined' && this.tick % 30 === 0) {

@@ -76,7 +76,7 @@ const Camera = {
 
     onDown(e) {
         if (e.target.closest('.ctrls-scroll') || e.target.closest('.ov')) return;
-        if (typeof G !== 'undefined' && G.activeInterior) return;
+        if (typeof G !== 'undefined' && (G.activeInterior || G.trainFocus)) return;
         if (typeof OrbitMode !== 'undefined' && OrbitMode.active) return;
 
         // Double-tap zoom detection
@@ -108,7 +108,7 @@ const Camera = {
 
     onMove(e) {
         if(!this.isDragging) return;
-        if (typeof G !== 'undefined' && G.activeInterior) return;
+        if (typeof G !== 'undefined' && (G.activeInterior || G.trainFocus)) return;
         if (typeof OrbitMode !== 'undefined' && OrbitMode.active) return;
 
         const now = performance.now();
@@ -143,7 +143,7 @@ const Camera = {
 
     onWheel(e) {
         if (e.target.closest('.ctrls-scroll') || e.target.closest('.ov')) return;
-        if (typeof G !== 'undefined' && G.activeInterior) return;
+        if (typeof G !== 'undefined' && (G.activeInterior || G.trainFocus)) return;
         // Block wheel input while in orbit mode
         if (typeof OrbitMode !== 'undefined' && OrbitMode.active) { e.preventDefault(); return; }
 
@@ -248,7 +248,19 @@ const Camera = {
                 this.targetZoom = 1.3;
             }
         }
-        
+
+        // ─── TRAIN FOCUS: "boarded" a train — zoom in and follow it through the
+        //     real world. Frames the car at ~62% down so the real city above it
+        //     (and the tunnel/pipes below) stay in view, going past as it moves. ───
+        if (G.trainFocus && typeof Entities !== 'undefined' && Entities[G.trainFocus]) {
+            const t = Entities[G.trainFocus];
+            this.targetZoom = (typeof InteriorTrain !== 'undefined' && InteriorTrain.ZOOM) ? InteriorTrain.ZOOM : 2.0;
+            const fx = t.x;
+            const fy = G.groundY + 120;            // tunnelY — the train's world centre
+            this.targetX = -(fx) + (G.vpW / 2) / this.zoom;
+            this.targetY = -(fy) + (G.vpH * 0.62) / this.zoom;
+        }
+
         // Cache maxBldHeight — only recalculate every 300 frames (~5s)
         if (!this._maxBldH || G.tick % 300 === 0) {
             this._maxBldH = 0;
@@ -280,15 +292,16 @@ const Camera = {
             maxY = groundAnchor + (maxBldHeight - visibleHeight + 150);
         }
 
-        // Clamp camera boundaries (skip during tracking — entity position takes priority)
-        if (!G.tracking) {
+        // Clamp camera boundaries (skip during tracking / train focus — the
+        // followed entity's position takes priority over city-edge limits)
+        if (!G.tracking && !G.trainFocus) {
             this.targetY = Math.max(minY, Math.min(this.targetY, maxY));
         }
 
         const minX = -G.cityW + G.vpW / this.zoom;
         const maxX = 0;
 
-        if (!G.tracking) {
+        if (!G.tracking && !G.trainFocus) {
             this.targetX = Math.max(minX, Math.min(this.targetX, maxX));
         }
         
@@ -297,16 +310,18 @@ const Camera = {
         // so the tour feels like a screensaver drift, not a slideshow.
         const _cinematic = (typeof AutoTour !== 'undefined' && AutoTour.active);
         const _zoomLerp = _cinematic ? 0.010 : 0.08;
-        const _xyLerp   = _cinematic ? 0.015 : 0.12;
+        // Follow the boarded train tightly so it stays near-centred while the city
+        // scrolls past (a looser lerp lets a moving train drift off-screen).
+        const _xyLerp   = _cinematic ? 0.015 : (G.trainFocus ? 0.32 : 0.12);
         this.zoom += (this.targetZoom - this.zoom) * _zoomLerp;
         this.x += (this.targetX - this.x) * _xyLerp;
         this.y += (this.targetY - this.y) * _xyLerp;
         
-        if (!G.tracking) {
+        if (!G.tracking && !G.trainFocus) {
             if (this.x < minX) { this.x = minX; }
             if (this.x > maxX) { this.x = maxX; }
         }
-        
+
         if (G.world) {
             G.world.scale.set(this.zoom);
             G.world.x = this.x * this.zoom;
@@ -398,7 +413,7 @@ const Camera = {
     /** Called from engine.update() or self — hide pill when inappropriate */
     _updateZoomPill() {
         if (!this._zoomPill) return;
-        const hide = (typeof G !== 'undefined' && (G.activeInterior || G.viewMode === 'macro'))
+        const hide = (typeof G !== 'undefined' && (G.activeInterior || G.trainFocus || G.viewMode === 'macro'))
             || (typeof OrbitMode !== 'undefined' && OrbitMode.active)
             || (typeof XRayMode !== 'undefined' && XRayMode.active);
         this._zoomPill.style.display = hide ? 'none' : 'flex';

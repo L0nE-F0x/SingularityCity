@@ -172,6 +172,7 @@ export default [
                 BlackMarket: 'writable', // Underground jailbroken models zone
                 InteriorBlackMarket: 'writable', // Black Market interior
                 InteriorMetroStation: 'writable', // Metro station interior
+                InteriorTrain: 'writable', // Train "interior" — real-world camera cutaway
                 Kardashev: 'writable', // Kardashev compute scale
 
                 // Data / constants declared at top level across many files
