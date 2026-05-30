@@ -52,32 +52,79 @@ const InteriorTrain = {
         if (t.c && this._cut) t.c.addChild(this._cut);   // sits over the body, behind riders
     },
 
-    /* Light interior detailing in the train's local coords. Drawn on the body
-       container (t.c), so it moves with the train and renders behind the riders
-       (which live in the separate riderCont layered above the bodies). */
+    /* A furnished metro-car interior in the train's local coords. Drawn on the body
+       container (t.c) so it moves with the train and renders behind the riders
+       (which live in the separate riderCont layered above the bodies). Inset a few
+       px from the body edges so the train's dark hull frames the cutaway. */
     _buildCutaway() {
         const g = new PIXI.Graphics();
-        const L = this._BODY_L, R = this._BODY_R, W = R - L;
+        const L = this._BODY_L + 3, R = this._BODY_R - 3, W = R - L;   // -177..177
+        const T = this._BODY_T + 3, B = this._BODY_B - 2;             // -32..28
+        const seatY = B - 16, floorY = B - 7;
 
-        // Interior shell — slightly lit so the opened car doesn't read as a void.
-        g.beginFill(0x334155, 0.55); g.drawRect(L + 4, this._BODY_T + 4, W - 8, 22); g.endFill();   // upper wall
-        // Ceiling rail + warm light strip
-        g.beginFill(0x1e293b); g.drawRect(L + 4, this._BODY_T + 2, W - 8, 4); g.endFill();
-        g.beginFill(0xfde68a, 0.5); g.drawRect(L + 20, this._BODY_T + 3, W - 40, 1.5); g.endFill();
-        // Floor
-        g.beginFill(0x0f172a); g.drawRect(L + 2, 16, W - 4, 14); g.endFill();
-        g.beginFill(0x1e293b); g.drawRect(L + 2, 16, W - 4, 2); g.endFill();
-        g.beginFill(0xfacc15, 0.5); g.drawRect(L + 2, 28, W - 4, 1.5); g.endFill();   // safety line
-        // Bench seat the riders sit on (behind them)
-        g.beginFill(0x1e293b); g.drawRect(L + 8, 6, W - 16, 12); g.endFill();
-        g.beginFill(0x0284c7, 0.7); g.drawRect(L + 8, 6, W - 16, 3); g.endFill();     // cushion trim
-        // Grab poles
-        g.beginFill(0x64748b);
-        for (let px = L + 40; px < R - 30; px += 70) g.drawRect(px - 1, this._BODY_T + 6, 2, 28);
+        // ── Walls — light slate so the open car reads as an interior, not a void ──
+        g.beginFill(0x55677d); g.drawRect(L, T, W, B - T); g.endFill();
+        g.beginFill(0x647a91); g.drawRect(L, T, W, 13); g.endFill();           // brighter near ceiling
+        g.beginFill(0x3d4d60); g.drawRect(L, seatY - 4, W, 4); g.endFill();    // dado shadow line
+
+        // ── Ceiling: dark rail + warm recessed lights ──
+        g.beginFill(0x1e293b); g.drawRect(L, T, W, 6); g.endFill();
+        g.beginFill(0xfde68a, 0.30); g.drawRect(L + 10, T + 3, W - 20, 2); g.endFill();
+        g.beginFill(0xfffbe8);
+        for (let lx = L + 16; lx < R - 14; lx += 46) g.drawRect(lx, T + 3, 26, 1.6);
         g.endFill();
-        g.beginFill(0xcbd5e1, 0.7);
-        for (let px = L + 40; px < R - 30; px += 70) g.drawRect(px - 1, this._BODY_T + 6, 0.8, 28);
+
+        // ── Route-map strip (cyan line + station nodes), like a real car ──
+        const mapY = T + 8;
+        g.beginFill(0x0ea5e9, 0.65); g.drawRect(L + 30, mapY, W - 60, 1.5); g.endFill();
+        g.beginFill(0xfde68a);
+        for (let i = 0; i < 6; i++) g.drawCircle(L + 34 + (i / 5) * (W - 68), mapY + 0.75, 2);
         g.endFill();
+
+        // ── Windows: dark tunnel glass + chrome frame + top reflection; ad panel between ──
+        const winY = T + 12, wh = 14, ww = 40, pitch = 54;
+        for (let wx = L + 12; wx + ww < R - 8; wx += pitch) {
+            g.beginFill(0x0b111b); g.drawRect(wx, winY, ww, wh); g.endFill();
+            g.beginFill(0x9fd8f5, 0.12); g.drawRect(wx + 2, winY + 2, ww - 4, 4); g.endFill();
+            g.lineStyle(1.5, 0xaeb9c7, 0.9); g.drawRect(wx, winY, ww, wh); g.lineStyle(0);
+            // little ad poster in the gap after the window
+            const ax = wx + ww + 3;
+            if (ax + 8 < R - 8) {
+                g.beginFill([0x22c55e, 0xf97316, 0xa855f7, 0x06b6d4][((wx + 999) >> 3) & 3], 0.8);
+                g.drawRect(ax, winY + 1, 8, wh - 2); g.endFill();
+            }
+        }
+
+        // ── Grab rail under the windows + hanging hand-straps ──
+        const railY = winY + wh + 3;
+        g.beginFill(0x94a3b8); g.drawRect(L + 10, railY, W - 20, 2); g.endFill();
+        for (let sx = L + 30; sx < R - 24; sx += 38) {
+            g.lineStyle(1.5, 0x64748b, 0.95); g.moveTo(sx, railY + 2); g.lineTo(sx, railY + 11); g.lineStyle(0);
+            g.beginFill(0xcbd5e1); g.drawCircle(sx, railY + 13, 2.2); g.endFill();
+            g.beginFill(0x0b111b); g.drawCircle(sx, railY + 13, 1); g.endFill();
+        }
+
+        // ── Bench seats: base + teal cushions + dividers ──
+        g.beginFill(0x1e293b); g.drawRect(L, seatY, W, B - seatY); g.endFill();
+        for (let cx = L + 6; cx + 42 < R; cx += 50) {
+            g.beginFill(0x0e7490); g.drawRect(cx, seatY + 1, 42, 6); g.endFill();
+            g.beginFill(0x22d3ee, 0.5); g.drawRect(cx, seatY + 1, 42, 1.5); g.endFill();
+            g.beginFill(0x334155); g.drawRect(cx - 3, seatY, 3, 9); g.endFill();
+        }
+
+        // ── Floor: panel + aisle seams + yellow safety edge ──
+        g.beginFill(0x0f172a); g.drawRect(L, floorY, W, B - floorY); g.endFill();
+        g.beginFill(0x1e293b); g.drawRect(L, floorY, W, 1.5); g.endFill();
+        g.beginFill(0x223044);
+        for (let fx = L + 8; fx < R; fx += 30) g.drawRect(fx, floorY + 3, 14, 1);
+        g.endFill();
+        g.beginFill(0xfacc15, 0.6); g.drawRect(L, B - 1.5, W, 1.5); g.endFill();
+
+        // ── Vertical grab poles (full height), with a chrome highlight ──
+        for (const px of [-120, -40, 40, 120]) {
+            g.beginFill(0x94a3b8); g.drawRect(px - 1, T + 6, 2.4, seatY - (T + 6)); g.endFill();
+            g.beginFill(0xe2e8f0, 0.8); g.drawRect(px - 1, T + 6, 0.9, seatY - (T + 6)); g.endFill();
+        }
         return g;
     },
 

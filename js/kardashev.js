@@ -385,7 +385,7 @@ const Kardashev = {
         // Hide during interiors / macro / orbit
         const hud = document.getElementById('kardashevHUD');
         if (hud) {
-            const hide = (typeof G !== 'undefined' && (G.activeInterior || G.viewMode === 'macro'))
+            const hide = (typeof G !== 'undefined' && (G.activeInterior || G.trainFocus || G.viewMode === 'macro'))
                 || (typeof OrbitMode !== 'undefined' && OrbitMode.active)
                 || (typeof XRayMode !== 'undefined' && XRayMode.active);
             hud.style.opacity = hide ? '0' : '1';
