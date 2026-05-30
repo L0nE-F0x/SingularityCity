@@ -75,6 +75,27 @@ const InteriorTrain = {
     JBOX_W:     0x0ea5e9,
     JBOX_S:     0xf59e0b,
 
+    // Above-ground world (night sky + scrolling skyline + street) — warm residential
+    // palette mirroring the exterior city the train runs beneath.
+    CITY_SKY_TOP:  0x0a0e18,
+    CITY_SKY_MID:  0x12101e,
+    CITY_HORIZON:  0x3a2616,
+    CITY_STREET:   0x16161f,
+    CITY_ASPHALT:  0x101018,
+    CITY_LANE:     0xfacc15,
+    NEAR_BODIES:   [0x6e4632, 0x835539, 0x8f7a45, 0x66664a, 0x744f44, 0x55485a],
+    NEAR_ROOF:     0xb9886a,
+    FAR_BODIES:    [0x241f33, 0x2c2740, 0x1e2236],
+    WIN_WARM:      0xfde68a,
+    WIN_WARM2:     0xfff3c7,
+    WIN_COOL:      0x9fb0e0,
+    // Deep earth (below the pipes) — exact Underground.drawDeepEarth values.
+    EARTH_BASE:    0x2d1a11,
+    EARTH_A:       0x3d261a,
+    EARTH_B:       0x1f100a,
+    EARTH_VEIN_G:  0xfacc15,
+    EARTH_VEIN_R:  0xb45309,
+
     THEMES: {
         trainWest:      { col: 0x38bdf8, line: 'LINE 1 · WESTBOUND' },
         trainEast:      { col: 0xfacc15, line: 'LINE 1 · EASTBOUND' },
@@ -134,9 +155,13 @@ const InteriorTrain = {
         const skirtH     = 10;
         const railBedH   = 22;
         const infraH     = 100;
+        const streetH    = 24;   // road surface sitting directly on the cable tray
         const carH = ceilingH + topBandH + winH + lowerWallH + floorH + skirtH;
         const stack = cableH + voidGap + carH + railBedH + infraH;
-        const offsetY = Math.max(16, Math.round((H - stack) / 2));
+        // Bias the stack downward so the city skyline above gets the larger share of
+        // the slack (we want to SEE the city going past), with deep earth filling below.
+        const slack = H - stack;
+        const offsetY = Math.max(16, Math.round(slack * 0.58));
 
         const yCableTop = offsetY;
         const yCableBot = yCableTop + cableH;
@@ -186,7 +211,10 @@ const InteriorTrain = {
             yCableTop, yCableBot, yRoofTop, yTopBand, yWinTop, yWinBot, yWallTop,
             yFloorTop, yFloorBot, ySkirtTop, ySkirtBot, yRailTop, yRailBot, yInfraTop, yInfraBot,
             cableH, winH, carLeft, carRight, carW, innerLeft, innerRight, endCapW,
-            carMidY, doorCx, doorPanelW, doorHalf, winRects
+            carMidY, doorCx, doorPanelW, doorHalf, winRects, streetH,
+            // Horizontal over-draw so the world still covers the viewport when the
+            // track-follow camera zooms (scene scales to 1.45 and pans to a rider).
+            ext: Math.round(W * 0.55)
         };
 
         // ── 0. ENVIRONMENT (full-width, redrawn each frame: cables / tunnel|station
@@ -386,6 +414,9 @@ const InteriorTrain = {
         this._paxSig = null;
         this._visiblePax = 0;
         this._totalPax = 0;
+        // Tracking pool keyed by model id — lets Interior._findTrackedAvatar follow a
+        // tracked NPC who is aboard, exactly like the metro-station interior.
+        this.avatarPool = new Map();
 
         // Bench front lip (over back-row legs → depth)
         const benchFront = new PIXI.Graphics();
@@ -459,30 +490,39 @@ const InteriorTrain = {
        above, tunnel (scrolling) or station hall in the middle, ballast + rails +
        scrolling ties, then water/power/sewer infrastructure — exact Underground
        colours/offsets. Visible beside the car ends and through windows/doors. ─── */
-    _drawEnv(scroll, isStation, theme) {
+    _drawEnv(scroll, isStation, theme, stationCx) {
         const L = this._L, g = this._envG, W = L.W, H = L.H;
+        const ext = L.ext, xL = -ext, wF = W + ext * 2, xR = W + ext;
         g.clear();
-        // Earth/void everywhere (above the cable tray and below the pipes)
+        // Opaque void backing — gives the semi-transparent tunnel band something to
+        // sit on; the top & bottom margins get overpainted by city / earth below so
+        // no black bars remain. Drawn wider than the viewport so the track-follow
+        // camera (which zooms in on a rider) never exposes an empty edge.
         g.beginFill(this.TUN_VOID);
-        g.drawRect(0, 0, W, H);
+        g.drawRect(xL, 0, wF, H);
         g.endFill();
+
+        // ── ABOVE GROUND: night sky + scrolling city skyline + street, filling the
+        //    whole top margin (0 → cable tray). This is the city the train runs under,
+        //    going past as you ride — mirrors the exterior stack above the tunnel. ──
+        this._drawCityAbove(scroll, isStation, theme);
 
         // Cable tray (data/fiber) — Underground.drawCableTray, static
         g.beginFill(this.CABLE_BG);
-        g.drawRect(0, L.yCableTop, W, L.cableH);
+        g.drawRect(xL, L.yCableTop, wF, L.cableH);
         g.endFill();
         const fibers = 10, fSpace = (L.cableH - 6) / fibers;
         for (let fi = 0; fi < fibers; fi++) {
             g.beginFill(this.CABLE_COLS[fi % this.CABLE_COLS.length], 0.55);
-            g.drawRect(5, L.yCableTop + 3 + fi * fSpace, W - 10, 2);
+            g.drawRect(xL + 5, L.yCableTop + 3 + fi * fSpace, wF - 10, 2);
             g.endFill();
         }
         let s = 7919;
         const rnd = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
-        const dots = Math.max(6, Math.floor(W / 18));
+        const dots = Math.max(6, Math.floor(wF / 18));
         for (let i = 0; i < dots; i++) {
             g.beginFill(this.CABLE_COLS[Math.floor(rnd() * this.CABLE_COLS.length)], 0.6);
-            g.drawCircle(5 + rnd() * (W - 10), L.yCableTop + 3 + rnd() * (L.cableH - 6), 1 + rnd() * 1.5);
+            g.drawCircle(xL + 5 + rnd() * (wF - 10), L.yCableTop + 3 + rnd() * (L.cableH - 6), 1 + rnd() * 1.5);
             g.endFill();
         }
 
@@ -490,13 +530,13 @@ const InteriorTrain = {
         // because the hull has open window/door holes, straight through them.
         const bTop = L.yCableBot, bBot = L.yRailTop, bH = bBot - bTop;
         if (isStation) {
-            g.beginFill(0x15151f); g.drawRect(0, bTop, W, bH); g.endFill();
+            g.beginFill(0x15151f); g.drawRect(xL, bTop, wF, bH); g.endFill();
             g.lineStyle(1, 0x2a2a3a, 0.5);
-            for (let tx = 0; tx < W; tx += 26) { g.moveTo(tx, bTop + 4); g.lineTo(tx, L.yFloorTop - 4); }
-            for (let ty = bTop + 10; ty < L.yFloorTop - 6; ty += 20) { g.moveTo(0, ty); g.lineTo(W, ty); }
+            for (let tx = xL; tx < xR; tx += 26) { g.moveTo(tx, bTop + 4); g.lineTo(tx, L.yFloorTop - 4); }
+            for (let ty = bTop + 10; ty < L.yFloorTop - 6; ty += 20) { g.moveTo(xL, ty); g.lineTo(xR, ty); }
             g.lineStyle(0);
             g.beginFill(0x1c1c28);
-            for (let px = 70; px < W; px += 260) g.drawRect(px, bTop + 4, 16, L.yFloorTop - bTop - 8);
+            for (let px = xL + 70; px < xR; px += 260) g.drawRect(px, bTop + 4, 16, L.yFloorTop - bTop - 8);
             g.endFill();
             // Lit sign near the top of the hall
             g.beginFill(0x05050a);
@@ -509,62 +549,234 @@ const InteriorTrain = {
             g.endFill();
             // Platform — top aligned to the car floor so doors open onto it
             const platTop = L.yFloorTop - 2;
-            g.beginFill(0x3a3a52); g.drawRect(0, platTop, W, bBot - platTop); g.endFill();
-            g.beginFill(0xfacc15); g.drawRect(0, platTop - 2, W, 2); g.endFill();
+            g.beginFill(0x3a3a52); g.drawRect(xL, platTop, wF, bBot - platTop); g.endFill();
+            g.beginFill(0xfacc15); g.drawRect(xL, platTop - 2, wF, 2); g.endFill();
             g.beginFill(0xd97706);
-            for (let dx = 0; dx < W; dx += 12) g.drawRect(dx, platTop, 8, 3);
+            for (let dx = xL; dx < xR; dx += 12) g.drawRect(dx, platTop, 8, 3);
             g.endFill();
-            // Commuters waiting on the platform
-            let cs = (this._lastTrainX | 0) + 4242;
-            const crng = () => { cs = (cs * 16807) % 2147483647; return (cs - 1) / 2147483646; };
-            const np = 6 + Math.floor(crng() * 7);
-            for (let i = 0; i < np; i++) {
-                const px = 30 + crng() * (W - 60);
-                const sway = Math.sin((this._tick || 0) * 0.05 + i) * 0.7;
+            // Real waiting / boarding / alighting people on the platform (no padded
+            // fakes) — seen through the windows and the open doors as they board.
+            const occ = this._gatherPlatformOccupants(stationCx);
+            occ.forEach((o, i) => {
+                const sway = Math.sin((this._tick || 0) * 0.05 + i * 1.3) * (o.moving ? 0 : 0.7);
+                const px = o.x + (o.moving ? Math.sin((this._tick || 0) * 0.18 + i) * 1.5 : 0);
                 g.beginFill(0x1e293b); g.drawRect(px - 5, platTop - 30 + sway, 10, 28); g.endFill();
                 g.beginFill(0x334155); g.drawCircle(px, platTop - 33 + sway, 4.5); g.endFill();
-                if (crng() > 0.6) { g.beginFill(theme.col, 0.8); g.drawRect(px - 1.5, platTop - 20 + sway, 3, 3); g.endFill(); }
-            }
+                g.beginFill(o.col, 0.9); g.drawRect(px - 4, platTop - 20 + sway, 8, 7); g.endFill();
+            });
         } else {
             g.beginFill(0x09090e, 0.7);
-            g.drawRect(0, bTop, W, bH);
+            g.drawRect(xL, bTop, wF, bH);
             g.endFill();
             const pPitch = 150, pW = 20;
             const phase = ((scroll * 1.05) % pPitch + pPitch) % pPitch;
             g.beginFill(this.TUN_PILLAR);
-            for (let px = -phase; px < W + pPitch; px += pPitch) g.drawRect(px, bTop, pW, bH);
+            for (let px = xL - phase; px < xR + pPitch; px += pPitch) g.drawRect(px, bTop, pW, bH);
             g.endFill();
-            for (let px = -phase; px < W + pPitch; px += pPitch) {
+            for (let px = xL - phase; px < xR + pPitch; px += pPitch) {
                 g.beginFill(this.TUN_LIGHT, 0.3); g.drawCircle(px + pW / 2, bTop + 18, 7); g.endFill();
                 g.beginFill(this.TUN_LIGHT);     g.drawCircle(px + pW / 2, bTop + 18, 2); g.endFill();
             }
         }
 
         // Ballast + twin rails + scrolling ties (the track the car sits on)
-        g.beginFill(this.RAIL_BED); g.drawRect(0, L.yRailTop, W, L.yRailBot - L.yRailTop); g.endFill();
+        g.beginFill(this.RAIL_BED); g.drawRect(xL, L.yRailTop, wF, L.yRailBot - L.yRailTop); g.endFill();
         g.beginFill(this.RAIL_STEEL);
-        g.drawRect(0, L.yRailTop + 5, W, 3);
-        g.drawRect(0, L.yRailBot - 7, W, 3);
+        g.drawRect(xL, L.yRailTop + 5, wF, 3);
+        g.drawRect(xL, L.yRailBot - 7, wF, 3);
         g.endFill();
         const tiePitch = 18, tiePhase = ((scroll * 1.2) % tiePitch + tiePitch) % tiePitch;
         g.beginFill(this.TIE);
-        for (let tx = -tiePhase; tx < W + tiePitch; tx += tiePitch) g.drawRect(tx, L.yRailTop + 9, 9, 3);
+        for (let tx = xL - tiePhase; tx < xR + tiePitch; tx += tiePitch) g.drawRect(tx, L.yRailTop + 9, 9, 3);
         g.endFill();
 
         // Infrastructure — water / power / sewer + junction boxes (exact Underground)
         const iT = L.yInfraTop;
-        g.beginFill(this.INFRA_DEEP); g.drawRect(0, iT, W, L.yInfraBot - iT); g.endFill();
-        g.beginFill(this.INFRA_P1); g.drawRect(0, iT + 10, W, 30); g.endFill();
-        g.beginFill(this.INFRA_P2); g.drawRect(0, iT + 15, W, 20); g.endFill();
-        g.beginFill(this.WATER);    g.drawRect(0, iT + 50, W, 8); g.endFill();
-        g.beginFill(this.WATER_IN); g.drawRect(0, iT + 52, W, 4); g.endFill();
-        g.beginFill(this.SEWER);    g.drawRect(0, iT + 65, W, 12); g.endFill();
-        g.beginFill(this.SEWER_IN); g.drawRect(0, iT + 67, W, 8); g.endFill();
+        g.beginFill(this.INFRA_DEEP); g.drawRect(xL, iT, wF, L.yInfraBot - iT); g.endFill();
+        g.beginFill(this.INFRA_P1); g.drawRect(xL, iT + 10, wF, 30); g.endFill();
+        g.beginFill(this.INFRA_P2); g.drawRect(xL, iT + 15, wF, 20); g.endFill();
+        g.beginFill(this.WATER);    g.drawRect(xL, iT + 50, wF, 8); g.endFill();
+        g.beginFill(this.WATER_IN); g.drawRect(xL, iT + 52, wF, 4); g.endFill();
+        g.beginFill(this.SEWER);    g.drawRect(xL, iT + 65, wF, 12); g.endFill();
+        g.beginFill(this.SEWER_IN); g.drawRect(xL, iT + 67, wF, 8); g.endFill();
         const boxPhase = ((scroll) % 200 + 200) % 200;
-        for (let bx = -boxPhase - 200; bx < W + 200; bx += 200) {
+        for (let bx = xL - boxPhase - 200; bx < xR + 200; bx += 200) {
             g.beginFill(this.JBOX);   g.drawRect(bx, iT + 5, 15, 40); g.endFill();
             g.beginFill(this.JBOX_W); g.drawRect(bx + 50, iT + 48, 10, 12); g.endFill();
             g.beginFill(this.JBOX_S); g.drawRect(bx + 100, iT + 63, 10, 16); g.endFill();
+        }
+
+        // ── BELOW: deep earth + rock veins fills to the bottom edge (no black bar) ──
+        if (H > L.yInfraBot) this._drawEarthBelow(scroll, L.yInfraBot, H);
+    },
+
+    /* Real people on the platform at the station we're stopped at — AI models
+       (waiting / boarding / alighting) and worker-NPC commuters routing through
+       this station. World-x is mapped into the car's local scale and clamped to
+       the view, so a rider you're about to board appears beside the open doors.
+       Returns [] when nobody is genuinely here (never padded with fakes). */
+    _gatherPlatformOccupants(stationCx) {
+        const out = [];
+        const L = this._L;
+        if (stationCx == null) return out;
+        const SCALE = L.carW / 360;            // interior car width ≈ one 360px exterior car
+        const toScreen = (wx) => Math.max(24, Math.min(L.W - 24, L.doorCx + (wx - stationCx) * SCALE));
+        const hashCol = (id) => {
+            let h = 0; for (let k = 0; k < id.length; k++) h = (h * 31 + id.charCodeAt(k)) >>> 0;
+            return [0x38bdf8, 0xfacc15, 0xf97316, 0x22c55e, 0xa855f7, 0xf43f5e, 0x06b6d4][h % 7];
+        };
+        if (typeof G !== 'undefined' && G.charRefs && G.models) {
+            for (const m of G.models) {
+                const r = G.charRefs[m.id];
+                if (!r || !r._metroLegs) continue;
+                const st = r._metroState;
+                if (st !== 'waiting_train' && st !== 'entering' && st !== 'exiting') continue;
+                const legX = r._metroLegs[r._currentLeg];
+                if (legX == null || Math.abs(legX - stationCx) > 8) continue;
+                const wx = (r.c && r.c.x != null) ? r.c.x : legX;
+                out.push({ x: toScreen(wx), col: hashCol(m.id), moving: st !== 'waiting_train' });
+            }
+        }
+        if (typeof NPCHousing !== 'undefined' && NPCHousing.commuters) {
+            for (const cm of NPCHousing.commuters) {
+                if (!cm || !cm.npc) continue;
+                const st = cm.state;
+                if (st !== 'walk_to_metro' && st !== 'riding_metro' && st !== 'walk_from_metro') continue;
+                const entry = cm._metroEntryX != null && Math.abs(cm._metroEntryX - stationCx) < 8;
+                const exit  = cm._metroExitX  != null && Math.abs(cm._metroExitX  - stationCx) < 8;
+                if (!entry && !exit) continue;
+                let wx;
+                if (st === 'riding_metro') {           // underground — mill near the centre
+                    let h = 0; const id = cm.npc.id; for (let k = 0; k < id.length; k++) h = (h * 31 + id.charCodeAt(k)) >>> 0;
+                    wx = stationCx + ((h % 200) - 100);
+                } else {
+                    wx = (cm.c && cm.c.x != null) ? cm.c.x : stationCx;
+                }
+                let col = cm.npc.color;
+                if (typeof col === 'string') col = parseInt(col.replace('#', ''), 16);
+                if (typeof col !== 'number') col = 0x94a3b8;
+                out.push({ x: toScreen(wx), col, moving: st !== 'riding_metro' });
+            }
+        }
+        return out;
+    },
+
+    /* ─── Deterministic per-column PRNG (mulberry32) — a given column index always
+       yields the same building/earth, so the world stays stable while it scrolls. ─── */
+    _colRng(seed) {
+        let a = ((seed | 0) ^ 0x9e3779b9) >>> 0;
+        return () => {
+            a = (a + 0x6d2b79f5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    },
+
+    /* ─── The above-ground city: night sky, a far parallax skyline, near warm-lit
+       towers, and the street they stand on — the world directly over the tunnel.
+       Everything scrolls opposite travel (slower the higher / farther it is). ─── */
+    _drawCityAbove(scroll, isStation, theme) {
+        const L = this._L, g = this._envG, W = L.W, ext = L.ext, xL = -ext, wF = W + ext * 2, xR = W + ext;
+        const yStreet = L.yCableTop - L.streetH;     // street surface line
+        const skyBot  = yStreet;
+        if (skyBot <= 2) return;                      // no room (tiny viewport)
+
+        // Sky gradient (deep navy → warmer near the rooftops)
+        g.beginFill(this.CITY_SKY_TOP); g.drawRect(xL, 0, wF, skyBot); g.endFill();
+        g.beginFill(this.CITY_SKY_MID, 0.7); g.drawRect(xL, skyBot * 0.42, wF, skyBot * 0.58); g.endFill();
+        g.beginFill(this.CITY_HORIZON, 0.45); g.drawRect(xL, skyBot - 46, wF, 46); g.endFill();
+
+        // Stars (slow parallax, only in the upper sky)
+        const starShift = scroll * 0.15, sPitch = 46, starTop = skyBot * 0.55;
+        let sc0 = Math.floor((starShift + xL) / sPitch) - 1;
+        for (let ci = sc0; ci * sPitch - starShift < xR; ci++) {
+            const r = this._colRng(ci ^ 0x51a7);
+            if (r() > 0.5) continue;
+            const sx = Math.round(ci * sPitch - starShift + r() * sPitch);
+            const sy = 4 + r() * Math.max(4, starTop);
+            g.beginFill(0xfff8e0, 0.25 + r() * 0.4); g.drawRect(sx, sy, 1 + (r() > 0.85 ? 1 : 0), 1); g.endFill();
+        }
+
+        // Far skyline (cool, dim, half-speed) then near towers (warm, full-ish speed)
+        this._skylineLayer(scroll * 0.5, skyBot, {
+            salt: 0x1f1, pitch: 84, gap: 8, gapVar: 16,
+            minH: skyBot * 0.30, maxH: skyBot * 0.66, bodies: this.FAR_BODIES, roof: 0x3a3550,
+            winPitchX: 12, winPitchY: 15, winW: 4, winH: 5, litProb: 0.30,
+            winA: 0.5, warm: false
+        });
+        this._skylineLayer(scroll * 0.9, skyBot, {
+            salt: 0x9c4, pitch: 132, gap: 16, gapVar: 30,
+            minH: skyBot * 0.46, maxH: skyBot * 0.96, bodies: this.NEAR_BODIES, roof: this.NEAR_ROOF,
+            winPitchX: 15, winPitchY: 17, winW: 7, winH: 9, litProb: 0.62,
+            winA: 0.95, warm: true
+        });
+
+        // Street the towers stand on — asphalt + dashed centre line + curb
+        g.beginFill(this.CITY_STREET); g.drawRect(xL, yStreet, wF, L.streetH); g.endFill();
+        g.beginFill(this.CITY_ASPHALT); g.drawRect(xL, yStreet + 5, wF, L.streetH - 5); g.endFill();
+        g.beginFill(0x2a2a36); g.drawRect(xL, yStreet, wF, 2); g.endFill();   // curb highlight
+        const laneShift = ((scroll * 0.9) % 34 + 34) % 34, laneY = yStreet + L.streetH * 0.55;
+        g.beginFill(this.CITY_LANE, 0.7);
+        for (let lx = xL - laneShift; lx < xR; lx += 34) g.drawRect(lx, laneY, 18, 2);
+        g.endFill();
+    },
+
+    /* One horizontal band of buildings, deterministically tiled so it scrolls without
+       flicker. `worldShift` = how far the world has slid (scroll × parallax rate). */
+    _skylineLayer(worldShift, baseY, o) {
+        const g = this._envG, W = this._L.W, ext = this._L.ext, xL = -ext, xR = W + ext;
+        const pitch = o.pitch;
+        let ci = Math.floor((worldShift + xL) / pitch) - 1;
+        for (; ; ci++) {
+            const x = Math.round(ci * pitch - worldShift);
+            if (x > xR) break;
+            const r = this._colRng(ci ^ o.salt);
+            const bw = pitch - o.gap - Math.floor(r() * o.gapVar);
+            const bh = Math.round(o.minH + r() * (o.maxH - o.minH));
+            const top = baseY - bh;
+            g.beginFill(o.bodies[Math.floor(r() * o.bodies.length)]);
+            g.drawRect(x, top, bw, bh);
+            g.endFill();
+            g.beginFill(o.roof, 0.5); g.drawRect(x, top, bw, 3); g.endFill();
+            // Lit window grid (only lit cells drawn — unlit read as the facade itself)
+            const cols = Math.max(1, Math.floor((bw - 6) / o.winPitchX));
+            const rows = Math.max(1, Math.floor((bh - 8) / o.winPitchY));
+            for (let cx = 0; cx < cols; cx++) {
+                for (let cy = 0; cy < rows; cy++) {
+                    if (r() > o.litProb) continue;
+                    const wx = x + 4 + cx * o.winPitchX;
+                    const wy = top + 5 + cy * o.winPitchY;
+                    const col = o.warm ? (r() > 0.5 ? this.WIN_WARM : this.WIN_WARM2) : this.WIN_COOL;
+                    g.beginFill(col, o.winA); g.drawRect(wx, wy, o.winW, o.winH); g.endFill();
+                }
+            }
+        }
+    },
+
+    /* Deep earth below the pipes — zone-tinted base + scattered rock + gold/rust veins
+       (exact Underground.drawDeepEarth look), tiled so it scrolls with the track. */
+    _drawEarthBelow(scroll, yTop, yBot) {
+        const g = this._envG, W = this._L.W, ext = this._L.ext, xL = -ext, wF = W + ext * 2, xR = W + ext;
+        g.beginFill(this.EARTH_BASE); g.drawRect(xL, yTop, wF, yBot - yTop); g.endFill();
+        const shift = scroll * 1.1, pitch = 14;
+        let ci = Math.floor((shift + xL) / pitch) - 1;
+        for (; ; ci++) {
+            const x = ci * pitch - shift;
+            if (x > xR) break;
+            const r = this._colRng(ci ^ 0x5151);
+            for (let ry = yTop + 4; ry < yBot; ry += 14) {
+                if (r() > 0.4) {
+                    g.beginFill(r() > 0.5 ? this.EARTH_A : this.EARTH_B, 0.8);
+                    g.drawRect(x + r() * 9, ry + r() * 7, 2 + r() * 4, 2 + r() * 3);
+                    g.endFill();
+                }
+                if (r() > 0.95) {
+                    g.beginFill(r() > 0.5 ? this.EARTH_VEIN_R : this.EARTH_VEIN_G, 0.55);
+                    g.drawRect(x + r() * 9, ry + r() * 9, 1 + r() * 2, 1);
+                    g.endFill();
+                }
+            }
         }
     },
 
@@ -598,6 +810,7 @@ const InteriorTrain = {
         }
         this._paxAvatars = [];
         this._passengersCont.removeChildren();
+        if (this.avatarPool) this.avatarPool.clear();
 
         const canMake = typeof InteriorMetroStation !== 'undefined' && typeof InteriorMetroStation._makeAvatarSprite === 'function';
         if (shown.length === 0 || !canMake) return;
@@ -629,7 +842,9 @@ const InteriorTrain = {
             av.cont.scale.set(slot.sc * (av.cont.scale.x || 1));
             if (slot.dim) av.cont.alpha = (av.cont.alpha || 1) * 0.85;
             this._passengersCont.addChild(av.cont);
-            this._paxAvatars.push({ cont: av.cont, baseX: slot.px, baseY: slot.py, idx });
+            this._paxAvatars.push({ cont: av.cont, baseX: slot.px, baseY: slot.py, idx, m });
+            // Register for track-follow (Interior._findTrackedAvatar reads avatarPool).
+            if (this.avatarPool) this.avatarPool.set(m.id, { cont: av.cont, m });
         });
     },
 
@@ -665,8 +880,18 @@ const InteriorTrain = {
         const stationLabel = atStation ? this.STATION_LABELS[atStation] : null;
         const nextLabel = nextStationId ? this.STATION_LABELS[nextStationId] : null;
         const showStation = !!(isWaiting && stationLabel);
+        const stationBld = atStation && G.bldById ? G.bldById[atStation] : null;
+        const stationCx = stationBld ? stationBld.x + stationBld.w / 2 : null;
 
-        this._drawEnv(this._scroll, showStation, L.theme);
+        // Only over-draw the world wider than the viewport while the track-follow
+        // camera is actually zoomed in on a rider (or easing back out) — otherwise
+        // the scene sits at scale 1 and [0,W] is all that's visible, so we skip the
+        // extra ~half-screen of skyline/earth each frame and keep the framerate up.
+        const tracked = G.tracking && this.avatarPool && this.avatarPool.has(G.tracking.id);
+        const easing = this.scene && this.scene._cameraEngaged;
+        L.ext = (tracked || easing) ? Math.round(L.W * 0.55) : 0;
+
+        this._drawEnv(this._scroll, showStation, L.theme, showStation ? stationCx : null);
 
         // Head / tail lights — exterior convention (dir>0 → left red, right green)
         let dir = t.dir || Math.sign((t.targetX || 0) - t.x) || 1;
@@ -735,6 +960,8 @@ const InteriorTrain = {
         this._paxSig = null;
         this._visiblePax = 0;
         this._totalPax = 0;
+        if (this.avatarPool) this.avatarPool.clear();
+        this.avatarPool = null;
         this._passengersCont = null;
         this._doorL = null;
         this._doorR = null;
