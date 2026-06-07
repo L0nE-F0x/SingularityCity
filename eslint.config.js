@@ -68,6 +68,7 @@ export default [
                 btoa: 'readonly',
                 Blob: 'readonly',
                 FileReader: 'readonly',
+                MediaRecorder: 'readonly',
                 FormData: 'readonly',
                 DOMParser: 'readonly',
                 MutationObserver: 'readonly',
@@ -174,6 +175,23 @@ export default [
                 InteriorMetroStation: 'writable', // Metro station interior
                 InteriorTrain: 'writable', // Train "interior" — real-world camera cutaway
                 Kardashev: 'writable', // Kardashev compute scale
+                AlignmentForest: 'writable', // Alignment Forest zone
+                InteriorAlignment: 'writable', // Alignment Forest interior
+                EmbassyRow: 'writable', // Embassy Row zone
+                EmbassyQuarter: 'writable', // Embassy Quarter zone
+                InteriorEmbassy: 'writable', // Embassy interior
+                InteriorAmbassadorRes: 'writable', // Ambassador residence interior
+                Quests: 'writable', // Quest / objective system
+                Shadows: 'writable', // Entity shadow renderer
+                HNBlimps: 'writable', // Hacker News headline blimps
+                HumanAvatar: 'writable', // Generic human avatar builder
+                CrowdSeparation: 'writable', // Crowd separation steering
+                Underground: 'writable', // Underground strata constants
+                NewsReactivity: 'writable', // News-driven city reactions
+                CitizenOfDay: 'writable', // Daily featured citizen
+                DailyBriefing: 'writable', // Daily briefing video summary
+                Terminal: 'writable', // In-app terminal
+                enterCity: 'writable', // Landing → city boot handler
 
                 // Data / constants declared at top level across many files
                 BLDS: 'writable',

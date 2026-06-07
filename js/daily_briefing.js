@@ -56,7 +56,12 @@ window.DailyBriefing = (function() {
         // UI
         stopBtnEl: null,
         // Persistence
-        lastChecked: 0
+        lastChecked: 0,
+        // Set when the user closes the prompt with × — suppresses the auto
+        // re-prompt for the rest of this session (Skip Today persists across
+        // reloads; × is just "not now"). Without this the prompt re-appeared
+        // every 5s because dismissPrompt() saves no state.
+        dismissedSession: false
     };
 
     const LS_BRIEF_KEY = 'sc_briefing_v1';     // { generatedDate, skippedDate }
@@ -157,7 +162,10 @@ window.DailyBriefing = (function() {
         requestAnimationFrame(() => host.classList.add('sc-bp-in'));
         STATE.promptEl = host;
 
-        host.querySelector('.sc-bp-close').onclick = dismissPrompt;
+        host.querySelector('.sc-bp-close').onclick = () => {
+            STATE.dismissedSession = true;   // don't nag again until reload
+            dismissPrompt();
+        };
         host.querySelector('.sc-bp-skip').onclick = () => {
             saveBriefState({ skippedDate: utcDateString() });
             dismissPrompt();
@@ -725,6 +733,7 @@ window.DailyBriefing = (function() {
     function maybeShowPrompt() {
         if (typeof G === 'undefined' || !G.app) return;   // wait for boot
         if (STATE.promptEl) return;                        // already shown
+        if (STATE.dismissedSession) return;                // user closed it this session
         const today = utcDateString();
         const brief = loadBriefState();
         if (brief.generatedDate === today) return;         // already generated today

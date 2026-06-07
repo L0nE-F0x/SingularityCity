@@ -935,6 +935,17 @@ const G = {
         }
     },
 
+    // Resolve a live train object (e.g. refs._ridingTrain) back to its Entities key
+    // ('trainWest'…'trainLongevity') so it can be passed to enterTrainFocus().
+    _trainKeyOf(trainObj) {
+        if (!trainObj || typeof Entities === 'undefined') return null;
+        const keys = ['trainWest', 'trainEast', 'trainMid', 'trainDC', 'trainLongevity'];
+        for (const k of keys) {
+            if (Entities[k] === trainObj) return k;
+        }
+        return null;
+    },
+
     // ═══════════════════════════════════════════════
     //   CAMERA TRACKING SYSTEM
     // ═══════════════════════════════════════════════
@@ -973,6 +984,11 @@ const G = {
     },
     
     stopTracking() {
+        // If we boarded a train as part of this track, drop the cutaway too so the
+        // user isn't left in a "GET OFF TRAIN" cutaway with no active tracking.
+        if (this.tracking && this.tracking._trainFollow && this.trainFocus) {
+            this.exitTrainFocus();
+        }
         this.tracking = null;
         this._transitioning = false;
 
@@ -1143,6 +1159,37 @@ const G = {
         if (this.tracking.type === 'model') {
             const refs = G.charRefs[this.tracking.id];
             if (!refs) return;
+
+            // ── Metro RIDING → real-world train-focus cutaway (NOT the station
+            //    interior). A riding model is physically on a moving train between
+            //    stations, so projecting it into a station platform centres the
+            //    camera on the avatar at track level surrounded by black trackbed/
+            //    void. Instead board the real car: enterTrainFocus keeps G.world
+            //    visible, zooms onto the actual train and slices its near wall off,
+            //    so the real tunnel/city/other riders all show in place. ──
+            const ridingTrainKey =
+                (refs._metroState === 'riding') ? this._trainKeyOf(refs._ridingTrain) : null;
+            if (ridingTrainKey) {
+                if (this.trainFocus !== ridingTrainKey) {
+                    this.enterTrainFocus(ridingTrainKey);   // also exits any active building interior
+                }
+                this.tracking._trainFollow = true;
+                this.tracking._lastBld = null;
+                // Keep the activity label fresh while riding (the early return below
+                // skips the periodic refresh at the end of updateTracking).
+                if (G.tick % 30 === 0) {
+                    const el = document.getElementById('trackActivity');
+                    if (el) el.textContent = this._getTrackingActivity();
+                }
+                return;
+            }
+            // Left the train (arrived / boarding the next leg) — drop the cutaway so
+            // the station-interior follow below can take over for entering/exiting.
+            if (this.tracking._trainFollow) {
+                if (this.trainFocus) this.exitTrainFocus();
+                this.tracking._trainFollow = false;
+            }
+
             entityBld = refs.bld; // null if on street, building id if inside
 
             // Metro tracking: when the entity is in a metro state, pretend they're
