@@ -1611,11 +1611,21 @@ Respond with ONLY minified JSON, no markdown:
     // broken for them — a genuinely-released new flagship (e.g. GPT-5.5 right after
     // GPT-5.4) gets rejected until an aggregator catches up. For these families we
     // allow a bounded forward step above the floor: real incremental releases pass,
-    // but absurd hallucinations ("GPT-9", "Claude 8") are still rejected. Open-weight
-    // families stay STRICT (they self-heal from HF/OpenRouter within hours).
+    // but absurd hallucinations ("GPT-9", "Claude 8") are still rejected.
     _frontierForwardTolerance: {
         'gpt': 1.0, 'claude': 1.0, 'gemini': 1.0, 'grok': 1.0
     },
+
+    // Open-weight families were previously STRICT (tol 0) on the assumption they
+    // "self-heal from HF/OpenRouter within hours". In practice the Chinese open
+    // labs (glm/minimax/qwen/deepseek/kimi/hunyuan/step/…) lag the Western
+    // aggregators too, so brand-new real releases (e.g. GLM 5.1 when the floor is
+    // 5, Devstral 2 when the floor is 1.5) get filtered AND eventually purged
+    // before the cap auto-raises. A smaller forward step than the frontier closes
+    // that gap: a real X.1/X.5 increment passes, but a full jump (GLM 7, Qwen 6)
+    // is still rejected as a hallucination until an aggregator confirms it. This
+    // is NOT a frozen ceiling — _maxKnownVersions still auto-raises from live data.
+    _openWeightForwardTolerance: 0.5,
 
     // Family → known producing lab(s). Used to validate that "Cohere Command R+" really
     // is a Cohere model (lab matches family) vs a Nous-Hermes finetune of Llama (lab mismatch).
@@ -1798,9 +1808,11 @@ Respond with ONLY minified JSON, no markdown:
             const result = this._extractVersionNear(name, family);
             if (!result.found) continue;
             detectedFamily = family;
-            const tol = this._frontierForwardTolerance[family] || 0;
+            const tol = this._frontierForwardTolerance[family] != null
+                ? this._frontierForwardTolerance[family]
+                : this._openWeightForwardTolerance;
             if (result.max != null && result.max > maxVer + tol) {
-                return { ok: false, reason: `Version ${result.max} exceeds max known ${family} version ${maxVer}${tol ? ` (+${tol} frontier tolerance)` : ''}` };
+                return { ok: false, reason: `Version ${result.max} exceeds max known ${family} version ${maxVer}${tol ? ` (+${tol} forward tolerance)` : ''}` };
             }
         }
 
