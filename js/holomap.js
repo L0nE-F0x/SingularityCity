@@ -143,6 +143,29 @@ const Holomap = {
         return c;
     },
 
+    // Lab brand colours can be near-black (e.g. xAI's black), which vanishes
+    // against the #04040e holomap void — the nebula's additive glow contributes
+    // nothing and the panel/label text is unreadable. Lift any colour below a
+    // luminance floor toward soft slate-white, proportional to how dark it is.
+    // Generic (not xAI-specific) so any future dark lab stays legible too.
+    displayHex(c) {
+        var hex = this.cleanHex(c);
+        if (hex.charAt(0) !== '#' || hex.length !== 7) return hex;   // skip rgb()/hsl()/malformed
+        var r = parseInt(hex.substr(1, 2), 16),
+            g = parseInt(hex.substr(3, 2), 16),
+            b = parseInt(hex.substr(5, 2), 16);
+        var lum = 0.299 * r + 0.587 * g + 0.114 * b;   // perceived brightness 0..255
+        var MIN = 130;
+        if (lum >= MIN) return hex;
+        // Blend toward #e2e8f0; t=0 at the floor, →0.9 for pure black (keeps a hint).
+        var t = Math.min(0.9, (MIN - lum) / MIN);
+        r = Math.round(r + (226 - r) * t);
+        g = Math.round(g + (232 - g) * t);
+        b = Math.round(b + (240 - b) * t);
+        var hx = function (v) { return ('0' + (v & 0xff).toString(16)).slice(-2); };
+        return '#' + hx(r) + hx(g) + hx(b);
+    },
+
     getStageForModel(m) {
         const rel = m.rel || m.released;
         const ret = m.ret || m.retired;
@@ -394,7 +417,7 @@ const Holomap = {
             );
             self.galaxyGroup.add(n.group);
 
-            var cHex = self.cleanHex(n.lab.color);
+            var cHex = self.displayHex(n.lab.color);
 
             // Nebula glow clouds — scale to model count
             var cloudCount = Math.min(6, 2 + Math.floor(n.modelCount / 5));
@@ -495,7 +518,7 @@ const Holomap = {
                 self.orbitAngles[m.id] = pidx * 2.399963; // golden angle
             }
             var orbitSpeed = retired ? 0 : (isFrontier ? 0 : (0.0008 + (m.id.length % 5) * 0.0003));
-            var cHex = self.cleanHex((LABS[m.lab] || { color: '#888888' }).color);
+            var cHex = self.displayHex((LABS[m.lab] || { color: '#888888' }).color);
             var cInt = parseInt(cHex.replace('#',''), 16);
 
             // Star group
@@ -666,7 +689,7 @@ const Holomap = {
         }
         var m = s.m, lab = LABS[m.lab] || { name:'?', color:'#888' };
         var bm = BM[m.id] || {}, stg = this.getStageForModel(m);
-        var avg = avgBM(m.id), cHex = this.cleanHex(lab.color);
+        var avg = avgBM(m.id), cHex = this.displayHex(lab.color);
 
         var h = '<button class="holo-panel-x" onclick="Holomap.closeInfo()">✕</button>';
         h += '<div class="holo-panel-top"><div class="holo-panel-name" style="color:'+cHex+'">'+(m.name||m.id)+'</div>';
