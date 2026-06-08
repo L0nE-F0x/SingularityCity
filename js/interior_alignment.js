@@ -495,6 +495,7 @@ const InteriorAlignment = {
             g.beginFill(0x2a1a0e);
             g.drawRect(ax - 2, ay + 10, 4, 3); g.drawRect(ax + 26, ay + 10, 4, 3);
             g.endFill();
+            UI.tip(g, 'Armchair');
             this.scene.addChild(g);
             return g;
         };
@@ -509,6 +510,7 @@ const InteriorAlignment = {
             // Book on top
             g.beginFill(0x1e3a8a); g.drawRect(tx + 4, ty - 3, 10, 3); g.endFill();
             g.beginFill(0xfbbf24); g.drawRect(tx + 4, ty - 3, 10, 1); g.endFill();
+            UI.tip(g, 'Side Table');
             this.scene.addChild(g);
         };
         drawSideTable(fpX - 52, groundBot - 16);
@@ -538,6 +540,7 @@ const InteriorAlignment = {
                     bkx += bw + 1;
                 }
             }
+            UI.tip(g, 'Bookshelf');
             this.scene.addChild(g);
         };
         const shelfGap = Math.max(20, (cabinW / 2 - fpW / 2 - 80) / 2);
@@ -565,6 +568,7 @@ const InteriorAlignment = {
             g.endFill();
             // Sill
             g.beginFill(0x3a2818); g.drawRect(wx - 4, wy + wh, ww + 8, 3); g.endFill();
+            UI.tip(g, 'Window');
             this.scene.addChild(g);
         };
         // Loft-level windows

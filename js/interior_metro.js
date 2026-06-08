@@ -238,7 +238,7 @@ const InteriorMetroStation = {
             tm.endFill();
             tm.x = 80 + i * 80;
             tm.y = hallBottom - 54;
-            this.scene.addChild(tm);
+            UI.tip(tm, 'Ticket Machine'); this.scene.addChild(tm);
         }
 
         // Turnstile row
@@ -255,7 +255,7 @@ const InteriorMetroStation = {
             ts.endFill();
             ts.x = W * 0.35 + i * 36;
             ts.y = hallBottom - 34;
-            this.scene.addChild(ts);
+            UI.tip(ts, 'Turnstile'); this.scene.addChild(ts);
         }
 
         // ─── EARTH/BEDROCK flanking the glass elevator shaft ───
@@ -550,7 +550,7 @@ const InteriorMetroStation = {
             bench.endFill();
             bench.x = bx;
             bench.y = platFloorY - 12;
-            this.scene.addChild(bench);
+            UI.tip(bench, 'Bench'); this.scene.addChild(bench);
         }
 
         // ─── Trash cans ───
@@ -562,7 +562,7 @@ const InteriorMetroStation = {
             trash.beginFill(0x64748b);
             trash.drawRect(tx - 6, platFloorY - 14, 12, 2);
             trash.endFill();
-            this.scene.addChild(trash);
+            UI.tip(trash, 'Trash Can'); this.scene.addChild(trash);
         }
 
         // Store platform anchors

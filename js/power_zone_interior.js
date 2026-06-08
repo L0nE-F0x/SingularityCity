@@ -130,6 +130,7 @@ const InteriorPower = {
     _drawFloorProps(c, sx, bw, pY, fy, fh, floorName, col, bldId) {
         const fn = floorName.toLowerCase();
         const g = new PIXI.Graphics(); g.eventMode = 'none';
+        UI.tip(g, floorName, 'Power plant floor');
 
         if (fn.includes('control')) {
             // Control room: monitor wall, desks, operator chairs

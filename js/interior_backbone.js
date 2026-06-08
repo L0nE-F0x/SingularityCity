@@ -186,6 +186,13 @@ const InteriorBackbone = {
     _drawFloorProps(c, sx, bw, pY, fy, fh, floorName, col, bldId) {
         const fn = floorName.toLowerCase();
         const g = new PIXI.Graphics(); g.eventMode = 'none';
+        let _t = floorName;
+        if (fn.includes('war room') || fn.includes('monitoring')) _t = 'Monitoring Wall';
+        else if (fn.includes('peering') || fn.includes('meet-me') || fn.includes('cross-connect')) _t = 'Peering Racks';
+        else if (fn.includes('cable vault') || fn.includes('amplifier')) _t = 'Cable Vault';
+        else if (fn.includes('cache') || fn.includes('edge compute') || fn.includes('server')) _t = 'Edge Servers';
+        else if (fn.includes('dish') || fn.includes('tracking') || fn.includes('antenna')) _t = 'Satellite Dishes';
+        UI.tip(g, _t, 'Backbone equipment');
 
         if (fn.includes('war room') || fn.includes('monitoring')) {
             // Wall of screens
@@ -392,6 +399,7 @@ const InteriorBackbone = {
         g.beginFill(col, 0.45); g.drawRect(x + 38, y - 22, 14, 6); g.endFill();
         g.beginFill(0xfbbf24); g.drawRect(x + 8, y - 18, 8, 6); g.endFill();
         g.beginFill(0xffffff, 0.6); g.drawRect(x + 9, y - 17, 6, 4); g.endFill();
+        UI.tip(g, 'Reception Desk');
         c.addChild(g);
     },
 

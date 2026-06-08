@@ -239,6 +239,10 @@ const UI = {
     // its own name. Hover is pointer-only — skipped on touch.
     tip(obj, title, sub) {
       if (!obj || window.isMobile || obj._tipT || obj.destroyed) return obj;
+      // Skip anything that's already an interactive entity (NPC/avatar/clickable
+      // with its own hover) — its own tooltip/handler wins. Lets area-level
+      // include-maps wrap orchestrators that also spawn NPCs without clobbering.
+      if (obj.listenerCount && obj.listenerCount('pointerover') > 0) return obj;
       obj._tipT = title;
       obj._tipS = sub || '';
       obj.eventMode = 'static';
@@ -270,17 +274,26 @@ const UI = {
                 .trim();
     },
 
-    // Wrap every drawXxx(container, …) method on a module so the display
-    // objects it appends get auto-tagged. One-shot per method (idempotent).
+    // Wrap prop-drawing methods on a module so the display objects they append
+    // get auto-tagged. One-shot per method (idempotent). Two modes:
+    //   • default — scan every drawXxx(container,…) method, label via overrides
+    //     or a humanized name (used by the shared res/city/space prop libs).
+    //   • include — an explicit { methodName: {title,sub} | "sub" } map, for
+    //     bespoke interiors whose leaf-prop helpers are named freely (e.g.
+    //     InteriorDC._rack). Only the listed methods are wrapped.
     autoTipModule(mod, opts = {}) {
       if (!mod || window.isMobile) return;
       const overrides = opts.overrides || {};
       const exclude = new Set(opts.exclude || []);
-      for (const key of Object.keys(mod)) {
-        if (!/^draw[A-Z]/.test(key) || exclude.has(key)) continue;
+      const include = opts.include || null;
+      const keys = include
+        ? Object.keys(include)
+        : Object.keys(mod).filter(k => /^draw[A-Z]/.test(k) && !exclude.has(k));
+      for (const key of keys) {
         const fn = mod[key];
         if (typeof fn !== 'function' || fn._tipWrapped) continue;
-        const meta = overrides[key];
+        const raw = include ? include[key] : overrides[key];
+        const meta = typeof raw === 'string' ? { sub: raw } : raw;
         const title = (meta && meta.title) || UI._humanizeDraw(key);
         let sub = (meta && meta.sub) || '';
         // Drop a sub that just repeats the title (e.g. "Hammock / Hammock").
@@ -461,6 +474,137 @@ const UI = {
       if (typeof InteriorRes !== 'undefined') UI.autoTipModule(InteriorRes, { overrides, exclude: structural });
       if (typeof InteriorCity !== 'undefined') UI.autoTipModule(InteriorCity, { overrides, exclude: structural });
       if (typeof SpaceInterior !== 'undefined') UI.autoTipModule(SpaceInterior, { overrides, exclude: structural });
+
+      // ── Bespoke interiors: explicit include-maps of leaf-prop helpers ──
+      // (these modules build props via freely-named private methods, so we
+      // list the prop helpers by name; orchestrators / _lbl / _npc omitted.)
+      if (typeof InteriorDC !== 'undefined') UI.autoTipModule(InteriorDC, { include: {
+        _rack:  { title: 'Server Rack', sub: 'GPU compute' },
+        _noc:   { title: 'Network Operations Center', sub: 'Monitoring wall' },
+        _gate:  { title: 'Security Gate', sub: 'Access control' },
+        _recep: { title: 'Reception Desk' },
+        _ups:   { title: 'UPS Battery', sub: 'Backup power' },
+        _gen:   { title: 'Backup Generator' },
+        _litho: { title: 'EUV Lithography', sub: 'Chip patterning' },
+        _wafer: { title: 'Wafer Handling', sub: 'QC station' },
+        _etch:  { title: 'Etch / Deposition', sub: 'Process chamber' },
+        _tank:  { title: 'Chemical Tank' },
+        _scaff: { title: 'Scaffolding', sub: 'Under construction' },
+        _pipes: { title: 'Cooling Pipes' },
+        _cond:  { title: 'Power Conduit' },
+      } });
+      if (typeof UniversityInterior !== 'undefined') UI.autoTipModule(UniversityInterior, { include: {
+        _chalkboard: { title: 'Chalkboard' },
+        _podium:     { title: 'Lecture Podium' },
+        _whiteboard: { title: 'Whiteboard' },
+        _studyTable: { title: 'Study Table' },
+        _workstation:{ title: 'Workstation' },
+        _frontDesk:  { title: 'Front Desk' },
+        _noticeBoard:{ title: 'Notice Board' },
+        _bookshelf:  { title: 'Bookshelf' },
+        _readingDesk:{ title: 'Reading Desk' },
+        _checkoutDesk:{ title: 'Checkout Desk' },
+        _dormRoom:   { title: 'Dorm Room' },
+        _couch:      { title: 'Couch' },
+        _vendingMachine:{ title: 'Vending Machine' },
+        _tv:         { title: 'TV' },
+        _labBench:   { title: 'Lab Bench' },
+        _oscilloscope:{ title: 'Oscilloscope' },
+        _rack:       { title: 'Server Rack' },
+        _pipes:      { title: 'Pipes' },
+        _deskWithMonitor:{ title: 'Desk', sub: 'Workstation' },
+        _fileCabinet:{ title: 'File Cabinet' },
+        _docBox:     { title: 'Document Box' },
+        _secureShelf:{ title: 'Secure Shelf' },
+        _glassCase:  { title: 'Display Case' },
+        _washer:     { title: 'Washer' },
+        _crate:      { title: 'Crate' },
+        _spareParts: { title: 'Spare Parts' },
+      } });
+      if (typeof InteriorLegacy !== 'undefined') UI.autoTipModule(InteriorLegacy, { include: {
+        _welcomeDesk:   { title: 'Welcome Desk' },
+        _velvetRope:    { title: 'Velvet Rope' },
+        _infoKiosk:     { title: 'Info Kiosk' },
+        _giftShop:      { title: 'Gift Shop' },
+        _exhibitCase:   { title: 'Exhibit Case' },
+        _infoPlaque:    { title: 'Info Plaque' },
+        _timelineMarker:{ title: 'Timeline Marker' },
+        _displayPanel:  { title: 'Display Panel' },
+        _portrait:      { title: 'Portrait' },
+        _emptyFrame:    { title: 'Empty Frame' },
+        _memorialTorch: { title: 'Memorial Torch' },
+        _oldServer:     { title: 'Legacy Server' },
+        _fileCabinet:   { title: 'File Cabinet' },
+        _dustyCrate:    { title: 'Dusty Crate' },
+      } });
+      if (typeof InteriorVCRow !== 'undefined') UI.autoTipModule(InteriorVCRow, { include: {
+        // leaf props (specific) — win over the area labels below via first-tag
+        _monitor:      { title: 'Monitor' },
+        _plant:        { title: 'Plant' },
+        _bookshelf:    { title: 'Bookshelf' },
+        _wallScreen:   { title: 'Wall Screen' },
+        _coffeeMachine:{ title: 'Coffee Machine' },
+        // area orchestrators (everything else they draw gets the room name)
+        _drawReception:     { title: 'Reception' },
+        _drawDealRoom:      { title: 'Deal Room' },
+        _drawPartnerOffices:{ title: 'Partner Office' },
+        _drawFundOps:       { title: 'Fund Operations' },
+        _drawRooftopLounge: { title: 'Rooftop Lounge' },
+        _drawAnalytics:     { title: 'Analytics Floor' },
+        _drawTradingFloor:  { title: 'Trading Floor' },
+        _drawCoworking:     { title: 'Coworking Space' },
+        _drawPitchStage:    { title: 'Pitch Stage' },
+        _drawVault:         { title: 'Vault' },
+        _drawLegal:         { title: 'Legal Office' },
+        _drawBoardroom:     { title: 'Boardroom' },
+        _drawExecutive:     { title: 'Executive Suite' },
+        _drawBasement:      { title: 'Basement' },
+      } });
+      if (typeof InteriorBar !== 'undefined') UI.autoTipModule(InteriorBar, { include: {
+        _drawMainBar: { title: 'Main Bar' },
+        _drawKaraoke: { title: 'Karaoke Stage' },
+        _drawVIP:     { title: 'VIP Lounge' },
+        _drawCellar:  { title: 'Wine Cellar' },
+        _drawTable:   { title: 'Table' },
+      } });
+      if (typeof InteriorBlackMarket !== 'undefined') UI.autoTipModule(InteriorBlackMarket, { include: {
+        _drawTrading: { title: 'Trading Floor' },
+        _drawHacker:  { title: 'Hacker Den' },
+        _drawVault:   { title: 'Vault' },
+        _drawTunnel:  { title: 'Smuggling Tunnel' },
+      } });
+      if (typeof CourtInterior !== 'undefined') UI.autoTipModule(CourtInterior, { include: {
+        _drawSenateF:     { title: 'Senate Floor' },
+        _drawSenateBase:  { title: 'Senate Archives' },
+        _drawHearingF:    { title: 'Hearing Room' },
+        _drawHearingBase: { title: 'Hearing Archives' },
+      } });
+      if (typeof ConferenceInterior !== 'undefined') UI.autoTipModule(ConferenceInterior, { include: {
+        _drawKeynoteHall:   { title: 'Keynote Hall' },
+        _drawPosterSession: { title: 'Poster Session' },
+        _drawDemoBooths:    { title: 'Demo Booth' },
+        _drawRegistration:  { title: 'Registration Desk' },
+        _drawBasement:      { title: 'Equipment Room' },
+      } });
+      if (typeof InteriorNPC !== 'undefined') UI.autoTipModule(InteriorNPC, { include: {
+        _drawFoyer:      { title: 'Lobby' },
+        _drawApartments: { title: 'Apartment' },
+        _drawBasement:   { title: 'Basement Storage' },
+      } });
+      if (typeof InteriorAmbassadorRes !== 'undefined') UI.autoTipModule(InteriorAmbassadorRes, { include: {
+        _drawFloorProps:         { title: 'Residence Furnishing' },
+        _drawOrnamental:         { title: 'Ornament' },
+        _drawSleepingAmbassador: { title: 'Ambassador', sub: 'Sleeping' },
+      } });
+      if (typeof InteriorLongevity !== 'undefined') UI.autoTipModule(InteriorLongevity, { include: {
+        _buildFloorProps:  { title: 'Lab Equipment' },
+        _drawReceptionDesk:{ title: 'Reception Desk' },
+      } });
+      if (typeof InteriorEmbassy !== 'undefined') UI.autoTipModule(InteriorEmbassy, { include: {
+        _drawPalm:             { title: 'Palm Tree' },
+        _drawCountrySilhouette:{ title: 'National Emblem' },
+        _drawFloorProps:       { title: 'Embassy Furnishing' },
+      } });
     },
 
     addToCompare(id) {

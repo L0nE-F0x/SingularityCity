@@ -269,7 +269,7 @@ const InteriorRobotics = {
                 }
                 rack.x = sx + 15 + i * ((bw - 30) / 6);
                 rack.y = fy + 10;
-                cont.addChild(rack);
+                UI.tip(rack, 'Parts Rack', 'Chassis & components'); cont.addChild(rack);
             }
             // Forklift
             const fl = new PIXI.Graphics();
@@ -289,7 +289,7 @@ const InteriorRobotics = {
             fl.endFill();
             fl.x = sx + bw * 0.55;
             fl.y = fy + fh - 38;
-            cont.addChild(fl);
+            UI.tip(fl, 'Forklift'); cont.addChild(fl);
         } else if (bldId === 'robotics_testing') {
             // Crash-test pit — padded walls, dummies, impact sled
             // Padded walls
@@ -311,7 +311,7 @@ const InteriorRobotics = {
                 track.lineTo(sx + 12 + i * ((bw - 24) / 20) + 6, fy + fh - 17);
             }
             track.lineStyle(0);
-            cont.addChild(track);
+            UI.tip(track, 'Impact Track'); cont.addChild(track);
             // Crash dummy robots in various poses
             for (let i = 0; i < 4; i++) {
                 const d = new PIXI.Graphics();
@@ -330,7 +330,7 @@ const InteriorRobotics = {
                 d.rotation = (i - 2) * 0.15;
                 d.x = sx + 30 + i * ((bw - 60) / 4);
                 d.y = fy + fh - 46;
-                cont.addChild(d);
+                UI.tip(d, 'Crash-Test Dummy'); cont.addChild(d);
             }
             // Impact sled
             const sled = new PIXI.Graphics();
@@ -342,7 +342,7 @@ const InteriorRobotics = {
             sled.endFill();
             sled.x = sx + 10;
             sled.y = fy + fh - 22;
-            cont.addChild(sled);
+            UI.tip(sled, 'Impact Sled'); cont.addChild(sled);
         } else if (bldId === 'robotics_deploy') {
             // Shipping dock — loading bay doors, pallets stacked with shrink-wrapped robots, truck rear
             // Roll-up door sections at back wall
@@ -355,7 +355,7 @@ const InteriorRobotics = {
             door.lineStyle(2, 0x10b981, 0.4);
             door.drawRect(sx + 12, fy + 6, bw * 0.45 + 6, 40);
             door.lineStyle(0);
-            cont.addChild(door);
+            UI.tip(door, 'Loading Bay Door'); cont.addChild(door);
             // Truck rear backed into dock
             const truck = new PIXI.Graphics();
             truck.beginFill(0x1e293b);
@@ -368,7 +368,7 @@ const InteriorRobotics = {
             truck.drawCircle(sx + bw * 0.65, fy + fh - 14, 5);
             truck.drawCircle(sx + bw * 0.88, fy + fh - 14, 5);
             truck.endFill();
-            cont.addChild(truck);
+            UI.tip(truck, 'Delivery Truck'); cont.addChild(truck);
             // Pallets of shrink-wrapped robots waiting to load
             for (let i = 0; i < 4; i++) {
                 const p = new PIXI.Graphics();
@@ -387,7 +387,7 @@ const InteriorRobotics = {
                 p.endFill();
                 p.x = sx + 18 + i * 44;
                 p.y = fy + fh - 34;
-                cont.addChild(p);
+                UI.tip(p, 'Pallet', 'Shrink-wrapped robots'); cont.addChild(p);
             }
         } else if (bldId === 'robotics_rd') {
             // Prototype graveyard — stacked failed prototypes, shelves of spare parts, whiteboard with sketches
@@ -403,7 +403,7 @@ const InteriorRobotics = {
             wb.lineStyle(0);
             wb.x = sx + 12;
             wb.y = fy + 10;
-            cont.addChild(wb);
+            UI.tip(wb, 'Whiteboard'); cont.addChild(wb);
             // Dismantled prototypes piled up
             for (let i = 0; i < 5; i++) {
                 const proto = new PIXI.Graphics();
@@ -429,7 +429,7 @@ const InteriorRobotics = {
                 proto.rotation = tilt;
                 proto.x = sx + 110 + i * 36;
                 proto.y = fy + fh - 44;
-                cont.addChild(proto);
+                UI.tip(proto, 'Scrapped Prototype'); cont.addChild(proto);
             }
             // Spare parts shelves at far right
             for (let shelf = 0; shelf < 3; shelf++) {
@@ -445,7 +445,7 @@ const InteriorRobotics = {
                 }
                 sh.x = sx + bw - 90;
                 sh.y = fy + 18 + shelf * 16;
-                cont.addChild(sh);
+                UI.tip(sh, 'Spare Parts Shelf'); cont.addChild(sh);
             }
         }
     },
@@ -658,6 +658,17 @@ const InteriorRobotics = {
             }
         }
 
+        let _propTip = floorName;
+        if (fn.includes('chassis')) _propTip = 'Welding Robots';
+        else if (fn.includes('motor')) _propTip = 'Motor Test Rigs';
+        else if (fn.includes('brain') || fn.includes('upload')) _propTip = 'AI Upload Servers';
+        else if (fn.includes('calibration')) _propTip = 'Laser Calibration Grid';
+        else if (fn.includes('finished') || fn.includes('goods')) _propTip = 'Finished Robots';
+        else if (fn.includes('walk test') || fn.includes('obstacle')) _propTip = 'Obstacle Course';
+        else if (fn.includes('loading') || fn.includes('packaging')) _propTip = 'Crates & Pallets';
+        else if (fn.includes('actuator') || fn.includes('sensor') || fn.includes('morphology') || fn.includes('embodied')) _propTip = 'Sensor Lab Benches';
+        else if (fn.includes('qa') || fn.includes('check')) _propTip = 'QA Checkpoints';
+        if (typeof UI !== 'undefined') UI.tip(g, _propTip, 'Factory floor');
         cont.addChild(g);
     },
 
@@ -688,6 +699,7 @@ const InteriorRobotics = {
         g.beginFill(col, 0.45); g.drawRect(x + 38, y - 22, 14, 6); g.endFill();
         g.beginFill(0xfbbf24); g.drawRect(x + 8, y - 18, 8, 6); g.endFill();
         g.beginFill(0xffffff, 0.6); g.drawRect(x + 9, y - 17, 6, 4); g.endFill();
+        if (typeof UI !== 'undefined') UI.tip(g, 'Reception Desk');
         c.addChild(g);
     },
 

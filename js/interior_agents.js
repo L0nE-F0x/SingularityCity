@@ -196,12 +196,14 @@ const InteriorAgents = {
         // Clipboard
         g.beginFill(0xfbbf24); g.drawRect(x + 8, y - 18, 8, 6); g.endFill();
         g.beginFill(0xffffff, 0.6); g.drawRect(x + 9, y - 17, 6, 4); g.endFill();
+        UI.tip(g, 'Reception Desk');
         c.addChild(g);
     },
 
     _drawFloorProps(c, sx, bw, pY, fy, fh, floorName, col, bldId) {
         const fn = floorName.toLowerCase();
         const g = new PIXI.Graphics(); g.eventMode = 'none';
+        UI.tip(g, floorName, 'Agent ops floor');
 
         if (fn.includes('command bridge') || fn.includes('ops deck') || fn.includes('swarm control')) {
             // ── Wall of agent status screens ──
