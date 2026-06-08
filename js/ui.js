@@ -226,7 +226,243 @@ const UI = {
     hideTooltip() {
       document.getElementById('gameTooltip').style.display = 'none';
     },
-  
+
+    // ─────────────────────────────────────────────────────────────
+    //   HOVER TOOLTIPS FOR INTERIOR PROPS  (v476)
+    //   Blanket-label the furniture / items inside buildings. Any
+    //   display object tagged here shows a floating label on hover.
+    // ─────────────────────────────────────────────────────────────
+    _tipHideT: null,
+
+    // Tag a single display object with a hover tooltip. First (most
+    // specific) label wins, so a prop drawn inside another prop keeps
+    // its own name. Hover is pointer-only — skipped on touch.
+    tip(obj, title, sub) {
+      if (!obj || window.isMobile || obj._tipT || obj.destroyed) return obj;
+      obj._tipT = title;
+      obj._tipS = sub || '';
+      obj.eventMode = 'static';
+      obj.cursor = 'help';
+      obj.on('pointerover', UI._tipOver);
+      obj.on('pointerout', UI._tipOut);
+      return obj;
+    },
+
+    _tipOver(e) {
+      clearTimeout(UI._tipHideT);
+      const o = e.currentTarget;
+      if (o && o._tipT) UI.showTooltip(e, o._tipT, o._tipS);
+    },
+
+    _tipOut() {
+      // Props are built from several stacked graphics (base + glow). Moving
+      // between them fires out→over back-to-back; defer the hide a hair so
+      // the tooltip doesn't flicker, and let the next over() cancel it.
+      clearTimeout(UI._tipHideT);
+      UI._tipHideT = setTimeout(() => UI.hideTooltip(), 45);
+    },
+
+    // "drawServerRack" → "Server Rack", "drawGPUShowcase" → "GPU Showcase".
+    _humanizeDraw(key) {
+      return key.replace(/^draw/, '')
+                .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+                .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+                .trim();
+    },
+
+    // Wrap every drawXxx(container, …) method on a module so the display
+    // objects it appends get auto-tagged. One-shot per method (idempotent).
+    autoTipModule(mod, opts = {}) {
+      if (!mod || window.isMobile) return;
+      const overrides = opts.overrides || {};
+      const exclude = new Set(opts.exclude || []);
+      for (const key of Object.keys(mod)) {
+        if (!/^draw[A-Z]/.test(key) || exclude.has(key)) continue;
+        const fn = mod[key];
+        if (typeof fn !== 'function' || fn._tipWrapped) continue;
+        const meta = overrides[key];
+        const title = (meta && meta.title) || UI._humanizeDraw(key);
+        let sub = (meta && meta.sub) || '';
+        // Drop a sub that just repeats the title (e.g. "Hammock / Hammock").
+        if (sub && sub.toLowerCase() === title.toLowerCase()) sub = '';
+        const wrapped = function (...args) {
+          const c = args[0];
+          // Only instrument calls that draw into a plain Container. Functions
+          // that paint into a shared Graphics (walls/floors) get c as a
+          // Graphics → skipped, since their shapes can't be hovered apart.
+          const isCont = c && c instanceof PIXI.Container && !(c instanceof PIXI.Graphics);
+          const before = isCont ? c.children.length : -1;
+          const r = fn.apply(this, args);
+          if (isCont && title) {
+            for (let i = before; i < c.children.length; i++) UI.tip(c.children[i], title, sub);
+          }
+          return r;
+        };
+        wrapped._tipWrapped = true;
+        mod[key] = wrapped;
+      }
+    },
+
+    // Auto-instrument the interior modules once. Runs lazily the first time
+    // any interior is opened (all modules are loaded by then).
+    initInteriorTips() {
+      if (this._interiorTipsReady || window.isMobile) return;
+      this._interiorTipsReady = true;
+
+      // sub-text per prop. value = "sub string"  OR  { title, sub }.
+      const L = {
+        // compute / servers
+        drawServerRack:        'GPU compute rack',
+        drawLiquidCooledServer:'Liquid-cooled training node',
+        drawOpenServerRack:    'Open server rack',
+        drawServerCabinet:     'Server cabinet',
+        drawCommRack:          'Comms rack',
+        drawServerWeights:     { title: 'Server Weights', sub: 'Rack-shaped gym weights' },
+        drawDataVat:           'Cooling data vat',
+        drawBrokenServer:      'Decommissioned server',
+        drawGPUShowcase:       'Flagship GPU on display',
+        // desks / work
+        drawReceptionDesk:     'Lobby front desk',
+        drawBossDesk:          'Executive desk',
+        drawStandingDesk:      'Standing desk',
+        drawDeskAndPC:         { title: 'Workstation', sub: 'Desk + PC' },
+        drawHackathonDesk:     'Hackathon desk',
+        drawCubicleDivider:    'Cubicle divider',
+        drawCollaborationPod:  'Collaboration pod',
+        drawCommandCenter:     'Command center',
+        drawWhiteboard:        'Research whiteboard',
+        drawChair:             'Chair',
+        // home / living
+        drawBed:               'Bed',
+        drawLuxuryBed:         'Luxury bed',
+        drawNightstand:        'Bedside table',
+        drawKitchen:           'Kitchen',
+        drawKitchenOven:       'Kitchen oven',
+        drawCookingStation:    'Chef cooking station',
+        drawPrepStation:       'Prep station',
+        drawLivingArea:        'Living room',
+        drawCouches:           'Lounge seating',
+        drawShower:            'Bathroom',
+        drawFireplace:         'Fireplace',
+        drawHomeBar:           'Home bar',
+        drawWineRack:          'Wine collection',
+        drawBookshelfWall:     { title: 'Bookshelf', sub: '' },
+        drawGrandPiano:        'Grand piano',
+        drawWaterCooler:       'Water cooler',
+        drawCoffeeMachine:     'Coffee machine',
+        // plants / nature
+        drawPottedPlant:       'Houseplant',
+        drawPlant:             'Plant',
+        drawIndoorGarden:      'Indoor garden',
+        drawGardenPlanter:     'Garden planter',
+        drawBonsaiTree:        'Bonsai tree',
+        drawBiophilicDivider:  'Living plant divider',
+        drawTree:              'Tree',
+        drawFrontierPine:      'Pine tree',
+        drawLuxuryRedwood:     'Redwood tree',
+        drawZenGardenProp:     { title: 'Zen Garden', sub: 'Raked sand & stones' },
+        drawGeckoTerrarium:    'Pet gecko terrarium',
+        // fitness / sport
+        drawGymCorner:         'Home gym',
+        drawTreadmill:         'Treadmill',
+        drawWeightBench:       'Weight bench',
+        drawPunchingBag:       'Punching bag',
+        drawYogaMat:           'Yoga mat',
+        drawExerciseBall:      'Exercise ball',
+        drawMMAOctagon:        'MMA octagon',
+        drawRing:              'Boxing ring',
+        drawPoolTable:         'Pool table',
+        drawPingPongTable:     'Ping-pong table',
+        drawPuttingGreen:      'Putting green',
+        drawCricketBat:        'Cricket bat',
+        drawSurfboard:         'Surfboard',
+        drawLockerRow:         'Lockers',
+        drawSteamRoom:         'Steam room',
+        drawIndoorPool:        'Indoor pool',
+        drawPoolLane:          'Lap pool',
+        drawInfinityHotTub:    'Infinity hot tub',
+        // leisure / luxury
+        drawArcadeCabinet:     'Retro arcade cabinet',
+        drawBeanbagAndHandheld:{ title: 'Gaming Beanbag', sub: 'Beanbag + handheld' },
+        drawVRHeadsetDisplay:  'VR headset stand',
+        drawTelescope:         'Telescope',
+        drawBinoculars:        'Viewing binoculars',
+        drawMeditationCorner:  'Meditation corner',
+        drawTrophyCase:        'Trophy case',
+        drawTrophy:            'Trophy',
+        drawLeatherJacketDisplay:'Leather jacket display',
+        drawScrollArt:         'Hanging scroll art',
+        drawRocketModel:       'Rocket model',
+        drawExecutiveLounge:   'Executive lounge',
+        drawLoungeNook:        'Lounge nook',
+        drawPrivateOasis:      'Private oasis',
+        drawWhiskeyBar:        'Whiskey bar',
+        drawFirePitLounge:     'Fire-pit lounge',
+        drawHammock:           'Hammock',
+        // outdoor / campus
+        drawLake:              'Lake',
+        drawTent:              'Camping tent',
+        drawCampfire:          'Campfire',
+        drawGlampingDome:      'Glamping dome',
+        drawPicnicTable:       'Picnic table',
+        drawOutdoorTable:      'Outdoor table',
+        drawBlanketArea:       'Picnic blanket',
+        drawStringLights:      'String lights',
+        drawHelipad:           'Helipad',
+        drawStarlinkDish:      'Starlink dish',
+        drawCar:               'Parked car',
+        drawViewingPlatform:   'Viewing platform',
+        drawCountdownBoard:    'Countdown board',
+        drawScoreboard:        'Scoreboard',
+        drawLeaderboard:       'Leaderboard',
+        drawJumbotron:         'Jumbotron',
+        drawAudienceStands:    'Audience stands',
+        drawCommentaryDesk:    'Commentary desk',
+        drawContributorWall:   'Contributor wall',
+        drawMirrorWall:        'Mirror wall',
+        drawSpotlight:         'Spotlight',
+        // café / canteen
+        drawCanteen:           'Staff canteen',
+        drawCafeTable:         { title: 'Café Table', sub: '' },
+        drawCafeCouch:         { title: 'Café Couch', sub: '' },
+        drawCafeBookshelf:     { title: 'Café Bookshelf', sub: '' },
+        drawBaristaCounter:    'Barista counter',
+        drawBarStool:          'Bar stool',
+        drawPastryDisplay:     'Pastry display',
+        drawMenuBoard:         'Menu board',
+        drawVendingMachine:    'Vending machine',
+        drawRefreshmentStand:  'Refreshment stand',
+        drawTombstone:         'Retired-model tombstone',
+        // space
+        drawBigScreen:         'Mission display',
+        drawOperatorDesk:      'Operator console',
+        drawOverheadCrane:     'Overhead crane',
+        drawRocketBay:         'Rocket assembly bay',
+        drawCleanRoom:         'Clean room',
+        drawPayloadRack:       'Payload rack',
+        drawOrbitalDisplay:    'Orbital tracking display',
+        drawTrackingConsole:   'Tracking console',
+        drawLaunchConsole:     'Launch console',
+        drawCountdownClock:    'Launch countdown',
+        drawObservationWindow: 'Observation window',
+      };
+      // normalise: allow plain-string values to mean "sub only".
+      const overrides = {};
+      for (const k in L) overrides[k] = typeof L[k] === 'string' ? { sub: L[k] } : L[k];
+
+      // Structural pieces (walls/floors/roof/silo/doors) and avatars are not
+      // "items" — never tag them.
+      const structural = [
+        'drawRoof', 'drawRoomInterior', 'drawNegativeSpaceWall',
+        'drawBasementInterior', 'drawSiloInterior', 'drawDoor',
+        'drawAvatar', 'drawNPC',
+      ];
+
+      if (typeof InteriorRes !== 'undefined') UI.autoTipModule(InteriorRes, { overrides, exclude: structural });
+      if (typeof InteriorCity !== 'undefined') UI.autoTipModule(InteriorCity, { overrides, exclude: structural });
+      if (typeof SpaceInterior !== 'undefined') UI.autoTipModule(SpaceInterior, { overrides, exclude: structural });
+    },
+
     addToCompare(id) {
       if (this.compareList.includes(id)) return;
       if (this.compareList.length >= 4) this.compareList.shift();

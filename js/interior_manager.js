@@ -9,7 +9,10 @@ const Interior = {
 
     build(bld, layer) {
         this.layer = layer;
-        
+
+        // Auto-tag interior furniture/items with hover tooltips (one-shot).
+        if (typeof UI !== 'undefined' && UI.initInteriorTips) UI.initInteriorTips();
+
         // Route to the appropriate interior module
         if (bld.id.startsWith('res_') || bld.id.startsWith('house_')) {
             this.activeModule = InteriorRes;
