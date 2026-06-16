@@ -288,6 +288,11 @@ const G = {
             techStartX = CourtData.positionZone(techStartX);
         }
 
+        // ─── AI DETENTION CENTER: Right next to the courthouse — summoned, then jailed ───
+        if (typeof JailData !== 'undefined' && JailData.BLDS.length > 0) {
+            techStartX = JailData.positionZone(techStartX);
+        }
+
         // ─── CENTRAL PARK: Green space between Court and Tech District ───
         if (typeof CityPark !== 'undefined' && CityPark.BLDS.length > 0) {
             techStartX = CityPark.positionZone(techStartX);
@@ -503,6 +508,7 @@ const G = {
         addZB('university', BLDS.filter(b => b.id.startsWith('uni_')));
         if (fCamp) addZB('forest', [fCamp]);
         addZB('court', BLDS.filter(b => b.id.startsWith('court_')));
+        addZB('jail', BLDS.filter(b => b.id === 'ai_jail'));
         addZB('city_park', BLDS.filter(b => b.id === 'city_park'));
         addZB('vcrow', BLDS.filter(b => b.id.startsWith('vcrow_')));
         if (nBar) addZB('nightlife', [nBar]);
@@ -1455,6 +1461,7 @@ const G = {
       if (typeof Seasonal !== 'undefined') Seasonal.init();
       if (typeof UniversityData !== 'undefined') UniversityData.init();
       if (typeof CourtData !== 'undefined') CourtData.init();
+      if (typeof JailData !== 'undefined') JailData.init();
       if (typeof CityPark !== 'undefined') CityPark.init();
       if (typeof AIIndex !== 'undefined') AIIndex.init();
       if (typeof BlackMarket !== 'undefined') BlackMarket.init();
@@ -2053,6 +2060,7 @@ const G = {
               UniversityData: typeof UniversityData !== 'undefined' ? UniversityData : null,
               UniversityEnv: typeof UniversityEnv !== 'undefined' ? UniversityEnv : null,
               CourtData: typeof CourtData !== 'undefined' ? CourtData : null,
+              JailData: typeof JailData !== 'undefined' ? JailData : null,
               CityPark: typeof CityPark !== 'undefined' ? CityPark : null,
               BirdFlocks: typeof BirdFlocks !== 'undefined' ? BirdFlocks : null,
               HNBlimps: typeof HNBlimps !== 'undefined' ? HNBlimps : null,
@@ -2101,6 +2109,7 @@ const G = {
       if (S.UniversityData) S.UniversityData.update();
       if (S.UniversityEnv) S.UniversityEnv.update();
       if (S.CourtData) S.CourtData.update();
+      if (S.JailData) S.JailData.update();
       if (S.CityPark) S.CityPark.update();
       if (this.tick % 2 === 0 && S.BirdFlocks) S.BirdFlocks.update(); // every other frame for perf
       if (S.HNBlimps) S.HNBlimps.update();

@@ -2212,6 +2212,10 @@ const Environment = {
           // Court buildings rendered by dedicated module
           CourtEnv.buildBuilding(gfx, b, h);
 
+        } else if (b.type === 'jail' && typeof JailEnv !== 'undefined') {
+          // AI Detention Center rendered by dedicated module
+          JailEnv.buildBuilding(gfx, b, h);
+
         } else if (b.id === 'convention_center' && typeof ConferenceEnv !== 'undefined') {
           // Conference center rendered by dedicated module
           ConferenceEnv.buildBuilding(gfx, b, h);

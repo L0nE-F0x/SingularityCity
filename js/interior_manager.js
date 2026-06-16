@@ -38,6 +38,8 @@ const Interior = {
             this.activeModule = UniversityInterior;
         } else if (bld.type === 'court' && typeof CourtInterior !== 'undefined') {
             this.activeModule = CourtInterior;
+        } else if (bld.type === 'jail' && typeof JailInterior !== 'undefined') {
+            this.activeModule = JailInterior;
         } else if (bld.id === 'convention_center' && typeof ConferenceInterior !== 'undefined') {
             this.activeModule = ConferenceInterior;
         } else if (bld.type === 'vcrow' && typeof InteriorVCRow !== 'undefined') {

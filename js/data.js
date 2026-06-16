@@ -242,6 +242,14 @@ function getAct(stg, dp, seed, model) {
   const resId = 'res_' + region;
 
   if (stg === 'retired') return { act: 'sleep', bid: 'graveyard' };
+
+  // AI Detention Center: a government-suspended/banned model is held here permanently
+  // (overrides school, work, court — a ban does not keep office hours). Detection is
+  // driven by JailData.refreshBanned() flagging model._jailed from real, sourced news.
+  if (model._jailed && G.bldById && G.bldById['ai_jail']) {
+      return { act: 'jailed', bid: 'ai_jail' };
+  }
+
   // University campus: rumored/baby/kid route to campus during daytime
   const hasUni = typeof UniversityData !== 'undefined' && G.bldById['uni_main'];
   const hasMuseum = G.bldById && G.bldById['bld_1'];

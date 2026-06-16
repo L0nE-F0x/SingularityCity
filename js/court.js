@@ -85,7 +85,7 @@ const CourtData = {
         // Only summon adult models (not babies/kids/retired)
         const eligible = G.models.filter(m => {
             const stg = getStage(m.rel, m.ret, m.phase);
-            return stg === 'adult' && !m._summoned;
+            return stg === 'adult' && !m._summoned && !m._jailed;
         });
         if (eligible.length === 0) return;
 

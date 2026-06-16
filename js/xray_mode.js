@@ -713,6 +713,7 @@ const XRayMode = {
         if (bld.type === 'longevity') return 0x22c55e;
         if (bld.type === 'backbone') return 0x06b6d4;
         if (bld.type === 'court') return 0xef4444;
+        if (bld.type === 'jail') return 0xea580c;
         if (bld.type === 'university') return 0x8b5cf6;
         if (bld.type === 'launchpad') return 0xf97316;
         if (bld.id.startsWith('dc_') || bld.id.startsWith('fab_')) return 0x3b82f6;

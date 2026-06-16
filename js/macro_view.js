@@ -15,6 +15,7 @@ const MacroView = {
         { id: 'university', emoji: '🎓', label: 'AI Academy',       match: b => b.type === 'university' },
         { id: 'pine',       emoji: '🌲', label: 'Pine Reserve',     match: b => b.id === 'forest_0' },
         { id: 'court',      emoji: '🏛️', label: 'AI Court',         match: b => b.type === 'court' },
+        { id: 'jail',       emoji: '🔒', label: 'Detention Center', match: b => b.type === 'jail' },
         { id: 'city_park',  emoji: '🌳', label: 'Central Park',    match: b => b.id === 'city_park' },
         { id: 'tech',       emoji: '🏢', label: 'Tech District',    match: b => b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') && b.id !== 'metro_res' && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && b.id !== 'metro_dc' && b.type !== 'university' && b.type !== 'court' && b.type !== 'park' && b.type !== 'convention_center' },
         { id: 'midline',    emoji: '🚇', label: 'Central Line',     match: b => b.id === 'metro_mid' },
@@ -129,7 +130,7 @@ const MacroView = {
         const scale = cW / Math.max(this.cityW, 1);
 
         // Draw zone color bands
-        const zoneColors = { port: '#0a1628', space: '#c2956a', frontier: '#1b4332', npc_housing: '#1a2030', res: '#334155', pine: '#1b4332', tech: '#2a2a42', metro: '#475569', nightlife: '#1a0a2e', backbone: '#0a1525', silicon: '#1b4332', estates: '#3d2514', power: '#1a1a10' };
+        const zoneColors = { port: '#0a1628', space: '#c2956a', frontier: '#1b4332', npc_housing: '#1a2030', res: '#334155', pine: '#1b4332', tech: '#2a2a42', metro: '#475569', nightlife: '#1a0a2e', backbone: '#0a1525', silicon: '#1b4332', estates: '#3d2514', power: '#1a1a10', court: '#2a1828', jail: '#2a1a14' };
 
         this._mmZones.forEach(z => {
             let minX = Infinity, maxX = 0;
