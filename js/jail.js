@@ -4,12 +4,21 @@
    news events (not a frozen version ceiling) — see JailData.BANS. Detainees are the actual citizens
    matched by those rules; the interior shows them behind bars in their lab colours.
 
+   Bans are JURISDICTION-SCOPED to the viewer (detected via Netlify geo + a timezone/locale fallback):
+     • 'global' suspensions appear for every visitor.
+     • country-scoped bans only appear when you are connecting from an affected country.
+   Detention is also DYNAMIC: refreshBanned() re-evaluates every few seconds, and any rule with an
+   `until` date auto-expires — so when a restriction lifts (or a rule is removed), the model simply
+   walks back out of the jail to its home lab on the next scan. No manual cleanup.
+
    Real-world events seeding the first ban list (June 2026):
-     • Claude Fable 5 + Mythos 5 — forced offline ~3 days after the Jun 9 2026 launch by a U.S.
-       government export directive.  https://techcrunch.com/2026/06/09/
-     • DeepSeek — banned from government devices in Australia, Czechia, Germany and several U.S.
-       states over data-security concerns.  https://cybernews.com/security/us-lawmakers-bill-bans-chinese-ai-models-across-federal-agencies/
-     • Grok — access blocked nationwide by a Turkish court order.
+     • Claude Fable 5 + Mythos 5 — forced offline WORLDWIDE ~3 days after the Jun 9 2026 launch by a
+       U.S. government export directive (Anthropic suspended access for everyone). → scope: global.
+       https://techcrunch.com/2026/06/09/
+     • DeepSeek — banned from GOVERNMENT DEVICES in Australia, Czechia, Germany and several U.S.
+       states over data-security concerns. → scope: those countries.
+       https://cybernews.com/security/us-lawmakers-bill-bans-chinese-ai-models-across-federal-agencies/
+     • Grok — access blocked nationwide by a Turkish court order. → scope: Turkey only.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const JailData = {
@@ -21,20 +30,25 @@ const JailData = {
 
     // Each rule flags matching citizens as detained. Keep these sourced + dated. They describe real
     // government actions against a model line — NOT an arbitrary "do not exceed vX" ceiling.
+    //   scope: 'global'                  → applies to every viewer.
+    //   scope: { countries: ['TR',...] } → applies only when the viewer is in one of those countries.
+    //   until: 'YYYY-MM-DD'              → optional; rule auto-expires after this date (model is released).
     BANS: [
         {
             id: 'anthropic_export',
             label: 'U.S. Export Control',
             authority: 'United States',
-            reason: 'Forced offline by a U.S. government export directive three days after launch (Jun 2026).',
+            scope: 'global', // Anthropic pulled Fable/Mythos worldwide — detained for everyone.
+            reason: 'Forced offline worldwide by a U.S. government export directive ~3 days after launch (Jun 2026).',
             source: 'https://techcrunch.com/2026/06/09/',
             test: (m) => /\b(fable|mythos)\b/i.test(m.name || '') || /(fable|mythos)/i.test(m.id || ''),
         },
         {
             id: 'deepseek_govt',
-            label: 'Multi-Government Device Ban',
-            authority: 'Australia · Czechia · Germany · U.S. states',
-            reason: 'Banned from government devices across Australia, Czechia, Germany and several U.S. states over data-security concerns.',
+            label: 'Government Device Ban',
+            authority: 'AU · CZ · DE · U.S. states',
+            scope: { countries: ['AU', 'CZ', 'DE', 'US'] }, // gov-device bans — jurisdictional, not global.
+            reason: 'Banned from government devices in your jurisdiction over data-security concerns.',
             source: 'https://cybernews.com/security/us-lawmakers-bill-bans-chinese-ai-models-across-federal-agencies/',
             test: (m) => m.lab === 'deepseek' || /deepseek/i.test(m.name || ''),
         },
@@ -42,11 +56,29 @@ const JailData = {
             id: 'grok_turkey',
             label: 'Turkey (Court Order)',
             authority: 'Republic of Türkiye',
+            scope: { countries: ['TR'] }, // a single-country court block — only Turkish viewers see it.
             reason: 'Access blocked nationwide by a Turkish court order.',
             source: 'https://www.computerweekly.com/news/366619153/US-lawmakers-move-to-ban-DeepSeek-AI-tool',
             test: (m) => /\bgrok\b/i.test(m.name || '') || /grok/i.test(m.id || ''),
         },
     ],
+
+    // Minimal IANA-timezone → ISO-3166 country map, covering the jurisdictions our rules care about
+    // (plus a few common ones). Used as an offline/local fallback before the Netlify geo lookup lands.
+    _TZ_COUNTRY: {
+        'Europe/Istanbul': 'TR',
+        'Europe/Berlin': 'DE', 'Europe/Busingen': 'DE',
+        'Europe/Prague': 'CZ',
+        'Australia/Sydney': 'AU', 'Australia/Melbourne': 'AU', 'Australia/Brisbane': 'AU',
+        'Australia/Perth': 'AU', 'Australia/Adelaide': 'AU', 'Australia/Hobart': 'AU', 'Australia/Darwin': 'AU',
+        'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US', 'America/Los_Angeles': 'US',
+        'America/Phoenix': 'US', 'America/Detroit': 'US', 'America/Anchorage': 'US', 'Pacific/Honolulu': 'US',
+        'Asia/Jakarta': 'ID', 'Asia/Makassar': 'ID', 'Asia/Jayapura': 'ID', 'Asia/Pontianak': 'ID',
+        'Europe/London': 'GB', 'Europe/Paris': 'FR', 'Asia/Tokyo': 'JP', 'Asia/Shanghai': 'CN', 'Asia/Kolkata': 'IN',
+    },
+
+    viewerCountry: null,    // ISO-2 of the current visitor (null = unknown → only global bans apply)
+    viewerResolved: false,
 
     CHAT_MSGS: [
         'My appeal is pending... ⛓️',
@@ -77,8 +109,49 @@ const JailData = {
         if (typeof ACTS !== 'undefined' && !ACTS.jailed) {
             ACTS.jailed = { label: 'Detained', verb: 'detained', icon: '⛓️', indoor: true };
         }
+        this.detectViewer();   // figure out which jurisdiction the visitor is in
         this.refreshBanned();
         this._nextRefresh = (typeof G !== 'undefined' ? G.tick : 0) + 300;
+    },
+
+    // ── Viewer geolocation ──────────────────────────────────────────────────────────────────────
+    // Instant local heuristic first (timezone/locale — works offline & on localhost), then a
+    // best-effort same-origin upgrade via the Netlify geo function (accurate IP country in prod).
+    detectViewer() {
+        this.viewerCountry = this._countryFromLocale();
+        this.viewerResolved = true;
+        try {
+            fetch('/api/geo', { signal: AbortSignal.timeout(4000) })
+                .then(r => (r && r.ok) ? r.json() : null)
+                .then(d => {
+                    if (d && d.country) {
+                        const c = String(d.country).toUpperCase();
+                        if (c !== this.viewerCountry) { this.viewerCountry = c; this.refreshBanned(); }
+                    }
+                })
+                .catch(() => { /* offline / local / 404 → keep the heuristic */ });
+        } catch (_e) { /* AbortSignal.timeout unsupported → keep the heuristic */ }
+    },
+
+    _countryFromLocale() {
+        try {
+            const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone) || '';
+            if (this._TZ_COUNTRY[tz]) return this._TZ_COUNTRY[tz];
+            if (/^Australia\//.test(tz)) return 'AU';
+            if (/^America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix|Detroit|Anchorage|Indiana)/.test(tz)) return 'US';
+            const langs = (typeof navigator !== 'undefined') ? (navigator.languages || [navigator.language || '']) : [''];
+            for (const l of langs) { const m = /[-_]([A-Za-z]{2})$/.exec(l || ''); if (m) return m[1].toUpperCase(); }
+        } catch (_e) { /* ignore */ }
+        return null;
+    },
+
+    // Does this rule apply to the current viewer right now? (geo scope + time expiry)
+    _ruleAppliesToViewer(rule) {
+        if (rule.until && Date.now() > Date.parse(rule.until)) return false; // restriction lifted
+        const scope = rule.scope || 'global';
+        if (scope === 'global') return true;
+        if (scope.countries) return !!this.viewerCountry && scope.countries.indexOf(this.viewerCountry) !== -1;
+        return true;
     },
 
     positionZone(startX) {
@@ -95,16 +168,16 @@ const JailData = {
         if (typeof G === 'undefined' || !G.models) return;
         const jailHere = G.bldById && G.bldById['ai_jail'];
         const jailed = [];
+        const newlyJailed = [];
         G.models.forEach(m => {
             let hit = null;
             for (let i = 0; i < this.BANS.length; i++) {
-                try { if (this.BANS[i].test(m)) { hit = this.BANS[i]; break; } } catch (_e) { /* ignore bad rule */ }
+                const rule = this.BANS[i];
+                if (!this._ruleAppliesToViewer(rule)) continue;     // wrong jurisdiction / expired
+                try { if (rule.test(m)) { hit = rule; break; } } catch (_e) { /* ignore bad rule */ }
             }
             if (hit && jailHere) {
-                if (!m._jailed && this._everScanned && typeof UI !== 'undefined') {
-                    if (UI.addToast) UI.addToast(`⛓️ ${m.name} detained — suspended by ${hit.label}`);
-                    if (UI.addLog) UI.addLog(`🔒 ${m.name} transferred to the AI Detention Center (${hit.authority}).`);
-                }
+                if (!m._jailed) newlyJailed.push({ name: m.name, label: hit.label, authority: hit.authority });
                 m._jailed = true;
                 m._jailRuleId = hit.id;
                 m._jailReason = hit.reason;
@@ -118,6 +191,20 @@ const JailData = {
             }
         });
         this._jailedIds = jailed;
+
+        // Announce new detentions — but only after the first silent scan, and batched so a geo
+        // upgrade that flips a whole roster at once doesn't spam dozens of toasts.
+        if (this._everScanned && newlyJailed.length > 0 && typeof UI !== 'undefined') {
+            if (newlyJailed.length <= 3) {
+                newlyJailed.forEach(n => {
+                    if (UI.addToast) UI.addToast(`⛓️ ${n.name} detained — suspended by ${n.label}`);
+                    if (UI.addLog) UI.addLog(`🔒 ${n.name} transferred to the AI Detention Center (${n.authority}).`);
+                });
+            } else {
+                if (UI.addToast) UI.addToast(`⛓️ ${newlyJailed.length} models detained at the AI Detention Center (${newlyJailed[0].label})`);
+                if (UI.addLog) UI.addLog(`🔒 ${newlyJailed.length} models transferred to the AI Detention Center.`);
+            }
+        }
         this._everScanned = true;
     },
 
@@ -506,6 +593,10 @@ const JailInterior = {
         this._guard(c, sx + 110, pY, 'Warden Unit', 0x64748b);
         const info = new PIXI.Text(total + ' held' + (overflow > 0 ? '  ·  +' + overflow + ' in holding' : ''), { fontFamily: 'JetBrains Mono', fontSize: 8, fill: 0xfca5a5, letterSpacing: 1 });
         info.anchor.set(0.5, 0); info.x = sx + uw / 2; info.y = pY - fh + 26; info.zIndex = 10; c.addChild(info);
+        // Jurisdiction note — makes the geo-scoping visible (count is per-viewer).
+        const vc = (typeof JailData !== 'undefined') ? JailData.viewerCountry : null;
+        const juris = new PIXI.Text('JURISDICTION: ' + (vc || 'GLOBAL ONLY') + '  ·  bans shown apply where you are connecting from', { fontFamily: 'JetBrains Mono', fontSize: 6, fill: 0x94a3b8, letterSpacing: 1 });
+        juris.anchor.set(0.5, 0); juris.x = sx + uw / 2; juris.y = pY - fh + 38; juris.zIndex = 10; c.addChild(juris);
     },
 
     // ═══ CONTROL ROOM (top floor) — monitor wall of ban notices ═══

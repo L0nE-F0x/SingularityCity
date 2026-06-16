@@ -42,6 +42,12 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/geo"
+  to = "/.netlify/functions/geo"
+  status = 200
+  force = true
+
 
 [[headers]]
   for = "/*"
