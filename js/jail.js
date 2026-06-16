@@ -161,9 +161,12 @@ const JailData = {
     //   2. _remoteBans  — optional rows from a Supabase `ai_bans` table → edit detentions with ZERO
     //                     code changes / redeploys. Silently inert if the table doesn't exist.
     //   3. news rules   — derived LIVE from API.regulationNews headlines (a ban verb + a known model
-    //                     line + a jurisdiction). Because they're recomputed each scan, a model is
-    //                     auto-RELEASED the moment the headline rotates out of the feed.
-    NEWS_DERIVED: true,
+    //                     line + a jurisdiction). Off by default: the server-side scheduled function
+    //                     netlify/functions/update-ai-bans.mjs now does this authoritatively (better
+    //                     sources, sub-model precision) and writes the results into the ai_bans table
+    //                     (source #2), so every visitor sees one consistent list. Flip to true to also
+    //                     run the lighter client-side parser as a fallback.
+    NEWS_DERIVED: false,
     _remoteBans: [],
     _remoteTried: false,
 
