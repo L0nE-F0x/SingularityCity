@@ -215,7 +215,10 @@ function buildRows(news, nowISO) {
             source: it.link,
             active: true,
             last_seen: nowISO,
-            ...c.matcher.target,
+            // Always include BOTH target columns (one null) — PostgREST bulk insert (PGRST102)
+            // rejects an array whose objects don't all share the exact same key set.
+            match_lab: c.matcher.target.match_lab || null,
+            match_name: c.matcher.target.match_name || null,
         });
         if (rows.length >= MAX_ROWS) break;
     }
