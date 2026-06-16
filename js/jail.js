@@ -110,6 +110,7 @@ const JailData = {
             ACTS.jailed = { label: 'Detained', verb: 'detained', icon: '⛓️', indoor: true };
         }
         this.detectViewer();   // figure out which jurisdiction the visitor is in
+        this.fetchRemoteBans();// best-effort Supabase ai_bans (zero-code curation); inert if absent
         this.refreshBanned();
         this._nextRefresh = (typeof G !== 'undefined' ? G.tick : 0) + 300;
     },
@@ -154,6 +155,129 @@ const JailData = {
         return true;
     },
 
+    // ── SELF-MAINTAINING BAN SOURCES ─────────────────────────────────────────────────────────────
+    // The detainee list is the union of three sources, evaluated fresh on every scan:
+    //   1. BANS         — the curated, sourced seed rules above (reliable baseline).
+    //   2. _remoteBans  — optional rows from a Supabase `ai_bans` table → edit detentions with ZERO
+    //                     code changes / redeploys. Silently inert if the table doesn't exist.
+    //   3. news rules   — derived LIVE from API.regulationNews headlines (a ban verb + a known model
+    //                     line + a jurisdiction). Because they're recomputed each scan, a model is
+    //                     auto-RELEASED the moment the headline rotates out of the feed.
+    NEWS_DERIVED: true,
+    _remoteBans: [],
+    _remoteTried: false,
+
+    _allRules() {
+        return this.BANS.concat(this._remoteBans || [], this._deriveNewsRules());
+    },
+
+    // EU member states (for "European Union" headlines).
+    _EU: ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'],
+
+    _NEWS_BAN_RE: /\b(ban|bans|banned|banning|block|blocks|blocked|blocking|suspend|suspends|suspended|suspension|restrict|restricts|restricted|outlaw|outlawed|prohibit|prohibited|barred|pulled offline|ordered offline|taken offline|removed from)\b/,
+    // Negation / release signals — if present, do NOT manufacture a ban from this headline.
+    _NEWS_RELEASE_RE: /\b(not banned|won'?t ban|no ban|despite|reject|rejects|rejected|unban|unbanned|lift|lifts|lifted|lifting|overturn|overturned|restore|restored|reinstate|reinstated|allow|allowed|approve|approved|avoid|avoids|avoided|reverse|reversed|appeal)\b/,
+
+    _NEWS_MATCHERS: [
+        { id: 'deepseek', re: /deepseek/, test: (m) => m.lab === 'deepseek' || /deepseek/i.test(m.name || '') },
+        { id: 'grok', re: /\bgrok\b/, test: (m) => m.lab === 'xai' || /grok/i.test(m.name || '') },
+        { id: 'gemini', re: /\bgemini\b/, test: (m) => /gemini/i.test(m.name || '') },
+        { id: 'gpt', re: /\b(chatgpt|gpt-?\d|openai)\b/, test: (m) => m.lab === 'openai' || /\b(gpt|chatgpt)\b/i.test(m.name || '') },
+        { id: 'claude', re: /\bclaude\b/, test: (m) => m.lab === 'anthropic' || /claude/i.test(m.name || '') },
+        { id: 'llama', re: /\bllama\b/, test: (m) => /llama/i.test(m.name || '') },
+        { id: 'qwen', re: /\bqwen\b/, test: (m) => /qwen/i.test(m.name || '') },
+        { id: 'mistral', re: /\bmistral\b/, test: (m) => m.lab === 'mistral' || /mistral/i.test(m.name || '') },
+    ],
+
+    // Country-name → {code,name}. Abbreviations require dots so the words "us"/"eu"/"uk" don't false-match.
+    _COUNTRY_NAMES: [
+        { re: /\bt[uü]rkiye\b|\bturkey\b|\bturkish\b/, code: 'TR', name: 'Turkey' },
+        { re: /\bgermany\b|\bgerman\b/, code: 'DE', name: 'Germany' },
+        { re: /\bczech/, code: 'CZ', name: 'Czechia' },
+        { re: /\baustralia\b|\baustralian\b/, code: 'AU', name: 'Australia' },
+        { re: /\bitaly\b|\bitalian\b/, code: 'IT', name: 'Italy' },
+        { re: /\bfrance\b|\bfrench\b/, code: 'FR', name: 'France' },
+        { re: /\bspain\b|\bspanish\b/, code: 'ES', name: 'Spain' },
+        { re: /\bindia\b|\bindian\b/, code: 'IN', name: 'India' },
+        { re: /\bchina\b|\bchinese\b/, code: 'CN', name: 'China' },
+        { re: /\bcanada\b|\bcanadian\b/, code: 'CA', name: 'Canada' },
+        { re: /\bsouth korea\b|\bkorean\b/, code: 'KR', name: 'South Korea' },
+        { re: /\bunited kingdom\b|\bbritain\b|\bbritish\b|\bu\.k\.\b/, code: 'GB', name: 'United Kingdom' },
+        { re: /\beuropean union\b|\be\.u\.\b/, code: 'EU', name: 'European Union' },
+        { re: /\bunited states\b|\bu\.s\.a?\.?\b|\busa\b|\bamerica\b|\bamerican\b/, code: 'US', name: 'United States' },
+    ],
+
+    // Build ban rules from the live regulation news feed. Recomputed every scan (self-cleaning).
+    _deriveNewsRules() {
+        if (this.NEWS_DERIVED === false) return [];
+        if (typeof API === 'undefined' || !Array.isArray(API.regulationNews) || !API.regulationNews.length) return [];
+        const out = [];
+        const seen = new Set();
+        for (const item of API.regulationNews) {
+            const headline = (item && item.headline) ? String(item.headline) : '';
+            if (!headline) continue;
+            const low = headline.toLowerCase();
+            if (!this._NEWS_BAN_RE.test(low)) continue;        // needs a ban/block/suspension verb
+            if (this._NEWS_RELEASE_RE.test(low)) continue;     // skip negations / lifts / appeals
+            const matcher = this._NEWS_MATCHERS.find(mm => mm.re.test(low));
+            if (!matcher) continue;                            // not about a model line we track
+            // Jurisdiction
+            let scope = null, label = null, code = null;
+            if (/\b(worldwide|globally|global ban|every country|all countries)\b/.test(low)) {
+                scope = 'global'; label = 'Worldwide';
+            } else {
+                const c = this._COUNTRY_NAMES.find(cn => cn.re.test(low));
+                if (c) { scope = (c.code === 'EU') ? { countries: this._EU.slice() } : { countries: [c.code] }; label = c.name; code = c.code; }
+            }
+            if (!scope) continue;                              // no jurisdiction → too ambiguous, skip
+            const key = matcher.id + '|' + (code || 'global');
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push({
+                id: 'news_' + key.replace(/[^a-z0-9]+/gi, '_').toLowerCase(),
+                label: label,
+                authority: label,
+                scope: scope,
+                reason: headline,                 // the real headline drives the detention
+                source: (item && item.url) || null,
+                derived: true,
+                test: matcher.test,
+            });
+        }
+        return out;
+    },
+
+    // Optional: pull editable ban rows from a Supabase `ai_bans` table (zero-code curation).
+    // Columns (all optional but need match_lab or match_name): label, authority, scope (text/jsonb),
+    // until, reason, source, match_lab, match_name (regex). Silently inert if the table is absent.
+    async fetchRemoteBans() {
+        if (this._remoteTried) return;
+        this._remoteTried = true;
+        try {
+            if (typeof API === 'undefined' || !API.supabase) return;
+            const { data, error } = await API.supabase.from('ai_bans').select('*');
+            if (error || !Array.isArray(data)) return; // missing table / RLS → ignore quietly
+            this._remoteBans = data.filter(r => r && (r.match_lab || r.match_name)).map(r => {
+                const lab = r.match_lab ? String(r.match_lab).toLowerCase() : null;
+                let nameRe = null; if (r.match_name) { try { nameRe = new RegExp(r.match_name, 'i'); } catch (_e) { nameRe = null; } }
+                let scope = 'global';
+                if (r.scope) { try { scope = (typeof r.scope === 'string') ? (r.scope === 'global' ? 'global' : JSON.parse(r.scope)) : r.scope; } catch (_e) { scope = 'global'; } }
+                return {
+                    id: 'remote_' + (r.id != null ? r.id : Math.random().toString(36).slice(2)),
+                    label: r.label || r.authority || 'Suspended',
+                    authority: r.authority || r.label || 'Government order',
+                    scope: scope,
+                    until: r.until || null,
+                    reason: r.reason || 'Suspended by government order.',
+                    source: r.source || null,
+                    derived: true,
+                    test: (m) => (!!lab && m.lab === lab) || (!!nameRe && nameRe.test(m.name || '')),
+                };
+            });
+            if (this._remoteBans.length && this.refreshBanned) this.refreshBanned();
+        } catch (_e) { /* offline / no table → seed + news rules still cover us */ }
+    },
+
     positionZone(startX) {
         let cx = startX + 40; // gap after the courthouse — the jail sits right next door
         this.BLDS.forEach(b => {
@@ -169,11 +293,12 @@ const JailData = {
         const jailHere = G.bldById && G.bldById['ai_jail'];
         const jailed = [];
         const newlyJailed = [];
+        const rules = this._allRules();   // seed + Supabase + live-news, computed once per scan
+        const applicable = rules.filter(r => this._ruleAppliesToViewer(r));
         G.models.forEach(m => {
             let hit = null;
-            for (let i = 0; i < this.BANS.length; i++) {
-                const rule = this.BANS[i];
-                if (!this._ruleAppliesToViewer(rule)) continue;     // wrong jurisdiction / expired
+            for (let i = 0; i < applicable.length; i++) {
+                const rule = applicable[i];
                 try { if (rule.test(m)) { hit = rule; break; } } catch (_e) { /* ignore bad rule */ }
             }
             if (hit && jailHere) {
