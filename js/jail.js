@@ -257,7 +257,7 @@ const JailData = {
             if (typeof API === 'undefined' || !API.supabase) return;
             const { data, error } = await API.supabase.from('ai_bans').select('*');
             if (error || !Array.isArray(data)) return; // missing table / RLS → ignore quietly
-            this._remoteBans = data.filter(r => r && (r.match_lab || r.match_name)).map(r => {
+            this._remoteBans = data.filter(r => r && r.active !== false && (r.match_lab || r.match_name)).map(r => {
                 const lab = r.match_lab ? String(r.match_lab).toLowerCase() : null;
                 let nameRe = null; if (r.match_name) { try { nameRe = new RegExp(r.match_name, 'i'); } catch (_e) { nameRe = null; } }
                 let scope = 'global';
