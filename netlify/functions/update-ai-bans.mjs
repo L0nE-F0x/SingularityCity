@@ -35,17 +35,19 @@ const OFFLINE_RE = /\b(order(?:s|ed)?|pull(?:s|ed)?|take[sn]?|took|forc(?:e|es|e
 const RELEASE_RE = /\b(not banned|won'?t ban|no ban|despite|reject|rejects|rejected|unban|unbanned|lift|lifts|lifted|lifting|overturn|overturned|restore|restored|reinstate|reinstated|allow|allowed|approve|approved|avoid|avoids|avoided|reverse|reversed|appeal|appeals)\b/i;
 
 // model token → row target (a lab id to jail wholesale, or a name regex)
+// `origin` = the model's home country. A model is never detained in its own home country
+// (that's almost always an origin reference — "China's DeepSeek …" — not a real domestic ban).
 const MODEL_MATCHERS = [
     // Specific sub-brands first so a headline about one frontier model doesn't jail a whole family.
-    { id: 'fable',    re: /\b(fable|mythos)\b/i, target: { match_name: 'fable|mythos' } },
-    { id: 'deepseek', re: /\bdeepseek\b/i, target: { match_lab: 'deepseek' } },
-    { id: 'grok',     re: /\bgrok\b/i,     target: { match_name: 'grok' } },
-    { id: 'gemini',   re: /\bgemini\b/i,   target: { match_name: 'gemini' } },
-    { id: 'chatgpt',  re: /\b(chatgpt|gpt-?\d)\b/i, target: { match_name: 'gpt' } },
-    { id: 'claude',   re: /\bclaude\b/i,   target: { match_name: 'claude' } },
-    { id: 'llama',    re: /\bllama\b/i,    target: { match_name: 'llama' } },
-    { id: 'qwen',     re: /\bqwen\b/i,     target: { match_name: 'qwen' } },
-    { id: 'mistral',  re: /\bmistral\b/i,  target: { match_name: 'mistral' } },
+    { id: 'fable',    re: /\b(fable|mythos)\b/i, target: { match_name: 'fable|mythos' }, origin: 'US' },
+    { id: 'deepseek', re: /\bdeepseek\b/i, target: { match_lab: 'deepseek' }, origin: 'CN' },
+    { id: 'grok',     re: /\bgrok\b/i,     target: { match_name: 'grok' },    origin: 'US' },
+    { id: 'gemini',   re: /\bgemini\b/i,   target: { match_name: 'gemini' },  origin: 'US' },
+    { id: 'chatgpt',  re: /\b(chatgpt|gpt-?\d)\b/i, target: { match_name: 'gpt' }, origin: 'US' },
+    { id: 'claude',   re: /\bclaude\b/i,   target: { match_name: 'claude' },  origin: 'US' },
+    { id: 'llama',    re: /\bllama\b/i,    target: { match_name: 'llama' },   origin: 'US' },
+    { id: 'qwen',     re: /\bqwen\b/i,     target: { match_name: 'qwen' },    origin: 'CN' },
+    { id: 'mistral',  re: /\bmistral\b/i,  target: { match_name: 'mistral' }, origin: 'FR' },
 ];
 
 const EU = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'];
@@ -81,7 +83,8 @@ function classify(title) {
     if (/\b(worldwide|globally|global ban|every country|all countries)\b/i.test(low)) {
         scope = 'global'; label = 'Worldwide'; code = 'GLOBAL';
     } else {
-        const c = COUNTRIES.find(cn => cn.re.test(low));
+        // First country named that ISN'T the model's home country (skip origin references).
+        const c = COUNTRIES.find(cn => cn.code !== matcher.origin && cn.re.test(low));
         if (c) { scope = (c.code === 'EU') ? JSON.stringify({ countries: EU }) : JSON.stringify({ countries: [c.code] }); label = c.name; code = c.code; }
     }
     if (!scope) return null;                        // no jurisdiction → too ambiguous to act on
@@ -195,6 +198,20 @@ async function deleteStaleBans(cutoffISO) {
     return { deleted: Array.isArray(gone) ? gone.length : 0, error: null };
 }
 
+// Delete specific bot-owned ban_keys (used to enforce the "never in home country" rule and
+// retire rows that should never have been written — without waiting for the staleness TTL).
+async function purgeKeys(keys) {
+    if (!keys.length) return { purged: 0 };
+    const list = keys.map(encodeURIComponent).join(',');
+    const res = await sbFetch(`ai_bans?managed_by=eq.news_bot&ban_key=in.(${list})`, {
+        method: 'DELETE',
+        headers: { Prefer: 'return=representation' },
+    });
+    if (!res.ok) { console.error(`[supabase] purge HTTP ${res.status}: ${await res.text().catch(() => '')}`); return { purged: 0 }; }
+    const gone = await res.json().catch(() => []);
+    return { purged: Array.isArray(gone) ? gone.length : 0 };
+}
+
 // Build the deduped row set from current news.
 function buildRows(news, nowISO) {
     const rows = [];
@@ -242,6 +259,10 @@ export default async (_req) => {
     const up = await upsertBans(rows);
     const cutoff = new Date(Date.now() - STALE_DAYS * 86400000).toISOString();
     const del = await deleteStaleBans(cutoff);
+    // Enforce "no model is detained in its own home country" on existing rows too — purge any
+    // such bot rows immediately (fixes e.g. a 'China's DeepSeek' headline mis-read as a CN ban).
+    const homeKeys = MODEL_MATCHERS.filter(m => m.origin).map(m => `news:${m.id}:${m.origin}`);
+    const purge = await purgeKeys(homeKeys);
 
     const elapsed = Math.round((Date.now() - startedAt) / 100) / 10;
     const summary = {
@@ -250,6 +271,7 @@ export default async (_req) => {
         detected: rows.length,
         written: up.written,
         deletedStale: del.deleted,
+        purgedHomeCountry: purge.purged,
         ...(up.error ? { upsertError: up.error } : {}),
         ...(del.error ? { deleteError: del.error } : {}),
         hint: (up.error || del.error)
