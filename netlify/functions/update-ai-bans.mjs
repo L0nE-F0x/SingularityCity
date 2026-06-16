@@ -166,14 +166,18 @@ async function sbFetch(path, opts) {
 }
 
 async function upsertBans(rows) {
-    if (!rows.length) return { written: 0 };
+    if (!rows.length) return { written: 0, error: null };
     const res = await sbFetch('ai_bans?on_conflict=ban_key', {
         method: 'POST',
         headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
         body: JSON.stringify(rows),
     });
-    if (!res.ok) { console.error(`[supabase] upsert HTTP ${res.status}: ${await res.text().catch(() => '')}`); return { written: 0 }; }
-    return { written: rows.length };
+    if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        console.error(`[supabase] upsert HTTP ${res.status}: ${detail}`);
+        return { written: 0, error: `HTTP ${res.status}: ${detail.slice(0, 400)}` };
+    }
+    return { written: rows.length, error: null };
 }
 
 async function deleteStaleBans(cutoffISO) {
@@ -182,9 +186,13 @@ async function deleteStaleBans(cutoffISO) {
         method: 'DELETE',
         headers: { Prefer: 'return=representation' },
     });
-    if (!res.ok) { console.error(`[supabase] delete HTTP ${res.status}: ${await res.text().catch(() => '')}`); return { deleted: 0 }; }
+    if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        console.error(`[supabase] delete HTTP ${res.status}: ${detail}`);
+        return { deleted: 0, error: `HTTP ${res.status}: ${detail.slice(0, 400)}` };
+    }
     const gone = await res.json().catch(() => []);
-    return { deleted: Array.isArray(gone) ? gone.length : 0 };
+    return { deleted: Array.isArray(gone) ? gone.length : 0, error: null };
 }
 
 // Build the deduped row set from current news.
@@ -228,21 +236,26 @@ export default async (_req) => {
     const nowISO = new Date().toISOString();
     const rows = buildRows(news, nowISO);
 
-    const { written } = await upsertBans(rows);
+    const up = await upsertBans(rows);
     const cutoff = new Date(Date.now() - STALE_DAYS * 86400000).toISOString();
-    const { deleted } = await deleteStaleBans(cutoff);
+    const del = await deleteStaleBans(cutoff);
 
     const elapsed = Math.round((Date.now() - startedAt) / 100) / 10;
     const summary = {
-        ok: true,
+        ok: !up.error && !del.error,
         headlines: news.length,
         detected: rows.length,
-        written,
-        deletedStale: deleted,
+        written: up.written,
+        deletedStale: del.deleted,
+        ...(up.error ? { upsertError: up.error } : {}),
+        ...(del.error ? { deleteError: del.error } : {}),
+        hint: (up.error || del.error)
+            ? "Writes failed — run netlify/functions/sc_ai_bans_schema.sql in the Supabase SQL Editor (the current version, with ban_key/managed_by/last_seen), then re-run this."
+            : undefined,
         bans: rows.map(r => ({ ban_key: r.ban_key, scope: r.scope })),
         elapsedSec: elapsed,
     };
-    console.log(`  ✅ ${news.length} headlines · ${rows.length} bans · ${written} written · ${deleted} expired · ${elapsed}s`);
+    console.log(`  ✅ ${news.length} headlines · ${rows.length} bans · ${up.written} written · ${del.deleted} expired · ${elapsed}s`);
     return new Response(JSON.stringify(summary, null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 
