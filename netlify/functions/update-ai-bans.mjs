@@ -42,7 +42,7 @@ const STATS_RE = /\b(most|least)\s+(frequently|commonly|widely|often|heavily)\b/
 
 // ─── RELEASE CLASSIFIER ──────────────────────────────────────────────────────
 // Strong, past-tense lift verbs only — "releases Grok 5" (a product launch) must NOT count.
-const LIFT_RE = /\b(unban(?:s|ned)?|lift(?:s|ed)?|reinstat(?:e|es|ed)|restor(?:e|es|ed)|overturn(?:s|ed)?|revers(?:e|es|ed)|back online|resum(?:e|es|ed)|ban (?:ends|ended|expires|expired))\b/i;
+const LIFT_RE = /\b(unban(?:s|ned)?|lift(?:s|ed|ing)?|reinstat(?:e|es|ed)|restor(?:e|es|ed)|overturn(?:s|ed)?|revers(?:e|es|ed)|back online|resum(?:e|es|ed)|ban (?:ends|ended|expires|expired))\b/i;
 // Tentative / negated lifts keep the ban standing: "court rejects appeal to lift…", "may overturn…".
 const LIFT_NEG_RE = /\b(reject(?:s|ed)?|declin(?:e|es|ed)|refus(?:e|es|ed)|den(?:y|ies|ied)|won'?t|will not|\bnot\b|no plans|fails? to|urg(?:e|es|ed)|call(?:s|ed)? (?:on|for)|may|might|could|consider(?:s|ing)?|seek(?:s|ing)?|petition)\b/i;
 
@@ -75,6 +75,8 @@ const COUNTRIES = [
     { re: /\bchina\b/i,                 code: 'CN', name: 'China' },    // not 'chinese' (DeepSeek/Qwen origin)
     { re: /\bcanada\b|\bcanadian\b/i,   code: 'CA', name: 'Canada' },
     { re: /\bsouth korea\b|\bkorean\b/i, code: 'KR', name: 'South Korea' },
+    { re: /\bmalaysia\b|\bmalaysian\b/i, code: 'MY', name: 'Malaysia' },   // before ID: "Malaysia and Indonesia…" headlines key on MY
+    { re: /\bindonesia\b|\bindonesian\b/i, code: 'ID', name: 'Indonesia' },
     { re: /\bunited kingdom\b|\bbritain\b|\bbritish\b|\bu\.k\.\b/i, code: 'GB', name: 'United Kingdom' },
     { re: /\beuropean union\b|\be\.u\.\b/i, code: 'EU', name: 'European Union' },
     { re: /\bunited states\b|\busa\b|\bamerica\b|\bu\.s\.a?\.?\b|\bus\s+(?:states?|government|federal|lawmakers?|senate|congress|officials?|regulators?|administration)\b/i, code: 'US', name: 'United States' },
@@ -420,6 +422,7 @@ if (process.argv.includes('--selftest')) {
         ["Anthropic's Fable 5 restored worldwide after US lifts export directive", 'fable:ALL'],
         ["Turkey lifts ban on Grok after xAI compliance deal", 'grok:TR'],
         ["Italy reinstates ChatGPT after OpenAI privacy fixes", 'chatgpt:IT'],
+        ["Indonesia lets Elon Musk's Grok resume, lifting ban over sexualized images", 'grok:ID'], // scoped — must NOT purge other countries
         ["Court rejects appeal to lift DeepSeek ban in Italy", null],       // rejected lift — ban stands
         ["Germany may overturn DeepSeek ban next year", null],              // tentative — ban stands
         ["xAI releases Grok 5 to the public", null],                        // product launch ≠ ban lift

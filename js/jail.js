@@ -197,6 +197,8 @@ const JailData = {
         { re: /\bchina\b|\bchinese\b/, code: 'CN', name: 'China' },
         { re: /\bcanada\b|\bcanadian\b/, code: 'CA', name: 'Canada' },
         { re: /\bsouth korea\b|\bkorean\b/, code: 'KR', name: 'South Korea' },
+        { re: /\bmalaysia\b|\bmalaysian\b/, code: 'MY', name: 'Malaysia' },
+        { re: /\bindonesia\b|\bindonesian\b/, code: 'ID', name: 'Indonesia' },
         { re: /\bunited kingdom\b|\bbritain\b|\bbritish\b|\bu\.k\.\b/, code: 'GB', name: 'United Kingdom' },
         { re: /\beuropean union\b|\be\.u\.\b/, code: 'EU', name: 'European Union' },
         { re: /\bunited states\b|\bu\.s\.a?\.?\b|\busa\b|\bamerica\b|\bamerican\b/, code: 'US', name: 'United States' },
