@@ -1013,6 +1013,10 @@ const UI = {
 
             const refs = G.charRefs[m.id];
             if (refs && refs.bld === b.id) {
+                // Detention Center: only ACTUAL detainees count as inside — a just-released model
+                // may still have refs.bld='ai_jail' for a few ticks while it walks out, and the
+                // panel must match the interior (which renders JailData.getJailedModels()).
+                if (b.id === 'ai_jail' && typeof JailData !== 'undefined' && !JailData.isJailed(m.id)) return;
                 curOcc.push({ m, ai, stg });
             }
           });

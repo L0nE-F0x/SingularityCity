@@ -160,7 +160,9 @@ const JailData = {
     //                     run the lighter client-side parser as a fallback.
     NEWS_DERIVED: false,
     _remoteBans: [],
-    _remoteTried: false,
+    _remoteFetchedAt: -1,          // G.tick of the last successful ai_bans fetch (-1 = never)
+    REMOTE_REFRESH_TICKS: 36000,   // re-pull ai_bans every ~10 min — sessions stay open for days,
+                                   // so releases must reach running clients without a reload
 
     _allRules() {
         return this.BANS.concat(this._remoteBans || [], this._deriveNewsRules());
@@ -247,13 +249,16 @@ const JailData = {
     // Optional: pull editable ban rows from a Supabase `ai_bans` table (zero-code curation).
     // Columns (all optional but need match_lab or match_name): label, authority, scope (text/jsonb),
     // until, reason, source, match_lab, match_name (regex). Silently inert if the table is absent.
+    // Called from init() AND re-polled from update() — never latch on a not-ready Supabase client,
+    // and refresh periodically so a lifted ban releases models in long-running sessions.
     async fetchRemoteBans() {
-        if (this._remoteTried) return;
-        this._remoteTried = true;
+        if (this._remoteInflight) return;
+        this._remoteInflight = true;
         try {
-            if (typeof API === 'undefined' || !API.supabase) return;
+            if (typeof API === 'undefined' || !API.supabase) return; // client not up yet — retry next poll
             const { data, error } = await API.supabase.from('ai_bans').select('*');
-            if (error || !Array.isArray(data)) return; // missing table / RLS → ignore quietly
+            if (error || !Array.isArray(data)) return; // missing table / RLS → ignore quietly, retry later
+            this._remoteFetchedAt = (typeof G !== 'undefined') ? G.tick : 0;
             this._remoteBans = data.filter(r => r && r.active !== false && (r.match_lab || r.match_name)).map(r => {
                 const lab = r.match_lab ? String(r.match_lab).toLowerCase() : null;
                 let nameRe = null; if (r.match_name) { try { nameRe = new RegExp(r.match_name, 'i'); } catch (_e) { nameRe = null; } }
@@ -271,8 +276,10 @@ const JailData = {
                     test: (m) => (!!lab && m.lab === lab) || (!!nameRe && nameRe.test(m.name || '')),
                 };
             });
-            if (this._remoteBans.length && this.refreshBanned) this.refreshBanned();
-        } catch (_e) { /* offline / no table → seed + news rules still cover us */ }
+            // Refresh even when the list shrank to empty — that's how a lifted ban releases models.
+            if (this.refreshBanned) this.refreshBanned();
+        } catch (_e) { /* offline / no table → seed + news rules still cover us; retry next poll */ }
+        finally { this._remoteInflight = false; }
     },
 
     positionZone(startX) {
@@ -310,6 +317,20 @@ const JailData = {
             } else if (m._jailed) {
                 m._jailed = false;
                 m._jailRuleId = m._jailReason = m._jailLabel = m._jailAuthority = m._jailSource = null;
+                // Walk the released model out NOW. Without this its body keeps refs.bld='ai_jail'
+                // until the entity walk-out catches up (act cache 60 ticks, off-screen throttle,
+                // and exits are blocked entirely while the player is viewing this interior) — so
+                // the building info panel kept listing freed models as "Currently Inside".
+                m._cachedTick = 0; // force getAct re-evaluation on the next entity tick
+                const refs = (G.charRefs || {})[m.id];
+                if (refs && refs.bld === 'ai_jail') {
+                    const jb = G.bldById && G.bldById['ai_jail'];
+                    if (refs.c && jb) refs.c.x = jb.x + jb.w / 2;
+                    if (refs.c) refs.c.visible = true;
+                    refs.bld = null;
+                    refs.wantsToLeave = false;
+                    refs._stuckTimer = 0;
+                }
             }
         });
         this._jailedIds = jailed;
@@ -344,6 +365,11 @@ const JailData = {
         if (G.tick >= this._nextRefresh) {
             this.refreshBanned();
             this._nextRefresh = G.tick + 300; // re-scan ~every 5s of sim — models hydrate over time
+            // Remote ai_bans: fetch as soon as the Supabase client is up (init's attempt may have
+            // raced it), then re-poll every ~10 min so releases reach always-open sessions.
+            if (this._remoteFetchedAt < 0 || G.tick - this._remoteFetchedAt >= this.REMOTE_REFRESH_TICKS) {
+                this.fetchRemoteBans();
+            }
         }
     },
 };
