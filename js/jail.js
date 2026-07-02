@@ -12,13 +12,14 @@
    walks back out of the jail to its home lab on the next scan. No manual cleanup.
 
    Real-world events seeding the first ban list (June 2026):
-     • Claude Fable 5 + Mythos 5 — forced offline WORLDWIDE ~3 days after the Jun 9 2026 launch by a
-       U.S. government export directive (Anthropic suspended access for everyone). → scope: global.
-       https://techcrunch.com/2026/06/09/
      • DeepSeek — banned from GOVERNMENT DEVICES in Australia, Czechia, Germany and several U.S.
        states over data-security concerns. → scope: those countries.
        https://cybernews.com/security/us-lawmakers-bill-bans-chinese-ai-models-across-federal-agencies/
      • Grok — access blocked nationwide by a Turkish court order. → scope: Turkey only.
+     • (retired) Claude Fable 5 + Mythos 5 — forced offline worldwide by a U.S. export directive
+       ~3 days after the Jun 9 2026 launch, then RESTORED late June 2026. The seed rule was removed
+       when the ban lifted; live bans now come from the Supabase ai_bans table (news bot), which
+       also detects releases. Lesson: seed rules have no expiry — never seed one without an `until`.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const JailData = {
@@ -34,15 +35,6 @@ const JailData = {
     //   scope: { countries: ['TR',...] } → applies only when the viewer is in one of those countries.
     //   until: 'YYYY-MM-DD'              → optional; rule auto-expires after this date (model is released).
     BANS: [
-        {
-            id: 'anthropic_export',
-            label: 'U.S. Export Control',
-            authority: 'United States',
-            scope: 'global', // Anthropic pulled Fable/Mythos worldwide — detained for everyone.
-            reason: 'Forced offline worldwide by a U.S. government export directive ~3 days after launch (Jun 2026).',
-            source: 'https://techcrunch.com/2026/06/09/',
-            test: (m) => /\b(fable|mythos)\b/i.test(m.name || '') || /(fable|mythos)/i.test(m.id || ''),
-        },
         {
             id: 'deepseek_govt',
             label: 'Government Device Ban',

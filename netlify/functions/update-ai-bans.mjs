@@ -8,6 +8,10 @@
 //     last_seen=now  → the model is detained for visitors in that country.
 //   • DELETES its own rows whose news hasn't reappeared for STALE_DAYS
 //     → the ban is presumed lifted and the model walks back home.
+//   • RELEASE DETECTION: a "lifted / reinstated / restored / overturned" headline
+//     for a model PURGES its ban rows immediately AND suppresses re-upserts from
+//     older ban headlines still inside the news window. (Without this, a lifted
+//     ban kept re-writing itself for weeks — the Fable 5 export-directive bug.)
 // It only ever touches rows it owns (managed_by='news_bot'); hand-added
 // (managed_by='manual') rows are left alone.
 //
@@ -33,6 +37,14 @@ const BAN_RE = /\b(ban|bans|banned|banning|block|blocks|blocked|blocking|suspend
 // "orders / pulled / took / forced <model> offline" — allow a word or two between the verb and "offline".
 const OFFLINE_RE = /\b(order(?:s|ed)?|pull(?:s|ed)?|take[sn]?|took|forc(?:e|es|ed)|knock(?:s|ed)?)\b[\w\s'’]{0,18}\boffline\b/i;
 const RELEASE_RE = /\b(not banned|won'?t ban|no ban|despite|reject|rejects|rejected|unban|unbanned|lift|lifts|lifted|lifting|overturn|overturned|restore|restored|reinstate|reinstated|allow|allowed|approve|approved|avoid|avoids|avoided|reverse|reversed|appeal|appeals)\b/i;
+// Statistical / ranking pieces ("the most frequently restricted chatbot worldwide") are not ban events.
+const STATS_RE = /\b(most|least)\s+(frequently|commonly|widely|often|heavily)\b/i;
+
+// ─── RELEASE CLASSIFIER ──────────────────────────────────────────────────────
+// Strong, past-tense lift verbs only — "releases Grok 5" (a product launch) must NOT count.
+const LIFT_RE = /\b(unban(?:s|ned)?|lift(?:s|ed)?|reinstat(?:e|es|ed)|restor(?:e|es|ed)|overturn(?:s|ed)?|revers(?:e|es|ed)|back online|resum(?:e|es|ed)|ban (?:ends|ended|expires|expired))\b/i;
+// Tentative / negated lifts keep the ban standing: "court rejects appeal to lift…", "may overturn…".
+const LIFT_NEG_RE = /\b(reject(?:s|ed)?|declin(?:e|es|ed)|refus(?:e|es|ed)|den(?:y|ies|ied)|won'?t|will not|\bnot\b|no plans|fails? to|urg(?:e|es|ed)|call(?:s|ed)? (?:on|for)|may|might|could|consider(?:s|ing)?|seek(?:s|ing)?|petition)\b/i;
 
 // model token → row target (a lab id to jail wholesale, or a name regex)
 // `origin` = the model's home country. A model is never detained in its own home country
@@ -73,6 +85,7 @@ function classify(title) {
     const low = (title || '').toLowerCase();
     if (!BAN_RE.test(low) && !OFFLINE_RE.test(low)) return null;
     if (RELEASE_RE.test(low)) return null;          // a lift / appeal / negation, not a new ban
+    if (STATS_RE.test(low)) return null;            // ranking/statistics piece, not a ban event
     const matcher = MODEL_MATCHERS.find(m => m.re.test(low));
     if (!matcher) return null;
     // lab-as-actor guard: skip "<model> bans/blocks/… <something>" (the LAB is doing the banning).
@@ -89,6 +102,19 @@ function classify(title) {
     }
     if (!scope) return null;                        // no jurisdiction → too ambiguous to act on
     return { matcher, scope, label, code };
+}
+
+// Returns a release descriptor for a headline, or null. code=null means "all jurisdictions"
+// (an origin-country actor lifting its own directive — e.g. "U.S. lifts export ban on Fable" —
+// ends the global ban, so origin references don't scope the release down).
+function classifyRelease(title) {
+    const low = (title || '').toLowerCase();
+    if (!LIFT_RE.test(low)) return null;
+    if (LIFT_NEG_RE.test(low)) return null;         // tentative / rejected lift — ban stands
+    const matcher = MODEL_MATCHERS.find(m => m.re.test(low));
+    if (!matcher) return null;
+    const c = COUNTRIES.find(cn => cn.code !== matcher.origin && cn.re.test(low));
+    return { matcher, code: c ? c.code : null };
 }
 
 // ─── NEWS SOURCE (Google News RSS — server-side, no CORS, no key) ─────────────
@@ -212,13 +238,68 @@ async function purgeKeys(keys) {
     return { purged: Array.isArray(gone) ? gone.length : 0 };
 }
 
-// Build the deduped row set from current news.
-function buildRows(news, nowISO) {
+// Purge bot rows for detected releases: a country-scoped lift removes that one key,
+// an unscoped/origin lift removes every jurisdiction for that model (like-match on the key).
+async function purgeReleased(releases) {
+    let purged = 0;
+    for (const r of releases) {
+        const filter = r.code
+            ? `ban_key=eq.news:${r.matcher.id}:${r.code}`
+            : `ban_key=like.news:${r.matcher.id}:*`;
+        const res = await sbFetch(`ai_bans?managed_by=eq.news_bot&${filter}`, {
+            method: 'DELETE',
+            headers: { Prefer: 'return=representation' },
+        });
+        if (!res.ok) { console.error(`[supabase] release purge HTTP ${res.status}: ${await res.text().catch(() => '')}`); continue; }
+        const gone = await res.json().catch(() => []);
+        purged += Array.isArray(gone) ? gone.length : 0;
+    }
+    return { purged };
+}
+
+// Self-heal on classifier upgrades: re-run classify() over the headline each bot row was
+// created from; purge rows the CURRENT classifier would no longer produce (e.g. the old
+// "most frequently restricted chatbot worldwide" stats row).
+async function purgeMisclassified() {
+    const res = await sbFetch('ai_bans?managed_by=eq.news_bot&select=ban_key,reason', { method: 'GET' });
+    if (!res.ok) return { purged: 0 };
+    const rows = await res.json().catch(() => []);
+    if (!Array.isArray(rows)) return { purged: 0 };
+    const bad = rows.filter(r => {
+        const c = classify(r.reason || '');
+        return !c || `news:${c.matcher.id}:${c.code}` !== r.ban_key;
+    }).map(r => r.ban_key);
+    if (!bad.length) return { purged: 0 };
+    console.log('  🧹 reclassify purge:', bad.join(', '));
+    return purgeKeys(bad);
+}
+
+// Extract deduped releases from current news.
+function buildReleases(news) {
+    const releases = [];
+    const seen = new Set();
+    for (const it of news) {
+        const r = classifyRelease(it.title);
+        if (!r) continue;
+        const k = r.matcher.id + '|' + (r.code || '*');
+        if (seen.has(k)) continue;
+        seen.add(k);
+        releases.push(r);
+    }
+    return releases;
+}
+
+// Build the deduped row set from current news. `releases` suppresses re-upserting a ban that
+// newer news says was lifted (old ban headlines linger in the window long after the lift).
+function buildRows(news, nowISO, releases = []) {
+    const liftedAll = new Set(releases.filter(r => !r.code).map(r => r.matcher.id));
+    const liftedScoped = new Set(releases.filter(r => r.code).map(r => r.matcher.id + '|' + r.code));
     const rows = [];
     const seen = new Set();
     for (const it of news) {
         const c = classify(it.title);
         if (!c) continue;
+        if (liftedAll.has(c.matcher.id) || liftedScoped.has(c.matcher.id + '|' + c.code)) continue;
         const ban_key = `news:${c.matcher.id}:${c.code}`;
         if (seen.has(ban_key)) continue;
         seen.add(ban_key);
@@ -254,24 +335,32 @@ export default async (_req) => {
 
     const news = await fetchBanNews().catch(e => { console.warn('news error:', e.message); return []; });
     const nowISO = new Date().toISOString();
-    const rows = buildRows(news, nowISO);
+    const releases = buildReleases(news);
+    const rows = buildRows(news, nowISO, releases);
 
     const up = await upsertBans(rows);
     const cutoff = new Date(Date.now() - STALE_DAYS * 86400000).toISOString();
     const del = await deleteStaleBans(cutoff);
+    // A lifted ban walks its model out of jail immediately (don't wait for staleness).
+    const rel = await purgeReleased(releases);
     // Enforce "no model is detained in its own home country" on existing rows too — purge any
     // such bot rows immediately (fixes e.g. a 'China's DeepSeek' headline mis-read as a CN ban).
     const homeKeys = MODEL_MATCHERS.filter(m => m.origin).map(m => `news:${m.id}:${m.origin}`);
     const purge = await purgeKeys(homeKeys);
+    // Retire rows the current (stricter) classifier would no longer create.
+    const reclass = await purgeMisclassified();
 
     const elapsed = Math.round((Date.now() - startedAt) / 100) / 10;
     const summary = {
         ok: !up.error && !del.error,
         headlines: news.length,
         detected: rows.length,
+        releasesDetected: releases.map(r => r.matcher.id + ':' + (r.code || 'ALL')),
         written: up.written,
         deletedStale: del.deleted,
+        purgedReleased: rel.purged,
         purgedHomeCountry: purge.purged,
+        purgedReclassified: reclass.purged,
         ...(up.error ? { upsertError: up.error } : {}),
         ...(del.error ? { deleteError: del.error } : {}),
         hint: (up.error || del.error)
@@ -280,7 +369,7 @@ export default async (_req) => {
         bans: rows.map(r => ({ ban_key: r.ban_key, scope: r.scope })),
         elapsedSec: elapsed,
     };
-    console.log(`  ✅ ${news.length} headlines · ${rows.length} bans · ${up.written} written · ${del.deleted} expired · ${elapsed}s`);
+    console.log(`  ✅ ${news.length} headlines · ${rows.length} bans · ${releases.length} releases · ${up.written} written · ${del.deleted + rel.purged + purge.purged + reclass.purged} removed · ${elapsed}s`);
     return new Response(JSON.stringify(summary, null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 
@@ -292,9 +381,12 @@ if (process.argv.includes('--dryrun')) {
     (async () => {
         const news = await fetchBanNews();
         console.log(`fetched ${news.length} headlines`);
-        const rows = buildRows(news, new Date().toISOString());
+        const releases = buildReleases(news);
+        const rows = buildRows(news, new Date().toISOString(), releases);
         console.log(`\n${rows.length} ban(s) detected:`);
         for (const r of rows) console.log(`  ⛓️  ${r.ban_key.padEnd(22)} ${JSON.stringify(r.scope).padEnd(26)} ${(r.match_lab || r.match_name)}  ←  ${r.reason}`);
+        console.log(`\n${releases.length} release(s) detected:`);
+        for (const r of releases) console.log(`  🕊️  ${r.matcher.id}:${r.code || 'ALL'}`);
         if (process.argv.includes('--verbose')) { console.log('\nall headlines:'); news.forEach(n => console.log('  · ' + n.title)); }
         process.exit(0);
     })();
@@ -313,15 +405,33 @@ if (process.argv.includes('--selftest')) {
         ["Gemini tops the leaderboard again this quarter", false, null],                // no ban/actor
         ["Senate debates AI safety rules for ChatGPT and Claude", false, null],         // no jurisdiction-scoped ban verb? has 'rules' not ban
         ["US states move to ban DeepSeek on government devices", true, 'news:deepseek:US'],
+        ["DeepSeek is the most frequently restricted chatbot worldwide", false, null],  // stats piece, not a ban
     ];
-    let pass = 0;
+    let pass = 0, total = 0;
     for (const [title, shouldHit, expectKey] of samples) {
         const c = classify(title);
         const got = c ? `news:${c.matcher.id}:${c.code}` : null;
         const ok = shouldHit ? (got === expectKey) : (c === null);
         console.log(`${ok ? '✅' : '❌'}  ${got || '(skip)'}  ←  ${title}`);
-        if (ok) pass++;
+        if (ok) pass++; total++;
     }
-    console.log(`\n${pass}/${samples.length} cases correct`);
-    process.exit(pass === samples.length ? 0 : 1);
+    // Release classifier: [title, expected 'model:CODE' | 'model:ALL' | null]
+    const relSamples = [
+        ["Anthropic's Fable 5 restored worldwide after US lifts export directive", 'fable:ALL'],
+        ["Turkey lifts ban on Grok after xAI compliance deal", 'grok:TR'],
+        ["Italy reinstates ChatGPT after OpenAI privacy fixes", 'chatgpt:IT'],
+        ["Court rejects appeal to lift DeepSeek ban in Italy", null],       // rejected lift — ban stands
+        ["Germany may overturn DeepSeek ban next year", null],              // tentative — ban stands
+        ["xAI releases Grok 5 to the public", null],                        // product launch ≠ ban lift
+        ["Australia bans DeepSeek on government devices", null],            // a ban, not a release
+    ];
+    for (const [title, expect] of relSamples) {
+        const r = classifyRelease(title);
+        const got = r ? `${r.matcher.id}:${r.code || 'ALL'}` : null;
+        const ok = got === expect;
+        console.log(`${ok ? '✅' : '❌'}  release ${got || '(skip)'}  ←  ${title}`);
+        if (ok) pass++; total++;
+    }
+    console.log(`\n${pass}/${total} cases correct`);
+    process.exit(pass === total ? 0 : 1);
 }
