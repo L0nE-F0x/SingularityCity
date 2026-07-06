@@ -1742,9 +1742,9 @@ Respond with ONLY minified JSON, no markdown:
         /claude\s+\d+\s+sonnet\s+[2-9]/i,
         /claude\s+\d+\s+haiku\s+[2-9]/i,
         // GPT codename hallucinations (allow dash between gpt and version)
-        /gpt[\s\-]*[5-9][\s\-]*\(orion\s*[2-9]/i,
-        /gpt[\s\-]*[5-9][\s\-]*\(strawberry\s*[2-9]/i, // Strawberry was o1 codename
-        /gpt[\s\-]*[6-9](?!\.\d)/i // Bare GPT-6/7/8/9 without decimal (extra safety)
+        /gpt[\s-]*[5-9][\s-]*\(orion\s*[2-9]/i,
+        /gpt[\s-]*[5-9][\s-]*\(strawberry\s*[2-9]/i, // Strawberry was o1 codename
+        /gpt[\s-]*[6-9](?!\.\d)/i // Bare GPT-6/7/8/9 without decimal (extra safety)
     ],
 
     _verifyModel(m) {
@@ -2721,8 +2721,6 @@ JSON (no markdown):
     // ═══════════════════════════════════════════════════════════════
 
     async purgeHallucinations() {
-        if (!this.supabase) { console.error('No Supabase connection'); return; }
-
         // Ensure ZeroEval + HuggingFace have populated the verified registry before purging.
         // Without this, we'd reject legitimate models simply because their source-of-truth
         // hadn't loaded yet.
@@ -2743,48 +2741,10 @@ JSON (no markdown):
         if (typeof UI !== 'undefined') UI.addLog('🧹 Scanning for hallucinated data...');
 
         try {
-            const { data, error } = await this.supabase.from('models').select('id, name, lab, rel, phase, benchmarks, cost_input, cost_out');
-            if (error) throw error;
-            if (!data) return;
-
-            let purged = 0;
-            const toDelete = [];
-
-            // Only delete from cloud DB for HIGH-CONFIDENCE rejections (clear violations).
-            // "Unknown family + not in registry" is NOT high confidence — keep those in cloud
-            // (we just don't display them locally) so a future registry update can rescue them.
-            const isHighConfidence = (reason) => {
-                if (!reason) return false;
-                return reason.includes('Future release date') ||
-                       reason.includes('Implausibly old') ||
-                       reason.includes('exceeds max known') ||
-                       reason.includes('Impossible benchmark') ||
-                       reason.includes('Impossible ELO') ||
-                       reason.includes('Absurd input pricing') ||
-                       reason.includes('Absurd output pricing') ||
-                       reason.includes('Missing name or lab') ||
-                       reason.includes('Hallucination marker') ||
-                       reason.includes('Known fake pattern');
-            };
-
-            for (const m of data) {
-                const result = this._verifyModel(m);
-                if (!result.ok && isHighConfidence(result.reason)) {
-                    toDelete.push(m.id);
-                    purged++;
-                }
-            }
-
-            if (toDelete.length > 0) {
-                // Delete in batches of 50
-                for (let i = 0; i < toDelete.length; i += 50) {
-                    const batch = toDelete.slice(i, i + 50);
-                    const { error: delErr } = await this.supabase.from('models').delete().in('id', batch);
-                    if (delErr) console.error(`[Purge] Batch delete error:`, delErr);
-                }
-            }
-
-            // Also purge from local G.models
+            // LOCAL-ONLY since v485: this scrubs the DISPLAYED city. Cloud deletion moved
+            // to netlify/functions/db-maintenance.mjs (scheduled, service key) so the anon
+            // browser key no longer needs DELETE rights on `models` — anyone could wipe
+            // the table from the devtools console before. See sc_models_rls.sql.
             const localBefore = G.models.length;
             G.models = G.models.filter(m => {
                 const result = this._verifyModel(m);
@@ -2802,12 +2762,12 @@ JSON (no markdown):
             });
             const localPurged = localBefore - G.models.length;
 
-
-            if (typeof UI !== 'undefined') UI.addLog(`🧹 Purged ${purged} hallucinated models from cloud, ${localPurged} from local`);
-            if (typeof UI !== 'undefined') UI.addToast(`🧹 Cleaned ${purged + localPurged} hallucinated models!`);
-
-            G.save();
-            G.evolveCity();
+            if (localPurged > 0) {
+                if (typeof UI !== 'undefined') UI.addLog(`🧹 Purged ${localPurged} hallucinated models from view`);
+                if (typeof UI !== 'undefined') UI.addToast(`🧹 Cleaned ${localPurged} hallucinated models!`);
+                G.save();
+                G.evolveCity();
+            }
         } catch (e) {
             console.error('🧹 [Purge] Error:', e);
         }
@@ -2817,7 +2777,8 @@ JSON (no markdown):
     //   NAME-BASED DEDUPE — Collapse entries that represent the same
     //   real-world model but were written under different IDs by
     //   separate sources (LLM scan vs OpenRouter vs ZeroEval, etc.).
-    //   Runs locally on G.models AND reconciles Supabase.
+    //   LOCAL-ONLY since v485: cloud reconciliation moved to the
+    //   db-maintenance.mjs scheduled function (anon key can't delete).
     //   Call via console: API.dedupeModels()
     // ═══════════════════════════════════════════════════════════════
     async dedupeModels() {
@@ -2913,19 +2874,6 @@ JSON (no markdown):
 
         const removeSet = new Set(toRemoveIds);
         G.models = G.models.filter(m => !removeSet.has(m.id));
-
-        // Reconcile Supabase in batches of 50.
-        if (this.supabase) {
-            for (let i = 0; i < toRemoveIds.length; i += 50) {
-                const batch = toRemoveIds.slice(i, i + 50);
-                try {
-                    const { error: delErr } = await this.supabase.from('models').delete().in('id', batch);
-                    if (delErr) console.error('[Dedupe] Batch delete error:', delErr);
-                } catch (e) {
-                    console.error('[Dedupe] Delete failed:', e);
-                }
-            }
-        }
 
         console.log(`🔀 [Dedupe] Merged ${mergedCount} duplicate model entries. Removed IDs:`, toRemoveIds);
         if (typeof UI !== 'undefined') {

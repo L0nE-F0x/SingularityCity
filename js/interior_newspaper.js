@@ -118,7 +118,6 @@ const InteriorNewspaper = {
 
         // ─── ELEVATOR LAYOUT ───
         const shaftW = 60;
-        const shaftX = startX + bldW - shaftW - 20;
         const elevatorX = startX + bldW - 26;
         const usableW = bldW - shaftW - 20;
 

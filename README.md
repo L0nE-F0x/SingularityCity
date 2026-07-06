@@ -2,7 +2,7 @@
 
 **The entire AI industry — alive in your browser.**
 
-A globally synced, real-time pixel-art simulation where every AI model is a citizen, every lab is a district, and every benchmark, launch, and price war happens in real time. Built with PixiJS 7, Three.js r128, and vanilla JS — zero bundler, ~92 JS files, ~58K lines.
+A globally synced, real-time pixel-art simulation where every AI model is a citizen, every lab is a district, and every benchmark, launch, and price war happens in real time. Built with PixiJS 7, Three.js r128, and vanilla JS — zero bundler, ~97 JS files, ~63K lines.
 
 🌐 **[Play Live](https://singularitycity.net)** · 📰 **[Read the Paper](https://singularitycity.net)** · 🖼️ **[Embed it](https://singularitycity.net/embed.html)**
 
@@ -202,7 +202,7 @@ Session 15 (v225-v233) shipped a full perf pass:
 | Backend | Supabase (cross-player cloud sync) |
 | Hosting | Netlify (auto-deploy on push to main) |
 | Tooling | ESLint flat config + Prettier + editorconfig |
-| Code | ~58K lines vanilla JavaScript, ~92 files, zero bundler |
+| Code | ~63K lines vanilla JavaScript, ~97 files, zero bundler |
 
 ## Development
 

@@ -167,9 +167,7 @@ const InteriorNPC = {
                 // Find the resident data to get their color
                 const trackedRes = residents.find(r => 'npc_' + r.name.toLowerCase().replace(/\s/g, '_') === trackedId);
                 const col = trackedRes ? parseInt(trackedRes.color.replace('#', ''), 16) : 0x475569;
-                const name = trackedRes ? trackedRes.name : 'Worker';
                 // Build a walk-in avatar at the foyer entrance (left side, ground floor)
-                const foyer = this.scene.children[this.scene.children.length - 4]; // floor container near bottom
                 const groundFY = roofH + (numFloors - 1) * floorH;
                 const walkY = groundFY + floorH - 6;
                 const fc = new PIXI.Container(); fc.sortableChildren = true; this.scene.addChild(fc);

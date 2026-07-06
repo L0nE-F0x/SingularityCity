@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v484';
+const CACHE_NAME = 'singularity-city-v485';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -139,7 +139,11 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
     event.respondWith(
-        caches.match(event.request)
+        // ignoreSearch: the page requests js/foo.js?v=NNN but the precache stores
+        // bare /js/foo.js — without this, every versioned request misses the cache
+        // (app downloads twice, offline mode broken). Version safety is preserved
+        // because CACHE_NAME bumps with every deploy, rebuilding the precache.
+        caches.match(event.request, { ignoreSearch: true })
             .then(response => {
                 if (response) {
                     return response;

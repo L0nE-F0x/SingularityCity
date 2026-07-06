@@ -238,7 +238,6 @@ const InteriorCityProps = {
     },
 
     drawRoomInterior(gfx, x, y, w, h, colHex, isCeo, windowX, windowW, theme = 'general') {
-        const cHex = this._parseCol(colHex);
         
         if (theme === 'campsite') {
             gfx.beginFill(0x080a1e); 

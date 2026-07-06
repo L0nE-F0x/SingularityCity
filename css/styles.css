@@ -1743,3 +1743,17 @@ h1, h2, h3, p { margin: 0; }
         bottom: 120px;
     }
 }
+
+/* ─── ACCESSIBILITY: prefers-reduced-motion ─────────────────────────────────
+   Collapse every DOM animation/transition to a near-instant tick for users with
+   vestibular sensitivity. Near-zero (not none) so animation/transition end
+   events still fire and one-shot entrance animations land on their final frame.
+   (Canvas motion is the sim itself and stays — this covers the HUD/UI layer.) */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

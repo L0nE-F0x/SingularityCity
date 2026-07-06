@@ -483,7 +483,6 @@ const UniversityInterior = {
             // Dorm room bed positions per floor (floors >= 2 have beds)
             const dormBedXs = [];
             if (bld.id === 'uni_dorm') { for (let bx = startX + 30; bx < startX + usableW - 80; bx += 90) dormBedXs.push(bx + 16); }
-            const dormFloors = Object.keys(floorConts).map(Number).filter(f => f >= 2).sort((a,b)=>b-a);
             const floors = Object.keys(floorConts).map(Number).sort((a,b)=>b-a);
             if (floors.length > 0 && students.length > 0) {
                 const perFloor = Math.ceil(students.length / floors.length);

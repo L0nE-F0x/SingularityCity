@@ -1506,6 +1506,10 @@ const G = {
       // At 1.5x it drops to 2880x1620 (4.7M px/frame) — ~43% reduction with zero visible difference.
       const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       this.app = new PIXI.Application({ width: this.vpW, height: this.vpH, backgroundAlpha: 0, antialias: false, resolution: dpr, autoDensity: true });
+      // Cap the ticker at 60fps — the sim uses raw tick counting (tick++/frame) and
+      // every throttle ("% 2 === 0") assumes 60Hz. Without this, 120–165Hz displays
+      // run the whole city at 2x+ speed and burn double the CPU for no visual gain.
+      this.app.ticker.maxFPS = 60;
       vp.appendChild(this.app.view);
       this.app.view.style.touchAction = 'none';
 
@@ -1766,9 +1770,10 @@ const G = {
           setInterval(() => API.fetchCoinGecko(), 2 * 60 * 1000); // every 2 min (well under 30/min free tier)
       }
 
-      // ─── AUTO-PURGE HALLUCINATIONS: After ZeroEval + HF have loaded, scrub the local
-      // model list AND the cloud DB of any models that aren't in the verified registry.
-      // This catches models from prior LLM scans that snuck through before the registry was built.
+      // ─── AUTO-PURGE HALLUCINATIONS: After ZeroEval + HF have loaded, scrub the LOCAL
+      // model list of any models that aren't in the verified registry. (The cloud DB is
+      // scrubbed server-side by the db-maintenance scheduled function — the browser's
+      // anon key deliberately has no DELETE rights; see sc_models_rls.sql.)
       if (typeof API !== 'undefined') {
           setTimeout(() => {
               if (typeof API.purgeHallucinations === 'function') {
@@ -1784,8 +1789,9 @@ const G = {
       }
 
       // ─── AUTO-DEDUPE: Collapse same-name models written under different IDs by
-      // separate sources (LLM scan vs OpenRouter vs ZeroEval). Runs AFTER purge so
-      // we don't dedupe against rows that are about to be deleted anyway.
+      // separate sources (LLM scan vs OpenRouter vs ZeroEval). Local display only —
+      // cloud reconciliation happens in the db-maintenance scheduled function.
+      // Runs AFTER purge so we don't dedupe against models about to be filtered.
       if (typeof API !== 'undefined') {
           setTimeout(() => {
               if (typeof API.dedupeModels === 'function') {

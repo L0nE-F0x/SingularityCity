@@ -653,11 +653,10 @@ const Holomap = {
             }
         });
 
-        var touchMoved = false, touchStartX = 0, touchStartY = 0;
+        var touchStartX = 0, touchStartY = 0;
         cv.addEventListener('touchstart', function(e) {
-            if (e.touches.length === 1) { touchMoved = false; touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }
+            if (e.touches.length === 1) { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }
         }, { passive: true });
-        cv.addEventListener('touchmove', function() { touchMoved = true; }, { passive: true });
         cv.addEventListener('touchend', function(e) {
             if (!self.active || e.changedTouches.length !== 1) return;
             var dx = Math.abs(e.changedTouches[0].clientX - touchStartX);

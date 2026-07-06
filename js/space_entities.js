@@ -94,7 +94,6 @@ const SpaceEntities = {
         // Position on pad
         const towerX = padBld.w / 2 - 8;
         const rocketLocalX = towerX + 28;
-        const padH = (padBld.dynamicFl || padBld.fl || 1) * 18 + 24;
 
         cont.x = padBld.x + rocketLocalX;
         cont.y = G.groundY - 24 - 8; // sits on pad surface

@@ -19,7 +19,6 @@ const RoboticsEnv = {
         const assembly = BLDS.find(b => b.id === 'robotics_assembly');
         const testing = BLDS.find(b => b.id === 'robotics_testing');
         const deploy = BLDS.find(b => b.id === 'robotics_deploy');
-        const rd = BLDS.find(b => b.id === 'robotics_rd');
 
         // ─── WELDING SPARKS on Assembly Line ───
         if (assembly) {

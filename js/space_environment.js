@@ -209,7 +209,6 @@ const SpaceEnvironment = {
         container.y = gy - 24 - h;
         const gfx = new PIXI.Graphics();
         
-        const emojiFontStack = '"Twemoji Mozilla", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", sans-serif';
         
         if (b.type === 'launchpad') {
             // ─── LAUNCH PAD ───

@@ -22,7 +22,6 @@
 const IS_MOBILE = !!(window.isMobile || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────────────────────────
-function $(sel) { return document.querySelector(sel); }
 function getEl(id) { return document.getElementById(id); }
 
 function getBldByPredicate(fn) {
@@ -46,17 +45,6 @@ function flyToBuilding(b, opts) {
     const z = o.zoom != null ? o.zoom : 1.0;
     const cx = b.x + b.w / 2;
     flyToWorld(cx, o.yOffset || 0, z);
-}
-
-function pickAnyModel() {
-    if (typeof G === 'undefined' || !G.models) return null;
-    // Prefer a real, non-rumored, adult model with stats
-    let pick = null;
-    for (let i = 0; i < G.models.length; i++) {
-        const m = G.models[i];
-        if (m && !m._rumored && !m._retired && m.elo) { pick = m; break; }
-    }
-    return pick || G.models[0] || null;
 }
 
 // ─── Tutorial Steps ────────────────────────────────────────────────────────────────────────────────

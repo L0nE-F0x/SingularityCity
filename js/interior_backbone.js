@@ -339,7 +339,6 @@ const InteriorBackbone = {
 
     _getNPCsForFloor(floorName, layout, floorIdx, numFloors) {
         const fn = floorName.toLowerCase();
-        const col = layout.col;
         const bw = G.vpW - 120;
         // Assign defined NPCs to specific floors, plus generic extras
         if (fn.includes('war room') || fn.includes('monitoring wall')) {

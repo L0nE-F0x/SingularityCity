@@ -21,7 +21,7 @@ const InteriorDC = {
         this.scene = new PIXI.Container(); this.layer.addChild(this.scene);
         
         const dc = bld.dcData || {};
-        const isDc = bld.id.startsWith('dc_'), isFab = bld.id.startsWith('fab_');
+        const isDc = bld.id.startsWith('dc_');
         const isConstruction = dc.status === 'construction';
         const opCol = (LABS[bld.lab]&&LABS[bld.lab].color)||(typeof DC_OPERATORS!=='undefined'&&DC_OPERATORS[bld.lab]&&DC_OPERATORS[bld.lab].color)||'#06b6d4';
         const colHex = parseInt(opCol.replace('#',''),16);

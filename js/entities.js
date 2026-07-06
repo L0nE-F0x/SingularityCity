@@ -1021,7 +1021,6 @@ const Entities = {
             }
         }
         // Kept for downstream compatibility (line 1095 chat detection uses isOnScreen)
-        const isOnMetro = refs._metroState !== 'none';
 
         const bldSpread = Math.max(tBld.w - 10, 30); 
         const pseudoRandomOffset = ((i * 73) % bldSpread) - (bldSpread / 2);

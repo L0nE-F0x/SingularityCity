@@ -709,7 +709,7 @@ const EntitiesGfx = {
         const finalSc = sc * (refs.paramScale||1); 
         const bw = Math.round(16 * finalSc), h = Math.round(32 * finalSc);
         const headH = Math.round(h * sd.headR), bodyH = h - headH - Math.round(4 * finalSc), legH = Math.round(4 * finalSc);
-        const skinCol = isR ? 0xb8c0cc : isRm ? 0x8b5cf6 : 0xfdd8b5; const legCol = isR ? 0x7788aa : isRm ? 0x6b7280 : 0x3d2914; const suitCol = isR ? 0x667799 : colHex;
+        const suitCol = isR ? 0x667799 : colHex;
         const eyeS = Math.max(1, bw * .08);
         
         refs.shadow.clear(); refs.shadow.beginFill(0x000000, 0.25); refs.shadow.drawEllipse(0, 2, bw * 0.6, 3); refs.shadow.endFill();

@@ -586,7 +586,6 @@ const Environment = {
       }
 
       // Helper: draw a horizontal element only in city zones (skip desert)
-      const cityLeft = hasSpaceZone ? spaceEndX : 0;
       const drawCityH = (y, h, col, alpha) => {
           const a = alpha != null ? alpha : 1;
           // Draw in segments, skipping port and space zones
@@ -2302,7 +2301,6 @@ const Environment = {
 
         } else if (b.id === 'visitor_monument') {
           // ── VISITOR MONUMENT — Digital obelisk with live counter ──
-          const monH = h + 30;
           // Base platform
           gfx.beginFill(0x1a1a2e); gfx.drawRect(5, h - 8, b.w - 10, 8); gfx.endFill();
           gfx.beginFill(0x222240); gfx.drawRect(8, h - 10, b.w - 16, 4); gfx.endFill();

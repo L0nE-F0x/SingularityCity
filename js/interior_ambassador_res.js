@@ -717,7 +717,6 @@ const InteriorAmbassadorRes = {
             c.addChild(gb);
 
             // ─── Leather Chesterfield reading chair in corner ───
-            const rdX = sx + 30, rdY = pY;
             const rc = new PIXI.Graphics(); rc.eventMode = 'none';
             // Skip this if under bookshelf - place away from shelf
             const cX = sx + bw * 0.2, cY = pY;
