@@ -958,6 +958,34 @@ const UI = {
             html += `</div>`;
         }
       }
+      // ─── ROBOTICS FACTORY panel — live production + real 2026 humanoid roster ───
+      else if (b.type === 'robotics') {
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🏭 FACTORY FLOOR</div>`;
+        if (typeof RoboticsZone !== 'undefined') {
+            html += `<div>🤖 <b>Units produced:</b> ${RoboticsZone.unitsProduced.toLocaleString()} this session</div>`;
+        }
+        const headline = {
+            robotics_assembly: '⚙️ <b>Benchmark:</b> Figure’s BotQ line hit 1 robot/hour in Mar 2026',
+            robotics_testing:  '🔬 <b>On the course:</b> all 8 flagship humanoids of 2026',
+            robotics_deploy:   '🚛 <b>Now shipping to:</b> GXO, Hyundai, Mercedes, BYD — and homes',
+            robotics_rd:       '🧠 <b>Frontier:</b> vision-language-action brains (Helix, Gemini Robotics)'
+        }[b.id];
+        if (headline) html += `<div>${headline}</div>`;
+        html += `</div>`;
+        // Full real-world humanoid roster
+        if (typeof ROBOTICS_COMPANIES !== 'undefined') {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.5">`;
+            html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🤖 HUMANOID ROSTER · 2026</div>`;
+            Object.values(ROBOTICS_COMPANIES).forEach(co => {
+                html += `<div style="padding:5px 0;border-top:1px dashed var(--bd)">`;
+                html += `<div>${co.icon} <b style="color:${co.color}">${escapeHTML(co.robot)}</b> <span style="color:var(--t3)">· ${escapeHTML(co.name)}${co.ceo ? ' · ' + escapeHTML(co.ceo) : ''}</span></div>`;
+                if (co.milestone) html += `<div style="font-size:9px;color:var(--t2);margin-top:1px">${escapeHTML(co.milestone)}</div>`;
+                html += `</div>`;
+            });
+            html += `</div>`;
+        }
+      }
       // ─── ALIGNMENT INSTITUTE panel — safety research brief ───
       else if (b.type === 'alignment') {
         const shieldCol = (typeof b.shield === 'number') ? ('#' + b.shield.toString(16).padStart(6, '0')) : col;

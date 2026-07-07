@@ -63,52 +63,53 @@ const RoboticsEnv = {
         }
 
         // ─── WALKING ROBOT SPRITES in Testing Ground ───
+        // One walker per real company — the actual 2026 flagship humanoids,
+        // drawn from the shared RobotModels silhouette lib. Hover for identity.
         if (testing) {
-            const robotColors = [0xe82127, 0x3b82f6, 0x06b6d4, 0xf59e0b, 0x8b5cf6];
-            for (let i = 0; i < 5; i++) {
+            const keys = (typeof RobotModels !== 'undefined' && typeof ROBOTICS_COMPANIES !== 'undefined')
+                ? Object.keys(ROBOTICS_COMPANIES).filter(k => RobotModels.ROBOTS[k])
+                : [];
+            const count = keys.length || 5;
+            for (let i = 0; i < count; i++) {
                 const r = new PIXI.Container();
-                const col = robotColors[i % robotColors.length];
+                const key = keys[i] || null;
+                const co = key ? ROBOTICS_COMPANIES[key] : null;
+                const col = co ? parseInt(co.color.slice(1), 16) : 0x8890a0;
 
-                // Robot body (simple pixel art humanoid)
                 const body = new PIXI.Graphics();
-                // Head
-                body.beginFill(0xc0c0d0);
-                body.drawRect(-3, -18, 6, 6);
-                body.endFill();
-                // Eyes
-                body.beginFill(col);
-                body.drawRect(-2, -16, 2, 2);
-                body.drawRect(1, -16, 2, 2);
-                body.endFill();
-                // Torso
-                body.beginFill(0x8890a0);
-                body.drawRect(-4, -12, 8, 8);
-                body.endFill();
-                // Arms
-                body.beginFill(0x9098a8);
-                body.drawRect(-6, -11, 2, 6);
-                body.drawRect(4, -11, 2, 6);
-                body.endFill();
-                // Legs
-                body.beginFill(0x607080);
-                body.drawRect(-3, -4, 2, 5);
-                body.drawRect(1, -4, 2, 5);
-                body.endFill();
-                // Company color stripe
-                body.beginFill(col, 0.8);
-                body.drawRect(-3, -10, 6, 2);
-                body.endFill();
-
+                if (key && typeof RobotModels !== 'undefined') {
+                    RobotModels.draw(body, key, 0.72);
+                } else {
+                    body.beginFill(0xc0c0d0); body.drawRect(-3, -18, 6, 6); body.endFill();
+                    body.beginFill(0x8890a0); body.drawRect(-4, -12, 8, 8); body.endFill();
+                    body.beginFill(0x607080); body.drawRect(-3, -4, 2, 5); body.drawRect(1, -4, 2, 5); body.endFill();
+                }
                 r.addChild(body);
-                r.x = testing.x + 20 + i * 35;
+
+                r.x = testing.x + 14 + i * ((testing.w - 28) / count);
                 r.y = gy - 2;
                 r._dir = Math.random() > 0.5 ? 1 : -1;
-                r._speed = 0.15 + Math.random() * 0.25;
+                r._speed = 0.12 + Math.random() * 0.25;
                 // Track the testing building — min/max derived live in update
                 r._bld = testing;
                 r._wobblePhase = Math.random() * Math.PI * 2;
                 r._col = col;
                 r.scale.x = r._dir;
+
+                // Hover identity + tap for the company's latest milestone
+                if (co) {
+                    const rh = (typeof RobotModels !== 'undefined') ? RobotModels.height(key) * 0.72 : 20;
+                    r.eventMode = 'static';
+                    r.cursor = 'pointer';
+                    r.hitArea = new PIXI.Rectangle(-8, -rh - 4, 16, rh + 8);
+                    r.on('pointerover', e => {
+                        if (typeof UI !== 'undefined') UI.showTooltip(e, `${co.icon} ${co.robot} — ${co.name}`, co.program || '');
+                    });
+                    r.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+                    r.on('pointertap', () => {
+                        if (typeof UI !== 'undefined') UI.addToast(`${co.icon} ${co.robot}: ${co.milestone}`);
+                    });
+                }
 
                 charLayer.addChild(r);
                 this.robots.push(r);

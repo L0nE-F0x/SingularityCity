@@ -530,36 +530,68 @@ const InteriorRobotics = {
                 g.lineTo(sx + bw - 20, ly);
             }
             g.lineStyle(0);
-            // Robot silhouette in center
+            // Real robot being calibrated in the laser grid (Optimus V3 on the rig)
             const cx = sx + bw / 2;
-            g.beginFill(0xc0c0d0, 0.3);
-            g.drawRect(cx - 5, fy + 20, 10, 8); // head
-            g.drawRect(cx - 7, fy + 28, 14, 14); // torso
-            g.drawRect(cx - 5, fy + 42, 4, 10); // legs
-            g.drawRect(cx + 1, fy + 42, 4, 10);
-            g.endFill();
+            if (typeof RobotModels !== 'undefined') {
+                const calBot = new PIXI.Graphics();
+                RobotModels.draw(calBot, 'tesla', 1.1);
+                calBot.x = cx; calBot.y = fy + fh - 8;
+                calBot.alpha = 0.85;
+                if (typeof UI !== 'undefined') UI.tip(calBot, '🤖 Optimus V3 — Tesla', 'Sensor calibration in the laser grid');
+                cont.addChild(calBot);
+            } else {
+                g.beginFill(0xc0c0d0, 0.3);
+                g.drawRect(cx - 5, fy + 20, 10, 8);
+                g.drawRect(cx - 7, fy + 28, 14, 14);
+                g.drawRect(cx - 5, fy + 42, 4, 10);
+                g.drawRect(cx + 1, fy + 42, 4, 10);
+                g.endFill();
+            }
         } else if (fn.includes('finished') || fn.includes('goods')) {
-            // Rows of completed robots standing in bays
-            for (let rx = sx + 35; rx < sx + bw - 25; rx += 40) {
-                const robotCol = [0xe82127, 0x3b82f6, 0x06b6d4, 0xf59e0b, 0x8b5cf6][Math.floor((rx - sx) / 40) % 5];
-                // Standing robot
-                g.beginFill(0xc0c0d0, 0.6);
-                g.drawRect(rx, fy + 18, 8, 7); // head
-                g.endFill();
-                g.beginFill(0x8890a0, 0.6);
-                g.drawRect(rx - 2, fy + 25, 12, 14); // torso
-                g.endFill();
-                g.beginFill(robotCol, 0.4);
-                g.drawRect(rx, fy + 28, 8, 3); // color stripe
-                g.endFill();
-                g.beginFill(0x607080, 0.5);
-                g.drawRect(rx, fy + 39, 3, 12); // legs
-                g.drawRect(rx + 5, fy + 39, 3, 12);
-                g.endFill();
-                // Bay divider
-                g.beginFill(0x1a2540, 0.3);
-                g.drawRect(rx + 16, fy + 12, 2, fh - 18);
-                g.endFill();
+            // ─── HALL OF HUMANOIDS — every real 2026 flagship in its own display bay ───
+            const keys = (typeof RobotModels !== 'undefined' && typeof ROBOTICS_COMPANIES !== 'undefined')
+                ? Object.keys(ROBOTICS_COMPANIES).filter(k => RobotModels.ROBOTS[k])
+                : [];
+            if (keys.length) {
+                const bayW = (bw - 50) / keys.length;
+                keys.forEach((key, i) => {
+                    const co = ROBOTICS_COMPANIES[key];
+                    const coCol = parseInt(co.color.slice(1), 16);
+                    const cx = sx + 30 + i * bayW + bayW / 2;
+                    const bay = new PIXI.Container();
+                    const bg = new PIXI.Graphics();
+                    // Display bay backlight
+                    bg.beginFill(coCol, 0.07);
+                    bg.drawRect(cx - bayW / 2 + 3, fy + 12, bayW - 6, fh - 20);
+                    bg.endFill();
+                    // Podium strip
+                    bg.beginFill(0x1a2540);
+                    bg.drawRect(cx - bayW / 2 + 5, fy + fh - 12, bayW - 10, 4);
+                    bg.endFill();
+                    bg.beginFill(coCol, 0.5);
+                    bg.drawRect(cx - bayW / 2 + 5, fy + fh - 12, bayW - 10, 1);
+                    bg.endFill();
+                    // The robot itself — real silhouette
+                    const bot = new PIXI.Graphics();
+                    RobotModels.draw(bot, key, 0.92);
+                    bot.x = cx; bot.y = fy + fh - 12;
+                    // Bay divider
+                    if (i > 0) {
+                        bg.beginFill(0x1a2540, 0.4);
+                        bg.drawRect(cx - bayW / 2, fy + 10, 2, fh - 16);
+                        bg.endFill();
+                    }
+                    bay.addChild(bg, bot);
+                    // Robot name plate
+                    const lbl = new PIXI.Text(co.robot.toUpperCase(), {
+                        fontFamily: 'JetBrains Mono, monospace', fontSize: 5, fill: coCol, letterSpacing: 0.5
+                    });
+                    lbl.anchor.set(0.5, 0); lbl.x = cx; lbl.y = fy + fh - 7;
+                    if (lbl.width > bayW - 8) lbl.scale.set((bayW - 8) / lbl.width);
+                    bay.addChild(lbl);
+                    if (typeof UI !== 'undefined') UI.tip(bay, `${co.icon} ${co.robot} — ${co.name}`, co.milestone);
+                    cont.addChild(bay);
+                });
             }
         } else if (fn.includes('walk test') || fn.includes('obstacle')) {
             // Obstacle course elements
@@ -582,6 +614,20 @@ const InteriorRobotics = {
             g.beginFill(0x4ade80, 0.3);
             g.drawRect(sx + bw - 50, fy + 10, 4, fh - 15);
             g.endFill();
+            // Real robots mid-course: Atlas powering through, G1 mid-kung-fu
+            if (typeof RobotModels !== 'undefined' && typeof ROBOTICS_COMPANIES !== 'undefined') {
+                const atlas = new PIXI.Graphics();
+                RobotModels.draw(atlas, 'boston_dynamics', 0.95);
+                atlas.x = sx + bw * 0.32; atlas.y = fy + fh - 8;
+                if (typeof UI !== 'undefined') UI.tip(atlas, '🏃 Atlas — Boston Dynamics', 'Obstacle run — 2026 fleet ships to Hyundai');
+                cont.addChild(atlas);
+                const g1 = new PIXI.Graphics();
+                RobotModels.draw(g1, 'unitree', 0.95);
+                g1.x = sx + bw * 0.62; g1.y = fy + fh - 8;
+                g1.rotation = -0.18; // mid kung-fu kick
+                if (typeof UI !== 'undefined') UI.tip(g1, '🥋 Unitree G1', 'Autonomous kung-fu routine, as seen on Chinese TV (Feb 2026)');
+                cont.addChild(g1);
+            }
         } else if (fn.includes('endurance')) {
             // Treadmill stations
             for (let tx = sx + 40; tx < sx + bw - 60; tx += 100) {
@@ -640,6 +686,29 @@ const InteriorRobotics = {
                 g.beginFill(col, 0.4);
                 g.drawRect(bx + 32, fy + fh - 36, 14, 10);
                 g.endFill();
+            }
+            // Embodied AI floor: 2026 milestone wall — the year robot brains went VLA
+            if (fn.includes('embodied')) {
+                const wall = new PIXI.Container();
+                const wg = new PIXI.Graphics();
+                const wx = sx + bw - 190, wy = fy + 10, ww = 170;
+                wg.beginFill(0x0a1018, 0.92); wg.drawRoundedRect(wx, wy, ww, 40, 3); wg.endFill();
+                wg.lineStyle(1, col, 0.55); wg.drawRoundedRect(wx, wy, ww, 40, 3); wg.lineStyle(0);
+                wg.beginFill(col, 0.16); wg.drawRect(wx, wy, ww, 9); wg.endFill();
+                wall.addChild(wg);
+                const wt = new PIXI.Text('★ EMBODIED AI — 2026', {
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: 6, fill: col, fontWeight: 'bold', letterSpacing: 0.5
+                });
+                wt.x = wx + 5; wt.y = wy + 1.5;
+                wall.addChild(wt);
+                ['· Helix VLA runs Figure 03 end-to-end', '· Apollo 2 data trains Gemini Robotics', '· G1 fleet: autonomous kung-fu on TV'].forEach((ln, i) => {
+                    const lt = new PIXI.Text(ln, { fontFamily: 'JetBrains Mono, monospace', fontSize: 5.5, fill: 0xcbd5e1 });
+                    lt.x = wx + 5; lt.y = wy + 11 + i * 9;
+                    if (lt.width > ww - 10) lt.scale.set((ww - 10) / lt.width);
+                    wall.addChild(lt);
+                });
+                if (typeof UI !== 'undefined') UI.tip(wall, 'Milestone Wall', 'The year robot brains went vision-language-action');
+                cont.addChild(wall);
             }
         } else if (fn.includes('qa') || fn.includes('check')) {
             // Checklist stations with green/red indicators
@@ -713,20 +782,20 @@ const InteriorRobotics = {
 
         if (fn.includes('chassis')) {
             return [
-                { role: 'Precision Welder', col: 0xfacc15, xOff: bw * 0.25 },
-                { role: 'Frame Builder',    col: 0xf97316, xOff: bw * 0.55 },
+                { role: 'BotQ Line Lead',   col: 0x3b82f6, xOff: bw * 0.25 },
+                { role: 'Fremont Welder',   col: 0xe82127, xOff: bw * 0.55 },
                 { role: 'Mfg Tech',         col: 0xfbbf24, xOff: bw * 0.8 }
             ];
         } else if (fn.includes('motor')) {
             return [
-                { role: 'Motor Engineer', col: 0xf97316, xOff: bw * 0.3 },
-                { role: 'Actuator Tech',  col: 0xfbbf24, xOff: bw * 0.65 }
+                { role: 'Motor Engineer',    col: 0xf97316, xOff: bw * 0.3 },
+                { role: 'Tendon Drive Tech', col: 0xd9c9a8, xOff: bw * 0.65 }
             ];
         } else if (fn.includes('brain') || fn.includes('upload')) {
             return [
-                { role: 'AI Uploader',   col: 0x8b5cf6, xOff: bw * 0.3 },
-                { role: 'Weights Eng',   col: 0x22d3ee, xOff: bw * 0.6 },
-                { role: 'Neural Tuner',  col: 0xa855f7, xOff: bw * 0.85 }
+                { role: 'Helix Trainer',       col: 0x3b82f6, xOff: bw * 0.3 },
+                { role: 'Gemini Robotics Eng', col: 0x22d3ee, xOff: bw * 0.6 },
+                { role: 'Neural Tuner',        col: 0xa855f7, xOff: bw * 0.85 }
             ];
         } else if (fn.includes('calibration')) {
             return [
@@ -736,7 +805,7 @@ const InteriorRobotics = {
         } else if (fn.includes('finished') || fn.includes('goods')) {
             return [
                 { role: 'QA Inspector',   col: 0x4ade80, xOff: bw * 0.25 },
-                { role: 'Shipping Lead',  col: 0x10b981, xOff: bw * 0.75 }
+                { role: 'Fleet Allocator', col: 0x10b981, xOff: bw * 0.75 }
             ];
         } else if (fn.includes('walk test')) {
             return [
@@ -745,22 +814,22 @@ const InteriorRobotics = {
             ];
         } else if (fn.includes('obstacle')) {
             return [
-                { role: 'Course Designer', col: 0x06b6d4, xOff: bw * 0.3 },
-                { role: 'Balance Tester',  col: 0xf43f5e, xOff: bw * 0.7 }
+                { role: 'Course Designer',       col: 0x06b6d4, xOff: bw * 0.3 },
+                { role: 'Kung-Fu Choreographer', col: 0x10b981, xOff: bw * 0.7 }
             ];
         } else if (fn.includes('endurance')) {
             return [
-                { role: 'Endurance Lead', col: 0x06b6d4, xOff: bw * 0.35 },
-                { role: 'Battery Eng',    col: 0x4ade80, xOff: bw * 0.75 }
+                { role: 'Endurance Lead',    col: 0x06b6d4, xOff: bw * 0.35 },
+                { role: 'Battery Swap Tech', col: 0x1d4ed8, xOff: bw * 0.75 }
             ];
         } else if (fn.includes('loading') || fn.includes('bay')) {
             return [
                 { role: 'Dock Foreman', col: 0x10b981, xOff: bw * 0.3 },
-                { role: 'Logistics Mgr', col: 0xfbbf24, xOff: bw * 0.7 }
+                { role: 'GXO Liaison',  col: 0x14b8a6, xOff: bw * 0.7 }
             ];
         } else if (fn.includes('packaging')) {
             return [
-                { role: 'Packing Tech', col: 0x10b981, xOff: bw * 0.5 }
+                { role: 'NEO Gift-Wrapper', col: 0xd9c9a8, xOff: bw * 0.5 }
             ];
         } else if (fn.includes('qa') || fn.includes('check')) {
             return [
@@ -769,8 +838,8 @@ const InteriorRobotics = {
             ];
         } else if (fn.includes('morphology')) {
             return [
-                { role: 'Morphology Lead', col: 0x8b5cf6, xOff: bw * 0.3 },
-                { role: 'Kinematics Eng',  col: 0xa855f7, xOff: bw * 0.7 }
+                { role: 'Apollo 2 Designer', col: 0xec4899, xOff: bw * 0.3 },
+                { role: 'Kinematics Eng',    col: 0xa855f7, xOff: bw * 0.7 }
             ];
         } else if (fn.includes('actuator')) {
             return [
@@ -784,8 +853,8 @@ const InteriorRobotics = {
             ];
         } else if (fn.includes('embodied')) {
             return [
-                { role: 'Embodied AI',   col: 0x8b5cf6, xOff: bw * 0.3 },
-                { role: 'RL Researcher', col: 0xa855f7, xOff: bw * 0.7 }
+                { role: 'VLA Researcher',  col: 0x8b5cf6, xOff: bw * 0.3 },
+                { role: 'Gemini Liaison',  col: 0x22d3ee, xOff: bw * 0.7 }
             ];
         } else {
             return [{ role: 'Technician', col: col, xOff: bw * 0.5 }];
