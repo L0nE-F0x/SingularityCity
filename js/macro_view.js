@@ -59,6 +59,8 @@ const MacroView = {
             zones.appendChild(orbitBtn);
         }
 
+        let zoneBtnCount = 0;
+        let lastZoneBtn = null;
         this._mmZones.forEach(z => {
             if (!BLDS.some(z.match)) return; // hide button if no matching building exists
             const btn = document.createElement('div');
@@ -67,7 +69,14 @@ const MacroView = {
             btn.textContent = `${z.emoji} ${z.label}`;
             btn.onclick = () => this.jumpToZone(z);
             zones.appendChild(btn);
+            zoneBtnCount++;
+            lastZoneBtn = btn;
         });
+
+        // Keep the 2-column grid gap-free: zone buttons come and go dynamically
+        // (e.g. Conference only exists during live NeurIPS/ICML weeks), so with an
+        // odd count the last button stretches full-width instead of leaving a hole.
+        if (zoneBtnCount % 2 === 1 && lastZoneBtn) lastZoneBtn.classList.add('wide');
 
         // Underground button (special — full width, like Orbit, enters underground view)
         if (typeof BlackMarket !== 'undefined') {
