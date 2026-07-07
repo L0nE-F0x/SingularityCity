@@ -5,7 +5,7 @@
 
 const PowerEnv = {
     steamParts: [], smokeParts: [], _built: false,
-    turbineBlades: [], solarPanels: [], waterFlows: [],
+    turbineBlades: [], solarPanels: [], waterFlows: [], fusionGlows: [],
 
     buildAnimations(charLayer) {
         if (this._built || typeof PowerZone === 'undefined') return;
@@ -31,19 +31,20 @@ const PowerEnv = {
                 this.steamParts.push(p);
             }
         }
-        // ─── COAL SMOKE PARTICLES ───
-        const coalBld = BLDS.find(b => b.id === 'power_coal');
-        if (coalBld) {
-            for (let i = 0; i < 15; i++) {
+        // ─── GAS TURBINE EXHAUST (light heat-haze plumes off each genset stack) ───
+        const gasBld = BLDS.find(b => b.id === 'power_coal');
+        if (gasBld) {
+            for (let i = 0; i < 16; i++) {
                 const p = new PIXI.Graphics();
-                p.beginFill(0x333333, 0.2 + Math.random() * 0.15);
-                p.drawCircle(0, 0, 2 + Math.random() * 4); p.endFill();
-                p._bld = coalBld;
-                p._offX = coalBld.w * 0.7 + (Math.random() - 0.5) * 10;
-                p.x = coalBld.x + p._offX;
-                p.y = gy - 60 - Math.random() * 30;
-                p._speed = 0.2 + Math.random() * 0.3; p._phase = Math.random() * Math.PI * 2;
-                p._resetY = gy - 40;
+                p.beginFill(0x9ca3af, 0.10 + Math.random() * 0.10);
+                p.drawCircle(0, 0, 2 + Math.random() * 3); p.endFill();
+                p._bld = gasBld;
+                // One plume per exhaust stack (stacks sit at x ≈ 26 + n·30)
+                p._offX = 26 + (i % 4) * 30 + (Math.random() - 0.5) * 4;
+                p.x = gasBld.x + p._offX;
+                p.y = gy - 66 - Math.random() * 25;
+                p._speed = 0.25 + Math.random() * 0.35; p._phase = Math.random() * Math.PI * 2;
+                p._resetY = gy - 66;
                 charLayer.addChild(p);
                 this.smokeParts.push(p);
             }
@@ -105,6 +106,17 @@ const PowerEnv = {
             if (tb.cont._bld) tb.cont.x = tb.cont._bld.x + tb.cont._offX;
             tb.cont.rotation += tb.speed * windMult;
         });
+        // Polaris plasma halo — pulses with each fusion shot (matches getOutput cadence)
+        if (this.fusionGlows && this.fusionGlows.length) {
+            const pulse = Math.max(0, Math.sin(G.tick * 0.01));
+            const a = 0.15 + pulse * pulse * 0.85;
+            for (let i = this.fusionGlows.length - 1; i >= 0; i--) {
+                const fg = this.fusionGlows[i];
+                if (!fg || fg.destroyed) { this.fusionGlows.splice(i, 1); continue; }
+                fg.alpha = a;
+                fg.scale.set(0.8 + pulse * 0.5);
+            }
+        }
     },
 
     // ─── POWER GRID PANEL (v3.0 — live global data from OSM Overpass + city sim fallback) ───
@@ -218,10 +230,13 @@ const PowerEnv = {
         pz.SOURCES.forEach(s => {
             const output = pz.getOutput(s.id);
             const capFactor = Math.round((output / s.mw) * 100);
-            const typeCol = s.type === 'renewable' ? '#4ade80' : s.type === 'baseload' ? '#22d3ee' : '#f59e0b';
+            const typeCol = s.type === 'renewable' ? '#4ade80' : s.type === 'baseload' ? '#22d3ee' : s.type === 'experimental' ? '#c084fc' : '#f59e0b';
+            const outCell = s.status === 'construction'
+                ? '<span style="color:#f59e0b">🚧 2030</span>'
+                : output.toLocaleString() + ' MW' + (s.id === 'power_fusion' ? ' <span style="color:#c084fc">⚡pulse</span>' : '');
             html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.03)">';
             html += '<td style="padding:4px">' + s.emoji + ' ' + s.name + '</td>';
-            html += '<td style="text-align:right;padding:4px;color:#fff">' + output.toLocaleString() + ' MW</td>';
+            html += '<td style="text-align:right;padding:4px;color:#fff">' + outCell + '</td>';
             html += '<td style="text-align:right;padding:4px;color:var(--t3)">' + capFactor + '%</td>';
             html += '<td style="text-align:right;padding:4px;color:#fbbf24">$' + s.costMWh + '</td>';
             html += '<td style="text-align:center;padding:4px"><span style="color:' + typeCol + ';font-size:7px;font-weight:bold">' + s.type.toUpperCase() + '</span></td></tr>';

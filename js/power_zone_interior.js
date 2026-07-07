@@ -26,11 +26,13 @@ const InteriorPower = {
 
         const floorH = 80, startX = 60, bldW = G.vpW - 120;
         const layouts = {
-            'power_nuclear': { floors: ['Waste Storage', 'Turbine Hall', 'Reactor Core', 'Control Room'], roofLabel: 'NUCLEAR PLANT', col: 0x4ade80, npcs: ['Reactor Tech', 'Grid Operator'] },
-            'power_coal':    { floors: ['Ash Pit', 'Conveyor Level', 'Boiler Room', 'Control Deck'], roofLabel: 'COAL STATION', col: 0x94a3b8, npcs: ['Coal Foreman'] },
-            'power_hydro':   { floors: ['Turbine Hall', 'Generator Room', 'Control Room'], roofLabel: 'HYDRO DAM', col: 0x06b6d4, npcs: ['Dam Keeper'] },
-            'power_solar':   { floors: ['Inverter Room', 'Monitoring Station'], roofLabel: 'SOLAR ARRAY', col: 0xfbbf24, npcs: ['Solar Engineer'] },
-            'power_wind':    { floors: ['Nacelle Access', 'Monitoring Hub'], roofLabel: 'WIND FARM', col: 0x60a5fa, npcs: ['Turbine Tech'] }
+            'power_nuclear': { floors: ['Waste Storage', 'Turbine Hall', 'Reactor Core', 'Control Room'], roofLabel: 'CRANE CLEAN ENERGY', col: 0x4ade80, npcs: ['Reactor Tech', 'Grid Operator'] },
+            'power_coal':    { floors: ['Fuel Skids', 'Turbine Gensets', 'Exhaust Deck', 'Control Deck'], roofLabel: 'GAS TURBINE ARRAY', col: 0xf59e0b, npcs: ['Turbine Foreman'] },
+            'power_hydro':   { floors: ['Turbine Hall', 'Generator Room', 'Control Room'], roofLabel: 'COLUMBIA HYDRO', col: 0x06b6d4, npcs: ['Dam Keeper'] },
+            'power_solar':   { floors: ['Battery Vault', 'Inverter Room', 'Monitoring Station'], roofLabel: 'SOLAR + STORAGE', col: 0xfbbf24, npcs: ['Solar Engineer'] },
+            'power_wind':    { floors: ['Nacelle Access', 'Monitoring Hub'], roofLabel: 'SUNZIA WIND', col: 0x60a5fa, npcs: ['Turbine Tech'] },
+            'power_smr':     { floors: ['TRISO Fuel Bay', 'Reactor Cell', 'Control Room'], roofLabel: 'HERMES 2 · KAIROS', col: 0x2dd4bf, npcs: ['SMR Engineer'] },
+            'power_fusion':  { floors: ['Capacitor Vault', 'Fusion Chamber', 'Pulse Control'], roofLabel: 'POLARIS · HELION', col: 0xc084fc, npcs: ['Plasma Physicist'] }
         };
         const layout = layouts[bld.id] || { floors: ['Operations'], roofLabel: bld.name.toUpperCase(), col: 0x94a3b8, npcs: [] };
         const numFloors = layout.floors.length;
@@ -46,6 +48,17 @@ const InteriorPower = {
         const lt = new PIXI.Text(layout.roofLabel, { fontFamily:'JetBrains Mono', fontSize:11, fontWeight:'bold', fill:'#' + layout.col.toString(16).padStart(6,'0'), letterSpacing:2 });
         lt.anchor.set(0.5,0.5); lt.x = bX+bW/2; lt.y = bY+bH/2; if(lt.width>bW-8) lt.scale.set((bW-8)/lt.width);
         rc.addChild(lt); this.scene.addChild(rc);
+
+        // Real-world deal strip under the roof sign (operator → offtaker)
+        const src = bld._powerSrc;
+        if (src && (src.operator || src.offtaker)) {
+            const dealTxt = [src.operator, src.offtaker].filter(Boolean).join('  →  ');
+            const dt = new PIXI.Text(dealTxt, { fontFamily:'JetBrains Mono', fontSize:7, fill:0x94a3b8, letterSpacing:1 });
+            dt.anchor.set(0.5,0); dt.x = bX+bW/2; dt.y = bY+bH+3;
+            if (dt.width > bW + 60) dt.scale.set((bW + 60)/dt.width);
+            if (typeof UI !== 'undefined') UI.tip(dt, 'The Deal', src.milestone || 'Real 2026 AI-energy deal');
+            this.scene.addChild(dt);
+        }
 
         // Floors — with punched-out window cutouts above ground
         const winMarginX = 50;
@@ -184,6 +197,82 @@ const InteriorPower = {
                 g.beginFill(dc, 0.5); g.drawRect(dx, pY-22, 18, 22); g.endFill();
                 g.beginFill(0x000000, 0.2); g.drawRect(dx+2, pY-20, 14, 18); g.endFill();
                 if (fn.includes('waste')) { g.beginFill(0xfbbf24); g.drawRect(dx+5, pY-18, 8, 2); g.drawRect(dx+7, pY-16, 4, 6); g.endFill(); } // hazard symbol
+            }
+        } else if (fn.includes('fusion')) {
+            // Polaris FRC machine — horizontal cylinder, magnet coil rings, glowing plasma core
+            const mx = sx + bw/2;
+            g.beginFill(0x1f2430); g.drawRect(mx - 90, pY - 32, 180, 24); g.endFill();
+            g.beginFill(0x374151); g.drawRect(mx - 96, pY - 30, 8, 20); g.drawRect(mx + 88, pY - 30, 8, 20); g.endFill();
+            // Divertor cones at both ends
+            g.beginFill(0x4b5563);
+            g.drawPolygon([mx - 96, pY - 28, mx - 112, pY - 22, mx - 96, pY - 14]);
+            g.drawPolygon([mx + 96, pY - 28, mx + 112, pY - 22, mx + 96, pY - 14]);
+            g.endFill();
+            // Magnet coil rings along the machine
+            for (let cx2 = mx - 80; cx2 <= mx + 80; cx2 += 20) {
+                g.beginFill(0xc084fc, 0.55); g.drawRect(cx2 - 2, pY - 34, 4, 28); g.endFill();
+            }
+            // Plasma core glow (brightest at center — where the FRCs collide)
+            g.beginFill(0xe879f9, 0.35); g.drawEllipse(mx, pY - 20, 60, 6); g.endFill();
+            g.beginFill(0x22d3ee, 0.45); g.drawEllipse(mx, pY - 20, 30, 4); g.endFill();
+            g.beginFill(0xffffff, 0.6); g.drawEllipse(mx, pY - 20, 10, 2.5); g.endFill();
+        } else if (fn.includes('capacitor')) {
+            // Capacitor bank cabinets + overhead busbars
+            g.beginFill(0xf59e0b, 0.5); g.drawRect(sx + 30, fy + 10, bw - 60, 3); g.endFill();
+            for (let cx3 = sx + 40; cx3 < sx + bw - 60; cx3 += 55) {
+                g.beginFill(0x374151); g.drawRect(cx3, pY - 34, 40, 34); g.endFill();
+                g.beginFill(0x4b5563); g.drawRect(cx3, pY - 34, 40, 4); g.endFill();
+                g.beginFill(0xc084fc, 0.5);
+                for (let ly = pY - 26; ly < pY - 6; ly += 6) g.drawRect(cx3 + 4, ly, 32, 2);
+                g.endFill();
+                g.beginFill(0x94a3b8); g.drawRect(cx3 + 18, fy + 13, 3, fy + 40 - (fy + 13)); g.endFill();
+                g.beginFill(0xfbbf24); g.drawCircle(cx3 + 35, pY - 30, 1.6); g.endFill();
+            }
+        } else if (fn.includes('triso')) {
+            // TRISO pebble fuel hoppers (Kairos)
+            for (let hx = sx + 50; hx < sx + bw - 70; hx += 90) {
+                g.beginFill(0x475569); g.drawRect(hx, fy + 12, 44, 24); g.endFill();
+                g.beginFill(0x334155); g.drawPolygon([hx, fy + 36, hx + 44, fy + 36, hx + 28, pY - 12, hx + 16, pY - 12]); g.endFill();
+                g.beginFill(0x2dd4bf, 0.7);
+                for (let pi = 0; pi < 8; pi++) g.drawCircle(hx + 8 + (pi % 4) * 10, fy + 18 + Math.floor(pi / 4) * 9, 3);
+                g.endFill();
+                g.beginFill(0x1f2937); g.drawRect(hx + 18, pY - 12, 8, 12); g.endFill();
+            }
+        } else if (fn.includes('fuel')) {
+            // Gas fuel skids — pipe manifolds, valves, bottle rack
+            g.beginFill(0xb45309); g.drawRect(sx + 30, pY - 22, bw - 60, 4); g.endFill();
+            g.beginFill(0xd97706, 0.6); g.drawRect(sx + 30, pY - 21, bw - 60, 1.5); g.endFill();
+            for (let vx = sx + 60; vx < sx + bw - 60; vx += 70) {
+                g.beginFill(0x374151); g.drawRect(vx, pY - 28, 14, 14); g.endFill();
+                g.beginFill(0xef4444); g.drawCircle(vx + 7, pY - 30, 3); g.endFill();
+                g.beginFill(0x94a3b8); g.drawRect(vx + 5, pY - 14, 4, 14); g.endFill();
+            }
+            for (let bx2 = sx + bw - 120; bx2 < sx + bw - 60; bx2 += 12) {
+                g.beginFill(0x9ca3af); g.drawRoundedRect(bx2, pY - 26, 8, 26, 3); g.endFill();
+                g.beginFill(0xef4444, 0.7); g.drawRect(bx2 + 2, pY - 28, 4, 3); g.endFill();
+            }
+        } else if (fn.includes('battery')) {
+            // Grid battery racks with state-of-charge bars
+            for (let bx3 = sx + 40; bx3 < sx + bw - 60; bx3 += 60) {
+                g.beginFill(0xe5e7eb, 0.9); g.drawRect(bx3, pY - 32, 44, 32); g.endFill();
+                g.beginFill(0xcbd5e1); g.drawRect(bx3, pY - 32, 44, 4); g.endFill();
+                const soc = 0.4 + ((bx3 * 7) % 50) / 100;
+                g.beginFill(0x1f2937); g.drawRect(bx3 + 5, pY - 24, 34, 6); g.endFill();
+                g.beginFill(0x4ade80, 0.9); g.drawRect(bx3 + 6, pY - 23, 32 * soc, 4); g.endFill();
+                g.beginFill(0x6b7280, 0.6);
+                for (let vy = pY - 14; vy < pY - 4; vy += 4) g.drawRect(bx3 + 5, vy, 34, 1.5);
+                g.endFill();
+            }
+        } else if (fn.includes('exhaust')) {
+            // Exhaust ducting + silencer boxes
+            g.beginFill(0x6b7280); g.drawRect(sx + 30, fy + 14, bw - 60, 10); g.endFill();
+            g.beginFill(0x9ca3af, 0.5); g.drawRect(sx + 30, fy + 15, bw - 60, 3); g.endFill();
+            for (let dx2 = sx + 70; dx2 < sx + bw - 70; dx2 += 90) {
+                g.beginFill(0x4b5563); g.drawRect(dx2, fy + 24, 34, pY - fy - 28); g.endFill();
+                g.beginFill(0x374151, 0.8);
+                for (let ly2 = fy + 30; ly2 < pY - 10; ly2 += 7) g.drawRect(dx2 + 4, ly2, 26, 2.5);
+                g.endFill();
+                g.beginFill(0xfbbf24, 0.6); g.drawRect(dx2, fy + 24, 34, 2); g.endFill();
             }
         } else if (fn.includes('generator') || fn.includes('inverter')) {
             for (let gx = sx+50; gx < sx+bw-50; gx += 60) {

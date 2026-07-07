@@ -958,6 +958,35 @@ const UI = {
             html += `</div>`;
         }
       }
+      // ─── POWER FACILITY panel — real 2026 AI-energy deal + live output ───
+      else if (b._isPower && b._powerSrc) {
+        const src = b._powerSrc;
+        const liveOut = (typeof PowerZone !== 'undefined') ? PowerZone.getOutput(src.id) : null;
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">⚡ FACILITY SPECS</div>`;
+        if (src.operator) html += `<div>🏭 <b>Operator:</b> ${escapeHTML(src.operator)}</div>`;
+        if (src.offtaker) html += `<div>🤝 <b>Offtaker:</b> ${escapeHTML(src.offtaker)}</div>`;
+        if (src.online)   html += `<div>${src.status === 'construction' ? '🚧' : '✅'} <b>Status:</b> ${escapeHTML(src.online)}</div>`;
+        html += `<div>🔌 <b>Capacity:</b> ${src.mw.toLocaleString()} MW · $${src.costMWh}/MWh</div>`;
+        if (liveOut !== null && src.status !== 'construction') {
+            html += `<div>📈 <b>Live output:</b> <span style="color:${col}">${liveOut.toLocaleString()} MW</span>${src.id === 'power_fusion' ? ' (pulsed)' : ''}</div>`;
+        }
+        html += `</div>`;
+        if (src.milestone) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">📡 LATEST MILESTONE</div>`;
+            html += `<div style="color:var(--t2)">${escapeHTML(src.milestone)}</div>`;
+            html += `</div>`;
+        }
+        if (Array.isArray(src.facts) && src.facts.length) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">🌌 KNOWN FOR</div>`;
+            src.facts.forEach(f => {
+                html += `<div style="font-size:9px;padding:2px 0;color:var(--t2)">• ${escapeHTML(f)}</div>`;
+            });
+            html += `</div>`;
+        }
+      }
       // ─── ROBOTICS FACTORY panel — live production + real 2026 humanoid roster ───
       else if (b.type === 'robotics') {
         html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;

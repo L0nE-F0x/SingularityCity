@@ -5,21 +5,93 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const PowerZone = {
+    // Each source is modeled on a REAL 2026 AI-energy deal. The real-world fields
+    // (operator/offtaker/deal/online/milestone/facts) feed the building info panel;
+    // mw/costMWh keep driving the city-scale supply simulation.
     SOURCES: [
-        { id: 'power_solar',   name: 'Solar Array',     emoji: '☀️', mw: 200, costMWh: 28,  type: 'renewable', w: 200, fl: 3, desc: 'Photovoltaic farm tracking the sun. Output varies with daylight — zero at night.', tip: '200 MW peak · $28/MWh · Renewable' },
-        { id: 'power_wind',    name: 'Wind Farm',       emoji: '💨', mw: 150, costMWh: 35,  type: 'renewable', w: 160, fl: 5, desc: 'Three turbines harnessing wind. Output scales with weather intensity.', tip: '150 MW peak · $35/MWh · Renewable' },
-        { id: 'power_nuclear', name: 'Nuclear Plant',   emoji: '☢️', mw: 1100, costMWh: 65, type: 'baseload',  w: 180, fl: 6, desc: 'Pressurized water reactor. Constant 1.1GW baseload — the backbone of the grid.', tip: '1,100 MW constant · $65/MWh · Baseload' },
-        { id: 'power_coal',    name: 'Coal Station',    emoji: '🏭', mw: 600, costMWh: 95,  type: 'fossil',    w: 160, fl: 5, desc: 'Pulverized coal boiler. Reliable but dirty. Slated for decommission by 2035.', tip: '600 MW constant · $95/MWh · Fossil' },
-        { id: 'power_hydro',   name: 'Hydro Dam',       emoji: '🌊', mw: 400, costMWh: 42,  type: 'renewable', w: 200, fl: 5, desc: 'Concrete gravity dam with 400MW turbine hall. Clean constant baseload power.', tip: '400 MW constant · $42/MWh · Renewable' }
+        { id: 'power_solar',   name: 'Solar + Storage',  emoji: '☀️', mw: 200, costMWh: 28,  type: 'renewable', w: 200, fl: 3,
+          desc: 'Photovoltaic farm with grid-scale battery containers — the pattern hyperscalers now pair with every AI campus. Sun-tracking by day, batteries firming the evening ramp.',
+          operator: 'Utility-scale IPP', offtaker: 'AI data-center PPAs', online: 'Operational',
+          milestone: 'Solar+BESS became the fastest new power AI builders can buy — most of the 2026 US interconnection queue is exactly this.',
+          facts: [
+              'Batteries shift solar into the evening AI inference peak',
+              'Fastest time-to-power of any new-build source (18–24 months)',
+              'Tracking arrays follow the sun — watch the tilt change through the day'
+          ],
+          tip: '200 MW peak · $28/MWh · Renewable' },
+        { id: 'power_wind',    name: 'SunZia Wind',      emoji: '💨', mw: 150, costMWh: 35,  type: 'renewable', w: 160, fl: 5,
+          desc: 'Modeled on SunZia — the largest wind project in the Western Hemisphere, shipping New Mexico wind to Western data-center load over a purpose-built 550-mile HVDC line.',
+          operator: 'Pattern Energy', offtaker: 'Western grid + tech PPAs', online: 'Operational 2026',
+          milestone: 'SunZia: ~3.5 GW of wind + a dedicated 550-mile transmission line — proof that the grid, not the turbine, is the hard part.',
+          facts: [
+              'Largest wind + transmission project in the Western Hemisphere',
+              'Output climbs when storms roll through the city — watch the blades',
+              'New transmission is the #1 bottleneck for powering AI growth'
+          ],
+          tip: '150 MW peak · $35/MWh · Renewable' },
+        { id: 'power_nuclear', name: 'Crane Clean Energy', emoji: '☢️', mw: 835, costMWh: 65, type: 'baseload',  w: 180, fl: 6,
+          desc: 'Modeled on the Crane Clean Energy Center — Three Mile Island Unit 1, being restarted by Constellation with every megawatt sold to Microsoft for 20 years to power AI data centers.',
+          operator: 'Constellation Energy', offtaker: 'Microsoft (20-yr PPA, 100%)', online: 'Restart on track for 2027',
+          milestone: 'Jun 2026: FERC granted the waiver that keeps the Three Mile Island restart on schedule — possibly before the end of 2027.',
+          facts: [
+              'First-ever restart of a retired US nuclear plant, driven entirely by AI demand',
+              '835 MW · Microsoft buys 100% of output for 20 years',
+              'TMI Unit 1 ran safely for 45 years; Unit 2 (the 1979 accident) stays sealed',
+              '600+ permanent jobs return to the Susquehanna riverbank'
+          ],
+          tip: '835 MW constant · $65/MWh · Baseload' },
+        { id: 'power_coal',    name: 'Gas Turbine Array', emoji: '🔥', mw: 420, costMWh: 95,  type: 'fossil',    w: 160, fl: 5,
+          desc: 'Modeled on the turbines at xAI\'s Colossus in Memphis — dozens of mobile gas units thrown up faster than the grid could respond. Controversial, permit-challenged, and very 2026.',
+          operator: 'On-site behind-the-meter', offtaker: 'Colossus-class AI campus', online: 'Operational (backup pledged)',
+          milestone: '2026: xAI\'s Memphis turbines doubled to ~35 units, drew an EPA fight and a DOJ intervention — then a pledge to go backup-only once grid substations land.',
+          facts: [
+              'Gas turbines = instant power while grid interconnects take years',
+              'The Memphis fleet became the emblem of the AI power crunch',
+              'Slated to switch to backup-only as clean capacity comes online'
+          ],
+          tip: '420 MW constant · $95/MWh · Fossil' },
+        { id: 'power_hydro',   name: 'Columbia Hydro',   emoji: '🌊', mw: 400, costMWh: 42,  type: 'renewable', w: 200, fl: 5,
+          desc: 'Modeled on the Columbia River dams that made the Pacific Northwest a data-center mecca — the cheap, clean baseload that attracted Google to The Dalles two decades ago.',
+          operator: 'Federal hydro system', offtaker: 'PNW data-center corridor', online: 'Operational since 1957',
+          milestone: 'The original AI power play: Columbia River hydro is why hyperscale data centers colonized Oregon and Washington in the first place.',
+          facts: [
+              'Google\'s first hyperscale DC (The Dalles, 2006) sits on this hydro',
+              'Clean, constant, and the cheapest baseload on the city grid',
+              'New AI load now outstrips what the river can spare'
+          ],
+          tip: '400 MW constant · $42/MWh · Renewable' },
+        { id: 'power_smr',     name: 'Hermes 2 SMR',     emoji: '⚛️', mw: 50,  costMWh: 90,  type: 'baseload',  w: 150, fl: 3,
+          desc: 'Modeled on Kairos Power\'s Hermes 2 in Oak Ridge — the first Gen IV power reactor ever to get a US construction permit, feeding Google\'s Tennessee data centers via TVA.',
+          operator: 'Kairos Power', offtaker: 'Google via TVA', online: 'Under construction · online 2030', status: 'construction',
+          milestone: 'Apr 2026: Kairos broke ground on Hermes 2 — first power-producing Gen IV reactor with an NRC construction permit, 50 MW to TVA for Google.',
+          facts: [
+              'Google\'s master deal: up to 500 MW of Kairos SMRs by 2035',
+              'Molten fluoride salt coolant + TRISO pebble fuel — walk-away safe',
+              'Built small on purpose: factory-style reactor production is the goal'
+          ],
+          tip: '50 MW · under construction · online 2030' },
+        { id: 'power_fusion',  name: 'Polaris Fusion',   emoji: '🌀', mw: 50,  costMWh: 120, type: 'experimental', w: 150, fl: 3,
+          desc: 'Modeled on Helion\'s Polaris — the pulsed field-reversed fusion machine racing to deliver the world\'s first fusion PPA, sold to Microsoft before the plant even exists.',
+          operator: 'Helion Energy', offtaker: 'Microsoft (world\'s 1st fusion PPA)', online: 'Polaris pulsing · grid power 2028',
+          milestone: 'Feb 2026: Polaris hit 150-million-°C plasma — and Helion started building Orion, the plant that owes Microsoft 50 MW by ~2028.',
+          facts: [
+              'World\'s first fusion power purchase agreement (Microsoft, 2023)',
+              'Pulsed machine — watch the output spike and fade with each shot',
+              'Direct energy recovery: no steam turbines, magnets harvest the pulse',
+              'Sam Altman is Helion\'s largest investor — AI paying for fusion'
+          ],
+          tip: '50 MW pulsed · $120/MWh · Experimental' }
     ],
 
     NPCS: [
-        { id: 'npc_grid_ops',     name: 'Grid Operator',    role: 'Grid Operations',       workplace: 'power_nuclear', color: '#22d3ee', shift: 'day' },
-        { id: 'npc_reactor_tech', name: 'Reactor Tech',     role: 'Nuclear Technician',     workplace: 'power_nuclear', color: '#4ade80', shift: 'night' },
-        { id: 'npc_solar_eng',    name: 'Solar Engineer',   role: 'PV Array Maintenance',   workplace: 'power_solar',   color: '#fbbf24', shift: 'day' },
+        { id: 'npc_grid_ops',     name: 'Grid Operator',    role: 'Grid Operations',        workplace: 'power_nuclear', color: '#22d3ee', shift: 'day' },
+        { id: 'npc_reactor_tech', name: 'Reactor Tech',     role: 'Crane CEC Restart Crew', workplace: 'power_nuclear', color: '#4ade80', shift: 'night' },
+        { id: 'npc_solar_eng',    name: 'Solar Engineer',   role: 'PV + BESS Maintenance',  workplace: 'power_solar',   color: '#fbbf24', shift: 'day' },
         { id: 'npc_turbine_tech', name: 'Turbine Tech',     role: 'Wind Turbine Engineer',  workplace: 'power_wind',    color: '#60a5fa', shift: 'day' },
-        { id: 'npc_coal_foreman', name: 'Coal Foreman',     role: 'Boiler Operations',      workplace: 'power_coal',    color: '#94a3b8', shift: 'night' },
-        { id: 'npc_dam_keeper',   name: 'Dam Keeper',       role: 'Hydroelectric Ops',      workplace: 'power_hydro',   color: '#06b6d4', shift: 'day' }
+        { id: 'npc_coal_foreman', name: 'Turbine Foreman',  role: 'Gas Genset Operations',  workplace: 'power_coal',    color: '#94a3b8', shift: 'night' },
+        { id: 'npc_dam_keeper',   name: 'Dam Keeper',       role: 'Hydroelectric Ops',      workplace: 'power_hydro',   color: '#06b6d4', shift: 'day' },
+        { id: 'npc_smr_eng',      name: 'SMR Engineer',     role: 'Hermes 2 Construction',  workplace: 'power_smr',     color: '#2dd4bf', shift: 'day' },
+        { id: 'npc_plasma_phys',  name: 'Plasma Physicist', role: 'Polaris Pulse Ops',      workplace: 'power_fusion',  color: '#c084fc', shift: 'night' }
     ],
 
     _inited: false,
@@ -91,7 +163,13 @@ const PowerZone = {
                 : 0.6;
             return Math.round(src.mw * mult);
         }
-        return src.mw; // Nuclear, coal, hydro = constant
+        if (src.status === 'construction') return 0; // Hermes 2 — online 2030
+        if (srcId === 'power_fusion') {
+            // Polaris is a PULSED machine — output spikes with each shot, then fades.
+            const pulse = Math.max(0, Math.sin(G.tick * 0.01));
+            return Math.round(src.mw * pulse * pulse);
+        }
+        return src.mw; // Nuclear, gas, hydro = constant
     },
 
     getTotalSupply() {

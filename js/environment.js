@@ -1919,73 +1919,256 @@ const Environment = {
           gfx.beginFill(agCol, 0.1); gfx.drawRect(0, h-4, b.w, 1); gfx.endFill();
 
         } else if (b.id.startsWith('power_')) {
-          // ── POWER GRID ZONE BUILDINGS ──
+          // ── POWER GRID ZONE BUILDINGS — each modeled on a real 2026 AI-energy facility ──
           if (b.id === 'power_solar') {
-            // Ground pad
+            // Ground pad with dust gradient
             gfx.beginFill(0x2a2a20); gfx.drawRect(0, h-10, b.w, 10); gfx.endFill();
-            gfx.beginFill(0x333328); gfx.drawRect(0, h-10, b.w, 3); gfx.endFill();
-            // Control shed
-            gfx.beginFill(0x475569); gfx.drawRect(b.w-40, h-28, 35, 18); gfx.endFill();
-            gfx.beginFill(0x334155); gfx.drawRect(b.w-40, h-30, 35, 3); gfx.endFill();
-            gfx.beginFill(0x22d3ee, 0.4); gfx.drawRect(b.w-32, h-24, 10, 8); gfx.endFill();
-            // Solar panel rows on frames
+            gfx.beginFill(0x3a3a2c); gfx.drawRect(0, h-10, b.w, 3); gfx.endFill();
+            // Perimeter fence posts
+            gfx.beginFill(0x4b5563, 0.6);
+            for (let fx2 = 2; fx2 < b.w; fx2 += 16) gfx.drawRect(fx2, h-16, 1.5, 7);
+            gfx.endFill();
+            gfx.beginFill(0x64748b, 0.25); gfx.drawRect(0, h-15, b.w, 1); gfx.endFill();
+            // Megapack-style battery containers (the BESS half of Solar + Storage)
+            for (let bi = 0; bi < 2; bi++) {
+                const bx2 = b.w - 78 + bi * 30;
+                gfx.beginFill(0xe5e7eb); gfx.drawRect(bx2, h-32, 26, 22); gfx.endFill();
+                gfx.beginFill(0xcbd5e1); gfx.drawRect(bx2, h-32, 26, 3); gfx.endFill();
+                gfx.beginFill(0x9ca3af); gfx.drawRect(bx2, h-14, 26, 2); gfx.endFill();
+                // Vent slats + charge LED
+                gfx.beginFill(0x94a3b8, 0.6);
+                for (let vy2 = h-27; vy2 < h-15; vy2 += 4) gfx.drawRect(bx2 + 3, vy2, 20, 1.5);
+                gfx.endFill();
+                gfx.beginFill(0x4ade80); gfx.drawCircle(bx2 + 22, h-29, 1.5); gfx.endFill();
+            }
+            // Inverter shed
+            gfx.beginFill(0x475569); gfx.drawRect(b.w-40, h-52, 32, 18); gfx.endFill();
+            gfx.beginFill(0x334155); gfx.drawRect(b.w-40, h-54, 32, 3); gfx.endFill();
+            gfx.beginFill(0x22d3ee, 0.4); gfx.drawRect(b.w-33, h-48, 9, 7); gfx.endFill();
+            gfx.beginFill(0x64748b); gfx.drawRect(b.w-24, h-34, 3, 2); gfx.endFill(); // conduit
+            // Sun-tracking panel rows
             const dp = G.getDayPhase();
             const tilt = dp < 0.25 || dp > 0.83 ? 0 : Math.sin(((dp - 0.25) / 0.58) * Math.PI) * 0.4;
-            for (let px = 8; px < b.w - 50; px += 32) {
+            for (let px = 8; px < b.w - 90; px += 32) {
                 gfx.beginFill(0x64748b); gfx.drawRect(px + 13, h - 38, 3, 28); gfx.endFill();
                 gfx.beginFill(0x64748b); gfx.drawRect(px + 4, h - 38, 22, 2); gfx.endFill();
                 const py = h - 44 - tilt * 8;
                 gfx.beginFill(0x1e3a8a); gfx.drawRect(px, py, 28, 10); gfx.endFill();
                 gfx.beginFill(0x2563eb, 0.5); gfx.drawRect(px + 1, py + 1, 12, 8); gfx.drawRect(px + 15, py + 1, 12, 8); gfx.endFill();
+                // Glass glint tracks the sun
+                gfx.beginFill(0x93c5fd, 0.35); gfx.drawRect(px + 2 + tilt * 30, py + 1, 5, 8); gfx.endFill();
                 gfx.beginFill(0x3b82f6, 0.3); gfx.drawRect(px, py, 28, 2); gfx.endFill();
             }
           } else if (b.id === 'power_wind') {
+            // Grassy ridge base
             gfx.beginFill(0x2a2a20); gfx.drawRect(0, h-10, b.w, 10); gfx.endFill();
-            gfx.beginFill(0x333328); gfx.drawRect(0, h-10, b.w, 3); gfx.endFill();
+            gfx.beginFill(0x2d4a2d, 0.7); gfx.drawRect(0, h-11, b.w, 4); gfx.endFill();
+            gfx.beginFill(0x3a5c3a, 0.5);
+            for (let gx2 = 6; gx2 < b.w; gx2 += 14) gfx.drawRect(gx2, h-13, 2, 3);
+            gfx.endFill();
+            // Control cabin
             gfx.beginFill(0x475569); gfx.drawRect(5, h-26, 25, 16); gfx.endFill();
             gfx.beginFill(0x334155); gfx.drawRect(5, h-28, 25, 3); gfx.endFill();
             gfx.beginFill(0x22d3ee, 0.3); gfx.drawRect(10, h-22, 8, 6); gfx.endFill();
+            // Towers (hubs stay at h-72 — PowerEnv blade anchors depend on it)
             for (let ti = 0; ti < 3; ti++) {
                 const tx = 40 + ti * 45;
-                gfx.beginFill(0x94a3b8); gfx.drawRect(tx - 6, h - 12, 12, 4); gfx.endFill();
-                gfx.beginFill(0xf1f5f9, 0.85);
-                gfx.moveTo(tx - 4, h - 10); gfx.lineTo(tx - 2, h - 72); gfx.lineTo(tx + 2, h - 72); gfx.lineTo(tx + 4, h - 10);
+                // Foundation
+                gfx.beginFill(0x94a3b8); gfx.drawRect(tx - 7, h - 12, 14, 4); gfx.endFill();
+                gfx.beginFill(0x6b7280); gfx.drawRect(tx - 5, h - 13, 10, 2); gfx.endFill();
+                // Tapered tower with shade side
+                gfx.beginFill(0xf1f5f9, 0.9);
+                gfx.moveTo(tx - 4.5, h - 10); gfx.lineTo(tx - 2, h - 72); gfx.lineTo(tx + 2, h - 72); gfx.lineTo(tx + 4.5, h - 10);
                 gfx.closePath(); gfx.endFill();
-                gfx.beginFill(0xe2e8f0); gfx.drawRect(tx - 5, h - 74, 10, 5); gfx.endFill();
+                gfx.beginFill(0xcbd5e1, 0.7);
+                gfx.moveTo(tx + 1, h - 10); gfx.lineTo(tx + 1.2, h - 72); gfx.lineTo(tx + 2, h - 72); gfx.lineTo(tx + 4.5, h - 10);
+                gfx.closePath(); gfx.endFill();
+                // Access door
+                gfx.beginFill(0x475569); gfx.drawRect(tx - 2, h - 18, 4, 8); gfx.endFill();
+                // Nacelle + hub + red aviation beacon
+                gfx.beginFill(0xe2e8f0); gfx.drawRoundedRect(tx - 6, h - 76, 12, 7, 2); gfx.endFill();
+                gfx.beginFill(0xb6c2ce); gfx.drawRect(tx - 6, h - 70.5, 12, 1.5); gfx.endFill();
                 gfx.beginFill(0x94a3b8); gfx.drawCircle(tx, h - 72, 4); gfx.endFill();
+                gfx.beginFill(0xef4444, 0.8); gfx.drawCircle(tx, h - 77.5, 1.3); gfx.endFill();
             }
           } else if (b.id === 'power_nuclear') {
-            // Concrete pad fills entire base
+            // ── CRANE CLEAN ENERGY CENTER (Three Mile Island Unit 1 restart) ──
             gfx.beginFill(0x6b7280); gfx.drawRect(0, h-8, b.w, 8); gfx.endFill();
-            // Solid reactor building fills the base
-            gfx.beginFill(0x334155); gfx.drawRect(0, h-50, b.w, 42); gfx.endFill();
-            gfx.beginFill(0x475569); gfx.drawRect(0, h-52, b.w, 4); gfx.endFill();
-            for (let wx = 8; wx < b.w-8; wx += 22) { gfx.beginFill(0x22d3ee, 0.3); gfx.drawRect(wx, h-44, 14, 10); gfx.endFill(); }
-            // Cooling tower on top
-            gfx.beginFill(0xd1d5db);
-            gfx.moveTo(b.w/2 - 35, h - 50); gfx.lineTo(b.w/2 - 22, h - 75); gfx.lineTo(b.w/2 - 28, h - 100);
-            gfx.lineTo(b.w/2 + 28, h - 100); gfx.lineTo(b.w/2 + 22, h - 75); gfx.lineTo(b.w/2 + 35, h - 50);
-            gfx.closePath(); gfx.endFill();
-            gfx.beginFill(0x9ca3af); gfx.drawRect(b.w/2 - 26, h - 100, 52, 4); gfx.endFill();
-            gfx.beginFill(0xfbbf24, 0.5); gfx.drawRect(b.w - 30, h - 44, 10, 10); gfx.endFill();
-            for (let sx2 = 0; sx2 < b.w; sx2 += 14) { gfx.beginFill(0xfbbf24, 0.15); gfx.drawRect(sx2, h - 10, 7, 3); gfx.endFill(); }
+            gfx.beginFill(0x7d8896); gfx.drawRect(0, h-8, b.w, 2); gfx.endFill();
+            // Twin hyperboloid cooling towers (the TMI skyline)
+            [26, 78].forEach(cx2 => {
+                // Waisted profile
+                gfx.beginFill(0xd6d9dd);
+                gfx.moveTo(cx2 - 22, h - 8);
+                gfx.lineTo(cx2 - 12, h - 62); gfx.lineTo(cx2 - 15, h - 108);
+                gfx.lineTo(cx2 + 15, h - 108); gfx.lineTo(cx2 + 12, h - 62);
+                gfx.lineTo(cx2 + 22, h - 8);
+                gfx.closePath(); gfx.endFill();
+                // Shade side
+                gfx.beginFill(0xaab2bb, 0.8);
+                gfx.moveTo(cx2 + 6, h - 8);
+                gfx.lineTo(cx2 + 5, h - 62); gfx.lineTo(cx2 + 7, h - 108);
+                gfx.lineTo(cx2 + 15, h - 108); gfx.lineTo(cx2 + 12, h - 62);
+                gfx.lineTo(cx2 + 22, h - 8);
+                gfx.closePath(); gfx.endFill();
+                // Rim + interior dark lip
+                gfx.beginFill(0x8d949c); gfx.drawRect(cx2 - 15, h - 110, 30, 4); gfx.endFill();
+                gfx.beginFill(0x565e66); gfx.drawRect(cx2 - 12, h - 108, 24, 2); gfx.endFill();
+                // Horizontal band lines
+                gfx.beginFill(0xb9bfc6, 0.5);
+                gfx.drawRect(cx2 - 19, h - 30, 38, 1.5);
+                gfx.drawRect(cx2 - 14, h - 62, 28, 1.5);
+                gfx.drawRect(cx2 - 14, h - 88, 29, 1.5);
+                gfx.endFill();
+            });
+            // Containment dome (Unit 1 — the one that runs)
+            gfx.beginFill(0xc7ccd1); gfx.drawCircle(b.w - 42, h - 44, 24); gfx.endFill();
+            gfx.beginFill(0x9aa2ab, 0.7); gfx.drawCircle(b.w - 36, h - 40, 20); gfx.endFill();
+            gfx.beginFill(0xc7ccd1); gfx.drawCircle(b.w - 44, h - 46, 19); gfx.endFill();
+            gfx.beginFill(0x565e66); gfx.drawRect(b.w - 66, h - 44, 48, 36); gfx.endFill();
+            // Turbine hall connecting dome to towers
+            gfx.beginFill(0x334155); gfx.drawRect(b.w - 78, h - 36, 70, 28); gfx.endFill();
+            gfx.beginFill(0x475569); gfx.drawRect(b.w - 78, h - 38, 70, 3); gfx.endFill();
+            for (let wx = b.w - 72; wx < b.w - 14; wx += 15) { gfx.beginFill(0x22d3ee, 0.35); gfx.drawRect(wx, h - 30, 9, 8); gfx.endFill(); }
+            // Microsoft PPA accent — the whole plant is sold to one buyer
+            gfx.beginFill(0x0ea5e9, 0.55); gfx.drawRect(b.w - 78, h - 40, 70, 2); gfx.endFill();
+            // Switchyard: transformer + bushings
+            gfx.beginFill(0x374151); gfx.drawRect(104, h - 26, 18, 18); gfx.endFill();
+            gfx.beginFill(0x6b7280); gfx.drawRect(106, h - 32, 2, 6); gfx.drawRect(112, h - 32, 2, 6); gfx.drawRect(118, h - 32, 2, 6); gfx.endFill();
+            gfx.beginFill(0xe5e7eb, 0.8); gfx.drawCircle(107, h - 33, 1.2); gfx.drawCircle(113, h - 33, 1.2); gfx.drawCircle(119, h - 33, 1.2); gfx.endFill();
+            // Radiological warning placard
+            gfx.beginFill(0xfbbf24, 0.85); gfx.drawRect(126, h - 22, 10, 10); gfx.endFill();
+            gfx.beginFill(0x1f2937); gfx.drawCircle(131, h - 17, 2.4); gfx.endFill();
+            gfx.beginFill(0xfbbf24); gfx.drawCircle(131, h - 17, 1); gfx.endFill();
           } else if (b.id === 'power_coal') {
-            // Concrete pad fills entire base
+            // ── GAS TURBINE ARRAY (the Colossus Memphis pattern) ──
             gfx.beginFill(0x4b5563); gfx.drawRect(0, h-8, b.w, 8); gfx.endFill();
-            gfx.beginFill(0x334155); gfx.drawRect(0, h - 55, 100, 47); gfx.endFill();
-            gfx.beginFill(0x475569); gfx.drawRect(0, h - 57, 100, 4); gfx.endFill();
-            for (let wy = h-50; wy < h-12; wy += 16) { for (let wx = 6; wx < 94; wx += 20) { gfx.beginFill(0xfbbf24, 0.35); gfx.drawRect(wx, wy, 12, 10); gfx.endFill(); } }
-            gfx.beginFill(0x6b7280); gfx.drawRect(105, h - 80, 16, 72); gfx.endFill();
-            gfx.beginFill(0xef4444, 0.5); gfx.drawRect(105, h - 80, 16, 4); gfx.endFill();
-            gfx.beginFill(0x1f2937); gfx.moveTo(125, h-8); gfx.lineTo(135, h-22); gfx.lineTo(155, h-8); gfx.closePath(); gfx.endFill();
+            gfx.beginFill(0x5b6673); gfx.drawRect(0, h-8, b.w, 2); gfx.endFill();
+            // Rows of mobile turbine gensets: intake box + turbine can + exhaust stack
+            for (let gi = 0; gi < 4; gi++) {
+                const gx2 = 6 + gi * 30;
+                // Intake filter house
+                gfx.beginFill(0x9ca3af); gfx.drawRect(gx2, h - 34, 10, 26); gfx.endFill();
+                gfx.beginFill(0x6b7280, 0.7);
+                for (let ly2 = h - 31; ly2 < h - 12; ly2 += 4) gfx.drawRect(gx2 + 1.5, ly2, 7, 1.5);
+                gfx.endFill();
+                // Turbine container (white trailer unit)
+                gfx.beginFill(0xe5e7eb); gfx.drawRect(gx2 + 10, h - 26, 16, 18); gfx.endFill();
+                gfx.beginFill(0xf3f4f6); gfx.drawRect(gx2 + 10, h - 26, 16, 3); gfx.endFill();
+                gfx.beginFill(0x9ca3af); gfx.drawRect(gx2 + 10, h - 10, 16, 2); gfx.endFill();
+                // Exhaust stack with heat-darkened tip
+                gfx.beginFill(0xb0b7bf); gfx.drawRect(gx2 + 17, h - 58, 7, 32); gfx.endFill();
+                gfx.beginFill(0x8a929b); gfx.drawRect(gx2 + 21.5, h - 58, 2.5, 32); gfx.endFill();
+                gfx.beginFill(0x4b5563); gfx.drawRect(gx2 + 16, h - 62, 9, 5); gfx.endFill();
+                gfx.beginFill(0xef4444, 0.7); gfx.drawCircle(gx2 + 20.5, h - 63.5, 1.2); gfx.endFill();
+            }
+            // Substation transformer feeding the campus next door
+            gfx.beginFill(0x374151); gfx.drawRect(b.w - 34, h - 30, 22, 22); gfx.endFill();
+            gfx.beginFill(0x6b7280); gfx.drawRect(b.w - 31, h - 36, 2, 6); gfx.drawRect(b.w - 24, h - 36, 2, 6); gfx.drawRect(b.w - 17, h - 36, 2, 6); gfx.endFill();
+            gfx.beginFill(0xfbbf24, 0.6); gfx.drawRect(b.w - 34, h - 30, 22, 2); gfx.endFill();
+            // Hazard chevrons on the pad
+            gfx.beginFill(0xfbbf24, 0.25);
+            for (let sx2 = 0; sx2 < b.w; sx2 += 14) gfx.drawRect(sx2, h - 10, 7, 3);
+            gfx.endFill();
           } else if (b.id === 'power_hydro') {
-            // Dam wall (solid, no gaps)
-            gfx.beginFill(0x94a3b8);
-            gfx.moveTo(5, h - 75); gfx.lineTo(25, h - 8); gfx.lineTo(b.w - 25, h - 8); gfx.lineTo(b.w - 5, h - 75);
+            // ── COLUMBIA HYDRO — stepped gravity dam with live spillways ──
+            // Reservoir hint behind crest
+            gfx.beginFill(0x155e75, 0.5); gfx.drawRect(0, h - 78, b.w, 6); gfx.endFill();
+            // Dam face (stepped concrete, wider at base)
+            gfx.beginFill(0x9aa5b1);
+            gfx.moveTo(5, h - 74); gfx.lineTo(14, h - 52); gfx.lineTo(20, h - 30); gfx.lineTo(25, h - 8);
+            gfx.lineTo(b.w - 25, h - 8); gfx.lineTo(b.w - 20, h - 30); gfx.lineTo(b.w - 14, h - 52); gfx.lineTo(b.w - 5, h - 74);
             gfx.closePath(); gfx.endFill();
-            gfx.beginFill(0x7a8494, 0.4); for (let dy = h-70; dy < h-12; dy += 10) { gfx.drawRect(28, dy, b.w - 56, 2); } gfx.endFill();
-            gfx.beginFill(0x475569); gfx.drawRect(b.w/2 - 15, h - 30, 30, 22); gfx.endFill();
-            gfx.beginFill(0x22d3ee, 0.4); gfx.drawRect(b.w/2 - 25, h - 14, 20, 8); gfx.drawRect(b.w/2 + 5, h - 14, 20, 8); gfx.endFill();
+            // Shade side + expansion joint lines
+            gfx.beginFill(0x7d8896, 0.6);
+            gfx.moveTo(b.w * 0.62, h - 74); gfx.lineTo(b.w * 0.66, h - 8); gfx.lineTo(b.w - 25, h - 8);
+            gfx.lineTo(b.w - 14, h - 52); gfx.lineTo(b.w - 5, h - 74);
+            gfx.closePath(); gfx.endFill();
+            gfx.beginFill(0x6e7987, 0.5);
+            for (let jx = 40; jx < b.w - 40; jx += 24) gfx.drawRect(jx, h - 70, 1.5, 60);
+            gfx.endFill();
+            // Crest road + railing + gantry crane
+            gfx.beginFill(0x64748b); gfx.drawRect(2, h - 78, b.w - 4, 5); gfx.endFill();
+            gfx.beginFill(0x94a3b8, 0.7);
+            for (let rx2 = 6; rx2 < b.w - 6; rx2 += 10) gfx.drawRect(rx2, h - 82, 1.2, 4);
+            gfx.endFill();
+            gfx.beginFill(0xfbbf24); gfx.drawRect(b.w * 0.3, h - 92, 3, 14); gfx.drawRect(b.w * 0.3 - 6, h - 92, 16, 3); gfx.endFill();
+            // Spillway gates with falling water + stilling-basin foam
+            [b.w * 0.32, b.w * 0.5, b.w * 0.68].forEach(sx3 => {
+                gfx.beginFill(0x334155); gfx.drawRect(sx3 - 7, h - 68, 14, 8); gfx.endFill();
+                gfx.beginFill(0x7dd3fc, 0.55); gfx.drawRect(sx3 - 5, h - 60, 10, 50); gfx.endFill();
+                gfx.beginFill(0xe0f2fe, 0.5); gfx.drawRect(sx3 - 2, h - 60, 3, 50); gfx.endFill();
+                gfx.beginFill(0xffffff, 0.45); gfx.drawEllipse(sx3, h - 9, 9, 3.5); gfx.endFill();
+            });
+            // Powerhouse at the toe with lit windows
+            gfx.beginFill(0x475569); gfx.drawRect(b.w/2 - 22, h - 26, 44, 18); gfx.endFill();
+            gfx.beginFill(0x334155); gfx.drawRect(b.w/2 - 22, h - 28, 44, 3); gfx.endFill();
+            gfx.beginFill(0xfbbf24, 0.5); gfx.drawRect(b.w/2 - 16, h - 21, 8, 6); gfx.drawRect(b.w/2 - 4, h - 21, 8, 6); gfx.drawRect(b.w/2 + 8, h - 21, 8, 6); gfx.endFill();
+          } else if (b.id === 'power_smr') {
+            // ── HERMES 2 SMR (Kairos × Google) — under construction ──
+            gfx.beginFill(0x8b7355, 0.5); gfx.drawRect(0, h-8, b.w, 8); gfx.endFill(); // dirt site
+            gfx.beginFill(0x6b7280); gfx.drawRect(4, h-10, b.w-8, 3); gfx.endFill();
+            // Reactor hall (modern, teal-trimmed)
+            gfx.beginFill(0x334155); gfx.drawRect(10, h - 48, 66, 40); gfx.endFill();
+            gfx.beginFill(0x2dd4bf, 0.6); gfx.drawRect(10, h - 50, 66, 3); gfx.endFill();
+            for (let wx = 16; wx < 68; wx += 16) { gfx.beginFill(0x2dd4bf, 0.3); gfx.drawRect(wx, h - 42, 10, 8); gfx.endFill(); }
+            // Google offtake accent — four dots
+            [[0x4285f4, 22], [0xea4335, 32], [0xfbbc05, 42], [0x34a853, 52]].forEach(([dc, dx2]) => {
+                gfx.beginFill(dc, 0.9); gfx.drawCircle(dx2, h - 20, 2); gfx.endFill();
+            });
+            // Twin reactor modules with dome caps (one still skeletal)
+            gfx.beginFill(0xd1d5db); gfx.drawRect(86, h - 40, 18, 32); gfx.endFill();
+            gfx.beginFill(0xd1d5db); gfx.drawCircle(95, h - 40, 9); gfx.endFill();
+            gfx.beginFill(0x9ca3af, 0.6); gfx.drawRect(99, h - 40, 5, 32); gfx.endFill();
+            // Second module: scaffolding lattice only
+            gfx.lineStyle(1, 0xf59e0b, 0.7);
+            gfx.drawRect(112, h - 38, 18, 30);
+            gfx.moveTo(112, h - 38); gfx.lineTo(130, h - 8);
+            gfx.moveTo(130, h - 38); gfx.lineTo(112, h - 8);
+            gfx.moveTo(112, h - 23); gfx.lineTo(130, h - 23);
+            gfx.lineStyle(0);
+            // Tower crane over the site
+            gfx.beginFill(0xf59e0b); gfx.drawRect(120, h - 74, 3, 66); gfx.endFill();
+            gfx.beginFill(0xf59e0b); gfx.drawRect(96, h - 74, 52, 3); gfx.endFill();
+            gfx.beginFill(0xf59e0b, 0.7); gfx.drawRect(142, h - 71, 2, 8); gfx.endFill(); // counter-jib tie
+            gfx.beginFill(0x94a3b8); gfx.drawRect(103, h - 71, 1.5, 16); gfx.endFill(); // hook cable
+            gfx.beginFill(0x6b7280); gfx.drawRect(100, h - 55, 8, 3); gfx.endFill();   // hook block
+            gfx.beginFill(0xef4444, 0.8); gfx.drawCircle(121.5, h - 76, 1.5); gfx.endFill();
+          } else if (b.id === 'power_fusion') {
+            // ── POLARIS FUSION (Helion × Microsoft) — pulsed FRC machine hall ──
+            gfx.beginFill(0x1f2430); gfx.drawRect(0, h - 8, b.w, 8); gfx.endFill();
+            // Sleek dark hall
+            gfx.beginFill(0x171c28); gfx.drawRect(8, h - 54, b.w - 16, 46); gfx.endFill();
+            gfx.beginFill(0x232a3a); gfx.drawRect(8, h - 54, b.w - 16, 4); gfx.endFill();
+            // Roofline LED strip (Helion purple)
+            gfx.beginFill(0xc084fc, 0.7); gfx.drawRect(8, h - 56, b.w - 16, 2); gfx.endFill();
+            // Capacitor bank containers flanking the porthole
+            [[16, h - 34], [b.w - 44, h - 34]].forEach(([cx3, cy3]) => {
+                gfx.beginFill(0x374151); gfx.drawRect(cx3, cy3, 28, 26); gfx.endFill();
+                gfx.beginFill(0x4b5563); gfx.drawRect(cx3, cy3, 28, 3); gfx.endFill();
+                gfx.beginFill(0xc084fc, 0.5);
+                for (let ly3 = cy3 + 6; ly3 < cy3 + 22; ly3 += 5) gfx.drawRect(cx3 + 3, ly3, 22, 1.5);
+                gfx.endFill();
+                gfx.beginFill(0xfbbf24, 0.8); gfx.drawCircle(cx3 + 24, cy3 + 4.5, 1.2); gfx.endFill();
+            });
+            // Central porthole revealing the FRC plasma (glow ring animated by PowerEnv)
+            const pcx = b.w / 2, pcy = h - 32;
+            gfx.beginFill(0x0b0e16); gfx.drawCircle(pcx, pcy, 15); gfx.endFill();
+            gfx.lineStyle(2, 0x475569, 0.9); gfx.drawCircle(pcx, pcy, 15); gfx.lineStyle(0);
+            gfx.beginFill(0xf0abfc, 0.25); gfx.drawCircle(pcx, pcy, 11); gfx.endFill();
+            gfx.beginFill(0x22d3ee, 0.35); gfx.drawCircle(pcx, pcy, 7); gfx.endFill();
+            gfx.beginFill(0xffffff, 0.5); gfx.drawCircle(pcx, pcy, 2.5); gfx.endFill();
+            // Pulsing plasma halo — registered with PowerEnv for animation
+            const plasmaGlow = new PIXI.Graphics();
+            plasmaGlow.beginFill(0xe879f9, 0.5); plasmaGlow.drawCircle(0, 0, 13); plasmaGlow.endFill();
+            plasmaGlow.beginFill(0x22d3ee, 0.4); plasmaGlow.drawCircle(0, 0, 8); plasmaGlow.endFill();
+            plasmaGlow.blendMode = PIXI.BLEND_MODES.ADD;
+            plasmaGlow.x = pcx; plasmaGlow.y = pcy;
+            container.addChild(plasmaGlow);
+            if (typeof PowerEnv !== 'undefined') {
+                if (!PowerEnv.fusionGlows) PowerEnv.fusionGlows = [];
+                PowerEnv.fusionGlows.push(plasmaGlow);
+            }
           }
           gfx.beginFill(0x000000, 0.1); gfx.drawRect(0, h - 2, b.w, 4); gfx.endFill();
           
