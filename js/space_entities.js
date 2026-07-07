@@ -31,31 +31,21 @@ const SpaceEntities = {
         const cont = new PIXI.Container();
         cont.sortableChildren = true;
         
-        // Rocket body
+        // Rocket body — the org's real-world flagship vehicle (shared silhouette lib)
         const body = new PIXI.Graphics();
-        // Fuselage
-        body.beginFill(0xf1f5f9);
-        body.drawRect(-4, -45, 8, 45);
-        body.endFill();
-        // Nose cone in org color
-        body.beginFill(colHex);
-        body.drawPolygon([-4, -45, 0, -58, 4, -45]);
-        body.endFill();
-        // Org color stripe
-        body.beginFill(colHex);
-        body.drawRect(-3, -30, 6, 12);
-        body.endFill();
-        // Window
-        body.beginFill(0x38bdf8, 0.6);
-        body.drawCircle(0, -38, 2);
-        body.endFill();
-        // Fins
-        body.beginFill(0x94a3b8);
-        body.drawPolygon([-4, -4, -10, 4, -4, 2]);
-        body.drawPolygon([4, -4, 10, 4, 4, 2]);
-        body.endFill();
+        if (typeof SpaceRockets !== 'undefined') {
+            SpaceRockets.draw(body, padBld.org, 1);
+        } else {
+            body.beginFill(0xf1f5f9);
+            body.drawRect(-4, -45, 8, 45);
+            body.endFill();
+            body.beginFill(colHex);
+            body.drawPolygon([-4, -45, 0, -58, 4, -45]);
+            body.endFill();
+        }
         body.zIndex = 10;
         cont.addChild(body);
+        const vehHeight = (typeof SpaceRockets !== 'undefined') ? SpaceRockets.height(padBld.org) : 58;
         
         // Flame container (visible during ignition/liftoff)
         const flame = new PIXI.Container();
@@ -87,7 +77,7 @@ const SpaceEntities = {
             strokeThickness: 3
         });
         countdownTxt.anchor.set(0.5, 1);
-        countdownTxt.y = -70; // above rocket nose
+        countdownTxt.y = -(vehHeight + 10); // above rocket nose
         countdownTxt.zIndex = 20;
         cont.addChild(countdownTxt);
 
@@ -109,6 +99,7 @@ const SpaceEntities = {
             beacon,
             spotlight,
             countdownTxt,
+            vehH: vehHeight,
             // idle | preparation | countdown | ignition | liftoff | ascending | orbit | resetting
             state: 'idle',
             timer: 0,
@@ -355,10 +346,10 @@ const SpaceEntities = {
                     const pulse = 0.4 + 0.6 * Math.abs(Math.sin(G.tick * 0.06));
                     r.beacon.clear();
                     r.beacon.beginFill(0xef4444, pulse);
-                    r.beacon.drawCircle(-12, -68, 3);
+                    r.beacon.drawCircle(-12, -(r.vehH + 8), 3);
                     r.beacon.endFill();
                     r.beacon.beginFill(0xef4444, pulse * 0.3);
-                    r.beacon.drawCircle(-12, -68, 6);
+                    r.beacon.drawCircle(-12, -(r.vehH + 8), 6);
                     r.beacon.endFill();
 
                     // Soft spotlight halo around rocket base
@@ -404,7 +395,7 @@ const SpaceEntities = {
                     const stroboscope = (G.tick % 20 < 10) ? 1 : 0.2;
                     r.beacon.clear();
                     r.beacon.beginFill(0xef4444, stroboscope);
-                    r.beacon.drawCircle(-12, -68, 4);
+                    r.beacon.drawCircle(-12, -(r.vehH + 8), 4);
                     r.beacon.endFill();
 
                     // Glowing red spotlight

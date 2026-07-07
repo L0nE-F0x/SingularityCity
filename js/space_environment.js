@@ -220,50 +220,61 @@ const SpaceEnvironment = {
             gfx.drawRect(30, h - 6, b.w - 60, 4);
             gfx.endFill();
             
-            // Launch tower (gantry)
+            // Launch tower (gantry) — sized to the org's flagship vehicle
             const towerX = b.w / 2 - 8;
+            const vehH = (typeof SpaceRockets !== 'undefined') ? SpaceRockets.height(b.org) : 58;
+            const towerTop = h - 8 - vehH - 8;
             gfx.beginFill(0x475569);
-            gfx.drawRect(towerX, h - 70, 6, 62);
-            gfx.drawRect(towerX + 10, h - 70, 6, 62);
+            gfx.drawRect(towerX, towerTop, 6, h - 8 - towerTop);
+            gfx.drawRect(towerX + 10, towerTop, 6, h - 8 - towerTop);
             gfx.endFill();
             // Cross beams
             gfx.beginFill(0x64748b);
-            for (let y = h - 65; y < h - 10; y += 12) {
+            for (let y = towerTop + 5; y < h - 10; y += 12) {
                 gfx.drawRect(towerX, y, 16, 2);
             }
             gfx.endFill();
-            // Swing arm
-            gfx.beginFill(0xef4444);
-            gfx.drawRect(towerX + 16, h - 50, 20, 3);
-            gfx.endFill();
-            
-            // Rocket on pad (static default state)
             const rocketX = towerX + 28;
-            gfx.beginFill(0xf1f5f9);
-            gfx.drawRect(rocketX - 4, h - 55, 8, 45);
-            gfx.endFill();
-            // Nose cone
-            gfx.beginFill(org ? colHex : 0xef4444);
-            gfx.drawPolygon([rocketX - 4, h - 55, rocketX, h - 65, rocketX + 4, h - 55]);
-            gfx.endFill();
-            // Fins
-            gfx.beginFill(0x94a3b8);
-            gfx.drawPolygon([rocketX - 4, h - 12, rocketX - 10, h - 4, rocketX - 4, h - 4]);
-            gfx.drawPolygon([rocketX + 4, h - 12, rocketX + 10, h - 4, rocketX + 4, h - 4]);
-            gfx.endFill();
-            
-            // Org color accent stripe
-            gfx.beginFill(colHex);
-            gfx.drawRect(rocketX - 3, h - 40, 6, 15);
-            gfx.endFill();
-            
+            if (b.org === 'spacex') {
+                // Mechazilla "chopstick" catch arms instead of a swing arm
+                gfx.beginFill(0x1f2937);
+                gfx.drawRect(towerX + 16, towerTop + 14, 18, 4);
+                gfx.drawRect(towerX + 16, towerTop + 22, 18, 4);
+                gfx.endFill();
+                gfx.beginFill(0x374151);
+                gfx.drawRect(towerX + 14, towerTop + 12, 4, 16);
+                gfx.endFill();
+            } else {
+                // Crew/payload swing arm
+                gfx.beginFill(0xef4444);
+                gfx.drawRect(towerX + 16, towerTop + 20, 20, 3);
+                gfx.endFill();
+            }
+
+            // Flagship vehicle on pad (static default state) — shared silhouette lib
+            if (typeof SpaceRockets !== 'undefined' && b.org) {
+                const rkt = new PIXI.Graphics();
+                SpaceRockets.draw(rkt, b.org, 1);
+                rkt.x = rocketX; rkt.y = h - 8;
+                container.addChild(rkt);
+            } else {
+                gfx.beginFill(0xf1f5f9);
+                gfx.drawRect(rocketX - 4, h - 55, 8, 45);
+                gfx.endFill();
+                gfx.beginFill(org ? colHex : 0xef4444);
+                gfx.drawPolygon([rocketX - 4, h - 55, rocketX, h - 65, rocketX + 4, h - 55]);
+                gfx.endFill();
+            }
+
             // Flame pit
             gfx.beginFill(0x1e293b);
             gfx.drawRect(rocketX - 12, h - 3, 24, 6);
             gfx.endFill();
-            
-            // Org sign
-            const sign = new PIXI.Text(org ? org.name : b.name, { fontFamily: 'Silkscreen', fontSize: 7, fill: colHex, align: 'center' });
+
+            // Org sign — org name + flagship vehicle
+            const vehName = (typeof SpaceRockets !== 'undefined' && b.org) ? SpaceRockets.vehicleName(b.org) : null;
+            const signLabel = org ? (vehName ? `${org.name} · ${vehName}` : org.name) : b.name;
+            const sign = new PIXI.Text(signLabel, { fontFamily: 'Silkscreen', fontSize: 7, fill: colHex, align: 'center' });
             sign.anchor.set(0.5, 0); sign.x = b.w / 2; sign.y = h + 4;
             if (sign.width > b.w - 4) sign.scale.set((b.w - 4) / sign.width);
             container.addChild(sign);

@@ -4,6 +4,91 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const SpaceInterior = {
+    // ─── Per-org launchpad interior config — real-world showcase prop, milestone
+    //     plaque lines, and named NPC crew roles (floor 0 + observation deck) ───
+    ORG_PAD: {
+        spacex: {
+            showcase: { kind: 'sat', label: 'AI1 Orbital Data Center', sub: '70 m solar wings · 150 kW compute · laser links' },
+            plaque: ['$1.25T xAI merger — Jan 2026', 'FCC: up to 1M compute sats', 'Constellation roll-out 2028'],
+            npcs0: [['Starship Flight Dir', 0xef4444], ['AI1 Payload Eng', null]],
+            robot: 'Optimus',
+            npcs1: [['Booster Catch Op', null], ['Starlink Laser Tech', 0x38bdf8]]
+        },
+        blue_origin: {
+            showcase: { kind: 'lander', label: 'Blue Moon MK1 "Endurance"', sub: 'Passed NASA vacuum-chamber tests' },
+            plaque: ['Nov 2025: booster landed at sea', 'Apr 2026: first NG reflight', 'LC-36 rebuild under way'],
+            npcs0: [['NG Flight Director', 0xef4444], ['BE-4 Engineer', null]],
+            npcs1: [['MK1 Lander Tech', null], ['Jacklyn Barge Ops', 0x38bdf8]]
+        },
+        nasa: {
+            showcase: { kind: 'capsule', label: 'Orion Capsule', sub: 'Carried the Artemis II crew around the Moon' },
+            plaque: ['Artemis II: crewed lunar flyby', 'Splashdown Apr 10, 2026', 'Artemis III targets 2027'],
+            npcs0: [['Artemis Flight Dir', 0xef4444], ['Orion Systems Eng', null]],
+            npcs1: [['SLS Booster Eng', null], ['EVA Suit Tech', 0x38bdf8]]
+        },
+        cnsa: {
+            showcase: { kind: 'capsule', label: 'Mengzhou Capsule', sub: 'Launch-escape demo flown Feb 2026' },
+            plaque: ['Moon landing before 2030', 'Shenzhou-23: year-long mission', 'LM-10 booster recovered at sea'],
+            npcs0: [['LM-10 Flight Dir', 0xef4444], ['Mengzhou Engineer', null]],
+            npcs1: [['Taikonaut Trainer', null], ['Lanyue Lander Eng', 0x38bdf8]]
+        },
+        esa: {
+            showcase: { kind: 'sat', label: 'Amazon Leo Satellite', sub: '32 per Ariane 64 — two batches flown in 2026' },
+            plaque: ['Ariane 64: 4-booster config', '8 launches planned in 2026', 'Next: MTG-I2 (Aug 2026)'],
+            npcs0: [['DDO Kourou', 0xef4444], ['Range Safety CSG', null]],
+            npcs1: [['Leo Constellation Eng', null], ['Vega Ops', 0x38bdf8]]
+        },
+        ula: {
+            showcase: { kind: 'engine', label: 'BE-4 Engine', sub: 'Methalox power, built by Blue Origin' },
+            plaque: ['USSF-87 direct to GEO', 'Target: 18–22 launches in 2026', '100% mission success record'],
+            npcs0: [['Vulcan Launch Dir', 0xef4444], ['Centaur Fueling', null]],
+            npcs1: [['GEM-63XL Tech', null], ['GSO Mission Planner', 0x38bdf8]]
+        },
+        rocketlab: {
+            showcase: { kind: 'engine', label: 'Archimedes Engine', sub: 'Methalox engine for reusable Neutron' },
+            plaque: ['Neutron debut: late 2026', '5-launch Neutron deal signed', 'Electron: 60+ flights'],
+            npcs0: [['Neutron Test Lead', 0xef4444], ['Electron Recovery', null]],
+            npcs1: [['Archimedes Eng', null], ['Wallops Range Ops', 0x38bdf8]]
+        },
+        isro: {
+            showcase: { kind: 'capsule', label: 'Gaganyaan Crew Module', sub: 'Air-drop test aced Apr 2026' },
+            plaque: ['Gaganyaan-1: H2 2026', '8,000+ ground tests done', '4th nation to fly crew solo'],
+            npcs0: [['Gaganyaan Flight Dir', 0xef4444], ['CE-20 Cryo Engineer', null]],
+            robot: 'Vyommitra',
+            npcs1: [['Crew Module Tech', null], ['Recovery Dive Team', 0x38bdf8]]
+        },
+        jaxa: {
+            showcase: { kind: 'engine', label: 'LE-9 Engine', sub: 'Expander-bleed hydrogen engine for H3' },
+            plaque: ['SLIM: 100 m precision landing', 'HTV-X cargo to the ISS', 'JAXA astronaut on Artemis crew'],
+            npcs0: [['H3 Flight Director', 0xef4444], ['LE-9 Engineer', null]],
+            npcs1: [['HTV-X Cargo Ops', null], ['SLIM Nav Engineer', 0x38bdf8]]
+        },
+        roscosmos: {
+            showcase: { kind: 'capsule', label: 'Soyuz MS Capsule', sub: '150+ crewed flights since 1967' },
+            plaque: ['Longest-serving crew vehicle', 'Baikonur: oldest spaceport', 'ROS station planned post-ISS'],
+            npcs0: [['Soyuz Flight Dir', 0xef4444], ['Kosmodrome Ops', null]],
+            npcs1: [['Cosmonaut Trainer', null], ['Progress Cargo Ops', 0x38bdf8]]
+        },
+        northrop_grumman: {
+            showcase: { kind: 'sat', label: 'Cygnus Freighter', sub: '60+ tons of ISS cargo delivered' },
+            plaque: ['Antares 330: new Firefly stage', 'MEV: first GEO sat servicing', 'Builds SLS solid boosters'],
+            npcs0: [['Antares Launch Dir', 0xef4444], ['Cygnus Ops', null]],
+            npcs1: [['Solid Motor Eng', null], ['MEV Servicing Eng', 0x38bdf8]]
+        },
+        firefly: {
+            showcase: { kind: 'lander', label: 'Blue Ghost 2 Lander', sub: 'Far-side Moon landing, late 2026' },
+            plaque: ['Blue Ghost 1 landed on Moon', 'VICTUS NOX: 24-hr launch', 'Mission 2: lunar far side'],
+            npcs0: [['Alpha Launch Dir', 0xef4444], ['Blue Ghost Ops', null]],
+            npcs1: [['Elytra Nav Eng', null], ['Lunar Payload Eng', 0x38bdf8]]
+        },
+        landspace: {
+            showcase: { kind: 'engine', label: 'TQ-12A Engine', sub: 'Methalox — first type to reach orbit, 2023' },
+            plaque: ['ZQ-3 reached orbit on debut', 'Landing missed by just 17 s', '2026 goal: perfect landing'],
+            npcs0: [['ZQ-3 Flight Dir', 0xef4444], ['Methalox Prop Eng', null]],
+            npcs1: [['Landing Burn Analyst', null], ['Recovery Team Lead', 0x38bdf8]]
+        }
+    },
+
     avatars: [],
     bubbles: [],
     indoorLights: [],
@@ -235,14 +320,29 @@ const SpaceInterior = {
                     }
                 }
             } else if (bld.type === 'launchpad') {
+                const pad = this.ORG_PAD[bld.org] || {};
                 if (f === 0) {
-                    // Ground floor: launch consoles + countdown + fire suppression
-                    this.drawLaunchConsole(floorCont, startX + 80, propY, colHex);
-                    this.drawLaunchConsole(floorCont, startX + 240, propY, colHex);
-                    this.drawCountdownClock(floorCont, startX + bldW / 2 - 80, fy + 10, bld);
-                    this.drawNPC(floorCont, startX + 160, propY, 'Launch Dir', 0xef4444);
-                    this.drawNPC(floorCont, startX + 320, propY, 'Range Safety', 0xfacc15);
-                    this.drawCoffeeMachine(floorCont, startX + bldW - 80, propY);
+                    // Ground floor: milestone plaque + launch consoles + countdown
+                    // + org showcase artifact + org-specific crew (and robots!)
+                    if (pad.plaque && bldW > 420) {
+                        this.drawFactPlaque(floorCont, startX + 24, fy + 10, Math.min(215, bldW * 0.3), colHex,
+                            org ? org.name : bld.name, pad.plaque);
+                    }
+                    this.drawLaunchConsole(floorCont, startX + 70, propY, colHex);
+                    if (bldW > 680) this.drawLaunchConsole(floorCont, startX + 230, propY, colHex);
+                    this.drawCountdownClock(floorCont, startX + bldW / 2, fy + 10, bld);
+                    if (pad.showcase && bldW > 520) {
+                        this._drawShowcase(floorCont, pad.showcase, startX + bldW - 160, propY, colHex);
+                    }
+                    const npcs0 = pad.npcs0 || [['Launch Dir', 0xef4444], ['Range Safety', 0xfacc15]];
+                    npcs0.forEach((n, i) => {
+                        const nx = startX + 150 + i * 170;
+                        if (nx < startX + bldW - 100) this.drawNPC(floorCont, nx, propY, n[0], n[1] || colHex);
+                    });
+                    if (pad.robot && bldW > 600) {
+                        this.drawRobotNPC(floorCont, startX + bldW - 240, propY, pad.robot);
+                    }
+                    this.drawCoffeeMachine(floorCont, startX + bldW - 60, propY);
                 } else {
                     // Upper floor: OBSERVATION DECK — a giant window onto the
                     // launch pad with a live rocket whose state mirrors the
@@ -252,8 +352,12 @@ const SpaceInterior = {
                     const obsY = fy + 8;
                     const obsH = floorH - 18;
                     this.drawObservationWindow(floorCont, obsX, obsY, obsW, obsH, bld, colHex);
-                    this.drawNPC(floorCont, startX + 60, propY, 'Weather', 0x38bdf8);
-                    this.drawNPC(floorCont, startX + bldW - 70, propY, 'Capsule Comm', colHex);
+                    if ((bldW - obsW) / 2 >= 130) {
+                        this.drawMissionPatchWall(floorCont, startX + 26, fy + 12, colHex);
+                    }
+                    const npcs1 = pad.npcs1 || [['Weather', 0x38bdf8], ['Capsule Comm', colHex]];
+                    this.drawNPC(floorCont, startX + 60, propY, npcs1[0][0], npcs1[0][1] || colHex);
+                    if (npcs1[1]) this.drawNPC(floorCont, startX + bldW - 70, propY, npcs1[1][0], npcs1[1][1] || colHex);
                 }
             }
             
@@ -645,6 +749,268 @@ const SpaceInterior = {
     },
 
     // ════════════════════════════════════════════════════
+    //   ORG SHOWCASE PROPS — real-world artifacts on display
+    //   Each tags its own specific hover tooltip (first-wins
+    //   beats the generic autoTipModule label).
+    // ════════════════════════════════════════════════════
+
+    _drawShowcase(c, sc, x, y, col) {
+        const fn = { sat: 'drawSatelliteShowcase', lander: 'drawLanderShowcase',
+                     engine: 'drawEngineShowcase', capsule: 'drawCapsuleShowcase' }[sc.kind];
+        if (fn) this[fn](c, x, y, col, sc.label, sc.sub);
+    },
+
+    _showcaseStand(g, cx, y, w) {
+        // Museum-style display stand + soft spotlight pool
+        g.beginFill(0xfacc15, 0.06); g.drawEllipse(cx, y - 2, w * 0.8, 5); g.endFill();
+        g.beginFill(0x1a1a2e); g.drawRect(cx - w / 2, y - 6, w, 6); g.endFill();
+        g.beginFill(0x334155); g.drawRect(cx - w / 2, y - 7, w, 2); g.endFill();
+    },
+
+    drawSatelliteShowcase(c, x, y, col, label, sub) {
+        const sc = new PIXI.Container();
+        const g = new PIXI.Graphics();
+        const cx = x + 45;
+        this._showcaseStand(g, cx, y, 84);
+        // Support pylon
+        g.beginFill(0x475569); g.drawRect(cx - 2, y - 26, 4, 20); g.endFill();
+        // Satellite bus (silver box)
+        g.beginFill(0xcbd5e1); g.drawRect(cx - 9, y - 40, 18, 14); g.endFill();
+        g.beginFill(0x94a3b8); g.drawRect(cx - 9, y - 40, 18, 3); g.endFill();
+        // Solar wings (blue cell grid)
+        [[-9, -1], [9, 1]].forEach(([ox, dir]) => {
+            const wx = cx + ox + (dir < 0 ? -30 : 0);
+            g.beginFill(0x1e40af); g.drawRect(wx, y - 38, 30, 10); g.endFill();
+            g.beginFill(0x3b82f6, 0.5);
+            for (let px = wx + 2; px < wx + 28; px += 6) g.drawRect(px, y - 37, 4, 8);
+            g.endFill();
+        });
+        // Laser comm terminals (blinking)
+        g.beginFill(0xf87171); g.drawCircle(cx - 6, y - 42, 1.5); g.endFill();
+        const laser = new PIXI.Graphics();
+        laser.beginFill(0x22d3ee); laser.drawCircle(cx + 6, y - 42, 1.5); laser.endFill();
+        laser.blendMode = PIXI.BLEND_MODES.ADD;
+        // Dish
+        g.beginFill(0xf1f5f9); g.drawPolygon([cx - 4, y - 40, cx, y - 46, cx + 4, y - 40]); g.endFill();
+        sc.addChild(g, laser);
+        this.indoorLights.push({ g: laser, maxA: 1, type: 'blink' });
+        this._showcaseLabel(sc, cx, y, label);
+        c.addChild(sc);
+        if (typeof UI !== 'undefined' && UI.tip) UI.tip(sc, label, sub);
+    },
+
+    drawLanderShowcase(c, x, y, col, label, sub) {
+        const sc = new PIXI.Container();
+        const g = new PIXI.Graphics();
+        const cx = x + 45;
+        this._showcaseStand(g, cx, y, 76);
+        // Landing legs (splayed)
+        g.beginFill(0x9ca3af);
+        g.drawPolygon([cx - 8, y - 26, cx - 18, y - 7, cx - 15, y - 7]);
+        g.drawPolygon([cx + 8, y - 26, cx + 18, y - 7, cx + 15, y - 7]);
+        g.endFill();
+        // Footpads
+        g.beginFill(0x6b7280); g.drawRect(cx - 20, y - 8, 7, 2); g.drawRect(cx + 13, y - 8, 7, 2); g.endFill();
+        // Descent engine bell
+        g.beginFill(0x52525b); g.drawPolygon([cx - 3, y - 24, cx - 5, y - 16, cx + 5, y - 16, cx + 3, y - 24]); g.endFill();
+        // Body — gold multi-layer insulation
+        g.beginFill(0xca8a04); g.drawRect(cx - 12, y - 42, 24, 18); g.endFill();
+        g.beginFill(0xfbbf24, 0.55);
+        g.drawRect(cx - 12, y - 42, 24, 3); g.drawRect(cx - 12, y - 34, 24, 2);
+        g.endFill();
+        // Tank domes
+        g.beginFill(0xe5e7eb); g.drawCircle(cx - 6, y - 45, 4); g.drawCircle(cx + 6, y - 45, 4); g.endFill();
+        // Org-color logo band
+        g.beginFill(col); g.drawRect(cx - 12, y - 30, 24, 2.5); g.endFill();
+        // Antenna
+        g.beginFill(0xcbd5e1); g.drawRect(cx - 0.7, y - 54, 1.4, 6); g.drawCircle(cx, y - 55, 1.5); g.endFill();
+        sc.addChild(g);
+        this._showcaseLabel(sc, cx, y, label);
+        c.addChild(sc);
+        if (typeof UI !== 'undefined' && UI.tip) UI.tip(sc, label, sub);
+    },
+
+    drawEngineShowcase(c, x, y, col, label, sub) {
+        const sc = new PIXI.Container();
+        const g = new PIXI.Graphics();
+        const cx = x + 45;
+        this._showcaseStand(g, cx, y, 76);
+        // Test-stand A-frame
+        g.beginFill(0xfacc15);
+        g.drawRect(cx - 22, y - 48, 3, 42); g.drawRect(cx + 19, y - 48, 3, 42);
+        g.drawRect(cx - 22, y - 48, 44, 3);
+        g.endFill();
+        // Powerhead + turbopumps
+        g.beginFill(0x374151); g.drawRect(cx - 7, y - 45, 14, 8); g.endFill();
+        g.beginFill(0x6b7280); g.drawCircle(cx - 8, y - 41, 3.5); g.drawCircle(cx + 8, y - 41, 3.5); g.endFill();
+        // Nozzle bell (copper-lined)
+        g.beginFill(0x78350f); g.drawPolygon([cx - 5, y - 37, cx - 12, y - 14, cx + 12, y - 14, cx + 5, y - 37]); g.endFill();
+        g.beginFill(0xb45309); g.drawPolygon([cx - 4, y - 36, cx - 10, y - 15, cx - 5, y - 15, cx - 1, y - 36]); g.endFill();
+        // Cooling channels
+        g.lineStyle(1, 0xd97706, 0.4);
+        for (let ly = y - 33; ly < y - 16; ly += 4) {
+            const t = (y - 14 - ly) / 23;
+            g.moveTo(cx - 5 - (1 - t) * 7, ly); g.lineTo(cx + 5 + (1 - t) * 7, ly);
+        }
+        g.lineStyle(0);
+        // Propellant feed lines
+        g.beginFill(0x0369a1); g.drawRect(cx - 20, y - 43, 13, 2.5); g.endFill();
+        g.beginFill(0xb45309); g.drawRect(cx + 7, y - 43, 13, 2.5); g.endFill();
+        sc.addChild(g);
+        this._showcaseLabel(sc, cx, y, label);
+        c.addChild(sc);
+        if (typeof UI !== 'undefined' && UI.tip) UI.tip(sc, label, sub);
+    },
+
+    drawCapsuleShowcase(c, x, y, col, label, sub) {
+        const sc = new PIXI.Container();
+        const g = new PIXI.Graphics();
+        const cx = x + 45;
+        this._showcaseStand(g, cx, y, 76);
+        // Cradle
+        g.beginFill(0x475569); g.drawRect(cx - 14, y - 10, 5, 4); g.drawRect(cx + 9, y - 10, 5, 4); g.endFill();
+        // Heat shield (ablative brown)
+        g.beginFill(0x7c2d12); g.drawEllipse(cx, y - 12, 15, 4); g.endFill();
+        // Gumdrop capsule body
+        g.beginFill(0xd1d5db);
+        g.drawPolygon([cx - 15, y - 13, cx - 6, y - 36, cx + 6, y - 36, cx + 15, y - 13]);
+        g.endFill();
+        g.beginFill(0xf3f4f6);
+        g.drawPolygon([cx - 12, y - 14, cx - 5, y - 34, cx - 1, y - 34, cx - 6, y - 14]);
+        g.endFill();
+        // Org accent stripe
+        g.beginFill(col); g.drawPolygon([cx - 13, y - 18, cx - 12, y - 21, cx + 12, y - 21, cx + 13, y - 18]); g.endFill();
+        // Windows
+        g.beginFill(0x0ea5e9, 0.8); g.drawCircle(cx - 3, y - 27, 2); g.drawCircle(cx + 4, y - 27, 2); g.endFill();
+        // Docking hatch on top
+        g.beginFill(0x6b7280); g.drawRect(cx - 4, y - 40, 8, 4); g.endFill();
+        g.beginFill(0x9ca3af); g.drawRect(cx - 2.5, y - 42, 5, 2); g.endFill();
+        sc.addChild(g);
+        this._showcaseLabel(sc, cx, y, label);
+        c.addChild(sc);
+        if (typeof UI !== 'undefined' && UI.tip) UI.tip(sc, label, sub);
+    },
+
+    _showcaseLabel(sc, cx, y, label) {
+        const txt = new PIXI.Text(label.toUpperCase(), {
+            fontFamily: '"JetBrains Mono", monospace', fontSize: 6, fill: 0x94a3b8, letterSpacing: 0.5
+        });
+        txt.anchor.set(0.5, 0); txt.x = cx; txt.y = y + 2;
+        if (txt.width > 100) txt.scale.set(100 / txt.width);
+        sc.addChild(txt);
+    },
+
+    // Wall-mounted milestone plaque — org headline facts, museum style
+    drawFactPlaque(c, x, y, w, col, title, lines) {
+        const sc = new PIXI.Container();
+        const g = new PIXI.Graphics();
+        const h = 12 + lines.length * 9;
+        g.beginFill(0x0a1018, 0.92); g.drawRoundedRect(x, y, w, h, 3); g.endFill();
+        g.lineStyle(1, col, 0.55); g.drawRoundedRect(x, y, w, h, 3); g.lineStyle(0);
+        g.beginFill(col, 0.16); g.drawRect(x, y, w, 10); g.endFill();
+        sc.addChild(g);
+        const tt = new PIXI.Text(`★ ${title.toUpperCase()} — 2026`, {
+            fontFamily: '"JetBrains Mono", monospace', fontSize: 6, fill: col, fontWeight: 'bold', letterSpacing: 0.5
+        });
+        tt.x = x + 5; tt.y = y + 2;
+        if (tt.width > w - 10) tt.scale.set((w - 10) / tt.width);
+        sc.addChild(tt);
+        lines.forEach((ln, i) => {
+            const lt = new PIXI.Text('· ' + ln, {
+                fontFamily: '"JetBrains Mono", monospace', fontSize: 6, fill: 0xcbd5e1
+            });
+            lt.x = x + 5; lt.y = y + 12 + i * 9;
+            if (lt.width > w - 10) lt.scale.set((w - 10) / lt.width);
+            sc.addChild(lt);
+        });
+        c.addChild(sc);
+        if (typeof UI !== 'undefined' && UI.tip) UI.tip(sc, 'Milestone Plaque', 'Real 2026 headlines for this org');
+    },
+
+    // Wall of embroidered mission patches (observation deck)
+    drawMissionPatchWall(c, x, y, col) {
+        const sc = new PIXI.Container();
+        const g = new PIXI.Graphics();
+        g.beginFill(0x111827, 0.8); g.drawRoundedRect(x, y, 88, 48, 3); g.endFill();
+        g.lineStyle(1, 0x334155); g.drawRoundedRect(x, y, 88, 48, 3); g.lineStyle(0);
+        const patchCols = [col, 0xfbbf24, 0x4ade80, 0xf87171, 0x38bdf8, 0xc084fc];
+        for (let i = 0; i < 6; i++) {
+            const px = x + 16 + (i % 3) * 28, py = y + 14 + Math.floor(i / 3) * 22;
+            g.beginFill(0x1f2937); g.drawCircle(px, py, 8); g.endFill();
+            g.lineStyle(1.5, patchCols[i], 0.9); g.drawCircle(px, py, 8); g.lineStyle(0);
+            g.beginFill(patchCols[i], 0.7);
+            if (i % 3 === 0) g.drawPolygon([px, py - 4, px + 3, py + 3, px - 3, py + 3]);          // rocket tri
+            else if (i % 3 === 1) g.drawCircle(px, py, 2.5);                                        // planet
+            else { g.drawRect(px - 3.5, py - 0.8, 7, 1.6); g.drawRect(px - 0.8, py - 3.5, 1.6, 7); } // star cross
+            g.endFill();
+        }
+        sc.addChild(g);
+        c.addChild(sc);
+        if (typeof UI !== 'undefined' && UI.tip) UI.tip(sc, 'Mission Patch Wall', 'One patch per flown mission');
+    },
+
+    // Humanoid robot crew member (Optimus at Starbase, Vyommitra at SDSC)
+    drawRobotNPC(c, x, y, name) {
+        const bw = 12, h = 28, headH = 10;
+        const cont = new PIXI.Container();
+
+        const shadow = new PIXI.Graphics();
+        shadow.beginFill(0x000000, 0.25); shadow.drawEllipse(0, 2, bw * 0.6, 3); shadow.endFill();
+
+        // Metallic head with glowing visor
+        const head = new PIXI.Graphics();
+        head.beginFill(0xd1d5db); head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, 2); head.endFill();
+        head.beginFill(0x111827); head.drawRect(-bw * 0.32, headH * 0.28, bw * 0.64, headH * 0.32); head.endFill();
+        head.beginFill(0x22d3ee); head.drawRect(-bw * 0.24, headH * 0.36, bw * 0.2, headH * 0.16);
+        head.drawRect(bw * 0.06, headH * 0.36, bw * 0.2, headH * 0.16); head.endFill();
+        head.y = -h;
+
+        // Torso — panelled metal with power core
+        const body = new PIXI.Graphics();
+        body.beginFill(0x9ca3af); body.drawRoundedRect(-bw / 2, 0, bw, h - headH - 4, 1.5); body.endFill();
+        body.beginFill(0x6b7280); body.drawRect(-bw / 2, (h - headH - 4) * 0.45, bw, 1.5); body.endFill();
+        body.beginFill(0x22d3ee, 0.9); body.drawCircle(0, (h - headH - 4) * 0.3, 1.8); body.endFill();
+        body.y = -h + headH;
+
+        // Actuator legs
+        const lw = Math.max(2, bw * 0.25);
+        const legL = new PIXI.Graphics();
+        legL.beginFill(0x4b5563); legL.drawRect(-lw / 2, 0, lw, 4); legL.endFill();
+        legL.x = -bw * 0.15;
+        const legR = new PIXI.Graphics();
+        legR.beginFill(0x4b5563); legR.drawRect(-lw / 2, 0, lw, 4); legR.endFill();
+        legR.x = bw * 0.15;
+
+        const dot = new PIXI.Graphics();
+        dot.beginFill(0x22d3ee); dot.drawCircle(0, 0, 2); dot.endFill();
+        dot.y = -h - 6;
+
+        cont.addChild(shadow, legL, legR, body, head, dot);
+        cont.x = x; cont.y = y;
+
+        const txt = new PIXI.Text(`🤖 ${name}`, { fontFamily: '"JetBrains Mono", monospace', fontSize: 6, fill: 0x22d3ee });
+        txt.anchor.set(0.5, 1); txt.y = -h - 8;
+        cont.addChild(txt);
+
+        cont.eventMode = 'static';
+        cont.cursor = 'pointer';
+        cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined') UI.addToast(`🤖 ${name} — humanoid robot crew member`);
+        });
+        c.addChild(cont);
+
+        const agent = {
+            m: { id: 'robot_' + name.toLowerCase(), name, isNPC: true },
+            cont, head, body, legL, legR, dot, shadow, label: txt,
+            state: 'working', timer: 60 + Math.floor(Math.random() * 200),
+            deskX: x, floorY: y, targetX: x, speed: 0.5,
+            role: name, _h: h, isRobot: true
+        };
+        this.avatars.push(agent);
+        return agent;
+    },
+
+    // ════════════════════════════════════════════════════
     //   OBSERVATION WINDOW — live view onto the launch pad
     //   Mirrors SpaceEntities.rockets[bld.id] state so the
     //   user can watch a real liftoff from inside the building.
@@ -723,31 +1089,20 @@ const SpaceInterior = {
         pad.endFill();
         inner.addChild(pad);
 
-        // Rocket — same palette as exterior entity
+        // Rocket — the org's real flagship vehicle (same silhouette as the exterior)
         const rocketCont = new PIXI.Container();
         rocketCont.sortableChildren = true;
         const rocketBody = new PIXI.Graphics();
-        // Fuselage
-        rocketBody.beginFill(0xf1f5f9);
-        rocketBody.drawRect(-4, -36, 8, 36);
-        rocketBody.endFill();
-        // Nose cone
-        rocketBody.beginFill(colHex);
-        rocketBody.drawPolygon([-4, -36, 0, -48, 4, -36]);
-        rocketBody.endFill();
-        // Stripe
-        rocketBody.beginFill(colHex);
-        rocketBody.drawRect(-3, -24, 6, 9);
-        rocketBody.endFill();
-        // Window
-        rocketBody.beginFill(0x38bdf8, 0.6);
-        rocketBody.drawCircle(0, -30, 1.5);
-        rocketBody.endFill();
-        // Fins
-        rocketBody.beginFill(0x94a3b8);
-        rocketBody.drawPolygon([-4, -4, -8, 2, -4, 1]);
-        rocketBody.drawPolygon([4, -4, 8, 2, 4, 1]);
-        rocketBody.endFill();
+        if (typeof SpaceRockets !== 'undefined' && bld.org) {
+            SpaceRockets.draw(rocketBody, bld.org, 0.62);
+        } else {
+            rocketBody.beginFill(0xf1f5f9);
+            rocketBody.drawRect(-4, -36, 8, 36);
+            rocketBody.endFill();
+            rocketBody.beginFill(colHex);
+            rocketBody.drawPolygon([-4, -36, 0, -48, 4, -36]);
+            rocketBody.endFill();
+        }
         rocketCont.addChild(rocketBody);
 
         // Flame
@@ -1212,6 +1567,12 @@ const SpaceInterior = {
             "Adjusting azimuth.", "Fuel pressure OK.", "T-minus holding.",
             "Copy that, Houston.", "Roger, flight.", "Go for launch."
         ];
+        const ROBOT_MSGS = [
+            "Beep. All systems nominal.", "Torque check complete.",
+            "Recharging at 87%.", "Human detected. Hello.",
+            "Running gait diagnostics.", "Payload secured. Beep."
+        ];
+        const msgsFor = (av) => av.isRobot ? ROBOT_MSGS : SPACE_MSGS;
 
         this.avatars.forEach(av => {
             if (!av.cont || av.cont.destroyed) return;
@@ -1234,12 +1595,14 @@ const SpaceInterior = {
                             // Chat with someone
                             av.state = 'chatting';
                             av.timer = 80 + Math.floor(Math.random() * 60);
-                            this.spawnBubble(av, SPACE_MSGS[Math.floor(Math.random() * SPACE_MSGS.length)]);
+                            const msgs = msgsFor(av);
+                            this.spawnBubble(av, msgs[Math.floor(Math.random() * msgs.length)]);
                         } else {
                             // Keep working, reset timer
                             av.timer = 100 + Math.floor(Math.random() * 200);
                             if (Math.random() < 0.3) {
-                                this.spawnBubble(av, SPACE_MSGS[Math.floor(Math.random() * SPACE_MSGS.length)]);
+                                const msgs = msgsFor(av);
+                                this.spawnBubble(av, msgs[Math.floor(Math.random() * msgs.length)]);
                             }
                         }
                     }

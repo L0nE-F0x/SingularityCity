@@ -468,7 +468,7 @@ const UI = {
       const structural = [
         'drawRoof', 'drawRoomInterior', 'drawNegativeSpaceWall',
         'drawBasementInterior', 'drawSiloInterior', 'drawDoor',
-        'drawAvatar', 'drawNPC',
+        'drawAvatar', 'drawNPC', 'drawRobotNPC',
       ];
 
       if (typeof InteriorRes !== 'undefined') UI.autoTipModule(InteriorRes, { overrides, exclude: structural });
@@ -914,13 +914,17 @@ const UI = {
       // ─── SPACE ZONE building info ───
       else if (b.type && ['launchpad','mission_control','assembly','tracking'].includes(b.type)) {
         const org = b.org && typeof SPACE_ORGS !== 'undefined' ? SPACE_ORGS[b.org] : null;
+        const veh = (b.org && typeof SpaceRockets !== 'undefined') ? SpaceRockets.vehicleName(b.org) : (org && org.vehicle);
         html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
         html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🚀 SPACE FACILITY</div>`;
         html += `<div>🏗️ <b>Type:</b> ${escapeHTML(b.type.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()))}</div>`;
         if (org) {
             html += `<div>${org.icon} <b>Organization:</b> ${escapeHTML(org.name)}</div>`;
-            if (org.ceo) html += `<div>👤 <b>Director:</b> ${escapeHTML(org.ceo)}</div>`;
-            html += `<div>🌍 <b>Region:</b> ${org.region ? org.region.toUpperCase() : 'N/A'}</div>`;
+            if (org.ceo)     html += `<div>👤 <b>Leader:</b> ${escapeHTML(org.ceo)}</div>`;
+            if (org.hq)      html += `<div>📍 <b>HQ:</b> ${escapeHTML(org.hq)}</div>`;
+            if (org.founded) html += `<div>📅 <b>Founded:</b> ${escapeHTML(String(org.founded))}</div>`;
+            if (veh)         html += `<div>🚀 <b>Flagship:</b> ${escapeHTML(veh)}</div>`;
+            if (org.program) html += `<div>🛰️ <b>Program:</b> ${escapeHTML(org.program)}</div>`;
         }
         // Show next launch if available
         if (b.org && typeof SpaceData !== 'undefined' && SpaceData.launches) {
@@ -937,6 +941,22 @@ const UI = {
             }
         }
         html += `</div>`;
+        // ─── Latest real-world milestone ───
+        if (org && org.milestone) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">📡 LATEST MILESTONE</div>`;
+            html += `<div style="color:var(--t2)">${escapeHTML(org.milestone)}</div>`;
+            html += `</div>`;
+        }
+        // ─── Real-world fact bullets ───
+        if (org && Array.isArray(org.facts) && org.facts.length) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">🌌 KNOWN FOR</div>`;
+            org.facts.forEach(f => {
+                html += `<div style="font-size:9px;padding:2px 0;color:var(--t2)">• ${escapeHTML(f)}</div>`;
+            });
+            html += `</div>`;
+        }
       }
       // ─── ALIGNMENT INSTITUTE panel — safety research brief ───
       else if (b.type === 'alignment') {

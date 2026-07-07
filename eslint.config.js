@@ -153,6 +153,7 @@ export default [
                 SpaceEntities: 'writable',
                 SpaceEnvironment: 'writable',
                 SpaceInterior: 'writable',
+                SpaceRockets: 'writable',
                 StreetVendors: 'writable',
                 NOTIFY: 'writable',
                 UI: 'writable',
