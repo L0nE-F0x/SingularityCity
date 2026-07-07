@@ -987,6 +987,42 @@ const UI = {
             html += `</div>`;
         }
       }
+      // ─── VC ROW panel — real 2026 fund profile ───
+      else if (b.type === 'vcrow') {
+        const firm = (typeof VCRow !== 'undefined' && VCRow.FIRMS) ? VCRow.FIRMS[b.id] : null;
+        if (firm) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">💰 FUND PROFILE</div>`;
+            if (firm.partner)  html += `<div>👤 <b>Leadership:</b> ${escapeHTML(firm.partner)}</div>`;
+            if (firm.founded)  html += `<div>📅 <b>Founded:</b> ${escapeHTML(String(firm.founded))}</div>`;
+            if (firm.aum)      html += `<div>🏦 <b>Firepower:</b> ${escapeHTML(firm.aum)}</div>`;
+            if (firm.recentDeal) html += `<div>🤝 <b>Recent deal:</b> ${escapeHTML(firm.recentDeal)}</div>`;
+            html += `</div>`;
+            if (firm.milestone) {
+                html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+                html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">📡 LATEST MILESTONE</div>`;
+                html += `<div style="color:var(--t2)">${escapeHTML(firm.milestone)}</div>`;
+                html += `</div>`;
+            }
+            if (Array.isArray(firm.portfolio) && firm.portfolio.length) {
+                html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+                html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">📁 PORTFOLIO</div>`;
+                html += `<div style="display:flex;flex-wrap:wrap;gap:4px">`;
+                firm.portfolio.forEach(pf => {
+                    html += `<span style="font-size:9px;padding:2px 6px;background:var(--sf);border:1px solid var(--bd);border-radius:3px">${escapeHTML(pf)}</span>`;
+                });
+                html += `</div></div>`;
+            }
+            if (Array.isArray(firm.facts) && firm.facts.length) {
+                html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+                html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">🌌 KNOWN FOR</div>`;
+                firm.facts.forEach(f => {
+                    html += `<div style="font-size:9px;padding:2px 0;color:var(--t2)">• ${escapeHTML(f)}</div>`;
+                });
+                html += `</div>`;
+            }
+        }
+      }
       // ─── PORT DISTRICT panel — 2026 chip-war supply chain brief ───
       else if (b._isPort || (b.id && b.id.startsWith('port_'))) {
         html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;

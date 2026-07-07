@@ -6,19 +6,103 @@
 
 const VCRow = {
     BLDS: [
-        { id: 'vcrow_apex',      name: 'Apex Ventures',     w: 200, fl: 6, emoji: '💰', type: 'vcrow', desc: 'Premier venture capital firm. Has backed 60% of the city\'s AI labs from seed to IPO.' },
-        { id: 'vcrow_horizon',   name: 'Horizon Capital',   w: 180, fl: 5, emoji: '📈', type: 'vcrow', desc: 'Growth-stage fund specializing in AI infrastructure, compute clusters, and data moats.' },
-        { id: 'vcrow_launchpad', name: 'Startup Launchpad', w: 180, fl: 4, emoji: '🚀', type: 'vcrow', desc: 'AI accelerator program. Fresh graduates and rumored models pitch here for seed funding.' },
-        { id: 'vcrow_titan',     name: 'Titan Bank',        w: 240, fl: 7, emoji: '🏦', type: 'vcrow', desc: 'The tallest building on VC Row. Handles IPOs, M&A, and billion-dollar debt financing.' },
-        { id: 'vcrow_exchange',  name: 'AI Exchange',       w: 200, fl: 3, emoji: '📊', type: 'vcrow', desc: 'Real-time trading floor. Model valuations, compute futures, and API pricing derivatives.' },
-        { id: 'vcrow_cryptex',   name: 'Cryptex Exchange',  w: 220, fl: 8, emoji: '₿',  type: 'vcrow', desc: 'Crypto × AI nexus. Live BTC/ETH/SOL feeds, agent-payment rails, and decentralized-compute futures. Neon BTC logo lights the VC Row skyline at night.' },
+        { id: 'vcrow_apex',      name: 'Andreessen Horowitz', w: 210, fl: 7, emoji: '🅰️', type: 'vcrow', color: '#e07a5f', desc: 'a16z — raising $15B+ across its 2026 fund family, the largest VC fundraise in history. Co-led OpenAI\'s $122B round.' },
+        { id: 'vcrow_horizon',   name: 'Sequoia Capital',     w: 190, fl: 6, emoji: '🌲', type: 'vcrow', color: '#b23b34', desc: 'The OG. Led Anthropic\'s $65B Series H at a $965B valuation — biggest private round in history, just ahead of Anthropic\'s IPO filing.' },
+        { id: 'vcrow_thrive',    name: 'Thrive Capital',      w: 180, fl: 6, emoji: '📈', type: 'vcrow', color: '#6366f1', desc: 'Josh Kushner\'s firm. Closed a $10B fund in 2026 — its largest ever — and is OpenAI\'s most persistent backer.' },
+        { id: 'vcrow_foundersfund', name: 'Founders Fund',    w: 175, fl: 5, emoji: '🚀', type: 'vcrow', color: '#38bdf8', desc: 'Peter Thiel\'s contrarian fund. Closed $4.5B and rode xAI and Anduril to eleven-figure valuations.' },
+        { id: 'vcrow_launchpad', name: 'Y Combinator',        w: 180, fl: 4, emoji: '🟧', type: 'vcrow', color: '#ff6a00', desc: 'The accelerator. Every batch is now AI-first — fresh founders pitch for the seed check that turns a demo into a lab.' },
+        { id: 'vcrow_mgx',       name: 'MGX',                 w: 185, fl: 6, emoji: '💠', type: 'vcrow', color: '#c9a227', desc: 'Abu Dhabi\'s sovereign AI fund. A Stargate co-owner and a check in OpenAI\'s $122B round and xAI\'s Series E.' },
+        { id: 'vcrow_titan',     name: 'SoftBank',            w: 245, fl: 8, emoji: '🏦', type: 'vcrow', color: '#9aa0a6', desc: 'The Vision Fund tower — tallest on the Row. Masayoshi Son\'s $30B into OpenAI and 40% of the $500B Stargate build.' },
+        { id: 'vcrow_exchange',  name: 'AI Exchange',         w: 200, fl: 3, emoji: '📊', type: 'vcrow', color: '#ef4444', desc: 'Secondary-market trading floor. Pre-IPO share tenders, compute futures, and model-valuation derivatives.' },
+        { id: 'vcrow_cryptex',   name: 'Cryptex Exchange',    w: 220, fl: 8, emoji: '₿',  type: 'vcrow', color: '#f7931a', desc: 'Crypto × AI nexus. Live BTC/ETH/SOL feeds, agent-payment rails, and decentralized-compute futures. Neon BTC logo lights the skyline at night.' },
     ],
+
+    // Real-firm profiles for the info panel (keyed by building id).
+    FIRMS: {
+        vcrow_apex: {
+            firm: 'Andreessen Horowitz (a16z)', partner: 'Marc Andreessen & Ben Horowitz', founded: '2009', aum: '~$95B AUM',
+            milestone: '2026: raising $15B+ across its fund family — the single largest venture fundraise in history.',
+            portfolio: ['OpenAI', 'Thinking Machines', 'Mistral', 'Anduril', 'Databricks'],
+            recentDeal: 'Co-led OpenAI\'s $122B round (Mar 2026) · led Thinking Machines\' $2B seed at $12B',
+            facts: [
+                'Its "American Dynamism" thesis pours into defense + AI (Anduril at $61B)',
+                'Backed Mira Murati\'s Thinking Machines before it had a product',
+                'The firm that made "software is eating the world" the industry motto'
+            ]
+        },
+        vcrow_horizon: {
+            firm: 'Sequoia Capital', partner: 'Roelof Botha', founded: '1972', aum: '~$85B AUM',
+            milestone: 'May 2026: led Anthropic\'s $65B Series H at a $965B post-money valuation — the largest private round ever.',
+            portfolio: ['Anthropic', 'Google', 'NVIDIA', 'Stripe', 'OpenAI'],
+            recentDeal: 'Anthropic Series H, $65B (with Altimeter, Dragoneer, Greenoaks)',
+            facts: [
+                'Seeded Apple, Google, NVIDIA, YouTube, Stripe — the canonical VC track record',
+                'Anthropic filed confidentially for an IPO on Jun 1, 2026 at $965B',
+                '50+ years old and still writing the biggest checks in AI'
+            ]
+        },
+        vcrow_thrive: {
+            firm: 'Thrive Capital', partner: 'Josh Kushner', founded: '2010', aum: '~$25B AUM',
+            milestone: 'Feb 2026: closed a $10B fund — its largest ever — extending an all-in bet on OpenAI.',
+            portfolio: ['OpenAI', 'Anduril', 'Stripe', 'Ramp', 'Databricks'],
+            recentDeal: '~$1B into OpenAI; co-led Anduril at a $61B valuation with a16z',
+            facts: [
+                'Josh Kushner turned a concentrated OpenAI bet into the envy of the Row',
+                'Thrive Holdings raised a further $2B to buy and AI-rewire services firms',
+                'Bets big and rarely — a handful of names, enormous positions'
+            ]
+        },
+        vcrow_foundersfund: {
+            firm: 'Founders Fund', partner: 'Peter Thiel', founded: '2005', aum: '~$16B AUM',
+            milestone: '2026: closed a $4.5B fund and rode xAI\'s Series E and Anduril\'s defense boom.',
+            portfolio: ['xAI', 'Anduril', 'SpaceX', 'Palantir', 'Ramp'],
+            recentDeal: 'Backer of xAI (now merged into SpaceX at a $250B mark)',
+            facts: [
+                'Thiel\'s fund famously wrote SpaceX and Palantir\'s early checks',
+                'Its portfolio ties VC Row straight to the Space Zone (SpaceX • xAI)',
+                'Contrarian by design: "we wanted flying cars, we got 140 characters"'
+            ]
+        },
+        vcrow_launchpad: {
+            firm: 'Y Combinator', partner: 'Garry Tan', founded: '2005', aum: '2,000+ startups funded',
+            milestone: 'Every 2026 batch is AI-first — the accelerator that turns a weekend demo into a funded lab.',
+            portfolio: ['OpenAI (Sam Altman, ex-president)', 'Stripe', 'Airbnb', 'Coinbase', 'Cruise'],
+            recentDeal: 'Standard deal: $500K for 7% — then Demo Day to the whole Row',
+            facts: [
+                'Sam Altman ran YC before founding OpenAI',
+                'Its Demo Day sets the seed-stage AI market each batch',
+                'Orange is the most valuable color on Sand Hill Road'
+            ]
+        },
+        vcrow_mgx: {
+            firm: 'MGX', partner: 'Sheikh Tahnoon bin Zayed', founded: '2024', aum: '~$100B mandate',
+            milestone: 'A founding Stargate partner — Abu Dhabi\'s sovereign wealth aimed squarely at the AI buildout.',
+            portfolio: ['Stargate', 'OpenAI', 'xAI', 'AI infrastructure'],
+            recentDeal: 'Stargate co-owner; checks in OpenAI\'s $122B round and xAI\'s $20B Series E',
+            facts: [
+                'Sovereign capital is now a top-tier AI investor — MGX writes nation-scale checks',
+                'Stargate: $500B and 10 GW of US AI data centers by 2029',
+                'Backed by Mubadala + G42 — the Gulf\'s AI ambitions in one vehicle'
+            ]
+        },
+        vcrow_titan: {
+            firm: 'SoftBank / Vision Fund', partner: 'Masayoshi Son', founded: '1981', aum: '~$160B deployed',
+            milestone: 'Mar 2026: put $30B into OpenAI\'s $122B round and committed 40% of the $500B Stargate joint venture.',
+            portfolio: ['OpenAI', 'Stargate', 'Arm', 'Nvidia', 'Ampere'],
+            recentDeal: 'OpenAI $122B round (co-lead) · Stargate JV (40% / $19B committed)',
+            facts: [
+                'Masa bets on the future harder than anyone — Stargate is his biggest yet',
+                'Owns Arm, whose chips are in nearly every phone on Earth',
+                'The tallest tower on the Row, because of course it is'
+            ]
+        }
+    },
 
     SUBURB_BLDS: [
         { id: 'suburb_1', name: 'Maple Crescent',   w: 150, fl: 2, emoji: '🏡', desc: 'Upper middle-class townhome. Home of a VC Partner. Picket fence, two-car garage, smart driveway.' },
         { id: 'suburb_2', name: 'Cypress Drive',    w: 150, fl: 2, emoji: '🏡', desc: 'Brick-front Craftsman. Home of the Analyst. Home office with multi-monitor workstation.' },
         { id: 'suburb_3', name: 'Oakwood Lane',     w: 150, fl: 2, emoji: '🏡', desc: 'Colonial townhouse. Home of the Startup Mentor. Fireplace, whiskey collection, pitch deck archive.' },
-        { id: 'suburb_4', name: 'Birch Hollow',     w: 150, fl: 2, emoji: '🏡', desc: 'Modern farmhouse. Home of the Investment Banker. Commutes to Titan Bank every dawn.' },
+        { id: 'suburb_4', name: 'Birch Hollow',     w: 150, fl: 2, emoji: '🏡', desc: 'Modern farmhouse. Home of the Investment Banker. Commutes to the SoftBank tower every dawn.' },
         { id: 'suburb_5', name: 'Willow Terrace',   w: 150, fl: 2, emoji: '🏡', desc: 'Corner lot Tudor. Home of the Floor Trader. Three monitors above the kitchen island.' },
     ],
 
@@ -30,16 +114,16 @@ const VCRow = {
         { id: 'npc_trader',        name: 'Trader',         role: 'Floor Trader',        workplace: 'vcrow', color: '#ef4444', shift: 'day' },
     ],
 
-    // Real-world AI funding data (approximate, in $M)
+    // Real-world AI funding data (approximate, in $M) — 2026-Q2
     FUNDING: {
-        openai:    { total: 11700, valuation: 157000, rounds: 'Seed → Microsoft $1B → $10B → SoftBank $500M' },
-        anthropic: { total: 7600,  valuation: 61500,  rounds: 'Seed $124M → Google $300M → Amazon $4B → Series E $750M' },
-        xai:       { total: 12000, valuation: 50000,  rounds: 'Series A $6B → Series C $6B' },
-        mistral:   { total: 1100,  valuation: 6000,   rounds: 'Seed €105M → Series A €385M → Series B €600M' },
-        cohere:    { total: 970,   valuation: 5500,   rounds: 'Series A $40M → Series C $270M → Series D $500M' },
-        inflection:{ total: 1525,  valuation: 4000,   rounds: 'Seed → Series A $225M → Microsoft $1.3B' },
-        stability: { total: 250,   valuation: 1000,   rounds: 'Seed $100M → Series A $150M' },
-        adept:     { total: 415,   valuation: 1000,   rounds: 'Series A $65M → Series B $350M' },
+        openai:    { total: 179000, valuation: 852000, rounds: 'YC → Microsoft $13B → SoftBank → $122B round at $852B (Amazon $50B, Nvidia/SoftBank $30B each)' },
+        anthropic: { total: 83000,  valuation: 965000, rounds: 'Google → Amazon $8B → Series G → Series H $65B at $965B (Sequoia-led) → IPO filed' },
+        xai:       { total: 32000,  valuation: 230000, rounds: 'Series A $6B → Series C $6B → Series E $20B at $230B → merged into SpaceX at $250B' },
+        mistral:   { total: 3200,   valuation: 14000,  rounds: 'Seed €105M → Series B €600M → Series C €1.7B at €12B' },
+        cohere:    { total: 1500,   valuation: 7000,   rounds: 'Series C $270M → Series D $500M → 2026 raise at $7B' },
+        inflection:{ total: 1525,   valuation: 4000,   rounds: 'Series A $225M → Microsoft $1.3B → pivot to enterprise' },
+        stability: { total: 350,    valuation: 1200,   rounds: 'Series A $150M → 2024 recap' },
+        adept:     { total: 415,    valuation: 1000,   rounds: 'Series B $350M → Amazon licensing deal' },
     },
 
     _inited: false,
@@ -110,6 +194,12 @@ const VCRow = {
                 if (data.valuation) this.dealTicker.push(`📊 ${labName} valued at $${(data.valuation / 1000).toFixed(0)}B`);
             }
         });
+        // Real firm headlines (the funds themselves)
+        if (this.FIRMS) {
+            Object.values(this.FIRMS).forEach(f => {
+                if (f.milestone) this.dealTicker.push(`🔔 ${f.firm.split('(')[0].trim()}: ${f.milestone}`);
+            });
+        }
         // Real RSS-sourced deal headlines (replaces old hardcoded filler)
         if (typeof API !== 'undefined' && API.vcDeals?.length > 0) {
             API.vcDeals.slice(0, 10).forEach(deal => {

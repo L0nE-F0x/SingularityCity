@@ -11,11 +11,14 @@ const InteriorVCRow = {
 
     // Floor themes per building
     THEMES: {
-        vcrow_apex:      ['reception', 'deal_room', 'partner_offices', 'fund_ops', 'rooftop_lounge'],
-        vcrow_horizon:   ['reception', 'analytics', 'client_offices', 'trading_room'],
-        vcrow_launchpad: ['reception', 'coworking', 'pitch_stage'],
-        vcrow_titan:     ['vault', 'reception', 'trading_floor', 'legal', 'boardroom', 'executive'],
-        vcrow_exchange:  ['reception', 'broker_floor', 'trading_floor'],
+        vcrow_apex:         ['reception', 'deal_room', 'partner_offices', 'fund_ops', 'boardroom', 'rooftop_lounge'],
+        vcrow_horizon:      ['reception', 'deal_room', 'partner_offices', 'analytics', 'boardroom'],
+        vcrow_thrive:       ['reception', 'deal_room', 'partner_offices', 'fund_ops', 'rooftop_lounge'],
+        vcrow_foundersfund: ['reception', 'deal_room', 'partner_offices', 'trading_room'],
+        vcrow_launchpad:    ['reception', 'coworking', 'pitch_stage'],
+        vcrow_mgx:          ['reception', 'analytics', 'client_offices', 'fund_ops', 'boardroom'],
+        vcrow_titan:        ['vault', 'reception', 'trading_floor', 'legal', 'boardroom', 'executive'],
+        vcrow_exchange:     ['reception', 'broker_floor', 'trading_floor'],
     },
 
     // NPC pools by theme
@@ -62,12 +65,13 @@ const InteriorVCRow = {
         const shaftW = 50, shaftX = startX + bldW - shaftW - 15;
         const usableW = bldW - shaftW - 20;
 
-        // Accent color per building
+        // Accent color per building — matches the exterior brand palette
         const accents = {
-            vcrow_apex: 0x4ade80, vcrow_horizon: 0x22d3ee, vcrow_launchpad: 0xfbbf24,
-            vcrow_titan: 0xfbbf24, vcrow_exchange: 0xef4444
+            vcrow_apex: 0xe07a5f, vcrow_horizon: 0xb23b34, vcrow_thrive: 0x6366f1,
+            vcrow_foundersfund: 0x38bdf8, vcrow_launchpad: 0xff6a00, vcrow_mgx: 0xc9a227,
+            vcrow_titan: 0x9aa0a6, vcrow_exchange: 0xef4444
         };
-        const accent = accents[bld.id] || 0x4ade80;
+        const accent = (bld.color ? parseInt(bld.color.slice(1), 16) : null) || accents[bld.id] || 0x4ade80;
 
         // ─── ROOF SIGN ───
         const rc = new PIXI.Container();

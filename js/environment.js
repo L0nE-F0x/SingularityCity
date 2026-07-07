@@ -1115,6 +1115,57 @@ const Environment = {
         return fp;
     },
 
+    // Per-firm geometric rooftop emblem for VC Row towers (drawn into cached gfx).
+    _drawVCEmblem(gfx, b, cx, cy, bc) {
+        switch (b.id) {
+            case 'vcrow_horizon': // Sequoia — a redwood tree
+                gfx.beginFill(0x5a3a22); gfx.drawRect(cx - 1.5, cy - 2, 3, 10); gfx.endFill();
+                gfx.beginFill(bc);
+                gfx.drawPolygon([cx - 8, cy + 2, cx, cy - 8, cx + 8, cy + 2]);
+                gfx.drawPolygon([cx - 6, cy - 2, cx, cy - 11, cx + 6, cy - 2]);
+                gfx.drawPolygon([cx - 4, cy - 6, cx, cy - 13, cx + 4, cy - 6]);
+                gfx.endFill();
+                break;
+            case 'vcrow_titan': // SoftBank — the twin silver bars ("=")
+                gfx.beginFill(bc); gfx.drawRoundedRect(cx - 12, cy - 4, 24, 3, 1.5); gfx.drawRoundedRect(cx - 12, cy + 2, 24, 3, 1.5); gfx.endFill();
+                gfx.beginFill(0xffffff, 0.4); gfx.drawRect(cx - 12, cy - 4, 24, 1); gfx.endFill();
+                break;
+            case 'vcrow_mgx': // MGX — a gold diamond
+                gfx.beginFill(bc); gfx.drawPolygon([cx, cy - 10, cx + 8, cy, cx, cy + 10, cx - 8, cy]); gfx.endFill();
+                gfx.beginFill(0xffffff, 0.35); gfx.drawPolygon([cx, cy - 10, cx + 8, cy, cx, cy]); gfx.endFill();
+                break;
+            case 'vcrow_thrive': // Thrive — an upward growth chevron
+                gfx.lineStyle(3, bc, 1);
+                gfx.moveTo(cx - 9, cy + 5); gfx.lineTo(cx - 2, cy - 4); gfx.lineTo(cx + 3, cy + 1); gfx.lineTo(cx + 10, cy - 7);
+                gfx.lineStyle(0);
+                gfx.beginFill(bc); gfx.drawPolygon([cx + 10, cy - 7, cx + 4, cy - 7, cx + 10, cy - 1]); gfx.endFill();
+                break;
+            case 'vcrow_foundersfund': // Founders Fund — a rising rocket arrow
+                gfx.beginFill(bc);
+                gfx.drawPolygon([cx, cy - 10, cx + 4, cy + 2, cx, cy - 1, cx - 4, cy + 2]);
+                gfx.endFill();
+                gfx.beginFill(0xef4444, 0.9); gfx.drawPolygon([cx, cy + 1, cx + 2, cy + 7, cx - 2, cy + 7]); gfx.endFill();
+                break;
+            case 'vcrow_launchpad': // Y Combinator — the orange square with a Y
+                gfx.beginFill(bc); gfx.drawRoundedRect(cx - 9, cy - 9, 18, 18, 3); gfx.endFill();
+                gfx.lineStyle(2, 0xffffff, 0.95);
+                gfx.moveTo(cx - 4, cy - 4); gfx.lineTo(cx, cy + 1);
+                gfx.moveTo(cx + 4, cy - 4); gfx.lineTo(cx, cy + 1);
+                gfx.moveTo(cx, cy + 1); gfx.lineTo(cx, cy + 5);
+                gfx.lineStyle(0);
+                break;
+            case 'vcrow_apex': // a16z — bold monogram bar
+                gfx.beginFill(bc); gfx.drawRoundedRect(cx - 12, cy - 6, 24, 12, 2); gfx.endFill();
+                gfx.beginFill(0x0c1420);
+                gfx.drawRect(cx - 8, cy - 2, 3, 5); gfx.drawRect(cx - 1, cy - 2, 3, 5); gfx.drawRect(cx + 6, cy - 2, 3, 5);
+                gfx.endFill();
+                break;
+            default: // Exchange / Cryptex etc. — a simple market spark
+                gfx.beginFill(bc); gfx.drawCircle(cx, cy, 4); gfx.endFill();
+                gfx.beginFill(0xffffff, 0.4); gfx.drawCircle(cx - 1, cy - 1, 1.5); gfx.endFill();
+        }
+    },
+
     buildBuildings() {
       // ─── DIRTY CHECK: skip entire rebuild if no visual state changed ───
       if (window.BLDS && this.bldLayer.children.length > 0) {
@@ -3075,6 +3126,72 @@ const Environment = {
           EmbassyQuarter.renderExterior(b, container, gfx, h);
           // Shadow (consistent with other buildings)
           gfx.beginFill(0x000000, 0.22); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
+
+        } else if (b.type === 'vcrow') {
+          // ── VC ROW — brand-colored glass financial towers ──
+          const bc = colHex; // brand accent from b.color
+          // Right-edge depth shadow
+          gfx.beginFill(0x000000, 0.14); gfx.drawRect(b.w, 4, 6, h - 4); gfx.endFill();
+          // Dark glass curtain-wall body
+          gfx.beginFill(0x0c1420); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+          gfx.beginFill(bc, 0.06); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+          // Left pilaster highlight + right shade (glassy tube read)
+          gfx.beginFill(0xffffff, 0.04); gfx.drawRect(0, 8, 4, h - 8); gfx.endFill();
+          gfx.beginFill(0x000000, 0.18); gfx.drawRect(b.w - 5, 8, 5, h - 8); gfx.endFill();
+          // Brand crown band across the parapet
+          gfx.beginFill(bc, 0.92); gfx.drawRect(0, 0, b.w, 9); gfx.endFill();
+          gfx.beginFill(0xffffff, 0.18); gfx.drawRect(0, 0, b.w, 2); gfx.endFill();
+          gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, 9, b.w, 2); gfx.endFill();
+          // Curtain-wall grid: vertical mullions + horizontal spandrels + lit glass
+          const glassTop = 16, glassBot = h - 22;
+          const colW = 20;
+          const nCols = Math.max(2, Math.floor((b.w - 12) / colW));
+          const gutter = (b.w - 12 - nCols * (colW - 4)) / (nCols + 1);
+          let gseed = (b.x | 0) + b.w;
+          const rnd = () => { gseed = (gseed * 16807) % 2147483647; return (gseed - 1) / 2147483646; };
+          for (let ci = 0; ci < nCols; ci++) {
+              const wx = 6 + gutter + ci * (colW - 4 + gutter);
+              for (let wy = glassTop; wy < glassBot; wy += 15) {
+                  const lit = rnd() > 0.42;
+                  // Pane
+                  gfx.beginFill(lit ? 0xfff4d6 : 0x101c2c, lit ? 0.72 : 1);
+                  gfx.drawRect(wx, wy, colW - 6, 11);
+                  gfx.endFill();
+                  // Brand reflection streak on lit panes
+                  if (lit) { gfx.beginFill(bc, 0.18); gfx.drawRect(wx, wy, colW - 6, 3); gfx.endFill(); }
+              }
+              // Vertical mullion
+              gfx.beginFill(0x0a1018, 0.9); gfx.drawRect(wx - 2, glassTop, 2, glassBot - glassTop); gfx.endFill();
+          }
+          // Horizontal spandrel belts (floor slabs)
+          gfx.beginFill(bc, 0.10);
+          for (let sy = glassTop - 2; sy < glassBot; sy += 15) gfx.drawRect(6, sy, b.w - 12, 2);
+          gfx.endFill();
+          // Two-story glass lobby with brand portal
+          const lobbyH = 20;
+          gfx.beginFill(0x0a1622); gfx.drawRect(6, h - lobbyH - 2, b.w - 12, lobbyH); gfx.endFill();
+          gfx.beginFill(bc, 0.16); gfx.drawRect(6, h - lobbyH - 2, b.w - 12, lobbyH); gfx.endFill();
+          gfx.beginFill(bc, 0.8); gfx.drawRect(6, h - lobbyH - 2, b.w - 12, 2); gfx.endFill();
+          // Lobby mullions + warm interior glow
+          gfx.beginFill(0xffe9a8, 0.35);
+          for (let lx = 14; lx < b.w - 14; lx += 22) gfx.drawRect(lx, h - lobbyH, 14, lobbyH - 6);
+          gfx.endFill();
+          // Revolving-door entrance
+          gfx.beginFill(0x060b12); gfx.drawRect(b.w / 2 - 11, h - 18, 22, 18); gfx.endFill();
+          gfx.beginFill(bc, 0.5); gfx.drawRect(b.w / 2 - 11, h - 18, 22, 2); gfx.endFill();
+          gfx.lineStyle(1, bc, 0.6);
+          gfx.moveTo(b.w / 2, h - 16); gfx.lineTo(b.w / 2, h);
+          gfx.moveTo(b.w / 2 - 9, h - 9); gfx.lineTo(b.w / 2 + 9, h - 9);
+          gfx.lineStyle(0);
+          // Canopy
+          gfx.beginFill(bc, 0.85); gfx.drawRect(b.w / 2 - 16, h - 20, 32, 2.5); gfx.endFill();
+          // Rooftop setback + mechanical penthouse
+          gfx.beginFill(0x0a1018); gfx.drawRect(b.w * 0.5 - 24, -8, 48, 10); gfx.endFill();
+          gfx.beginFill(bc, 0.3); gfx.drawRect(b.w * 0.5 - 24, -8, 48, 2); gfx.endFill();
+          // Per-firm rooftop emblem (geometric so it survives cacheAsBitmap)
+          this._drawVCEmblem(gfx, b, b.w * 0.5, -18, bc);
+          // Base shadow
+          gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
 
         } else {
           gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, 4, 6, h - 4);
