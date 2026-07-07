@@ -6,23 +6,39 @@
 const CourtData = {
 
     BLDS: [
-        { id: 'court_senate', name: 'AI Senate', w: 200, fl: 5, emoji: '🏛️', type: 'court', desc: 'The government oversight body for artificial intelligence. Senators debate regulations while lobbyists lurk in the hallway.' },
-        { id: 'court_hearing', name: 'Hearing Chamber', w: 160, fl: 3, emoji: '⚖️', type: 'court', desc: 'Where AI models face safety reviews, alignment audits, and compliance hearings. No model leaves unchanged.' },
+        { id: 'court_senate', name: 'AI Senate', w: 200, fl: 5, emoji: '🏛️', type: 'court', desc: 'The government oversight body for artificial intelligence. Where California\'s SB 53 frontier-AI transparency law, the EU AI Act and the copyright wars get argued — while lobbyists lurk in the hallway.' },
+        { id: 'court_hearing', name: 'Hearing Chamber', w: 160, fl: 3, emoji: '⚖️', type: 'court', desc: 'Where AI models face the real 2026 docket: the NYT copyright trial, the $1.5B Anthropic authors settlement, Getty v Stability, and mandatory safety-incident disclosures. No model leaves unchanged.' },
+    ],
+
+    // Real 2026 AI legal docket — landmark cases and laws (shown in the court panel).
+    DOCKET: [
+        { case: 'NYT v. OpenAI & Microsoft', status: 'in discovery', color: '#ef4444',
+          note: 'Jan 2026: judge orders OpenAI to hand over a 20-million-log ChatGPT sample. Copyright + DMCA; billions in damages sought.' },
+        { case: 'Bartz v. Anthropic', status: 'settled — $1.5B', color: '#fbbf24',
+          note: 'Largest copyright settlement in US history for pirated training books; final approval hearing May 14, 2026.' },
+        { case: 'Getty Images v. Stability AI', status: 'appeal pending', color: '#a855f7',
+          note: 'UK High Court ruled model weights aren\'t "infringing copies"; Getty granted leave to appeal; US case refiled in N.D. Cal.' },
+        { case: 'California SB 53 (TFAIA)', status: 'in force Jan 1, 2026', color: '#22c55e',
+          note: 'First US frontier-AI law: mandatory safety disclosures + incident reporting within 15 days; up to $1M/violation.' },
+        { case: 'EU AI Act — GPAI rules', status: 'enforcing', color: '#3b82f6',
+          note: 'Obligations for >10^25-FLOP general-purpose models live since Aug 2025; high-risk tiers phase in through 2027.' },
+        { case: 'Concord/UMG v. Suno & Udio', status: 'ongoing', color: '#ec4899',
+          note: 'The music industry\'s copyright fight against generative-audio models.' },
     ],
 
     REGULATION_THEMES: [
-        'Data Privacy & Training Consent',
-        'Autonomous Weapons Ban',
-        'Copyright of AI-Generated Content',
-        'Existential Risk Assessment',
-        'Deepfake Regulation',
-        'Election Integrity Safeguards',
-        'Algorithmic Bias Audit',
-        'Open Source Model Licensing',
+        'SB 53 Frontier-AI Transparency',
+        'Copyright & Training-Data Consent',
+        'The 20M ChatGPT-Log Discovery Order',
+        'EU AI Act GPAI Compliance',
+        'Deepfake & NO FAKES Act',
+        'Safety-Incident Disclosure (15-day)',
         'Compute Export Controls',
+        'Autonomous Weapons Ban',
+        'Election Integrity Safeguards',
+        'Open-Weight Model Licensing',
         'Child Safety Compliance',
-        'Financial AI Oversight',
-        'Medical AI Certification',
+        'Chatbot Liability & Duty of Care',
     ],
 
     CHAT_MSGS: [

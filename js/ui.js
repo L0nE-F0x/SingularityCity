@@ -987,6 +987,26 @@ const UI = {
             html += `</div>`;
         }
       }
+      // ─── AI COURT panel — real 2026 legal docket ───
+      else if (b.type === 'court') {
+        if (typeof CourtData !== 'undefined' && Array.isArray(CourtData.DOCKET)) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.5">`;
+            html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">⚖️ ON THE DOCKET · 2026</div>`;
+            CourtData.DOCKET.forEach(d => {
+                html += `<div style="padding:5px 0;border-top:1px dashed var(--bd)">`;
+                html += `<div><b style="color:${d.color}">${escapeHTML(d.case)}</b> <span style="font-size:8px;padding:1px 5px;background:var(--sf);border:1px solid var(--bd);border-radius:8px;color:var(--t2)">${escapeHTML(d.status)}</span></div>`;
+                html += `<div style="font-size:9px;color:var(--t2);margin-top:1px">${escapeHTML(d.note)}</div></div>`;
+            });
+            html += `</div>`;
+        }
+        if (typeof CourtData !== 'undefined' && Array.isArray(CourtData.REGULATION_THEMES)) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">📜 HEARING TOPICS</div>`;
+            html += `<div style="display:flex;flex-wrap:wrap;gap:4px">`;
+            CourtData.REGULATION_THEMES.forEach(t => { html += `<span style="font-size:9px;padding:2px 6px;background:var(--sf);border:1px solid var(--bd);border-radius:3px">${escapeHTML(t)}</span>`; });
+            html += `</div></div>`;
+        }
+      }
       // ─── AI ACADEMY panel — real 2026 curriculum + faculty ───
       else if (b.type === 'university') {
         if (Array.isArray(b.curriculum) && b.curriculum.length) {
