@@ -15,11 +15,12 @@ const EmbassyRow = {
             type: 'embassy', country: 'us',
             flagColors: [0xbf0a30, 0xffffff, 0x002868],
             accent: 0x002868,
-            regulator: 'Executive branch · NIST · FTC',
-            framework: 'Executive Order 14110 · NIST AI RMF · AI Bill of Rights',
-            stance: 'Light-touch federal; state patchwork (California SB 1047 vetoed). Export controls on advanced chips.',
-            labs: ['OpenAI', 'Anthropic', 'Google DeepMind', 'Meta AI', 'xAI', 'Microsoft Research'],
-            desc: 'United States of America. The dominant hub of frontier AI — Silicon Valley, Seattle, and New York host the majority of the world\'s capability frontier. Federal policy favours voluntary commitments and sector-specific rules over a comprehensive AI act.'
+            regulator: 'Executive branch · NIST · Commerce (BIS)',
+            framework: "America's AI Action Plan (2025) · NIST AI RMF · pro-innovation EO",
+            stance: 'Deregulatory pivot: EO 14110 rescinded (2025), replaced by an AI-dominance agenda. H200 sales to China moved to case-by-case review with a 25% tariff. Federal push to preempt state AI laws.',
+            milestone: 'Jan 2026: Washington shifted Nvidia H200-to-China exports to case-by-case licensing — third-party US testing, a 50% volume cap and a 25% tariff.',
+            labs: ['OpenAI', 'Anthropic', 'Google DeepMind', 'Meta AI', 'xAI / SpaceX', 'Microsoft'],
+            desc: 'United States of America. The dominant hub of frontier AI. The 2025 administration tore up the prior executive order for a deregulatory, "win the AI race" agenda — voluntary commitments over a comprehensive AI act, backed by chip export controls.'
         },
         {
             id: 'embassy_cn', name: 'Chinese Embassy', w: 150, fl: 4, emoji: '🇨🇳',
@@ -27,10 +28,11 @@ const EmbassyRow = {
             flagColors: [0xde2910, 0xffde00],
             accent: 0xde2910,
             regulator: 'Cyberspace Administration (CAC)',
-            framework: 'Interim Measures for Generative AI Services (Aug 2023)',
-            stance: 'Strict pre-market registration, mandatory security assessments, content alignment with core socialist values. Strategic state-led compute build-out.',
-            labs: ['DeepSeek', 'Alibaba Qwen', 'Baidu Ernie', 'Tencent Hunyuan', '01.AI', 'Moonshot'],
-            desc: 'People\'s Republic of China. The world\'s second AI superpower. Rapid open-weight releases (DeepSeek, Qwen) despite US export controls on H100/H200-class silicon. Industry directed under Made in China 2025 and New Generation AI Development Plan.'
+            framework: 'Interim Measures for Generative AI · AI content-labeling rules (2025)',
+            stance: 'Strict pre-market registration and security assessments; content aligned with core socialist values. Now countering US chip curbs with its own gallium & rare-earth export licenses and a domestic-silicon push.',
+            milestone: '2026: DeepSeek and Qwen keep shipping frontier open-weights despite chip curbs, while Beijing wields rare-earth export licenses as leverage.',
+            labs: ['DeepSeek', 'Alibaba Qwen', 'Moonshot (Kimi)', 'Baidu Ernie', 'Tencent Hunyuan', 'Zhipu'],
+            desc: 'People\'s Republic of China. The world\'s second AI superpower. Rapid open-weight releases (DeepSeek, Qwen, Kimi) despite US export controls — and an increasingly muscular counter using its grip on critical minerals.'
         },
         {
             id: 'embassy_eu', name: 'EU Delegation', w: 150, fl: 3, emoji: '🇪🇺',
@@ -38,21 +40,23 @@ const EmbassyRow = {
             flagColors: [0x003399, 0xffcc00],
             accent: 0x003399,
             regulator: 'European Commission · National DPAs',
-            framework: 'EU AI Act (2024) · GDPR · Digital Services Act',
-            stance: 'World-first comprehensive AI law. Risk-tiered bans + obligations. GPAI rules above 10^25 FLOPs. Phased enforcement through 2027.',
-            labs: ['Mistral', 'Black Forest Labs', 'Aleph Alpha', 'Silo AI', 'Kyutai'],
-            desc: 'European Union. The world\'s first jurisdiction with a comprehensive horizontal AI regulation. The AI Act bans social scoring and untargeted biometric scraping, classifies high-risk systems, and imposes transparency duties on foundation models.'
+            framework: 'EU AI Act · GPAI Code of Practice · Digital Omnibus (2026)',
+            stance: 'World-first comprehensive AI law. GPAI obligations for >10^25-FLOP models went live Aug 2025; high-risk rules phase in through 2027. A 2026 "digital omnibus" aims to simplify compliance amid competitiveness worries.',
+            milestone: '2026: with GPAI rules now in force, Brussels debates a "Digital Omnibus" to ease AI Act burdens and keep Europe competitive.',
+            labs: ['Mistral', 'Black Forest Labs', 'Kyutai', 'Aleph Alpha', 'Helsing'],
+            desc: 'European Union. The world\'s first jurisdiction with a comprehensive horizontal AI law. The AI Act bans social scoring and untargeted biometric scraping and imposes transparency duties on foundation models — now balancing enforcement against a competitiveness push.'
         },
         {
             id: 'embassy_uk', name: 'UK High Commission', w: 150, fl: 3, emoji: '🇬🇧',
             type: 'embassy', country: 'uk',
             flagColors: [0xc8102e, 0xffffff, 0x012169],
             accent: 0x012169,
-            regulator: 'AI Safety Institute (AISI) · DSIT',
-            framework: 'Pro-innovation principles (2023 White Paper) · Bletchley Declaration',
-            stance: 'Sector-led, principles-based. No statutory AI act — AISI does pre-deployment evaluations of frontier models by agreement.',
-            labs: ['Google DeepMind', 'Stability AI', 'Synthesia', 'PolyAI', 'Wayve', 'ElevenLabs'],
-            desc: 'United Kingdom. Host of the inaugural AI Safety Summit at Bletchley Park (Nov 2023) and home of the world\'s first government AI Safety Institute. London anchors DeepMind, the single lab with the longest continuous history at the AGI frontier.'
+            regulator: 'AI Security Institute (AISI) · DSIT',
+            framework: 'Pro-innovation principles · Bletchley/Seoul/Paris summit lineage',
+            stance: 'Sector-led, principles-based. Still no statutory AI act — the renamed AI Security Institute runs pre-deployment evaluations of frontier models by agreement, with a sharper focus on national-security risk.',
+            milestone: '2025: the UK AI Safety Institute was renamed the AI Security Institute, pivoting toward misuse and national-security threats.',
+            labs: ['Google DeepMind', 'Isomorphic Labs', 'Wayve', 'Synthesia', 'ElevenLabs', 'Stability AI'],
+            desc: 'United Kingdom. Host of the inaugural AI Safety Summit at Bletchley Park (2023) and home of the world\'s first government AI evaluation body. London anchors DeepMind — the lab with the longest continuous history at the AGI frontier.'
         },
         {
             id: 'embassy_in', name: 'India High Commission', w: 150, fl: 3, emoji: '🇮🇳',
@@ -60,10 +64,11 @@ const EmbassyRow = {
             flagColors: [0xff9933, 0xffffff, 0x138808],
             accent: 0xff9933,
             regulator: 'MeitY · NITI Aayog',
-            framework: 'IndiaAI Mission (₹10,372 crore, 2024) · Responsible AI guidelines',
-            stance: 'Pro-innovation, non-binding principles. Focus on sovereign compute, Indian-language foundation models, and responsible-AI guardrails.',
-            labs: ['Sarvam AI', 'Krutrim', 'Yellow.ai', 'Soket AI', 'CoRover'],
-            desc: 'Republic of India. The largest pool of ML engineering talent on earth and the third-largest source of foundation-model training contributors. National strategy emphasises multilingual capability across 22 official languages and indigenous GPU capacity.'
+            framework: 'IndiaAI Mission (₹10,372 crore) · Responsible AI guidelines',
+            stance: 'Pro-innovation, non-binding principles. Heavy state subsidy of GPU compute and Indian-language foundation models; positioning as the neutral convener of the global AI-governance conversation.',
+            milestone: '2026: India hosts the AI Impact Summit — the successor to Bletchley/Seoul/Paris — while subsidizing sovereign compute and multilingual models.',
+            labs: ['Sarvam AI', 'Krutrim', 'Soket AI', 'Yellow.ai', 'CoRover'],
+            desc: 'Republic of India. The largest pool of ML engineering talent on earth. National strategy emphasises multilingual capability across 22 official languages, subsidized GPU access, and hosting the next global AI summit.'
         },
         {
             id: 'embassy_ae', name: 'UAE Embassy', w: 150, fl: 3, emoji: '🇦🇪',
@@ -71,10 +76,11 @@ const EmbassyRow = {
             flagColors: [0xce1126, 0x00732f, 0xffffff, 0x000000],
             accent: 0x00732f,
             regulator: 'Ministry of AI · UAE Council for AI',
-            framework: 'National AI Strategy 2031 · Falcon open-weights program',
-            stance: 'Sovereign-wealth-scale compute investment. Aligned with US export controls post-2024 Microsoft/G42 deal. Race-to-the-top on permissive talent visas.',
-            labs: ['G42', 'TII (Falcon)', 'MBZUAI', 'Core42', 'Inception'],
-            desc: 'United Arab Emirates. First country to appoint a Minister of AI (2017). Abu Dhabi\'s G42 and the Technology Innovation Institute publish the most-downloaded Arabic-language open models. Partner in the planned Stargate UAE datacenter build.'
+            framework: 'National AI Strategy 2031 · Falcon open-weights · MGX sovereign fund',
+            stance: 'Sovereign-wealth-scale compute. G42 aligned with US controls after the Microsoft deal; MGX now co-funds Stargate and writes nation-scale checks into OpenAI and xAI.',
+            milestone: '2026: Abu Dhabi\'s MGX is a Stargate co-owner and a check in OpenAI\'s $122B round and xAI\'s Series E — the Gulf as a top-tier AI investor.',
+            labs: ['G42', 'TII (Falcon)', 'MBZUAI', 'MGX', 'Core42'],
+            desc: 'United Arab Emirates. First country to appoint a Minister of AI (2017). G42 and TII publish the most-downloaded Arabic-language open models, while the MGX fund turns sovereign wealth into frontier-AI equity and the Stargate UAE build.'
         }
     ],
 

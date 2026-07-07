@@ -1209,6 +1209,7 @@ const UI = {
         if (b.regulator)  html += `<div>🏛️ <b>Regulator:</b> ${escapeHTML(b.regulator)}</div>`;
         if (b.framework)  html += `<div>📜 <b>Framework:</b> ${escapeHTML(b.framework)}</div>`;
         if (b.stance)     html += `<div style="margin-top:4px">⚖️ <b>Stance:</b> ${escapeHTML(b.stance)}</div>`;
+        if (b.milestone)  html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)">📡 <b>2026:</b> <span style="color:var(--t2)">${escapeHTML(b.milestone)}</span></div>`;
         if (Array.isArray(b.labs) && b.labs.length) {
             html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)">`;
             html += `<div style="font-weight:700;margin-bottom:4px;color:${accentCol}">🔬 NOTABLE LABS</div>`;
