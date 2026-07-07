@@ -17,6 +17,12 @@ const InteriorLongevity = {
     bubbles: [],
 
     layouts: {
+        'longevity_protein': {
+            floors: ['Structure Prediction', 'Interactome Modeling', 'AlphaFold 3 Cluster', 'Target Validation', 'Therapy Pipeline'],
+            roofLabel: 'AI PROTEIN FOUNDRY',
+            col: 0x3b82f6,
+            npcs: ['AlphaFold 3 Ops', 'Protein Modeling']
+        },
         'longevity_discovery': {
             floors: ['Compound Synthesis', 'Molecular Screening', 'Generative Chemistry AI', 'Target Identification', 'Lead Optimization'],
             roofLabel: 'DRUG DISCOVERY LAB',
@@ -159,16 +165,8 @@ const InteriorLongevity = {
             slab.endFill();
             this.scene.addChild(slab);
 
-            // Floor label
+            // Floor props FIRST so the label always reads on top of the equipment
             const floorName = isBasement ? 'B1 · ' + this._basementLabel(bld.id) : layout.floors[f];
-            const label = new PIXI.Text(floorName, {
-                fontFamily: 'monospace', fontSize: 9, fill: isBasement ? 0x64748b : 0x94a3b8
-            });
-            label.x = startX + 8;
-            label.y = fy + 5;
-            this.scene.addChild(label);
-
-            // Floor props
             const propsContainer = new PIXI.Container();
             propsContainer.sortableChildren = true;
             propsContainer.x = startX;
@@ -179,6 +177,18 @@ const InteriorLongevity = {
             } else {
                 this._buildFloorProps(propsContainer, floorName, usableW, floorH, layout.col, bld.id);
             }
+
+            // Floor label LAST, with a dark backing chip for legibility
+            const label = new PIXI.Text(floorName, {
+                fontFamily: 'monospace', fontSize: 9, fill: isBasement ? 0x94a3b8 : 0xcbd5e1
+            });
+            label.x = startX + 8;
+            label.y = fy + 5;
+            const labelBg = new PIXI.Graphics();
+            labelBg.beginFill(0x0a0f18, 0.72);
+            labelBg.drawRoundedRect(label.x - 4, label.y - 2, label.width + 8, label.height + 4, 3);
+            labelBg.endFill();
+            this.scene.addChild(labelBg, label);
         }
 
         // ─── GROUND SECTION (below basement) ───
@@ -257,6 +267,7 @@ const InteriorLongevity = {
 
     _basementLabel(bldId) {
         return {
+            'longevity_protein':   'GPU FOLDING CLUSTER',
             'longevity_discovery': 'COMPOUND LIBRARY (-80°C)',
             'longevity_trials':    'BIOHAZARD SAMPLE ARCHIVE',
             'longevity_genomics':  'SEQUENCER COLD ROOM',
@@ -450,7 +461,58 @@ const InteriorLongevity = {
         const fn = floorName.toLowerCase();
         const midY = floorH * 0.55;
 
-        if (fn.includes('synthesis') || fn.includes('compound')) {
+        if (fn.includes('pipeline')) {
+            // ─── THERAPY PIPELINE — every real AI-bio company's lead candidate ───
+            const cos = (typeof LONGEVITY_COMPANIES !== 'undefined') ? Object.values(LONGEVITY_COMPANIES) : [];
+            if (cos.length) {
+                const cardW = (bldW - 20) / cos.length;
+                cos.forEach((co, i) => {
+                    const cx = 10 + i * cardW;
+                    const card = new PIXI.Container();
+                    const g = new PIXI.Graphics();
+                    const coCol = parseInt(co.color.slice(1), 16);
+                    g.beginFill(0x0a1420, 0.9); g.drawRoundedRect(cx + 2, 12, cardW - 6, floorH - 26, 3); g.endFill();
+                    g.lineStyle(1, coCol, 0.55); g.drawRoundedRect(cx + 2, 12, cardW - 6, floorH - 26, 3); g.lineStyle(0);
+                    g.beginFill(coCol, 0.18); g.drawRect(cx + 2, 12, cardW - 6, 10); g.endFill();
+                    // Little vial of the candidate, brand-colored
+                    const vx = cx + cardW / 2;
+                    g.beginFill(0x94a3b8); g.drawRect(vx - 4, floorH - 34, 8, 4); g.endFill();
+                    g.beginFill(0xcbd5e1, 0.5); g.drawRect(vx - 3, floorH - 30, 6, 14); g.endFill();
+                    g.beginFill(coCol, 0.8); g.drawRect(vx - 3, floorH - 22, 6, 6); g.endFill();
+                    card.addChild(g);
+                    const nm = new PIXI.Text(co.name, { fontFamily: 'monospace', fontSize: 6, fill: coCol, fontWeight: 'bold' });
+                    nm.anchor.set(0.5, 0); nm.x = vx; nm.y = 14; if (nm.width > cardW - 10) nm.scale.set((cardW - 10) / nm.width);
+                    card.addChild(nm);
+                    const dg = new PIXI.Text(co.drug || '', { fontFamily: 'monospace', fontSize: 5.5, fill: 0xcbd5e1 });
+                    dg.anchor.set(0.5, 0); dg.x = vx; dg.y = floorH - 44; if (dg.width > cardW - 8) dg.scale.set((cardW - 8) / dg.width);
+                    card.addChild(dg);
+                    if (typeof UI !== 'undefined') UI.tip(card, `${co.icon} ${co.name} — ${co.drug || ''}`, co.milestone);
+                    container.addChild(card);
+                });
+            }
+        } else if (fn.includes('structure') || fn.includes('interactome') || fn.includes('alphafold') || (fn.includes('target') && bldId === 'longevity_protein')) {
+            // AI Protein Foundry floors — folded-protein ribbons + GPU racks
+            for (let i = 0; i < 3; i++) {
+                const rib = new PIXI.Graphics();
+                rib.lineStyle(2, [0x3b82f6, 0x22d3ee, 0x8b5cf6][i % 3], 0.8);
+                const rx = 30 + i * (bldW / 3.2);
+                for (let s = 0; s <= 14; s++) {
+                    const xx = rx + s * 3, yy = midY + Math.sin(s * 0.7) * 12;
+                    if (s === 0) rib.moveTo(xx, yy); else rib.lineTo(xx, yy);
+                }
+                rib.lineStyle(0);
+                for (let s = 0; s <= 14; s += 2) { rib.beginFill([0x3b82f6, 0x22d3ee, 0x8b5cf6][i % 3]); rib.drawCircle(rx + s * 3, midY + Math.sin(s * 0.7) * 12, 1.8); rib.endFill(); }
+                rib.x = 0; rib.y = 0;
+                if (typeof UI !== 'undefined') UI.tip(rib, 'Predicted Protein Fold', 'AlphaFold 3 structure');
+                container.addChild(rib);
+            }
+            // GPU fold cluster along the back
+            const gpu = new PIXI.Graphics();
+            gpu.beginFill(0x0a0f1a); gpu.drawRect(bldW - 60, 14, 46, floorH - 30); gpu.endFill();
+            for (let ly = 20; ly < floorH - 24; ly += 8) { gpu.beginFill(0x22d3ee, 0.6); gpu.drawRect(bldW - 54, ly, 34, 2); gpu.endFill(); }
+            if (typeof UI !== 'undefined') UI.tip(gpu, 'Folding GPU Cluster', 'Runs AlphaFold 3 inference');
+            container.addChild(gpu);
+        } else if (fn.includes('synthesis') || fn.includes('compound')) {
             // Lab benches with flasks
             for (let i = 0; i < 4; i++) {
                 const bench = new PIXI.Graphics();

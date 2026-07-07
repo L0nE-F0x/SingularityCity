@@ -216,6 +216,7 @@ export default [
                 REAL_FOUNDERS: 'writable',
                 SPACE_ORGS: 'writable',
                 ROBOTICS_COMPANIES: 'writable',
+                LONGEVITY_COMPANIES: 'writable',
                 SUPPLY_CHAIN: 'writable',
                 SEED: 'writable',
                 InteriorCityCore: 'writable',

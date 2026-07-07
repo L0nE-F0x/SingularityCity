@@ -1166,6 +1166,82 @@ const Environment = {
         }
     },
 
+    // Signature facade motif per Longevity building (drawn into cached gfx).
+    _drawLongevityMotif(gfx, b, ac, h) {
+        const cx = b.w / 2, cy = h * 0.42;
+        // Dark medallion backing so the emblem reads over the window grid
+        gfx.beginFill(0x060d14, 0.82); gfx.drawRoundedRect(cx - 22, cy - 20, 44, 40, 5); gfx.endFill();
+        gfx.lineStyle(1, ac, 0.5); gfx.drawRoundedRect(cx - 22, cy - 20, 44, 40, 5); gfx.lineStyle(0);
+        switch (b.id) {
+            case 'longevity_protein': { // AlphaFold ribbon — folded chain of nodes
+                gfx.lineStyle(2, ac, 0.9);
+                for (let i = 0; i < 7; i++) {
+                    const nx = cx - 15 + i * 5, ny = cy + Math.sin(i * 1.1) * 11;
+                    if (i === 0) gfx.moveTo(nx, ny); else gfx.lineTo(nx, ny);
+                }
+                gfx.lineStyle(0);
+                for (let i = 0; i < 7; i++) {
+                    const nx = cx - 15 + i * 5, ny = cy + Math.sin(i * 1.1) * 11;
+                    gfx.beginFill(i % 2 ? 0x22d3ee : ac); gfx.drawCircle(nx, ny, 2); gfx.endFill();
+                }
+                break;
+            }
+            case 'longevity_discovery': { // Benzene-ring molecule
+                gfx.lineStyle(2, ac, 0.9);
+                const r = 12;
+                const pts = [];
+                for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 - Math.PI / 2; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
+                for (let i = 0; i < 6; i++) { const [x1, y1] = pts[i], [x2, y2] = pts[(i + 1) % 6]; gfx.moveTo(x1, y1); gfx.lineTo(x2, y2); }
+                gfx.lineStyle(0);
+                for (const [x, y] of pts) { gfx.beginFill(ac); gfx.drawCircle(x, y, 2.2); gfx.endFill(); }
+                gfx.beginFill(0x22d3ee, 0.6); gfx.drawCircle(cx, cy, 3); gfx.endFill();
+                break;
+            }
+            case 'longevity_trials': { // Medical cross + heartbeat trace
+                gfx.beginFill(ac); gfx.drawRect(cx - 4, cy - 12, 8, 24); gfx.drawRect(cx - 12, cy - 4, 24, 8); gfx.endFill();
+                gfx.beginFill(0xffffff, 0.25); gfx.drawRect(cx - 4, cy - 12, 8, 3); gfx.endFill();
+                gfx.lineStyle(1.5, 0x4ade80, 0.9);
+                gfx.moveTo(cx - 18, cy + 16); gfx.lineTo(cx - 8, cy + 16); gfx.lineTo(cx - 4, cy + 9);
+                gfx.lineTo(cx, cy + 22); gfx.lineTo(cx + 5, cy + 16); gfx.lineTo(cx + 18, cy + 16);
+                gfx.lineStyle(0);
+                break;
+            }
+            case 'longevity_genomics': { // DNA double helix
+                gfx.lineStyle(2, ac, 0.85);
+                for (let s = 0; s < 2; s++) {
+                    const off = s * Math.PI;
+                    for (let i = 0; i <= 16; i++) {
+                        const yy = cy - 15 + i * 1.9, xx = cx + Math.sin(i * 0.5 + off) * 10;
+                        if (i === 0) gfx.moveTo(xx, yy); else gfx.lineTo(xx, yy);
+                    }
+                }
+                gfx.lineStyle(0);
+                const rungCols = [0x22c55e, 0x3b82f6, 0xfbbf24, 0xef4444];
+                for (let i = 2; i < 15; i += 3) {
+                    const yy = cy - 15 + i * 1.9;
+                    const x1 = cx + Math.sin(i * 0.5) * 10, x2 = cx + Math.sin(i * 0.5 + Math.PI) * 10;
+                    gfx.lineStyle(1.2, rungCols[(i / 3) % 4], 0.8); gfx.moveTo(x1, yy); gfx.lineTo(x2, yy); gfx.lineStyle(0);
+                }
+                break;
+            }
+            case 'longevity_cryo': { // Frost crystal + vault ring
+                gfx.lineStyle(1, ac, 0.5); gfx.drawCircle(cx, cy, 16); gfx.lineStyle(0);
+                gfx.lineStyle(2, ac, 0.9);
+                for (let i = 0; i < 6; i++) {
+                    const a = i * Math.PI / 3;
+                    gfx.moveTo(cx, cy); gfx.lineTo(cx + Math.cos(a) * 14, cy + Math.sin(a) * 14);
+                    // barbs
+                    const bx = cx + Math.cos(a) * 8, by = cy + Math.sin(a) * 8;
+                    gfx.moveTo(bx, by); gfx.lineTo(bx + Math.cos(a + 0.6) * 4, by + Math.sin(a + 0.6) * 4);
+                    gfx.moveTo(bx, by); gfx.lineTo(bx + Math.cos(a - 0.6) * 4, by + Math.sin(a - 0.6) * 4);
+                }
+                gfx.lineStyle(0);
+                gfx.beginFill(0xffffff, 0.7); gfx.drawCircle(cx, cy, 2.5); gfx.endFill();
+                break;
+            }
+        }
+    },
+
     buildBuildings() {
       // ─── DIRTY CHECK: skip entire rebuild if no visual state changed ───
       if (window.BLDS && this.bldLayer.children.length > 0) {
@@ -3190,6 +3266,53 @@ const Environment = {
           gfx.beginFill(bc, 0.3); gfx.drawRect(b.w * 0.5 - 24, -8, 48, 2); gfx.endFill();
           // Per-firm rooftop emblem (geometric so it survives cacheAsBitmap)
           this._drawVCEmblem(gfx, b, b.w * 0.5, -18, bc);
+          // Base shadow
+          gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
+
+        } else if (b.type === 'longevity') {
+          // ── LONGEVITY WING — AI-bio research facilities ──
+          const pal = {
+            longevity_protein:   { body: 0x0b1424, acc: 0x3b82f6, glass: 0x1e3a8a },
+            longevity_discovery: { body: 0x0c1e18, acc: 0x22c55e, glass: 0x14532d },
+            longevity_trials:    { body: 0x101a26, acc: 0xec4899, glass: 0x155e63 },
+            longevity_genomics:  { body: 0x140e22, acc: 0x8b5cf6, glass: 0x3b2564 },
+            longevity_cryo:      { body: 0x0e1e28, acc: 0x67e8f9, glass: 0x155e75 },
+          }[b.id] || { body: 0x101820, acc: 0x22c55e, glass: 0x14532d };
+          const ac = pal.acc;
+          // Right-edge depth + body
+          gfx.beginFill(0x000000, 0.14); gfx.drawRect(b.w, 4, 6, h - 4); gfx.endFill();
+          gfx.beginFill(pal.body); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+          gfx.beginFill(ac, 0.05); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+          gfx.beginFill(0xffffff, 0.04); gfx.drawRect(0, 8, 4, h - 8); gfx.endFill();
+          gfx.beginFill(0x000000, 0.16); gfx.drawRect(b.w - 5, 8, 5, h - 8); gfx.endFill();
+          // Crown band
+          gfx.beginFill(ac, 0.9); gfx.drawRect(0, 0, b.w, 9); gfx.endFill();
+          gfx.beginFill(0xffffff, 0.16); gfx.drawRect(0, 0, b.w, 2); gfx.endFill();
+          // Lab window grid (lit clean-room panes)
+          const wTop = 16, wBot = h - 20;
+          let lseed = (b.x | 0) + b.w * 3;
+          const lr = () => { lseed = (lseed * 16807) % 2147483647; return (lseed - 1) / 2147483646; };
+          for (let wx = 8; wx < b.w - 14; wx += 20) {
+              for (let wy = wTop; wy < wBot; wy += 15) {
+                  const lit = lr() > 0.35;
+                  gfx.beginFill(lit ? 0xeafff4 : 0x0e1a20, lit ? 0.7 : 1); gfx.drawRect(wx, wy, 13, 11); gfx.endFill();
+                  if (lit) { gfx.beginFill(ac, 0.22); gfx.drawRect(wx, wy, 13, 3); gfx.endFill(); }
+              }
+              gfx.beginFill(0x000000, 0.85); gfx.drawRect(wx - 2, wTop, 2, wBot - wTop); gfx.endFill();
+          }
+          // Clean-room lobby
+          gfx.beginFill(0x0a1620); gfx.drawRect(6, h - 20, b.w - 12, 18); gfx.endFill();
+          gfx.beginFill(ac, 0.15); gfx.drawRect(6, h - 20, b.w - 12, 18); gfx.endFill();
+          gfx.beginFill(ac, 0.8); gfx.drawRect(6, h - 20, b.w - 12, 2); gfx.endFill();
+          gfx.beginFill(0xeafff4, 0.3);
+          for (let lx = 14; lx < b.w - 14; lx += 22) gfx.drawRect(lx, h - 17, 14, 12);
+          gfx.endFill();
+          // Airlock entrance
+          gfx.beginFill(0x060d14); gfx.drawRect(b.w / 2 - 10, h - 17, 20, 17); gfx.endFill();
+          gfx.beginFill(ac, 0.5); gfx.drawRect(b.w / 2 - 10, h - 17, 20, 2); gfx.endFill();
+          gfx.beginFill(ac, 0.7); gfx.drawCircle(b.w / 2 + 6, h - 9, 1); gfx.endFill();
+          // Per-building signature motif
+          this._drawLongevityMotif(gfx, b, ac, h);
           // Base shadow
           gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
 

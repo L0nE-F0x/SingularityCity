@@ -987,6 +987,35 @@ const UI = {
             html += `</div>`;
         }
       }
+      // ─── LONGEVITY WING panel — live research + real 2026 AI-bio roster ───
+      else if (b.type === 'longevity') {
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🧬 RESEARCH FLOOR</div>`;
+        if (typeof LongevityZone !== 'undefined') {
+            html += `<div>💊 <b>Compounds screened:</b> ${LongevityZone.compoundsScreened.toLocaleString()} this session</div>`;
+            html += `<div>🏥 <b>Active trials:</b> ${LongevityZone.trialsActive} · 🧬 genomes sequenced: ${LongevityZone.genomesSequenced}</div>`;
+        }
+        const headline = {
+            longevity_protein:   '🧠 <b>Backbone:</b> AlphaFold 3 — protein structure at atomic precision',
+            longevity_discovery: '💊 <b>Milestone:</b> Insilico\'s Rentosertib — first AI-designed drug validated in humans',
+            longevity_trials:    '🏥 <b>In the clinic:</b> Isomorphic & Retro dosing the first AI-designed drugs (2026)',
+            longevity_genomics:  '🧬 <b>Reading life:</b> whole-genome + epigenome at scale',
+            longevity_cryo:      '❄️ <b>−196°C:</b> vitrified biobanks for the long game'
+        }[b.id];
+        if (headline) html += `<div>${headline}</div>`;
+        html += `</div>`;
+        if (typeof LONGEVITY_COMPANIES !== 'undefined') {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.5">`;
+            html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🔬 AI-BIO ROSTER · 2026</div>`;
+            Object.values(LONGEVITY_COMPANIES).forEach(co => {
+                html += `<div style="padding:5px 0;border-top:1px dashed var(--bd)">`;
+                html += `<div>${co.icon} <b style="color:${co.color}">${escapeHTML(co.name)}</b> <span style="color:var(--t3)">· ${escapeHTML(co.ceo)}${co.drug ? ' · ' + escapeHTML(co.drug) : ''}</span></div>`;
+                if (co.milestone) html += `<div style="font-size:9px;color:var(--t2);margin-top:1px">${escapeHTML(co.milestone)}</div>`;
+                html += `</div>`;
+            });
+            html += `</div>`;
+        }
+      }
       // ─── VC ROW panel — real 2026 fund profile ───
       else if (b.type === 'vcrow') {
         const firm = (typeof VCRow !== 'undefined' && VCRow.FIRMS) ? VCRow.FIRMS[b.id] : null;
