@@ -1925,14 +1925,19 @@ const Environment = {
           
         } else if (b.id.startsWith('backbone_')) {
           // ── THE BACKBONE: Network Infrastructure Buildings ──
-          const bkCol = 0x22d3ee;
+          const bkCol = {
+              backbone_landing: 0x0866ff, backbone_ixp: 0x76b900, backbone_ground: 0x22d3ee,
+              backbone_cdn: 0xf6821f, backbone_noc: 0xef4444
+          }[b.id] || 0x22d3ee;
           // Dark metallic base
           gfx.beginFill(0x0a1020); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
+          gfx.beginFill(bkCol, 0.04); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
           // Subtle panel lines
           for (let px = 0; px < b.w; px += 30) { gfx.beginFill(0x111e30); gfx.drawRect(px, 0, 1, h); gfx.endFill(); }
-          // Accent glow stripe at top
-          gfx.beginFill(bkCol, 0.15); gfx.drawRect(0, 0, b.w, 3); gfx.endFill();
-          gfx.beginFill(bkCol, 0.08); gfx.drawRect(0, 3, b.w, 2); gfx.endFill();
+          // Brand crown band
+          gfx.beginFill(bkCol, 0.9); gfx.drawRect(0, 0, b.w, 5); gfx.endFill();
+          gfx.beginFill(0xffffff, 0.14); gfx.drawRect(0, 0, b.w, 1); gfx.endFill();
+          gfx.beginFill(bkCol, 0.1); gfx.drawRect(0, 5, b.w, 2); gfx.endFill();
           // Floor slabs
           for (let fi = 1; fi < floors; fi++) {
               const fy = fi * 18;

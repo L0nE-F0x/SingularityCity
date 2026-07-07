@@ -987,6 +987,34 @@ const UI = {
             html += `</div>`;
         }
       }
+      // ─── THE BACKBONE panel — live network + real 2026 infra brief ───
+      else if (b.type === 'backbone') {
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🌐 NETWORK STATUS</div>`;
+        if (typeof BackboneZone !== 'undefined') {
+            const s = BackboneZone.networkStats;
+            html += `<div>🔀 <b>IX peak:</b> ${s.trafficTbps} Tbps · ${s.peeringASNs} ASNs peering</div>`;
+            html += `<div>📡 <b>LEO sats tracked:</b> ${s.activeSats.toLocaleString()} · ⚡ ${s.cacheHitRate}% cache hit · ${s.avgLatencyMs}ms</div>`;
+        }
+        if (b.milestone) html += `<div style="margin-top:4px;color:var(--t2)">📡 ${escapeHTML(b.milestone)}</div>`;
+        html += `</div>`;
+        if (Array.isArray(b.facts) && b.facts.length) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">🌌 KNOWN FOR</div>`;
+            b.facts.forEach(f => { html += `<div style="font-size:9px;padding:2px 0;color:var(--t2)">• ${escapeHTML(f)}</div>`; });
+            html += `</div>`;
+        }
+        if (typeof BackboneZone !== 'undefined' && Array.isArray(BackboneZone.PLAYERS)) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.5">`;
+            html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🏗️ WHO RUNS THE BACKBONE · 2026</div>`;
+            BackboneZone.PLAYERS.forEach(pl => {
+                html += `<div style="padding:4px 0;border-top:1px dashed var(--bd)">`;
+                html += `<div>${pl.icon} <b style="color:${pl.color}">${escapeHTML(pl.name)}</b></div>`;
+                html += `<div style="font-size:9px;color:var(--t2)">${escapeHTML(pl.note)}</div></div>`;
+            });
+            html += `</div>`;
+        }
+      }
       // ─── AGENT DISTRICT panel — live agent ops + real 2026 framework roster ───
       else if (b.type === 'agents') {
         html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
