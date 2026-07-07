@@ -987,6 +987,27 @@ const UI = {
             html += `</div>`;
         }
       }
+      // ─── PORT DISTRICT panel — 2026 chip-war supply chain brief ───
+      else if (b._isPort || (b.id && b.id.startsWith('port_'))) {
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🚢 SUPPLY CHAIN BRIEF</div>`;
+        if (typeof PortZone !== 'undefined' && PortZone.ships && PortZone.ships.length) {
+            const docked = PortZone.ships.filter(s => s.state === 'docked').length;
+            const inbound = PortZone.ships.filter(s => s.state === 'sailing_in').length;
+            html += `<div>⚓ <b>Vessels:</b> ${PortZone.ships.length} on rotation · ${docked} docked · ${inbound} inbound</div>`;
+        }
+        if (b.milestone) html += `<div style="margin-top:4px;color:var(--t2)">📡 ${escapeHTML(b.milestone)}</div>`;
+        html += `</div>`;
+        if (Array.isArray(b.facts) && b.facts.length) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">🌌 KNOWN FOR</div>`;
+            b.facts.forEach(f => {
+                html += `<div style="font-size:9px;padding:2px 0;color:var(--t2)">• ${escapeHTML(f)}</div>`;
+            });
+            html += `</div>`;
+        }
+        html += `<div style="margin:0 16px 16px"><button class="btn" style="width:100%" onclick="if(typeof PortEnv!=='undefined')PortEnv.showManifest()">📋 Open Cargo Manifest</button></div>`;
+      }
       // ─── ROBOTICS FACTORY panel — live production + real 2026 humanoid roster ───
       else if (b.type === 'robotics') {
         html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;

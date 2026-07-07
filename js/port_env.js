@@ -69,11 +69,30 @@ const PortEnv = {
             g.beginFill(0xef4444, 0.35); g.drawRect(-12, sh - 6, sw + 12, 2); g.endFill();
             // Deck
             g.beginFill(0x334155); g.drawRect(2, -2, sw - 20, 4); g.endFill();
-            // Containers (3 rows × 6 cols)
-            const cc = [0xef4444, 0x3b82f6, 0x22d3ee, 0xf59e0b, 0x4ade80, 0xa855f7, 0xf97316, 0x06b6d4];
-            for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) {
-                g.beginFill(cc[(c + r * 3 + si) % cc.length]); g.drawRect(15 + c * 16, -6 - r * 9, 14, 7); g.endFill();
-                g.beginFill(0x000000, 0.12); g.drawRect(15 + c * 16, -6 - r * 9, 14, 1); g.endFill();
+            if (ship.special === 'euv') {
+                // ── THE $380M LIFT — one giant white ASML crate, nothing else on deck ──
+                g.beginFill(0xf8fafc); g.drawRect(18, -30, 78, 28); g.endFill();
+                g.beginFill(0xe2e8f0); g.drawRect(18, -30, 78, 4); g.endFill();
+                g.beginFill(0x1d4ed8, 0.9); g.drawRect(18, -18, 78, 5); g.endFill(); // ASML blue band
+                g.beginFill(0x94a3b8); // crate ribs
+                for (let rx = 26; rx < 92; rx += 12) g.drawRect(rx, -30, 1.5, 28);
+                g.endFill();
+                // FRAGILE / this-way-up markings
+                g.beginFill(0xef4444); g.drawRect(24, -27, 8, 6); g.endFill();
+                g.beginFill(0x1f2937); g.drawPolygon([84, -22, 87, -27, 90, -22]); g.endFill();
+                // Climate-control unit humming on top
+                g.beginFill(0x475569); g.drawRect(72, -35, 16, 5); g.endFill();
+                g.beginFill(0x4ade80); g.drawCircle(86, -32.5, 1.2); g.endFill();
+                // Escort railing
+                g.beginFill(0xfbbf24, 0.5); g.drawRect(12, -33, 92, 1.5); g.endFill();
+            } else {
+                // Containers (3 rows × 6 cols) — biased toward the cargo line's color
+                const cc = [ship.color, 0xef4444, 0x3b82f6, ship.color, 0x22d3ee, 0xf59e0b, ship.color, 0x4ade80, 0xa855f7];
+                for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) {
+                    g.beginFill(cc[(c + r * 3 + si) % cc.length]); g.drawRect(15 + c * 16, -6 - r * 9, 14, 7); g.endFill();
+                    g.beginFill(0x000000, 0.12); g.drawRect(15 + c * 16, -6 - r * 9, 14, 1); g.endFill();
+                    g.beginFill(0xffffff, 0.08); g.drawRect(15 + c * 16, -1 - r * 9, 14, 1); g.endFill();
+                }
             }
             // Bridge (stern)
             g.beginFill(0xf1f5f9); g.drawRect(sw - 40, -36, 28, 32); g.endFill();
@@ -89,17 +108,20 @@ const PortEnv = {
             // Wake trail (separate, redrawn per frame)
             const wake = new PIXI.Graphics(); sc.addChild(wake);
             
-            // Name (doesn't flip)
-            const nm = new PIXI.Text(ship.label, { fontFamily: 'JetBrains Mono', fontSize: 7, fill: 0xffffff, fontWeight: 'bold' });
-            nm.anchor.set(0.5, 1); nm.x = sw / 2; nm.y = -36; sc.addChild(nm);
+            // Name + origin flag (doesn't flip)
+            const nm = new PIXI.Text((ship.flag ? ship.flag + ' ' : '') + ship.label, { fontFamily: 'JetBrains Mono', fontSize: 7, fill: 0xffffff, fontWeight: 'bold' });
+            nm.anchor.set(0.5, 1); nm.x = sw / 2; nm.y = -40; sc.addChild(nm);
             const comm = PortZone.COMMODITIES.find(c => c.id === ship.cargo);
             if (comm) { const cl = new PIXI.Text(comm.emoji + ' ' + comm.name, { fontFamily: 'JetBrains Mono', fontSize: 6, fill: ship.color }); cl.anchor.set(0.5, 0); cl.x = sw / 2; cl.y = sh + 4; sc.addChild(cl); }
 
             sc.y = G.groundY - 26; sc.x = ship.x;
             sc.eventMode = 'static'; sc.cursor = 'pointer';
             sc.hitArea = new PIXI.Rectangle(-30, -48, sw + 60, sh + 56);
-            sc.on('pointertap', () => { if (typeof PortEnv !== 'undefined') PortEnv.showManifest(); });
-            sc.on('pointerover', (e) => { if (typeof UI !== 'undefined') UI.showTooltip(e, ship.label, 'Carrying: ' + (comm ? comm.name : ship.cargo)); });
+            sc.on('pointertap', () => {
+                if (typeof UI !== 'undefined' && ship.story) UI.addToast(`${ship.flag || '🚢'} ${ship.label}: ${ship.story}`);
+                if (typeof PortEnv !== 'undefined') PortEnv.showManifest();
+            });
+            sc.on('pointerover', (e) => { if (typeof UI !== 'undefined') UI.showTooltip(e, `${ship.flag || ''} ${ship.label} — ex ${ship.origin || 'high seas'}`, ship.story || ('Carrying: ' + (comm ? comm.name : ship.cargo))); });
             sc.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
             charLayer.addChild(sc);
             this.shipConts.push({ cont: sc, hull, wake, sw, sh });
@@ -201,7 +223,7 @@ const PortEnv = {
         html += '<tr style="color:var(--t3);border-bottom:1px solid var(--bd)"><th style="text-align:left;padding:4px">Resource</th><th style="text-align:right;padding:4px">Price</th><th style="text-align:right;padding:4px">Change</th><th style="text-align:center;padding:4px">Supply</th></tr>';
         pz.COMMODITIES.forEach(c => {
             const pr = pz.prices[c.id];
-            const price = pr ? (pr.price >= 10000 ? '$' + (pr.price/1000).toFixed(1) + 'K' : '$' + pr.price.toLocaleString()) : '—';
+            const price = pr ? (pr.price >= 1e6 ? '$' + (pr.price/1e6).toFixed(pr.price >= 1e8 ? 0 : 1) + 'M' : pr.price >= 10000 ? '$' + (pr.price/1000).toFixed(1) + 'K' : '$' + pr.price.toLocaleString()) : '—';
             const chg = pr ? pr.change_pct : 0;
             const arrow = chg > 0 ? '▲' : chg < 0 ? '▼' : '—';
             const chgCol = chg > 10 ? '#ef4444' : chg > 0 ? '#f59e0b' : chg < -5 ? '#4ade80' : '#94a3b8';

@@ -2173,50 +2173,164 @@ const Environment = {
           gfx.beginFill(0x000000, 0.1); gfx.drawRect(0, h - 2, b.w, 4); gfx.endFill();
           
         } else if (b.id.startsWith('port_')) {
-          // ── PORT / TRADE ZONE BUILDINGS ──
-          // ── PORT / TRADE ZONE BUILDINGS ──
+          // ── PORT / TRADE ZONE BUILDINGS — the 2026 chip-war waterfront ──
           if (b.id === 'port_authority') {
-            // Port Authority — official building with maritime colors
+            // Port Authority — official maritime tower with harbor radar
             gfx.beginFill(0x1a2838); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
             gfx.beginFill(0x223848); gfx.drawRect(0, 0, 8, h); gfx.drawRect(b.w-8, 0, 8, h); gfx.endFill();
             gfx.beginFill(0x2a4858); gfx.drawRect(-2, -4, b.w+4, 8); gfx.endFill();
-            for (let fy = 14; fy < h-10; fy += 18) for (let fx = 16; fx < b.w-16; fx += 20) { gfx.beginFill(0xfbbf24, 0.5); gfx.drawRect(fx, fy, 12, 10); gfx.endFill(); }
+            // Pilot-boat orange band (international harbor authority stripe)
+            gfx.beginFill(0xf97316, 0.7); gfx.drawRect(0, 8, b.w, 3); gfx.endFill();
+            for (let fy = 16; fy < h-12; fy += 18) for (let fx = 16; fx < b.w-16; fx += 20) { gfx.beginFill(0xfbbf24, 0.5); gfx.drawRect(fx, fy, 12, 10); gfx.endFill(); }
+            // Top-floor harbor-control glazing (cyan, watching the quay)
+            gfx.beginFill(0x22d3ee, 0.35); gfx.drawRect(12, 14, b.w-24, 9); gfx.endFill();
             gfx.beginFill(0x0a1628); gfx.drawRect(b.w/2-10, h-16, 20, 16); gfx.endFill();
             gfx.beginFill(0x22d3ee, 0.3); gfx.drawRect(b.w/2-8, h-14, 16, 2); gfx.endFill();
-            const anch = new PIXI.Text('⚓', { fontFamily: emojiFontStack, fontSize: 14 }); anch.anchor.set(0.5,0.5); anch.x=b.w/2; anch.y=-14; container.addChild(anch);
+            // Radar mast + dish and signal halyard
+            gfx.beginFill(0x94a3b8); gfx.drawRect(b.w/2-1.5, -20, 3, 16); gfx.endFill();
+            gfx.beginFill(0xe2e8f0); gfx.drawPolygon([b.w/2-8, -18, b.w/2, -24, b.w/2+8, -18]); gfx.endFill();
+            gfx.beginFill(0xef4444, 0.9); gfx.drawCircle(b.w/2, -25.5, 1.5); gfx.endFill();
+            gfx.beginFill(0xef4444); gfx.drawRect(b.w-24, -14, 7, 5); gfx.endFill();  // signal flags
+            gfx.beginFill(0xfbbf24); gfx.drawRect(b.w-24, -8, 7, 5); gfx.endFill();
+            gfx.beginFill(0x64748b); gfx.drawRect(b.w-18, -16, 1.5, 16); gfx.endFill();
+            // Quay bollards
+            gfx.beginFill(0x334155); gfx.drawRect(6, h-6, 5, 6); gfx.drawRect(b.w-11, h-6, 5, 6); gfx.endFill();
+            const anch = new PIXI.Text('⚓', { fontFamily: emojiFontStack, fontSize: 14 }); anch.anchor.set(0.5,0.5); anch.x=b.w/2; anch.y=-32; container.addChild(anch);
+          } else if (b.id === 'port_customs') {
+            // Export Control Office — federal navy facade, barrier gate, gold seal
+            gfx.beginFill(0x14213d); gfx.drawRect(0, 0, b.w-26, h); gfx.endFill();
+            gfx.beginFill(0x1d2d50); gfx.drawRect(0, 0, 6, h); gfx.drawRect(b.w-32, 0, 6, h); gfx.endFill();
+            gfx.beginFill(0xe5e7eb, 0.9); gfx.drawRect(-2, -4, b.w-22, 6); gfx.endFill(); // white cornice
+            // Portico columns
+            gfx.beginFill(0xd1d5db, 0.85);
+            for (let cx2 = 12; cx2 < b.w-38; cx2 += 18) gfx.drawRect(cx2, h-26, 4, 26);
+            gfx.endFill();
+            gfx.beginFill(0xd1d5db, 0.85); gfx.drawRect(8, h-28, b.w-46, 3); gfx.endFill();
+            // Lit paperwork windows (the licenses never sleep)
+            for (let fy = 10; fy < h-32; fy += 16) for (let fx = 14; fx < b.w-42; fx += 18) {
+                gfx.beginFill(0xfef3c7, 0.55); gfx.drawRect(fx, fy, 11, 9); gfx.endFill();
+            }
+            // Gold department seal
+            gfx.beginFill(0xca8a04); gfx.drawCircle((b.w-26)/2, h*0.42, 7); gfx.endFill();
+            gfx.beginFill(0xfbbf24); gfx.drawCircle((b.w-26)/2, h*0.42, 5); gfx.endFill();
+            gfx.beginFill(0x14213d); gfx.drawPolygon([(b.w-26)/2, h*0.42-3.5, (b.w-26)/2-3, h*0.42+2.5, (b.w-26)/2+3, h*0.42+2.5]); gfx.endFill();
+            // Inspection lane + striped barrier arm
+            gfx.beginFill(0x374151); gfx.drawRect(b.w-24, h-6, 24, 6); gfx.endFill();
+            gfx.beginFill(0x4b5563); gfx.drawRect(b.w-22, h-18, 5, 12); gfx.endFill();
+            gfx.beginFill(0xef4444); gfx.drawRect(b.w-18, h-17, 18, 3); gfx.endFill();
+            gfx.beginFill(0xffffff);
+            for (let bx2 = b.w-16; bx2 < b.w-2; bx2 += 6) gfx.drawRect(bx2, h-17, 3, 3);
+            gfx.endFill();
+            gfx.beginFill(0xef4444, 0.9); gfx.drawCircle(b.w-19.5, h-21, 1.5); gfx.endFill();
           } else if (b.id === 'port_warehouse') {
-            // GPU Warehouse — large corrugated steel warehouse
+            // GPU Warehouse — bonded corrugated hall, guarded 24/7
             gfx.beginFill(0x1e293b); gfx.drawRect(0, 6, b.w, h-6); gfx.endFill();
-            // Corrugated roof
+            gfx.beginFill(0x27364a, 0.8); gfx.drawRect(0, 6, b.w, 10); gfx.endFill();
+            // Corrugated roof + skylight strip + HVAC
             gfx.beginFill(0x334155); for (let rx = 0; rx < b.w; rx += 8) { gfx.drawRect(rx, 0, 4, 8); } gfx.endFill();
             gfx.beginFill(0x475569); gfx.drawRect(0, 0, b.w, 4); gfx.endFill();
-            // Loading bay doors
-            for (let dx = 15; dx < b.w-30; dx += 50) { gfx.beginFill(0x0a1628); gfx.drawRect(dx, h-30, 35, 30); gfx.endFill(); gfx.beginFill(0xf59e0b, 0.2); gfx.drawRect(dx+2, h-28, 31, 2); gfx.drawRect(dx+2, h-20, 31, 2); gfx.drawRect(dx+2, h-12, 31, 2); gfx.endFill(); }
+            gfx.beginFill(0x38bdf8, 0.25); gfx.drawRect(20, 2, b.w-90, 3); gfx.endFill();
+            gfx.beginFill(0x64748b); gfx.drawRect(b.w-52, -6, 16, 8); gfx.drawRect(b.w-30, -6, 16, 8); gfx.endFill();
+            gfx.beginFill(0x94a3b8, 0.6); gfx.drawRect(b.w-50, -4, 12, 1.5); gfx.drawRect(b.w-28, -4, 12, 1.5); gfx.endFill();
+            // Wall stencil: big GPU crate label
+            gfx.beginFill(0x76b900, 0.18); gfx.drawRect(b.w/2-26, 16, 52, 14); gfx.endFill();
+            gfx.beginFill(0x76b900, 0.5); gfx.drawRect(b.w/2-26, 16, 52, 2); gfx.endFill();
+            // Loading bay doors with status lights
+            let doorIdx = 0;
+            for (let dx = 15; dx < b.w-30; dx += 50) {
+                gfx.beginFill(0x0a1628); gfx.drawRect(dx, h-30, 35, 30); gfx.endFill();
+                gfx.beginFill(0xf59e0b, 0.2); gfx.drawRect(dx+2, h-28, 31, 2); gfx.drawRect(dx+2, h-20, 31, 2); gfx.drawRect(dx+2, h-12, 31, 2); gfx.endFill();
+                gfx.beginFill(doorIdx % 2 === 0 ? 0x4ade80 : 0xf59e0b, 0.9); gfx.drawCircle(dx + 32, h-32, 1.8); gfx.endFill();
+                doorIdx++;
+            }
+            // Guard booth + camera
+            gfx.beginFill(0x334155); gfx.drawRect(b.w-16, h-18, 14, 18); gfx.endFill();
+            gfx.beginFill(0xfef3c7, 0.6); gfx.drawRect(b.w-13, h-15, 8, 6); gfx.endFill();
+            gfx.beginFill(0x94a3b8); gfx.drawRect(2, 8, 2, 4); gfx.endFill();
+            gfx.beginFill(0x1f2937); gfx.drawRect(1, 6, 5, 3); gfx.endFill();
+            gfx.beginFill(0xef4444, 0.9); gfx.drawCircle(5.5, 7.5, 0.8); gfx.endFill();
             // NVIDIA green accent
             gfx.beginFill(0x76b900, 0.3); gfx.drawRect(0, h-2, b.w, 4); gfx.endFill();
+          } else if (b.id === 'port_container') {
+            // Container Terminal — brand-color steel stacks + reach stacker
+            gfx.beginFill(0x2b3646); gfx.drawRect(0, h-8, b.w, 8); gfx.endFill();
+            gfx.beginFill(0xfbbf24, 0.35); // lane markings
+            for (let lx = 4; lx < b.w; lx += 22) gfx.drawRect(lx, h-6, 12, 1.5);
+            gfx.endFill();
+            // Container stacks (brand palette: NVIDIA green / SK orange / TSMC red / maersk blue)
+            const stackCols = [[0x76b900, 0x3b82f6, 0xf59e0b], [0xef4444, 0x76b900, 0x22d3ee], [0xf59e0b, 0xa855f7, 0x76b900], [0x3b82f6, 0xef4444, 0xf59e0b]];
+            stackCols.forEach((stack, siIdx) => {
+                const sx2 = 8 + siIdx * 34;
+                stack.forEach((scol, r) => {
+                    gfx.beginFill(scol); gfx.drawRect(sx2, h-22-r*14, 30, 12); gfx.endFill();
+                    gfx.beginFill(0x000000, 0.18); gfx.drawRect(sx2, h-22-r*14, 30, 2); gfx.endFill();
+                    gfx.beginFill(0xffffff, 0.1);
+                    for (let cx3 = sx2+3; cx3 < sx2+28; cx3 += 5) gfx.drawRect(cx3, h-20-r*14, 1.5, 8);
+                    gfx.endFill();
+                });
+            });
+            // Reach stacker lifting a container
+            const rsx = b.w - 20;
+            gfx.beginFill(0xfbbf24); gfx.drawRect(rsx-14, h-18, 22, 10); gfx.endFill();
+            gfx.beginFill(0x1f2937); gfx.drawCircle(rsx-9, h-7, 4); gfx.drawCircle(rsx+3, h-7, 4); gfx.endFill();
+            gfx.beginFill(0x475569); gfx.drawRect(rsx-12, h-26, 6, 9); gfx.endFill();  // cab
+            gfx.beginFill(0xfef3c7, 0.6); gfx.drawRect(rsx-11, h-25, 4, 4); gfx.endFill();
+            gfx.beginFill(0x94a3b8); gfx.drawPolygon([rsx-4, h-16, rsx+14, h-34, rsx+16, h-31, rsx-1, h-14]); gfx.endFill(); // boom
+            gfx.beginFill(0x76b900); gfx.drawRect(rsx+8, h-32, 18, 9); gfx.endFill();  // lifted box
+            gfx.beginFill(0x000000, 0.15); gfx.drawRect(rsx+8, h-32, 18, 1.5); gfx.endFill();
+            // Floodlight mast
+            gfx.beginFill(0x64748b); gfx.drawRect(2, h-52, 3, 44); gfx.endFill();
+            gfx.beginFill(0xfef3c7, 0.9); gfx.drawRect(-2, h-56, 11, 4); gfx.endFill();
+            gfx.beginFill(0xfef3c7, 0.08); gfx.drawPolygon([-2, h-52, 9, h-52, 26, h-8, -14, h-8]); gfx.endFill();
           } else if (b.id === 'port_fuel') {
-            // Fuel Depot — cylindrical tanks
+            // Fuel & Gas Depot — cryo helium sphere + horizontal diesel tank
             gfx.beginFill(0x1e293b); gfx.drawRect(0, h-8, b.w, 8); gfx.endFill();
-            // Two tanks
-            for (let tx = 15; tx < b.w-20; tx += 50) {
-              gfx.beginFill(0xf1f5f9); gfx.drawEllipse(tx+20, h-35, 20, 30); gfx.endFill();
-              gfx.beginFill(0x94a3b8); gfx.drawEllipse(tx+20, h-60, 18, 6); gfx.endFill();
-              gfx.beginFill(0x22d3ee, 0.3); gfx.drawRect(tx+8, h-45, 24, 3); gfx.endFill();
-            }
+            // Cryogenic LHe sphere on legs, frosted crown
+            const spx = 30, spy = h-34;
+            gfx.beginFill(0x334155); gfx.drawRect(spx-14, h-14, 4, 8); gfx.drawRect(spx+10, h-14, 4, 8); gfx.endFill();
+            gfx.beginFill(0xf1f5f9); gfx.drawCircle(spx, spy, 22); gfx.endFill();
+            gfx.beginFill(0xdbeafe, 0.8); gfx.drawCircle(spx-6, spy-7, 12); gfx.endFill();
+            gfx.beginFill(0x93c5fd, 0.5); gfx.drawEllipse(spx, spy-16, 14, 5); gfx.endFill(); // frost crown
+            gfx.beginFill(0x1d4ed8, 0.8); gfx.drawRect(spx-20, spy-2, 40, 5); gfx.endFill(); // LHe band
+            gfx.beginFill(0xffffff, 0.35); gfx.drawCircle(spx-24, spy-18, 2.5); gfx.drawCircle(spx-27, spy-13, 1.8); gfx.endFill(); // boil-off wisps
+            // Horizontal diesel tank
+            gfx.beginFill(0x6b7280); gfx.drawRoundedRect(62, h-30, 50, 20, 9); gfx.endFill();
+            gfx.beginFill(0x9ca3af, 0.6); gfx.drawRoundedRect(62, h-30, 50, 6, 3); gfx.endFill();
+            gfx.beginFill(0x334155); gfx.drawRect(68, h-11, 5, 3); gfx.drawRect(100, h-11, 5, 3); gfx.endFill();
+            // Hazard diamond
+            gfx.beginFill(0xef4444); gfx.drawPolygon([87, h-27, 92, h-22, 87, h-17, 82, h-22]); gfx.endFill();
+            gfx.beginFill(0xffffff, 0.9); gfx.drawRect(85.5, h-24, 3, 4); gfx.endFill();
+            // Manifold pipes linking sphere → tank → quay
+            gfx.beginFill(0x475569); gfx.drawRect(spx+20, h-16, 44, 3); gfx.endFill();
+            gfx.beginFill(0x22d3ee, 0.4); gfx.drawRect(spx+20, h-15.5, 44, 1); gfx.endFill();
+            gfx.beginFill(0x374151); gfx.drawRect(56, h-19, 4, 8); gfx.endFill();
+            gfx.beginFill(0xef4444); gfx.drawCircle(58, h-20, 1.8); gfx.endFill();
             // Hazard stripes
             gfx.beginFill(0xfbbf24); for (let sx = 0; sx < b.w; sx += 12) { gfx.drawRect(sx, h-10, 6, 3); } gfx.endFill();
           } else if (b.id === 'port_crane') {
-            // Cargo Crane — tall gantry structure
+            // Ship-to-shore gantry crane — braced legs, machinery house, water-side boom
+            // Legs with cross-bracing
             gfx.beginFill(0xf59e0b); gfx.drawRect(10, h-8, 8, -70); gfx.drawRect(b.w-18, h-8, 8, -70); gfx.endFill();
-            gfx.beginFill(0xfbbf24); gfx.drawRect(0, h-78, b.w, 8); gfx.endFill();
-            // Trolley
-            gfx.beginFill(0xef4444); gfx.drawRect(b.w/2-8, h-76, 16, 6); gfx.endFill();
-            // Cable + hook
-            gfx.beginFill(0x666666); gfx.drawRect(b.w/2-1, h-70, 2, 40); gfx.endFill();
-            gfx.beginFill(0x888888); gfx.drawRect(b.w/2-4, h-32, 8, 4); gfx.endFill();
-            // Container being lifted
-            gfx.beginFill(0x3b82f6); gfx.drawRect(b.w/2-10, h-28, 20, 14); gfx.endFill();
-            gfx.beginFill(0x2563eb); gfx.drawRect(b.w/2-8, h-26, 16, 2); gfx.endFill();
+            gfx.lineStyle(2, 0xd97706, 0.8);
+            gfx.moveTo(14, h-14); gfx.lineTo(b.w-14, h-44);
+            gfx.moveTo(b.w-14, h-14); gfx.lineTo(14, h-44);
+            gfx.moveTo(14, h-44); gfx.lineTo(b.w-14, h-72);
+            gfx.lineStyle(0);
+            // Main beam extends over the water (left)
+            gfx.beginFill(0xfbbf24); gfx.drawRect(-26, h-78, b.w+26, 8); gfx.endFill();
+            gfx.beginFill(0xd97706); gfx.drawRect(-26, h-71, b.w+26, 2); gfx.endFill();
+            // A-frame apex + tie bars holding the boom
+            gfx.beginFill(0xf59e0b); gfx.drawPolygon([b.w/2-4, h-100, b.w/2+4, h-100, b.w/2+8, h-78, b.w/2-8, h-78]); gfx.endFill();
+            gfx.lineStyle(1.5, 0xd97706, 0.9);
+            gfx.moveTo(b.w/2, h-98); gfx.lineTo(-22, h-76);
+            gfx.moveTo(b.w/2, h-98); gfx.lineTo(b.w-6, h-76);
+            gfx.lineStyle(0);
+            gfx.beginFill(0xef4444, 0.9); gfx.drawCircle(b.w/2, h-102, 2); gfx.endFill();
+            // Machinery house + operator cab
+            gfx.beginFill(0x475569); gfx.drawRect(b.w-34, h-92, 22, 12); gfx.endFill();
+            gfx.beginFill(0x334155); gfx.drawRect(4, h-70, 12, 9); gfx.endFill();
+            gfx.beginFill(0x38bdf8, 0.6); gfx.drawRect(6, h-68, 8, 5); gfx.endFill();
+            // (Trolley, cable, hook + lifted container are animated by PortEnv._animateCrane)
           }
           gfx.beginFill(0x000000, 0.15); gfx.drawRect(0, h-2, b.w, 4); gfx.endFill();
           
