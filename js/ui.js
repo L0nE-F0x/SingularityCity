@@ -1191,6 +1191,7 @@ const UI = {
         if (b.lead)     html += `<div>👤 <b>Lead:</b> ${escapeHTML(b.lead)}</div>`;
         if (b.location) html += `<div>📍 <b>Location:</b> ${escapeHTML(b.location)}</div>`;
         if (b.founded)  html += `<div>📅 <b>Founded:</b> ${b.founded}</div>`;
+        if (b.milestone) html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)">📡 <b>Latest:</b> <span style="color:var(--t2)">${escapeHTML(b.milestone)}</span></div>`;
         if (Array.isArray(b.papers) && b.papers.length) {
             html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--bd)">`;
             html += `<div style="font-weight:700;margin-bottom:4px;color:${shieldCol}">📄 KEY PAPERS</div>`;

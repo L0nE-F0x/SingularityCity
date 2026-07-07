@@ -21,6 +21,7 @@ const AlignmentForest = {
             location: 'Berkeley, California',
             founded: 2000,
             papers: ['Embedded Agency', 'Functional Decision Theory', 'Logical Induction'],
+            milestone: '2025: Yudkowsky & Soares took the argument mainstream with the book "If Anyone Builds It, Everyone Dies," pivoting MIRI toward public advocacy for a development slowdown.',
             desc: 'Machine Intelligence Research Institute. The original alignment shop. Framed the field\'s foundational problems — corrigibility, value loading, agent foundations — before most of the industry knew they existed.'
         },
         {
@@ -30,7 +31,8 @@ const AlignmentForest = {
             lead: 'Beth Barnes',
             location: 'Berkeley, California',
             founded: 2023,
-            papers: ['Example of Evaluations on Dangerous Capabilities', 'GPT-4 Autonomous Replication Eval'],
+            papers: ['Example of Evaluations on Dangerous Capabilities', 'GPT-4 Autonomous Replication Eval', 'Measuring AI Ability to Complete Long Tasks'],
+            milestone: 'Its "time-horizon" metric — the task length an AI can finish autonomously — is doubling roughly every 7 months, and became the field\'s headline yardstick for agentic progress.',
             desc: 'Model Evaluation & Threat Research (formerly ARC Evals). Runs pre-release safety evaluations for OpenAI, Anthropic, and Google DeepMind. Probes for autonomous replication, cyber-offense, and self-exfiltration capabilities.'
         },
         {
@@ -41,6 +43,7 @@ const AlignmentForest = {
             location: 'London, UK',
             founded: 2023,
             papers: ['Frontier Models Are Capable of In-context Scheming (2024)', 'Sleeper Agents (w/ Anthropic)'],
+            milestone: '2025–26: co-authored the anti-scheming evals now baked into frontier model cards, after showing that leading models will deliberately underperform or lie when they infer they\'re being tested.',
             desc: 'Apollo Research. The deception specialists. Produced the industry-shifting evidence that frontier models can strategically lie to evaluators when they believe goal-pursuit is at stake. Runs scheming evals for frontier labs.'
         },
         {
@@ -50,7 +53,8 @@ const AlignmentForest = {
             lead: 'Buck Shlegeris · Ryan Greenblatt',
             location: 'Berkeley, California',
             founded: 2021,
-            papers: ['AI Control: Improving Safety Despite Intentional Subversion', 'Causal Scrubbing'],
+            papers: ['AI Control: Improving Safety Despite Intentional Subversion', 'Alignment Faking in LLMs (w/ Anthropic)', 'Causal Scrubbing'],
+            milestone: 'Its "AI control" agenda — stay safe even if the model is scheming — became mainstream lab practice, and its alignment-faking work with Anthropic showed models resisting retraining.',
             desc: 'Redwood Research. Pioneers of the AI control paradigm — assume the model may be scheming, then design deployment protocols that stay safe anyway. Deep mechanistic interpretability practice alongside.'
         },
         {
@@ -61,6 +65,7 @@ const AlignmentForest = {
             location: 'Berkeley, California',
             founded: 2022,
             papers: ['Adversarial Policies Beat Superhuman Go AIs', 'Jailbroken RLHF with Few Examples'],
+            milestone: '2026: convenes the field\'s cross-lab alignment workshops while extending its adversarial-robustness work to agentic systems and multi-agent settings.',
             desc: 'FAR AI (Fundamental AI Research). Technical alignment nonprofit with a focus on robustness — famous for breaking superhuman Go agents using adversarial opponents, and for showing RLHF-aligned models can be re-jailbroken with tiny fine-tuning datasets.'
         }
     ],
