@@ -204,6 +204,39 @@ const InteriorAgents = {
         const fn = floorName.toLowerCase();
         const g = new PIXI.Graphics(); g.eventMode = 'none';
         UI.tip(g, floorName, 'Agent ops floor');
+        c.addChild(g);
+
+        if (fn.includes('registry')) {
+            // ─── FRAMEWORK REGISTRY — every real 2026 agent framework as a card ───
+            const fws = (typeof AGENT_FRAMEWORKS !== 'undefined') ? Object.values(AGENT_FRAMEWORKS) : [];
+            if (fws.length) {
+                const perRow = Math.ceil(fws.length / 2);
+                const cardW = (bw - 40) / perRow;
+                fws.forEach((fw, i) => {
+                    const row = Math.floor(i / perRow), coln = i % perRow;
+                    const cx = sx + 20 + coln * cardW, cyy = fy + 14 + row * ((fh - 24) / 2);
+                    const card = new PIXI.Container();
+                    const cg = new PIXI.Graphics();
+                    const fc = parseInt(fw.color.slice(1), 16);
+                    cg.beginFill(0x0a0a18, 0.9); cg.drawRoundedRect(cx, cyy, cardW - 8, (fh - 30) / 2, 3); cg.endFill();
+                    cg.lineStyle(1, fc, 0.55); cg.drawRoundedRect(cx, cyy, cardW - 8, (fh - 30) / 2, 3); cg.lineStyle(0);
+                    cg.beginFill(fc, 0.18); cg.drawRect(cx, cyy, cardW - 8, 8); cg.endFill();
+                    // A little "agent node" glyph
+                    cg.beginFill(fc); cg.drawCircle(cx + 8, cyy + 20, 3); cg.endFill();
+                    cg.lineStyle(1, fc, 0.6); cg.drawCircle(cx + 8, cyy + 20, 6); cg.lineStyle(0);
+                    card.addChild(cg);
+                    const nm = new PIXI.Text(fw.name, { fontFamily: 'JetBrains Mono', fontSize: 6, fill: fc, fontWeight: 'bold' });
+                    nm.x = cx + 4; nm.y = cyy + 1.5; if (nm.width > cardW - 14) nm.scale.set((cardW - 14) / nm.width);
+                    card.addChild(nm);
+                    const pr = new PIXI.Text(fw.product || '', { fontFamily: 'JetBrains Mono', fontSize: 5.5, fill: 0xcbd5e1 });
+                    pr.x = cx + 16; pr.y = cyy + 16; if (pr.width > cardW - 24) pr.scale.set((cardW - 24) / pr.width);
+                    card.addChild(pr);
+                    if (typeof UI !== 'undefined') UI.tip(card, `${fw.icon} ${fw.name} — ${fw.ceo}`, fw.milestone);
+                    c.addChild(card);
+                });
+            }
+            return;
+        }
 
         if (fn.includes('command bridge') || fn.includes('ops deck') || fn.includes('swarm control')) {
             // ── Wall of agent status screens ──
@@ -402,8 +435,7 @@ const InteriorAgents = {
                 g.beginFill(0x222a40); g.drawRect(dx, pY-16, 50, 3); g.endFill();
             }
         }
-
-        c.addChild(g);
+        // g was already added to c at the top so NPCs/cards layer above it
     },
 
     // ════════════════════════════════════════════════════

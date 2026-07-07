@@ -987,6 +987,36 @@ const UI = {
             html += `</div>`;
         }
       }
+      // ─── AGENT DISTRICT panel — live agent ops + real 2026 framework roster ───
+      else if (b.type === 'agents') {
+        html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+        html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🤖 AGENT OPS</div>`;
+        if (typeof AgentsZone !== 'undefined') {
+            const s = AgentsZone.agentStats;
+            html += `<div>🤖 <b>Active agents:</b> ${s.activeAgents.toLocaleString()} · ${s.swarmSize} swarms</div>`;
+            html += `<div>⚡ <b>Tasks/hr:</b> ${s.tasksPerHour.toLocaleString()} · ${s.toolCalls.toLocaleString()} tool calls · ${s.errorRate}% errors</div>`;
+        }
+        const headline = {
+            agents_orchestrator: '🎛️ <b>Pattern:</b> role-based crews + stateful graphs coordinate the swarm',
+            agents_toolshop:     '🔧 <b>Standard:</b> MCP + Composio give agents authenticated hands',
+            agents_sandbox:      '🏟️ <b>Benchmarks:</b> SWE-bench, GAIA, WebArena, OSWorld run 24/7',
+            agents_deploy:       '🚀 <b>Guardrails:</b> human-in-the-loop checkpoints + rollback',
+            agents_memory:       '🧠 <b>Memory:</b> vector + episodic stores persist across sessions'
+        }[b.id];
+        if (headline) html += `<div>${headline}</div>`;
+        html += `</div>`;
+        if (typeof AGENT_FRAMEWORKS !== 'undefined') {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.5">`;
+            html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">🧩 FRAMEWORK REGISTRY · 2026</div>`;
+            Object.values(AGENT_FRAMEWORKS).forEach(fw => {
+                html += `<div style="padding:5px 0;border-top:1px dashed var(--bd)">`;
+                html += `<div>${fw.icon} <b style="color:${fw.color}">${escapeHTML(fw.name)}</b> <span style="color:var(--t3)">· ${escapeHTML(fw.ceo)}${fw.product ? ' · ' + escapeHTML(fw.product) : ''}</span></div>`;
+                if (fw.milestone) html += `<div style="font-size:9px;color:var(--t2);margin-top:1px">${escapeHTML(fw.milestone)}</div>`;
+                html += `</div>`;
+            });
+            html += `</div>`;
+        }
+      }
       // ─── LONGEVITY WING panel — live research + real 2026 AI-bio roster ───
       else if (b.type === 'longevity') {
         html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;

@@ -1166,6 +1166,40 @@ const Environment = {
         }
     },
 
+    // Per-building rooftop emblem for Agent District (drawn into cached gfx).
+    _drawAgentEmblem(gfx, b, cx, cy, ac) {
+        switch (b.id) {
+            case 'agents_orchestrator': // conductor node — hub with spokes
+                gfx.lineStyle(1.5, ac, 0.9);
+                for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; gfx.moveTo(cx, cy); gfx.lineTo(cx + Math.cos(a) * 9, cy + Math.sin(a) * 9); }
+                gfx.lineStyle(0);
+                gfx.beginFill(ac); gfx.drawCircle(cx, cy, 3.5); gfx.endFill();
+                for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; gfx.beginFill(ac, 0.8); gfx.drawCircle(cx + Math.cos(a) * 9, cy + Math.sin(a) * 9, 1.8); gfx.endFill(); }
+                break;
+            case 'agents_toolshop': // puzzle piece
+                gfx.beginFill(ac); gfx.drawRoundedRect(cx - 8, cy - 6, 16, 12, 2); gfx.endFill();
+                gfx.beginFill(ac); gfx.drawCircle(cx + 8, cy, 3); gfx.endFill();
+                gfx.beginFill(0x0c0a18); gfx.drawCircle(cx - 3, cy, 3); gfx.endFill();
+                break;
+            case 'agents_sandbox': // trophy / benchmark bars
+                gfx.beginFill(ac);
+                gfx.drawRect(cx - 9, cy + 4, 5, -6); gfx.drawRect(cx - 2, cy + 4, 5, -11); gfx.drawRect(cx + 5, cy + 4, 5, -8);
+                gfx.endFill();
+                gfx.beginFill(0xfbbf24); gfx.drawCircle(cx + 7.5, cy - 8, 1.6); gfx.endFill();
+                break;
+            case 'agents_deploy': // rocket
+                gfx.beginFill(ac); gfx.drawPolygon([cx, cy - 9, cx + 4, cy + 3, cx, cy, cx - 4, cy + 3]); gfx.endFill();
+                gfx.beginFill(0xef4444, 0.9); gfx.drawPolygon([cx, cy + 1, cx + 2, cy + 7, cx - 2, cy + 7]); gfx.endFill();
+                break;
+            case 'agents_memory': // brain / memory rings
+                gfx.lineStyle(1.5, ac, 0.9); gfx.drawCircle(cx, cy, 8); gfx.drawCircle(cx, cy, 4.5); gfx.lineStyle(0);
+                gfx.beginFill(ac); gfx.drawCircle(cx, cy, 2); gfx.endFill();
+                break;
+            default:
+                gfx.beginFill(ac); gfx.drawCircle(cx, cy, 3.5); gfx.endFill();
+        }
+    },
+
     // Signature facade motif per Longevity building (drawn into cached gfx).
     _drawLongevityMotif(gfx, b, ac, h) {
         const cx = b.w / 2, cy = h * 0.42;
@@ -1982,15 +2016,22 @@ const Environment = {
           gfx.beginFill(bkCol, 0.1); gfx.drawRect(0, h-4, b.w, 1); gfx.endFill();
 
         } else if (b.id.startsWith('agents_')) {
-          // ── AGENT DISTRICT BUILDINGS ──
-          const agCol = 0xf43f5e;
-          // Dark base with rose-tinted accent
+          // ── AGENT DISTRICT BUILDINGS — per-facility accent + rooftop emblem ──
+          const agCol = {
+              agents_orchestrator: 0x22d3ee, agents_toolshop: 0xa855f7,
+              agents_sandbox: 0x4ade80, agents_deploy: 0xf97316, agents_memory: 0x8b5cf6
+          }[b.id] || 0xf43f5e;
+          // Dark base with tinted accent
           gfx.beginFill(0x0c0a18); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
+          gfx.beginFill(agCol, 0.05); gfx.drawRect(0, 0, b.w, h); gfx.endFill();
           // Vertical panel lines (circuit board feel)
           for (let px = 0; px < b.w; px += 28) { gfx.beginFill(0x14101e); gfx.drawRect(px, 0, 1, h); gfx.endFill(); }
-          // Accent glow stripe at top
-          gfx.beginFill(agCol, 0.18); gfx.drawRect(0, 0, b.w, 3); gfx.endFill();
-          gfx.beginFill(agCol, 0.08); gfx.drawRect(0, 3, b.w, 2); gfx.endFill();
+          // Brand crown band
+          gfx.beginFill(agCol, 0.9); gfx.drawRect(0, 0, b.w, 5); gfx.endFill();
+          gfx.beginFill(0xffffff, 0.14); gfx.drawRect(0, 0, b.w, 1); gfx.endFill();
+          gfx.beginFill(agCol, 0.1); gfx.drawRect(0, 5, b.w, 3); gfx.endFill();
+          // Left edge highlight (glass tube read)
+          gfx.beginFill(0xffffff, 0.03); gfx.drawRect(0, 8, 3, h - 8); gfx.endFill();
           // Floor slabs
           for (let fi = 1; fi < floors; fi++) {
               const fy = fi * 18;
@@ -2041,6 +2082,8 @@ const Environment = {
                   gfx.beginFill(agCol, 0.5); gfx.drawCircle(ax+1, -9, 1.5); gfx.endFill();
               }
           }
+          // Per-building rooftop emblem
+          this._drawAgentEmblem(gfx, b, b.w / 2, -14, agCol);
           // Base / foundation
           gfx.beginFill(0x14101e); gfx.drawRect(0, h-4, b.w, 4); gfx.endFill();
           gfx.beginFill(agCol, 0.1); gfx.drawRect(0, h-4, b.w, 1); gfx.endFill();

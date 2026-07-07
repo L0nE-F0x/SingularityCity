@@ -4,15 +4,97 @@
    deployed, and monitored. CrewAI, LangGraph, AutoGPT, Claude Agent SDK, OpenAI Agents.
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
+// Each framework carries real 2026 flavor: product / hq / founded / milestone
+// (latest real headline) / facts[] (panel bullets). Keys feed the getFramework matcher.
 const AGENT_FRAMEWORKS = {
-    crewai:       { name: 'CrewAI',              ceo: 'Joao Moura',        color: '#f43f5e', icon: '👥', desc: 'Multi-agent orchestration. Role-based crews of AI agents that collaborate on complex tasks with shared memory.' },
-    langgraph:    { name: 'LangGraph',           ceo: 'Harrison Chase',    color: '#22d3ee', icon: '🔗', desc: 'Stateful, multi-actor agent framework built on LangChain. Cyclic computation graphs for persistent agent workflows.' },
-    autogpt:      { name: 'AutoGPT',             ceo: 'Toran Richards',    color: '#8b5cf6', icon: '🤖', desc: 'The original autonomous agent. Self-prompting GPT that decomposes goals into sub-tasks and executes them independently.' },
-    claude_sdk:   { name: 'Claude Agent SDK',    ceo: 'Anthropic',         color: '#d97706', icon: '🧬', desc: 'Anthropic\'s official agent framework. Tool use, extended thinking, and guardrails for production-grade autonomous agents.' },
-    openai_agent: { name: 'OpenAI Agents',       ceo: 'OpenAI',            color: '#4ade80', icon: '⚡', desc: 'OpenAI Agents Platform. Function calling, code interpreter, and retrieval for fully autonomous task execution.' },
-    dify:         { name: 'Dify',                ceo: 'Luyu Zhang',        color: '#3b82f6', icon: '🎯', desc: 'Open-source LLM app development platform. Visual agent workflow builder with RAG, tools, and multi-model orchestration.' },
-    n8n:          { name: 'n8n AI Agents',        ceo: 'Jan Oberhauser',    color: '#ef4444', icon: '🔄', desc: 'Workflow automation with native AI agent nodes. Connect 400+ integrations into autonomous decision-making pipelines.' },
-    composio:     { name: 'Composio',            ceo: 'Karan Vaidya',      color: '#a855f7', icon: '🧩', desc: 'Tooling infrastructure for AI agents. 250+ pre-built integrations — auth, API connectors, and managed execution.' }
+    claude_sdk: {
+        name: 'Claude Agent SDK', ceo: 'Anthropic', color: '#d97706', icon: '🧬',
+        hq: 'San Francisco', founded: '2025', product: 'Agent SDK (Python + TS)',
+        milestone: 'Renamed from Claude Code SDK in 2025; by 2026 it powers production agents on Opus 4.8 with subagents, sessions and first-class MCP.',
+        facts: [
+            'Ships file-edit, bash, web-search/fetch and a tool-use loop out of the box',
+            'First-class Model Context Protocol (MCP) client — the emerging tool standard',
+            'June 2026: a separate Agent SDK credit pool split programmatic use from subscriptions'
+        ],
+        desc: "Anthropic's production agent framework. Tool use, extended thinking, subagents and MCP — the backbone of the Claude agent ecosystem."
+    },
+    openai_agentkit: {
+        name: 'OpenAI AgentKit', ceo: 'OpenAI', color: '#4ade80', icon: '⚡',
+        hq: 'San Francisco', founded: '2025', product: 'AgentKit + Agents SDK + Operator',
+        milestone: 'Launched at DevDay Oct 2025; the Agents SDK gained sandboxing in 2026 while Agent Builder + Evals were slated to sunset Nov 30, 2026.',
+        facts: [
+            'Operator does full computer use — 38.1% on OSWorld, 58.1% on WebVoyager',
+            'Agents SDK now sandboxes agents into controlled file/code environments',
+            'The platform churns fast: AgentKit builder already on a deprecation clock'
+        ],
+        desc: "OpenAI's agent stack. AgentKit, the Agents SDK, and Operator's mouse-and-keyboard computer use — building agents that actually click."
+    },
+    cognition: {
+        name: 'Cognition / Devin', ceo: 'Scott Wu', color: '#8b5cf6', icon: '👨‍💻',
+        hq: 'San Francisco', founded: '2023', product: 'Devin + Devin Desktop',
+        milestone: 'Apr 2026: valued at $25B (up from $10.2B in 7 months) after absorbing Windsurf; June 2026 rebranded Windsurf to Devin Desktop.',
+        facts: [
+            'Devin is the autonomous software engineer — plans, codes, tests, ships PRs',
+            'Devin Desktop\'s Agent Command Center runs local + cloud agents from one Kanban',
+            'ARR doubled to a ~$492M run rate; backs the open Agent Client Protocol (ACP)'
+        ],
+        desc: 'The autonomous-coding giant. Devin writes and ships software on its own; Devin Desktop (ex-Windsurf) commands whole fleets of agents.'
+    },
+    manus: {
+        name: 'Manus', ceo: 'Xiao Hong (Red)', color: '#f43f5e', icon: '🙌',
+        hq: 'Singapore / China', founded: '2025', product: 'Manus general agent',
+        milestone: 'Apr 2026: China blocked Meta\'s $2–3B acquisition on national-security grounds; Meta cut ties June 15 — Manus kept shipping anyway.',
+        facts: [
+            'A general-purpose agent: its "My Computer" runs terminal commands + local files',
+            'Orchestrates multiple LLMs under the hood, tracking forward to the Opus 4.x line',
+            'The breakout Chinese autonomous agent of 2025–26'
+        ],
+        desc: 'The general-purpose autonomous agent. Books, browses, codes and operates your computer — the one Meta tried (and failed) to buy.'
+    },
+    langgraph: {
+        name: 'LangGraph', ceo: 'Harrison Chase', color: '#22d3ee', icon: '🔗',
+        hq: 'San Francisco', founded: '2024', product: 'LangGraph + LangSmith',
+        milestone: 'The stateful graph framework became LangChain\'s flagship for durable, multi-actor agents — with LangSmith for tracing every step.',
+        facts: [
+            'Models agents as cyclic graphs with persistent state and checkpoints',
+            'LangSmith observability is now standard kit for debugging agent runs',
+            'Powers long-running, human-in-the-loop enterprise workflows'
+        ],
+        desc: "LangChain's stateful agent framework. Cyclic computation graphs give agents durable memory and controllable, resumable workflows."
+    },
+    crewai: {
+        name: 'CrewAI', ceo: 'João Moura', color: '#ec4899', icon: '👥',
+        hq: 'San Francisco', founded: '2023', product: 'CrewAI framework + platform',
+        milestone: 'Crossed millions of monthly agent executions — role-based "crews" became a default pattern for multi-agent collaboration.',
+        facts: [
+            'Agents take roles (researcher, writer, reviewer) and collaborate with shared memory',
+            'One of the most-installed open-source agent frameworks on PyPI',
+            'Raised venture funding to build an enterprise orchestration platform'
+        ],
+        desc: 'Role-based multi-agent crews. Assign each agent a job and let the team collaborate — the human-org metaphor for agent swarms.'
+    },
+    composio: {
+        name: 'Composio', ceo: 'Karan Vaidya', color: '#a855f7', icon: '🧩',
+        hq: 'San Francisco', founded: '2023', product: 'Tool + auth infrastructure',
+        milestone: 'Grew to 250+ managed integrations with handled auth — the "give your agent hands" layer beneath every framework.',
+        facts: [
+            'Managed OAuth + API connectors so agents can act in real SaaS tools',
+            'Framework-agnostic: plugs into Claude SDK, LangGraph, CrewAI alike',
+            'MCP-compatible tool servers for the emerging standard'
+        ],
+        desc: 'Tooling infrastructure for agents. Pre-built, authenticated integrations that let any framework\'s agents actually do things.'
+    },
+    n8n: {
+        name: 'n8n', ceo: 'Jan Oberhauser', color: '#ef4444', icon: '🔄',
+        hq: 'Berlin, Germany', founded: '2019', product: 'n8n workflow automation + AI nodes',
+        milestone: 'Became the go-to visual canvas for wiring LLM agents into 400+ apps — a fair-code Zapier that grew AI-agent nodes.',
+        facts: [
+            'Native AI-agent nodes drop autonomous decisions into any workflow',
+            '400+ integrations connect agents to the rest of the software stack',
+            'Self-hostable and fair-code — a favorite of technical automation teams'
+        ],
+        desc: 'Workflow automation with native agent nodes. Wire an autonomous decision-maker into 400+ apps on a visual canvas.'
+    }
 };
 
 const AgentsZone = {
@@ -109,8 +191,14 @@ const AgentsZone = {
         this.statusTicker.push(`🔧 Tool registry: 2,418 endpoints indexed — 12 new integrations this week`);
         this.statusTicker.push(`🏟️ Sandbox: SWE-bench 48.2% · GAIA 62.1% · WebArena 38.7%`);
         this.statusTicker.push(`🚀 Deploy pipeline: 99.7% uptime — ${s.errorRate}% error rate — 3 rollbacks today`);
-        this.statusTicker.push('🔗 CrewAI: 6 crews active · LangGraph: 14 flows · AutoGPT: 9 autonomous loops');
+        this.statusTicker.push('🔗 CrewAI: 6 crews active · LangGraph: 14 flows · Claude Agent SDK: 21 subagents');
         this.statusTicker.push('🛡️ Guardrails: 12.4K/hr blocked — prompt injection, PII leak, infinite loop');
+        // Real 2026 framework headlines
+        this.statusTicker.push('👨‍💻 Cognition/Devin valued at $25B after folding in Windsurf → Devin Desktop');
+        this.statusTicker.push('🙌 China blocks Meta\'s $2–3B acquisition of Manus on national-security grounds');
+        this.statusTicker.push('⚡ OpenAI Operator: 38.1% OSWorld · 58.1% WebVoyager on full computer-use tasks');
+        this.statusTicker.push('🧬 Claude Agent SDK ships on Opus 4.8 — subagents, sessions, first-class MCP');
+        this.statusTicker.push('🧩 Composio passes 250+ managed, authenticated tool integrations');
 
         // Shuffle
         for (let i = this.statusTicker.length - 1; i > 0; i--) {
