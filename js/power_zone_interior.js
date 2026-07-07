@@ -103,13 +103,18 @@ const InteriorPower = {
             rg.beginFill(0x0f1520); rg.drawRect(startX, fy+floorH-6, bldW, 6); rg.endFill();
             rg.beginFill(0x222a38); rg.drawRect(startX-6, fy+floorH-3, bldW+12, 3); rg.endFill();
             this.scene.addChild(rg);
-            // Floor label
-            const fl = new PIXI.Text(floorName.toUpperCase(), { fontFamily:'JetBrains Mono', fontSize:7, fill:layout.col, letterSpacing:2 });
-            fl.anchor.set(0.5,0); fl.x = startX+bldW/2; fl.y = fy+6; this.scene.addChild(fl);
-            // Floor props
+            // Floor props FIRST, label LAST — so text always reads over the equipment
             const fc = new PIXI.Container(); this.scene.addChild(fc);
             const pY = fy + floorH - 6;
             this._drawFloorProps(fc, startX, bldW, pY, fy, floorH, floorName, layout.col, bld.id);
+            // Floor label (with a dark backing chip so it stays legible over props)
+            const fl = new PIXI.Text(floorName.toUpperCase(), { fontFamily:'JetBrains Mono', fontSize:7, fill:layout.col, letterSpacing:2 });
+            fl.anchor.set(0.5,0); fl.x = startX+bldW/2; fl.y = fy+6;
+            const flBg = new PIXI.Graphics();
+            flBg.beginFill(0x0a0f18, 0.75);
+            flBg.drawRoundedRect(fl.x - fl.width/2 - 5, fl.y - 2, fl.width + 10, fl.height + 4, 3);
+            flBg.endFill();
+            this.scene.addChild(flBg, fl);
         }
 
         // Earth + data cables
@@ -144,6 +149,9 @@ const InteriorPower = {
         const fn = floorName.toLowerCase();
         const g = new PIXI.Graphics(); g.eventMode = 'none';
         UI.tip(g, floorName, 'Power plant floor');
+        // Add the equipment graphics FIRST so NPCs spawned by the branches
+        // below render on top of consoles/desks instead of behind them.
+        c.addChild(g);
 
         if (fn.includes('control')) {
             // Control room: monitor wall, desks, operator chairs
@@ -297,7 +305,6 @@ const InteriorPower = {
         if (fn.includes('waste') || fn.includes('ash') || fn.includes('storage')) {
             for (let sx2 = sx; sx2 < sx+bw; sx2 += 16) { g.beginFill(0xfbbf24, 0.15); g.drawRect(sx2, fy+2, 8, 3); g.endFill(); }
         }
-        c.addChild(g);
     },
 
     _npc(c, x, y, name, col) {

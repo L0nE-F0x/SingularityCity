@@ -139,22 +139,26 @@ const InteriorRobotics = {
             slab.beginFill(layout.col, 0.08); slab.drawRect(startX, fy, bldW, 2); slab.endFill();
             this.scene.addChild(slab);
 
-            // Floor label
-            const label = new PIXI.Text(floorName.toUpperCase(), {
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 8,
-                fill: isBasement ? 0x64748b : layout.col, letterSpacing: 1
-            });
-            label.x = startX + 8;
-            label.y = fy + 4;
-            label.alpha = isBasement ? 0.7 : 0.6;
-            this.scene.addChild(label);
-
-            // Floor-specific props
+            // Floor-specific props FIRST — the label goes on top so it always reads
             if (isBasement) {
                 this._drawBasementProps(this.scene, startX, usableW, fy, floorH, bld.id, layout.col);
             } else {
                 this._drawFloorProps(this.scene, startX, usableW, fy, floorH, floors[f], layout.col, bld.id);
             }
+
+            // Floor label (dark backing chip keeps it legible over equipment)
+            const label = new PIXI.Text(floorName.toUpperCase(), {
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 8,
+                fill: isBasement ? 0x94a3b8 : layout.col, letterSpacing: 1
+            });
+            label.x = startX + 8;
+            label.y = fy + 4;
+            const labelBg = new PIXI.Graphics();
+            labelBg.beginFill(0x0a0f18, 0.75);
+            labelBg.drawRoundedRect(label.x - 4, label.y - 2, label.width + 8, label.height + 4, 3);
+            labelBg.endFill();
+            labelBg.alpha = 0.9;
+            this.scene.addChild(labelBg, label);
         }
 
         // Side walls (columns)

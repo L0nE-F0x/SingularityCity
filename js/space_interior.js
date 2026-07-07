@@ -1465,7 +1465,8 @@ const SpaceInterior = {
             // Cold pipe along ceiling
             g.beginFill(0x22d3ee, 0.3); g.drawRect(startX + 20, fy + 8, bldW - 40, 4); g.endFill();
         }
-        c.addChild(g);
+        // NOTE: `g` was already added alongside the label up top — re-adding it here
+        // would move it ABOVE the label in z-order and hide the basement text.
     },
 
     drawNPC(c, x, y, role, col) {
