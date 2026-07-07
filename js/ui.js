@@ -987,6 +987,29 @@ const UI = {
             html += `</div>`;
         }
       }
+      // ─── AI ACADEMY panel — real 2026 curriculum + faculty ───
+      else if (b.type === 'university') {
+        if (Array.isArray(b.curriculum) && b.curriculum.length) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            const label = b.id === 'uni_library' ? '📚 CORPUS & BENCHMARKS' : b.id === 'uni_lab' ? '🔬 FRONTIER TECHNIQUES' : b.id === 'uni_dorm' ? '🏠 CAMPUS LIFE' : '🎓 CURRICULUM · 2026';
+            html += `<div style="font-weight:700;margin-bottom:6px;color:${col}">${label}</div>`;
+            html += `<div style="display:flex;flex-wrap:wrap;gap:4px">`;
+            b.curriculum.forEach(c => { html += `<span style="font-size:9px;padding:2px 6px;background:var(--sf);border:1px solid var(--bd);border-radius:3px">${escapeHTML(c)}</span>`; });
+            html += `</div></div>`;
+        }
+        if (Array.isArray(b.faculty) && b.faculty.length) {
+            html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;
+            const flabel = b.id === 'uni_library' ? '🏆 GRADED AGAINST' : b.id === 'uni_lab' ? '📄 PUBLISHED AT' : '🏛️ MODELED ON';
+            html += `<div style="font-weight:700;margin-bottom:4px;color:${col}">${flabel}</div>`;
+            html += `<div style="display:flex;flex-wrap:wrap;gap:4px">`;
+            b.faculty.forEach(f => { html += `<span style="font-size:9px;padding:2px 6px;background:var(--sf);border:1px solid var(--bd);border-radius:3px">${escapeHTML(f)}</span>`; });
+            html += `</div></div>`;
+        }
+        if (typeof UniversityData !== 'undefined' && UniversityData.getStudents) {
+            const n = UniversityData.getStudents().length;
+            html += `<div style="margin:0 16px 16px;font-size:9px;color:var(--t3);text-align:center">🎓 ${n} model${n===1?'':'s'} currently enrolled (rumored / baby / kid stage)</div>`;
+        }
+      }
       // ─── THE BACKBONE panel — live network + real 2026 infra brief ───
       else if (b.type === 'backbone') {
         html += `<div style="margin:0 16px 16px;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:6px;font-size:10px;line-height:1.6">`;

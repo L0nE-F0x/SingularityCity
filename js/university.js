@@ -6,10 +6,22 @@
 const UniversityData = {
 
     BLDS: [
-        { id: 'uni_main',    name: 'AI Academy',      w: 200, fl: 4, emoji: '🎓', type: 'university', desc: 'Where pre-release models learn the fundamentals. Lectures on attention, loss functions, and gradient descent.' },
-        { id: 'uni_library', name: 'Data Library',     w: 140, fl: 3, emoji: '📚', type: 'university', desc: 'Vast archives of training corpora. Models come here to absorb knowledge before release.' },
-        { id: 'uni_dorm',    name: 'Model Dormitory',  w: 150, fl: 5, emoji: '🏠', type: 'university', desc: 'Housing for models still in training. Bunk beds and whiteboards everywhere.' },
-        { id: 'uni_lab',     name: 'Research Lab',     w: 140, fl: 3, emoji: '🔬', type: 'university', desc: 'Experimental architecture testing ground. Where novel techniques get prototyped.' },
+        { id: 'uni_main',    name: 'AI Academy',      w: 200, fl: 4, emoji: '🎓', type: 'university',
+          desc: 'Where pre-release models learn the fundamentals — attention, loss functions, gradient descent, and, in 2026, reasoning + test-time compute. Modeled on the great AI schools: Stanford HAI, MIT CSAIL, CMU, Berkeley BAIR and Tsinghua.',
+          curriculum: ['Transformers & attention', 'RLHF / RLAIF alignment', 'Mixture-of-Experts scaling', 'Chain-of-thought reasoning', 'Test-time compute (o-style)'],
+          faculty: ['Stanford HAI', 'MIT CSAIL', 'CMU', 'UC Berkeley (BAIR)', 'Tsinghua', 'Oxford'] },
+        { id: 'uni_library', name: 'Data Library',     w: 140, fl: 3, emoji: '📚', type: 'university',
+          desc: 'Vast archives of training corpora and the benchmarks that grade every graduate: MMLU, GPQA, SWE-bench, ARC-AGI and Humanity\'s Last Exam. Models come here to absorb knowledge — and to be measured against it.',
+          curriculum: ['Common Crawl & filtered web', 'Textbooks & academic papers', 'Code (The Stack)', 'Synthetic & self-play data'],
+          faculty: ['MMLU', 'GPQA Diamond', 'SWE-bench', 'ARC-AGI', "Humanity's Last Exam"] },
+        { id: 'uni_dorm',    name: 'Model Dormitory',  w: 150, fl: 5, emoji: '🏠', type: 'university',
+          desc: 'Housing for models still in training. Bunk beds and whiteboards everywhere — where checkpoints crash after a long night of gradient descent and debate the latest arXiv drop over instant ramen.',
+          curriculum: ['Late-night arXiv reading', 'Whiteboard proofs', 'Study-group self-distillation'],
+          faculty: ['Stanford', 'MIT', 'CMU'] },
+        { id: 'uni_lab',     name: 'Research Lab',     w: 140, fl: 3, emoji: '🔬', type: 'university',
+          desc: 'Experimental architecture testing ground. Where 2026\'s frontier techniques get prototyped: reasoning-model training, agentic RL, long-context attention, world models, and mechanistic interpretability.',
+          curriculum: ['Reasoning-model training', 'Agentic reinforcement learning', 'Long-context attention', 'Mechanistic interpretability', 'World models'],
+          faculty: ['NeurIPS', 'ICML', 'ICLR'] },
     ],
 
     _graduations: [],      // queue of {model, tick} for active ceremonies
