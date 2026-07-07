@@ -57,18 +57,18 @@ const DC_FACILITIES = [
 
     // ─── UNDER CONSTRUCTION ───
     {
-        id: 'dc_stargate', name: 'Stargate (Abilene)', operator: 'microsoft',
+        id: 'dc_stargate', name: 'Stargate (Abilene)', operator: 'oracle',
         location: 'Abilene, Texas', type: 'datacenter', status: 'construction',
-        gpus: 'Target: 500,000+ GPUs', power_mw: 5000, cooling: 'Next-gen liquid',
-        desc: '$100B joint venture between Microsoft, OpenAI, Oracle, and SoftBank. The largest AI data center ever planned.',
-        w: 220, color: '#00a4ef', completion: '2028'
+        gpus: 'Target: 500,000+ GB200/Rubin', power_mw: 5000, cooling: 'Next-gen liquid',
+        desc: 'The flagship of the $500B / 10 GW Stargate JV (OpenAI, SoftBank, Oracle, MGX). With 5 new sites added in 2025, the program is ~7 GW and running ahead of schedule.',
+        w: 220, color: '#f80000', completion: '2028'
     },
     {
-        id: 'dc_xai_expansion', name: 'Colossus Phase 2', operator: 'xai',
+        id: 'dc_xai_expansion', name: 'Colossus 2', operator: 'xai',
         location: 'Memphis, Tennessee', type: 'datacenter', status: 'construction',
-        gpus: 'Target: 200,000 H200', power_mw: 300, cooling: 'Advanced liquid',
-        desc: 'Doubling Colossus to 200K GPUs. Will be the largest operational AI cluster when complete.',
-        w: 160, color: '#1d9bf0', completion: '2025'
+        gpus: 'Target: 1M+ GB200/Rubin', power_mw: 1000, cooling: 'Direct liquid + gas backup',
+        desc: 'xAI\'s (now SpaceX•xAI) million-GPU expansion for Grok training — the campus whose gas turbines became the emblem of the AI power crunch.',
+        w: 160, color: '#1d9bf0', completion: '2026'
     },
     {
         id: 'dc_meta_louisiana', name: 'Meta (Richland Parish)', operator: 'meta',
@@ -82,15 +82,15 @@ const DC_FACILITIES = [
     {
         id: 'fab_tsmc_arizona', name: 'TSMC Arizona', operator: 'tsmc',
         location: 'Phoenix, Arizona', type: 'chipfab', status: 'operational',
-        process: '4nm / 3nm N3', products: 'Apple M-series, NVIDIA H100/B200, AMD MI300',
-        desc: 'TSMC\'s $40B US fab complex. Fabricates the most advanced AI chips in the Western hemisphere.',
-        w: 170, color: '#e31937', investment: '$40B'
+        process: 'N4 / N3 (N2 + CoWoS coming)', products: 'Apple M-series, NVIDIA Blackwell, AMD MI300',
+        desc: 'TSMC\'s $165B US fab mega-complex. 2026 output up ~1.8× YoY; a new Phoenix packaging plant will bring CoWoS to US soil for the first time.',
+        w: 170, color: '#e31937', investment: '$165B'
     },
     {
         id: 'fab_tsmc_taiwan', name: 'TSMC (Hsinchu)', operator: 'tsmc',
         location: 'Hsinchu, Taiwan', type: 'chipfab', status: 'operational',
-        process: '3nm N3E / 2nm', products: 'All leading-edge AI chips globally',
-        desc: 'The world\'s most advanced semiconductor fab. Produces 90%+ of the world\'s most advanced chips.',
+        process: 'N2 in volume (Q4 2025) · A16 next', products: 'All leading-edge AI chips globally',
+        desc: 'The world\'s most advanced fab. N2 (2nm) reached volume production in late 2025; 2nm/A16 capacity is growing ~70%/yr through 2028. Produces 90%+ of the world\'s leading-edge chips.',
         w: 200, color: '#e31937', investment: '$30B/year'
     },
     {
@@ -117,8 +117,8 @@ const DC_FACILITIES = [
     {
         id: 'fab_nvidia_design', name: 'NVIDIA (Santa Clara)', operator: 'nvidia',
         location: 'Santa Clara, California', type: 'chipfab', status: 'operational',
-        process: 'Chip Design (fabless)', products: 'H100, H200, B200, GB200, Blackwell Ultra',
-        desc: 'NVIDIA\'s HQ and chip design center. Designs the GPUs that power 95%+ of AI training worldwide.',
+        process: 'Chip Design (fabless)', products: 'Blackwell (GB200/GB300) · Vera Rubin (2026) · Spectrum-X, NVLink Fusion',
+        desc: 'NVIDIA\'s HQ and design center. Rubin launched at CES 2026 (full production, H2 shipments); its $2B Marvell deal extends the NVLink Fusion AI fabric. Designs the GPUs behind 90%+ of AI training.',
         w: 150, color: '#76b900', investment: 'N/A'
     }
 ];
