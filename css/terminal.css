@@ -282,6 +282,58 @@ a.tm-tape-row:hover .tm-tape-txt { color: #e8e8f0; }
 .tm-tstrip-src { font-weight: 700; letter-spacing: 0.5px; margin-right: 3px; }
 .tm-tstrip-sep { color: #2a2a3a; padding: 0 11px; }
 
+/* ═══ WATCHLIST + ALERTS ═══ */
+.tm-watchbar {
+    display: flex; align-items: center; gap: 7px; flex-wrap: nowrap;
+    height: 30px; padding: 0 14px; flex-shrink: 0;
+    background: #08080f; border-bottom: 1px solid #1a1a2a;
+    overflow-x: auto; scrollbar-width: none;
+}
+.tm-watchbar::-webkit-scrollbar { display: none; }
+.tm-watch-lbl { font-size: 8px; font-weight: 700; letter-spacing: 1.5px; color: #fbbf24; flex-shrink: 0; }
+.tm-watch-chip {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+    background: #0d0d18; border: 1px solid #1e1e2e; border-radius: 3px; padding: 3px 6px 3px 8px;
+    cursor: pointer; transition: border-color 0.15s;
+}
+.tm-watch-chip:hover { border-color: #2a2a44; }
+.tm-watch-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tm-watch-name { font-size: 11px; font-weight: 600; color: #e8e8f0; white-space: nowrap; }
+.tm-watch-metric { font-size: 10px; color: #6a6a80; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tm-watch-x { font-size: 13px; color: #4a4a5e; padding: 0 2px; line-height: 1; }
+.tm-watch-x:hover { color: #f87171; }
+
+/* Watch toggle on a drill-down page */
+.tm-d-watch {
+    background: #101019; border: 1px solid #2a2a3a; color: #8a8aa0;
+    font-family: inherit; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    padding: 4px 9px; border-radius: 3px; cursor: pointer; transition: all 0.15s; margin-left: 4px;
+}
+.tm-d-watch:hover { border-color: #fbbf24; color: #fbbf24; }
+.tm-d-watch.on { border-color: #fbbf24; color: #fbbf24; background: rgba(251,191,36,0.1); }
+
+/* Alert toasts (top-right, below the top chrome) */
+.tm-toasts {
+    position: absolute; top: 114px; right: 12px; z-index: 10002;
+    display: flex; flex-direction: column; gap: 8px; width: 300px; max-width: 60vw; pointer-events: none;
+}
+.tm-toast {
+    pointer-events: auto;
+    display: flex; align-items: flex-start; gap: 8px;
+    background: #0c0c18; border: 1px solid #2a2a3a; border-left: 3px solid #fbbf24;
+    border-radius: 4px; padding: 9px 11px;
+    box-shadow: 0 8px 26px rgba(0,0,0,0.6);
+    animation: tm-toast-in 0.28s cubic-bezier(0.2,0.8,0.2,1);
+}
+.tm-toast.tm-clickable { cursor: pointer; }
+.tm-toast.tm-clickable:hover { border-color: #3a3a54; }
+.tm-toast-out { animation: tm-toast-out 0.35s ease-in forwards; }
+@keyframes tm-toast-in  { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+@keyframes tm-toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(20px); } }
+.tm-toast-msg { flex: 1; font-size: 11px; line-height: 1.45; color: #d8d8e0; }
+.tm-toast-x { color: #5a5a6e; font-size: 14px; line-height: 1; cursor: pointer; flex-shrink: 0; }
+.tm-toast-x:hover { color: #e8e8f0; }
+
 /* ═══ GRID ═══
    12-column grid. Per-panel grid-column/grid-row spans are emitted inline by terminal.js
    (see PANELS[].cols/rows). Row height scales with viewport via minmax so the grid fills

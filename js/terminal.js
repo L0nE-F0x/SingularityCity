@@ -413,6 +413,7 @@ const Terminal = {
                 <span class="tm-cmd-hint" id="tm-cmd-hint"><kbd>/</kbd> focus&nbsp;&nbsp;<kbd>&uarr;&darr;</kbd> nav&nbsp;&nbsp;<kbd>&crarr;</kbd> go&nbsp;&nbsp;<kbd>esc</kbd> clear</span>
                 <div class="tm-cmd-dropdown" id="tm-cmd-dropdown" style="display:none"></div>
             </div>
+            <div class="tm-watchbar" id="tm-watchbar" style="display:none"></div>
             <div class="tm-grid">${panelsHtml}</div>
             <div id="tm-detail" class="tm-detail" style="display:none"></div>
             <div class="tm-tape-strip" data-tip="${this._tipAttr('<div class=&quot;tm-tip-hd&quot;>The tape</div><div class=&quot;tm-tip-body&quot;>Fused wire — news, deals, launches, rulings. Hover to pause.</div>')}"><div class="tm-tape-track" id="tm-tape-track"></div></div>
@@ -421,6 +422,7 @@ const Terminal = {
                 <span class="tm-foot-chunk tm-foot-mid">command line · persisted charts · drill-downs · fused tape</span>
                 <span class="tm-foot-chunk" id="tm-version">—</span>
             </div>
+            <div class="tm-toasts" id="tm-toasts"></div>
         `;
 
         // Version badge
@@ -432,6 +434,7 @@ const Terminal = {
 
         this._bindInteractions();
         this._bindCommandBar();
+        this._renderWatchbar();
         this._renderAlignment(); // Static — rendered once on build
     },
 
@@ -740,6 +743,12 @@ const Terminal = {
                 break;
             }
             case 'closedetail': { this.closeEntity(); break; }
+            case 'watch': {
+                const sep = arg.indexOf(':');
+                if (sep < 0) break;
+                this._toggleWatch({ kind: arg.slice(0, sep), id: arg.slice(sep + 1) });
+                break;
+            }
             // labs-row, align, event: extensibility hooks — reserved but not routed yet
             default: break;
         }
@@ -821,6 +830,7 @@ const Terminal = {
             { key: 'ROBOTICS',  label: 'ROBOTICS',  sub: 'humanoid output',            run: P('robotics') },
             { key: 'LONGEVITY', label: 'LONGEVITY', sub: 'longevity research',         run: P('longevity') },
             { key: 'POP',       label: 'POP',       sub: 'population registry',        run: P('population') },
+            { key: 'WATCH',     label: 'WATCH',     sub: 'pin entities from their ★',  run: () => this._toast('Open any lab, model, country or source and hit ☆ WATCH to pin it here.') },
             { key: 'HELP',      label: 'HELP',      sub: 'what can I type here?',      run: () => this._cmdHelp() }
         ];
     },
@@ -1085,6 +1095,7 @@ const Terminal = {
                     <span class="tm-d-dot" style="background:${esc(o.color || '#8a8aa0')}"></span>
                     <span class="tm-d-title" style="color:${esc(o.color || '#e8e8f0')}">${esc(o.title)}</span>
                     ${o.crown ? '<span class="tm-apex" data-tip="' + this._tipAttr('<b>Apex lab</b><br/>Holds a benchmark crown') + '">♕</span>' : ''}
+                    ${o.watchRef ? `<button class="tm-d-watch${this._isWatched(o.watchRef) ? ' on' : ''}" data-action="watch:${esc(o.watchRef.kind)}:${esc(o.watchRef.id)}" data-tip="${this._tipAttr(this._isWatched(o.watchRef) ? 'Unpin from watchlist' : 'Pin to watchlist')}">${this._isWatched(o.watchRef) ? '★ WATCHING' : '☆ WATCH'}</button>` : ''}
                     ${o.sub ? `<span class="tm-d-sub">${esc(o.sub)}</span>` : ''}
                 </div>
                 ${chips ? `<div class="tm-d-chips">${chips}</div>` : ''}
@@ -1189,6 +1200,7 @@ const Terminal = {
 
         return this._dChrome({
             body,
+            watchRef: { kind: 'lab', id },
             type: 'lab', typeLabel: 'LAB', title: lab.name || id, color, crown: apex,
             sub: lab.desc || '',
             chips: [
@@ -1238,6 +1250,7 @@ const Terminal = {
 
         return this._dChrome({
             body,
+            watchRef: { kind: 'model', id },
             type: 'model', typeLabel: 'MDL', title: m.name || id, color,
             sub: m.desc || (lab ? lab.name : ''),
             chips: [
@@ -1289,6 +1302,7 @@ const Terminal = {
 
         return this._dChrome({
             body,
+            watchRef: { kind: 'country', id },
             type: 'country', typeLabel: 'GOV', title: names[id] || code, color: accent,
             sub: emb && emb.framework ? emb.framework : 'National AI desk',
             chips: [
@@ -1323,6 +1337,7 @@ const Terminal = {
 
         return this._dChrome({
             body,
+            watchRef: { kind: 'source', id },
             type: 'source', typeLabel: 'PWR', title: s.name || id, color: '#facc15',
             sub: (s.type || 'power') + ' source',
             chips: [
@@ -1331,6 +1346,151 @@ const Terminal = {
                 { k: 'COST', v: s.costMWh != null ? '$' + s.costMWh : '—' }
             ]
         });
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // WATCHLIST + ALERTS — pin entities; get toasts when their state changes.
+    // Pins persist to localStorage. The alert engine snapshots each watched entity and diffs it
+    // over time (new flagship, new/retired models, ELO moves, phase changes) → in-terminal toast.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    _WATCH_KEY: 'sc_term_watch_v1',
+    _watch: null,
+    _watchState: {},
+    _watchAlertLast: 0,
+
+    _watchLoad() {
+        if (this._watch) return this._watch;
+        let a = []; try { a = JSON.parse(localStorage.getItem(this._WATCH_KEY)) || []; } catch (e) { a = []; }
+        this._watch = Array.isArray(a) ? a : [];
+        return this._watch;
+    },
+    _watchSave() { try { localStorage.setItem(this._WATCH_KEY, JSON.stringify(this._watchLoad())); } catch (e) {} },
+    _watchKey(ref) { return ref.kind + ':' + ref.id; },
+    _isWatched(ref) { const k = this._watchKey(ref); return this._watchLoad().some(w => w.kind + ':' + w.id === k); },
+
+    _entityMeta(ref) {
+        if (ref.kind === 'lab' && typeof LABS !== 'undefined' && LABS[ref.id]) return { label: LABS[ref.id].name || ref.id, color: LABS[ref.id].color || '#8a8aa0' };
+        if (ref.kind === 'model' && typeof G !== 'undefined') { const m = (G.models || []).find(x => x.id === ref.id); const lab = m && typeof LABS !== 'undefined' && LABS[m.lab]; return { label: m ? (m.name || m.id) : ref.id, color: (lab && lab.color) || '#22d3ee' }; }
+        if (ref.kind === 'country') { const names = { us: 'United States', cn: 'China', eu: 'Europe', uk: 'United Kingdom', in: 'India', ae: 'UAE' }; return { label: names[ref.id] || String(ref.id).toUpperCase(), color: '#60a5fa' }; }
+        if (ref.kind === 'source' && typeof PowerZone !== 'undefined') { const s = (PowerZone.SOURCES || []).find(x => x.id === ref.id || x.name === ref.id); return { label: s ? (s.name || ref.id) : ref.id, color: '#facc15' }; }
+        return { label: ref.label || ref.id, color: '#8a8aa0' };
+    },
+
+    _watchSnapshot(ref) {
+        try {
+            if (ref.kind === 'lab') {
+                const BM_ = (typeof BM !== 'undefined') ? BM : {};
+                const models = (G.models || []).filter(m => m.lab === ref.id);
+                let topElo = 0, flag = null, fa = -1;
+                models.forEach(m => {
+                    const b = BM_[m.id] || {};
+                    const e = this._num(b.ELO); if (e != null && e > topElo) topElo = e;
+                    const vals = [b.MMLU, b.HumanEval || b.HUMANEVAL, b.MATH, b.GPQA].map(v => this._num(v)).filter(v => v != null);
+                    const avg = vals.length ? vals.reduce((s, x) => s + x, 0) / vals.length : -1;
+                    if (avg > fa) { fa = avg; flag = m.name || m.id; }
+                });
+                return { models: models.length, topElo: Math.round(topElo), flag };
+            }
+            if (ref.kind === 'model') { const m = (G.models || []).find(x => x.id === ref.id); if (!m) return null; const b = (typeof BM !== 'undefined' && BM[ref.id]) || {}; return { phase: m.phase, elo: this._num(b.ELO), ret: !!m.ret }; }
+            if (ref.kind === 'country') { const labs = Object.keys((typeof LABS !== 'undefined' && LABS) || {}).filter(k => String(LABS[k].region || '').toLowerCase() === ref.id).length; return { labs }; }
+            if (ref.kind === 'source') { const s = (PowerZone.SOURCES || []).find(x => x.id === ref.id || x.name === ref.id); return s ? { mw: s.mw } : null; }
+        } catch (e) {}
+        return null;
+    },
+
+    _toggleWatch(ref) {
+        const list = this._watchLoad();
+        const k = this._watchKey(ref);
+        const i = list.findIndex(w => w.kind + ':' + w.id === k);
+        const meta = this._entityMeta(ref);
+        if (i >= 0) { list.splice(i, 1); this._toast('Unpinned ' + this._esc(meta.label)); }
+        else {
+            list.push({ kind: ref.kind, id: ref.id, label: meta.label, color: meta.color });
+            this._watchState[k] = this._watchSnapshot(ref);   // seed so we don't alert on the pin itself
+            this._toast('<b style="color:' + this._esc(meta.color) + '">' + this._esc(meta.label) + '</b> added to watchlist', { color: meta.color });
+        }
+        this._watchSave();
+        this._renderWatchbar();
+        if (this._detail && this._detail.kind === ref.kind && this._detail.id === ref.id) this.openEntity(this._detail);
+    },
+
+    _renderWatchbar() {
+        const bar = document.getElementById('tm-watchbar');
+        if (!bar) return;
+        const list = this._watchLoad();
+        if (!list.length) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+        const esc = (s) => this._esc(s);
+        bar.style.display = 'flex';
+        bar.innerHTML = '<span class="tm-watch-lbl">★ WATCH</span>' + list.map(w => {
+            const snap = this._watchSnapshot({ kind: w.kind, id: w.id }) || {};
+            let metric = '';
+            if (w.kind === 'lab') metric = (snap.models || 0) + 'm' + (snap.topElo ? ' · ' + snap.topElo : '');
+            else if (w.kind === 'model') metric = snap.elo ? ('ELO ' + snap.elo) : (snap.phase || '');
+            else if (w.kind === 'country') metric = (snap.labs || 0) + ' labs';
+            else if (w.kind === 'source') metric = (snap.mw || 0) + 'MW';
+            return `<span class="tm-watch-chip tm-clickable" data-action="open:${esc(w.kind)}:${esc(w.id)}" data-tip="${this._tipAttr('Open ' + esc(w.label))}">
+                <span class="tm-watch-dot" style="background:${esc(w.color)}"></span>
+                <span class="tm-watch-name">${esc(w.label)}</span>
+                <span class="tm-watch-metric">${esc(metric)}</span>
+                <span class="tm-watch-x" data-action="watch:${esc(w.kind)}:${esc(w.id)}" data-tip="${this._tipAttr('Unpin')}">×</span>
+            </span>`;
+        }).join('');
+    },
+
+    _checkWatchAlerts() {
+        const now = Date.now();
+        if (now - this._watchAlertLast < 3000) return;
+        this._watchAlertLast = now;
+        const list = this._watchLoad();
+        if (!list.length) return;
+        for (const w of list) {
+            const ref = { kind: w.kind, id: w.id };
+            const k = this._watchKey(ref);
+            const cur = this._watchSnapshot(ref);
+            if (!cur) continue;
+            const prev = this._watchState[k];
+            if (prev) {
+                if (w.kind === 'lab') {
+                    if (cur.flag && prev.flag && cur.flag !== prev.flag) this._alert(w, 'new flagship — ' + cur.flag, 'launch');
+                    if (cur.models > prev.models) this._alert(w, '+' + (cur.models - prev.models) + ' new model' + (cur.models - prev.models > 1 ? 's' : ''), 'launch');
+                    else if (cur.models < prev.models) this._alert(w, (prev.models - cur.models) + ' model(s) retired', 'policy');
+                    if (cur.topElo && prev.topElo && Math.abs(cur.topElo - prev.topElo) >= 5) this._alert(w, 'top ELO ' + prev.topElo + ' → ' + cur.topElo, 'trophy');
+                } else if (w.kind === 'model') {
+                    if (cur.phase !== prev.phase) this._alert(w, 'phase ' + prev.phase + ' → ' + cur.phase, cur.ret ? 'policy' : 'launch');
+                    if (cur.elo && prev.elo && Math.abs(cur.elo - prev.elo) >= 5) this._alert(w, 'ELO ' + prev.elo + ' → ' + cur.elo, 'trophy');
+                } else if (w.kind === 'country') {
+                    if (cur.labs !== prev.labs) this._alert(w, 'labs ' + prev.labs + ' → ' + cur.labs, 'build');
+                } else if (w.kind === 'source') {
+                    if (cur.mw !== prev.mw) this._alert(w, 'capacity ' + prev.mw + ' → ' + cur.mw + ' MW', 'build');
+                }
+            }
+            this._watchState[k] = cur;
+        }
+        this._renderWatchbar();
+    },
+
+    _alert(w, msg, cat) {
+        const c = this._TAPE_COLORS[cat] || w.color || '#fbbf24';
+        this._toast('<b style="color:' + this._esc(w.color || c) + '">' + this._esc(w.label) + '</b> ' + this._esc(msg), { color: c, ref: { kind: w.kind, id: w.id }, sticky: true });
+    },
+
+    _toast(html, opts = {}) {
+        const host = document.getElementById('tm-toasts');
+        if (!host) return;
+        const el = document.createElement('div');
+        el.className = 'tm-toast';
+        if (opts.color) el.style.borderLeftColor = opts.color;
+        el.innerHTML = '<span class="tm-toast-msg">' + html + '</span><span class="tm-toast-x" role="button" aria-label="Dismiss">×</span>';
+        const dismiss = () => { el.classList.add('tm-toast-out'); setTimeout(() => el.remove(), 350); };
+        el.addEventListener('click', (e) => {
+            if (e.target && e.target.classList.contains('tm-toast-x')) { dismiss(); return; }
+            if (opts.ref) { this.openEntity(opts.ref); dismiss(); }
+        });
+        if (opts.ref) el.classList.add('tm-clickable');
+        host.appendChild(el);
+        while (host.children.length > 5) host.firstChild.remove();
+        setTimeout(dismiss, opts.sticky ? 11000 : 6000);
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -1365,6 +1525,7 @@ const Terminal = {
         this._renderSupply();
         this._renderKardashev();
         this._renderPopulation();
+        this._checkWatchAlerts();
     },
 
     _refreshTopBar() {
