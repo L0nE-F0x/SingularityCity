@@ -145,6 +145,7 @@ const Terminal = {
         document.body.classList.add('terminal-mode');
         this._buildShell();
         this._startUpdateLoop();
+        this._pauseCityRender();   // stop drawing the pixel-art city nobody's looking at
         // Mute SFX & ambient while in Terminal; soundtrack stays on.
         if (typeof SND !== 'undefined' && SND.setContextMute) SND.setContextMute(true);
         // NOTE: We no longer pin ?mode=terminal to the URL while Terminal is open.
@@ -158,6 +159,8 @@ const Terminal = {
         this.isOpen = false;
         document.body.classList.remove('terminal-mode');
         this._hideTip();
+        this._cmdClose();
+        this._resumeCityRender();  // hand rendering back to the city
         if (typeof SND !== 'undefined' && SND.setContextMute) SND.setContextMute(false);
         // Defensive — strip ?mode=terminal if anything put it back.
         this._syncUrl(false);
@@ -245,12 +248,18 @@ const Terminal = {
                     <span class="tm-stat" data-tip="${this._tipAttr('<div class=&quot;tm-tip-hd&quot;>Citizens</div><div class=&quot;tm-tip-body&quot;>Total NPCs in housing registry. Each has a home, workplace, and schedule.</div>')}"><span class="tm-lbl">CITIZENS</span><span class="tm-val" id="tm-citizens">—</span></span>
                     <span class="tm-stat" data-tip="${this._tipAttr('<div class=&quot;tm-tip-hd&quot;>Buildings</div><div class=&quot;tm-tip-body&quot;>All structures placed across city + space zones.</div>')}"><span class="tm-lbl">BLDS</span><span class="tm-val" id="tm-buildings">—</span></span>
                     <span class="tm-stat" data-tip="${this._tipAttr('<div class=&quot;tm-tip-hd&quot;>Kardashev score</div><div class=&quot;tm-tip-body&quot;>Civilizational energy-mastery index. Earth today ≈ 0.73. K = 1.0 is Type I.</div>')}"><span class="tm-lbl">K-SCALE</span><span class="tm-val" id="tm-kardashev">—</span></span>
-                    <span class="tm-stat" data-tip="${this._tipAttr('<div class=&quot;tm-tip-hd&quot;>Frames per second</div><div class=&quot;tm-tip-body&quot;>Pixi renderer FPS — sim still runs even when terminal is showing.</div>')}"><span class="tm-lbl">FPS</span><span class="tm-val" id="tm-fps">—</span></span>
+                    <span class="tm-stat" data-tip="${this._tipAttr('<div class=&quot;tm-tip-hd&quot;>Sim step rate</div><div class=&quot;tm-tip-body&quot;>City render is PAUSED in Terminal — no pixel art is drawn. The sim keeps advancing behind the shell; this is its step rate in Hz.</div>')}"><span class="tm-lbl">SIM</span><span class="tm-val" id="tm-fps">—</span></span>
                     <span class="tm-stat" data-tip="${this._tipAttr('<div class=&quot;tm-tip-hd&quot;>Wall clock</div><div class=&quot;tm-tip-body&quot;>Real-world UTC time.</div>')}"><span class="tm-lbl">UTC</span><span class="tm-val" id="tm-clock">—</span></span>
                 </div>
                 <div class="tm-topbar-right">
                     <button class="tm-cta-btn" onclick="Terminal.close()" title="Switch to pixel-art city view (D)">▶ ENTER CITY</button>
                 </div>
+            </div>
+            <div class="tm-cmdbar">
+                <span class="tm-cmd-prompt">&gt;</span>
+                <input id="tm-cmd-input" class="tm-cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="type a lab · model · country · function —  OPENAI · LEAD · CN · POWER    ( press / )" aria-label="Terminal command line" />
+                <span class="tm-cmd-hint" id="tm-cmd-hint"><kbd>/</kbd> focus&nbsp;&nbsp;<kbd>&uarr;&darr;</kbd> nav&nbsp;&nbsp;<kbd>&crarr;</kbd> go&nbsp;&nbsp;<kbd>esc</kbd> clear</span>
+                <div class="tm-cmd-dropdown" id="tm-cmd-dropdown" style="display:none"></div>
             </div>
             <div class="tm-grid">${panelsHtml}</div>
             <div class="tm-footer">
@@ -268,6 +277,7 @@ const Terminal = {
         }
 
         this._bindInteractions();
+        this._bindCommandBar();
         this._renderAlignment(); // Static — rendered once on build
     },
 
@@ -575,6 +585,286 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // CITY RENDER PAUSE — the Terminal shows no pixel art, so stop drawing it.
+    // Pixi's ticker drives BOTH G.loop() and the stage render. Stopping the ticker kills the GPU
+    // draw of the ~thousands of city sprites; we then pump G.loop() on a light interval so the sim
+    // keeps advancing and every panel stays live. Mirrors the proven hidden-tab background pump in
+    // engine.js (visibilitychange → setInterval(loop, 500)).
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    _cityPaused: false,
+    _simPump: null,
+    _simSteps: 0,
+    _tps: 0,
+    _lastTpsAt: 0,
+
+    _pauseCityRender() {
+        try {
+            if (typeof G === 'undefined' || !G.app || !G.app.ticker) return;
+            if (this._cityPaused) return;
+            this._cityPaused = true;
+            G.app.ticker.stop();                       // halt render + the rAF-driven loop
+            this._simSteps = 0;
+            this._lastTpsAt = performance.now();
+            if (!this._simPump) {
+                this._simPump = setInterval(() => {
+                    try { if (typeof G !== 'undefined' && typeof G.loop === 'function') G.loop(); } catch (e) {}
+                    this._simSteps++;
+                }, 100);                                // ~10 Hz sim, zero draw calls
+            }
+        } catch (e) {}
+    },
+
+    _resumeCityRender() {
+        try {
+            if (this._simPump) { clearInterval(this._simPump); this._simPump = null; }
+            if (this._cityPaused && typeof G !== 'undefined' && G.app && G.app.ticker && !G.app.ticker.started) {
+                G.app.ticker.start();
+            }
+        } catch (e) {}
+        this._cityPaused = false;
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // COMMAND LINE — the Bloomberg ⟨GO⟩ bar.
+    // Type a lab, model, country, power source, or a function word and jump/act instantly.
+    // `/` (or `:`) focuses it from anywhere; ↑/↓ navigate; ↵ runs; esc clears.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    _cmd: { results: [], active: 0, index: null, boundGlobal: false },
+
+    // Static function words. `run` is invoked with `this` = Terminal.
+    _cmdFunctions() {
+        const P = (id) => () => this._gotoPanel(id, { flash: true });
+        const leaderboard = () => {
+            this._labsSort = { col: 'elo', dir: 'desc' };
+            this._sigCache.labs = null; this._renderLabs();
+            this._gotoPanel('labs', { flash: true });
+        };
+        return [
+            { key: 'LEAD',      label: 'LEAD',      sub: 'lab leaderboard · ELO desc',  run: leaderboard },
+            { key: 'ELO',       label: 'ELO',       sub: 'sort labs by ELO',            run: leaderboard },
+            { key: 'LABS',      label: 'LABS',      sub: 'AI labs league table',        run: P('labs') },
+            { key: 'NEWS',      label: 'NEWS',      sub: 'live news wire',              run: P('news') },
+            { key: 'TAPE',      label: 'TAPE',      sub: 'the live tape',               run: P('news') },
+            { key: 'DEALS',     label: 'DEALS',     sub: 'capital flows',              run: P('capital') },
+            { key: 'CAPITAL',   label: 'CAPITAL',   sub: 'capital flows',              run: P('capital') },
+            { key: 'COMPUTE',   label: 'COMPUTE',   sub: 'compute infrastructure',     run: P('compute') },
+            { key: 'POWER',     label: 'POWER',     sub: 'power grid',                 run: P('power') },
+            { key: 'SUPPLY',    label: 'SUPPLY',    sub: 'supply chain',               run: P('supply') },
+            { key: 'AGENTS',    label: 'AGENTS',    sub: 'agent fleet',                run: P('agents') },
+            { key: 'ALIGN',     label: 'ALIGN',     sub: 'alignment orgs',             run: P('alignment') },
+            { key: 'EMBASSY',   label: 'EMBASSY',   sub: 'embassy relations matrix',   run: P('embassy') },
+            { key: 'KARDASHEV', label: 'KARDASHEV', sub: 'Kardashev scale',            run: P('kardashev') },
+            { key: 'K',         label: 'K',         sub: 'Kardashev scale',            run: P('kardashev') },
+            { key: 'ROBOTICS',  label: 'ROBOTICS',  sub: 'humanoid output',            run: P('robotics') },
+            { key: 'LONGEVITY', label: 'LONGEVITY', sub: 'longevity research',         run: P('longevity') },
+            { key: 'POP',       label: 'POP',       sub: 'population registry',        run: P('population') },
+            { key: 'HELP',      label: 'HELP',      sub: 'what can I type here?',      run: () => this._cmdHelp() }
+        ];
+    },
+
+    _buildCommandIndex() {
+        const idx = [];
+        for (const f of this._cmdFunctions()) {
+            idx.push({ type: 'fn', typeLabel: 'FN', key: f.key, label: f.label, sub: f.sub, color: '#fbbf24', run: f.run });
+        }
+        try {
+            for (const r of this._computeLabRows()) {
+                idx.push({
+                    type: 'lab', typeLabel: 'LAB', key: r.id, label: r.name, color: r.color,
+                    sub: `${r.region} · ${r.models} models · ELO ${r.elo == null ? '—' : Math.round(r.elo)}`,
+                    run: () => this.openEntity({ kind: 'lab', id: r.id })
+                });
+            }
+        } catch (e) {}
+        try {
+            if (typeof G !== 'undefined' && Array.isArray(G.models)) {
+                const BM_ = (typeof BM !== 'undefined') ? BM : {};
+                G.models
+                    .map(m => ({ m, elo: (BM_[m.id] && typeof BM_[m.id].ELO === 'number') ? BM_[m.id].ELO : null }))
+                    .filter(x => x.elo != null)
+                    .sort((a, b) => b.elo - a.elo)
+                    .slice(0, 80)
+                    .forEach(({ m, elo }) => {
+                        const lab = (typeof LABS !== 'undefined' && LABS[m.lab]) ? LABS[m.lab] : null;
+                        idx.push({
+                            type: 'model', typeLabel: 'MDL', key: m.id, label: m.name || m.id,
+                            color: (lab && lab.color) || '#22d3ee',
+                            sub: `${lab ? lab.name : (m.lab || '—')} · ELO ${Math.round(elo)}`,
+                            run: () => this.openEntity({ kind: 'model', id: m.id })
+                        });
+                    });
+            }
+        } catch (e) {}
+        try {
+            if (typeof EmbassyRow !== 'undefined' && Array.isArray(EmbassyRow.BLDS)) {
+                const names = { us: 'United States', cn: 'China', eu: 'Europe', uk: 'United Kingdom', in: 'India', ae: 'UAE' };
+                for (const b of EmbassyRow.BLDS) {
+                    const id = String(b.country || '').toLowerCase();
+                    if (!id) continue;
+                    idx.push({
+                        type: 'country', typeLabel: 'GOV', key: id, label: id.toUpperCase(),
+                        color: (typeof b.accent === 'number') ? '#' + b.accent.toString(16).padStart(6, '0') : '#60a5fa',
+                        sub: names[id] || 'country desk',
+                        run: () => this.openEntity({ kind: 'country', id })
+                    });
+                }
+            }
+        } catch (e) {}
+        try {
+            if (typeof PowerZone !== 'undefined' && Array.isArray(PowerZone.SOURCES)) {
+                for (const s of PowerZone.SOURCES) {
+                    const label = s.name || s.id;
+                    idx.push({
+                        type: 'source', typeLabel: 'PWR', key: s.id || label, label,
+                        color: '#facc15', sub: `${Math.round(s.mw || 0)} MW source`,
+                        run: () => { this._filter.power = label; this._sigCache.power = null; this._renderPower(); this._gotoPanel('power', { flash: true }); }
+                    });
+                }
+            }
+        } catch (e) {}
+        return idx;
+    },
+
+    _cmdScore(q, text) {
+        if (!q) return 0;
+        const t = String(text || '').toLowerCase();
+        q = q.toLowerCase();
+        if (t === q) return 1000;
+        if (t.startsWith(q)) return 800 - (t.length - q.length);
+        if (t.split(/[\s_\-]/).some(w => w.startsWith(q))) return 600 - t.length;
+        const i = t.indexOf(q);
+        if (i >= 0) return 400 - i - t.length * 0.1;
+        let qi = 0;
+        for (let ci = 0; ci < t.length && qi < q.length; ci++) if (t[ci] === q[qi]) qi++;
+        if (qi === q.length) return 200 - t.length * 0.1;
+        return -1;
+    },
+
+    _cmdSearch(query) {
+        const q = (query || '').trim();
+        const index = this._cmd.index || (this._cmd.index = this._buildCommandIndex());
+        if (!q) return index.filter(e => e.type === 'fn').slice(0, 8);
+        const typeBoost = { fn: 60, lab: 40, country: 30, source: 20, model: 0 };
+        const scored = [];
+        for (const e of index) {
+            const a = this._cmdScore(q, e.label);
+            const b = e.key !== e.label ? this._cmdScore(q, e.key) : -1;
+            const best = Math.max(a, b) + (typeBoost[e.type] || 0);
+            if (Math.max(a, b) > 0) scored.push({ e, s: best });
+        }
+        scored.sort((x, y) => y.s - x.s);
+        return scored.slice(0, 9).map(x => x.e);
+    },
+
+    _bindCommandBar() {
+        const input = document.getElementById('tm-cmd-input');
+        const dd = document.getElementById('tm-cmd-dropdown');
+        if (!input || !dd) return;
+
+        input.addEventListener('focus', () => { this._cmd.index = this._buildCommandIndex(); this._cmdUpdate(); });
+        input.addEventListener('input', () => this._cmdUpdate());
+        input.addEventListener('keydown', (e) => {
+            const n = this._cmd.results.length;
+            if (e.key === 'ArrowDown') { e.preventDefault(); this._cmd.active = n ? (this._cmd.active + 1) % n : 0; this._cmdPaint(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); this._cmd.active = n ? (this._cmd.active - 1 + n) % n : 0; this._cmdPaint(); }
+            else if (e.key === 'Enter') { e.preventDefault(); this._cmdRun(this._cmd.results[this._cmd.active]); }
+            else if (e.key === 'Escape') { e.preventDefault(); input.value = ''; input.blur(); this._cmdClose(); }
+        });
+        input.addEventListener('blur', () => { setTimeout(() => this._cmdClose(), 130); });
+
+        dd.addEventListener('mousedown', (e) => {
+            const row = e.target.closest('[data-cmd-idx]');
+            if (!row) return;
+            e.preventDefault();                                   // keep focus off the blur race
+            this._cmdRun(this._cmd.results[parseInt(row.getAttribute('data-cmd-idx'), 10)]);
+        });
+
+        if (!this._cmd.boundGlobal) {
+            this._cmd.boundGlobal = true;
+            window.addEventListener('keydown', (e) => {
+                if (!this.isOpen) return;
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
+                const tag = (e.target && e.target.tagName) || '';
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+                if (e.key === '/' || e.key === ':') { e.preventDefault(); const el = document.getElementById('tm-cmd-input'); if (el) el.focus(); }
+            });
+        }
+    },
+
+    _cmdUpdate() {
+        const input = document.getElementById('tm-cmd-input');
+        if (!input) return;
+        this._cmd.results = this._cmdSearch(input.value);
+        this._cmd.active = 0;
+        this._cmdPaint();
+    },
+
+    _cmdPaint() {
+        const dd = document.getElementById('tm-cmd-dropdown');
+        if (!dd) return;
+        const rs = this._cmd.results;
+        if (!rs || !rs.length) { dd.style.display = 'none'; return; }
+        const esc = (s) => this._esc(s);
+        dd.innerHTML = rs.map((e, i) => `
+            <div class="tm-cmd-item${i === this._cmd.active ? ' active' : ''}" data-cmd-idx="${i}">
+                <span class="tm-cmd-type tm-cmd-type-${e.type}">${esc(e.typeLabel)}</span>
+                <span class="tm-cmd-dot" style="background:${esc(e.color || '#8a8aa0')}"></span>
+                <span class="tm-cmd-label">${esc(e.label)}</span>
+                <span class="tm-cmd-sub">${esc(e.sub || '')}</span>
+            </div>
+        `).join('');
+        dd.style.display = 'block';
+    },
+
+    _cmdRun(entry) {
+        const input = document.getElementById('tm-cmd-input');
+        if (entry) { try { if (typeof entry.run === 'function') entry.run.call(this); } catch (e) {} }
+        if (input) { input.value = ''; input.blur(); }
+        this._cmdClose();
+    },
+
+    _cmdClose() {
+        const dd = document.getElementById('tm-cmd-dropdown');
+        if (dd) dd.style.display = 'none';
+    },
+
+    _cmdHelp() {
+        const hint = document.getElementById('tm-cmd-hint');
+        if (hint) { hint.classList.add('tm-cmd-hint-flash'); setTimeout(() => hint.classList.remove('tm-cmd-hint-flash'), 1400); }
+    },
+
+    // Smooth-scroll a panel into view and flash its border amber.
+    _gotoPanel(id, opts = {}) {
+        const shell = document.getElementById('terminal-shell');
+        if (!shell) return;
+        const panel = shell.querySelector(`[data-panel="${id}"]`);
+        if (!panel) return;
+        try { panel.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { try { panel.scrollIntoView(); } catch (e2) {} }
+        if (opts.flash) {
+            panel.classList.remove('tm-panel-flash');
+            void panel.offsetWidth;                                // reflow so the animation restarts
+            panel.classList.add('tm-panel-flash');
+            setTimeout(() => panel.classList.remove('tm-panel-flash'), 1500);
+        }
+    },
+
+    // Open an entity. Full drill-down takeover is added in the entity-pages build; until then
+    // this routes to the most relevant panel with a focus/flash so the command line is useful now.
+    openEntity(ref) {
+        if (!ref) return;
+        if (ref.kind === 'country') {
+            this._filter.embassy = ref.id; this._sigCache.embassy = null; this._renderEmbassy();
+            this._gotoPanel('embassy', { flash: true });
+        } else if (ref.kind === 'source') {
+            this._gotoPanel('power', { flash: true });
+        } else if (ref.kind === 'model' || ref.kind === 'lab') {
+            this._gotoPanel('labs', { flash: true });
+        }
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
     // UPDATE LOOP — 4 Hz
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
@@ -637,9 +927,21 @@ const Terminal = {
         } catch (e) {}
         set('tm-kardashev', kscale);
 
-        let fps = '—';
-        try { if (G_ && G_.app && G_.app.ticker) fps = G_.app.ticker.FPS.toFixed(0); } catch (e) {}
-        set('tm-fps', fps);
+        // City render is paused in Terminal; show the sim's step rate (Hz) instead of a dead
+        // renderer FPS. Measured from the pump counter over a ~1s window.
+        let fpsVal = '—';
+        try {
+            if (this._cityPaused) {
+                const now = performance.now();
+                if (!this._lastTpsAt) { this._lastTpsAt = now; this._simSteps = 0; }
+                const dt = now - this._lastTpsAt;
+                if (dt >= 1000) { this._tps = Math.round(this._simSteps * 1000 / dt); this._simSteps = 0; this._lastTpsAt = now; }
+                fpsVal = String(this._tps || 0);
+            } else if (G_ && G_.app && G_.app.ticker) {
+                fpsVal = G_.app.ticker.FPS.toFixed(0);
+            }
+        } catch (e) {}
+        set('tm-fps', fpsVal);
 
         set('tm-clock', new Date().toISOString().substr(11, 8) + ' UTC');
     },

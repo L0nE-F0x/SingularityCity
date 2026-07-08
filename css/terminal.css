@@ -105,6 +105,71 @@ body.terminal-mode #ai-index-hud {
     box-shadow: 0 0 14px rgba(52,211,153,0.4);
 }
 
+/* ═══ COMMAND BAR — the ⟨GO⟩ line ═══ */
+.tm-cmdbar {
+    position: relative;
+    display: flex; align-items: center; gap: 9px;
+    height: 32px; padding: 0 14px;
+    background: #07070e;
+    border-bottom: 1px solid #1a1a2a;
+    flex-shrink: 0;
+    box-shadow: inset 0 1px 0 rgba(251,191,36,0.04);
+}
+.tm-cmd-prompt { color: #fbbf24; font-weight: 700; font-size: 14px; line-height: 1; text-shadow: 0 0 6px rgba(251,191,36,0.5); }
+.tm-cmd-input {
+    flex: 1; min-width: 0;
+    background: transparent; border: none; outline: none;
+    color: #e8e8f0; font-family: inherit; font-size: 12px; letter-spacing: 0.4px;
+    caret-color: #fbbf24;
+}
+.tm-cmd-input::placeholder { color: #45455a; letter-spacing: 0.3px; }
+.tm-cmd-hint { color: #45455a; font-size: 9px; letter-spacing: 0.3px; white-space: nowrap; transition: color 0.2s; }
+.tm-cmd-hint kbd {
+    color: #8a8aa0; border: 1px solid #2a2a3a; border-bottom-width: 2px;
+    border-radius: 2px; padding: 0 3px; font-family: inherit; font-size: 9px; background: #101019;
+}
+.tm-cmd-hint-flash { color: #fbbf24 !important; }
+
+.tm-cmd-dropdown {
+    position: absolute; top: 33px; left: 22px; right: 14px;
+    max-width: 660px;
+    background: #0b0b15;
+    border: 1px solid #2a2a44; border-top: 2px solid #fbbf24;
+    border-radius: 0 0 5px 5px;
+    box-shadow: 0 14px 36px rgba(0,0,0,0.7);
+    z-index: 10001; overflow: hidden;
+}
+.tm-cmd-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 12px; cursor: pointer;
+    border-bottom: 1px solid #13131f;
+}
+.tm-cmd-item:last-child { border-bottom: none; }
+.tm-cmd-item.active, .tm-cmd-item:hover { background: rgba(251,191,36,0.1); }
+.tm-cmd-type {
+    font-size: 8px; font-weight: 700; letter-spacing: 1px;
+    color: #0a0a14; background: #6a6a80;
+    border-radius: 2px; padding: 2px 4px; min-width: 28px; text-align: center;
+}
+.tm-cmd-type-fn      { background: #fbbf24; }
+.tm-cmd-type-lab     { background: #22d3ee; }
+.tm-cmd-type-model   { background: #a78bfa; }
+.tm-cmd-type-country { background: #60a5fa; }
+.tm-cmd-type-source  { background: #facc15; }
+.tm-cmd-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tm-cmd-label { color: #e8e8f0; font-weight: 600; font-size: 12px; white-space: nowrap; }
+.tm-cmd-sub {
+    color: #6a6a80; font-size: 10px; margin-left: auto;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 58%;
+}
+
+/* Panel flash — command line jumps to a panel */
+@keyframes tm-panel-flash {
+    0%   { border-color: #fbbf24; box-shadow: 0 0 0 1px #fbbf24, 0 0 26px rgba(251,191,36,0.4); }
+    100% { border-color: #1a1a2a; box-shadow: none; }
+}
+.tm-panel-flash { animation: tm-panel-flash 1.5s ease-out; }
+
 /* ═══ GRID ═══
    12-column grid. Per-panel grid-column/grid-row spans are emitted inline by terminal.js
    (see PANELS[].cols/rows). Row height scales with viewport via minmax so the grid fills
