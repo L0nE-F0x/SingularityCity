@@ -18,7 +18,7 @@ const EmbassyRow = {
             regulator: 'Executive branch · NIST · Commerce (BIS)',
             framework: "America's AI Action Plan (2025) · NIST AI RMF · pro-innovation EO",
             stance: 'Deregulatory pivot: EO 14110 rescinded (2025), replaced by an AI-dominance agenda. H200 sales to China moved to case-by-case review with a 25% tariff. Federal push to preempt state AI laws.',
-            milestone: 'Jan 2026: Washington shifted Nvidia H200-to-China exports to case-by-case licensing — third-party US testing, a 50% volume cap and a 25% tariff.',
+            milestone: 'Jun 2026: Commerce closed a loophole letting Chinese firms buy Nvidia Blackwell-class chips via overseas subsidiaries — even as the Jan 2026 H200 case-by-case approval stays stalled, with zero chips actually shipped.',
             labs: ['OpenAI', 'Anthropic', 'Google DeepMind', 'Meta AI', 'xAI / SpaceX', 'Microsoft'],
             desc: 'United States of America. The dominant hub of frontier AI. The 2025 administration tore up the prior executive order for a deregulatory, "win the AI race" agenda — voluntary commitments over a comprehensive AI act, backed by chip export controls.'
         },
@@ -30,7 +30,7 @@ const EmbassyRow = {
             regulator: 'Cyberspace Administration (CAC)',
             framework: 'Interim Measures for Generative AI · AI content-labeling rules (2025)',
             stance: 'Strict pre-market registration and security assessments; content aligned with core socialist values. Now countering US chip curbs with its own gallium & rare-earth export licenses and a domestic-silicon push.',
-            milestone: '2026: DeepSeek and Qwen keep shipping frontier open-weights despite chip curbs, while Beijing wields rare-earth export licenses as leverage.',
+            milestone: 'Jul 2026: DeepSeek graduates V4 from preview to official release — 1M-token context window, new peak/off-peak API pricing — while Beijing keeps wielding rare-earth export licenses as leverage.',
             labs: ['DeepSeek', 'Alibaba Qwen', 'Moonshot (Kimi)', 'Baidu Ernie', 'Tencent Hunyuan', 'Zhipu'],
             desc: 'People\'s Republic of China. The world\'s second AI superpower. Rapid open-weight releases (DeepSeek, Qwen, Kimi) despite US export controls — and an increasingly muscular counter using its grip on critical minerals.'
         },
@@ -41,8 +41,8 @@ const EmbassyRow = {
             accent: 0x003399,
             regulator: 'European Commission · National DPAs',
             framework: 'EU AI Act · GPAI Code of Practice · Digital Omnibus (2026)',
-            stance: 'World-first comprehensive AI law. GPAI obligations for >10^25-FLOP models went live Aug 2025; high-risk rules phase in through 2027. A 2026 "digital omnibus" aims to simplify compliance amid competitiveness worries.',
-            milestone: '2026: with GPAI rules now in force, Brussels debates a "Digital Omnibus" to ease AI Act burdens and keep Europe competitive.',
+            stance: 'World-first comprehensive AI law. GPAI obligations for >10^25-FLOP models went live Aug 2025; a Digital Omnibus formally adopted Jun 29, 2026 pushed high-risk compliance deadlines to Dec 2027 (standalone) / Aug 2028 (embedded) to ease competitiveness worries.',
+            milestone: 'Jun 29, 2026: EU Council formally adopted the Digital Omnibus, easing AI Act burdens — plus a new EU-wide ban on AI "nudification"/CSAM tools taking effect Dec 2026.',
             labs: ['Mistral', 'Black Forest Labs', 'Kyutai', 'Aleph Alpha', 'Helsing'],
             desc: 'European Union. The world\'s first jurisdiction with a comprehensive horizontal AI law. The AI Act bans social scoring and untargeted biometric scraping and imposes transparency duties on foundation models — now balancing enforcement against a competitiveness push.'
         },
@@ -54,7 +54,7 @@ const EmbassyRow = {
             regulator: 'AI Security Institute (AISI) · DSIT',
             framework: 'Pro-innovation principles · Bletchley/Seoul/Paris summit lineage',
             stance: 'Sector-led, principles-based. Still no statutory AI act — the renamed AI Security Institute runs pre-deployment evaluations of frontier models by agreement, with a sharper focus on national-security risk.',
-            milestone: '2025: the UK AI Safety Institute was renamed the AI Security Institute, pivoting toward misuse and national-security threats.',
+            milestone: 'Jul 2, 2026: the UK and Germany agreed to deepen AI safety cooperation — AISI and German ministries expanding joint frontier-model evaluation and cyber-risk research.',
             labs: ['Google DeepMind', 'Isomorphic Labs', 'Wayve', 'Synthesia', 'ElevenLabs', 'Stability AI'],
             desc: 'United Kingdom. Host of the inaugural AI Safety Summit at Bletchley Park (2023) and home of the world\'s first government AI evaluation body. London anchors DeepMind — the lab with the longest continuous history at the AGI frontier.'
         },
@@ -66,7 +66,7 @@ const EmbassyRow = {
             regulator: 'MeitY · NITI Aayog',
             framework: 'IndiaAI Mission (₹10,372 crore) · Responsible AI guidelines',
             stance: 'Pro-innovation, non-binding principles. Heavy state subsidy of GPU compute and Indian-language foundation models; positioning as the neutral convener of the global AI-governance conversation.',
-            milestone: '2026: India hosts the AI Impact Summit — the successor to Bletchley/Seoul/Paris — while subsidizing sovereign compute and multilingual models.',
+            milestone: 'Feb 16–21, 2026: India hosted the AI Impact Summit — 88 countries adopted the non-binding New Delhi Declaration on AI Impact, with $200B+ in AI investment commitments announced.',
             labs: ['Sarvam AI', 'Krutrim', 'Soket AI', 'Yellow.ai', 'CoRover'],
             desc: 'Republic of India. The largest pool of ML engineering talent on earth. National strategy emphasises multilingual capability across 22 official languages, subsidized GPU access, and hosting the next global AI summit.'
         },

@@ -43,12 +43,12 @@ const PortZone = {
                   'Harbor radar tracks 5 inbound supply vessels on rotation'
               ] },
             { id: 'port_customs',   name: 'Export Control Office', w: 110, fl: 2, emoji: '🛃', desc: 'Where the chip war gets bureaucratic. Licenses, end-user checks and tariff stamps for every advanced-node shipment.',
-              milestone: 'Jan 2026: Washington moved Nvidia H200-to-China sales to case-by-case review — third-party US testing, a 50% volume cap and a 25% tariff. Months later, not one chip has actually shipped.',
+              milestone: 'Jul 2, 2026: Nvidia\'s CEO conceded China\'s AI-chip market to Huawei after booking zero China data-center revenue — the H200 export approval is a dead letter, blocked by Beijing rather than Washington.',
               facts: [
+                  'Jan 2026: Washington moved H200-to-China sales to case-by-case review — a 50% volume cap and a 25% tariff; not one chip has actually shipped',
                   '~10 Chinese firms cleared for H200s at 75,000 units each — all stuck in legal limbo',
                   'Jun 2026: US says the ban follows Chinese firms even OUTSIDE China',
-                  'China counters with gallium & rare-earth export licenses',
-                  'Every crate on this quay has a paper trail thicker than its packing foam'
+                  'China counters with gallium & rare-earth export licenses'
               ] },
             { id: 'port_warehouse', name: 'GPU Warehouse',   w: 180, fl: 2, emoji: '📦', desc: 'Bonded warehouse holding Vera Rubin racks and Blackwell pallets awaiting deployment to the Compute District.',
               milestone: 'NVIDIA\'s Rubin platform went full production after its CES 2026 launch — first racks land at AWS, Google, Microsoft and OCI in H2 2026.',

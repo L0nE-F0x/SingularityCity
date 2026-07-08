@@ -34,9 +34,10 @@ const LONGEVITY_COMPANIES = {
         name: 'Insilico Medicine', ceo: 'Alex Zhavoronkov', color: '#8b5cf6', icon: '💊',
         hq: 'Cambridge, MA / Hong Kong', founded: '2014', drug: 'Rentosertib (ISM001-055)',
         program: 'Generative chemistry via Pharma.AI',
-        milestone: 'Rentosertib — the first AI-discovered, AI-designed drug validated in humans — published Phase IIa results in Nature Medicine; an inhaled version just cleared IND.',
+        milestone: 'Jul 7, 2026: rentosertib entered Phase III for pulmonary fibrosis (320 patients, 47 centers in China) — the first drug with an AI-identified target, AI-generated structure, and AI-guided trials to reach pivotal testing.',
         facts: [
             'TNIK inhibitor for idiopathic pulmonary fibrosis (IPF)',
+            'Published Phase IIa results in Nature Medicine; an inhaled version cleared IND',
             'Its inhalation solution is the world\'s first AI-driven direct-to-lung candidate',
             'End-to-end: Pharma.AI picks the target AND designs the molecule'
         ],

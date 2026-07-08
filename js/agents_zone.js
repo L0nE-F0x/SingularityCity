@@ -10,7 +10,7 @@ const AGENT_FRAMEWORKS = {
     claude_sdk: {
         name: 'Claude Agent SDK', ceo: 'Anthropic', color: '#d97706', icon: '🧬',
         hq: 'San Francisco', founded: '2025', product: 'Agent SDK (Python + TS)',
-        milestone: 'Renamed from Claude Code SDK in 2025; by 2026 it powers production agents on Opus 4.8 with subagents, sessions and first-class MCP.',
+        milestone: 'Jun 30, 2026: Anthropic shipped Claude Sonnet 5 with a native 1M-token context window — the biggest agentic/coding jump yet for a Sonnet-class model, now powering the SDK alongside Opus 4.8.',
         facts: [
             'Ships file-edit, bash, web-search/fetch and a tool-use loop out of the box',
             'First-class Model Context Protocol (MCP) client — the emerging tool standard',
@@ -36,15 +36,17 @@ const AGENT_FRAMEWORKS = {
         facts: [
             'Devin is the autonomous software engineer — plans, codes, tests, ships PRs',
             'Devin Desktop\'s Agent Command Center runs local + cloud agents from one Kanban',
-            'ARR doubled to a ~$492M run rate; backs the open Agent Client Protocol (ACP)'
+            'ARR doubled to a ~$492M run rate; backs the open Agent Client Protocol (ACP)',
+            'Jul 1, 2026: launched Devin Security Swarm — agents that find, verify and patch vulnerabilities across codebases'
         ],
         desc: 'The autonomous-coding giant. Devin writes and ships software on its own; Devin Desktop (ex-Windsurf) commands whole fleets of agents.'
     },
     manus: {
         name: 'Manus', ceo: 'Xiao Hong (Red)', color: '#f43f5e', icon: '🙌',
         hq: 'Singapore / China', founded: '2025', product: 'Manus general agent',
-        milestone: 'Apr 2026: China blocked Meta\'s $2–3B acquisition on national-security grounds; Meta cut ties June 15 — Manus kept shipping anyway.',
+        milestone: 'Jun 19, 2026: original investors moved to buy Manus back from Meta for $2B after Beijing forced the deal\'s unwind — reported ARR has grown from $100M to $400–500M since.',
         facts: [
+            'Apr 2026: China blocked Meta\'s $2–3B acquisition on national-security grounds; Meta cut ties Jun 15, 2026',
             'A general-purpose agent: its "My Computer" runs terminal commands + local files',
             'Orchestrates multiple LLMs under the hood, tracking forward to the Opus 4.x line',
             'The breakout Chinese autonomous agent of 2025–26'
@@ -195,9 +197,10 @@ const AgentsZone = {
         this.statusTicker.push('🛡️ Guardrails: 12.4K/hr blocked — prompt injection, PII leak, infinite loop');
         // Real 2026 framework headlines
         this.statusTicker.push('👨‍💻 Cognition/Devin valued at $25B after folding in Windsurf → Devin Desktop');
-        this.statusTicker.push('🙌 China blocks Meta\'s $2–3B acquisition of Manus on national-security grounds');
+        this.statusTicker.push('🛡️ Devin Security Swarm hunts and patches vulnerabilities across codebases');
+        this.statusTicker.push('🙌 Manus\'s original backers move to buy it back from Meta for $2B after Beijing forced the unwind');
         this.statusTicker.push('⚡ OpenAI Operator: 38.1% OSWorld · 58.1% WebVoyager on full computer-use tasks');
-        this.statusTicker.push('🧬 Claude Agent SDK ships on Opus 4.8 — subagents, sessions, first-class MCP');
+        this.statusTicker.push('🧬 Claude Sonnet 5 ships with a native 1M-token context — SDK now runs on Sonnet 5 + Opus 4.8');
         this.statusTicker.push('🧩 Composio passes 250+ managed, authenticated tool integrations');
 
         // Shuffle

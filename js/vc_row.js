@@ -116,10 +116,10 @@ const VCRow = {
 
     // Real-world AI funding data (approximate, in $M) — 2026-Q2
     FUNDING: {
-        openai:    { total: 179000, valuation: 852000, rounds: 'YC → Microsoft $13B → SoftBank → $122B round at $852B (Amazon $50B, Nvidia/SoftBank $30B each)' },
+        openai:    { total: 179000, valuation: 852000, rounds: 'YC → Microsoft $13B → SoftBank → $122B round at $852B (Amazon $50B, Nvidia/SoftBank $30B each) · Jul 2026: in talks for a 5% US-govt stake (~$43B); IPO advisors reportedly lean toward 2027' },
         anthropic: { total: 83000,  valuation: 965000, rounds: 'Google → Amazon $8B → Series G → Series H $65B at $965B (Sequoia-led) → IPO filed' },
         xai:       { total: 32000,  valuation: 230000, rounds: 'Series A $6B → Series C $6B → Series E $20B at $230B → merged into SpaceX at $250B' },
-        mistral:   { total: 3200,   valuation: 14000,  rounds: 'Seed €105M → Series B €600M → Series C €1.7B at €12B' },
+        mistral:   { total: 3200,   valuation: 23200,  rounds: 'Seed €105M → Series B €600M → Series C €1.7B at €12B → Jun 2026: in talks to raise ~€3B at ~€20B valuation' },
         cohere:    { total: 1500,   valuation: 7000,   rounds: 'Series C $270M → Series D $500M → 2026 raise at $7B' },
         inflection:{ total: 1525,   valuation: 4000,   rounds: 'Series A $225M → Microsoft $1.3B → pivot to enterprise' },
         stability: { total: 350,    valuation: 1200,   rounds: 'Series A $150M → 2024 recap' },

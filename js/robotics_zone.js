@@ -35,10 +35,11 @@ const ROBOTICS_COMPANIES = {
         name: 'Boston Dynamics', robot: 'Atlas', ceo: 'Robert Playter', color: '#f59e0b', icon: '🏃',
         hq: 'Waltham, Massachusetts', founded: '1992',
         program: 'Electric Atlas for Hyundai factories + DeepMind research',
-        milestone: '2026 Atlas fleets are fully allocated — first units ship to Hyundai\'s Metaplant RMAC and Google DeepMind.',
+        milestone: 'Jul 5, 2026: Atlas delivered the match ball at the FIFA World Cup Round of 16 (Brazil vs. Norway, East Rutherford, NJ) — Hyundai\'s first live robotics activation before a global audience.',
         facts: [
             'The all-electric Atlas debuted an upgrade at CES 2026',
             'Parent Hyundai puts Atlas to work in its own car plants first',
+            '2026 Atlas fleets are fully allocated — Hyundai\'s Metaplant RMAC and Google DeepMind',
             '30+ years of legged robots: BigDog → Spot → Atlas'
         ],
         desc: 'The OG. Electric Atlas trades parkour fame for factory shifts at Hyundai — and a research fleet at Google DeepMind.'
@@ -47,9 +48,10 @@ const ROBOTICS_COMPANIES = {
         name: 'Agility Robotics', robot: 'Digit', ceo: 'Peggy Johnson', color: '#14b8a6', icon: '📦',
         hq: 'Salem, Oregon', founded: '2015',
         program: 'RoboFab factory + warehouse Robots-as-a-Service',
-        milestone: 'Apr 2026: Digit is the only humanoid earning real revenue — 100,000+ totes moved at GXO warehouses.',
+        milestone: 'Jul 2, 2026: Agility agreed to go public via a $2.5B SPAC merger with Churchill Capital Corp XI (ticker AGLT), backed by a $200M Foxconn-led PIPE.',
         facts: [
-            'Paying RaaS contracts with GXO, Toyota Canada and Mercado Libre',
+            'Apr 2026: Digit was the only humanoid earning real revenue — 100,000+ totes moved at GXO warehouses',
+            'Digit now runs at 9 customer sites (Schaeffler, GXO, Toyota, Mercado Libre) with 65,000+ operating hours',
             'RoboFab in Salem, OR was the first purpose-built humanoid factory',
             'The backwards "bird legs" are for reach + battery efficiency'
         ],
@@ -83,8 +85,9 @@ const ROBOTICS_COMPANIES = {
         name: 'Unitree', robot: 'G1', ceo: 'Wang Xingxing', color: '#10b981', icon: '🥋',
         hq: 'Hangzhou, China', founded: '2016',
         program: 'Mass-market agile humanoids (G1/H2) + IPO run',
-        milestone: 'Feb 2026: a fleet of G1s performed a fully autonomous kung-fu routine on Chinese national TV.',
+        milestone: 'Jul 2, 2026: China\'s CSRC granted final approval for Unitree\'s ~$619M Shanghai STAR Market IPO — a record-fast 73-day review — with a trading debut targeted for late Jul 2026.',
         facts: [
+            'Feb 2026: a fleet of G1s performed a fully autonomous kung-fu routine on Chinese national TV',
             '5,500+ humanoids shipped in 2025 — volume leader; 10–20k targeted for 2026',
             'G1 starts around $16K — the price disruptor',
             'H2 pushes dynamic agility: flips, spins and recovery from shoves'
@@ -95,10 +98,11 @@ const ROBOTICS_COMPANIES = {
         name: 'UBTech', robot: 'Walker S2', ceo: 'Zhou Jian', color: '#1d4ed8', icon: '🔋',
         hq: 'Shenzhen, China', founded: '2012',
         program: 'Industrial humanoids with autonomous battery hot-swap',
-        milestone: 'Walker S2 entered mass production with orders past ¥800M (~$112M) — hundreds delivered to factory lines.',
+        milestone: 'Jul 2, 2026: Walker S2 went live at the China-Vietnam Fangchenggang border crossing under a ¥264M contract — patrols, cargo inspection, multilingual queue guidance.',
         facts: [
+            'Walker S2 entered mass production with orders past ¥800M (~$112M) — hundreds delivered to factory lines',
             'Walker S2 swaps its own battery — 24/7 shifts, no humans needed',
-            'Capacity roadmap: 5,000 units/yr in 2026 → 10,000 in 2027',
+            'Jun 30, 2026: unveiled UWORLD U1, the first mass-producible full-size consumer humanoid — 13,361+ orders already',
             'Deployed with BYD, Foxconn and Zeekr production lines'
         ],
         desc: 'The industrial workhorse. Walker S2 hot-swaps its own batteries mid-shift and has the largest humanoid order book in China.'

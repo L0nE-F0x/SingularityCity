@@ -65,10 +65,10 @@ const DC_FACILITIES = [
     },
     {
         id: 'dc_xai_expansion', name: 'Colossus 2', operator: 'xai',
-        location: 'Memphis, Tennessee', type: 'datacenter', status: 'construction',
-        gpus: 'Target: 1M+ GB200/Rubin', power_mw: 1000, cooling: 'Direct liquid + gas backup',
-        desc: 'xAI\'s (now SpaceX•xAI) million-GPU expansion for Grok training — the campus whose gas turbines became the emblem of the AI power crunch.',
-        w: 160, color: '#1d9bf0', completion: '2026'
+        location: 'Memphis, Tennessee', type: 'datacenter', status: 'operational',
+        gpus: 'Ramping toward 1M+ GB200/Rubin', power_mw: 1000, cooling: 'Direct liquid + gas backup',
+        desc: 'xAI\'s (now SpaceX•xAI) gigawatt-scale expansion for Grok training — online since Jan 18, 2026 per Musk, the first coherent gigawatt-class training cluster — the campus whose gas turbines became the emblem of the AI power crunch.',
+        w: 160, color: '#1d9bf0'
     },
     {
         id: 'dc_meta_louisiana', name: 'Meta (Richland Parish)', operator: 'meta',
@@ -104,8 +104,8 @@ const DC_FACILITIES = [
         id: 'fab_intel_ohio', name: 'Intel (Ohio)', operator: 'intel',
         location: 'New Albany, Ohio', type: 'chipfab', status: 'construction',
         process: 'Intel 18A', products: 'Intel Gaudi AI accelerators, foundry services',
-        desc: 'Intel\'s $20B Ohio mega-fab. Part of Intel Foundry Services\' bid to rival TSMC.',
-        w: 180, color: '#0071c5', investment: '$20B', completion: '2026'
+        desc: 'Intel\'s $20B Ohio mega-fab. Part of Intel Foundry Services\' bid to rival TSMC — Fab 1 has slipped to ~2030, with Fab 2 a year or two behind.',
+        w: 180, color: '#0071c5', investment: '$20B', completion: '2030'
     },
     {
         id: 'fab_asml', name: 'ASML (Veldhoven)', operator: 'asml',

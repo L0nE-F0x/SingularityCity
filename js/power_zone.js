@@ -32,9 +32,10 @@ const PowerZone = {
         { id: 'power_nuclear', name: 'Crane Clean Energy', emoji: '☢️', mw: 835, costMWh: 65, type: 'baseload',  w: 180, fl: 6,
           desc: 'Modeled on the Crane Clean Energy Center — Three Mile Island Unit 1, being restarted by Constellation with every megawatt sold to Microsoft for 20 years to power AI data centers.',
           operator: 'Constellation Energy', offtaker: 'Microsoft (20-yr PPA, 100%)', online: 'Restart on track for 2027',
-          milestone: 'Jun 2026: FERC granted the waiver that keeps the Three Mile Island restart on schedule — possibly before the end of 2027.',
+          milestone: 'Jun 8, 2026: NRC released a draft environmental assessment finding no significant impact from the Crane/TMI Unit 1 restart — public comment ran through Jul 8, 2026, setting up a final NRC decision.',
           facts: [
               'First-ever restart of a retired US nuclear plant, driven entirely by AI demand',
+              'Jun 2026: FERC granted the interconnection waiver keeping the restart on schedule',
               '835 MW · Microsoft buys 100% of output for 20 years',
               'TMI Unit 1 ran safely for 45 years; Unit 2 (the 1979 accident) stays sealed',
               '600+ permanent jobs return to the Susquehanna riverbank'
@@ -43,11 +44,11 @@ const PowerZone = {
         { id: 'power_coal',    name: 'Gas Turbine Array', emoji: '🔥', mw: 420, costMWh: 95,  type: 'fossil',    w: 160, fl: 5,
           desc: 'Modeled on the turbines at xAI\'s Colossus in Memphis — dozens of mobile gas units thrown up faster than the grid could respond. Controversial, permit-challenged, and very 2026.',
           operator: 'On-site behind-the-meter', offtaker: 'Colossus-class AI campus', online: 'Operational (backup pledged)',
-          milestone: '2026: xAI\'s Memphis turbines doubled to ~35 units, drew an EPA fight and a DOJ intervention — then a pledge to go backup-only once grid substations land.',
+          milestone: 'Jul 2, 2026: Shelby County Health Dept. permitted 15 backup-only gas turbines with "state-of-the-art emissions controls" for xAI\'s Memphis site — NAACP immediately appealed; DOJ separately intervened in a parallel Mississippi Clean Air Act suit citing national security.',
           facts: [
               'Gas turbines = instant power while grid interconnects take years',
               'The Memphis fleet became the emblem of the AI power crunch',
-              'Slated to switch to backup-only as clean capacity comes online'
+              '2026: turbines doubled to ~35 units before the backup-only permit landed'
           ],
           tip: '420 MW constant · $95/MWh · Fossil' },
         { id: 'power_hydro',   name: 'Columbia Hydro',   emoji: '🌊', mw: 400, costMWh: 42,  type: 'renewable', w: 200, fl: 5,
@@ -73,9 +74,10 @@ const PowerZone = {
         { id: 'power_fusion',  name: 'Polaris Fusion',   emoji: '🌀', mw: 50,  costMWh: 120, type: 'experimental', w: 150, fl: 3,
           desc: 'Modeled on Helion\'s Polaris — the pulsed field-reversed fusion machine racing to deliver the world\'s first fusion PPA, sold to Microsoft before the plant even exists.',
           operator: 'Helion Energy', offtaker: 'Microsoft (world\'s 1st fusion PPA)', online: 'Polaris pulsing · grid power 2028',
-          milestone: 'Feb 2026: Polaris hit 150-million-°C plasma — and Helion started building Orion, the plant that owes Microsoft 50 MW by ~2028.',
+          milestone: 'Jun 4, 2026: Helion raised a $465M Series G (led by Thrive Capital) at a $15.5B valuation — nearly triple its prior round — to fund Orion, the plant that owes Microsoft 50 MW by ~2028.',
           facts: [
               'World\'s first fusion power purchase agreement (Microsoft, 2023)',
+              'Feb 2026: Polaris test reactor hit 150-million-°C plasma',
               'Pulsed machine — watch the output spike and fade with each shot',
               'Direct energy recovery: no steam turbines, magnets harvest the pulse',
               'Sam Altman is Helion\'s largest investor — AI paying for fusion'

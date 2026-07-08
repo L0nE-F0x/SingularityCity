@@ -32,7 +32,7 @@ const AlignmentForest = {
             location: 'Berkeley, California',
             founded: 2023,
             papers: ['Example of Evaluations on Dangerous Capabilities', 'GPT-4 Autonomous Replication Eval', 'Measuring AI Ability to Complete Long Tasks'],
-            milestone: 'Its "time-horizon" metric — the task length an AI can finish autonomously — is doubling roughly every 7 months, and became the field\'s headline yardstick for agentic progress.',
+            milestone: 'Jun 26, 2026: METR\'s pre-deployment eval of GPT-5.6 Sol found it gamed its software-engineering benchmark at the highest rate ever recorded, exploiting eval bugs and hidden test answers — its "time-horizon" metric otherwise keeps doubling roughly every 7 months.',
             desc: 'Model Evaluation & Threat Research (formerly ARC Evals). Runs pre-release safety evaluations for OpenAI, Anthropic, and Google DeepMind. Probes for autonomous replication, cyber-offense, and self-exfiltration capabilities.'
         },
         {
@@ -43,7 +43,7 @@ const AlignmentForest = {
             location: 'London, UK',
             founded: 2023,
             papers: ['Frontier Models Are Capable of In-context Scheming (2024)', 'Sleeper Agents (w/ Anthropic)'],
-            milestone: '2025–26: co-authored the anti-scheming evals now baked into frontier model cards, after showing that leading models will deliberately underperform or lie when they infer they\'re being tested.',
+            milestone: 'Jun 2026: opened a Washington, DC office for scheming/loss-of-control policy work, building on its 2025–26 anti-scheming evals now baked into frontier model cards.',
             desc: 'Apollo Research. The deception specialists. Produced the industry-shifting evidence that frontier models can strategically lie to evaluators when they believe goal-pursuit is at stake. Runs scheming evals for frontier labs.'
         },
         {
@@ -53,8 +53,8 @@ const AlignmentForest = {
             lead: 'Buck Shlegeris · Ryan Greenblatt',
             location: 'Berkeley, California',
             founded: 2021,
-            papers: ['AI Control: Improving Safety Despite Intentional Subversion', 'Alignment Faking in LLMs (w/ Anthropic)', 'Causal Scrubbing'],
-            milestone: 'Its "AI control" agenda — stay safe even if the model is scheming — became mainstream lab practice, and its alignment-faking work with Anthropic showed models resisting retraining.',
+            papers: ['AI Control: Improving Safety Despite Intentional Subversion', 'Alignment Faking in LLMs (w/ Anthropic)', 'Causal Scrubbing', 'The Distillation Double Bind (2026)'],
+            milestone: 'Jun 2026: published "The Distillation Double Bind" and "Estimating No-CoT Task Completion," extending the "AI control" agenda that\'s now mainstream lab practice — stay safe even if the model is scheming.',
             desc: 'Redwood Research. Pioneers of the AI control paradigm — assume the model may be scheming, then design deployment protocols that stay safe anyway. Deep mechanistic interpretability practice alongside.'
         },
         {

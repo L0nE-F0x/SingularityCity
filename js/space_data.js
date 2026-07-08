@@ -24,10 +24,10 @@ const SPACE_ORGS = {
         name: 'Blue Origin', ceo: 'Dave Limp', color: '#0077c8', icon: '🪶', region: 'us',
         hq: 'Kent, Washington', founded: '2000', vehicle: 'New Glenn',
         program: 'Blue Moon lunar cargo + orbital infrastructure',
-        milestone: 'Apr 19, 2026: first New Glenn reflight — booster "Never Tell Me the Odds" launched again and re-landed on the barge Jacklyn.',
+        milestone: 'Jul 6, 2026: Blue Origin cleared all LC-36 debris in 9 days and began rebuilding the pad in a horizontal/vertical hybrid config — CEO Dave Limp reaffirmed New Glenn will fly again before year-end 2026.',
         facts: [
             'Nov 13, 2025: became the 2nd company ever to land an orbital-class booster (at sea, 375 mi offshore)',
-            'May 28, 2026: a New Glenn was lost in a static-fire anomaly that damaged LC-36 — rebuild under way',
+            'May 28, 2026: a New Glenn was lost in a static-fire anomaly that damaged LC-36 — now rebuilding under a hybrid config',
             'Blue Moon MK1 "Endurance" finished NASA vacuum-chamber testing, awaiting its lunar debut',
             'Its BE-4 methalox engines also power ULA\'s Vulcan Centaur'
         ],
@@ -76,11 +76,11 @@ const SPACE_ORGS = {
         name: 'ULA', ceo: 'Tory Bruno', color: '#1a1a2e', icon: '⚡', region: 'us',
         hq: 'Centennial, Colorado', founded: '2006', vehicle: 'Vulcan Centaur',
         program: 'National-security heavy lift (USSF)',
-        milestone: 'Feb 12, 2026: Vulcan delivered the USSF-87 mission direct to geosynchronous orbit for Space Force.',
+        milestone: 'Jul 2, 2026: ULA flew its final-ever Atlas V (Amazon Leo satellites) — closing a 100% mission-success run — while Vulcan stays grounded pending the Feb 2026 booster investigation.',
         facts: [
-            'Targeting 18–22 launches in 2026 — its highest cadence ever',
+            'Targeting 18–22 launches in 2026 once Vulcan resumes — its highest cadence ever',
             'Vulcan is powered by two Blue Origin BE-4 methalox engines',
-            'A Feb 2026 solid-booster anomaly paused flights pending investigation',
+            'A Feb 2026 solid-booster anomaly paused Vulcan flights pending investigation',
             '100% mission success record across Atlas, Delta and Vulcan'
         ],
         desc: 'United Launch Alliance. Vulcan Centaur hauls national-security payloads direct to GEO with a perfect success record.'
@@ -102,9 +102,10 @@ const SPACE_ORGS = {
         name: 'ISRO', ceo: 'V. Narayanan', color: '#ff6b00', icon: '🇮🇳', region: 'in',
         hq: 'Bengaluru, India', founded: '1969', vehicle: 'LVM3',
         program: 'Gaganyaan human spaceflight',
-        milestone: 'Apr 10, 2026: Gaganyaan crew module aced its air-drop test over the Bay of Bengal; uncrewed Gaganyaan-1 flies H2 2026.',
+        milestone: 'Jul 5, 2026: ISRO test-fired the SOLVE sub-orbital motor at Sriharikota to validate Gaganyaan\'s crew-module parachute recovery system; uncrewed Gaganyaan-1 still targets H2 2026.',
         facts: [
             '8,000+ ground tests completed for Gaganyaan by early 2026',
+            'Apr 10, 2026: crew module aced an air-drop test over the Bay of Bengal',
             'Vyommitra, a humanoid robot, flies before the first crew does',
             'Chandrayaan-3 made India the first nation to land at the lunar south pole',
             'Famous for frugal engineering — Mars orbit was reached on a $74M budget'
@@ -172,7 +173,7 @@ const SPACE_ORGS = {
             'Zhuque-2 was the world\'s first methalox rocket to reach orbit (July 2023)',
             'Zhuque-3: stainless-steel, Falcon-9-class, designed for 20 reuses',
             'Named for the Vermilion Bird (朱雀) of Chinese constellations',
-            'Landing burn failed 17 s out on flight 1 — next attempt targets a clean recovery'
+            'Jun 29, 2026: Flight 2 vehicle completed a 9-engine static fire; 2nd landing attempt now expected late Jul 2026'
         ],
         desc: 'China\'s commercial methalox pioneer. Stainless-steel Zhuque-3 chases the country\'s first orbital booster landing.'
     }
