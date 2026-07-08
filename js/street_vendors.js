@@ -296,8 +296,11 @@ const StreetVendors = {
                 const dx = vm._metroEntryX - vm.c.x;
                 if (Math.abs(dx) < 3) {
                     vm.state = 'riding_metro';
-                    vm.c.visible = false;
-                    vm._metroTimer = 100 + Math.floor(Math.random() * 80);
+                    // Ride a real train in view; fall back to teleport if unavailable.
+                    if (!(typeof NPCHousing !== 'undefined' && NPCHousing.startMetroRide(vm))) {
+                        vm.c.visible = false;
+                        vm._metroTimer = 100 + Math.floor(Math.random() * 80);
+                    }
                 } else {
                     vm.c.x += Math.sign(dx) * Math.min(vm.speed, Math.abs(dx));
                     vm.c.scale.x = dx > 0 ? 1 : -1;
@@ -307,13 +310,19 @@ const StreetVendors = {
                 vm.chat.visible = false;
 
             } else if (vm.state === 'riding_metro') {
-                vm._metroTimer--;
-                if (vm._metroTimer <= 0) {
-                    vm.c.x = vm._metroExitX;
-                    vm.c.visible = true;
-                    // Determine if going to work or home based on destination
-                    const goingToStall = Math.abs(vm._finalX - (vm.stallX - 20)) < 50;
-                    vm.state = goingToStall ? 'commute_to' : 'commute_home';
+                vm.chat.visible = false;
+                const goingToStall = Math.abs(vm._finalX - (vm.stallX - 20)) < 50;
+                if (vm._rm) {
+                    if (NPCHousing.stepMetroRide(vm)) {
+                        vm.state = goingToStall ? 'commute_to' : 'commute_home';
+                    }
+                } else {
+                    vm._metroTimer--;
+                    if (vm._metroTimer <= 0) {
+                        vm.c.x = vm._metroExitX;
+                        vm.c.visible = true;
+                        vm.state = goingToStall ? 'commute_to' : 'commute_home';
+                    }
                 }
 
             } else if (vm.state === 'commute_to') {

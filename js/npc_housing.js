@@ -256,6 +256,157 @@ const NPCHousing = {
         return stations.reduce((best, sx) => Math.abs(sx - x) < Math.abs(best - x) ? sx : best);
     },
 
+    /* ════════════════════════════════════════════════════════════════════
+       SHARED METRO-RIDE ENGINE
+       Makes a "mover" (worker NPC or street vendor) actually board and ride
+       the real world train objects (Entities.trainWest/East/Mid/DC/Longevity)
+       so they're SEEN riding in the tunnel, exactly like AI models — instead
+       of vanishing and teleporting to the exit station.
+
+       A mover only needs: `.c` (PIXI container avatar), `._metroEntryX`,
+       `._metroExitX`. Optional limb refs (head/body/legL/legR) are reset to a
+       neutral standing pose while underground. State is kept on `mv._rm`.
+       ════════════════════════════════════════════════════════════════════ */
+    _RIDE_CAP: 80,
+
+    // Station centres in physical west→east order (matches Entities' train wiring).
+    _orderedStationXs() {
+        const sx = (id) => { const b = G.bldById[id]; return b ? b.x + b.w / 2 : null; };
+        return ['metro_dc', 'metro_res', 'metro_hq', 'metro_mid', 'metro_east', 'metro_longevity']
+            .map(sx).filter(x => x !== null);
+    },
+
+    // Build the ordered list of station x's the rider passes through, entry→exit.
+    _buildLegs(fromX, toX) {
+        const list = this._orderedStationXs();
+        if (list.length < 2) return null;
+        const nearest = (x) => list.reduce((b, s) => Math.abs(s - x) < Math.abs(b - x) ? s : b);
+        const a = nearest(fromX), b = nearest(toX);
+        const ia = list.indexOf(a), ib = list.indexOf(b);
+        if (ia === ib) return null;
+        const legs = [];
+        if (ia < ib) { for (let i = ia; i <= ib; i++) legs.push(list[i]); }
+        else { for (let i = ia; i >= ib; i--) legs.push(list[i]); }
+        return legs.length >= 2 ? legs : null;
+    },
+
+    // Which Entities train connects two ADJACENT stations (order-agnostic)?
+    // Mirrors the mapping used by AI models in entities.js.
+    _trainForLeg(s1, s2) {
+        const E = (typeof Entities !== 'undefined') ? Entities : null;
+        if (!E) return null;
+        const sx = (id) => { const b = G.bldById[id]; return b ? b.x + b.w / 2 : null; };
+        const dc = sx('metro_dc'), res = sx('metro_res'), hq = sx('metro_hq'),
+              mid = sx('metro_mid'), east = sx('metro_east'), lon = sx('metro_longevity');
+        const pair = (a, b) => (s1 === a && s2 === b) || (s1 === b && s2 === a);
+        if (pair(res, hq)) return E.trainWest;
+        if (mid && pair(hq, mid)) return E.trainEast;
+        if (mid && pair(mid, east)) return E.trainMid;
+        if (pair(hq, east)) return E.trainEast;
+        if (dc && pair(dc, res)) return E.trainDC;
+        if (lon && pair(east, lon)) return E.trainLongevity;
+        return null;
+    },
+
+    _rideHash(mv) {
+        const id = (mv.npc && mv.npc.id) || mv.id || 'x';
+        let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+        return h;
+    },
+
+    _neutralLimbs(mv) {
+        if (mv.legL) mv.legL.y = 0;
+        if (mv.legR) mv.legR.y = 0;
+        if (mv.head) mv.head.y = -32;
+        if (mv.body) mv.body.y = -20;
+    },
+
+    // Begin an underground ride: reparent avatar into the train rider container.
+    // Returns false if the metro isn't available (caller falls back to teleport).
+    startMetroRide(mv) {
+        const rc = (typeof Entities !== 'undefined') ? Entities.metroRiderCont : null;
+        const legs = this._buildLegs(mv._metroEntryX, mv._metroExitX);
+        if (!rc || !legs) return false;
+        const h = this._rideHash(mv);
+        mv._rm = {
+            legs, leg: 0, phase: 'descend', train: null,
+            platOff: (h % 160) - 80,          // stagger along the platform
+            rideOff: (h % 260) - 130          // seat spread inside the car (±150 clamp below)
+        };
+        rc.addChild(mv.c);
+        mv._inRider = true;
+        mv.c.visible = true;
+        mv.c.x = mv._metroEntryX + mv._rm.platOff;
+        mv.c.y = G.groundY - 20;
+        mv.c.scale.x = 1;
+        this._neutralLimbs(mv);
+        return true;
+    },
+
+    // Advance one frame of the underground ride. Returns true once the rider has
+    // resurfaced at the exit station (reparented back into the world, standing).
+    stepMetroRide(mv) {
+        const rm = mv._rm;
+        if (!rm) return true;
+        const GROUND_Y = G.groundY - 20;
+        const PLAT_Y   = G.groundY + 112;
+        const RIDE_Y   = G.groundY + 124;
+        const s1 = rm.legs[rm.leg];
+        const s2 = rm.legs[rm.leg + 1];
+        this._neutralLimbs(mv);
+
+        if (rm.phase === 'descend') {
+            mv.c.x = s1 + rm.platOff;
+            mv.c.y = Math.min(PLAT_Y, mv.c.y + 4);
+            if (mv.c.y >= PLAT_Y) rm.phase = 'wait';
+        } else if (rm.phase === 'wait') {
+            mv.c.x = s1 + rm.platOff;
+            mv.c.y = PLAT_Y;
+            const t = this._trainForLeg(s1, s2);
+            if (!t) {                          // no train maps this leg — skip to exit
+                rm.leg = rm.legs.length - 1;
+                rm.phase = 'ascend';
+            } else if (t.state === 'waiting' && Math.abs(t.x - s1) < 6 && t.passengers < this._RIDE_CAP) {
+                t.passengers++;
+                rm.train = t;
+                rm.phase = 'ride';
+            }
+        } else if (rm.phase === 'ride') {
+            const t = rm.train;
+            if (!t) { rm.phase = 'ascend'; }
+            else {
+                const off = Math.max(-150, Math.min(150, rm.rideOff));
+                mv.c.x = t.x + off;
+                mv.c.y = RIDE_Y;
+                mv.c.scale.x = t.dir < 0 ? -1 : 1;
+                if (t.state === 'waiting' && Math.abs(t.x - s2) < 6) {
+                    t.passengers = Math.max(0, t.passengers - 1);
+                    rm.train = null;
+                    mv.c.x = s2 + rm.platOff;
+                    rm.leg++;
+                    rm.phase = (rm.leg >= rm.legs.length - 1) ? 'ascend' : 'wait';
+                }
+            }
+        } else if (rm.phase === 'ascend') {
+            const sx = rm.legs[rm.leg];
+            mv.c.x = sx + rm.platOff;
+            mv.c.y = Math.max(GROUND_Y, mv.c.y - 4);
+            mv.c.scale.x = 1;
+            if (mv.c.y <= GROUND_Y) {
+                if (mv._inRider && typeof Entities !== 'undefined' && Entities.charLayer) {
+                    Entities.charLayer.addChild(mv.c);
+                    mv._inRider = false;
+                }
+                mv.c.x = mv._metroExitX;
+                mv.c.y = GROUND_Y;
+                mv._rm = null;
+                return true;
+            }
+        }
+        mv.c.zIndex = Math.round(mv.c.y);
+        return false;
+    },
+
     update(dp) {
         if (!this.commuters.length) return;
         const stations = this._getMetroStations();
@@ -307,8 +458,12 @@ const NPCHousing = {
                     const dx = cm._metroEntryX - cm.c.x;
                     if (Math.abs(dx) < 3) {
                         cm.state = 'riding_metro';
-                        cm.c.visible = false;
-                        cm._metroTimer = 100 + Math.floor(Math.random() * 80); // ~2-3s underground
+                        // Board a real train and ride it in view; fall back to the
+                        // old vanish+teleport only if the metro isn't available.
+                        if (!this.startMetroRide(cm)) {
+                            cm.c.visible = false;
+                            cm._metroTimer = 100 + Math.floor(Math.random() * 80);
+                        }
                     } else {
                         cm._faceDir = Math.sign(dx);
                         cm.c.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
@@ -317,12 +472,19 @@ const NPCHousing = {
                     break;
                 }
                 case 'riding_metro': {
-                    cm._metroTimer--;
-                    if (cm._metroTimer <= 0) {
-                        cm.c.x = cm._metroExitX;
-                        cm.c.visible = true;
-                        cm.targetX = cm._finalX;
-                        cm.state = 'walk_from_metro';
+                    if (cm._rm) {
+                        if (this.stepMetroRide(cm)) {
+                            cm.targetX = cm._finalX;
+                            cm.state = 'walk_from_metro';
+                        }
+                    } else {
+                        cm._metroTimer--;
+                        if (cm._metroTimer <= 0) {
+                            cm.c.x = cm._metroExitX;
+                            cm.c.visible = true;
+                            cm.targetX = cm._finalX;
+                            cm.state = 'walk_from_metro';
+                        }
                     }
                     break;
                 }
