@@ -248,6 +248,40 @@ body.terminal-mode #ai-index-hud {
     .tm-d-title { font-size: 18px; }
 }
 
+/* ═══ THE TAPE — fused wire ═══ */
+/* Vertical feed (CAPITAL panel) */
+.tm-tape-feed { display: flex; flex-direction: column; }
+.tm-tape-row {
+    display: flex; align-items: baseline; gap: 8px;
+    padding: 5px 4px; border-bottom: 1px solid #12121c; text-decoration: none;
+}
+.tm-tape-row:last-child { border-bottom: none; }
+a.tm-tape-row { cursor: pointer; }
+a.tm-tape-row:hover { background: rgba(34,211,238,0.06); }
+.tm-tape-cat {
+    font-size: 8px; font-weight: 700; letter-spacing: 0.5px;
+    color: #0a0a14; border-radius: 2px; padding: 1px 5px;
+    flex-shrink: 0; min-width: 40px; text-align: center; align-self: center;
+}
+.tm-tape-txt { color: #c4c4d4; font-size: 11px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+a.tm-tape-row:hover .tm-tape-txt { color: #e8e8f0; }
+
+/* Scrolling ticker strip (above footer) */
+.tm-tape-strip {
+    height: 26px; flex-shrink: 0;
+    background: #07070e; border-top: 1px solid #1a1a2a;
+    overflow: hidden; position: relative; display: flex; align-items: center;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
+            mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent);
+}
+.tm-tape-track { display: inline-flex; align-items: center; white-space: nowrap; will-change: transform; animation: tm-tape-scroll linear infinite; }
+.tm-tape-strip:hover .tm-tape-track { animation-play-state: paused; }
+@keyframes tm-tape-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.tm-tstrip-item { font-size: 10px; color: #a8a8bc; padding: 0 3px; }
+.tm-tstrip-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.tm-tstrip-src { font-weight: 700; letter-spacing: 0.5px; margin-right: 3px; }
+.tm-tstrip-sep { color: #2a2a3a; padding: 0 11px; }
+
 /* ═══ GRID ═══
    12-column grid. Per-panel grid-column/grid-row spans are emitted inline by terminal.js
    (see PANELS[].cols/rows). Row height scales with viewport via minmax so the grid fills

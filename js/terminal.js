@@ -347,7 +347,7 @@ const Terminal = {
         { id: 'embassy',    title: 'EMBASSY RELATIONS', cols: 4, rows: 2, live: true, hint: '6×6 bilateral matrix' },
         { id: 'kardashev',  title: 'KARDASHEV',         cols: 5, rows: 2, live: true, hint: 'K-scale + 5-pillar radar' },
         { id: 'compute',    title: 'COMPUTE INFRA',     cols: 6, rows: 1, live: true, hint: 'MW capacity · operator donut · trend' },
-        { id: 'capital',    title: 'CAPITAL FLOWS',     cols: 6, rows: 1, live: true, hint: 'VC deal ticker' },
+        { id: 'capital',    title: 'THE TAPE',          cols: 6, rows: 1, live: true, hint: 'Fused wire — news · deals · launches · rulings' },
         { id: 'power',      title: 'POWER GRID',        cols: 4, rows: 2, live: true, hint: 'Source donut · demand trend' },
         { id: 'supply',     title: 'SUPPLY CHAIN',      cols: 4, rows: 2, live: true, hint: 'Inventory bars · bottlenecks' },
         { id: 'agents',     title: 'AGENTS',            cols: 4, rows: 2, live: true, hint: 'Active · error gauge · task trend' },
@@ -415,9 +415,10 @@ const Terminal = {
             </div>
             <div class="tm-grid">${panelsHtml}</div>
             <div id="tm-detail" class="tm-detail" style="display:none"></div>
+            <div class="tm-tape-strip" data-tip="${this._tipAttr('<div class=&quot;tm-tip-hd&quot;>The tape</div><div class=&quot;tm-tip-body&quot;>Fused wire — news, deals, launches, rulings. Hover to pause.</div>')}"><div class="tm-tape-track" id="tm-tape-track"></div></div>
             <div class="tm-footer">
                 <span class="tm-foot-chunk"><kbd>D</kbd> toggle city / terminal</span>
-                <span class="tm-foot-chunk tm-foot-mid">PHASE 4 · 13 panels · charts live · sim running behind shell</span>
+                <span class="tm-foot-chunk tm-foot-mid">command line · persisted charts · drill-downs · fused tape</span>
                 <span class="tm-foot-chunk" id="tm-version">—</span>
             </div>
         `;
@@ -806,9 +807,9 @@ const Terminal = {
             { key: 'ELO',       label: 'ELO',       sub: 'sort labs by ELO',            run: leaderboard },
             { key: 'LABS',      label: 'LABS',      sub: 'AI labs league table',        run: P('labs') },
             { key: 'NEWS',      label: 'NEWS',      sub: 'live news wire',              run: P('news') },
-            { key: 'TAPE',      label: 'TAPE',      sub: 'the live tape',               run: P('news') },
-            { key: 'DEALS',     label: 'DEALS',     sub: 'capital flows',              run: P('capital') },
-            { key: 'CAPITAL',   label: 'CAPITAL',   sub: 'capital flows',              run: P('capital') },
+            { key: 'TAPE',      label: 'TAPE',      sub: 'the fused wire',              run: P('capital') },
+            { key: 'DEALS',     label: 'DEALS',     sub: 'the fused wire',              run: P('capital') },
+            { key: 'CAPITAL',   label: 'CAPITAL',   sub: 'the fused wire',              run: P('capital') },
             { key: 'COMPUTE',   label: 'COMPUTE',   sub: 'compute infrastructure',     run: P('compute') },
             { key: 'POWER',     label: 'POWER',     sub: 'power grid',                 run: P('power') },
             { key: 'SUPPLY',    label: 'SUPPLY',    sub: 'supply chain',               run: P('supply') },
@@ -1355,6 +1356,7 @@ const Terminal = {
         // Alignment is static — rendered once on build
         this._renderCompute();
         this._renderCapital();
+        this._refreshTapeStrip();
         this._renderEmbassy();
         this._renderPower();
         this._renderRobotics();
@@ -1884,46 +1886,97 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
-    // PANEL · CAPITAL FLOWS (6×1) — horizontal deal ticker
+    // THE TAPE — one fused, color-coded wire.
+    // Merges the news wires, VC deals, and the sim event log (model launches, benchmark crownings,
+    // policy/bans, builds) into a single categorized stream. Rendered in two places: the CAPITAL
+    // panel (vertical feed) and the full-width scrolling ticker strip above the footer.
     // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    _TAPE_COLORS: {
+        news: '#22d3ee', deal: '#34d399', launch: '#fbbf24', trophy: '#facc15',
+        policy: '#f87171', build: '#a78bfa', model: '#60a5fa', env: '#5eead4', other: '#8a8aa0'
+    },
+
+    _tapeCat(msg) {
+        const s = String(msg || '');
+        if (/^🚀|^🛰️/.test(s)) return 'launch';
+        if (/^💰|^💼/.test(s)) return 'deal';
+        if (/^🏆|^👑/.test(s)) return 'trophy';
+        if (/^🏗️|^🧬/.test(s)) return 'build';
+        if (/^⚖️|^🏛️|^🚔|^⛔|^🚨/.test(s)) return 'policy';
+        if (/^✨|^☄️|^🌙|^🏜️/.test(s)) return 'env';
+        if (/^📊|^👻/.test(s)) return 'model';
+        return 'other';
+    },
+
+    _stripEmoji(s) {
+        return String(s || '').replace(/^[\s\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}️‍]+/u, '').trim();
+    },
+
+    _collectTape() {
+        const items = [];
+        if (typeof HNBlimps !== 'undefined' && Array.isArray(HNBlimps._stories))
+            HNBlimps._stories.forEach(s => { if (s && s.title) items.push({ cat: 'news', src: 'HN', text: s.title, url: s.url, score: s.score }); });
+        if (typeof API !== 'undefined' && Array.isArray(API.liveNews))
+            API.liveNews.forEach(n => { if (n) { const t = n.headline || n.title; if (t) items.push({ cat: 'news', src: String(n.source || 'NEWS').toUpperCase().replace(/\s+/g, ''), text: t, url: n.url }); } });
+        if (typeof API !== 'undefined' && Array.isArray(API.vcDeals))
+            API.vcDeals.forEach(d => { if (d && d.headline) items.push({ cat: 'deal', src: 'DEAL', text: (d.amount ? d.amount + ' — ' : '') + d.headline, url: d.url }); });
+        // Cap sim-log events so high-frequency build spam can't bury news & deals.
+        if (typeof UI !== 'undefined' && Array.isArray(UI.scanLog))
+            UI.scanLog.slice(0, 18).forEach(e => { if (e && e.msg) { const cat = this._tapeCat(e.msg); const text = this._stripEmoji(e.msg); if (text) items.push({ cat, src: cat.toUpperCase(), text, t: e.t }); } });
+        return items;
+    },
 
     _renderCapital() {
         const host = document.getElementById('tm-body-capital');
         if (!host) return;
-        const deals = (typeof API !== 'undefined' && Array.isArray(API.vcDeals)) ? API.vcDeals : [];
-        const sig = 'cap:' + deals.length + ':' + (deals[0] ? (deals[0].headline || '').slice(0, 30) : '');
+        const items = this._collectTape();
+        const sig = 'tape:' + items.length + ':' + (items[0] ? items[0].text.slice(0, 32) : '');
         if (this._sigCache.capital === sig) return;
         this._sigCache.capital = sig;
 
-        if (!deals.length) {
-            host.innerHTML = '<div class="tm-empty">Waiting for deal flow…</div>';
-            return;
-        }
+        if (!items.length) { host.innerHTML = '<div class="tm-empty">The wire is quiet…</div>'; return; }
         const esc = (s) => this._esc(s);
 
         host.innerHTML = `
-            <div class="tm-scroll tm-deals-list">
-                ${deals.slice(0, 10).map(d => {
-                    const url = d.url ? ` href="${esc(d.url)}" target="_blank" rel="noopener"` : '';
-                    const amt = d.amount ? `<span class="tm-deal-amt">${esc(d.amount)}</span>` : '';
-                    const round = d.round ? `<span class="tm-deal-round">${esc(d.round)}</span>` : '';
+            <div class="tm-scroll tm-tape-feed">
+                ${items.slice(0, 40).map(it => {
+                    const c = this._TAPE_COLORS[it.cat] || '#8a8aa0';
+                    const isLink = !!it.url;
+                    const attrs = isLink ? ` href="${esc(it.url)}" target="_blank" rel="noopener"` : '';
                     const tip = this._tipAttr(
-                        `<div class="tm-tip-hd">VC deal</div>` +
-                        (d.amount ? `<div class="tm-tip-row"><span class="tm-tip-k">Amount</span><b class="tm-tip-good">${esc(d.amount)}</b></div>` : '') +
-                        (d.round  ? `<div class="tm-tip-row"><span class="tm-tip-k">Round</span><b>${esc(d.round)}</b></div>`  : '') +
-                        `<div class="tm-tip-body">${esc(d.headline || '')}</div>` +
-                        (d.url ? `<div class="tm-tip-foot">Click to open source ↗</div>` : '')
+                        `<div class="tm-tip-hd" style="color:${c}">${esc(it.src)} · ${esc(it.cat)}</div>` +
+                        `<div class="tm-tip-body">${esc(it.text)}</div>` +
+                        (isLink ? `<div class="tm-tip-foot">Click to open ↗</div>` : (it.t ? `<div class="tm-tip-foot">${esc(it.t)} — sim event</div>` : ''))
                     );
-                    return `
-                        <div class="tm-deal-item" data-tip="${tip}">
-                            ${amt}
-                            <a class="tm-deal-headline"${url}>${esc(d.headline || '')}</a>
-                            ${round}
-                        </div>
-                    `;
+                    return `<${isLink ? 'a' : 'div'} class="tm-tape-row"${attrs} data-tip="${tip}">
+                        <span class="tm-tape-cat" style="background:${c}">${esc(it.src)}</span>
+                        <span class="tm-tape-txt">${esc(it.text)}</span>
+                        ${it.score ? `<span class="tm-news-score">▲ ${it.score}</span>` : ''}
+                    </${isLink ? 'a' : 'div'}>`;
                 }).join('')}
             </div>
         `;
+    },
+
+    // Full-width scrolling ticker strip (above the footer). Rebuilds only when the fused
+    // signature changes so the CSS scroll animation isn't reset on every 4Hz tick.
+    _refreshTapeStrip() {
+        const track = document.getElementById('tm-tape-track');
+        if (!track) return;
+        const items = this._collectTape().slice(0, 28);
+        const sig = 'strip:' + items.length + ':' + (items[0] ? items[0].text.slice(0, 24) : '');
+        if (this._sigCache.tapestrip === sig) return;
+        this._sigCache.tapestrip = sig;
+        if (!items.length) { track.innerHTML = ''; return; }
+        const esc = (s) => this._esc(s);
+        const one = items.map(it => {
+            const c = this._TAPE_COLORS[it.cat] || '#8a8aa0';
+            return `<span class="tm-tstrip-item"><span class="tm-tstrip-dot" style="background:${c}"></span><span class="tm-tstrip-src" style="color:${c}">${esc(it.src)}</span> ${esc(it.text)}</span>`;
+        }).join('<span class="tm-tstrip-sep">•</span>');
+        // Duplicate the run so the -50% translate loops seamlessly.
+        track.innerHTML = one + '<span class="tm-tstrip-sep">•</span>' + one;
+        track.style.animationDuration = Math.max(45, items.length * 3.5) + 's';
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
