@@ -82,6 +82,14 @@ async function queryOverpass(query, endpointIdx, retries = 2) {
             const timer = setTimeout(() => controller.abort(), 90000); // 90s per query
             const r = await fetch(url, {
                 method: 'POST',
+                // Overpass began returning HTTP 406 (mid-2026) to requests without an
+                // explicit User-Agent — Node/undici's default UA is rejected. A
+                // descriptive UA (Overpass etiquette) restores 200s. Content-Type is
+                // set for correctness on the form-encoded body.
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'User-Agent': 'SingularityCity/1.0 (global grid refresh; +https://singularitycity.net)'
+                },
                 body: 'data=' + encodeURIComponent(query),
                 signal: controller.signal
             });
