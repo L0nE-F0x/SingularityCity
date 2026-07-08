@@ -930,10 +930,15 @@ const API = {
             if (error || !data || data.length === 0) return;
             if (typeof VCRow !== 'undefined' && VCRow.FUNDING) {
                 data.forEach(row => {
+                    const code = VCRow.FUNDING[row.lab_id] || {};
+                    // MAX-merge: the live table is "raise-only" vs. the curated
+                    // code baseline, so a stale row can't mask a fresher curated
+                    // valuation and vice-versa. Rounds stays curated-authoritative
+                    // (human prose beats the table's cosmetic copy).
                     VCRow.FUNDING[row.lab_id] = {
-                        total: row.total_m || VCRow.FUNDING[row.lab_id]?.total || 0,
-                        valuation: row.valuation_m || VCRow.FUNDING[row.lab_id]?.valuation || 0,
-                        rounds: row.rounds || VCRow.FUNDING[row.lab_id]?.rounds || ''
+                        total: Math.max(Number(row.total_m) || 0, code.total || 0),
+                        valuation: Math.max(Number(row.valuation_m) || 0, code.valuation || 0),
+                        rounds: code.rounds || row.rounds || ''
                     };
                 });
                 VCRow._buildTicker();

@@ -24,6 +24,7 @@ Most numbers update themselves. The real risk is a **silently dead source** show
 | `db-maintenance.mjs` | Supabase cleanup | every 6h | (silent) — check Netlify function logs occasionally | — |
 | Model scanner (client, API-key) | Tech District real models | on scan | Newly-released real models appear as citizens | No new models in weeks |
 | `API.vcDeals` (RSS) | VC Row deal ticker | on load | VC Row ticker shows recent funding headlines | Only generic fallback lines |
+| `update-vc-funding.mjs` → Supabase `vc_funding` | VC Row lab valuations | daily 07:00 UTC | `vc_funding` has rows w/ fresh `updated_at`; a lab's valuation can auto-raise from news | Empty table (client silently falls back to hardcoded `VCRow.FUNDING`) |
 
 **Monthly check:** [ ] Open the app, spot-check each row above. [ ] Skim Netlify function logs for red (failed invocations). [ ] If any source is dead, fixing it is higher priority than any data edit — a broken feed is a silent accuracy failure.
 
@@ -93,7 +94,7 @@ A single real event ripples across zones — make sure it's reflected everywhere
 ## Part E — Backlog: make more of it auto (reduce the manual load)
 
 Every item here is a chance to turn a hand-maintained string into a live feed — the long game for "the app updates itself":
-- [ ] Move `vc_row.js` `FUNDING` valuations to a small Supabase table refreshed by a scheduled function (like `port_commodities`).
+- [x] Move `vc_row.js` `FUNDING` valuations to a small Supabase table refreshed by a scheduled function (like `port_commodities`). **Done (2026-07):** `update-vc-funding.mjs` (daily) writes the curated floor to `vc_funding` and auto-raises a lab's valuation from venture RSS (monotonic + band-guarded); client MAX-merges so code stays authoritative. One-time setup: run `netlify/functions/vc_funding_schema.sql`. Curated floor in the function's `BASELINE` should be kept roughly in sync with `VCRow.FUNDING`.
 - [ ] Consider a Netlify function that pulls funding-round headlines into `FIRMS[*].milestone` automatically (with the same review-PR gate).
 - [ ] A lightweight "data freshness" self-check surfaced in the Terminal: flag any panel whose newest `milestone` date is older than N months.
 - [ ] Auto-flip `datacenter_data.js` construction→operational from `completion` dates (partially exists — verify it fires).
