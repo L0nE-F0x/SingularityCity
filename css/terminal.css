@@ -176,6 +176,78 @@ body.terminal-mode #ai-index-hud {
 .tm-delta-down { color: #f87171; }
 .tm-delta-flat { color: #6a6a80; }
 
+/* ═══ DRILL-DOWN ENTITY PAGE (full-shell takeover) ═══ */
+.tm-detail {
+    position: absolute; left: 0; right: 0; top: 76px; bottom: 0;   /* below topbar(44)+cmdbar(32) */
+    background: #060610; z-index: 500;
+    overflow-y: auto; overflow-x: hidden;
+    animation: tm-d-in 0.18s ease-out;
+}
+@keyframes tm-d-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.tm-detail::-webkit-scrollbar { width: 8px; }
+.tm-detail::-webkit-scrollbar-thumb { background: #1a1a2a; border-radius: 4px; }
+.tm-d-wrap { max-width: 1200px; margin: 0 auto; padding: 16px 20px 40px; }
+.tm-d-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.tm-d-back {
+    background: #101019; border: 1px solid #2a2a3a; color: #a0a0b8;
+    font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    padding: 5px 10px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
+}
+.tm-d-back:hover { border-color: #fbbf24; color: #fbbf24; }
+.tm-d-dot { width: 11px; height: 11px; border-radius: 50%; }
+.tm-d-title { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+.tm-d-sub { color: #6a6a80; font-size: 11px; flex: 1 1 100%; margin-top: 2px; }
+.tm-d-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.tm-d-chip {
+    display: flex; flex-direction: column; gap: 2px;
+    background: #0b0b15; border: 1px solid #1a1a2a; border-radius: 4px; padding: 6px 12px; min-width: 72px;
+}
+.tm-d-chip[data-action] { cursor: pointer; }
+.tm-d-chip[data-action]:hover { border-color: #2a2a44; }
+.tm-d-chip-k { font-size: 8px; letter-spacing: 1px; color: #6a6a80; text-transform: uppercase; }
+.tm-d-chip-v { font-size: 15px; font-weight: 700; color: #e8e8f0; font-variant-numeric: tabular-nums; }
+
+.tm-d-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.tm-d-sec { background: #0a0a14; border: 1px solid #1a1a2a; border-radius: 3px; overflow: hidden; }
+.tm-d-sec-span { grid-column: 1 / -1; }
+.tm-d-sec-h {
+    font-size: 9px; letter-spacing: 1.5px; font-weight: 700; color: #c8c8d8; text-transform: uppercase;
+    padding: 8px 12px; background: #0d0d18; border-bottom: 1px solid #1a1a2a;
+}
+.tm-d-sec-b { padding: 12px; }
+.tm-d-flag { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.tm-d-flag-meta { flex: 1; min-width: 130px; }
+.tm-d-flag-name { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+.tm-d-kv { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid #12121c; font-size: 12px; }
+.tm-d-kv:last-child { border-bottom: none; }
+.tm-d-kv span { color: #8a8aa0; }
+.tm-d-kv b { color: #e8e8f0; font-weight: 600; }
+.tm-d-kv b.tm-clickable { cursor: pointer; }
+.tm-d-kv b.tm-clickable:hover { text-decoration: underline; }
+.tm-d-bar { width: 100%; min-width: 60px; height: 7px; background: #14141f; border-radius: 4px; overflow: hidden; }
+.tm-d-bar-fill { height: 100%; border-radius: 4px; }
+.tm-d-roster { max-height: 320px; }
+.tm-d-roster table { width: 100%; }
+.tm-d-news-item { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-bottom: 1px solid #12121c; }
+.tm-d-news-item:last-child { border-bottom: none; }
+.tm-d-note { font-size: 12px; color: #b0b0c4; line-height: 1.55; margin-bottom: 6px; }
+.tm-d-note.tm-dim { color: #7a7a90; }
+.tm-dim { color: #6a6a80; }
+.tm-d-tags { display: flex; gap: 7px; flex-wrap: wrap; }
+.tm-d-tag {
+    font-size: 11px; font-weight: 600; color: #d8d8e0;
+    border: 1px solid #2a2a3a; border-left-width: 3px; border-radius: 3px; padding: 4px 9px;
+}
+.tm-d-tag.tm-clickable { cursor: pointer; }
+.tm-d-tag.tm-clickable:hover { background: #101019; }
+.tm-d-facts { margin: 0; padding-left: 16px; }
+.tm-d-facts li { font-size: 11px; color: #a0a0b8; line-height: 1.5; margin-bottom: 5px; }
+
+@media (max-width: 720px) {
+    .tm-d-grid { grid-template-columns: 1fr; }
+    .tm-d-title { font-size: 18px; }
+}
+
 /* ═══ GRID ═══
    12-column grid. Per-panel grid-column/grid-row spans are emitted inline by terminal.js
    (see PANELS[].cols/rows). Row height scales with viewport via minmax so the grid fills

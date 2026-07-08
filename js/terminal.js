@@ -414,6 +414,7 @@ const Terminal = {
                 <div class="tm-cmd-dropdown" id="tm-cmd-dropdown" style="display:none"></div>
             </div>
             <div class="tm-grid">${panelsHtml}</div>
+            <div id="tm-detail" class="tm-detail" style="display:none"></div>
             <div class="tm-footer">
                 <span class="tm-foot-chunk"><kbd>D</kbd> toggle city / terminal</span>
                 <span class="tm-foot-chunk tm-foot-mid">PHASE 4 · 13 panels · charts live · sim running behind shell</span>
@@ -731,6 +732,13 @@ const Terminal = {
                 this._renderKardashev();
                 break;
             }
+            case 'open': {
+                const sep = arg.indexOf(':');
+                if (sep < 0) break;
+                this.openEntity({ kind: arg.slice(0, sep), id: arg.slice(sep + 1) });
+                break;
+            }
+            case 'closedetail': { this.closeEntity(); break; }
             // labs-row, align, event: extensibility hooks — reserved but not routed yet
             default: break;
         }
@@ -939,6 +947,7 @@ const Terminal = {
                 if (!this.isOpen) return;
                 if (e.ctrlKey || e.metaKey || e.altKey) return;
                 const tag = (e.target && e.target.tagName) || '';
+                if (e.key === 'Escape' && this._detail) { e.preventDefault(); this.closeEntity(); return; }
                 if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
                 if (e.key === '/' || e.key === ':') { e.preventDefault(); const el = document.getElementById('tm-cmd-input'); if (el) el.focus(); }
             });
@@ -1002,18 +1011,325 @@ const Terminal = {
         }
     },
 
-    // Open an entity. Full drill-down takeover is added in the entity-pages build; until then
-    // this routes to the most relevant panel with a focus/flash so the command line is useful now.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // DRILL-DOWN ENTITY PAGES — full-shell takeover for a lab / model / country / power source.
+    // Reached from the command line and from clicking a lab row. Esc backs out.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    _detail: null,
+
     openEntity(ref) {
-        if (!ref) return;
-        if (ref.kind === 'country') {
-            this._filter.embassy = ref.id; this._sigCache.embassy = null; this._renderEmbassy();
-            this._gotoPanel('embassy', { flash: true });
-        } else if (ref.kind === 'source') {
-            this._gotoPanel('power', { flash: true });
-        } else if (ref.kind === 'model' || ref.kind === 'lab') {
-            this._gotoPanel('labs', { flash: true });
+        if (!ref || !ref.kind) return;
+        let html = null;
+        try {
+            if (ref.kind === 'lab') html = this._detailLab(ref.id);
+            else if (ref.kind === 'model') html = this._detailModel(ref.id);
+            else if (ref.kind === 'country') html = this._detailCountry(ref.id);
+            else if (ref.kind === 'source') html = this._detailSource(ref.id);
+        } catch (e) { html = null; }
+        const host = document.getElementById('tm-detail');
+        if (!host) return;
+        if (!html) {   // couldn't build a page — fall back to navigate-and-flash
+            if (ref.kind === 'source') this._gotoPanel('power', { flash: true });
+            else if (ref.kind === 'country') { this._filter.embassy = ref.id; this._sigCache.embassy = null; this._renderEmbassy(); this._gotoPanel('embassy', { flash: true }); }
+            else this._gotoPanel('labs', { flash: true });
+            return;
         }
+        this._detail = ref;
+        host.innerHTML = html;
+        host.style.display = 'block';
+        host.scrollTop = 0;
+    },
+
+    closeEntity() {
+        this._detail = null;
+        const host = document.getElementById('tm-detail');
+        if (host) { host.style.display = 'none'; host.innerHTML = ''; }
+    },
+
+    _num(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; },
+    _yearsSince(d) {
+        if (!d) return null;
+        const t = Date.parse(d); if (isNaN(t)) return null;
+        return (Date.now() - t) / (365.25 * 86400000);
+    },
+
+    // Match a free-text term against the live news + HN wires.
+    _newsMentions(term, max = 6) {
+        const t = String(term || '').toLowerCase().trim();
+        if (t.length < 2) return [];
+        const out = [], seen = new Set();
+        const push = (title, url, src) => {
+            if (!title) return;
+            const tl = title.toLowerCase();
+            if (!tl.includes(t) || seen.has(tl)) return;
+            seen.add(tl); out.push({ title, url, src });
+        };
+        if (typeof HNBlimps !== 'undefined' && Array.isArray(HNBlimps._stories)) HNBlimps._stories.forEach(s => s && push(s.title, s.url, 'HN'));
+        if (typeof API !== 'undefined' && Array.isArray(API.liveNews)) API.liveNews.forEach(n => n && push(n.headline || n.title, n.url, n.source || 'NEWS'));
+        return out.slice(0, max);
+    },
+
+    _dChrome(o) {
+        const esc = (s) => this._esc(s);
+        const chips = (o.chips || []).filter(Boolean).map(c =>
+            `<span class="tm-d-chip"${c.action ? ` data-action="${esc(c.action)}"` : ''}${c.tip ? ` data-tip="${this._tipAttr(c.tip)}"` : ''}>` +
+            `<span class="tm-d-chip-k">${esc(c.k)}</span><span class="tm-d-chip-v"${c.color ? ` style="color:${esc(c.color)}"` : ''}>${c.v == null ? '—' : c.v}</span></span>`
+        ).join('');
+        return `
+            <div class="tm-d-wrap">
+                <div class="tm-d-head">
+                    <button class="tm-d-back" data-action="closedetail" data-tip="${this._tipAttr('Back to dashboard · esc')}">&larr; BACK</button>
+                    <span class="tm-cmd-type tm-cmd-type-${esc(o.type)}">${esc(o.typeLabel || o.type)}</span>
+                    <span class="tm-d-dot" style="background:${esc(o.color || '#8a8aa0')}"></span>
+                    <span class="tm-d-title" style="color:${esc(o.color || '#e8e8f0')}">${esc(o.title)}</span>
+                    ${o.crown ? '<span class="tm-apex" data-tip="' + this._tipAttr('<b>Apex lab</b><br/>Holds a benchmark crown') + '">♕</span>' : ''}
+                    ${o.sub ? `<span class="tm-d-sub">${esc(o.sub)}</span>` : ''}
+                </div>
+                ${chips ? `<div class="tm-d-chips">${chips}</div>` : ''}
+                <div class="tm-d-body">${o.body}</div>
+            </div>`;
+    },
+
+    _dSection(title, inner, span) {
+        return `<div class="tm-d-sec${span ? ' tm-d-sec-span' : ''}"><div class="tm-d-sec-h">${this._esc(title)}</div><div class="tm-d-sec-b">${inner}</div></div>`;
+    },
+
+    _dNews(term) {
+        const news = this._newsMentions(term, 6);
+        if (!news.length) return `<div class="tm-empty">No recent mentions on the wire</div>`;
+        const esc = (s) => this._esc(s);
+        return news.map(n => {
+            const url = n.url ? ` href="${esc(n.url)}" target="_blank" rel="noopener"` : '';
+            const src = String(n.src).toUpperCase().replace(/\s+/g, '');
+            return `<div class="tm-d-news-item"><span class="tm-news-source ${n.src === 'HN' ? 'tm-tag-hn' : 'tm-tag-news'}">${esc(src)}</span><a class="tm-news-title"${url}>${esc(n.title)}</a></div>`;
+        }).join('');
+    },
+
+    _benchRadar(bm) {
+        const g = (k) => this._num(bm && bm[k]);
+        const axes = [
+            { label: 'MMLU', v: g('MMLU') }, { label: 'GPQA', v: g('GPQA') }, { label: 'MATH', v: g('MATH') },
+            { label: 'CODE', v: g('HumanEval') != null ? g('HumanEval') : g('HUMANEVAL') }, { label: 'ARC', v: g('ARC') }
+        ].filter(a => a.v != null);
+        if (axes.length < 3) return '';
+        return this._svgRadar(axes.map(a => ({ label: a.label, value: a.v / 100 })), { size: 168, pad: 26 });
+    },
+
+    _detailLab(id) {
+        const lab = (typeof LABS !== 'undefined') ? LABS[id] : null;
+        if (!lab) return null;
+        const esc = (s) => this._esc(s);
+        const color = lab.color || '#8a8aa0';
+        const BM_ = (typeof BM !== 'undefined') ? BM : {};
+        const models = (typeof G !== 'undefined' && Array.isArray(G.models)) ? G.models.filter(m => m.lab === id) : [];
+        let topElo = null, flagship = null, scoreSum = 0, scoreN = 0;
+        const rows = models.map(m => {
+            const b = BM_[m.id] || {};
+            const vals = [b.MMLU, b.HumanEval || b.HUMANEVAL, b.MATH, b.GPQA].map(v => this._num(v)).filter(v => v != null);
+            const avg = vals.length ? vals.reduce((a, x) => a + x, 0) / vals.length : null;
+            if (avg != null) { scoreSum += avg; scoreN++; }
+            const elo = this._num(b.ELO);
+            if (elo != null && (topElo == null || elo > topElo)) { topElo = elo; }
+            return { m, elo, avg, phase: m.phase, rel: m.rel };
+        }).sort((a, b) => (b.avg || 0) - (a.avg || 0) || (b.elo || 0) - (a.elo || 0));
+        flagship = rows.length ? rows[0].m : null;   // best by benchmark avg (ELO is sparse/stale)
+        const avgScore = scoreN ? scoreSum / scoreN : null;
+        const region = (lab.region || '?').toUpperCase();
+        const regionName = { US: 'United States', EU: 'Europe', CN: 'China', UK: 'United Kingdom', IN: 'India', AE: 'UAE' }[region] || region;
+        const hq = (typeof G !== 'undefined' && G.bldById) ? G.bldById['bld_' + id] : null;
+        const apex = !!(hq && hq.isTopLab);
+
+        let hqMW = 0; const hqDCs = [];
+        if (typeof DC_FACILITIES !== 'undefined' && Array.isArray(DC_FACILITIES)) {
+            DC_FACILITIES.forEach(d => { if (d && d.status === 'operational' && String(d.operator).toLowerCase() === id) { hqMW += d.power_mw || 0; hqDCs.push(d); } });
+        }
+
+        const rosterRows = rows.map((r, i) => {
+            const pct = r.avg != null ? Math.max(2, Math.min(100, r.avg)) : 0;
+            return `
+                <tr class="tm-clickable" data-action="open:model:${esc(r.m.id)}" data-tip="${this._tipAttr('<b>' + esc(r.m.name || r.m.id) + '</b><br/>Click for full model page')}">
+                    <td class="tm-rank">${i + 1}</td>
+                    <td class="tm-lab-name">${esc(r.m.name || r.m.id)}</td>
+                    <td class="tm-flagship">${esc(r.phase || '—')}</td>
+                    <td class="tm-num">${r.avg != null ? r.avg.toFixed(0) : '—'}</td>
+                    <td><div class="tm-d-bar"><div class="tm-d-bar-fill" style="width:${pct}%;background:${color}"></div></div></td>
+                    <td class="tm-num tm-elo">${r.elo != null ? Math.round(r.elo) : '—'}</td>
+                </tr>`;
+        }).join('') || '<tr><td colspan="6" class="tm-empty">No models tracked</td></tr>';
+
+        const radar = flagship ? this._benchRadar(BM_[flagship.id]) : '';
+        const computeBody = hqDCs.length
+            ? `<div class="tm-d-kv"><span>Operational MW</span><b>${hqMW >= 1000 ? (hqMW / 1000).toFixed(1) + ' GW' : hqMW + ' MW'}</b></div>` +
+              hqDCs.slice(0, 6).map(d => `<div class="tm-d-kv"><span>${esc(d.name)}</span><b>${d.power_mw || 0} MW</b></div>`).join('')
+            : '<div class="tm-empty">No dedicated facilities tracked</div>';
+
+        const body = `
+            <div class="tm-d-grid">
+                ${this._dSection('Flagship profile', `
+                    <div class="tm-d-flag">
+                        ${radar || '<div class="tm-empty">No benchmark data</div>'}
+                        <div class="tm-d-flag-meta">
+                            <div class="tm-d-flag-name" style="color:${color}">${esc(flagship ? (flagship.name || flagship.id) : '—')}</div>
+                            <div class="tm-d-kv"><span>Top ELO</span><b style="color:#22d3ee">${topElo != null ? Math.round(topElo) : '—'}</b></div>
+                            <div class="tm-d-kv"><span>Avg score</span><b>${avgScore != null ? avgScore.toFixed(1) : '—'}</b></div>
+                            <div class="tm-d-kv"><span>Models</span><b>${models.length}</b></div>
+                        </div>
+                    </div>`)}
+                ${this._dSection('Compute footprint', computeBody)}
+                ${this._dSection('Model roster', `
+                    <div class="tm-scroll tm-d-roster">
+                        <table class="tm-table"><thead><tr>
+                            <th class="tm-rank">#</th><th>MODEL</th><th>PHASE</th><th class="tm-num">AVG</th><th>SCORE</th><th class="tm-num">ELO</th>
+                        </tr></thead><tbody>${rosterRows}</tbody></table>
+                    </div>`, true)}
+                ${this._dSection('On the wire', this._dNews(lab.name || id), true)}
+            </div>`;
+
+        return this._dChrome({
+            body,
+            type: 'lab', typeLabel: 'LAB', title: lab.name || id, color, crown: apex,
+            sub: lab.desc || '',
+            chips: [
+                { k: 'REGION', v: esc(regionName) },
+                { k: 'MODELS', v: models.length },
+                { k: 'AVG', v: avgScore != null ? avgScore.toFixed(0) : '—' },
+                { k: 'TOP ELO', v: topElo != null ? Math.round(topElo) : '—', color: '#22d3ee' },
+                hqMW ? { k: 'COMPUTE', v: (hqMW >= 1000 ? (hqMW / 1000).toFixed(1) + ' GW' : hqMW + ' MW') } : null
+            ]
+        });
+    },
+
+    _detailModel(id) {
+        if (typeof G === 'undefined' || !Array.isArray(G.models)) return null;
+        const m = G.models.find(x => x.id === id);
+        if (!m) return null;
+        const esc = (s) => this._esc(s);
+        const BM_ = (typeof BM !== 'undefined') ? BM : {};
+        const b = BM_[id] || {};
+        const lab = (typeof LABS !== 'undefined' && LABS[m.lab]) ? LABS[m.lab] : null;
+        const color = (lab && lab.color) || '#22d3ee';
+        const elo = this._num(b.ELO);
+        const age = this._yearsSince(m.rel);
+        const radar = this._benchRadar(b);
+
+        const benchKeys = [['MMLU', 'MMLU'], ['GPQA', 'GPQA'], ['MATH', 'MATH'], ['HumanEval', 'CODE'], ['ARC', 'ARC'], ['MGSM', 'MGSM']];
+        const benchBars = benchKeys.map(([k, lbl]) => {
+            const v = this._num(b[k] != null ? b[k] : b[k.toUpperCase()]);
+            if (v == null) return '';
+            return `<div class="tm-bar-row"><span class="tm-bar-lbl">${lbl}</span><div class="tm-bar-track"><div class="tm-bar-fill" style="width:${Math.max(2, Math.min(100, v))}%;background:${color}"></div></div><span class="tm-bar-val">${v}</span></div>`;
+        }).join('') || '<div class="tm-empty">No benchmark data</div>';
+
+        const body = `
+            <div class="tm-d-grid">
+                ${this._dSection('Benchmark radar', radar || '<div class="tm-empty">No benchmark data</div>')}
+                ${this._dSection('Scores', `<div class="tm-bars">${benchBars}</div>`)}
+                ${this._dSection('Vitals', `
+                    <div class="tm-d-kv"><span>Lab</span><b class="tm-clickable" data-action="open:lab:${esc(m.lab)}" style="color:${color}">${esc(lab ? lab.name : m.lab)} &rsaquo;</b></div>
+                    <div class="tm-d-kv"><span>Phase</span><b>${esc(m.phase || '—')}</b></div>
+                    <div class="tm-d-kv"><span>Released</span><b>${esc(m.rel || '—')}${age != null ? ` <span class="tm-dim">(${age < 1 ? Math.round(age * 12) + 'mo' : age.toFixed(1) + 'y'})</span>` : ''}</b></div>
+                    <div class="tm-d-kv"><span>Weights</span><b>${m.os ? 'Open' : 'Closed'}</b></div>
+                    <div class="tm-d-kv"><span>Context</span><b>${m.ctx ? (m.ctx >= 1000 ? (m.ctx / 1000) + 'K' : m.ctx) + ' tok' : '—'}</b></div>
+                    <div class="tm-d-kv"><span>Cost in / out</span><b>${m.cost_input != null ? '$' + m.cost_input : '—'} / ${m.cost_out != null ? '$' + m.cost_out : '—'}</b></div>
+                    <div class="tm-d-kv"><span>ELO</span><b style="color:#22d3ee">${elo != null ? Math.round(elo) : '—'}</b></div>`)}
+                ${this._dSection('On the wire', this._dNews(m.name || id), true)}
+            </div>`;
+
+        return this._dChrome({
+            body,
+            type: 'model', typeLabel: 'MDL', title: m.name || id, color,
+            sub: m.desc || (lab ? lab.name : ''),
+            chips: [
+                { k: 'LAB', v: esc(lab ? lab.name : m.lab), color, action: 'open:lab:' + esc(m.lab), tip: 'Open ' + esc(lab ? lab.name : m.lab) + ' →' },
+                { k: 'PHASE', v: esc(m.phase || '—') },
+                { k: 'ELO', v: elo != null ? Math.round(elo) : '—', color: '#22d3ee' },
+                { k: 'WEIGHTS', v: m.os ? 'Open' : 'Closed' }
+            ]
+        });
+    },
+
+    _detailCountry(id) {
+        const code = String(id || '').toUpperCase();
+        const names = { us: 'United States', cn: 'China', eu: 'Europe', uk: 'United Kingdom', in: 'India', ae: 'UAE' };
+        const esc = (s) => this._esc(s);
+        const emb = (typeof EmbassyRow !== 'undefined' && Array.isArray(EmbassyRow.BLDS))
+            ? EmbassyRow.BLDS.find(b => String(b.country).toLowerCase() === id) : null;
+        const accent = emb && typeof emb.accent === 'number' ? '#' + emb.accent.toString(16).padStart(6, '0') : '#60a5fa';
+
+        const rel = this.EMBASSY_RELATIONS;
+        const others = ['us', 'cn', 'eu', 'uk', 'in', 'ae'].filter(c => c !== id);
+        const getScore = (a, b) => (rel[a + '_' + b] != null ? rel[a + '_' + b] : rel[b + '_' + a] != null ? rel[b + '_' + a] : 50);
+        const relLabel = (s) => s >= 75 ? 'Aligned' : s >= 55 ? 'Neutral' : s >= 35 ? 'Tense' : 'Restricted';
+        const relColor = (s) => s >= 75 ? '#34d399' : s >= 55 ? '#fbbf24' : s >= 35 ? '#fb923c' : '#f87171';
+        const relRows = others.map(o => {
+            const s = getScore(id, o);
+            return `<div class="tm-d-kv"><span>${esc((names[o] || o))}</span><b style="color:${relColor(s)}">${s} · ${relLabel(s)}</b></div>`;
+        }).join('');
+
+        const labsHere = (typeof LABS !== 'undefined')
+            ? Object.keys(LABS).filter(k => String(LABS[k].region || '').toLowerCase() === id) : [];
+        const labChips = labsHere.length
+            ? labsHere.map(k => `<span class="tm-d-tag tm-clickable" data-action="open:lab:${esc(k)}" style="border-color:${esc(LABS[k].color || '#8a8aa0')}">${esc(LABS[k].name || k)}</span>`).join('')
+            : '<div class="tm-empty">No tracked labs HQ\'d here</div>';
+
+        const policy = emb ? `
+            ${emb.framework ? `<div class="tm-d-kv"><span>Framework</span><b>${esc(emb.framework)}</b></div>` : ''}
+            ${emb.regulator ? `<div class="tm-d-kv"><span>Regulator</span><b>${esc(emb.regulator)}</b></div>` : ''}
+            ${emb.stance ? `<div class="tm-d-kv"><span>Stance</span><b>${esc(emb.stance)}</b></div>` : ''}
+            ${emb.milestone ? `<div class="tm-d-note">${esc(emb.milestone)}</div>` : ''}
+            ${emb.desc ? `<div class="tm-d-note tm-dim">${esc(emb.desc)}</div>` : ''}` : '<div class="tm-empty">No policy brief</div>';
+
+        const body = `
+            <div class="tm-d-grid">
+                ${this._dSection('AI policy desk', policy)}
+                ${this._dSection('Bilateral relations', relRows || '<div class="tm-empty">—</div>')}
+                ${this._dSection('Labs headquartered here', `<div class="tm-d-tags">${labChips}</div>`, true)}
+            </div>`;
+
+        return this._dChrome({
+            body,
+            type: 'country', typeLabel: 'GOV', title: names[id] || code, color: accent,
+            sub: emb && emb.framework ? emb.framework : 'National AI desk',
+            chips: [
+                { k: 'CODE', v: code },
+                emb && emb.regulator ? { k: 'REGULATOR', v: esc(emb.regulator) } : null,
+                { k: 'LABS', v: labsHere.length }
+            ]
+        });
+    },
+
+    _detailSource(id) {
+        if (typeof PowerZone === 'undefined' || !Array.isArray(PowerZone.SOURCES)) return null;
+        const s = PowerZone.SOURCES.find(x => x.id === id || x.name === id);
+        if (!s) return null;
+        const esc = (x) => this._esc(x);
+        const totalSupply = (typeof PowerZone.getTotalSupply === 'function') ? PowerZone.getTotalSupply() : 0;
+        const share = totalSupply > 0 ? (s.mw / totalSupply * 100) : null;
+        const facts = Array.isArray(s.facts) ? s.facts : [];
+        const factList = facts.length ? `<ul class="tm-d-facts">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : '';
+
+        const body = `
+            <div class="tm-d-grid">
+                ${this._dSection('Output', `
+                    <div class="tm-d-kv"><span>Capacity</span><b>${s.mw >= 1000 ? (s.mw / 1000).toFixed(1) + ' GW' : s.mw + ' MW'}</b></div>
+                    <div class="tm-d-kv"><span>Grid share</span><b>${share != null ? share.toFixed(1) + '%' : '—'}</b></div>
+                    <div class="tm-d-kv"><span>Cost</span><b>${s.costMWh != null ? '$' + s.costMWh + '/MWh' : '—'}</b></div>
+                    <div class="tm-d-kv"><span>Status</span><b style="color:#34d399">${esc(s.online || 'Operational')}</b></div>
+                    <div class="tm-d-kv"><span>Offtaker</span><b>${esc(s.offtaker || '—')}</b></div>`)}
+                ${this._dSection('Profile', `<div class="tm-d-note">${esc(s.desc || '')}</div>${s.milestone ? `<div class="tm-d-note tm-dim">${esc(s.milestone)}</div>` : ''}`)}
+                ${factList ? this._dSection('Field notes', factList, true) : ''}
+            </div>`;
+
+        return this._dChrome({
+            body,
+            type: 'source', typeLabel: 'PWR', title: s.name || id, color: '#facc15',
+            sub: (s.type || 'power') + ' source',
+            chips: [
+                { k: 'CAPACITY', v: s.mw >= 1000 ? (s.mw / 1000).toFixed(1) + ' GW' : s.mw + ' MW' },
+                share != null ? { k: 'GRID SHARE', v: share.toFixed(1) + '%' } : null,
+                { k: 'COST', v: s.costMWh != null ? '$' + s.costMWh : '—' }
+            ]
+        });
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
@@ -1239,7 +1555,7 @@ const Terminal = {
                 `<div class="tm-tip-body">Click to filter labs by <b>${esc(regionLbl)}</b></div>`
             );
             return `
-                <tr data-tip="${rowTip}">
+                <tr class="tm-clickable" data-action="open:lab:${esc(r.id)}" data-tip="${rowTip}">
                     <td class="tm-rank">${i + 1}</td>
                     <td class="tm-lab-name">
                         <span class="tm-lab-dot" style="background:${r.color}"></span>
