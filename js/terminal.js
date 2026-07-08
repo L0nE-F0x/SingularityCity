@@ -91,6 +91,153 @@ const Terminal = {
     },
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // PERSISTED HISTORY — the Terminal's memory.
+    // The 16s ring buffers above are for live motion. This layer persists a coarse series per
+    // metric to localStorage so charts span the whole session AND prior sessions, and we can show
+    // real deltas (Δ vs 24h) and all-time highs. A daily Supabase snapshot (netlify/functions/
+    // snapshot-metrics.mjs) feeds authoritative global points on top of this when available.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    _LH_KEY: 'sc_term_hist_v1',
+    _LH_MAX: 720,          // points retained per metric
+    _LH_MINGAP: 8000,      // ms between persisted samples per metric
+    _longHist: null,
+    _lhLast: {},           // metric → last-sample wall time
+    _lhDirty: false,
+    _lhLastSave: 0,
+
+    _lhLoad() {
+        if (this._longHist) return this._longHist;
+        let obj = {};
+        try { obj = JSON.parse(localStorage.getItem(this._LH_KEY)) || {}; } catch (e) { obj = {}; }
+        this._longHist = (obj && typeof obj === 'object') ? obj : {};
+        return this._longHist;
+    },
+
+    _lhSample(metric, v) {
+        if (typeof v !== 'number' || !isFinite(v)) return;
+        const now = Date.now();
+        if (this._lhLast[metric] && now - this._lhLast[metric] < this._LH_MINGAP) return;
+        this._lhLast[metric] = now;
+        const lh = this._lhLoad();
+        const arr = lh[metric] || (lh[metric] = []);
+        // Skip a duplicate value at the tail unless >5min passed (keeps flat series compact).
+        const tail = arr[arr.length - 1];
+        if (tail && tail.v === v && now - tail.t < 300000) { tail.t = now; this._lhDirty = true; return; }
+        arr.push({ t: now, v });
+        if (arr.length > this._LH_MAX) arr.shift();
+        this._lhDirty = true;
+    },
+
+    _lhSave() {
+        if (!this._lhDirty || !this._longHist) return;
+        try { localStorage.setItem(this._LH_KEY, JSON.stringify(this._longHist)); this._lhDirty = false; } catch (e) {}
+    },
+
+    _lhSeries(metric) { return (this._lhLoad()[metric] || []).map(p => p.v); },
+
+    _lhStat(metric) {
+        const arr = this._lhLoad()[metric] || [];
+        if (!arr.length) return null;
+        const first = arr[0], last = arr[arr.length - 1];
+        let max = -Infinity, min = Infinity;
+        for (const p of arr) { if (p.v > max) max = p.v; if (p.v < min) min = p.v; }
+        const dayAgo = last.t - 86400000;
+        let ref = first;
+        for (const p of arr) { if (p.t <= dayAgo) ref = p; else break; }
+        return { first: first.v, last: last.v, min, max, ath: max, atl: min, delta: last.v - ref.v, n: arr.length, spanMs: last.t - first.t };
+    },
+
+    // Human span label, e.g. "45s" / "12m" / "3h" / "2d".
+    _lhSpan(metric) {
+        const arr = this._lhLoad()[metric] || [];
+        if (arr.length < 2) return '';
+        const s = (arr[arr.length - 1].t - arr[0].t) / 1000;
+        if (s < 90) return Math.round(s) + 's';
+        if (s < 5400) return Math.round(s / 60) + 'm';
+        if (s < 172800) return Math.round(s / 3600) + 'h';
+        return Math.round(s / 86400) + 'd';
+    },
+
+    // Colored ▲/▼ delta chip from a metric's persisted series.
+    _deltaChip(metric, opts = {}) {
+        const st = this._lhStat(metric);
+        if (!st || st.n < 3) return '';
+        const d = st.delta;
+        if (!isFinite(d)) return '';
+        const up = d > 0, flat = d === 0;
+        const cls = flat ? 'tm-delta-flat' : up ? 'tm-delta-up' : 'tm-delta-down';
+        let txt;
+        if (opts.pct) {
+            const base = st.last - d;
+            txt = (up ? '+' : '') + (base ? (d / Math.abs(base) * 100) : 0).toFixed(1) + '%';
+        } else {
+            const f = opts.fmt || ((v) => String(Math.round(v)));
+            txt = (up ? '+' : '') + f(d);
+        }
+        return `<span class="tm-delta ${cls}">${flat ? '±' : up ? '▲' : '▼'} ${txt}</span>`;
+    },
+
+    // Sample the real-industry metrics into the persisted series (called from the 4Hz loop).
+    _captureLongHistory() {
+        try {
+            if (typeof G !== 'undefined' && Array.isArray(G.models)) {
+                this._lhSample('models', G.models.length);
+                const BM_ = (typeof BM !== 'undefined') ? BM : {};
+                let topElo = 0, bench = 0;
+                for (const m of G.models) {
+                    const b = BM_[m.id]; if (!b) continue;
+                    if (typeof b.ELO === 'number' && b.ELO > topElo) topElo = b.ELO;
+                    const vals = [b.MMLU, b.HumanEval, b.MATH, b.GPQA].filter(v => typeof v === 'number');
+                    if (vals.length) { const a = vals.reduce((s, x) => s + x, 0) / vals.length; if (a > bench) bench = a; }
+                }
+                if (topElo > 0) this._lhSample('topElo', topElo);
+                if (bench > 0) this._lhSample('benchCeiling', bench);
+            }
+            if (typeof NPCHousing !== 'undefined' && Array.isArray(NPCHousing.REGISTRY))
+                this._lhSample('citizens', NPCHousing.REGISTRY.length);
+            if (typeof Kardashev !== 'undefined' && typeof Kardashev.score === 'number')
+                this._lhSample('kscore', Kardashev.score);
+            if (typeof DC_FACILITIES !== 'undefined' && Array.isArray(DC_FACILITIES)) {
+                const mw = DC_FACILITIES.filter(d => d && d.status === 'operational' && d.type !== 'chipfab')
+                    .reduce((s, d) => s + (d.power_mw || 0), 0);
+                this._lhSample('computeMW', mw);
+            }
+            const now = Date.now();
+            if (now - this._lhLastSave > 20000) { this._lhSave(); this._lhLastSave = now; }
+        } catch (e) {}
+    },
+
+    // Merge the always-on daily cloud snapshot (sc_metrics_history) on top of local samples.
+    // Stored under cloud_* keys so the daily cadence never mixes with fine per-session points;
+    // drill-down charts prefer these authoritative daily series. Silent no-op if the table
+    // hasn't been provisioned yet (sc_metrics_history_schema.sql).
+    _lhCloudFetched: false,
+    _lhFetchCloud() {
+        try {
+            if (this._lhCloudFetched) return;
+            if (typeof API === 'undefined' || !API.supabase) return;
+            this._lhCloudFetched = true;
+            API.supabase.from('sc_metrics_history').select('*').order('day', { ascending: true })
+                .then(({ data, error }) => {
+                    if (error || !Array.isArray(data) || !data.length) return;
+                    const lh = this._lhLoad();
+                    const map = { models: 'models', active_models: 'active_models', labs: 'labs', top_elo: 'topElo', bench_ceiling: 'benchCeiling' };
+                    for (const col in map) {
+                        const arr = [];
+                        for (const row of data) {
+                            const v = row[col];
+                            if (typeof v === 'number' && isFinite(v)) arr.push({ t: new Date(row.day + 'T12:00:00Z').getTime(), v });
+                        }
+                        if (arr.length) lh['cloud_' + map[col]] = arr;
+                    }
+                    this._lhDirty = true; this._lhSave();
+                })
+                .catch(() => {});
+        } catch (e) {}
+    },
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
     // INIT + LIFECYCLE
     // ═══════════════════════════════════════════════════════════════════════════════════════════
 
@@ -128,6 +275,9 @@ const Terminal = {
         // Defensive: clear any stale preference key from the pre-Phase-4 version.
         try { localStorage.removeItem('sc_terminal_pref'); } catch (e) {}
 
+        // Flush the persisted history series when the tab closes.
+        window.addEventListener('beforeunload', () => this._lhSave());
+
         // No auto-bootstrap. Terminal opens only when the user clicks the landing
         // button or presses D after entering the city.
     },
@@ -146,6 +296,7 @@ const Terminal = {
         this._buildShell();
         this._startUpdateLoop();
         this._pauseCityRender();   // stop drawing the pixel-art city nobody's looking at
+        this._lhFetchCloud();      // pull the always-on daily snapshot, if provisioned
         // Mute SFX & ambient while in Terminal; soundtrack stays on.
         if (typeof SND !== 'undefined' && SND.setContextMute) SND.setContextMute(true);
         // NOTE: We no longer pin ?mode=terminal to the URL while Terminal is open.
@@ -160,6 +311,7 @@ const Terminal = {
         document.body.classList.remove('terminal-mode');
         this._hideTip();
         this._cmdClose();
+        this._lhSave();            // flush persisted history
         this._resumeCityRender();  // hand rendering back to the city
         if (typeof SND !== 'undefined' && SND.setContextMute) SND.setContextMute(false);
         // Defensive — strip ?mode=terminal if anything put it back.
@@ -733,7 +885,7 @@ const Terminal = {
         q = q.toLowerCase();
         if (t === q) return 1000;
         if (t.startsWith(q)) return 800 - (t.length - q.length);
-        if (t.split(/[\s_\-]/).some(w => w.startsWith(q))) return 600 - t.length;
+        if (t.split(/[\s_-]/).some(w => w.startsWith(q))) return 600 - t.length;
         const i = t.indexOf(q);
         if (i >= 0) return 400 - i - t.length * 0.1;
         let qi = 0;
@@ -873,6 +1025,7 @@ const Terminal = {
         const tick = () => {
             if (!this.isOpen) return;
             this._captureHistory();
+            this._captureLongHistory();
             this._refresh();
         };
         this._loopTimer = setInterval(tick, 250);
@@ -925,7 +1078,12 @@ const Terminal = {
                 else if (typeof Kardashev.level === 'number') kscale = Kardashev.level.toFixed(3);
             }
         } catch (e) {}
-        set('tm-kardashev', kscale);
+        const kEl = document.getElementById('tm-kardashev');
+        if (kEl) {
+            const chip = this._deltaChip('kscore', { pct: true });
+            const html = this._esc(kscale) + (chip ? ' ' + chip : '');
+            if (kEl.innerHTML !== html) kEl.innerHTML = html;
+        }
 
         // City render is paused in Terminal; show the sim's step rate (Hz) instead of a dead
         // renderer FPS. Measured from the pump counter over a ~1s window.
@@ -1330,7 +1488,7 @@ const Terminal = {
         const hist = this._history.dc_total_mw;
         const lastMW = hist[hist.length - 1] || 0;
         const focusOp = this._filter.compute;
-        const sig = 'c:' + op.length + ':' + totalMW + ':' + fabs.length + ':' + construction + ':' + lastMW + ':' + (hist.length || 0) + ':' + (focusOp || '');
+        const sig = 'c:' + op.length + ':' + totalMW + ':' + fabs.length + ':' + construction + ':' + lastMW + ':' + (hist.length || 0) + ':' + (focusOp || '') + ':' + this._lhSeries('computeMW').length;
         if (this._sigCache.compute === sig) return;
         this._sigCache.compute = sig;
 
@@ -1343,11 +1501,11 @@ const Terminal = {
             ? { ...s, color: '#2a2a3a' }
             : s);
 
-        // Sparkline delta
-        const firstMW = hist[0] || 0;
-        const deltaMW = lastMW - firstMW;
-        const deltaTxt = (deltaMW >= 0 ? '+' : '') + Math.round(deltaMW) + ' MW (16s)';
-        const deltaCls = deltaMW > 0 ? 'tm-tip-good' : deltaMW < 0 ? 'tm-tip-bad' : 'tm-tip-muted';
+        // Persisted MW series (falls back to the live 16s buffer until history accrues)
+        const mwSeriesLong = this._lhSeries('computeMW');
+        const mwSeries = mwSeriesLong.length >= 8 ? mwSeriesLong : hist;
+        const mwStat = this._lhStat('computeMW');
+        const mwSpan = this._lhSpan('computeMW') || '16s';
 
         const heroTip = this._tipAttr(
             `<div class="tm-tip-hd">Compute capacity</div>` +
@@ -1361,9 +1519,11 @@ const Terminal = {
             `<div class="tm-tip-body">${segments.length} operators · click legend dot to focus</div>`
         );
         const sparkTip = this._tipAttr(
-            `<div class="tm-tip-hd">MW trend (16s)</div>` +
+            `<div class="tm-tip-hd">MW trend · ${mwSpan}</div>` +
             `<div class="tm-tip-row"><span class="tm-tip-k">Now</span><b>${fmtMW(lastMW)}</b></div>` +
-            `<div class="tm-tip-row"><span class="tm-tip-k">Δ</span><b class="${deltaCls}">${deltaTxt}</b></div>`
+            (mwStat ? `<div class="tm-tip-row"><span class="tm-tip-k">Δ ${mwSpan}</span><b class="${mwStat.delta >= 0 ? 'tm-tip-good' : 'tm-tip-bad'}">${(mwStat.delta >= 0 ? '+' : '') + Math.round(mwStat.delta)} MW</b></div>` +
+                      `<div class="tm-tip-row"><span class="tm-tip-k">Peak</span><b>${fmtMW(mwStat.ath)}</b></div>` : '') +
+            `<div class="tm-tip-foot">persisted across sessions</div>`
         );
 
         host.innerHTML = `
@@ -1400,8 +1560,8 @@ const Terminal = {
                     </div>
                 </div>
                 <div class="tm-col tm-col-spark" data-tip="${sparkTip}">
-                    <div class="tm-spark-lbl">MW TREND</div>
-                    ${this._svgSpark(hist, { w: 200, h: 54, color: '#22d3ee' })}
+                    <div class="tm-spark-lbl">MW TREND · ${mwSpan}</div>
+                    ${this._svgSpark(mwSeries, { w: 200, h: 54, color: '#22d3ee' })}
                 </div>
             </div>
         `;
@@ -2053,9 +2213,10 @@ const Terminal = {
 
         const esc = (s) => this._esc(s);
         const pillarNames = { compute: 'Compute', energy: 'Energy', cognition: 'Cognition', biology: 'Biology', space: 'Space', population: 'Population', alignment: 'Alignment' };
-        const kHist = this._history.kardashev_score;
-        const kFirst = kHist[0] || 0, kLast = kHist[kHist.length - 1] || 0, kDelta = kLast - kFirst;
-        const kDeltaCls = kDelta > 0 ? 'tm-tip-good' : kDelta < 0 ? 'tm-tip-bad' : 'tm-tip-muted';
+        const kSeriesLong = this._lhSeries('kscore');
+        const kSeries = kSeriesLong.length >= 8 ? kSeriesLong : this._history.kardashev_score;
+        const kStat = this._lhStat('kscore');
+        const kSpan = this._lhSpan('kscore') || '16s';
 
         const scoreTip = this._tipAttr(
             `<div class="tm-tip-hd">Kardashev scale</div>` +
@@ -2076,9 +2237,11 @@ const Terminal = {
             `<div class="tm-tip-row"><span class="tm-tip-k">To go</span><b class="tm-tip-warn">${(next.threshold - score).toFixed(3)}</b></div>`
         ) : this._tipAttr(`<div class="tm-tip-hd">Apex reached</div><div class="tm-tip-body">Type I Kardashev achieved. No further milestones tracked.</div>`);
         const sparkTip = this._tipAttr(
-            `<div class="tm-tip-hd">K-score trend (16s)</div>` +
+            `<div class="tm-tip-hd">K-score trend · ${kSpan}</div>` +
             `<div class="tm-tip-row"><span class="tm-tip-k">Now</span><b>${score.toFixed(4)}</b></div>` +
-            `<div class="tm-tip-row"><span class="tm-tip-k">Δ</span><b class="${kDeltaCls}">${(kDelta >= 0 ? '+' : '') + kDelta.toFixed(4)}</b></div>`
+            (kStat ? `<div class="tm-tip-row"><span class="tm-tip-k">Δ ${kSpan}</span><b class="${kStat.delta >= 0 ? 'tm-tip-good' : 'tm-tip-bad'}">${(kStat.delta >= 0 ? '+' : '') + kStat.delta.toFixed(4)}</b></div>` +
+                     `<div class="tm-tip-row"><span class="tm-tip-k">All-time high</span><b>${kStat.ath.toFixed(4)}</b></div>` : '') +
+            `<div class="tm-tip-foot">persisted across sessions</div>`
         );
         const radarTip = this._tipAttr(
             `<div class="tm-tip-hd">Pillar radar</div>` +
@@ -2099,8 +2262,8 @@ const Terminal = {
                     </div>
                     <div class="tm-k-next" data-tip="${nextTip}">${next ? `▲ NEXT: ${esc((next.obj && (next.obj.name || next.obj.id)) || 'milestone')} @ ${next.threshold.toFixed(3)}` : '⟡ APEX'}</div>
                     <div class="tm-k-spark" data-tip="${sparkTip}">
-                        <div class="tm-spark-lbl">K-SCORE TREND</div>
-                        ${this._svgSpark(this._history.kardashev_score, { w: 220, h: 32, color: '#fbbf24' })}
+                        <div class="tm-spark-lbl">K-SCORE TREND · ${kSpan} ${this._deltaChip('kscore', { pct: true })}</div>
+                        ${this._svgSpark(kSeries, { w: 220, h: 32, color: '#fbbf24' })}
                     </div>
                 </div>
                 <div class="tm-k-right">

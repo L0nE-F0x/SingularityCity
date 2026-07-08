@@ -170,6 +170,12 @@ body.terminal-mode #ai-index-hud {
 }
 .tm-panel-flash { animation: tm-panel-flash 1.5s ease-out; }
 
+/* Persisted-history delta chips (▲/▼ vs 24h / session) */
+.tm-delta { font-size: 9px; font-weight: 700; letter-spacing: 0.3px; padding: 0 2px; }
+.tm-delta-up   { color: #34d399; }
+.tm-delta-down { color: #f87171; }
+.tm-delta-flat { color: #6a6a80; }
+
 /* ═══ GRID ═══
    12-column grid. Per-panel grid-column/grid-row spans are emitted inline by terminal.js
    (see PANELS[].cols/rows). Row height scales with viewport via minmax so the grid fills
