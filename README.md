@@ -168,6 +168,15 @@ Drop a live view of Singularity City into any page with an iframe. The embed aut
 
 ### 🌌 3D Holomap · 🚇 Metro (4 lines) · 🏠 NPC Housing (44 NPCs) · 🍸 Neon Bar · 🏛️ Billionaire's Row · 🚀 Space Zone · 👻 AI Graveyard · 📊 12 Data Panels · 🔊 Audio · 🏆 21 Achievements · 🌐 The Backbone · 💰 VC Row
 
+### 🖥️ Terminal Mode — the Bloomberg of the AI industry
+Press **`D`** (or "Open the Terminal" on the landing page) for a data-only, pixel-art-free dashboard of the entire sim.
+- **Command line** — the `⟨GO⟩` bar. Press **`/`** and type a lab, model, country, power source, or a function (`OPENAI`, `LEAD`, `CN`, `POWER`, `TAPE`…). Fuzzy autocomplete, arrow-key nav, Enter to jump or drill in.
+- **Persisted memory** — charts remember. Metrics are sampled to `localStorage` across sessions (plus an always-on daily Supabase snapshot), so sparklines show real spans with Δ-vs-24h and all-time highs instead of a 16-second window.
+- **Drill-down pages** — click any lab / model / country / power source for a full "security master": benchmark radar, model roster, compute footprint, vitals, bilateral relations, wire mentions. Entities cross-link; **`esc`** backs out.
+- **The Tape** — one fused, color-coded wire (news + VC deals + launches + benchmark crownings + policy/bans) as a scrolling ticker and a feed panel.
+- **Watchlist + alerts** — pin entities with **☆ WATCH**; an engine diffs their state and fires in-terminal toasts (new flagship, ELO moves, retirements).
+- **Light by design** — opening the Terminal pauses the Pixi renderer (no city is drawn) and pumps the sim at ~10 Hz behind the shell, so the data view is cheaper than the city, not heavier.
+
 ---
 
 ## Performance
@@ -328,7 +337,7 @@ js/
   black_market.js       — Underground zone for jailbroken models (3-tier detection)
 
   # Sessions 17+ — terminal mode, civilisation scoring, world expansion
-  terminal.js           — Bloomberg-style data dashboard (D hotkey, 14 panels, charts)
+  terminal.js           — Bloomberg-style terminal: command line, drill-down pages, persisted charts, fused tape, watchlist/alerts (D hotkey)
   kardashev.js          — Kardashev-scale civilisation score (0.700 → 1.000 Type I)
   quests.js             — Quest log: 29 quests across 6 categories, derived from achievements
   hn_blimps.js          — HackerNews AI-story blimps drifting across the sky
