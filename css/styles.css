@@ -286,6 +286,21 @@ h1, h2, h3, p { margin: 0; }
 .sel-input, .sel-select { width: 100%; background: var(--cd); border: 1px solid var(--bd); color: #fff; padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; border-radius: 4px; transition: border-color 0.2s; margin-top: 6px; }
 .sel-input:focus, .sel-select:focus { outline: none; border-color: var(--ac); }
 
+/* ─── SETTINGS TOGGLE SWITCHES ─── */
+.sc-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--bd); }
+.sc-toggle-row:last-child { border-bottom: none; }
+.sc-toggle-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sc-toggle-name { font-size: 10px; color: var(--t1, #fff); }
+.sc-toggle-desc { font-size: 7px; color: var(--t3); line-height: 1.35; }
+.sc-switch { position: relative; flex: 0 0 auto; width: 34px; height: 18px; cursor: pointer; }
+.sc-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.sc-switch .sc-slider { position: absolute; inset: 0; background: var(--cd); border: 1px solid var(--bd); border-radius: 999px; transition: background 0.2s, border-color 0.2s; }
+.sc-switch .sc-slider::before { content: ''; position: absolute; width: 12px; height: 12px; left: 2px; top: 2px; background: var(--t3); border-radius: 50%; transition: transform 0.2s, background 0.2s; }
+.sc-switch input:checked + .sc-slider { background: color-mix(in srgb, var(--ac) 30%, transparent); border-color: var(--ac); }
+.sc-switch input:checked + .sc-slider::before { transform: translateX(16px); background: var(--ac); }
+.sc-switch input:focus-visible + .sc-slider { outline: 2px solid var(--ac); outline-offset: 2px; }
+.sc-settings-section-title { font-size: 10px; color: var(--ac); margin-bottom: 4px; font-weight: bold; letter-spacing: 0.5px; }
+
 /* ─── COMPONENT UI TABLES ─── */
 .bench-table { width: 100%; border-collapse: collapse; font-size: 10px; }
 .bench-table th { padding: 10px; border-bottom: 1px solid var(--bd); text-align: center; color: var(--t2); font-weight: normal; white-space: nowrap; }

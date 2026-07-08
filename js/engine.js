@@ -19,7 +19,21 @@ const G = {
     tick: 0, models: [],
     charRefs: {}, autoScanId: null, autoScanMin: 0,
     cars: [], nextCarTick: 200,
-    apiProvider: "google", modelId: "", authKey: "", finnhubKey: "", 
+    apiProvider: "google", modelId: "", authKey: "", finnhubKey: "",
+
+    // User experience preferences (persisted via sc_data.prefs). Each key is a
+    // simple toggle read at the point-of-use so a false value cleanly disables
+    // that behaviour. idleTourMin drives the auto-tour screensaver delay.
+    prefs: {
+        dailyBrief: true,     // auto-prompt for the Daily Briefing video
+        newsToasts: true,     // in-canvas share/alert toast on live news reactions
+        autoTour: true,       // idle screensaver camera tour
+        idleTourMin: 5,       // minutes of inactivity before the tour auto-starts
+        sfx: true,            // procedural sound effects & ambiance
+        music: true,          // background soundtrack
+        weather: true,        // dynamic weather (rain/fog) effects
+    },
+    pref(k) { return this.prefs ? this.prefs[k] : undefined; },
     
     supabaseUrl: "https://uojpqygjbxranpdvkwwz.supabase.co", 
     supabaseKey: "sb_publishable_ucIgRt4nL0kY_ZHbcz92nQ_8O0PzeNA",

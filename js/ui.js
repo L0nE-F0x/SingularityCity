@@ -1960,6 +1960,47 @@ const UI = {
         </div>`;
     },
   
+    // Renders a labelled on/off switch row for the settings panel.
+    _toggleRow(id, name, desc, checked) {
+      return `<div class="sc-toggle-row">
+        <div class="sc-toggle-text"><span class="sc-toggle-name">${name}</span><span class="sc-toggle-desc">${desc}</span></div>
+        <label class="sc-switch"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><span class="sc-slider"></span></label>
+      </div>`;
+    },
+
+    // The Notifications / Experience / Sound sections of the settings panel.
+    _settingsToggleSection() {
+      const p = (G.prefs) || {};
+      const sfxOn   = (typeof SND !== 'undefined') ? SND.enabled : (p.sfx !== false);
+      const musicOn = (typeof SND !== 'undefined') ? SND.musicEnabled : (p.music !== false);
+      const idle = p.idleTourMin || 5;
+      const idleOpt = (v, lbl) => `<option value="${v}" ${idle === v ? 'selected' : ''}>${lbl}</option>`;
+      return `
+        <div style="margin-top:20px; margin-bottom:14px; border-top:1px solid var(--bd); padding-top:20px">
+          <div class="sc-settings-section-title">NOTIFICATIONS</div>
+          ${this._toggleRow('prefDailyBrief', '📽 Daily Briefing prompt', 'Auto-offer a recap video of the previous day', p.dailyBrief !== false)}
+          ${this._toggleRow('prefNewsToasts', '🚨 Live news alerts', 'Pop a share card when the city reacts to real AI news', p.newsToasts !== false)}
+        </div>
+
+        <div style="margin-bottom:14px">
+          <div class="sc-settings-section-title">EXPERIENCE</div>
+          ${this._toggleRow('prefAutoTour', '🎥 Idle auto-tour', 'Cinematic screensaver after you go idle', p.autoTour !== false)}
+          <div class="sc-toggle-row">
+            <div class="sc-toggle-text"><span class="sc-toggle-name">⏱ Idle delay</span><span class="sc-toggle-desc">Inactivity before the tour begins</span></div>
+            <select id="prefIdleTourMin" class="sel-select" style="width:auto;margin:0;padding:6px 8px;font-size:10px">
+              ${idleOpt(1,'1 min')}${idleOpt(3,'3 min')}${idleOpt(5,'5 min')}${idleOpt(10,'10 min')}${idleOpt(20,'20 min')}
+            </select>
+          </div>
+          ${this._toggleRow('prefWeather', '🌦 Dynamic weather', 'Rain, fog, snow and seasonal effects', p.weather !== false)}
+        </div>
+
+        <div style="margin-bottom:14px">
+          <div class="sc-settings-section-title">SOUND</div>
+          ${this._toggleRow('prefSfx', '🔊 Sound effects', 'UI clicks and city ambiance', sfxOn)}
+          ${this._toggleRow('prefMusic', '🎵 Background music', 'The Singularity City soundtrack', musicOn)}
+        </div>`;
+    },
+
     showSettings() {
       document.getElementById('settingsOv').classList.add('open');
       document.getElementById('settingsPan').innerHTML = `<button class="ipanel-x" onclick="document.getElementById('settingsOv').classList.remove('open')">✕</button><div class="ov-title">⚙️ SETTINGS</div>
@@ -1983,6 +2024,8 @@ const UI = {
           <label class="ipanel-lbl">Finnhub API Key</label>
           <input type="password" id="finnhubKeyInput" value="${G.finnhubKey || ''}" placeholder="Finnhub Key (For live stock tickers)..." class="sel-input">
         </div>
+
+        ${this._settingsToggleSection()}
 
         <div style="display:flex;gap:8px;margin-top:20px"><button class="btn" style="flex:1;padding:10px;text-align:center" onclick="G.saveSettings()">💾 Save & Scan</button><button class="btn" style="padding:10px;border-color:#ef444466;color:#ef4444" onclick="if(confirm('Clear all?')){localStorage.removeItem('sc_data');location.reload()}">Reset</button><button class="btn" style="padding:10px" onclick="document.getElementById('settingsOv').classList.remove('open')">Close</button></div>`;
       this.updateModelDatalist();

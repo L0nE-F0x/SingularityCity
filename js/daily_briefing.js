@@ -732,6 +732,7 @@ window.DailyBriefing = (function() {
 
     function maybeShowPrompt() {
         if (typeof G === 'undefined' || !G.app) return;   // wait for boot
+        if (G.prefs && G.prefs.dailyBrief === false) return; // user disabled the auto-prompt
         if (STATE.promptEl) return;                        // already shown
         if (STATE.dismissedSession) return;                // user closed it this session
         const today = utcDateString();

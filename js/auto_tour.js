@@ -165,8 +165,13 @@ const AutoTour = {
             return;
         }
 
-        // Idle watchdog
-        if (now - this._lastInputAt >= this.IDLE_MS && this._canStart()) {
+        // Idle watchdog — user can disable the auto-start screensaver or change
+        // its delay in Settings. Manual start (T / toggle()) is unaffected.
+        if (typeof G !== 'undefined' && G.prefs && G.prefs.autoTour === false) return;
+        const idleMs = (typeof G !== 'undefined' && G.prefs && G.prefs.idleTourMin > 0)
+            ? G.prefs.idleTourMin * 60000
+            : this.IDLE_MS;
+        if (now - this._lastInputAt >= idleMs && this._canStart()) {
             this.start();
         }
     },

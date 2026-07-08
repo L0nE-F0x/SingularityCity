@@ -361,7 +361,9 @@ window.NewsReactivity = (function() {
             // in the server-side sc_events table so we don't write it locally
             // again. Share toast still fires so the user sees the alert.
             if (!STATE.skipPersistOnly) persistEvent(r);
-            showShareToast(r);
+            // The share/alert toast is user-toggleable; persistence still runs so
+            // the Daily Briefing history stays intact even when toasts are off.
+            if (!(typeof G !== 'undefined' && G.prefs && G.prefs.newsToasts === false)) showShareToast(r);
         }
     }
 

@@ -3672,6 +3672,18 @@ const Environment = {
 
     updateWeather() {
       if (G.tick <= this.nextWeatherTick) return;
+
+      // User can disable dynamic weather in Settings. Settle to clear via the
+      // normal fade-out path (queue 'clear' as pending) and stop rolling.
+      if (typeof G !== 'undefined' && G.prefs && G.prefs.weather === false) {
+          if (this.weather !== 'clear' && !this.weatherPending) {
+              this.weatherPending = 'clear';
+              this.weatherTargetIntensity = 0;
+          }
+          this.nextWeatherTick = G.tick + 2000;
+          return;
+      }
+
       this.season = this.getSeason();
 
       // If a fade-out is still in progress, don't queue a new one yet —

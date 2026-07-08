@@ -17,6 +17,7 @@ const Persistence = {
                 authKey: this.authKey,
                 finnhubKey: this.finnhubKey,
                 autoScanMin: this.autoScanMin,
+                prefs: this.prefs,
                 discovered: disc,
                 sound: typeof SND !== 'undefined' ? SND.enabled : true,
                 achievements: this.achievements,
@@ -37,6 +38,9 @@ const Persistence = {
             if (d.finnhubKey) this.finnhubKey = d.finnhubKey;
             if (d.sound !== undefined && typeof SND !== 'undefined') SND.enabled = d.sound;
             if (d.autoScanMin) this.autoScanMin = d.autoScanMin;
+            // Merge saved prefs over defaults so newly-added toggles keep their
+            // default when loading an older save.
+            if (d.prefs) this.prefs = Object.assign({}, this.prefs, d.prefs);
             if (d.achievements) this.achievements = d.achievements;
             if (d.camX !== undefined) this.savedCamX = d.camX;
             if (d.seasonalVisited && typeof Seasonal !== 'undefined') Seasonal._eventsVisited = d.seasonalVisited;
@@ -62,6 +66,28 @@ const Persistence = {
         this.authKey = document.getElementById('authKeyInput').value;
         this.finnhubKey = document.getElementById('finnhubKeyInput').value;
         this.autoScanMin = parseInt(document.getElementById('autoScanSel').value) || 0;
+
+        // Experience preference toggles. Helper reads a checkbox if present,
+        // otherwise leaves the existing value untouched.
+        const chk = (id, cur) => { const el = document.getElementById(id); return el ? el.checked : cur; };
+        this.prefs.dailyBrief = chk('prefDailyBrief', this.prefs.dailyBrief);
+        this.prefs.newsToasts = chk('prefNewsToasts', this.prefs.newsToasts);
+        this.prefs.autoTour   = chk('prefAutoTour',   this.prefs.autoTour);
+        this.prefs.weather    = chk('prefWeather',    this.prefs.weather);
+        const idleSel = document.getElementById('prefIdleTourMin');
+        if (idleSel) this.prefs.idleTourMin = parseInt(idleSel.value) || 5;
+
+        // Sound prefs mirror the SND layer's own persisted flags.
+        if (typeof SND !== 'undefined') {
+            const sfxEl = document.getElementById('prefSfx');
+            if (sfxEl) SND.enabled = sfxEl.checked;
+            const musicEl = document.getElementById('prefMusic');
+            if (musicEl && SND.musicEnabled !== musicEl.checked) SND.toggleMusic();
+            this.prefs.sfx = SND.enabled;
+            this.prefs.music = SND.musicEnabled;
+            if (typeof UI !== 'undefined' && UI.updateSoundBtn) UI.updateSoundBtn();
+        }
+
         this.save();
         this.startAutoScan();
         document.getElementById('settingsOv').classList.remove('open');
