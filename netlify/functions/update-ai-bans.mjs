@@ -31,6 +31,10 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const STALE_DAYS = 21;   // delete a bot row if its ban hasn't been seen in the news this long
 const MAX_ROWS = 60;     // sanity cap on rows written per run
 const NEWS_WINDOW = '45d';
+const COOLDOWN_DAYS = 21; // once a ban is lifted, suppress re-creating that model×country this long
+                          // (a lifted-ban headline and the old ban headline coexist in the news
+                          //  window; without a sticky tombstone the ban row flaps every run —
+                          //  see the grok:ID / Indonesia case that motivated this).
 
 // ─── CLASSIFIER ──────────────────────────────────────────────────────────────
 const BAN_RE = /\b(ban|bans|banned|banning|block|blocks|blocked|blocking|suspend|suspends|suspended|suspension|restrict|restricts|restricted|outlaw|outlawed|prohibit|prohibits|prohibited|bar|bars|barred|removed from|pull(?:s|ed)? from)\b/i;
@@ -45,6 +49,14 @@ const STATS_RE = /\b(most|least)\s+(frequently|commonly|widely|often|heavily)\b/
 const LIFT_RE = /\b(unban(?:s|ned)?|lift(?:s|ed|ing)?|reinstat(?:e|es|ed)|restor(?:e|es|ed)|overturn(?:s|ed)?|revers(?:e|es|ed)|back online|resum(?:e|es|ed)|ban (?:ends|ended|expires|expired))\b/i;
 // Tentative / negated lifts keep the ban standing: "court rejects appeal to lift…", "may overturn…".
 const LIFT_NEG_RE = /\b(reject(?:s|ed)?|declin(?:e|es|ed)|refus(?:e|es|ed)|den(?:y|ies|ied)|won'?t|will not|\bnot\b|no plans|fails? to|urg(?:e|es|ed)|call(?:s|ed)? (?:on|for)|may|might|could|consider(?:s|ing)?|seek(?:s|ing)?|petition)\b/i;
+// A service OUTAGE / infra recovery ("back online after outage", "service restored", Cloudflare,
+// DDoS) is not a government ban lift — it must never release a jailed model.
+const OUTAGE_RE = /\b(outage|outages|downtime|down\s*time|degraded|ddos|server error|cloudflare|service (?:disruption|interruption|restored after))\b/i;
+// An UNSCOPED lift only counts as a *global* release with an explicit worldwide / export-directive
+// signal (the real Fable export-ban pattern). Without this gate, a lift in a jurisdiction we don't
+// map ("Philippines lifts ban on Grok") collapses to code=null and wrongly purges EVERY country's
+// ban for that model — including independent court orders in Turkey / Malaysia.
+const GLOBAL_LIFT_RE = /\b(worldwide|globally|export\s+(?:ban|bans|control|controls|restriction|restrictions|directive|directives|order|orders|curb|curbs))\b/i;
 
 // model token → row target (a lab id to jail wholesale, or a name regex)
 // `origin` = the model's home country. A model is never detained in its own home country
@@ -113,10 +125,21 @@ function classifyRelease(title) {
     const low = (title || '').toLowerCase();
     if (!LIFT_RE.test(low)) return null;
     if (LIFT_NEG_RE.test(low)) return null;         // tentative / rejected lift — ban stands
+    if (OUTAGE_RE.test(low)) return null;           // service outage recovery ≠ government ban lift
     const matcher = MODEL_MATCHERS.find(m => m.re.test(low));
     if (!matcher) return null;
     const c = COUNTRIES.find(cn => cn.code !== matcher.origin && cn.re.test(low));
-    return { matcher, code: c ? c.code : null };
+    if (c) return { matcher, code: c.code };         // scoped lift for a recognised jurisdiction
+    // No recognised country → only a worldwide / export-directive signal may release everywhere.
+    // Otherwise skip: a lift in an unmapped country must NOT purge other countries' bans.
+    if (GLOBAL_LIFT_RE.test(low)) return { matcher, code: null };
+    return null;
+}
+
+// "news:<model>:<code>" → { model, code }  (null for any other shape). code is an ISO-2 / EU / GLOBAL.
+function parseBanKey(k) {
+    const m = /^news:([a-z0-9]+):([A-Z]+)$/.exec(k || '');
+    return m ? { model: m[1], code: m[2] } : null;
 }
 
 // ─── NEWS SOURCE (Google News RSS — server-side, no CORS, no key) ─────────────
@@ -124,6 +147,10 @@ const QUERIES = [
     '(DeepSeek OR Grok OR Gemini OR ChatGPT OR Claude OR Llama OR Qwen OR Mistral) (banned OR blocked OR suspended OR restricted OR prohibited) (government OR court OR regulator OR ministry OR watchdog)',
     'AI chatbot banned government court country',
     'AI model suspended regulator data privacy',
+    // Release-focused query: ban and lift headlines coexist in the news window, but the ban queries
+    // above only surface lift stories incidentally. Pulling lifts explicitly makes release detection
+    // reliable every run (so a lifted ban doesn't flap back in on runs that miss the lift headline).
+    '(DeepSeek OR Grok OR Gemini OR ChatGPT OR Claude OR Llama OR Qwen OR Mistral) ("lifts ban" OR "lifted ban" OR unbanned OR reinstated OR restored OR "back online" OR "lets * resume" OR "stops blocking")',
 ];
 
 async function fetchText(url, timeoutMs = 10000) {
@@ -212,8 +239,9 @@ async function upsertBans(rows) {
 }
 
 async function deleteStaleBans(cutoffISO) {
-    // Delete only bot-owned rows whose ban hasn't been re-seen since the cutoff.
-    const res = await sbFetch(`ai_bans?managed_by=eq.news_bot&last_seen=lt.${encodeURIComponent(cutoffISO)}`, {
+    // Delete only bot-owned ACTIVE bans not re-seen since the cutoff. Inactive rows are cooldown
+    // tombstones — they're aged out by deleteExpiredTombstones() on their own `until`, not here.
+    const res = await sbFetch(`ai_bans?managed_by=eq.news_bot&active=eq.true&last_seen=lt.${encodeURIComponent(cutoffISO)}`, {
         method: 'DELETE',
         headers: { Prefer: 'return=representation' },
     });
@@ -240,30 +268,102 @@ async function purgeKeys(keys) {
     return { purged: Array.isArray(gone) ? gone.length : 0 };
 }
 
-// Purge bot rows for detected releases: a country-scoped lift removes that one key,
-// an unscoped/origin lift removes every jurisdiction for that model (like-match on the key).
-async function purgeReleased(releases) {
+// Turn detected releases into durable state:
+//   • SCOPED lift (a specific country) → UPSERT a cooldown TOMBSTONE under the same ban_key
+//     (active=false, until=now+COOLDOWN_DAYS). Because on_conflict=ban_key merges, this instantly
+//     replaces any active ban row for that key, AND — since buildRows consults live tombstones
+//     (fetchActiveTombstones) — it suppresses re-creation from stale ban headlines for the whole
+//     cooldown, even on runs that miss the lift headline. This is what stops the flap.
+//   • UNSCOPED lift (worldwide / export directive, code=null) → delete every jurisdiction row for
+//     the model AND drop a GLOBAL cooldown tombstone, so a lingering worldwide-ban headline can't
+//     re-create it next run (the original Fable export-ban flap).
+// The client (js/jail.js fetchRemoteBans) already skips active===false rows, so tombstones never jail.
+async function applyReleases(releases, nowISO) {
+    const untilISO = new Date(Date.now() + COOLDOWN_DAYS * 86400000).toISOString();
+    const tombs = [];
     let purged = 0;
     for (const r of releases) {
-        const filter = r.code
-            ? `ban_key=eq.news:${r.matcher.id}:${r.code}`
-            : `ban_key=like.news:${r.matcher.id}:*`;
-        const res = await sbFetch(`ai_bans?managed_by=eq.news_bot&${filter}`, {
-            method: 'DELETE',
-            headers: { Prefer: 'return=representation' },
-        });
-        if (!res.ok) { console.error(`[supabase] release purge HTTP ${res.status}: ${await res.text().catch(() => '')}`); continue; }
-        const gone = await res.json().catch(() => []);
-        purged += Array.isArray(gone) ? gone.length : 0;
+        if (r.code) {
+            tombs.push({
+                ban_key: `news:${r.matcher.id}:${r.code}`,
+                managed_by: 'news_bot',
+                label: 'Lifted',
+                authority: 'Ban lifted',
+                scope: JSON.stringify({ countries: [r.code] }),
+                until: untilISO,                 // cooldown expiry — reused as "suppress until"
+                reason: (r.title || 'Ban lifted').slice(0, 240),
+                source: r.link || null,
+                active: false,                   // ← tombstone: never jails, only suppresses
+                last_seen: nowISO,
+                match_lab: r.matcher.target.match_lab || null,
+                match_name: r.matcher.target.match_name || null,
+            });
+        } else {
+            const res = await sbFetch(`ai_bans?managed_by=eq.news_bot&ban_key=like.news:${r.matcher.id}:*`, {
+                method: 'DELETE', headers: { Prefer: 'return=representation' },
+            });
+            if (!res.ok) { console.error(`[supabase] release purge HTTP ${res.status}: ${await res.text().catch(() => '')}`); continue; }
+            const gone = await res.json().catch(() => []);
+            purged += Array.isArray(gone) ? gone.length : 0;
+            tombs.push({                          // GLOBAL tombstone → suppress a re-flap from a lingering worldwide-ban headline
+                ban_key: `news:${r.matcher.id}:GLOBAL`,
+                managed_by: 'news_bot',
+                label: 'Lifted',
+                authority: 'Ban lifted',
+                scope: 'global',
+                until: untilISO,
+                reason: (r.title || 'Ban lifted').slice(0, 240),
+                source: r.link || null,
+                active: false,
+                last_seen: nowISO,
+                match_lab: r.matcher.target.match_lab || null,
+                match_name: r.matcher.target.match_name || null,
+            });
+        }
     }
-    return { purged };
+    let tombstoned = 0;
+    if (tombs.length) {
+        const res = await sbFetch('ai_bans?on_conflict=ban_key', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(tombs),
+        });
+        if (res.ok) tombstoned = tombs.length;
+        else console.error(`[supabase] tombstone HTTP ${res.status}: ${await res.text().catch(() => '')}`);
+    }
+    return { tombstoned, purged };
+}
+
+// Live cooldown tombstones (active=false, until still in the future) → Set of "model|code" to
+// suppress in buildRows. This is the sticky half of release detection: a lift stays in effect for
+// COOLDOWN_DAYS even across runs whose news pull happens to omit the lift headline.
+async function fetchActiveTombstones(nowISO) {
+    const set = new Set();
+    const res = await sbFetch(`ai_bans?managed_by=eq.news_bot&active=eq.false&until=gt.${encodeURIComponent(nowISO)}&select=ban_key`, { method: 'GET' });
+    if (!res.ok) return set;
+    const rows = await res.json().catch(() => []);
+    if (!Array.isArray(rows)) return set;
+    for (const r of rows) { const p = parseBanKey(r.ban_key); if (p) set.add(p.model + '|' + p.code); }
+    return set;
+}
+
+// Retire expired tombstones (cooldown elapsed) so a genuine RE-ban after the cooldown can land again.
+async function deleteExpiredTombstones(nowISO) {
+    const res = await sbFetch(`ai_bans?managed_by=eq.news_bot&active=eq.false&until=lt.${encodeURIComponent(nowISO)}`, {
+        method: 'DELETE', headers: { Prefer: 'return=representation' },
+    });
+    if (!res.ok) { console.error(`[supabase] tombstone expiry HTTP ${res.status}: ${await res.text().catch(() => '')}`); return { expired: 0 }; }
+    const gone = await res.json().catch(() => []);
+    return { expired: Array.isArray(gone) ? gone.length : 0 };
 }
 
 // Self-heal on classifier upgrades: re-run classify() over the headline each bot row was
 // created from; purge rows the CURRENT classifier would no longer produce (e.g. the old
 // "most frequently restricted chatbot worldwide" stats row).
 async function purgeMisclassified() {
-    const res = await sbFetch('ai_bans?managed_by=eq.news_bot&select=ban_key,reason', { method: 'GET' });
+    // Only active ban rows — an inactive tombstone's `reason` is a LIFT headline, which classify()
+    // returns null for; reclassifying those would wrongly delete the tombstone (re-opening the flap).
+    const res = await sbFetch('ai_bans?managed_by=eq.news_bot&active=eq.true&select=ban_key,reason', { method: 'GET' });
     if (!res.ok) return { purged: 0 };
     const rows = await res.json().catch(() => []);
     if (!Array.isArray(rows)) return { purged: 0 };
@@ -286,14 +386,17 @@ function buildReleases(news) {
         const k = r.matcher.id + '|' + (r.code || '*');
         if (seen.has(k)) continue;
         seen.add(k);
-        releases.push(r);
+        releases.push({ ...r, title: it.title, link: it.link });
     }
     return releases;
 }
 
-// Build the deduped row set from current news. `releases` suppresses re-upserting a ban that
-// newer news says was lifted (old ban headlines linger in the window long after the lift).
-function buildRows(news, nowISO, releases = []) {
+// Build the deduped row set from current news. Two suppression layers keep a lifted ban from
+// re-appearing while its old ban headline still circulates:
+//   • `releases`   — lifts detected in THIS run's news (immediate).
+//   • `suppressed` — live cooldown tombstones from the DB, a Set of "model|code" (sticky across
+//                    runs, so a run that happens to miss the lift headline still won't re-jail).
+function buildRows(news, nowISO, releases = [], suppressed = new Set()) {
     const liftedAll = new Set(releases.filter(r => !r.code).map(r => r.matcher.id));
     const liftedScoped = new Set(releases.filter(r => r.code).map(r => r.matcher.id + '|' + r.code));
     const rows = [];
@@ -302,6 +405,7 @@ function buildRows(news, nowISO, releases = []) {
         const c = classify(it.title);
         if (!c) continue;
         if (liftedAll.has(c.matcher.id) || liftedScoped.has(c.matcher.id + '|' + c.code)) continue;
+        if (suppressed.has(c.matcher.id + '|' + c.code)) continue; // still inside a lift cooldown
         const ban_key = `news:${c.matcher.id}:${c.code}`;
         if (seen.has(ban_key)) continue;
         seen.add(ban_key);
@@ -338,19 +442,25 @@ export default async (_req) => {
     const news = await fetchBanNews().catch(e => { console.warn('news error:', e.message); return []; });
     const nowISO = new Date().toISOString();
     const releases = buildReleases(news);
-    const rows = buildRows(news, nowISO, releases);
+    // Live cooldown tombstones suppress lifted bans across runs (sticky release detection).
+    const suppressed = await fetchActiveTombstones(nowISO);
+    const rows = buildRows(news, nowISO, releases, suppressed);
 
     const up = await upsertBans(rows);
     const cutoff = new Date(Date.now() - STALE_DAYS * 86400000).toISOString();
     const del = await deleteStaleBans(cutoff);
-    // A lifted ban walks its model out of jail immediately (don't wait for staleness).
-    const rel = await purgeReleased(releases);
+    // A lifted ban walks its model out of jail immediately (don't wait for staleness): a scoped lift
+    // writes a cooldown tombstone (replaces the active row + suppresses re-creation), a global lift
+    // purges every jurisdiction for that model.
+    const rel = await applyReleases(releases, nowISO);
     // Enforce "no model is detained in its own home country" on existing rows too — purge any
     // such bot rows immediately (fixes e.g. a 'China's DeepSeek' headline mis-read as a CN ban).
     const homeKeys = MODEL_MATCHERS.filter(m => m.origin).map(m => `news:${m.id}:${m.origin}`);
     const purge = await purgeKeys(homeKeys);
     // Retire rows the current (stricter) classifier would no longer create.
     const reclass = await purgeMisclassified();
+    // Age out cooldown tombstones whose window has elapsed (lets a genuine re-ban land again).
+    const exp = await deleteExpiredTombstones(nowISO);
 
     const elapsed = Math.round((Date.now() - startedAt) / 100) / 10;
     const summary = {
@@ -360,9 +470,11 @@ export default async (_req) => {
         releasesDetected: releases.map(r => r.matcher.id + ':' + (r.code || 'ALL')),
         written: up.written,
         deletedStale: del.deleted,
+        tombstonedReleased: rel.tombstoned,
         purgedReleased: rel.purged,
         purgedHomeCountry: purge.purged,
         purgedReclassified: reclass.purged,
+        expiredTombstones: exp.expired,
         ...(up.error ? { upsertError: up.error } : {}),
         ...(del.error ? { deleteError: del.error } : {}),
         hint: (up.error || del.error)
@@ -371,7 +483,7 @@ export default async (_req) => {
         bans: rows.map(r => ({ ban_key: r.ban_key, scope: r.scope })),
         elapsedSec: elapsed,
     };
-    console.log(`  ✅ ${news.length} headlines · ${rows.length} bans · ${releases.length} releases · ${up.written} written · ${del.deleted + rel.purged + purge.purged + reclass.purged} removed · ${elapsed}s`);
+    console.log(`  ✅ ${news.length} headlines · ${rows.length} bans · ${releases.length} releases (${rel.tombstoned} tombstoned) · ${up.written} written · ${del.deleted + rel.purged + purge.purged + reclass.purged + exp.expired} removed · ${elapsed}s`);
     return new Response(JSON.stringify(summary, null, 2), { status: 200, headers: { 'content-type': 'application/json' } });
 };
 
@@ -388,7 +500,7 @@ if (process.argv.includes('--dryrun')) {
         console.log(`\n${rows.length} ban(s) detected:`);
         for (const r of rows) console.log(`  ⛓️  ${r.ban_key.padEnd(22)} ${JSON.stringify(r.scope).padEnd(26)} ${(r.match_lab || r.match_name)}  ←  ${r.reason}`);
         console.log(`\n${releases.length} release(s) detected:`);
-        for (const r of releases) console.log(`  🕊️  ${r.matcher.id}:${r.code || 'ALL'}`);
+        for (const r of releases) console.log(`  🕊️  ${r.matcher.id}:${r.code || 'ALL'}  ${r.code ? '→ cooldown tombstone' : '→ purge all jurisdictions'}`);
         if (process.argv.includes('--verbose')) { console.log('\nall headlines:'); news.forEach(n => console.log('  · ' + n.title)); }
         process.exit(0);
     })();
@@ -427,6 +539,13 @@ if (process.argv.includes('--selftest')) {
         ["Germany may overturn DeepSeek ban next year", null],              // tentative — ban stands
         ["xAI releases Grok 5 to the public", null],                        // product launch ≠ ban lift
         ["Australia bans DeepSeek on government devices", null],            // a ban, not a release
+        // A lift in a jurisdiction we don't map must NOT collapse to a global purge of TR/MY/…
+        ["Philippines lifts ban on Musk's Grok chatbot after changes", null],
+        // Service outages are not government ban lifts.
+        ["ChatGPT back online after major outage, OpenAI says", null],
+        ["Anthropic's Claude AI service restored after outage", null],
+        // Genuine global lift (explicit export / worldwide signal) still releases everywhere.
+        ["US lifts export ban on Fable and Mythos worldwide", 'fable:ALL'],
     ];
     for (const [title, expect] of relSamples) {
         const r = classifyRelease(title);
@@ -435,6 +554,23 @@ if (process.argv.includes('--selftest')) {
         console.log(`${ok ? '✅' : '❌'}  release ${got || '(skip)'}  ←  ${title}`);
         if (ok) pass++; total++;
     }
+
+    // Sticky release: a live cooldown tombstone must suppress re-creating that model×country even
+    // while the OLD ban headline is still circulating (the grok:ID / Indonesia flap this fix targets).
+    {
+        const banNews = [{ title: "Indonesia blocks Musk's Grok chatbot due to risk of pornographic content", link: null }];
+        const iso = new Date().toISOString();
+        const t1 = buildRows(banNews, iso, [], new Set()).some(r => r.ban_key === 'news:grok:ID');
+        const t2 = !buildRows(banNews, iso, [], new Set(['grok|ID'])).some(r => r.ban_key === 'news:grok:ID');
+        const pk = parseBanKey('news:grok:ID');
+        const t3 = !!pk && pk.model === 'grok' && pk.code === 'ID';
+        const t4 = parseBanKey('not-a-key') === null;
+        for (const [ok, msg] of [[t1, 'builds news:grok:ID with no tombstone'], [t2, 'suppresses news:grok:ID while tombstone active'], [t3, "parseBanKey('news:grok:ID')"], [t4, 'parseBanKey rejects junk']]) {
+            console.log(`${ok ? '✅' : '❌'}  ${msg}`);
+            if (ok) pass++; total++;
+        }
+    }
+
     console.log(`\n${pass}/${total} cases correct`);
     process.exit(pass === total ? 0 : 1);
 }
