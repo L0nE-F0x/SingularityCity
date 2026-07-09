@@ -57,9 +57,12 @@ window.NewsReactivity = (function() {
     // ─── LAB ROUTER ──────────────────────────────────────────────────────────
     // Order matters — first match wins. Founder names are intentionally listed
     // because HN headlines often reference them rather than the lab.
+    // KEEP IN SYNC with the classifier in netlify/functions/collect-events.mjs —
+    // the server writes pre-classified events with the same rules; divergence
+    // means the same headline reads differently server vs client.
     const LAB_KEYWORDS = [
         ['anthropic', /\b(anthropic|claude|dario amodei|amodei)\b/i],
-        ['openai',    /\b(openai|chatgpt|sam altman|altman|gpt-?\d|sora|o1|o2|o3|o4)\b/i],
+        ['openai',    /\b(openai|chatgpt|sam altman|altman|gpt-?\d|sora|o1|o3|o4)\b/i], // no bare o2 — matches 'O2 arena'
         ['google',    /\b(google|deepmind|gemini|hassabis|pichai|alphabet)\b/i],
         ['xai',       /\b(xai|x\.ai|grok|elon musk|musk)\b/i],
         ['meta',      /\b(meta|llama|zuckerberg|mark zuck|fb research)\b/i],

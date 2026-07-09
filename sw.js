@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v510';
+const CACHE_NAME = 'singularity-city-v511';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -14,6 +14,7 @@ const CORE_ASSETS = [
     '/favicon-32.png',
     '/icon-192.png',
     '/icon-512.png',
+    '/js/compute_worker.js',
     '/css/styles.css',
     '/css/terminal.css',
     '/js/personality.js',
@@ -25,8 +26,8 @@ const CORE_ASSETS = [
     '/js/environment.js',
     '/js/entities_gfx.js',
     '/js/entities.js',
-    '/js/city_elevator.js',
     '/js/underground.js',
+    '/js/city_elevator.js',
     '/js/interior_city_props.js',
     '/js/interior_city_ai.js',
     '/js/interior_avatar_states.js',
@@ -49,6 +50,14 @@ const CORE_ASSETS = [
     '/js/interior_metro.js',
     '/js/interior_train.js',
     '/js/interior_newspaper.js',
+    '/js/interior_manager.js',
+    '/js/datacenter_data.js',
+    '/js/space_rockets.js',
+    '/js/space_data.js',
+    '/js/space_environment.js',
+    '/js/space_entities.js',
+    '/js/space_interior.js',
+    '/js/orbit_mode.js',
     '/js/seasonal.js',
     '/js/seasonal_env.js',
     '/js/aurora.js',
@@ -56,6 +65,14 @@ const CORE_ASSETS = [
     '/js/university.js',
     '/js/court.js',
     '/js/jail.js',
+    '/js/city_park.js',
+    '/js/bird_flocks.js',
+    '/js/ai_index.js',
+    '/js/supply_chain.js',
+    '/js/black_market.js',
+    '/js/interior_black_market.js',
+    '/js/crowd_separation.js',
+    '/js/shadows.js',
     '/js/vc_row.js',
     '/js/vc_row_env.js',
     '/js/interior_vcrow.js',
@@ -65,6 +82,7 @@ const CORE_ASSETS = [
     '/js/backbone_zone.js',
     '/js/backbone_env.js',
     '/js/interior_backbone.js',
+    '/js/robot_models.js',
     '/js/robotics_zone.js',
     '/js/robotics_env.js',
     '/js/interior_robotics.js',
@@ -79,13 +97,6 @@ const CORE_ASSETS = [
     '/js/interior_ambassador_res.js',
     '/js/xray_mode.js',
     '/js/multiplayer.js',
-    '/js/interior_manager.js',
-    '/js/datacenter_data.js',
-    '/js/space_data.js',
-    '/js/space_environment.js',
-    '/js/space_entities.js',
-    '/js/space_interior.js',
-    '/js/orbit_mode.js',
     '/js/holomap.js',
     '/js/easter_eggs.js',
     '/js/persistence.js',
@@ -101,17 +112,8 @@ const CORE_ASSETS = [
     '/js/auto_tour.js',
     '/js/tutorial.js',
     '/js/newspaper.js',
-    '/js/compute_worker.js',
     '/js/kardashev.js',
     '/js/terminal.js',
-    '/js/city_park.js',
-    '/js/ai_index.js',
-    '/js/bird_flocks.js',
-    '/js/supply_chain.js',
-    '/js/black_market.js',
-    '/js/interior_black_market.js',
-    '/js/crowd_separation.js',
-    '/js/shadows.js',
     '/js/engine.js'
 ];
 

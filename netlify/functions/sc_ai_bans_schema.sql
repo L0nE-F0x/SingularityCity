@@ -55,6 +55,6 @@ create policy "ai_bans anon read"
     using (true);
 
 -- That's it — no inserts needed. The scheduled function fills the table from live
--- news within its first run (hourly cron, or hit /.netlify/functions/update-ai-bans
+-- news within its first run (6-hourly cron, or hit /.netlify/functions/update-ai-bans
 -- once to seed it immediately). To pin a ban by hand anyway, insert a row with
 -- managed_by='manual' and the bot will leave it alone.

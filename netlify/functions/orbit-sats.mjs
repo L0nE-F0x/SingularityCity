@@ -93,7 +93,7 @@ export default async (req) => {
             oneweb: []
         }), {
             status: 500,
-            headers: { 'content-type': 'application/json' }
+            headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }
         });
     }
 };

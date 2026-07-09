@@ -252,7 +252,7 @@ const HNBlimps = {
             ? story.url
             : ('https://news.ycombinator.com/item?id=' + story.id);
         const hnThread = 'https://news.ycombinator.com/item?id=' + story.id;
-        const safeUrl = this._escape(url);
+        const safeUrl = safeHref(url); // protocol allowlist — HN story URLs are external input
         const safeThread = this._escape(hnThread);
         const by = this._escape(story.by || 'anon');
         const score = Number(story.score) || 0;

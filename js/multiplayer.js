@@ -128,8 +128,13 @@ const Multiplayer = {
 
             this._reactChannel
                 .on('broadcast', { event: 'reaction' }, ({ payload }) => {
-                    if (payload.senderId === this._myId) return;
-                    this._spawnReactionBubble(payload.emoji, payload.worldX);
+                    if (!payload || payload.senderId === this._myId) return;
+                    // Anyone with the public anon key can broadcast on this
+                    // channel — clamp everything before it touches the stage.
+                    if (!this.REACTIONS.includes(payload.emoji)) return;
+                    const wx = Number(payload.worldX);
+                    if (!isFinite(wx)) return;
+                    this._spawnReactionBubble(payload.emoji, Math.max(0, Math.min(wx, 1e6)));
                 })
                 .subscribe();
         } catch (e) {
@@ -148,9 +153,10 @@ const Multiplayer = {
             const latest = presences[presences.length - 1];
             const existing = this._peers[key];
             if (existing) {
-                existing.worldX = latest.worldX || 0;
-                existing.handle = latest.handle || this._DEFAULT_HANDLE;
-                existing.color = latest.color || this._DEFAULT_COLOR;
+                const sane = this._sanePeer(latest);
+                existing.worldX = sane.worldX;
+                existing.handle = sane.handle;
+                existing.color = sane.color;
                 existing.lastSeen = Date.now();
             } else {
                 this._addPeer(key, latest);
@@ -164,11 +170,19 @@ const Multiplayer = {
         this._updateCounterUI(Math.max(1, count));
     },
 
+    // Presence payloads come from other anonymous clients — clamp before render.
+    _sanePeer(presence) {
+        const c = Number(presence && presence.color);
+        return {
+            color: (isFinite(c) && c >= 0 && c <= 0xffffff) ? c : this._DEFAULT_COLOR,
+            handle: String((presence && presence.handle) || this._DEFAULT_HANDLE).slice(0, 20),
+            worldX: Math.max(0, Math.min(Number((presence && presence.worldX) || 0) || 0, 1e6)),
+        };
+    },
+
     _addPeer(key, presence) {
         if (key === this._myId || this._peers[key]) return;
-        const color = presence.color || this._DEFAULT_COLOR;
-        const handle = presence.handle || this._DEFAULT_HANDLE;
-        const worldX = presence.worldX || 0;
+        const { color, handle, worldX } = this._sanePeer(presence);
 
         const cont = new PIXI.Container();
         cont.alpha = 0.35;
@@ -228,7 +242,10 @@ const Multiplayer = {
         }
     },
 
+    _MAX_REACTION_QUEUE: 30,
+
     _spawnReactionBubble(emoji, worldX) {
+        if (this._reactionQueue.length >= this._MAX_REACTION_QUEUE) return; // flood guard
         this._reactionQueue.push({
             emoji, worldX,
             worldY: G.groundY - 40 - Math.random() * 30,

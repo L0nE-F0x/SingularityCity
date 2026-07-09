@@ -8,7 +8,7 @@
    Usage: node tools/build.mjs
    ════════════════════════════════════════════════════════════════════════════════ */
 
-import { readdir, readFile, writeFile, stat } from 'fs/promises';
+import { readdir, readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import esbuild from 'esbuild';
 

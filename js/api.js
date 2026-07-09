@@ -1,6 +1,19 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
    API & SERVICES LAYER (v16.5.0 - Dynamic Region Parameter Passing)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+// Single source of truth for provider default model ids — applied only when the
+// user hasn't picked a model in Settings. Prefer stable aliases over dated
+// snapshots so these don't rot (a 2024-dated default once shipped here and
+// outlived the model's retirement). These are DEFAULTS, not ceilings — never
+// turn them into version caps (see project memory: model-version-ceilings).
+const PROVIDER_DEFAULT_MODELS = {
+    anthropic: 'claude-opus-4-8',
+    google: 'gemini-3.1-flash',
+    xai: 'grok-4-latest',
+    openai: 'gpt-5.4',
+};
+
 const API = {
     liveNews: [],
     regulationNews: [],
@@ -52,10 +65,80 @@ const API = {
         }
     },
 
+    // ─── SERVER-SIDE WRITE GATE ──────────────────────────────────────────────
+    // All shared-table writes go through /.netlify/functions/submit-data, which
+    // validates rows and writes with the service key. The anon key is READ-ONLY
+    // on these tables (rls_all.sql) — a direct .from(...).insert() from the
+    // browser will be rejected by RLS, so never add one; extend the function's
+    // per-table spec instead. Arrays are chunked to the function's row cap.
+    async _cloudSubmit(table, rows, opts = {}) {
+        const list = Array.isArray(rows) ? rows : [rows];
+        let allOk = true;
+        for (let i = 0; i < list.length; i += 25) {
+            try {
+                const r = await fetch('/.netlify/functions/submit-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ table, rows: list.slice(i, i + 25), ...opts }),
+                    signal: AbortSignal.timeout(15000)
+                });
+                if (!r.ok) allOk = false;
+            } catch (e) { allOk = false; }
+        }
+        return allOk;
+    },
+
+    // ─── CORE-DATA CACHE ────────────────────────────────────────────────────
+    // The curated baseline (labs, buildings, founders, clusters) lives only in
+    // Supabase — with no fallback, an outage used to boot a near-empty city and
+    // the installed PWA's "offline support" showed an empty shell. Instead of a
+    // hand-authored seed file that would rot, snapshot the last successful
+    // fetch and restore it when Supabase is unreachable. Self-maintaining: the
+    // cache is exactly as fresh as the user's last online visit.
+    _CORE_CACHE_KEY: 'sc_core_cache_v1',
+
+    _saveCoreCache() {
+        try {
+            localStorage.setItem(this._CORE_CACHE_KEY, JSON.stringify({
+                ts: Date.now(),
+                labs: LABS,
+                founders: REAL_FOUNDERS,
+                clusters: (window.COMPUTE_DATA && window.COMPUTE_DATA.clusters) || [],
+                blds: window.BLDS || [],
+                acts: window.ACTS || {},
+                families: window.FAMILIES || {},
+                events: (window.AI_EVENTS || []).slice(0, 120)
+            }));
+        } catch (e) { /* quota — cache is best-effort */ }
+    },
+
+    _loadCoreCache() {
+        try {
+            const raw = localStorage.getItem(this._CORE_CACHE_KEY);
+            if (!raw) return false;
+            const c = JSON.parse(raw);
+            if (!c || !c.labs || !Array.isArray(c.blds) || c.blds.length === 0) return false;
+            LABS = c.labs;
+            REAL_FOUNDERS = c.founders || [];
+            if (!window.COMPUTE_DATA) window.COMPUTE_DATA = {};
+            window.COMPUTE_DATA.clusters = c.clusters || [];
+            window.BLDS = c.blds;
+            window.ACTS = c.acts || {};
+            window.FAMILIES = c.families || {};
+            window.AI_EVENTS = c.events || [];
+            const ageDays = Math.round((Date.now() - (c.ts || 0)) / 86400000);
+            console.warn(`📦 Supabase unreachable — restored core data from local cache (${ageDays}d old).`);
+            if (typeof UI !== 'undefined' && UI.addLog) UI.addLog(`📦 Offline: city restored from your last visit (${ageDays}d old).`);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
+
     async fetchCoreData() {
         if (!this.supabase) {
-            console.warn("Supabase not initialized. Using local fallback data.");
-            return false;
+            console.warn("Supabase not initialized. Trying local core cache.");
+            return this._loadCoreCache();
         }
         
         try {
@@ -82,14 +165,19 @@ const API = {
                 other: { name: 'Independent', color: '#64748b', icon: '🌐', ticker: null, desc: 'Independent entities and public spaces.', region: 'eu' }
             };
             
+            // Colors from the shared DB flow into style="…" attributes all over the
+            // UI — hex-validate them at this single ingest chokepoint so no render
+            // site has to worry about attribute breakout.
+            const hexOr = (c, fb) => (typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c)) ? c : fb;
+
             labsRes.data.forEach(lab => {
                 LABS[lab.id] = {
                     name: lab.name,
-                    color: lab.color,
+                    color: hexOr(lab.color, '#64748b'),
                     icon: lab.icon || '🏢',
                     ticker: lab.ticker,
                     desc: lab.lore_desc,
-                    region: lab.region || 'eu' 
+                    region: lab.region || 'eu'
                 };
             });
 
@@ -98,7 +186,7 @@ const API = {
                 name: f.name,
                 role: f.role,
                 fact: f.fact,
-                color: f.color
+                color: hexOr(f.color, '#64748b')
             }));
 
             if (!window.COMPUTE_DATA) window.COMPUTE_DATA = {};
@@ -169,11 +257,11 @@ const API = {
 
             window.AI_EVENTS = evRes.data;
 
-
+            this._saveCoreCache();
             return true;
         } catch (err) {
             console.error("❌ Failed to fetch core data from Supabase:", err);
-            return false;
+            return this._loadCoreCache();
         }
     },
     
@@ -419,7 +507,7 @@ const API = {
                 added++;
                 
                 if (this.supabase) {
-                    try { await this.supabase.from('models').upsert(this._dbSafeModel(nm)); } catch(e) { /* silent */ }
+                    try { await this._cloudSubmit('models', this._dbSafeModel(nm)); } catch(e) { /* silent */ }
                 }
                 
                 if (added >= 6) break;
@@ -452,6 +540,9 @@ const API = {
         'together': 'together', 'perplexity': 'perplexity', 'inflection': 'inflection',
         'stability': 'stability'
     },
+    // NOTE: maps to the city's ZONING bucket ('us'/'eu'/'cn' districts), NOT a
+    // nationality — KR/JP/IN land in the 'cn' (Asia) district by design. Never
+    // surface these values as country labels in UI text.
     _zeCountryToRegion: { 'US': 'us', 'CN': 'cn', 'FR': 'eu', 'CA': 'eu', 'IL': 'eu', 'UK': 'eu', 'DE': 'eu', 'FI': 'eu', 'AE': 'eu', 'KR': 'cn', 'JP': 'cn', 'IN': 'cn' },
     
     async fetchZeroEval() {
@@ -599,7 +690,7 @@ const API = {
                 added++;
                 
                 if (this.supabase) {
-                    try { await this.supabase.from('models').upsert(this._dbSafeModel(nm)); } catch(e) { /* silent */ }
+                    try { await this._cloudSubmit('models', this._dbSafeModel(nm)); } catch(e) { /* silent */ }
                 }
                 
                 if (added >= 8) break; // cap per fetch
@@ -781,7 +872,7 @@ const API = {
                 added++;
 
                 if (this.supabase) {
-                    try { await this.supabase.from('models').upsert(this._dbSafeModel(nm)); } catch(e) { /* silent */ }
+                    try { await this._cloudSubmit('models', this._dbSafeModel(nm)); } catch(e) { /* silent */ }
                 }
 
                 if (added >= 8) break; // cap per fetch
@@ -873,11 +964,17 @@ const API = {
       }
 
       if (!got && this.liveNews.length === 0) {
-        this.liveNews = [
-          { headline: "OpenAI launches GPT-4.1 and o4-mini reasoning models", url: "https://openai.com", source: "Fallback" },
-          { headline: "Claude Opus 4.6 leads SWE-bench coding benchmarks", url: "https://anthropic.com", source: "Fallback" },
-          { headline: "Google Gemini 2.5 Pro tops multi-modal leaderboards", url: "https://deepmind.google", source: "Fallback" },
-          { headline: "DeepSeek R1 open-source reasoning model shocks industry", url: "https://deepseek.com", source: "Fallback" }
+        // Derive the fallback from the server-accumulated event log instead of
+        // a hand-written list — a frozen list here once misrepresented the
+        // frontier with year-old headlines whenever rss2json hiccuped.
+        const fromCloud = (this.cloudEvents || [])
+            .filter(ev => ev && ev.title && ev.source !== 'finnhub')
+            .slice(0, 8)
+            .map(ev => ({ headline: ev.title, url: ev.url || '#', source: 'Recent' }));
+        this.liveNews = fromCloud.length > 0 ? fromCloud : [
+          // Last resort when BOTH rss2json and Supabase are down: deliberately
+          // undated, so it can't misstate the frontier.
+          { headline: "Live headlines temporarily unavailable — reconnecting to news feeds", url: "#", source: "Fallback" }
         ];
       }
       
@@ -898,7 +995,7 @@ const API = {
       
       for (const sym of symbols) {
           try {
-              const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${G.finnhubKey}`);
+              const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${G.finnhubKey}`, { signal: AbortSignal.timeout(8000) });
               if (!r.ok) continue;
               const d = await r.json();
               if (d) {
@@ -1085,16 +1182,16 @@ const API = {
                     this.vcDeals.unshift(deal);
                     existingHeadlines.add(item.title);
 
-                    // Persist to Supabase (fire-and-forget)
+                    // Persist via the server-side write gate (fire-and-forget)
                     if (this.supabase) {
-                        this.supabase.from('vc_deals').insert({
+                        this._cloudSubmit('vc_deals', {
                             headline: deal.headline,
                             amount: deal.amount,
                             round: deal.round || null,
                             url: deal.url,
                             source: deal.source,
                             pub_date: deal.date || null
-                        }).then(() => {}).catch(() => {});
+                        });
                     }
                 }
             } catch (e) { console.warn(`[VC RSS] ${feed.source}:`, e.message); }
@@ -1163,14 +1260,14 @@ const API = {
                     this.supplyChainNews.unshift(entry);
                     existing.add(item.title);
 
-                    // Persist to Supabase (fire-and-forget)
+                    // Persist via the server-side write gate (fire-and-forget)
                     if (this.supabase) {
-                        this.supabase.from('supply_chain').insert({
+                        this._cloudSubmit('supply_chain', {
                             category: cat,
                             title: entry.headline.substring(0, 200),
                             detail: entry.source,
                             source_url: entry.url
-                        }).then(() => {}).catch(() => {});
+                        });
                     }
                 }
             } catch (e) { console.warn(`[Supply Chain RSS] ${feed.source}:`, e.message); }
@@ -1230,11 +1327,9 @@ const API = {
                     existing.add(name);
                     added++;
 
-                    // Persist to Supabase
+                    // Persist via the server-side write gate
                     if (this.supabase) {
-                        this.supabase.from('ai_events').insert(ev).then(({ error }) => {
-                            if (!error) { /* saved */ }
-                        });
+                        this._cloudSubmit('ai_events', ev);
                     }
                 }
             } catch (e) { /* silent — RSS feeds sometimes fail */ }
@@ -1254,27 +1349,31 @@ const API = {
     async _fetchEventsFromLLM() {
         if (!G.authKey) return;
         try {
-            const prompt = `List 15 major upcoming AI/ML conferences, summits, and tech events for the remainder of 2025 and early 2026. Include real events only with accurate dates. Return ONLY a JSON array, no other text. Format: [{"name":"Event Name","date":"YYYY-MM-DD","desc":"Short description","type":"conference"}]`;
+            // Window derived from today's date — a frozen range once asked the
+            // model for events "for the remainder of 2025" in mid-2026.
+            const evToday = new Date().toISOString().split('T')[0];
+            const evHorizon = new Date(Date.now() + 240 * 86400000).toISOString().split('T')[0];
+            const prompt = `Today is ${evToday}. List 15 major upcoming AI/ML conferences, summits, and tech events between ${evToday} and ${evHorizon}. Include real events only with accurate dates. Return ONLY a JSON array, no other text. Format: [{"name":"Event Name","date":"YYYY-MM-DD","desc":"Short description","type":"conference"}]`;
             let url, hd = { 'Content-Type': 'application/json' }, pl;
 
             if (G.apiProvider === 'anthropic') {
                 url = 'https://api.anthropic.com/v1/messages';
                 hd['x-api-key'] = G.authKey; hd['anthropic-version'] = '2023-06-01'; hd['anthropic-dangerously-allow-browser'] = 'true';
-                pl = { model: G.modelId || 'claude-sonnet-4-20250514', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
+                pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.anthropic, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
             } else if (G.apiProvider === 'google') {
-                url = `https://generativelanguage.googleapis.com/v1beta/models/${G.modelId || 'gemini-2.5-flash'}:generateContent?key=${G.authKey}`;
+                url = `https://generativelanguage.googleapis.com/v1beta/models/${G.modelId || PROVIDER_DEFAULT_MODELS.google}:generateContent?key=${G.authKey}`;
                 pl = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 2048 } };
             } else if (G.apiProvider === 'xai') {
                 url = 'https://api.x.ai/v1/chat/completions';
                 hd['Authorization'] = `Bearer ${G.authKey}`;
-                pl = { model: G.modelId || 'grok-3-latest', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
+                pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.xai, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
             } else {
                 url = 'https://api.openai.com/v1/chat/completions';
                 hd['Authorization'] = `Bearer ${G.authKey}`;
-                pl = { model: G.modelId || 'gpt-4o', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
+                pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.openai, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] };
             }
 
-            const r = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl) });
+            const r = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl), signal: AbortSignal.timeout(60000) });
             const d = await r.json();
 
             let txt = '';
@@ -1296,7 +1395,7 @@ const API = {
                 existing.add(ev.name);
                 added++;
                 if (this.supabase) {
-                    this.supabase.from('ai_events').insert(ev).then(() => {});
+                    this._cloudSubmit('ai_events', ev);
                 }
             }
 
@@ -1342,18 +1441,18 @@ Respond with ONLY minified JSON, no markdown:
             if (G.apiProvider === 'anthropic') {
                 url = 'https://api.anthropic.com/v1/messages';
                 hd['x-api-key'] = G.authKey; hd['anthropic-version'] = '2023-06-01'; hd['anthropic-dangerously-allow-browser'] = 'true';
-                pl = { model: G.modelId || 'claude-sonnet-4-20250514', max_tokens: 2048, system: `You are a real-time AI infrastructure data API. Respond strictly in minified JSON. Today is ${today}. Only return facilities you are certain exist in the real world.`, messages: [{ role: 'user', content: prompt }] };
+                pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.anthropic, max_tokens: 2048, system: `You are a real-time AI infrastructure data API. Respond strictly in minified JSON. Today is ${today}. Only return facilities you are certain exist in the real world.`, messages: [{ role: 'user', content: prompt }] };
             } else if (G.apiProvider === 'google') {
-                url = `https://generativelanguage.googleapis.com/v1beta/models/${G.modelId || 'gemini-2.5-flash'}:generateContent?key=${G.authKey}`;
+                url = `https://generativelanguage.googleapis.com/v1beta/models/${G.modelId || PROVIDER_DEFAULT_MODELS.google}:generateContent?key=${G.authKey}`;
                 pl = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 2048, responseMimeType: 'application/json' } };
             } else if (G.apiProvider === 'xai') {
                 url = 'https://api.x.ai/v1/chat/completions';
                 hd['Authorization'] = `Bearer ${G.authKey}`;
-                pl = { model: G.modelId || 'grok-3-latest', temperature: 0.1, max_tokens: 2048, messages: [{ role: 'system', content: `You are a real-time AI infrastructure data API. Today is ${today}. Respond strictly in minified JSON. Only return facilities that are real.` }, { role: 'user', content: prompt }] };
+                pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.xai, temperature: 0.1, max_tokens: 2048, messages: [{ role: 'system', content: `You are a real-time AI infrastructure data API. Today is ${today}. Respond strictly in minified JSON. Only return facilities that are real.` }, { role: 'user', content: prompt }] };
             } else {
                 url = 'https://api.openai.com/v1/chat/completions';
                 hd['Authorization'] = `Bearer ${G.authKey}`;
-                pl = { model: G.modelId || 'gpt-4o', temperature: 0.1, max_tokens: 2048, messages: [{ role: 'system', content: `You are a real-time AI infrastructure data API. Today is ${today}. Respond strictly in minified JSON. Only return facilities that are real.` }, { role: 'user', content: prompt }] };
+                pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.openai, temperature: 0.1, max_tokens: 2048, messages: [{ role: 'system', content: `You are a real-time AI infrastructure data API. Today is ${today}. Respond strictly in minified JSON. Only return facilities that are real.` }, { role: 'user', content: prompt }] };
             }
 
             const r = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl), signal: AbortSignal.timeout(60000) });
@@ -1543,22 +1642,22 @@ Respond with ONLY minified JSON, no markdown:
           hd['x-api-key'] = G.authKey;
           hd['anthropic-version'] = '2023-06-01';
           hd['anthropic-dangerously-allow-browser'] = 'true';
-          pl = { model: G.modelId || 'claude-sonnet-4-20250514', max_tokens: 4096, system: sysPrompt, messages: this._chatHistory };
+          pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.anthropic, max_tokens: 4096, system: sysPrompt, messages: this._chatHistory };
         } else if (G.apiProvider === 'google') {
-          url = `https://generativelanguage.googleapis.com/v1beta/models/${G.modelId || 'gemini-2.5-flash'}:generateContent?key=${G.authKey}`;
+          url = `https://generativelanguage.googleapis.com/v1beta/models/${G.modelId || PROVIDER_DEFAULT_MODELS.google}:generateContent?key=${G.authKey}`;
           const contents = this._chatHistory.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
           pl = { systemInstruction: { parts: [{ text: sysPrompt }] }, contents, generationConfig: { maxOutputTokens: 4096 } };
         } else if (G.apiProvider === 'xai') {
           url = 'https://api.x.ai/v1/chat/completions';
           hd['Authorization'] = `Bearer ${G.authKey}`;
-          pl = { model: G.modelId || 'grok-3-latest', max_tokens: 4096, messages: [{ role: 'system', content: sysPrompt }, ...this._chatHistory] };
+          pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.xai, max_tokens: 4096, messages: [{ role: 'system', content: sysPrompt }, ...this._chatHistory] };
         } else {
           url = 'https://api.openai.com/v1/chat/completions';
           hd['Authorization'] = `Bearer ${G.authKey}`;
-          pl = { model: G.modelId || 'gpt-4o', max_tokens: 4096, messages: [{ role: 'system', content: sysPrompt }, ...this._chatHistory] };
+          pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.openai, max_tokens: 4096, messages: [{ role: 'system', content: sysPrompt }, ...this._chatHistory] };
         }
 
-        const r = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl) });
+        const r = await fetch(url, { method: 'POST', headers: hd, body: JSON.stringify(pl), signal: AbortSignal.timeout(60000) });
         const d = await r.json();
 
         let txt = '';
@@ -1590,6 +1689,9 @@ Respond with ONLY minified JSON, no markdown:
     // ANY model name containing one of these families MUST have its version within cap+0.5.
     // ANY model name NOT containing one of these families is rejected unless it's in the
     // explicit knownReal registry or came from a trusted source (zeroeval/huggingface).
+    // KEEP IN SYNC with netlify/functions/_shared/model-verify.mjs — that copy is
+    // the authoritative server-side gate (db-maintenance purge + submit-data
+    // writes); this copy only filters the LOCAL display list. Tune both together.
     _maxKnownVersions: {
         // Western
         'gemini': 3.1, 'gemma': 3, 'gpt': 5.4, 'claude': 4.6, 'llama': 4,
@@ -2154,29 +2256,25 @@ Respond with ONLY minified JSON, no markdown:
                     if (roll < cumulative) { focusCategory = wc.cat; break; }
                 }
 
-                // ─── FLAGSHIP GAP: Which major labs are missing their LATEST model? ───
-                const flagshipExpectations = {
-                    anthropic: ['Claude Opus 4.6', 'Claude Sonnet 4.6', 'Claude Opus 4', 'Claude Sonnet 4', 'Claude Haiku 4.5'],
-                    openai: ['GPT-5.4', 'GPT-5.4 mini', 'GPT-5.3 Codex', 'GPT-5.2', 'o3', 'o4-mini'],
-                    google: ['Gemini 3.1 Pro', 'Gemini 3.1 Ultra', 'Gemini 3.1 Flash Lite'],
-                    xai: ['Grok 4.20', 'Grok 4', 'Grok 3'],
-                    meta: ['Llama 4 Scout', 'Llama 4 Maverick'],
-                    deepseek: ['DeepSeek-R1', 'DeepSeek-V3', 'DeepSeek-V3.2'],
-                    microsoft: ['Phi-4', 'Phi-4-mini'],
-                    amazon: ['Nova Pro', 'Nova Premier'],
-                    nvidia: ['Nemotron Ultra', 'Nemotron-4 340B'],
-                    alibaba: ['Qwen3', 'Qwen3.5', 'QwQ'],
-                    mistral: ['Mistral Large', 'Codestral', 'Mistral Medium']
-                };
-                const existingNames = new Set(G.models.map(m => m.name.toLowerCase()));
+                // ─── FLAGSHIP GAP: Which major labs are missing their LATEST family version? ───
+                // Regenerated from the auto-raising version caps + family→lab map
+                // instead of a hand-maintained model list (which rotted every few
+                // months). For each frontier family, if no tracked model reaches
+                // the family's current known ceiling, flag the gap — this stays
+                // current for free because _maxKnownVersions auto-raises.
                 const missingFlagships = [];
-                Object.entries(flagshipExpectations).forEach(([lab, models]) => {
-                    models.forEach(name => {
-                        // Check if any existing model name contains the flagship name
-                        const found = [...existingNames].some(e => e.includes(name.toLowerCase().split(' ')[0]) && e.includes(name.toLowerCase().split(' ').pop()));
-                        if (!found) missingFlagships.push(`${name} (${lab})`);
-                    });
-                });
+                for (const [family, maxVer] of Object.entries(this._maxKnownVersions)) {
+                    const labs = this._familyToLab[family];
+                    if (!labs || !labs.length) continue;
+                    let bestSeen = -1;
+                    for (const m of G.models) {
+                        const r = this._extractVersionNear(m.name.toLowerCase(), family);
+                        if (r.found && r.max != null && r.max > bestSeen) bestSeen = r.max;
+                    }
+                    if (bestSeen < maxVer) {
+                        missingFlagships.push(`${family} v${maxVer} (${labs[0]}${bestSeen >= 0 ? `, we only have up to v${bestSeen}` : ', none tracked'})`);
+                    }
+                }
                 const flagshipGap = missingFlagships.slice(0, 12).join(', ');
 
                 // ─── FORWARD NUDGE (self-maintaining) ───
@@ -2248,9 +2346,9 @@ JSON (no markdown):
                   hd['x-api-key'] = G.authKey;
                   hd['anthropic-version'] = '2023-06-01'; 
                   hd['anthropic-dangerously-allow-browser'] = 'true';
-                  pl = { model: G.modelId || 'claude-3-5-sonnet-20240620', max_tokens: 8192, system: 'You are a real-time AI industry data API. Respond strictly in minified JSON format. No markdown. Only use real, verified data. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API as of today is "released", NOT "rumored". CRITICAL: Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.', messages: [{ role: 'user', content: prompt }] };
+                  pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.anthropic, max_tokens: 8192, system: 'You are a real-time AI industry data API. Respond strictly in minified JSON format. No markdown. Only use real, verified data. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API as of today is "released", NOT "rumored". CRITICAL: Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.', messages: [{ role: 'user', content: prompt }] };
                 } else if (G.apiProvider === 'google') {
-                  const targetModel = G.modelId || 'gemini-2.5-flash';
+                  const targetModel = G.modelId || PROVIDER_DEFAULT_MODELS.google;
                   url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${G.authKey}`;
                   pl = { 
                       systemInstruction: { parts: [{ text: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only output real-world data. Do not truncate. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API today is "released", NOT "rumored". CRITICAL: Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.' }] },
@@ -2261,7 +2359,7 @@ JSON (no markdown):
                   url = 'https://api.x.ai/v1/chat/completions';
                   hd['Authorization'] = `Bearer ${G.authKey}`;
                   pl = { 
-                      model: G.modelId || 'grok-3-latest',
+                      model: G.modelId || PROVIDER_DEFAULT_MODELS.xai,
                       temperature: 0.1,
                       max_tokens: 8192,
                       messages: [
@@ -2272,7 +2370,7 @@ JSON (no markdown):
                 } else {
                   url = 'https://api.openai.com/v1/chat/completions';
                   hd['Authorization'] = `Bearer ${G.authKey}`;
-                  pl = { model: G.modelId || 'gpt-4o', temperature: 0.1, max_tokens: 8192, messages: [{ role: 'system', content: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only use real data. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API today is "released", NOT "rumored". CRITICAL: Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.' }, { role: 'user', content: prompt }] };
+                  pl = { model: G.modelId || PROVIDER_DEFAULT_MODELS.openai, temperature: 0.1, max_tokens: 8192, messages: [{ role: 'system', content: 'You are a real-time AI industry data API. Respond strictly in valid JSON format. Only use real data. Today is ' + new Date().toISOString().split('T')[0] + '. Any model publicly available via API today is "released", NOT "rumored". CRITICAL: Do NOT invent future model versions that do not exist yet. Only return models you are certain have been publicly released or officially announced. If unsure, omit the model.' }, { role: 'user', content: prompt }] };
                 }
           
 
@@ -2426,9 +2524,8 @@ JSON (no markdown):
                             needsUpdate = true;
                         }
                         if (needsUpdate && this.supabase) {
-                            this.supabase.from('models').update({ cost_input: m.cost_input, cost_out: m.cost_out, ctx: m.ctx }).eq('id', target.id).then(() => {
-
-                                if(typeof UI !== 'undefined') UI.addToast(`📈 Backfilled economic data for ${target.name}!`);
+                            this._cloudSubmit('models', { id: target.id, cost_input: m.cost_input, cost_out: m.cost_out, ctx: m.ctx }, { op: 'update' }).then((ok) => {
+                                if (ok && typeof UI !== 'undefined') UI.addToast(`📈 Backfilled economic data for ${target.name}!`);
                             });
                         }
                     }
@@ -2487,14 +2584,12 @@ JSON (no markdown):
                             // Only save founder if lab exists in DB (avoids FK violation)
                             this.supabase.from('labs').select('id').eq('id', nm.lab).maybeSingle().then(({data: labRow}) => {
                                 if (!labRow) return; // Lab not in DB yet — skip silently
-                                return this.supabase.from('founders').upsert({
+                                return this._cloudSubmit('founders', {
                                     lab_id: nm.lab,
                                     name: m.founder_name,
                                     role: "CEO / Lead Researcher",
                                     color: labData.color,
                                     fact: newFounder.fact
-                                }, { onConflict: 'lab_id', ignoreDuplicates: true }).then(({error}) => {
-                                    if (error) console.error(`[Founder] Save error for ${m.founder_name}:`, error);
                                 });
                             }).catch(err => console.error(`[Founder] Save failed:`, err));
                         }
@@ -2572,8 +2667,8 @@ JSON (no markdown):
                 
                 if (this.supabase) {
                     try {
-                        const { error } = await this.supabase.from('models').upsert(this._dbSafeModel(nm));
-                        if (error) console.error("Supabase Save Error:", error);
+                        const ok = await this._cloudSubmit('models', this._dbSafeModel(nm));
+                        if (!ok) console.error("Supabase Save Error: submit-data rejected or unreachable");
                     } catch (dbErr) {
                         console.error("Cloud Sync Failed:", dbErr);
                     }
@@ -2608,9 +2703,7 @@ JSON (no markdown):
                     famAdded++;
                     
                     if (this.supabase) {
-                        this.supabase.from('families').upsert({ lab: safeLab, edges: window.FAMILIES[safeLab] }).then(({error}) => {
-                            if (!error) { /* saved */ }
-                        });
+                        this._cloudSubmit('families', { lab: safeLab, edges: window.FAMILIES[safeLab] });
                     }
                 }
             });
@@ -2624,9 +2717,7 @@ JSON (no markdown):
                     window.AI_EVENTS.push(ev);
                     addedEvents++;
                     if (this.supabase) {
-                        this.supabase.from('ai_events').insert(ev).then(({error}) => {
-                            if (!error) { /* saved */ }
-                        });
+                        this._cloudSubmit('ai_events', ev);
                     }
                 }
             }
@@ -2896,8 +2987,7 @@ JSON (no markdown):
             const toSync = BLDS.filter(b => b.lab || ['cafe','gym','arena','open_square','park','graveyard','neon_bar','visitor_monument','city_park'].includes(b.id));
             const rows = toSync.map(b => ({ id: b.id, name: b.name, w: b.w, x: Math.round(b.x), fl: b.fl || 1, emoji: b.emoji || null, lab: b.lab || null, desc: b.desc || null }));
             if (rows.length > 0) {
-                const { error } = await this.supabase.from('blds').upsert(rows, { onConflict: 'id' });
-                if (!error) { /* synced */ }
+                await this._cloudSubmit('blds', rows); // chunked by the helper
             }
         } catch (e) { /* silent */ }
     }

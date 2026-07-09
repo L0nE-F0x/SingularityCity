@@ -15,8 +15,6 @@ export default [
             'coverage/**',
             'dist/**',
             'build/**',
-            'sw.js',
-            'netlify/functions/**',
         ],
     },
     {
@@ -226,6 +224,8 @@ export default [
                 getStage: 'writable',
                 getAct: 'writable',
                 escapeHTML: 'writable',
+                safeHref: 'writable',
+                safeColor: 'writable',
                 haptic: 'writable',
                 _checkOrientation: 'writable',
                 _lockLandscape: 'writable',
@@ -294,6 +294,56 @@ export default [
                 exports: 'writable',
                 Buffer: 'readonly',
             },
+        },
+    },
+
+    // ─── Netlify functions: Node 18+ ESM (secrets handling — keep linted) ───
+    {
+        files: ['netlify/functions/**/*.mjs', 'tools/**/*.mjs'],
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'module',
+            globals: {
+                process: 'readonly',
+                console: 'readonly',
+                fetch: 'readonly',
+                Response: 'readonly',
+                Request: 'readonly',
+                Headers: 'readonly',
+                URL: 'readonly',
+                URLSearchParams: 'readonly',
+                AbortController: 'readonly',
+                AbortSignal: 'readonly',
+                setTimeout: 'readonly',
+                clearTimeout: 'readonly',
+                setInterval: 'readonly',
+                clearInterval: 'readonly',
+                Buffer: 'readonly',
+            },
+        },
+        rules: {
+            'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+            'no-undef': 'error',
+        },
+    },
+
+    // ─── Service worker: worker global scope ───
+    {
+        files: ['sw.js'],
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'script',
+            globals: {
+                self: 'readonly',
+                caches: 'readonly',
+                fetch: 'readonly',
+                Response: 'readonly',
+                console: 'readonly',
+                Promise: 'readonly',
+            },
+        },
+        rules: {
+            'no-undef': 'error',
         },
     },
 ];

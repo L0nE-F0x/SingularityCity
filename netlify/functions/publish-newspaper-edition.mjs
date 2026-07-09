@@ -16,6 +16,8 @@
 // of the same day are no-ops, so re-deploys / replays are safe.
 // ════════════════════════════════════════════════════════════════
 
+import { AI_TITLE_RE } from './_shared/ai-keywords.mjs';
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
@@ -38,22 +40,8 @@ function esc(s) {
 // ──────────────────────────────────────────────────────────────────────────
 
 // Hacker News top AI stories — same logic as hn-ai-stories.mjs but inlined.
-const AI_KEYWORDS = [
-    'ai', 'a\\.i\\.', 'gpt', 'gpt-\\d', 'llm', 'llms', 'agi', 'asi',
-    'claude', 'gemini', 'llama', 'deepseek', 'qwen', 'mistral', 'grok',
-    'openai', 'anthropic', 'groq', 'xai', 'perplexity', 'cohere',
-    'chatgpt', 'copilot', 'midjourney', 'dall-e', 'sora', 'runway',
-    'transformer', 'transformers', 'rlhf', 'dpo', 'rag',
-    'agent', 'agents', 'agentic',
-    'machine learning', 'deep learning', 'neural network', 'neural networks',
-    'diffusion', 'stable diffusion',
-    'inference', 'benchmark', 'benchmarks', 'eval', 'evals',
-    'fine-tune', 'fine-tuning', 'fine tuning', 'pretraining', 'pre-training',
-    'reasoning model', 'reasoning models',
-    'hugging face', 'huggingface',
-    'mamba', 'moe', 'mixture of experts'
-];
-const HN_RE = new RegExp('\\b(' + AI_KEYWORDS.join('|') + ')\\b', 'i');
+// Keyword filter shared with hn-ai-stories.mjs / collect-events.mjs.
+const HN_RE = AI_TITLE_RE;
 
 async function fetchHNStories() {
     try {
@@ -460,14 +448,18 @@ export default async (_req) => {
         }
     }
 
+    // Fail loudly (collect-events convention): a schema mismatch or dead feed
+    // used to return success:true / HTTP 200 forever — invisible in the Netlify
+    // dashboard, which is where MAINTENANCE Part A checks for red invocations.
+    const anyFailed = Boolean(results.daily?.error) || (isSunday && Boolean(results.weekly?.error));
     return new Response(JSON.stringify({
-        success: true,
+        success: !anyFailed,
         editionDate,
         isSunday,
         results,
         sourceCounts: { hn: hn.length, headlines: headlines.length, papers: papers.length }
     }), {
-        status: 200,
+        status: anyFailed ? 500 : 200,
         headers: { 'Content-Type': 'application/json' }
     });
 };

@@ -198,9 +198,27 @@ const Holomap = {
     //   BUILD UNIVERSE
     // ═══════════════════════════════════════════════
 
+    // scene.remove() alone strands GPU buffers — Three.js needs explicit
+    // dispose() on geometries and materials. The universe is rebuilt on EVERY
+    // show(), with two 3000-point starfields plus a mesh per model (~1000), so
+    // skipping this leaks a full universe per open/close cycle. Textures are
+    // deliberately NOT disposed: the only one in play is the shared cached
+    // glowTex, which must survive rebuilds.
+    disposeGroup(group) {
+        if (!group) return;
+        group.traverse(function (obj) {
+            if (obj.geometry) obj.geometry.dispose();
+            var mats = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : []);
+            for (var i = 0; i < mats.length; i++) mats[i].dispose();
+        });
+    },
+
     buildUniverse() {
         var self = this;
-        if (this.galaxyGroup) this.scene.remove(this.galaxyGroup);
+        if (this.galaxyGroup) {
+            this.scene.remove(this.galaxyGroup);
+            this.disposeGroup(this.galaxyGroup);
+        }
         this.galaxyGroup = new THREE.Group();
         this.scene.add(this.galaxyGroup);
         this.meshToStarMap.clear();

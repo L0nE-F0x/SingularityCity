@@ -1548,8 +1548,10 @@ const G = {
       this._bgInterval = null;
       document.addEventListener('visibilitychange', () => {
           if (document.hidden) {
-              // Browser pauses rAF when tab is hidden — run sim at ~2 tps instead
-              if (!this._bgInterval) {
+              // Browser pauses rAF when tab is hidden — run sim at ~2 tps instead.
+              // Skip if the Terminal's own simPump is already stepping the sim,
+              // otherwise both pumps run G.loop() and the sim ticks ~20% fast.
+              if (!this._bgInterval && !(typeof Terminal !== 'undefined' && Terminal._simPump)) {
                   this._bgInterval = setInterval(() => this.loop(), 500);
               }
           } else {
@@ -1749,7 +1751,7 @@ const G = {
           setInterval(() => API.fetchLiveNews(), 10 * 60 * 1000);
           if (this.finnhubKey) API.fetchStocks();
           setInterval(() => { 
-              API.newsIdx = (API.newsIdx + 1) % (API.liveNews.length || NEWS.length); 
+              API.newsIdx = (API.newsIdx + 1) % (API.liveNews.length || NEWS.length || 1); 
               if (typeof UI !== 'undefined') UI.updateTicker(); 
           }, 6000);
       }

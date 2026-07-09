@@ -914,9 +914,22 @@ const OrbitMode = {
         this.scene.add(this.satGroup);
     },
 
+    // scene.remove() alone strands GPU buffers — dispose geometries and
+    // materials of the outgoing group (runs on every orbit re-entry, ~100 sat
+    // sprites + orbit line geometries per rebuild). Textures are NOT disposed:
+    // sat bitmaps live in the shared _satTextures cache and must survive.
+    _disposeGroup(group) {
+        if (!group) return;
+        group.traverse((obj) => {
+            if (obj.geometry) obj.geometry.dispose();
+            const mats = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : []);
+            for (const m of mats) m.dispose();
+        });
+    },
+
     _rebuildSatellites() {
-        if (this.satGroup) { this.scene.remove(this.satGroup); this.satGroup = null; }
-        if (this.orbitLinesGroup) { this.scene.remove(this.orbitLinesGroup); this.orbitLinesGroup = null; }
+        if (this.satGroup) { this.scene.remove(this.satGroup); this._disposeGroup(this.satGroup); this.satGroup = null; }
+        if (this.orbitLinesGroup) { this.scene.remove(this.orbitLinesGroup); this._disposeGroup(this.orbitLinesGroup); this.orbitLinesGroup = null; }
         this.satSprites = [];
         this._buildOrbitLines();
         this._buildSatellites();

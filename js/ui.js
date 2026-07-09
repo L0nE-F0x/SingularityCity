@@ -4,9 +4,26 @@
 
 const escapeHTML = (str) => {
     if (!str) return '';
-    return String(str).replace(/[&<>'"]/g, tag => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    return String(str).replace(/[&<>'"`]/g, tag => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;', '`': '&#96;'
     }[tag] || tag));
+};
+
+// Externally-sourced colors (Supabase rows, LLM output) get interpolated inside
+// style="..." and inline handlers — anything but a plain hex literal can break
+// out of the attribute, so reject non-hex values.
+const safeColor = (c, fallback = '#64748b') =>
+    (typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c)) ? c : fallback;
+
+// href sink for URLs from RSS/Supabase/HN: escaping stops attribute breakout
+// but not javascript: URLs — allowlist the protocol too.
+const safeHref = (u) => {
+    if (typeof u !== 'string' || !u) return '#';
+    try {
+        const p = new URL(u, window.location.origin).protocol;
+        if (p === 'https:' || p === 'http:') return escapeHTML(u);
+    } catch (e) { /* malformed URL */ }
+    return '#';
 };
 
 const NOTIFY = {
@@ -58,7 +75,7 @@ const UI = {
       
       if (item.url && item.url !== '#') {
         const safeSource = escapeHTML(item.source || '');
-        const safeUrl = encodeURI(item.url);
+        const safeUrl = safeHref(item.url);
         const sb = item.source ? `<span style="color:var(--cy);font-size:8px;margin-right:6px">[${safeSource}]</span>` : '';
         el.innerHTML = `📰 ${sb}<a href="${safeUrl}" target="_blank" rel="noopener" style="color:var(--t1);text-decoration:none">${safeHeadline}</a>`;
       } else {
@@ -641,9 +658,9 @@ const UI = {
       const isPre = ['rumored', 'pre_training', 'training'].includes(m.phase);
       
       p.innerHTML = `<button class="ipanel-x" onclick="UI.closePanel()">✕</button>
-        <div class="ipanel-top" style="background:linear-gradient(135deg,${lab.color}22,transparent);border-bottom:2px solid ${lab.color}33">
-          <div class="ipanel-av" style="background:${lab.color};color:#fff;font-size:24px">${lab.icon}</div>
-          <div style="flex:1"><div class="ipanel-name">${escapeHTML(m.name)} ${m.os ? '<span style="font-size:8px;color:#4ade80">🔓</span>' : ''}</div><div class="ipanel-sub" style="color:${lab.color}">${lab.name}</div></div>
+        <div class="ipanel-top" style="background:linear-gradient(135deg,${safeColor(lab.color)}22,transparent);border-bottom:2px solid ${safeColor(lab.color)}33">
+          <div class="ipanel-av" style="background:${safeColor(lab.color)};color:#fff;font-size:24px">${escapeHTML(lab.icon)}</div>
+          <div style="flex:1"><div class="ipanel-name">${escapeHTML(m.name)} ${m.os ? '<span style="font-size:8px;color:#4ade80">🔓</span>' : ''}</div><div class="ipanel-sub" style="color:${safeColor(lab.color)}">${escapeHTML(lab.name)}</div></div>
           <div class="ipanel-badge" style="background:${isPre ? '#8b5cf6' : stg === 'retired' ? '#7a7f8a' : 'var(--ac)'};color:#000">${sd.emoji} ${sd.label}</div>
         </div>
         <div class="ipanel-act"><span style="font-size:14px">${ai.icon}</span><span class="ipanel-act-text">Currently ${ai.verb}</span></div>
@@ -1327,14 +1344,14 @@ const UI = {
       const lab = LABS[f.lab] || LABS.other || {name: 'Independent', color: '#64748b'}; 
       const p = document.getElementById('infoPanel'); p.className = 'ipanel open'; p.style.animation = 'none'; p.offsetHeight; p.style.animation = 'pi .25s ease';
       p.innerHTML = `<button class="ipanel-x" onclick="UI.closePanel()">✕</button>
-      <div class="ipanel-top" style="background:linear-gradient(135deg,${f.color}22,transparent);border-bottom:2px solid ${f.color}33">
-        <div class="ipanel-av" style="background:${f.color};color:#fff;font-size:20px">🧑‍💼</div>
-        <div style="flex:1"><div class="ipanel-name">${f.name}</div><div class="ipanel-sub" style="color:${f.color}">${f.role}</div></div>
+      <div class="ipanel-top" style="background:linear-gradient(135deg,${safeColor(f.color)}22,transparent);border-bottom:2px solid ${safeColor(f.color)}33">
+        <div class="ipanel-av" style="background:${safeColor(f.color)};color:#fff;font-size:20px">🧑‍💼</div>
+        <div style="flex:1"><div class="ipanel-name">${escapeHTML(f.name)}</div><div class="ipanel-sub" style="color:${safeColor(f.color)}">${escapeHTML(f.role)}</div></div>
       </div>
       <div style="max-height: calc(100vh - 130px); overflow-y: auto; overflow-x: hidden; padding-right: 4px;">
-        <div class="ipanel-desc">${f.fact}</div>
+        <div class="ipanel-desc">${escapeHTML(f.fact)}</div>
         <div class="ipanel-grid">
-          <div class="ipanel-stat"><span class="ipanel-lbl">Company</span><span class="ipanel-val">${lab.name}</span></div>
+          <div class="ipanel-stat"><span class="ipanel-lbl">Company</span><span class="ipanel-val">${escapeHTML(lab.name)}</span></div>
           <div class="ipanel-stat"><span class="ipanel-lbl">Models</span><span class="ipanel-val">${G.models.filter(m => m.lab === f.lab).length}</span></div>
         </div>
         <div style="padding:8px 0"><button class="btn" style="width:100%;text-align:center;${G.tracking && G.tracking.lab === f.lab && G.tracking.type === 'ceo' ? 'background:var(--ac);color:#000;border-color:var(--ac)' : ''}" onclick="G.tracking && G.tracking.lab==='${f.lab}' && G.tracking.type==='ceo' ? G.stopTracking() : G.startTracking('ceo','ceo_${f.lab}','${f.lab}')">${G.tracking && G.tracking.lab === f.lab && G.tracking.type === 'ceo' ? '📡 Tracking' : '📡 Track'}</button></div>
@@ -1399,8 +1416,8 @@ const UI = {
         total += gr[lk].length;
 
         h += `<div style="background:var(--cd);border:1px solid var(--bd);border-radius:6px;padding:12px">
-                <div style="font-size:12px;font-weight:bold;color:${li.color};margin-bottom:10px;display:flex;align-items:center;gap:8px">
-                    <span>${li.icon}</span> ${li.name} (${gr[lk].length})
+                <div style="font-size:12px;font-weight:bold;color:${safeColor(li.color)};margin-bottom:10px;display:flex;align-items:center;gap:8px">
+                    <span>${escapeHTML(li.icon)}</span> ${escapeHTML(li.name)} (${gr[lk].length})
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">`;
 
@@ -1415,7 +1432,7 @@ const UI = {
 
           h += `<div style="background:var(--sf);border:1px solid var(--bd);border-radius:4px;padding:8px;cursor:pointer;transition:border-color 0.2s"
                      onclick="document.getElementById('censusOv').classList.remove('open');UI.selectModel(G.models[${i}])"
-                     onmouseover="this.style.borderColor='${li.color}'" onmouseout="this.style.borderColor='var(--bd)'">
+                     onmouseover="this.style.borderColor='${safeColor(li.color)}'" onmouseout="this.style.borderColor='var(--bd)'">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
                       <div style="display:flex;align-items:center;gap:6px;max-width:80%;">
                           <span style="font-size:16px">${STAGES[s].emoji}</span>
@@ -1664,8 +1681,8 @@ const UI = {
         h += `<div style="margin-bottom:14px;background:var(--cd);border:1px solid ${lab.color}33;border-radius:8px;overflow:hidden">`;
         // Lab header bar
         h += `<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:${lab.color}11;border-bottom:1px solid ${lab.color}22">
-          <span style="font-size:14px">${lab.icon || '🏢'}</span>
-          <span style="font-size:10px;font-weight:bold;color:${lab.color};flex:1">${lab.name}</span>
+          <span style="font-size:14px">${escapeHTML(lab.icon || '🏢')}</span>
+          <span style="font-size:10px;font-weight:bold;color:${safeColor(lab.color)};flex:1">${escapeHTML(lab.name)}</span>
           <span style="font-size:7px;color:var(--t3);background:var(--cd);padding:2px 8px;border-radius:10px">${treeCount} models</span>
         </div>`;
         h += `<div style="padding:10px 14px">`;
@@ -1830,13 +1847,13 @@ const UI = {
           API.supplyChainNews.slice(0, 6).forEach(n => {
               const catColors = { lithography: '#f97316', foundry: '#22d3ee', bottleneck: '#ef4444', accelerator: '#4ade80' };
               const catIcons = { lithography: '🔬', foundry: '🏭', bottleneck: '⚠️', accelerator: '🚀' };
-              h += `<a href="${n.url}" target="_blank" rel="noopener" style="display:block;padding:8px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;margin-bottom:3px;text-decoration:none;cursor:pointer;">
+              h += `<a href="${safeHref(n.url)}" target="_blank" rel="noopener" style="display:block;padding:8px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;margin-bottom:3px;text-decoration:none;cursor:pointer;">
                       <div style="display:flex;align-items:center;gap:6px">
                           <span style="font-size:10px">${catIcons[n.category] || '📰'}</span>
-                          <span style="font-size:7px;padding:2px 5px;background:${catColors[n.category] || 'var(--bd)'}22;color:${catColors[n.category] || 'var(--t2)'};border-radius:3px;text-transform:uppercase;font-weight:700">${n.category}</span>
-                          <span style="font-size:7px;color:var(--t3);margin-left:auto">${n.source}</span>
+                          <span style="font-size:7px;padding:2px 5px;background:${catColors[n.category] || 'var(--bd)'}22;color:${catColors[n.category] || 'var(--t2)'};border-radius:3px;text-transform:uppercase;font-weight:700">${escapeHTML(n.category)}</span>
+                          <span style="font-size:7px;color:var(--t3);margin-left:auto">${escapeHTML(n.source)}</span>
                       </div>
-                      <div style="font-size:8px;color:var(--t1);margin-top:4px;line-height:1.3">${n.headline}</div>
+                      <div style="font-size:8px;color:var(--t1);margin-top:4px;line-height:1.3">${escapeHTML(n.headline)}</div>
                     </a>`;
           });
       }
@@ -1844,7 +1861,7 @@ const UI = {
       h += `<div class="arch-title" style="margin-top:16px;">🏢 Active Lab Clusters</div>`;
       COMPUTE_DATA.clusters.forEach(c => {
         const lab = c.lab ? LABS[c.lab] : null;
-        h += `<div style="display:flex;gap:10px;align-items:center;padding:8px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;margin-bottom:4px"><span style="font-size:12px">${lab ? lab.icon : '🖥️'}</span><div style="flex:1"><div style="font-size:9px;font-weight:700">${c.name}</div><div style="font-size:7px;color:var(--t3)">${c.location}</div></div><div style="text-align:right"><div style="font-size:10px;font-weight:700;color:var(--cy)">${(c.gpus / 1e3).toFixed(0)}K</div><div style="font-size:6px;color:var(--t3)">${c.type}</div></div></div>`;
+        h += `<div style="display:flex;gap:10px;align-items:center;padding:8px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;margin-bottom:4px"><span style="font-size:12px">${lab ? escapeHTML(lab.icon) : '🖥️'}</span><div style="flex:1"><div style="font-size:9px;font-weight:700">${escapeHTML(c.name)}</div><div style="font-size:7px;color:var(--t3)">${escapeHTML(c.location)}</div></div><div style="text-align:right"><div style="font-size:10px;font-weight:700;color:var(--cy)">${(c.gpus / 1e3).toFixed(0)}K</div><div style="font-size:6px;color:var(--t3)">${escapeHTML(c.type)}</div></div></div>`;
       });
       
       h += '</div>'; 
@@ -1904,7 +1921,7 @@ const UI = {
           const lab = LABS[labKey] || { name: labKey, color: '#64748b' };
           const labModels = labGroups[labKey].sort((a, b) => COSTS[a.id].input - COSTS[b.id].input);
           
-          h += `<div style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid ${lab.color}33"><span style="font-size:10px;font-weight:700;color:${lab.color}">${lab.name || labKey}</span><span style="font-size:8px;color:var(--t3)">${labModels.length} model${labModels.length > 1 ? 's' : ''}</span></div>`;
+          h += `<div style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid ${safeColor(lab.color)}33"><span style="font-size:10px;font-weight:700;color:${safeColor(lab.color)}">${escapeHTML(lab.name || labKey)}</span><span style="font-size:8px;color:var(--t3)">${labModels.length} model${labModels.length > 1 ? 's' : ''}</span></div>`;
           
           labModels.forEach(m => {
               const c = COSTS[m.id];
@@ -1934,7 +1951,7 @@ const UI = {
         API.liveNews.forEach(n => {
           const safeHeadline = escapeHTML(n.headline);
           const safeSource = escapeHTML(n.source);
-          const safeUrl = encodeURI(n.url);
+          const safeUrl = safeHref(n.url);
           h += `<a href="${safeUrl}" target="_blank" rel="noopener" style="display:flex;gap:10px;align-items:center;padding:10px;background:var(--cd);border:1px solid var(--bd);border-radius:4px;margin-bottom:4px;text-decoration:none;transition:border-color .15s" onmouseover="this.style.borderColor='var(--ac)'" onmouseout="this.style.borderColor='var(--bd)'"><span style="font-size:14px">📰</span><div style="flex:1"><div style="font-size:9px;color:var(--t1);line-height:1.4">${safeHeadline}</div><div style="font-size:7px;color:var(--cy);margin-top:2px">${safeSource}</div></div></a>`;
         });
       }
@@ -2006,7 +2023,8 @@ const UI = {
       document.getElementById('settingsPan').innerHTML = `<button class="ipanel-x" onclick="document.getElementById('settingsOv').classList.remove('open')">✕</button><div class="ov-title">⚙️ SETTINGS</div>
         <div style="margin-bottom:14px"><label class="ipanel-lbl">API Provider</label><select id="apiProviderSel" class="sel-select" onchange="UI.updateModelDatalist()"><option value="xai" ${G.apiProvider === 'xai' ? 'selected' : ''}>xAI</option><option value="openai" ${G.apiProvider === 'openai' ? 'selected' : ''}>OpenAI</option><option value="anthropic" ${G.apiProvider === 'anthropic' ? 'selected' : ''}>Anthropic</option><option value="google" ${G.apiProvider === 'google' ? 'selected' : ''}>Google</option></select></div>
         <div style="margin-bottom:14px"><label class="ipanel-lbl">Model ID</label><input type="text" id="modelIdInput" list="modelSuggestions" value="${G.modelId}" class="sel-input"><datalist id="modelSuggestions"></datalist></div>
-        <div style="margin-bottom:14px"><label class="ipanel-lbl">API Key</label><input type="password" id="authKeyInput" value="${G.authKey}" placeholder="API Key..." class="sel-input"></div>
+        <div style="margin-bottom:14px"><label class="ipanel-lbl">API Key</label><input type="password" id="authKeyInput" value="${G.authKey}" placeholder="API Key..." class="sel-input">
+          <div style="font-size:7px;color:var(--t3);margin-top:4px;line-height:1.5">🔒 Keys are stored unencrypted in this browser's local storage and sent only to your chosen provider. Don't enter keys on shared computers; use a low-limit key you can revoke.</div></div>
         <div style="margin-bottom:14px">
           <label class="ipanel-lbl">Auto-Scan</label>
           <select id="autoScanSel" class="sel-select" style="margin-top:6px">

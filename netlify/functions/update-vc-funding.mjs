@@ -145,26 +145,50 @@ export default async (_req) => {
     if (raised.length) {
         raised.forEach(id => console.log(`  ↑ ${id}: $${(raises[id].valuation_m / 1000).toFixed(0)}B — ${raises[id].source}`));
     } else {
-        console.log('  (no valuation raises detected this run — writing curated baseline)');
+        console.log('  (no valuation raises detected this run — ratcheting against existing rows)');
     }
 
-    // 3. Upsert every tracked lab: curated floor, plus any detected raise.
-    let ok = 0;
+    // 3. Read the current rows FIRST so the ratchet holds ACROSS runs. A raise
+    // detected last week must survive after its headline rotates out of the
+    // RSS window — without this read, step 4 used to write the curated
+    // baseline back over every previously detected raise.
+    const existing = {};
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/vc_funding?select=lab_id,total_m,valuation_m,source,source_url`, {
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        });
+        if (res.ok) for (const row of await res.json()) existing[row.lab_id] = row;
+        else console.warn(`  ⚠ could not read existing rows (HTTP ${res.status}) — ratchet falls back to baseline-only this run`);
+    } catch (e) {
+        console.warn(`  ⚠ could not read existing rows (${e.message}) — ratchet falls back to baseline-only this run`);
+    }
+
+    // 4. Upsert every tracked lab: max(existing, curated floor, detected raise).
+    let ok = 0, failed = 0;
     for (const [labId, def] of Object.entries(BASELINE)) {
         const bump = raises[labId];
+        const prev = existing[labId];
+        const candidates = [
+            { v: def.valuation, source: 'curated (js/vc_row.js)', source_url: null },
+            ...(prev && Number(prev.valuation_m) > 0 ? [{ v: Number(prev.valuation_m), source: prev.source, source_url: prev.source_url }] : []),
+            ...(bump ? [{ v: bump.valuation_m, source: bump.source, source_url: bump.source_url }] : []),
+        ];
+        const winner = candidates.reduce((a, b) => (b.v > a.v ? b : a));
         const row = {
-            total_m: def.total,
-            valuation_m: bump ? bump.valuation_m : def.valuation,
+            total_m: Math.max(def.total, prev ? Number(prev.total_m) || 0 : 0),
+            valuation_m: winner.v,
             rounds: def.rounds,
-            source: bump ? bump.source : 'curated (js/vc_row.js)',
-            source_url: bump ? bump.source_url : null,
+            source: winner.source,
+            source_url: winner.source_url,
         };
-        if (await upsertLab(labId, row)) ok++;
+        if (await upsertLab(labId, row)) ok++; else failed++;
     }
 
-    console.log(`💰 VC funding update complete: ${ok}/${Object.keys(BASELINE).length} rows written, ${raised.length} raised`);
-    return new Response(JSON.stringify({ success: true, written: ok, raised }), {
-        status: 200,
+    console.log(`💰 VC funding update complete: ${ok}/${Object.keys(BASELINE).length} rows written, ${raised.length} raised, ${failed} failed`);
+    // Fail loudly (same convention as collect-events): a red invocation in the
+    // Netlify dashboard is how MAINTENANCE Part A notices a dead writer.
+    return new Response(JSON.stringify({ success: failed === 0, written: ok, failed, raised }), {
+        status: failed === 0 ? 200 : 500,
         headers: { 'Content-Type': 'application/json' }
     });
 };

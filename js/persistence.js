@@ -24,7 +24,7 @@ const Persistence = {
                 camX: currentCamX,
                 seasonalVisited: typeof Seasonal !== 'undefined' ? Seasonal._eventsVisited : {}
             }));
-        } catch(e) {}
+        } catch(e) { console.warn('[Persistence] save failed (storage quota?):', e && e.message); }
     },
 
     load() {
@@ -57,7 +57,7 @@ const Persistence = {
                 });
                 if (typeof UI !== 'undefined') UI.addLog(`\ud83d\udcc2 Loaded ${d.discovered.length} discovered models.`);
             }
-        } catch(e) {}
+        } catch(e) { console.warn('[Persistence] load failed (corrupt save?):', e && e.message); }
     },
 
     saveSettings() {

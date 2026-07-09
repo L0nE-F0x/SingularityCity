@@ -448,7 +448,7 @@ const Newspaper = {
             const lead = headlines[0];
             html += `<div class="np-top-story">
                 <h2>${this._esc(lead.headline)}</h2>
-                <div class="np-sub">Source: ${this._esc(lead.source)} · <a href="${this._esc(lead.url)}" target="_blank" rel="noopener" style="color:#5a3e1a">Read full article →</a></div>
+                <div class="np-sub">Source: ${this._esc(lead.source)} · <a href="${safeHref(lead.url)}" target="_blank" rel="noopener" style="color:#5a3e1a">Read full article →</a></div>
             </div>`;
         } else {
             html += `<div class="np-top-story">
@@ -466,7 +466,7 @@ const Newspaper = {
             for (let i = 1; i < headlines.length; i++) {
                 const h = headlines[i];
                 html += `<div class="np-item">
-                    <b><a href="${this._esc(h.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(h.headline)}</a></b>
+                    <b><a href="${safeHref(h.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(h.headline)}</a></b>
                     <span class="np-byline">${this._esc(h.source)}</span>
                 </div>`;
             }
@@ -496,7 +496,7 @@ const Newspaper = {
         if (regulation.length > 0) {
             for (const r of regulation) {
                 html += `<div class="np-item">
-                    <b><a href="${this._esc(r.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(r.headline)}</a></b>
+                    <b><a href="${safeHref(r.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(r.headline)}</a></b>
                     <span class="np-byline">${this._esc(r.source)}</span>
                 </div>`;
             }
@@ -568,8 +568,8 @@ const Newspaper = {
                 ? `▲ Hacker News · ${lead.score || 0} points · ${lead.comments || 0} comments`
                 : `Source: ${this._esc(lead.source)}`;
             html += `<div class="np-top-story">
-                <h2><a href="${this._esc(lead.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(lead.headline)}</a></h2>
-                <div class="np-sub">${subAttr} · <a href="${this._esc(lead.url)}" target="_blank" rel="noopener" style="color:#5a3e1a">Read full article →</a></div>
+                <h2><a href="${safeHref(lead.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(lead.headline)}</a></h2>
+                <div class="np-sub">${subAttr} · <a href="${safeHref(lead.url)}" target="_blank" rel="noopener" style="color:#5a3e1a">Read full article →</a></div>
             </div>`;
         } else {
             html += `<div class="np-top-story">
@@ -586,7 +586,7 @@ const Newspaper = {
         if (hnStories.length > 0) {
             for (const s of hnStories) {
                 html += `<div class="np-item">
-                    <b><a href="${this._esc(s.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(s.headline)}</a></b>
+                    <b><a href="${safeHref(s.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(s.headline)}</a></b>
                     <span class="np-byline">▲ ${s.score || 0} · ${s.comments || 0} comments · <a href="https://news.ycombinator.com/item?id=${this._esc(s.id)}" target="_blank" rel="noopener" style="color:#5a3e1a">discuss</a></span>
                 </div>`;
             }
@@ -600,7 +600,7 @@ const Newspaper = {
         if (headlines.length > 0) {
             for (const h of headlines.slice(0, 3)) {
                 html += `<div class="np-item">
-                    <b><a href="${this._esc(h.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(h.headline)}</a></b>
+                    <b><a href="${safeHref(h.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(h.headline)}</a></b>
                     <span class="np-byline">${this._esc(h.source)}</span>
                 </div>`;
             }
@@ -629,7 +629,7 @@ const Newspaper = {
         if (regulation.length > 0) {
             const r = regulation[0];
             html += `<div class="np-item">
-                <b><a href="${this._esc(r.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(r.headline)}</a></b>
+                <b><a href="${safeHref(r.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(r.headline)}</a></b>
                 <span class="np-byline">${this._esc(r.source)}</span>
             </div>`;
         } else {
@@ -797,7 +797,10 @@ const Newspaper = {
         this._wireModal(this._modalEl);
     },
 
-    // Build a numeric issue (Vol/Issue) from weeks elapsed since launch date
+    // Build a numeric issue (Vol/Issue) from weeks elapsed since launch date.
+    // KEEP IN SYNC with computeWeeklyIssueNum/computeDailyIssueNum in
+    // netlify/functions/publish-newspaper-edition.mjs — the archive publisher
+    // stamps editions with the same math; divergence = mismatched issue numbers.
     _computeIssueNum(now) {
         const ms = now - this._volumeStart;
         const weeks = Math.max(1, Math.floor(ms / (7 * 24 * 3600 * 1000)) + 1);

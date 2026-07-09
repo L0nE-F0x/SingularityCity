@@ -312,6 +312,7 @@ const Terminal = {
         this._hideTip();
         this._cmdClose();
         this._lhSave();            // flush persisted history
+        if (this._loopTimer) { clearInterval(this._loopTimer); this._loopTimer = null; } // stop the 4Hz tick
         this._resumeCityRender();  // hand rendering back to the city
         if (typeof SND !== 'undefined' && SND.setContextMute) SND.setContextMute(false);
         // Defensive — strip ?mode=terminal if anything put it back.
@@ -1112,7 +1113,7 @@ const Terminal = {
         if (!news.length) return `<div class="tm-empty">No recent mentions on the wire</div>`;
         const esc = (s) => this._esc(s);
         return news.map(n => {
-            const url = n.url ? ` href="${esc(n.url)}" target="_blank" rel="noopener"` : '';
+            const url = n.url ? ` href="${safeHref(n.url)}" target="_blank" rel="noopener"` : '';
             const src = String(n.src).toUpperCase().replace(/\s+/g, '');
             return `<div class="tm-d-news-item"><span class="tm-news-source ${n.src === 'HN' ? 'tm-tag-hn' : 'tm-tag-news'}">${esc(src)}</span><a class="tm-news-title"${url}>${esc(n.title)}</a></div>`;
         }).join('');
@@ -1846,7 +1847,7 @@ const Terminal = {
         host.innerHTML = `
             <div class="tm-scroll tm-news-list">
                 ${items.slice(0, MAX).map(n => {
-                    const url = n.url ? ` href="${esc(n.url)}" target="_blank" rel="noopener"` : '';
+                    const url = n.url ? ` href="${safeHref(n.url)}" target="_blank" rel="noopener"` : '';
                     const tag = n.source === 'HN' ? 'tm-tag-hn' : 'tm-tag-news';
                     const isHN = n.source === 'HN';
                     const scoreBlock = (isHN && typeof n.score === 'number')
@@ -2104,7 +2105,7 @@ const Terminal = {
                 ${items.slice(0, 40).map(it => {
                     const c = this._TAPE_COLORS[it.cat] || '#8a8aa0';
                     const isLink = !!it.url;
-                    const attrs = isLink ? ` href="${esc(it.url)}" target="_blank" rel="noopener"` : '';
+                    const attrs = isLink ? ` href="${safeHref(it.url)}" target="_blank" rel="noopener"` : '';
                     const tip = this._tipAttr(
                         `<div class="tm-tip-hd" style="color:${c}">${esc(it.src)} · ${esc(it.cat)}</div>` +
                         `<div class="tm-tip-body">${esc(it.text)}</div>` +

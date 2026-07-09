@@ -206,18 +206,14 @@ function updateDailyEvents() {
         _currentDay = day;
         _isWeekend = d.getDay() === 0 || d.getDay() === 6;
         
-        if (d.getFullYear() === 2026 && d.getMonth() === 2 && d.getDate() === 28) {
-            _hackathonLab = 'openai';
-        } else {
-            const hash = d.getFullYear() + d.getMonth() * 100 + day * 10000;
-            if (hash % 100 < 15) { 
-                const labs = Object.keys(LABS);
-                if (labs.length > 0) {
-                    _hackathonLab = labs[hash % labs.length];
-                }
-            } else {
-                _hackathonLab = null;
+        const hash = d.getFullYear() + d.getMonth() * 100 + day * 10000;
+        if (hash % 100 < 15) {
+            const labs = Object.keys(LABS);
+            if (labs.length > 0) {
+                _hackathonLab = labs[hash % labs.length];
             }
+        } else {
+            _hackathonLab = null;
         }
         
         if (_hackathonLab && typeof UI !== 'undefined') {

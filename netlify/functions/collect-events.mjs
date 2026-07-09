@@ -23,6 +23,8 @@
 // Schedule: hourly. The unique PK (`source:source_id`) makes re-runs no-ops.
 // ════════════════════════════════════════════════════════════════════════════
 
+import { AI_TITLE_RE } from './_shared/ai-keywords.mjs';
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
@@ -52,7 +54,7 @@ function utcDateString(d) {
 // often reference Sam Altman / Elon / etc. rather than the lab.
 const LAB_KEYWORDS = [
     ['anthropic',    /\b(anthropic|claude|dario amodei|amodei)\b/i],
-    ['openai',       /\b(openai|chatgpt|sam altman|altman|gpt-?\d|sora|o1|o2|o3|o4)\b/i],
+    ['openai',       /\b(openai|chatgpt|sam altman|altman|gpt-?\d|sora|o1|o3|o4)\b/i],  // no bare o2 — matches 'O2 arena'
     ['google',       /\b(google|deepmind|gemini|hassabis|pichai|alphabet)\b/i],
     ['xai',          /\b(xai|x\.ai|grok|elon musk|musk)\b/i],
     ['meta',         /\b(meta|llama|zuckerberg|mark zuck|fb research)\b/i],
@@ -127,22 +129,8 @@ const HF_AUTHOR_LAB = {
 };
 
 // ─── HACKER NEWS ────────────────────────────────────────────────────────────
-const AI_KEYWORDS = [
-    'ai', 'a\\.i\\.', 'gpt', 'gpt-\\d', 'llm', 'llms', 'agi', 'asi',
-    'claude', 'gemini', 'llama', 'deepseek', 'qwen', 'mistral', 'grok',
-    'openai', 'anthropic', 'groq', 'xai', 'perplexity', 'cohere',
-    'chatgpt', 'copilot', 'midjourney', 'dall-e', 'sora', 'runway',
-    'transformer', 'transformers', 'rlhf', 'dpo', 'rag',
-    'agent', 'agents', 'agentic',
-    'machine learning', 'deep learning', 'neural network', 'neural networks',
-    'diffusion', 'stable diffusion',
-    'inference', 'benchmark', 'benchmarks', 'eval', 'evals',
-    'fine-tune', 'fine-tuning', 'fine tuning', 'pretraining', 'pre-training',
-    'reasoning model', 'reasoning models',
-    'hugging face', 'huggingface',
-    'mamba', 'moe', 'mixture of experts'
-];
-const HN_RE = new RegExp('\\b(' + AI_KEYWORDS.join('|') + ')\\b', 'i');
+// Keyword filter shared with hn-ai-stories.mjs / publish-newspaper-edition.mjs.
+const HN_RE = AI_TITLE_RE;
 
 async function collectFromHN() {
     const ids = await fetchJSON('https://hacker-news.firebaseio.com/v0/topstories.json');
@@ -278,7 +266,7 @@ async function collectFromLaunchLib() {
 // ─── ARXIV (recent AI papers, classified by lab-keyword match in title/abstract) ─
 async function collectFromArxiv() {
     // 30 most recent cs.AI / cs.CL / cs.LG submissions.
-    const url = 'http://export.arxiv.org/api/query?' +
+    const url = 'https://export.arxiv.org/api/query?' +
         'search_query=cat:cs.AI+OR+cat:cs.CL+OR+cat:cs.LG' +
         '&sortBy=submittedDate&sortOrder=descending&max_results=30';
     let xml;

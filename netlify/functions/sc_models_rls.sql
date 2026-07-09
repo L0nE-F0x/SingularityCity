@@ -1,4 +1,12 @@
 -- ════════════════════════════════════════════════════════════════════════════
+-- ⚠ SUPERSEDED by rls_all.sql — do not run this file anymore.
+-- This version still allowed anon INSERT/UPDATE on `models`, which let anyone
+-- with the (public) publishable key vandalize the shared dataset. rls_all.sql
+-- makes every table anon read-only; writes now go through the submit-data
+-- Netlify function (service key + per-row validation). Kept for history only.
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- ════════════════════════════════════════════════════════════════════════════
 -- models — lock down destructive access for the anon (publishable) key.
 --
 -- WHY: until v484 every visitor's browser ran purge/dedupe against the cloud DB,

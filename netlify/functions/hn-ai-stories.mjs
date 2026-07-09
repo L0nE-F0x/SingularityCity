@@ -7,28 +7,7 @@
 let cache = { ts: 0, stories: [] };
 const CACHE_TTL = 10 * 60 * 1000; // 10 min
 
-const AI_KEYWORDS = [
-    'ai', 'a\\.i\\.', 'gpt', 'gpt-\\d', 'llm', 'llms', 'agi', 'asi',
-    'claude', 'gemini', 'llama', 'deepseek', 'qwen', 'mistral', 'grok',
-    'openai', 'anthropic', 'groq', 'xai', 'perplexity', 'cohere',
-    'chatgpt', 'copilot', 'midjourney', 'dall-e', 'sora', 'runway',
-    'transformer', 'transformers', 'rlhf', 'dpo', 'rag',
-    'agent', 'agents', 'agentic',
-    'machine learning', 'deep learning', 'neural network', 'neural networks',
-    'diffusion', 'stable diffusion',
-    'inference', 'benchmark', 'benchmarks', 'eval', 'evals',
-    'fine-tune', 'fine-tuning', 'fine tuning', 'pretraining', 'pre-training',
-    'reasoning model', 'reasoning models',
-    'hugging face', 'huggingface',
-    'mamba', 'moe', 'mixture of experts'
-];
-
-// One compiled regex covers all keywords with \b word boundaries.
-const KEYWORD_RE = new RegExp('\\b(' + AI_KEYWORDS.join('|') + ')\\b', 'i');
-
-function isAITitle(title) {
-    return KEYWORD_RE.test(title || '');
-}
+import { isAITitle } from './_shared/ai-keywords.mjs';
 
 export default async (_req) => {
     const now = Date.now();

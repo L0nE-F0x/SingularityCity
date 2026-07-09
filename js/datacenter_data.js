@@ -56,6 +56,8 @@ const DC_FACILITIES = [
     },
 
     // ─── UNDER CONSTRUCTION ───
+    // (dc_xai_expansion below is OPERATIONAL — it graduated in Jan 2026 but
+    // stays adjacent to Stargate for map-layout reasons; status field wins.)
     {
         id: 'dc_stargate', name: 'Stargate (Abilene)', operator: 'oracle',
         location: 'Abilene, Texas', type: 'datacenter', status: 'construction',
@@ -221,8 +223,8 @@ const DCManager = {
             completion: dc.completion || null, description: dc.desc || null,
             width: dc.w || 160, color: dc.color || '#64748b'
         };
-        API.supabase.from('dc_facilities').upsert(row).then(({ error }) => {
-            if (error) console.warn(`[DCManager] Supabase sync failed for ${dc.id}:`, error.message);
+        API._cloudSubmit('dc_facilities', row).then((ok) => {
+            if (!ok) console.warn(`[DCManager] Cloud sync failed for ${dc.id} (submit-data rejected or unreachable)`);
         });
     }
 };

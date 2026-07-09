@@ -29,9 +29,9 @@ async function fetchJSON(url, timeoutMs = 8000) {
     }
 }
 
-// ── Helper: Upsert to Supabase ──
+// ── Helper: Upsert to Supabase ── (returns true on success so the handler can fail loudly)
 async function upsertCommodity(id, updates) {
-    if (!SUPABASE_URL || !SUPABASE_KEY) return;
+    if (!SUPABASE_URL || !SUPABASE_KEY) return false;
     const row = { id, ...updates, updated_at: new Date().toISOString() };
     try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/port_commodities?on_conflict=id`, {
@@ -44,10 +44,25 @@ async function upsertCommodity(id, updates) {
             },
             body: JSON.stringify(row)
         });
-        if (!res.ok) console.warn(`Supabase upsert failed for ${id}: ${res.status}`);
-        else console.log(`✅ Updated ${id}: $${updates.price}`);
+        if (!res.ok) { console.warn(`Supabase upsert failed for ${id}: ${res.status}`); return false; }
+        console.log(`✅ Updated ${id}: $${updates.price}`);
+        return true;
     } catch (e) {
         console.warn(`Supabase error for ${id}: ${e.message}`);
+        return false;
+    }
+}
+
+// ── Helper: ids already present in the table (used to seed static rows ONCE) ──
+async function existingCommodityIds() {
+    try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/port_commodities?select=id`, {
+            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        });
+        if (!res.ok) return null;
+        return new Set((await res.json()).map(r => r.id));
+    } catch {
+        return null;
     }
 }
 
@@ -86,15 +101,6 @@ async function fetchNVDA() {
     return null;
 }
 
-// Metals via metals.dev (free, no key required, public JSON)
-async function fetchMetalsPrices() {
-    try {
-        const data = await fetchJSON('https://api.metals.dev/v1/latest?api_key=demo&currency=USD');
-        if (data && data.metals) return data.metals;
-    } catch (e) { /* silent */ }
-    return null;
-}
-
 // ── Supply status heuristics ──
 function deriveSupplyStatus(changePct) {
     if (changePct > 20) return 'critical';
@@ -105,7 +111,7 @@ function deriveSupplyStatus(changePct) {
 }
 
 // ── Main handler ──
-export default async (req) => {
+export default async (_req) => {
     console.log('🚢 Commodity price update starting...');
 
     if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -114,16 +120,19 @@ export default async (req) => {
     }
 
     const results = {};
+    let failed = 0;
+    const track = async (id, data) => {
+        if (await upsertCommodity(id, data)) results[id] = data.price; else failed++;
+    };
 
     // 1. Copper (LME Grade A)
     const copper = await fetchCopper();
     if (copper) {
-        await upsertCommodity('copper', {
+        await track('copper', {
             name: 'Copper (Grade A)', price: copper.price, unit: 'tonne',
             change_pct: copper.change_pct, supply_status: deriveSupplyStatus(copper.change_pct),
             category: 'materials', source: 'Finnhub (COMEX HG futures)'
         });
-        results.copper = copper.price;
     }
 
     // 2. GPU prices — derive from NVIDIA stock movement
@@ -136,32 +145,30 @@ export default async (req) => {
         const b200Base = 45000;
         const b200Adj = Math.round(b200Base * (1 + (nvda.changePct / 100) * 0.7));
 
-        await upsertCommodity('gpu_h100', {
+        await track('gpu_h100', {
             name: 'NVIDIA H100 80GB', price: h100Adj, unit: 'unit',
             change_pct: Math.round(nvda.changePct * 0.5 * 10) / 10,
-            supply_status: nvda.changePct > 5 ? 'tight' : nvda.changePct > 15 ? 'scarce' : 'stable',
-            category: 'compute', source: `Derived from NVDA stock ($${nvda.stockPrice})`
+            // Widest threshold first — the old ordering made 'scarce' unreachable.
+            supply_status: nvda.changePct > 15 ? 'scarce' : nvda.changePct > 5 ? 'tight' : 'stable',
+            category: 'compute', source: `Modeled from NVDA stock ($${nvda.stockPrice})`
         });
-        results.gpu_h100 = h100Adj;
 
-        await upsertCommodity('gpu_b200', {
+        await track('gpu_b200', {
             name: 'NVIDIA B200', price: b200Adj, unit: 'unit',
             change_pct: Math.round(nvda.changePct * 0.7 * 10) / 10,
             supply_status: 'scarce',
             category: 'compute', source: `Derived from NVDA stock ($${nvda.stockPrice})`
         });
-        results.gpu_b200 = b200Adj;
 
         // HBM memory tracks with GPU demand
         const hbmBase = 900;
         const hbmAdj = Math.round(hbmBase * (1 + (nvda.changePct / 100) * 0.8));
-        await upsertCommodity('hbm_memory', {
+        await track('hbm_memory', {
             name: 'HBM3e Memory', price: hbmAdj, unit: 'stack',
             change_pct: Math.round(nvda.changePct * 0.8 * 10) / 10,
             supply_status: nvda.changePct > 3 ? 'scarce' : 'tight',
             category: 'compute', source: 'Derived from GPU demand trends'
         });
-        results.hbm_memory = hbmAdj;
     }
 
     // 3. Electricity — derive from crude oil proxy
@@ -172,45 +179,55 @@ export default async (req) => {
         const elecBase = 68;
         const oilNorm = oil.price / 70;
         const elecPrice = Math.round(elecBase * oilNorm);
-        await upsertCommodity('electricity', {
+        await track('electricity', {
             name: 'Electricity (Industrial)', price: elecPrice, unit: 'MWh',
             change_pct: Math.round(oil.change_pct * 0.6 * 10) / 10,
             supply_status: deriveSupplyStatus(oil.change_pct * 0.6),
             category: 'power', source: `Derived from crude oil ($${oil.price}/bbl)`
         });
-        results.electricity = elecPrice;
 
         // Power transformers track with energy infrastructure demand
         const xfmrBase = 85000;
         const xfmrAdj = Math.round(xfmrBase * (1 + (oil.change_pct / 100) * 0.3));
-        await upsertCommodity('power_xfmr', {
+        await track('power_xfmr', {
             name: 'Power Transformers', price: xfmrAdj, unit: 'unit',
             change_pct: Math.round(oil.change_pct * 0.3 * 10) / 10,
             supply_status: 'tight',
             category: 'power', source: 'Derived from energy market'
         });
-        results.power_xfmr = xfmrAdj;
     }
 
-    // 4. Static estimates (updated less frequently — these need manual or specialized API updates)
-    const staticUpdates = [
-        { id: 'helium', name: 'Liquid Helium', price: 35, unit: 'L', change_pct: 28.4, supply_status: 'critical', category: 'cooling', source: 'Industrial gas market estimate (BLM/USGS)' },
-        { id: 'silicon_wafer', name: 'Silicon Wafers (300mm)', price: 142, unit: 'wafer', change_pct: 3.1, supply_status: 'stable', category: 'fabrication', source: 'SEMI.org estimate' },
-        { id: 'rare_earth', name: 'Rare Earth (Nd/Ga)', price: 380, unit: 'kg', change_pct: 15.7, supply_status: 'tight', category: 'materials', source: 'Shanghai Metals Market estimate' },
-        { id: 'fiber_optic', name: 'Fiber Optic Cable', price: 1200, unit: 'km', change_pct: -2.1, supply_status: 'stable', category: 'network', source: 'Corning/Furukawa estimate' },
-        { id: 'coolant_sys', name: 'Liquid Cooling Systems', price: 4500, unit: 'unit', change_pct: 18.9, supply_status: 'tight', category: 'cooling', source: 'CoolIT/Vertiv estimate' },
-        { id: 'server_rack', name: 'Server Rack Chassis', price: 2200, unit: 'unit', change_pct: 1.4, supply_status: 'stable', category: 'infra', source: 'OCP pricing estimate' }
+    // 4. Static estimates — SEEDED ONCE, never re-stamped. These are hand-authored
+    // snapshots with frozen change_pct values; rewriting them daily used to give
+    // them a fresh updated_at, presenting fiction as fresh data (helium sat at
+    // "+28.4% / critical" for months, "updated today"). Seeding only when the row
+    // is missing keeps the table populated on first run while letting updated_at
+    // honestly reflect when the estimate was authored.
+    const staticSeeds = [
+        { id: 'helium', name: 'Liquid Helium', price: 35, unit: 'L', change_pct: 28.4, supply_status: 'critical', category: 'cooling', source: 'Static estimate (BLM/USGS, seeded once)' },
+        { id: 'silicon_wafer', name: 'Silicon Wafers (300mm)', price: 142, unit: 'wafer', change_pct: 3.1, supply_status: 'stable', category: 'fabrication', source: 'Static estimate (SEMI.org, seeded once)' },
+        { id: 'rare_earth', name: 'Rare Earth (Nd/Ga)', price: 380, unit: 'kg', change_pct: 15.7, supply_status: 'tight', category: 'materials', source: 'Static estimate (Shanghai Metals Market, seeded once)' },
+        { id: 'fiber_optic', name: 'Fiber Optic Cable', price: 1200, unit: 'km', change_pct: -2.1, supply_status: 'stable', category: 'network', source: 'Static estimate (Corning/Furukawa, seeded once)' },
+        { id: 'coolant_sys', name: 'Liquid Cooling Systems', price: 4500, unit: 'unit', change_pct: 18.9, supply_status: 'tight', category: 'cooling', source: 'Static estimate (CoolIT/Vertiv, seeded once)' },
+        { id: 'server_rack', name: 'Server Rack Chassis', price: 2200, unit: 'unit', change_pct: 1.4, supply_status: 'stable', category: 'infra', source: 'Static estimate (OCP pricing, seeded once)' }
     ];
 
-    for (const item of staticUpdates) {
-        const { id, ...data } = item;
-        await upsertCommodity(id, data);
-        results[id] = data.price;
+    const present = await existingCommodityIds();
+    if (present === null) {
+        console.warn('  ⚠ could not read existing commodity ids — skipping static seeding this run');
+    } else {
+        for (const item of staticSeeds) {
+            if (present.has(item.id)) continue; // already seeded — leave updated_at honest
+            const { id, ...data } = item;
+            if (await upsertCommodity(id, data)) results[id] = data.price; else failed++;
+        }
     }
 
-    console.log(`🚢 Commodity update complete: ${Object.keys(results).length} prices updated`);
-    return new Response(JSON.stringify({ success: true, updated: results }), {
-        status: 200,
+    console.log(`🚢 Commodity update complete: ${Object.keys(results).length} prices updated, ${failed} failed`);
+    // Fail loudly (collect-events convention) so a dead writer shows red in the dashboard.
+    const ok = failed === 0 && Object.keys(results).length > 0;
+    return new Response(JSON.stringify({ success: ok, updated: results, failed }), {
+        status: ok ? 200 : 500,
         headers: { 'Content-Type': 'application/json' }
     });
 };

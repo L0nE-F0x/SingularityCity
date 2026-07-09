@@ -72,6 +72,26 @@ sw = sw.replace(
     /const CACHE_NAME = 'singularity-city-v[^']*';/,
     `const CACHE_NAME = 'singularity-city-v${version}';`
 );
+
+// Regenerate CORE_ASSETS from index.html so the precache list can never drift
+// from the script tags again (robot_models.js/space_rockets.js were once added
+// to index.html but not here — offline PWA then threw in those zones).
+const jsAssets = [...html.matchAll(/<script(?:\s+defer)?\s+src="(js\/[^"?]+)(?:\?v=[^"]*)?"><\/script>/g)].map(m => '/' + m[1]);
+const cssAssets = [...html.matchAll(/<link\s+rel="stylesheet"\s+href="(css\/[^"?]+)(?:\?v=[^"]*)?"\s*>/g)].map(m => '/' + m[1]);
+const STATIC_ASSETS = [
+    '/', '/index.html', '/manifest.json', '/og-image.png',
+    '/favicon.ico', '/favicon-32.png', '/icon-192.png', '/icon-512.png',
+    // Loaded via new Worker(), not a <script> tag — keep it precached.
+    '/js/compute_worker.js',
+];
+const assets = [...STATIC_ASSETS, ...cssAssets, ...jsAssets];
+const assetList = assets.map(a => `    '${a}'`).join(',\n');
+const swBefore = sw;
+sw = sw.replace(
+    /const CORE_ASSETS = \[[\s\S]*?\];/,
+    `const CORE_ASSETS = [\n${assetList}\n];`
+);
+if (sw === swBefore) console.warn('cachebust: WARNING — could not find CORE_ASSETS in sw.js; precache not regenerated');
 writeFileSync(swPath, sw);
 
-console.log(`cachebust: bumped local js/* and css/* tags and sw.js CACHE_NAME to v=${version}`);
+console.log(`cachebust: bumped local js/* and css/* tags, sw.js CACHE_NAME to v=${version}, regenerated CORE_ASSETS (${assets.length} entries)`);
