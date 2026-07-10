@@ -1201,96 +1201,97 @@ const Environment = {
 
     // Geometric brand emblem for famous labs (drawn into cached gfx — no PIXI.Text).
     // Unknown labs simply get no emblem, so newly-scanned labs never break.
-    _drawLabEmblem(gfx, labId, cx, cy, colHex) {
+    // `s` scales the mark (plaques call with ~1.5 so emblems read when zoomed out).
+    _drawLabEmblem(gfx, labId, cx, cy, colHex, s = 1) {
         switch (labId) {
             case 'openai': // hexagonal knot approximation
-                gfx.lineStyle(1.6, 0xffffff, 0.95);
+                gfx.lineStyle(1.6 * s, 0xffffff, 0.95);
                 for (let i = 0; i < 6; i++) {
                     const a1 = i * Math.PI / 3 - Math.PI / 6, a2 = a1 + Math.PI / 3;
-                    gfx.moveTo(cx + Math.cos(a1) * 6, cy + Math.sin(a1) * 6);
-                    gfx.lineTo(cx + Math.cos(a2) * 6, cy + Math.sin(a2) * 6);
+                    gfx.moveTo(cx + Math.cos(a1) * 6 * s, cy + Math.sin(a1) * 6 * s);
+                    gfx.lineTo(cx + Math.cos(a2) * 6 * s, cy + Math.sin(a2) * 6 * s);
                 }
                 for (let i = 0; i < 3; i++) {
                     const a = i * Math.PI * 2 / 3 + Math.PI / 6;
-                    gfx.moveTo(cx + Math.cos(a) * 6, cy + Math.sin(a) * 6);
-                    gfx.lineTo(cx - Math.cos(a) * 3, cy - Math.sin(a) * 3);
+                    gfx.moveTo(cx + Math.cos(a) * 6 * s, cy + Math.sin(a) * 6 * s);
+                    gfx.lineTo(cx - Math.cos(a) * 3 * s, cy - Math.sin(a) * 3 * s);
                 }
                 gfx.lineStyle(0);
                 break;
             case 'anthropic': // minimal geometric "A"
                 gfx.beginFill(0xd97757);
-                gfx.drawPolygon([cx - 6.5, cy + 6, cx - 1.8, cy - 6, cx + 1, cy - 6, cx - 3.6, cy + 6]);
-                gfx.drawPolygon([cx + 6.5, cy + 6, cx + 1.8, cy - 6, cx - 1, cy - 6, cx + 3.6, cy + 6]);
+                gfx.drawPolygon([cx - 6.5 * s, cy + 6 * s, cx - 1.8 * s, cy - 6 * s, cx + 1 * s, cy - 6 * s, cx - 3.6 * s, cy + 6 * s]);
+                gfx.drawPolygon([cx + 6.5 * s, cy + 6 * s, cx + 1.8 * s, cy - 6 * s, cx - 1 * s, cy - 6 * s, cx + 3.6 * s, cy + 6 * s]);
                 gfx.endFill();
-                gfx.beginFill(0xd97757); gfx.drawRect(cx - 2.6, cy + 0.5, 5.2, 2.2); gfx.endFill();
+                gfx.beginFill(0xd97757); gfx.drawRect(cx - 2.6 * s, cy + 0.5 * s, 5.2 * s, 2.2 * s); gfx.endFill();
                 break;
             case 'google': // four dots
                 [[0x4285f4, -6.5], [0xea4335, -2.2], [0xfbbc05, 2.2], [0x34a853, 6.5]].forEach(([c, ox]) => {
-                    gfx.beginFill(c); gfx.drawCircle(cx + ox, cy, 1.9); gfx.endFill();
+                    gfx.beginFill(c); gfx.drawCircle(cx + ox * s, cy, 1.9 * s); gfx.endFill();
                 });
                 break;
             case 'meta': // infinity loop
-                gfx.lineStyle(2, 0x0866ff, 0.95);
-                gfx.drawEllipse(cx - 3.2, cy, 3.4, 4.6);
-                gfx.drawEllipse(cx + 3.2, cy, 3.4, 4.6);
+                gfx.lineStyle(2 * s, 0x0866ff, 0.95);
+                gfx.drawEllipse(cx - 3.2 * s, cy, 3.4 * s, 4.6 * s);
+                gfx.drawEllipse(cx + 3.2 * s, cy, 3.4 * s, 4.6 * s);
                 gfx.lineStyle(0);
                 break;
             case 'xai': // bold X
                 gfx.beginFill(0xffffff, 0.95);
-                gfx.drawPolygon([cx - 6, cy - 6, cx - 3.4, cy - 6, cx + 6, cy + 6, cx + 3.4, cy + 6]);
-                gfx.drawPolygon([cx + 6, cy - 6, cx + 3.4, cy - 6, cx - 6, cy + 6, cx - 3.4, cy + 6]);
+                gfx.drawPolygon([cx - 6 * s, cy - 6 * s, cx - 3.4 * s, cy - 6 * s, cx + 6 * s, cy + 6 * s, cx + 3.4 * s, cy + 6 * s]);
+                gfx.drawPolygon([cx + 6 * s, cy - 6 * s, cx + 3.4 * s, cy - 6 * s, cx - 6 * s, cy + 6 * s, cx - 3.4 * s, cy + 6 * s]);
                 gfx.endFill();
                 break;
             case 'microsoft': // 2×2 squares
-                gfx.beginFill(0xf25022); gfx.drawRect(cx - 6, cy - 6, 5.4, 5.4); gfx.endFill();
-                gfx.beginFill(0x7fba00); gfx.drawRect(cx + 0.6, cy - 6, 5.4, 5.4); gfx.endFill();
-                gfx.beginFill(0x00a4ef); gfx.drawRect(cx - 6, cy + 0.6, 5.4, 5.4); gfx.endFill();
-                gfx.beginFill(0xffb900); gfx.drawRect(cx + 0.6, cy + 0.6, 5.4, 5.4); gfx.endFill();
+                gfx.beginFill(0xf25022); gfx.drawRect(cx - 6 * s, cy - 6 * s, 5.4 * s, 5.4 * s); gfx.endFill();
+                gfx.beginFill(0x7fba00); gfx.drawRect(cx + 0.6 * s, cy - 6 * s, 5.4 * s, 5.4 * s); gfx.endFill();
+                gfx.beginFill(0x00a4ef); gfx.drawRect(cx - 6 * s, cy + 0.6 * s, 5.4 * s, 5.4 * s); gfx.endFill();
+                gfx.beginFill(0xffb900); gfx.drawRect(cx + 0.6 * s, cy + 0.6 * s, 5.4 * s, 5.4 * s); gfx.endFill();
                 break;
             case 'deepseek': // whale swoosh
                 gfx.beginFill(0x4d6bfe);
-                gfx.drawEllipse(cx, cy + 1, 6.5, 3.6);
-                gfx.drawPolygon([cx + 5, cy, cx + 9, cy - 4, cx + 8, cy + 2]);
+                gfx.drawEllipse(cx, cy + 1 * s, 6.5 * s, 3.6 * s);
+                gfx.drawPolygon([cx + 5 * s, cy, cx + 9 * s, cy - 4 * s, cx + 8 * s, cy + 2 * s]);
                 gfx.endFill();
-                gfx.beginFill(0x0a1420); gfx.drawEllipse(cx - 1, cy + 2.2, 4.5, 2); gfx.endFill();
+                gfx.beginFill(0x0a1420); gfx.drawEllipse(cx - 1 * s, cy + 2.2 * s, 4.5 * s, 2 * s); gfx.endFill();
                 break;
             case 'mistral': // stepped pixel-M in orange gradient
                 [[0xffd800, 0], [0xffaf00, 1], [0xff8205, 2], [0xfa500f, 3]].forEach(([c, r]) => {
                     gfx.beginFill(c);
-                    gfx.drawRect(cx - 7, cy - 6 + r * 3, 3, 3);
-                    gfx.drawRect(cx + 4, cy - 6 + r * 3, 3, 3);
-                    if (r === 1) gfx.drawRect(cx - 1.5, cy - 3, 3, 3);
+                    gfx.drawRect(cx - 7 * s, cy + (-6 + r * 3) * s, 3 * s, 3 * s);
+                    gfx.drawRect(cx + 4 * s, cy + (-6 + r * 3) * s, 3 * s, 3 * s);
+                    if (r === 1) gfx.drawRect(cx - 1.5 * s, cy - 3 * s, 3 * s, 3 * s);
                     gfx.endFill();
                 });
-                gfx.beginFill(0xfa500f); gfx.drawRect(cx - 7, cy + 6, 14, 2); gfx.endFill();
+                gfx.beginFill(0xfa500f); gfx.drawRect(cx - 7 * s, cy + 6 * s, 14 * s, 2 * s); gfx.endFill();
                 break;
             case 'nvidia': { // eye swoosh
-                gfx.lineStyle(2, 0x76b900, 0.95);
+                gfx.lineStyle(2 * s, 0x76b900, 0.95);
                 const nvA = Math.PI * 0.75;
-                gfx.moveTo(cx + Math.cos(nvA) * 5.5, cy + Math.sin(nvA) * 5.5);
-                gfx.arc(cx, cy, 5.5, nvA, Math.PI * 2.05);
+                gfx.moveTo(cx + Math.cos(nvA) * 5.5 * s, cy + Math.sin(nvA) * 5.5 * s);
+                gfx.arc(cx, cy, 5.5 * s, nvA, Math.PI * 2.05);
                 gfx.lineStyle(0);
-                gfx.beginFill(0x76b900); gfx.drawCircle(cx + 1, cy, 2.2); gfx.endFill();
+                gfx.beginFill(0x76b900); gfx.drawCircle(cx + 1 * s, cy, 2.2 * s); gfx.endFill();
                 break;
             }
             case 'amazon': { // smile + arrow
-                gfx.lineStyle(2, 0xff9900, 0.95);
+                gfx.lineStyle(2 * s, 0xff9900, 0.95);
                 const amA = Math.PI * 0.15;
-                gfx.moveTo(cx + Math.cos(amA) * 6, cy - 1.5 + Math.sin(amA) * 6);
-                gfx.arc(cx, cy - 1.5, 6, amA, Math.PI * 0.85);
+                gfx.moveTo(cx + Math.cos(amA) * 6 * s, cy - 1.5 * s + Math.sin(amA) * 6 * s);
+                gfx.arc(cx, cy - 1.5 * s, 6 * s, amA, Math.PI * 0.85);
                 gfx.lineStyle(0);
-                gfx.beginFill(0xff9900); gfx.drawPolygon([cx + 5.4, cy + 2.4, cx + 7.4, cy + 4.6, cx + 4.2, cy + 4.4]); gfx.endFill();
+                gfx.beginFill(0xff9900); gfx.drawPolygon([cx + 5.4 * s, cy + 2.4 * s, cx + 7.4 * s, cy + 4.6 * s, cx + 4.2 * s, cy + 4.4 * s]); gfx.endFill();
                 break;
             }
             case 'ibm': // horizontal bars
                 gfx.beginFill(0x0f62fe);
-                for (let r = 0; r < 4; r++) gfx.drawRect(cx - 6.5, cy - 6 + r * 3.4, 13, 1.8);
+                for (let r = 0; r < 4; r++) gfx.drawRect(cx - 6.5 * s, cy + (-6 + r * 3.4) * s, 13 * s, 1.8 * s);
                 gfx.endFill();
                 break;
             default:
                 // No emblem for unknown labs — the plaque shows the lab color chip instead.
-                gfx.beginFill(colHex, 0.9); gfx.drawCircle(cx, cy, 3); gfx.endFill();
-                gfx.beginFill(0xffffff, 0.35); gfx.drawCircle(cx - 1, cy - 1, 1.2); gfx.endFill();
+                gfx.beginFill(colHex, 0.9); gfx.drawCircle(cx, cy, 3 * s); gfx.endFill();
+                gfx.beginFill(0xffffff, 0.35); gfx.drawCircle(cx - 1 * s, cy - 1 * s, 1.2 * s); gfx.endFill();
         }
     },
 
@@ -3517,29 +3518,34 @@ const Environment = {
               return 0;
           };
 
-          // Right-edge drop shadow
-          gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, 4, 6, h - 4); gfx.endFill();
-
           // ── Body massing (solid — the old facade was translucent) ──
           const bodyCol = style === 'brutalist' ? 0x161a22
                         : style === 'euro'      ? 0x171522
                         : style === 'pagoda'    ? 0x14101a
                         : 0x0d1322;
-          // Draw the body per floor-band so setback/campus tiers stay solid
+          // Everything edge-hugging is drawn PER floor-band with that band's own
+          // inset — a full-height strip using the top tier's inset paints a stray
+          // line across the wider lower tiers of setback/campus towers.
           for (let f = 0; f < floors; f++) {
               const ins = insetFor(f);
               const by2 = 14 + f * 18;
               gfx.beginFill(bodyCol); gfx.drawRect(ins, by2, b.w - ins * 2, 18); gfx.endFill();
               gfx.beginFill(colHex, 0.07); gfx.drawRect(ins, by2, b.w - ins * 2, 18); gfx.endFill();
+              // Depth: left highlight + right shade, hugging this band's edges
+              gfx.beginFill(0xffffff, 0.05); gfx.drawRect(ins, by2, 3, 18); gfx.endFill();
+              gfx.beginFill(0x000000, 0.18); gfx.drawRect(b.w - ins - 5, by2, 5, 18); gfx.endFill();
+              // Right-edge drop shadow cast beside this band
+              gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w - ins, by2, 6, 18); gfx.endFill();
           }
           // Ground band under the last floor (h-24..h always exists: h = floors*18+24)
-          gfx.beginFill(bodyCol); gfx.drawRect(0, 14 + floors * 18, b.w, h - 14 - floors * 18); gfx.endFill();
-          gfx.beginFill(colHex, 0.07); gfx.drawRect(0, 14 + floors * 18, b.w, h - 14 - floors * 18); gfx.endFill();
+          const gndY = 14 + floors * 18;
+          gfx.beginFill(bodyCol); gfx.drawRect(0, gndY, b.w, h - gndY); gfx.endFill();
+          gfx.beginFill(colHex, 0.07); gfx.drawRect(0, gndY, b.w, h - gndY); gfx.endFill();
+          gfx.beginFill(0xffffff, 0.05); gfx.drawRect(0, gndY, 3, h - gndY); gfx.endFill();
+          gfx.beginFill(0x000000, 0.18); gfx.drawRect(b.w - 5, gndY, 5, h - gndY); gfx.endFill();
+          gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, gndY, 6, h - gndY); gfx.endFill();
 
-          // Depth: left highlight + right shade (per top-tier inset so it hugs the massing)
           const topIns = insetFor(0);
-          gfx.beginFill(0xffffff, 0.05); gfx.drawRect(topIns, 14, 3, h - 14); gfx.endFill();
-          gfx.beginFill(0x000000, 0.18); gfx.drawRect(b.w - topIns - 5, 14, 5, h - 14); gfx.endFill();
 
           // ── Crown band (rooftop stock-ticker sits over 0..14 when present) ──
           gfx.beginFill(colHex, 0.95); gfx.drawRect(topIns, 0, b.w - topIns * 2, 10); gfx.endFill();
@@ -3660,13 +3666,19 @@ const Environment = {
           }
 
           // ── Brand plaque + emblem (top-left of facade, under the crown) ──
+          // Sized to still read at far zoom-out — the emblem is the lab's street identity.
           const px2 = topIns + 5;
-          gfx.beginFill(0x070b12, 0.92); gfx.drawRoundedRect(px2, 17, 22, 22, 3); gfx.endFill();
-          gfx.lineStyle(1, colHex, 0.6); gfx.drawRoundedRect(px2, 17, 22, 22, 3); gfx.lineStyle(0);
-          this._drawLabEmblem(gfx, b.lab, px2 + 11, 28, colHex);
-          // Famous labs also get a vertical brand fin down the right edge
+          gfx.beginFill(0x070b12, 0.92); gfx.drawRoundedRect(px2, 17, 32, 32, 4); gfx.endFill();
+          gfx.lineStyle(1.2, colHex, 0.7); gfx.drawRoundedRect(px2, 17, 32, 32, 4); gfx.lineStyle(0);
+          this._drawLabEmblem(gfx, b.lab, px2 + 16, 33, colHex, 1.5);
+          // Famous labs also get a vertical brand fin down the right edge —
+          // drawn per floor-band so it steps with setback/campus tiers.
           if (famous) {
-              gfx.beginFill(colHex, 0.55); gfx.drawRect(b.w - topIns - 8, 14, 3, h - 14 - lobbyH); gfx.endFill();
+              gfx.beginFill(colHex, 0.55);
+              for (let f = 0; f < (hasLobby ? floors - 1 : floors); f++) {
+                  gfx.drawRect(b.w - insetFor(f) - 8, 14 + f * 18, 3, 18);
+              }
+              gfx.endFill();
           }
 
           // ── Rooftop furniture by hash (left side — helipad/logo board own the rest) ──
