@@ -1166,6 +1166,134 @@ const Environment = {
         }
     },
 
+    // ─── LAB HQ ARCHITECTURAL DNA ───
+    // Labs are dynamic (live scanner adds new ones), so facades are procedural-by-identity:
+    // a deterministic hash of the lab id picks one of six architectural styles, weighted by
+    // region. Famous labs get a fixed iconic style; brand-new labs style themselves forever.
+    _labHash(labId) {
+        let hsh = 0;
+        const s = String(labId || 'lab');
+        for (let i = 0; i < s.length; i++) hsh = ((hsh << 5) - hsh + s.charCodeAt(i)) | 0;
+        return Math.abs(hsh);
+    },
+
+    _labStyleFor(labId, lab) {
+        // Iconic fixed assignments for the famous few (stable brand identity)
+        const FIXED = {
+            openai: 'monolith', anthropic: 'campus', google: 'campus', meta: 'monolith',
+            xai: 'brutalist', microsoft: 'setback', deepseek: 'pagoda', mistral: 'euro',
+            nvidia: 'monolith', amazon: 'setback', ibm: 'setback', apple: 'monolith'
+        };
+        if (FIXED[labId]) return FIXED[labId];
+        const hsh = this._labHash(labId);
+        const region = (lab && lab.region) || 'us';
+        if (region === 'cn') return ['pagoda', 'monolith', 'setback'][hsh % 3];
+        if (region === 'eu' || region === 'uk' || region === 'fr') return ['euro', 'setback', 'monolith'][hsh % 3];
+        return ['monolith', 'setback', 'campus', 'brutalist'][hsh % 4];
+    },
+
+    // Deterministic 0..1 noise — stable per (lab, pane) so windows stop reshuffling
+    // on every rebuild the way Math.random() did.
+    _labNoise(seed) {
+        const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+        return x - Math.floor(x);
+    },
+
+    // Geometric brand emblem for famous labs (drawn into cached gfx — no PIXI.Text).
+    // Unknown labs simply get no emblem, so newly-scanned labs never break.
+    _drawLabEmblem(gfx, labId, cx, cy, colHex) {
+        switch (labId) {
+            case 'openai': // hexagonal knot approximation
+                gfx.lineStyle(1.6, 0xffffff, 0.95);
+                for (let i = 0; i < 6; i++) {
+                    const a1 = i * Math.PI / 3 - Math.PI / 6, a2 = a1 + Math.PI / 3;
+                    gfx.moveTo(cx + Math.cos(a1) * 6, cy + Math.sin(a1) * 6);
+                    gfx.lineTo(cx + Math.cos(a2) * 6, cy + Math.sin(a2) * 6);
+                }
+                for (let i = 0; i < 3; i++) {
+                    const a = i * Math.PI * 2 / 3 + Math.PI / 6;
+                    gfx.moveTo(cx + Math.cos(a) * 6, cy + Math.sin(a) * 6);
+                    gfx.lineTo(cx - Math.cos(a) * 3, cy - Math.sin(a) * 3);
+                }
+                gfx.lineStyle(0);
+                break;
+            case 'anthropic': // minimal geometric "A"
+                gfx.beginFill(0xd97757);
+                gfx.drawPolygon([cx - 6.5, cy + 6, cx - 1.8, cy - 6, cx + 1, cy - 6, cx - 3.6, cy + 6]);
+                gfx.drawPolygon([cx + 6.5, cy + 6, cx + 1.8, cy - 6, cx - 1, cy - 6, cx + 3.6, cy + 6]);
+                gfx.endFill();
+                gfx.beginFill(0xd97757); gfx.drawRect(cx - 2.6, cy + 0.5, 5.2, 2.2); gfx.endFill();
+                break;
+            case 'google': // four dots
+                [[0x4285f4, -6.5], [0xea4335, -2.2], [0xfbbc05, 2.2], [0x34a853, 6.5]].forEach(([c, ox]) => {
+                    gfx.beginFill(c); gfx.drawCircle(cx + ox, cy, 1.9); gfx.endFill();
+                });
+                break;
+            case 'meta': // infinity loop
+                gfx.lineStyle(2, 0x0866ff, 0.95);
+                gfx.drawEllipse(cx - 3.2, cy, 3.4, 4.6);
+                gfx.drawEllipse(cx + 3.2, cy, 3.4, 4.6);
+                gfx.lineStyle(0);
+                break;
+            case 'xai': // bold X
+                gfx.beginFill(0xffffff, 0.95);
+                gfx.drawPolygon([cx - 6, cy - 6, cx - 3.4, cy - 6, cx + 6, cy + 6, cx + 3.4, cy + 6]);
+                gfx.drawPolygon([cx + 6, cy - 6, cx + 3.4, cy - 6, cx - 6, cy + 6, cx - 3.4, cy + 6]);
+                gfx.endFill();
+                break;
+            case 'microsoft': // 2×2 squares
+                gfx.beginFill(0xf25022); gfx.drawRect(cx - 6, cy - 6, 5.4, 5.4); gfx.endFill();
+                gfx.beginFill(0x7fba00); gfx.drawRect(cx + 0.6, cy - 6, 5.4, 5.4); gfx.endFill();
+                gfx.beginFill(0x00a4ef); gfx.drawRect(cx - 6, cy + 0.6, 5.4, 5.4); gfx.endFill();
+                gfx.beginFill(0xffb900); gfx.drawRect(cx + 0.6, cy + 0.6, 5.4, 5.4); gfx.endFill();
+                break;
+            case 'deepseek': // whale swoosh
+                gfx.beginFill(0x4d6bfe);
+                gfx.drawEllipse(cx, cy + 1, 6.5, 3.6);
+                gfx.drawPolygon([cx + 5, cy, cx + 9, cy - 4, cx + 8, cy + 2]);
+                gfx.endFill();
+                gfx.beginFill(0x0a1420); gfx.drawEllipse(cx - 1, cy + 2.2, 4.5, 2); gfx.endFill();
+                break;
+            case 'mistral': // stepped pixel-M in orange gradient
+                [[0xffd800, 0], [0xffaf00, 1], [0xff8205, 2], [0xfa500f, 3]].forEach(([c, r]) => {
+                    gfx.beginFill(c);
+                    gfx.drawRect(cx - 7, cy - 6 + r * 3, 3, 3);
+                    gfx.drawRect(cx + 4, cy - 6 + r * 3, 3, 3);
+                    if (r === 1) gfx.drawRect(cx - 1.5, cy - 3, 3, 3);
+                    gfx.endFill();
+                });
+                gfx.beginFill(0xfa500f); gfx.drawRect(cx - 7, cy + 6, 14, 2); gfx.endFill();
+                break;
+            case 'nvidia': { // eye swoosh
+                gfx.lineStyle(2, 0x76b900, 0.95);
+                const nvA = Math.PI * 0.75;
+                gfx.moveTo(cx + Math.cos(nvA) * 5.5, cy + Math.sin(nvA) * 5.5);
+                gfx.arc(cx, cy, 5.5, nvA, Math.PI * 2.05);
+                gfx.lineStyle(0);
+                gfx.beginFill(0x76b900); gfx.drawCircle(cx + 1, cy, 2.2); gfx.endFill();
+                break;
+            }
+            case 'amazon': { // smile + arrow
+                gfx.lineStyle(2, 0xff9900, 0.95);
+                const amA = Math.PI * 0.15;
+                gfx.moveTo(cx + Math.cos(amA) * 6, cy - 1.5 + Math.sin(amA) * 6);
+                gfx.arc(cx, cy - 1.5, 6, amA, Math.PI * 0.85);
+                gfx.lineStyle(0);
+                gfx.beginFill(0xff9900); gfx.drawPolygon([cx + 5.4, cy + 2.4, cx + 7.4, cy + 4.6, cx + 4.2, cy + 4.4]); gfx.endFill();
+                break;
+            }
+            case 'ibm': // horizontal bars
+                gfx.beginFill(0x0f62fe);
+                for (let r = 0; r < 4; r++) gfx.drawRect(cx - 6.5, cy - 6 + r * 3.4, 13, 1.8);
+                gfx.endFill();
+                break;
+            default:
+                // No emblem for unknown labs — the plaque shows the lab color chip instead.
+                gfx.beginFill(colHex, 0.9); gfx.drawCircle(cx, cy, 3); gfx.endFill();
+                gfx.beginFill(0xffffff, 0.35); gfx.drawCircle(cx - 1, cy - 1, 1.2); gfx.endFill();
+        }
+    },
+
     // Per-building rooftop emblem for Agent District (drawn into cached gfx).
     _drawAgentEmblem(gfx, b, cx, cy, ac) {
         switch (b.id) {
@@ -3363,6 +3491,217 @@ const Environment = {
           this._drawLongevityMotif(gfx, b, ac, h);
           // Base shadow
           gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
+
+        } else if (lab) {
+          // ── AI LAB HQ TOWERS — procedural architectural identity ──
+          // Style is deterministic per lab (hash + region, iconic fixed picks for the
+          // famous few) so the dynamic scanner can add labs forever without art debt.
+          const style = this._labStyleFor(b.lab, lab);
+          const labSeed = this._labHash(b.lab);
+          const famous = ['openai','anthropic','google','meta','xai','microsoft','deepseek','mistral','nvidia','amazon','ibm','apple'].includes(b.lab);
+          const hasLobby = floors >= 2;
+          const lobbyH = hasLobby ? 24 : 0;
+
+          // Per-row horizontal inset — this is what shapes the massing per style
+          const insetFor = (f) => {
+              if (style === 'setback') {
+                  // Art-deco tiers: top third narrowest, middle third mid, base full
+                  if (f < floors / 3) return 14;
+                  if (f < (floors * 2) / 3) return 7;
+                  return 0;
+              }
+              if (style === 'campus') {
+                  // Podium (bottom 2 floors full width) + slimmer tower above
+                  return (f < floors - 2) ? 12 : 0;
+              }
+              return 0;
+          };
+
+          // Right-edge drop shadow
+          gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, 4, 6, h - 4); gfx.endFill();
+
+          // ── Body massing (solid — the old facade was translucent) ──
+          const bodyCol = style === 'brutalist' ? 0x161a22
+                        : style === 'euro'      ? 0x171522
+                        : style === 'pagoda'    ? 0x14101a
+                        : 0x0d1322;
+          // Draw the body per floor-band so setback/campus tiers stay solid
+          for (let f = 0; f < floors; f++) {
+              const ins = insetFor(f);
+              const by2 = 14 + f * 18;
+              gfx.beginFill(bodyCol); gfx.drawRect(ins, by2, b.w - ins * 2, 18); gfx.endFill();
+              gfx.beginFill(colHex, 0.07); gfx.drawRect(ins, by2, b.w - ins * 2, 18); gfx.endFill();
+          }
+          // Ground band under the last floor (h-24..h always exists: h = floors*18+24)
+          gfx.beginFill(bodyCol); gfx.drawRect(0, 14 + floors * 18, b.w, h - 14 - floors * 18); gfx.endFill();
+          gfx.beginFill(colHex, 0.07); gfx.drawRect(0, 14 + floors * 18, b.w, h - 14 - floors * 18); gfx.endFill();
+
+          // Depth: left highlight + right shade (per top-tier inset so it hugs the massing)
+          const topIns = insetFor(0);
+          gfx.beginFill(0xffffff, 0.05); gfx.drawRect(topIns, 14, 3, h - 14); gfx.endFill();
+          gfx.beginFill(0x000000, 0.18); gfx.drawRect(b.w - topIns - 5, 14, 5, h - 14); gfx.endFill();
+
+          // ── Crown band (rooftop stock-ticker sits over 0..14 when present) ──
+          gfx.beginFill(colHex, 0.95); gfx.drawRect(topIns, 0, b.w - topIns * 2, 10); gfx.endFill();
+          gfx.beginFill(0xffffff, 0.16); gfx.drawRect(topIns, 0, b.w - topIns * 2, 2); gfx.endFill();
+          gfx.beginFill(0x000000, 0.25); gfx.drawRect(topIns, 10, b.w - topIns * 2, 4); gfx.endFill();
+          if (famous) { // double brand stripe for the famous few
+              gfx.beginFill(0xffffff, 0.25); gfx.drawRect(topIns, 6, b.w - topIns * 2, 1.5); gfx.endFill();
+          }
+
+          // ── Style-specific facade texture ──
+          if (style === 'brutalist') {
+              // Concrete ribs
+              gfx.beginFill(0x0c0f16, 0.8);
+              for (let rx = 8; rx < b.w - 8; rx += 16) gfx.drawRect(rx, 14, 3, h - 14 - lobbyH);
+              gfx.endFill();
+          } else if (style === 'monolith') {
+              // Continuous curtain-wall mullions
+              gfx.beginFill(0x0a0e18, 0.9);
+              for (let rx = 20; rx < b.w - 10; rx += 20) gfx.drawRect(rx, 14, 1.5, h - 14 - lobbyH);
+              gfx.endFill();
+          } else if (style === 'pagoda') {
+              // Protruding eave cornices every 3 floors, with upturned corner tips
+              for (let f = 3; f < floors; f += 3) {
+                  const ey = 14 + f * 18;
+                  gfx.beginFill(colHex, 0.55); gfx.drawRect(-4, ey - 2, b.w + 8, 3); gfx.endFill();
+                  gfx.beginFill(colHex, 0.8);
+                  gfx.drawPolygon([-4, ey - 2, -8, ey - 6, -3, ey - 2]);
+                  gfx.drawPolygon([b.w + 4, ey - 2, b.w + 8, ey - 6, b.w + 3, ey - 2]);
+                  gfx.endFill();
+              }
+          } else if (style === 'euro') {
+              // Stone cornice line per floor + lighter facade wash
+              gfx.beginFill(0xd8d3c8, 0.06); gfx.drawRect(0, 14, b.w, h - 14); gfx.endFill();
+              gfx.beginFill(0xd8d3c8, 0.14);
+              for (let f = 1; f < floors; f++) gfx.drawRect(2, 14 + f * 18 - 1, b.w - 4, 1.5);
+              gfx.endFill();
+          }
+          // Setback tier caps
+          if (style === 'setback') {
+              for (let f = 1; f < floors; f++) {
+                  if (insetFor(f) !== insetFor(f - 1)) {
+                      const ty2 = 14 + f * 18;
+                      gfx.beginFill(colHex, 0.5); gfx.drawRect(insetFor(f), ty2 - 2, b.w - insetFor(f) * 2, 2.5); gfx.endFill();
+                  }
+              }
+          }
+          // Campus podium terrace: railing + two tiny trees on the podium roof
+          if (style === 'campus' && floors >= 4) {
+              const podY = 14 + (floors - 2) * 18;
+              gfx.beginFill(colHex, 0.5); gfx.drawRect(0, podY - 2, 12, 2); gfx.drawRect(b.w - 12, podY - 2, 12, 2); gfx.endFill();
+              gfx.beginFill(0x94a3b8, 0.6);
+              for (let rx2 = 2; rx2 < 11; rx2 += 3) gfx.drawRect(rx2, podY - 6, 1, 4);
+              for (let rx2 = b.w - 11; rx2 < b.w - 2; rx2 += 3) gfx.drawRect(rx2, podY - 6, 1, 4);
+              gfx.endFill();
+              gfx.beginFill(0x2d6a4f);
+              gfx.drawPolygon([5, podY - 3, 8, podY - 11, 11, podY - 3]);
+              gfx.drawPolygon([b.w - 11, podY - 3, b.w - 8, podY - 11, b.w - 5, podY - 3]);
+              gfx.endFill();
+          }
+
+          // ── Windows: deterministic, warm/cool mix, occasional wide meeting-room pane ──
+          const lastWinRow = hasLobby ? floors - 1 : floors; // bottom floor becomes the lobby
+          for (let f = 0; f < lastWinRow; f++) {
+              const ins = insetFor(f);
+              const rowW = b.w - ins * 2;
+              const cols2 = Math.max(1, Math.floor((rowW - 8) / 22));
+              const gap = (rowW - cols2 * 14) / (cols2 + 1);
+              for (let c = 0; c < cols2; c++) {
+                  const n = this._labNoise(labSeed + f * 131 + c * 17);
+                  const wx = ins + gap + c * (14 + gap);
+                  const wy = 20 + f * 18;
+                  // Meeting-room pane: merge with the next column occasionally
+                  const wide = n > 0.92 && c < cols2 - 1;
+                  const pw = wide ? 14 + gap + 14 : (style === 'brutalist' ? 11 : 14);
+                  const ph = style === 'brutalist' ? 8 : style === 'euro' ? 11 : 10;
+                  // Deep frame
+                  gfx.beginFill(0x000000, style === 'brutalist' ? 0.45 : 0.2);
+                  gfx.drawRect(wx - 1.5, wy - 1.5, pw + 3, ph + 3); gfx.endFill();
+                  const lit = n < 0.62;
+                  if (lit) {
+                      const warm = this._labNoise(labSeed * 3 + f * 47 + c * 13) < 0.72;
+                      gfx.beginFill(warm ? 0xfff2cf : 0xd6ecff, wide ? 0.95 : 0.85);
+                  } else {
+                      gfx.beginFill(0x0a0e1a);
+                  }
+                  if (style === 'euro' && f === 0) {
+                      gfx.drawRoundedRect(wx, wy, pw, ph, 4); // arched attic row
+                  } else {
+                      gfx.drawRect(wx, wy, pw, ph);
+                  }
+                  gfx.endFill();
+                  if (lit) { gfx.beginFill(colHex, 0.14); gfx.drawRect(wx, wy, pw, 2.5); gfx.endFill(); }
+                  if (wide) c++; // consume the merged column
+              }
+          }
+
+          // ── Two-story glass lobby + canopy + revolving door ──
+          if (hasLobby) {
+              gfx.beginFill(0x0a121e); gfx.drawRect(4, h - lobbyH, b.w - 8, lobbyH - 2); gfx.endFill();
+              gfx.beginFill(colHex, 0.12); gfx.drawRect(4, h - lobbyH, b.w - 8, lobbyH - 2); gfx.endFill();
+              gfx.beginFill(colHex, 0.75); gfx.drawRect(4, h - lobbyH, b.w - 8, 2); gfx.endFill();
+              // Warm reception glow panes
+              gfx.beginFill(0xffe9a8, 0.35);
+              for (let lx = 12; lx < b.w - 20; lx += 20) gfx.drawRect(lx, h - lobbyH + 4, 13, lobbyH - 9);
+              gfx.endFill();
+              // Revolving door
+              gfx.beginFill(0x060b12); gfx.drawRect(b.w / 2 - 9, h - 18, 18, 16); gfx.endFill();
+              gfx.lineStyle(1, colHex, 0.55);
+              gfx.moveTo(b.w / 2, h - 17); gfx.lineTo(b.w / 2, h - 3);
+              gfx.moveTo(b.w / 2 - 8, h - 10); gfx.lineTo(b.w / 2 + 8, h - 10);
+              gfx.lineStyle(0);
+              // Canopy
+              gfx.beginFill(colHex, 0.85); gfx.drawRect(b.w / 2 - 15, h - 20, 30, 2.5); gfx.endFill();
+              gfx.beginFill(0x000000, 0.25); gfx.drawRect(b.w / 2 - 15, h - 17.5, 30, 1.5); gfx.endFill();
+          } else {
+              gfx.beginFill(0x0a0a18); gfx.drawRect(b.w / 2 - 6, h - 18, 12, 18); gfx.endFill();
+              gfx.beginFill(colHex, 0.3); gfx.drawRect(b.w / 2 - 6, h - 18, 12, 2); gfx.endFill();
+          }
+
+          // ── Brand plaque + emblem (top-left of facade, under the crown) ──
+          const px2 = topIns + 5;
+          gfx.beginFill(0x070b12, 0.92); gfx.drawRoundedRect(px2, 17, 22, 22, 3); gfx.endFill();
+          gfx.lineStyle(1, colHex, 0.6); gfx.drawRoundedRect(px2, 17, 22, 22, 3); gfx.lineStyle(0);
+          this._drawLabEmblem(gfx, b.lab, px2 + 11, 28, colHex);
+          // Famous labs also get a vertical brand fin down the right edge
+          if (famous) {
+              gfx.beginFill(colHex, 0.55); gfx.drawRect(b.w - topIns - 8, 14, 3, h - 14 - lobbyH); gfx.endFill();
+          }
+
+          // ── Rooftop furniture by hash (left side — helipad/logo board own the rest) ──
+          if (b.w >= 110) {
+              const fx3 = Math.max(10, b.w * 0.22) + topIns;
+              const kind = labSeed % 4;
+              if (kind === 0) { // HVAC pair
+                  gfx.beginFill(0x475569); gfx.drawRect(fx3, -6, 12, 6); gfx.drawRect(fx3 + 16, -5, 10, 5); gfx.endFill();
+                  gfx.beginFill(0x64748b, 0.7); gfx.drawRect(fx3 + 1.5, -4.5, 9, 1.2); gfx.drawRect(fx3 + 1.5, -2.5, 9, 1.2); gfx.endFill();
+              } else if (kind === 1) { // water tank
+                  gfx.beginFill(0x334155); gfx.drawRect(fx3 + 2, -1.5, 10, 1.5); gfx.endFill();
+                  gfx.beginFill(0x6b7280); gfx.drawRoundedRect(fx3 + 1, -9, 12, 8, 2); gfx.endFill();
+                  gfx.beginFill(0x9ca3af, 0.5); gfx.drawRect(fx3 + 2.5, -8, 2, 6); gfx.endFill();
+              } else if (kind === 2) { // antenna cluster
+                  gfx.beginFill(0x64748b);
+                  gfx.drawRect(fx3, -9, 1.5, 9); gfx.drawRect(fx3 + 7, -12, 1.5, 12); gfx.drawRect(fx3 + 14, -7, 1.5, 7);
+                  gfx.endFill();
+                  gfx.beginFill(0xef4444, 0.8); gfx.drawCircle(fx3 + 7.7, -12.8, 1.2); gfx.endFill();
+              } else { // roof garden
+                  gfx.beginFill(0x1b4332); gfx.drawRect(fx3, -3, 26, 3); gfx.endFill();
+                  gfx.beginFill(0x2d6a4f);
+                  gfx.drawPolygon([fx3 + 4, -3, fx3 + 7, -10, fx3 + 10, -3]);
+                  gfx.drawPolygon([fx3 + 15, -3, fx3 + 18, -8, fx3 + 21, -3]);
+                  gfx.endFill();
+              }
+          }
+
+          // Base ambient occlusion
+          gfx.beginFill(0x000000, 0.18); gfx.drawRect(0, h - 2, b.w, 4); gfx.endFill();
+
+          if (b.isCheapest) {
+            const neon = new PIXI.Text('SALE', { fontFamily: emojiFontStack, fontSize: 8, fill: 0x4ade80, fontStyle: 'italic', fontWeight: 'bold', dropShadow: true, dropShadowColor: 0x4ade80, dropShadowBlur: 5, dropShadowDistance: 0, padding: 8 });
+            neon.x = b.w + 2; neon.y = 40; neon.rotation = Math.PI / 2;
+            container.addChild(neon); b._neonSign = neon;
+          }
 
         } else {
           gfx.beginFill(0x000000, 0.12); gfx.drawRect(b.w, 4, 6, h - 4);
