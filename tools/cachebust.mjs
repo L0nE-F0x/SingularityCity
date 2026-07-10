@@ -86,12 +86,17 @@ const STATIC_ASSETS = [
 ];
 const assets = [...STATIC_ASSETS, ...cssAssets, ...jsAssets];
 const assetList = assets.map(a => `    '${a}'`).join(',\n');
-const swBefore = sw;
-sw = sw.replace(
-    /const CORE_ASSETS = \[[\s\S]*?\];/,
-    `const CORE_ASSETS = [\n${assetList}\n];`
-);
-if (sw === swBefore) console.warn('cachebust: WARNING — could not find CORE_ASSETS in sw.js; precache not regenerated');
+// Presence test, not before/after equality — when the regenerated list is
+// byte-identical to what's already in sw.js the replace is a no-op, and an
+// equality check would false-positive this warning.
+if (!/const CORE_ASSETS = \[[\s\S]*?\];/.test(sw)) {
+    console.warn('cachebust: WARNING — could not find CORE_ASSETS in sw.js; precache not regenerated');
+} else {
+    sw = sw.replace(
+        /const CORE_ASSETS = \[[\s\S]*?\];/,
+        `const CORE_ASSETS = [\n${assetList}\n];`
+    );
+}
 writeFileSync(swPath, sw);
 
 console.log(`cachebust: bumped local js/* and css/* tags, sw.js CACHE_NAME to v=${version}, regenerated CORE_ASSETS (${assets.length} entries)`);

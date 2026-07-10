@@ -36,7 +36,7 @@ const G = {
     pref(k) { return this.prefs ? this.prefs[k] : undefined; },
     
     supabaseUrl: "https://uojpqygjbxranpdvkwwz.supabase.co", 
-    supabaseKey: "sb_publishable_ucIgRt4nL0kY_ZHbcz92nQ_8O0PzeNA",
+    supabaseKey: "sb_publishable_Dm4KFmAqRuSSXkKWT04ATw_Ki8QFdZj",
     
     achievements: {}, chatBubbles: {},
     bldById: {}, bldsByLab: {}, socialSpots: [],
