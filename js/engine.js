@@ -1614,6 +1614,8 @@ const G = {
       // ─── SEASONAL & AURORA: Initialize visual overlay systems ───
       if (typeof SeasonalEnv !== 'undefined') SeasonalEnv.init({ bldLayer: this.bldLayer, fxGfx: this.fxGfx });
       if (typeof Aurora !== 'undefined') Aurora.init();
+      // ─── CITY AMBIENCE: parallax skylines, color grading, night lighting, vignettes ───
+      if (typeof CityAmbience !== 'undefined') CityAmbience.init();
 
       if (typeof Entities !== 'undefined') {
           Entities.init({ 
@@ -2098,6 +2100,7 @@ const G = {
               BlackMarket: typeof BlackMarket !== 'undefined' ? BlackMarket : null,
               ConferenceData: typeof ConferenceData !== 'undefined' ? ConferenceData : null,
               Kardashev: typeof Kardashev !== 'undefined' ? Kardashev : null,
+              CityAmbience: typeof CityAmbience !== 'undefined' ? CityAmbience : null,
           };
       }
       const S = this._subsys;
@@ -2105,6 +2108,7 @@ const G = {
       let occ = {};
       if (S.Entities) occ = S.Entities.update(dp, night);
       if (S.Environment) S.Environment.update(dp, night, occ);
+      if (S.CityAmbience) S.CityAmbience.update(dp, night); // parallax runs every frame for smooth scroll
       if (S.SpaceEntities) S.SpaceEntities.update();
       if (S.NPCHousing) S.NPCHousing.update(dp);
       if (S.StreetVendors) S.StreetVendors.update(dp);

@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v514';
+const CACHE_NAME = 'singularity-city-v515';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -73,6 +73,7 @@ const CORE_ASSETS = [
     '/js/interior_black_market.js',
     '/js/crowd_separation.js',
     '/js/shadows.js',
+    '/js/city_ambience.js',
     '/js/vc_row.js',
     '/js/vc_row_env.js',
     '/js/interior_vcrow.js',

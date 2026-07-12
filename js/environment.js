@@ -4484,6 +4484,10 @@ const Environment = {
         this.starsLayer.visible = night;
         if (night && G.tick % 8 === 0) this._drawStars(G.tick);
         const cel = this.celestialGfx;
+        // Counter-scroll the celestial layer so the sun/moon follow the camera —
+        // previously they were pinned in world space near the city's left edge and
+        // invisible from most of the map.
+        if (typeof Camera !== 'undefined') cel.x = -Camera.x;
         const isGoldenHour = (dp >= 0.72 && dp < 0.84) || (dp >= 0.22 && dp < 0.30);
         // Throttle celestial redraws to every 3rd frame (sun moves slowly)
         if (G.tick % 3 !== 0 && !this._celDirty) { /* skip redraw */ }
@@ -4493,8 +4497,29 @@ const Environment = {
         if (night) {
           let np = dp > 0.83 ?
           (dp - 0.83) / 0.42 : (dp + 0.17) / 0.42;
-          cel.beginFill(0xe8e8d0);
-          cel.drawCircle(G.vpW * np, 40 + Math.sin(np * Math.PI) * 120, 12); cel.endFill();
+          const mx = G.vpW * np, my = 40 + Math.sin(np * Math.PI) * 120, mr = 13;
+          // ── REAL MOON PHASE (accuracy mandate: even the sky is factual) ──
+          // Lit disc + offset shadow disc = correct crescent/gibbous for today's date.
+          const p = (typeof CityAmbience !== 'undefined') ? CityAmbience.getMoonPhase() : 0.5;
+          const illum = (1 - Math.cos(Math.PI * 2 * p)) / 2;   // 0 new → 1 full
+          const dir = p < 0.5 ? -1 : 1;                         // waxing lights the right
+          // Soft halo scales with illumination
+          cel.beginFill(0xe8e8d0, 0.06 + illum * 0.06);
+          cel.drawCircle(mx, my, mr * 2.1); cel.endFill();
+          // Dark side base (barely visible earthshine disc)
+          cel.beginFill(0x3a4356, 0.55); cel.drawCircle(mx, my, mr); cel.endFill();
+          // Lit disc
+          cel.beginFill(0xe8e8d0); cel.drawCircle(mx, my, mr); cel.endFill();
+          // Craters on the lit face
+          cel.beginFill(0xc9c9b4, 0.5);
+          cel.drawCircle(mx - 4, my - 3, 2.2); cel.drawCircle(mx + 3, my + 4, 1.6); cel.drawCircle(mx + 5, my - 5, 1.2);
+          cel.endFill();
+          // Shadow disc slides off as the moon waxes; fully off at full moon
+          if (illum < 0.985) {
+              cel.beginFill(0x10182a, 0.96);
+              cel.drawCircle(mx + dir * 2 * mr * illum, my, mr);
+              cel.endFill();
+          }
         } else {
           let dayP = (dp - 0.25) / (0.83 - 0.25);
           const sunX = G.vpW * dayP;
