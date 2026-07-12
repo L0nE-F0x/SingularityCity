@@ -1,8 +1,10 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
-   CITY AMBIENCE (v1.0.0 — Atmosphere Pass)
-   Parallax background skylines, time-of-day color grading, night street lighting,
+   CITY AMBIENCE (v1.1.0 — Atmosphere Pass)
+   Time-of-day color grading, night street lighting,
    street furniture (lamps, benches, hydrants, crosswalks, manholes + steam),
    and micro-vignettes (window cleaner, radar sweeps, seasonal biome particles).
+   NOTE: parallax background skylines were tried in v515 and removed by design
+   decision in v516 — do not re-add them.
 
    Design constraints honored:
    - Buildings are cacheAsBitmap → all life happens in layers AROUND them.
@@ -16,8 +18,6 @@ const CityAmbience = {
     _builtCityW: 0,
 
     // Layers / objects
-    parallaxFar: null,
-    parallaxMid: null,
     furnGfx: null,          // static street furniture (one Graphics)
     glowLayer: null,        // additive night glow pools (container alpha = nightness)
     trafficA: null,         // traffic-light state A (NS green)
@@ -67,123 +67,11 @@ const CityAmbience = {
     // ═══════════════════════════════════════════════
     _buildStatics() {
         this._builtCityW = G.cityW;
-        this._buildParallax();
         this._buildFurniture();
     },
 
     _rebuildStaticsIfRezoned() {
         if (G.cityW !== this._builtCityW) this._buildStatics();
-    },
-
-    // ─── 1. PARALLAX BACKGROUND SKYLINES ───
-    // Two silhouette layers inside G.world, counter-scrolled each frame so they move
-    // at 0.15× / 0.4× camera speed. Mid layer is zone-aware: cranes rise behind the
-    // Port, mesas behind the Space desert, cooling towers behind Power, pines behind
-    // the forests, factory stacks behind Robotics — generic skyline elsewhere.
-    PARALLAX_FAR_F: 0.15,
-    PARALLAX_MID_F: 0.4,
-
-    _layerXFor(worldX, f) {
-        // Foreground focus X maps to layer coord ≈ X·f + (1−f)·vpW/2 (nominal zoom 1)
-        return worldX * f + (1 - f) * (G.vpW / 2);
-    },
-
-    _buildParallax() {
-        const gy = G.groundY;
-        if (!this.parallaxFar) {
-            this.parallaxFar = new PIXI.Graphics();
-            this.parallaxMid = new PIXI.Graphics();
-            const idx = G.world.getChildIndex(G.bldLayer);
-            G.world.addChildAt(this.parallaxMid, idx);
-            G.world.addChildAt(this.parallaxFar, idx);
-        }
-        const far = this.parallaxFar, mid = this.parallaxMid;
-        far.clear(); mid.clear();
-
-        // ── FAR: rolling mega-skyline ridge across the whole scroll span ──
-        const farEnd = this._layerXFor(G.cityW, this.PARALLAX_FAR_F) + G.vpW;
-        far.beginFill(0xffffff, 1);
-        let fx = -G.vpW * 0.5;
-        let s = 11;
-        while (fx < farEnd) {
-            const n = this._noise(s++);
-            const w = 40 + n * 90;
-            const hgt = 26 + this._noise(s * 3.1) * 52;
-            far.drawRect(fx, gy - hgt, w + 2, hgt + 60);
-            // occasional spire
-            if (n > 0.72) far.drawRect(fx + w * 0.4, gy - hgt - 14, 4, 16);
-            fx += w;
-        }
-        far.endFill();
-
-        // ── MID: zone-aware silhouettes ──
-        const f = this.PARALLAX_MID_F;
-        const spans = [];
-        const pads = (typeof BLDS !== 'undefined') ? BLDS.filter(b => b.type === 'launchpad') : [];
-        if (pads.length) {
-            spans.push({ kind: 'mesa', a: Math.min(...pads.map(b => b.x)) - 300, b: Math.max(...pads.map(b => b.x + b.w)) + 300 });
-        }
-        if (typeof PortZone !== 'undefined' && PortZone.oceanStartX) {
-            spans.push({ kind: 'crane', a: PortZone.oceanStartX, b: PortZone.oceanEndX + 700 });
-        }
-        if (typeof PowerZone !== 'undefined' && PowerZone.zoneEndX) {
-            spans.push({ kind: 'cooling', a: PowerZone.zoneStartX - 150, b: PowerZone.zoneEndX + 150 });
-        }
-        if (typeof RoboticsZone !== 'undefined' && RoboticsZone.zoneEndX) {
-            spans.push({ kind: 'factory', a: RoboticsZone.zoneStartX - 100, b: RoboticsZone.zoneEndX + 100 });
-        }
-        if (typeof BLDS !== 'undefined') {
-            BLDS.filter(b => b.id === 'forest_0' || b.id === 'forest_1' || b.id === 'forest_space').forEach(b => {
-                spans.push({ kind: 'pine', a: b.x - 150, b: b.x + b.w + 150 });
-            });
-        }
-
-        const inSpan = (x) => spans.find(sp => x >= sp.a && x <= sp.b);
-        mid.beginFill(0xffffff, 1);
-        let mx = -G.vpW * 0.5;
-        let ms = 71;
-        const midEnd = this._layerXFor(G.cityW, f) + G.vpW;
-        while (mx < midEnd) {
-            // Which foreground zone does this layer-x sit behind? Invert the mapping.
-            const worldX = (mx - (1 - f) * (G.vpW / 2)) / f;
-            const sp = inSpan(worldX);
-            const n = this._noise(ms++);
-            if (!sp) { // generic mid-distance towers
-                const w = 26 + n * 44;
-                const hgt = 50 + this._noise(ms * 2.7) * 85;
-                mid.drawRect(mx, gy - hgt, w + 2, hgt + 60);
-                if (this._noise(ms * 1.3) > 0.62) mid.drawRect(mx + 4, gy - hgt - 8, 3, 10); // antenna
-                mx += w + 6 + n * 22;
-            } else if (sp.kind === 'mesa') { // desert buttes
-                const w = 80 + n * 130;
-                const hgt = 34 + this._noise(ms * 2.2) * 40;
-                mid.drawPolygon([mx, gy + 40, mx + w * 0.16, gy - hgt, mx + w * 0.8, gy - hgt, mx + w, gy + 40]);
-                mx += w + 60 + n * 120;
-            } else if (sp.kind === 'crane') { // port gantry cranes
-                const ch = 70 + n * 30;
-                mid.drawRect(mx, gy - ch, 5, ch + 40);
-                mid.drawRect(mx + 34, gy - ch, 5, ch + 40);
-                mid.drawRect(mx - 14, gy - ch - 5, 76, 5);
-                mid.drawRect(mx + 12, gy - ch, 3, 16); // cable
-                mx += 150 + n * 160;
-            } else if (sp.kind === 'cooling') { // hyperboloid cooling towers + pylons
-                const th = 52 + n * 22;
-                mid.drawPolygon([mx, gy + 40, mx + 8, gy - th, mx + 30, gy - th, mx + 38, gy + 40]);
-                mid.drawRect(mx + 54, gy - 36, 3, 76); // pylon mast
-                mid.drawRect(mx + 44, gy - 30, 23, 3);
-                mx += 130 + n * 90;
-            } else if (sp.kind === 'factory') { // sawtooth roof + stacks
-                mid.drawRect(mx, gy - 34, 64, 74);
-                for (let t = 0; t < 4; t++) mid.drawPolygon([mx + t * 16, gy - 34, mx + t * 16 + 10, gy - 46, mx + t * 16 + 16, gy - 34]);
-                mid.drawRect(mx + 70, gy - 62, 7, 102);
-                mx += 120 + n * 70;
-            } else { // pine ridge
-                const ph = 26 + n * 26;
-                mid.drawPolygon([mx, gy + 40, mx, gy - ph * 0.3, mx + 9, gy - ph, mx + 18, gy - ph * 0.3, mx + 18, gy + 40]);
-                mx += 14 + n * 12;
-            }
-        }
-        mid.endFill();
     },
 
     // ─── 2. TIME-OF-DAY COLOR GRADING ───
@@ -419,23 +307,10 @@ const CityAmbience = {
 
         const nightness = this._nightness(dp);
 
-        // 1. Parallax counter-scroll + tint by time of day
-        if (this.parallaxFar && typeof Camera !== 'undefined') {
-            this.parallaxFar.x = -Camera.x * (1 - this.PARALLAX_FAR_F);
-            this.parallaxMid.x = -Camera.x * (1 - this.PARALLAX_MID_F);
-            if (tick % 10 === 0) {
-                const isGolden = (dp >= 0.72 && dp < 0.84) || (dp >= 0.22 && dp < 0.30);
-                this.parallaxFar.tint = night ? 0x0d1424 : isGolden ? 0x3d2a3a : 0x1a2338;
-                this.parallaxFar.alpha = 0.85;
-                this.parallaxMid.tint = night ? 0x111a2e : isGolden ? 0x4a3244 : 0x232e48;
-                this.parallaxMid.alpha = 0.9;
-            }
-        }
-
-        // 2. Color grading (cheap matrix write, throttled)
+        // 1. Color grading (cheap matrix write, throttled)
         if (this.gradeFilter && tick % 6 === 0) this._applyGrading(dp);
 
-        // 3. Night glow pools + traffic lights + manhole steam
+        // 2. Night glow pools + traffic lights + manhole steam
         if (this.glowLayer) this.glowLayer.alpha = nightness;
         if (this.trafficA && tick % 240 === 0) {
             const phase = Math.floor(tick / 240) % 2 === 0;
