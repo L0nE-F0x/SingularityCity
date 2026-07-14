@@ -292,13 +292,15 @@ const Environment = {
       this.starsLayer.removeChildren();
       // Store star data for twinkling without 100 individual Graphics objects
       this._starData = [];
+      // Deterministic placement (seeded noise) — the sky no longer reshuffles
+      // between boots/rebuilds; twinkle still animates via phase at runtime.
       for (let i = 0; i < 100; i++) {
         this._starData.push({
-            x: Math.random() * G.cityW,
-            y: Math.random() * G.vpH * .5,
-            sz: .5 + Math.random() * 1.5,
-            phase: Math.random() * Math.PI * 2,
-            baseAlpha: .15 + Math.random() * .5
+            x: this._labNoise(i * 5 + 1) * G.cityW,
+            y: this._labNoise(i * 5 + 2) * G.vpH * .5,
+            sz: .5 + this._labNoise(i * 5 + 3) * 1.5,
+            phase: this._labNoise(i * 5 + 4) * Math.PI * 2,
+            baseAlpha: .15 + this._labNoise(i * 5 + 5) * .5
         });
       }
       // Single Graphics object draws all stars
@@ -485,9 +487,9 @@ const Environment = {
           // (Power line poles handled by city-wide pole system below)
           // Dead grass / scrub between buildings
           const powerBlds = BLDS.filter(b => b.id.startsWith('power_'));
-          for (let sx = powerStartX + 110; sx < powerEndX + 100; sx += 25 + Math.random() * 20) {
+          for (let sx = powerStartX + 110; sx < powerEndX + 100; sx += 25 + this._labNoise(sx) * 20) {
               if (!powerBlds.some(b => sx > b.x - 5 && sx < b.x + b.w + 5)) {
-                  g.beginFill(0x5a5530, 0.4); g.drawRect(sx, gy - 8, 1, 4 + Math.random() * 4); g.drawRect(sx + 3, gy - 6, 1, 3 + Math.random() * 3); g.endFill();
+                  g.beginFill(0x5a5530, 0.4); g.drawRect(sx, gy - 8, 1, 4 + this._labNoise(sx + 1) * 4); g.drawRect(sx + 3, gy - 6, 1, 3 + this._labNoise(sx + 2) * 3); g.endFill();
               }
           }
           // Chain link fence at zone entrance
@@ -613,18 +615,18 @@ const Environment = {
       for (let fi = 0; fi < 10; fi++) {
           const fy = gy + 35 + fi * 3;
           const col = cableCols[fi % cableCols.length];
-          g.beginFill(col, 0.35 + Math.random() * 0.25);
+          g.beginFill(col, 0.35 + this._labNoise(fi + 11) * 0.25);
           g.drawRect(cableStartX + 10, fy, cableEndX - cableStartX - 20, 2);
           g.endFill();
       }
 
       // Cable node dots — junction points (same size/alpha as Backbone)
       for (let ni = 0; ni < 60; ni++) {
-          const nx = cableStartX + 30 + Math.random() * (cableEndX - cableStartX - 60);
+          const nx = cableStartX + 30 + this._labNoise(ni * 4 + 1) * (cableEndX - cableStartX - 60);
           if (inSpecialZone(nx)) continue;
-          const ny = gy + 36 + Math.random() * 28;
-          g.beginFill(cableCols[Math.floor(Math.random() * cableCols.length)], 0.5);
-          g.drawCircle(nx, ny, 1.5 + Math.random() * 2);
+          const ny = gy + 36 + this._labNoise(ni * 4 + 2) * 28;
+          g.beginFill(cableCols[Math.floor(this._labNoise(ni * 4 + 3) * cableCols.length)], 0.5);
+          g.drawCircle(nx, ny, 1.5 + this._labNoise(ni * 4 + 4) * 2);
           g.endFill();
       }
 
@@ -750,16 +752,16 @@ const Environment = {
           for (let fi = 0; fi < 10; fi++) {
               const fy = gy + 35 + fi * 3;
               const col = cableCols[fi % cableCols.length];
-              g.beginFill(col, 0.35 + Math.random() * 0.25);
+              g.beginFill(col, 0.35 + this._labNoise(fi + 501) * 0.25);
               g.drawRect(backboneStartX - 2, fy, bkw + 4, 2);
               g.endFill();
           }
           // Cable node dots (junction points)
           for (let ni = 0; ni < 30; ni++) {
-              const nx = backboneStartX + 20 + Math.random() * (bkw - 40);
-              const ny = gy + 36 + Math.random() * 28;
-              g.beginFill(cableCols[Math.floor(Math.random() * cableCols.length)], 0.5);
-              g.drawCircle(nx, ny, 1.5 + Math.random() * 2);
+              const nx = backboneStartX + 20 + this._labNoise(ni * 4 + 501) * (bkw - 40);
+              const ny = gy + 36 + this._labNoise(ni * 4 + 502) * 28;
+              g.beginFill(cableCols[Math.floor(this._labNoise(ni * 4 + 503) * cableCols.length)], 0.5);
+              g.drawCircle(nx, ny, 1.5 + this._labNoise(ni * 4 + 504) * 2);
               g.endFill();
           }
           // Vertical risers from buildings down to fiber trunk
@@ -807,16 +809,16 @@ const Environment = {
           for (let fi = 0; fi < 10; fi++) {
               const fy = gy + 35 + fi * 3;
               const col = agentCols[fi % agentCols.length];
-              g.beginFill(col, 0.30 + Math.random() * 0.2);
+              g.beginFill(col, 0.30 + this._labNoise(fi + 901) * 0.2);
               g.drawRect(agentsStartX - 2, fy, agw + 4, 2);
               g.endFill();
           }
           // Node junction dots (agent endpoints)
           for (let ni = 0; ni < 20; ni++) {
-              const nx = agentsStartX + 20 + Math.random() * (agw - 40);
-              const ny = gy + 36 + Math.random() * 28;
-              g.beginFill(agentCols[Math.floor(Math.random() * agentCols.length)], 0.4);
-              g.drawCircle(nx, ny, 1.5 + Math.random() * 1.5);
+              const nx = agentsStartX + 20 + this._labNoise(ni * 4 + 901) * (agw - 40);
+              const ny = gy + 36 + this._labNoise(ni * 4 + 902) * 28;
+              g.beginFill(agentCols[Math.floor(this._labNoise(ni * 4 + 903) * agentCols.length)], 0.4);
+              g.drawCircle(nx, ny, 1.5 + this._labNoise(ni * 4 + 904) * 1.5);
               g.endFill();
           }
           // Vertical risers from buildings
@@ -1089,12 +1091,12 @@ const Environment = {
         c.drawEllipse(w / 3, -h * 0.3, w / 3.5, h * 0.6);
         if (w > 55) c.drawEllipse(w / 6, -h * 0.5, w / 4, h * 0.5);
         c.endFill();
-        c._bx = i * 150 + Math.random() * 100 - 50;
+        c._bx = i * 150 + this._labNoise(i * 3 + 1) * 100 - 50;
         // Spread clouds between just above buildings and mid-sky (visible range)
-        c.y = G.groundY - 100 - (i % 6) * 22 - Math.random() * 50;
-        c.alpha = 0.10 + Math.random() * 0.06;
+        c.y = G.groundY - 100 - (i % 6) * 22 - this._labNoise(i * 3 + 2) * 50;
+        c.alpha = 0.10 + this._labNoise(i * 3 + 3) * 0.06;
         c._i = i;
-        c._drift = 0.002 + Math.random() * 0.003;
+        c._drift = 0.002 + this._labNoise(i * 3 + 4) * 0.003;
         this.cloudLayer.addChild(c);
       }
     },
@@ -2539,9 +2541,10 @@ const Environment = {
               for (let wx = 8; wx < b.w - 12; wx += 22) {
                   const wy = fi * 18 + 6;
                   gfx.beginFill(0x0a1830); gfx.drawRect(wx, wy, 16, 10); gfx.endFill();
-                  // Screen/LED glow inside
-                  const glowCol = [0x22d3ee, 0x4ade80, 0x3b82f6, 0x8b5cf6][Math.floor(Math.random()*4)];
-                  gfx.beginFill(glowCol, 0.08 + Math.random() * 0.1);
+                  // Screen/LED glow inside (seeded per pane — no rebuild reshuffle)
+                  const wn = this._labNoise((b.x | 0) + fi * 131 + wx * 7);
+                  const glowCol = [0x22d3ee, 0x4ade80, 0x3b82f6, 0x8b5cf6][Math.floor(wn * 4)];
+                  gfx.beginFill(glowCol, 0.08 + this._labNoise((b.x | 0) + fi * 131 + wx * 7 + 1) * 0.1);
                   gfx.drawRect(wx + 1, wy + 1, 14, 8); gfx.endFill();
               }
           }
@@ -2586,7 +2589,7 @@ const Environment = {
                   const ry = 10 + ri * (floors * 18) / 5;
                   gfx.beginFill(0xf97316, 0.08); gfx.drawRect(4, ry, b.w-8, 8); gfx.endFill();
                   // Status bar
-                  const fill = 0.4 + Math.random() * 0.6;
+                  const fill = 0.4 + this._labNoise((b.x | 0) + ri * 47) * 0.6;
                   gfx.beginFill(0x4ade80, 0.2); gfx.drawRect(6, ry+2, (b.w-12)*fill, 4); gfx.endFill();
               }
           } else if (b.id === 'backbone_noc') {
@@ -2639,8 +2642,9 @@ const Environment = {
                   const wy = fi * 18 + 6;
                   gfx.beginFill(0x0a0818); gfx.drawRect(wx, wy, 16, 10); gfx.endFill();
                   const glowCols = [0xf43f5e, 0xfbbf24, 0xa855f7, 0x4ade80, 0x22d3ee];
-                  const gc = glowCols[Math.floor(Math.random() * glowCols.length)];
-                  gfx.beginFill(gc, 0.08 + Math.random() * 0.12);
+                  const gn = this._labNoise((b.x | 0) + fi * 131 + wx * 7);
+                  const gc = glowCols[Math.floor(gn * glowCols.length)];
+                  gfx.beginFill(gc, 0.08 + this._labNoise((b.x | 0) + fi * 131 + wx * 7 + 1) * 0.12);
                   gfx.drawRect(wx+2, wy+2, 12, 6); gfx.endFill();
               }
           }
@@ -2653,7 +2657,7 @@ const Environment = {
           } else if (b.id === 'agents_sandbox') {
               // Arena bars — benchmark indicator
               for (let bi = 0; bi < 5; bi++) {
-                  const bh = 6 + Math.random() * 12;
+                  const bh = 6 + this._labNoise((b.x | 0) + bi * 29) * 12;
                   const bc = [0x22d3ee, 0x4ade80, 0xfbbf24, 0xf43f5e, 0x8b5cf6][bi];
                   gfx.beginFill(bc, 0.12); gfx.drawRect(b.w*0.2 + bi*14, h*0.6-bh, 8, bh); gfx.endFill();
               }
@@ -3118,7 +3122,7 @@ const Environment = {
           for (let f = 0; f < floors; f++) {
               for (let c2 = 0; c2 < cols; c2++) {
                   const wx = 12 + c2 * 20, wy = 6 + f * 18;
-                  const lit = Math.random() > 0.4;
+                  const lit = this._labNoise((b.x | 0) + f * 131 + c2 * 17) > 0.4;
                   gfx.beginFill(0x000000, 0.15); gfx.drawRect(wx - 1, wy - 1, 14, 12); gfx.endFill();
                   if (lit) { gfx.beginFill(0xfbbf24, 0.5); } else { gfx.beginFill(0x0a0a18); }
                   gfx.drawRect(wx, wy, 12, 10); gfx.endFill();
@@ -3209,7 +3213,7 @@ const Environment = {
           [0.28, 0.72].forEach(frac => {
               const wx = Math.round(b.w * frac) - 7;
               gfx.beginFill(p.trim); gfx.drawRect(wx - 1, upWinY - 1, 16, 14); gfx.endFill();
-              const lit = Math.random() > 0.5;
+              const lit = this._labNoise((b.x | 0) + wx * 13) > 0.5;
               gfx.beginFill(lit ? p.window : 0x0a0a18, lit ? 0.85 : 1);
               gfx.drawRect(wx, upWinY, 14, 12); gfx.endFill();
               // Window mullions
@@ -3224,7 +3228,7 @@ const Environment = {
           // Ground floor: big front window (left) + door (center-right)
           const gWinX = 18, gWinY = bodyTop + 30;
           gfx.beginFill(p.trim); gfx.drawRect(gWinX - 2, gWinY - 2, 30, 20); gfx.endFill();
-          const gLit = Math.random() > 0.4;
+          const gLit = this._labNoise((b.x | 0) + 71) > 0.4;
           gfx.beginFill(gLit ? p.window : 0x0a0a18, gLit ? 0.85 : 1); gfx.drawRect(gWinX, gWinY, 26, 16); gfx.endFill();
           gfx.lineStyle(1, p.trim, 0.8);
           gfx.moveTo(gWinX + 13, gWinY); gfx.lineTo(gWinX + 13, gWinY + 16);
@@ -3297,7 +3301,7 @@ const Environment = {
               for (let c = 0; c < cols; c++) {
                   if (f === rows - 1 && (c === Math.floor(cols/2) || c === Math.floor(cols/2)-1)) continue;
                   const wx = 16 + c * 24, wy = 20 + f * 18;
-                  const lit = Math.random() > 0.4;
+                  const lit = this._labNoise((b.x | 0) + f * 131 + c * 17) > 0.4;
 
                   gfx.beginFill(0x05050a, 0.8); gfx.drawRect(wx - 1, wy - 1, 14, 12); gfx.endFill();
                   gfx.beginFill(lit ? 0xeab308 : 0x111122, lit ? 0.7 : 1);
@@ -4208,7 +4212,7 @@ const Environment = {
 
           // Draw windows top-down (visual rendering order)
           for (let f = 0; f < floors; f++) for (let c = 0; c < cols; c++) {
-            const lit = Math.random() > .35;
+            const lit = this._labNoise((b.x | 0) + f * 131 + c * 17) > .35;
             const wx = 10 + c * 24, wy = 20 + f * 18;
             if (f === floors - 1 && wx + 12 > doorL && wx < doorR) continue;
 
