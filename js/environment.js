@@ -29,6 +29,8 @@ const Environment = {
     _wetness: 0,                 // 0..1 ground wetness — fades puddles in/out with rain
     _groundFxGfx: null,          // lazy layer BELOW characters: puddles, cloud shadows, splashes
     _boltPath: null, _boltLife: 0, // lightning bolt polyline + frames remaining
+    _portWaterCont: null,        // lazy rippling-water reflection layer (DisplacementFilter)
+    _portWaterGfx: null, _waterDispSprite: null, _waterFilter: null,
 
     starsLayer: null, celestialGfx: null, cloudLayer: null,
     bldLayer: null, groundGfx: null, reflectionLayer: null, refMask: null,
@@ -4632,6 +4634,149 @@ const Environment = {
       return sX < Infinity ? { start: sX, end: eX } : null;
     },
 
+    // Procedural displacement map for the harbor water — smooth crossed sine
+    // ripples baked into R (x-shift) and G (y-shift) channels on an offscreen
+    // canvas (0x80 = no shift). No external asset, so it's CSP-safe. 256x64 is
+    // power-of-two both ways so REPEAT wrapping tiles cleanly.
+    _makeWaterDisplaceTex() {
+        const cw = 256, ch = 64;
+        const cv = document.createElement('canvas');
+        cv.width = cw; cv.height = ch;
+        const ctx = cv.getContext('2d');
+        const img = ctx.createImageData(cw, ch);
+        for (let y = 0; y < ch; y++) {
+            for (let x = 0; x < cw; x++) {
+                const idx = (y * cw + x) * 4;
+                const rx = Math.sin(x * 0.09) + Math.sin((x * 0.031) + (y * 0.12));
+                const ry = Math.sin(y * 0.22) + Math.sin((x * 0.05) - (y * 0.09));
+                img.data[idx]     = 128 + rx * 42;   // R → horizontal displacement
+                img.data[idx + 1] = 128 + ry * 42;   // G → vertical displacement
+                img.data[idx + 2] = 128;
+                img.data[idx + 3] = 255;
+            }
+        }
+        ctx.putImageData(img, 0, 0);
+        const tex = PIXI.Texture.from(cv);
+        tex.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+        return tex;
+    },
+
+    // Rippling harbor-water reflections. A dedicated container above the ground
+    // and below the ships carries reflection highlights (sky/moon sheen, a moon
+    // glimmer column, per-ship hull shadows + colored deck-light glints); a core
+    // PIXI DisplacementFilter driven by the noise map above warps the whole lot
+    // into moving water, animated by sliding the displacement sprite each frame.
+    _drawPortWater() {
+        if (typeof PortZone === 'undefined' || typeof PortZone.oceanStartX !== 'number') return;
+
+        // Lazy build the container + filter once.
+        if (!this._portWaterCont) {
+            if (!this.groundGfx || !this.groundGfx.parent || typeof PIXI.DisplacementFilter !== 'function') return;
+            const disp = new PIXI.Sprite(this._makeWaterDisplaceTex());
+            disp.scale.set(2.2);
+            disp.renderable = false; // supplies the map only — never drawn itself
+            const filter = new PIXI.DisplacementFilter(disp);
+            filter.scale.set(9, 6);  // ripple strength (x, y)
+            filter.padding = 24;
+            const cont = new PIXI.Container();
+            const gfx = new PIXI.Graphics();
+            cont.addChild(disp, gfx);
+            cont.filters = [filter];
+            const par = this.groundGfx.parent;
+            par.addChildAt(cont, par.getChildIndex(this.groundGfx) + 1);
+            this._portWaterCont = cont; this._portWaterGfx = gfx;
+            this._waterDispSprite = disp; this._waterFilter = filter;
+        }
+
+        // Cull unless the harbor is near the viewport (filters aren't cheap).
+        const wsx = PortZone.oceanStartX;
+        const wex = (typeof PortZone.coastlineX === 'number') ? PortZone.coastlineX : PortZone.oceanEndX;
+        const zoom = (G.world && G.world.scale && G.world.scale.x) ? G.world.scale.x : 1;
+        const viewL = -(G.world.x || 0) / zoom;
+        const viewR = viewL + G.vpW / zoom;
+        const near = wex > viewL - 400 && wsx < viewR + 400;
+        this._portWaterCont.visible = near;
+        if (!near) return;
+
+        const gy = G.groundY;
+        const tick = G.tick;
+        const dp = (typeof G.getDayPhase === 'function') ? G.getDayPhase() : 0.5;
+        const night = dp > 0.83 || dp < 0.25;
+        const surfTop = gy - 4;   // waterline
+        const surfBot = gy + 34;  // reflections fade out by here
+        const g = this._portWaterGfx;
+        g.clear();
+
+        const span = surfBot - surfTop;
+        // Sky/moon sheen — horizontal streaks that thin out with depth.
+        const sheenCol = night ? 0x27506f : 0x5a92c4;
+        for (let sy = surfTop; sy < surfBot; sy += 4) {
+            const depth = (sy - surfTop) / span;
+            g.beginFill(sheenCol, 0.22 * (1 - depth));
+            g.drawRect(wsx, sy, wex - wsx, 2.5);
+            g.endFill();
+        }
+
+        // Moon/sun glimmer — the hero: a bright shimmering vertical light column
+        // reflecting straight down onto the water (broken into wavy dashes).
+        const glimX = wsx + (wex - wsx) * 0.42;
+        const glimCol = night ? 0xeaf3ff : 0xfff2c8;
+        for (let sy = surfTop; sy < surfBot; sy += 2.5) {
+            const depth = (sy - surfTop) / span;
+            const wob = Math.sin(tick * 0.05 + sy * 0.45) * 8;
+            const wArc = 16 + Math.sin(sy * 0.5 + tick * 0.03) * 8;
+            g.beginFill(glimCol, 0.32 * (1 - depth * 0.7));
+            g.drawRect(glimX + wob - wArc / 2, sy, wArc, 1.7);
+            g.endFill();
+        }
+
+        // Neon waterfront reflections — a few colored light columns wobbling down
+        // from the quayside signage, brightest at night.
+        const neonCols = night ? [0x22d3ee, 0xf59e0b, 0x4ade80, 0xf472b6] : [0x60a5fa, 0xfbbf24];
+        for (let ni = 0; ni < neonCols.length; ni++) {
+            const nx = wex - 40 - ni * 55;                 // near the dock edge
+            if (nx < viewL - 60 || nx > viewR + 60) continue;
+            const col = neonCols[ni];
+            for (let sy = surfTop; sy < surfBot - 4; sy += 3) {
+                const depth = (sy - surfTop) / span;
+                const wob = Math.sin(tick * 0.06 + sy * 0.5 + ni * 2) * 6;
+                g.beginFill(col, (night ? 0.24 : 0.12) * (1 - depth));
+                g.drawRect(nx + wob - 3, sy, 6, 1.6);
+                g.endFill();
+            }
+        }
+
+        // Per-ship reflections — dark hull shadow + colored deck-light glints.
+        if (typeof PortEnv !== 'undefined' && PortEnv.shipConts && PortZone.ships) {
+            for (let i = 0; i < PortEnv.shipConts.length; i++) {
+                const s = PortEnv.shipConts[i];
+                const ship = PortZone.ships[i];
+                if (!s || !ship || typeof ship.x !== 'number') continue;
+                const sx = ship.x, sw = s.sw || 150;
+                if (sx + sw < viewL - 200 || sx > viewR + 200) continue;
+                // Hull shadow smear just under the waterline
+                g.beginFill(0x081019, 0.5);
+                g.drawRect(sx - 12, surfTop, sw + 24, 9);
+                g.endFill();
+                // Colored deck-light glints, wobbling
+                g.beginFill(ship.color, night ? 0.45 : 0.22);
+                for (let gx = sx; gx < sx + sw; gx += 15) {
+                    g.drawEllipse(gx, surfTop + 4 + Math.sin(tick * 0.06 + gx) * 1.2, 5, 1.4);
+                }
+                g.endFill();
+                // A red/green nav-light dot reflection at the bow/stern at night
+                if (night) {
+                    g.beginFill(0xef4444, 0.4); g.drawCircle(sx - 6, surfTop + 6, 1.6); g.endFill();
+                    g.beginFill(0x4ade80, 0.4); g.drawCircle(sx + sw + 6, surfTop + 6, 1.6); g.endFill();
+                }
+            }
+        }
+
+        // Slide the displacement map to animate the ripples (REPEAT tiles it).
+        this._waterDispSprite.x = (tick * 0.6) % 512;
+        this._waterDispSprite.y = Math.sin(tick * 0.02) * 10;
+    },
+
     drawWeather() {
       // Throttle weather particle drawing to every other frame
       if (G.tick % 2 !== 0) return;
@@ -5207,6 +5352,7 @@ const Environment = {
         if (G.viewMode === 'micro') { this.updateWeather(); this.updateDesertWeather(); }
         this._tickWeatherTransition();
         this.drawWeather();
+        this._drawPortWater();
         // Reflection alpha scales with rain intensity and stacks with night/golden-hour boosts.
         let targetRefAlpha = 0;
         const _rw = this.weather, _rwi = this.weatherIntensity || 0;
