@@ -1900,10 +1900,18 @@ const G = {
       return { booted, total: this._lazyZones.length };
     },
 
-    // Flip renderable=false on objects whose world X is outside the camera viewport.
-    // Uses a horizontal-only check — the city is wide and flat, so vertical culling
-    // wouldn't save much. A margin of one viewport width on each side hides the cost
-    // of characters walking in at the edge.
+    // Cull objects whose world X is outside the camera viewport. Uses a
+    // horizontal-only check — the city is wide and flat, so vertical culling
+    // wouldn't save much. A margin of one viewport width on each side hides the
+    // cost of characters walking in at the edge.
+    //
+    // Avatars get DEEP-POOLED: each is ~17 display objects (905 models ≈ 15k in
+    // charLayer at boot), and `renderable=false` still leaves them in PIXI's
+    // transform pass and the charLayer zIndex sort. Detaching off-screen and
+    // hidden-indoors avatars from the tree entirely cuts charLayer to a few
+    // thousand objects (~30% faster renders, measured v519). Sim state in
+    // entities.js keeps running while detached — it reads/writes refs.c.x/y
+    // directly and has its own off-screen throttles.
     _cullOffScreen() {
       if (typeof Camera === 'undefined' || !this.world) return;
       const zoom = Camera.zoom || 1;
@@ -1917,16 +1925,38 @@ const G = {
 
       let cChars = 0, cCars = 0, cVend = 0, total = 0, hidden = 0;
 
-      // Characters
+      // Characters — pool: detach when off-screen or hidden indoors, re-attach
+      // when the sim wants them shown again. ONLY ever detach from charLayer:
+      // metro riders live on metroRiderCont/trainLayer via the entities.js
+      // layer-swap (_inTrainLayer) and must not be touched here.
       const refs = this.charRefs;
-      if (refs) {
+      const layer = this.charLayer;
+      if (refs && layer) {
           for (const id in refs) {
               const r = refs[id];
               if (!r || !r.c) continue;
               total++;
-              const onScreen = r.c.x >= minX && r.c.x <= maxX;
-              if (r.c.renderable !== onScreen) r.c.renderable = onScreen;
-              if (!onScreen) { cChars++; hidden++; }
+              const c = r.c;
+              const onScreen = c.x >= minX && c.x <= maxX;
+              const wanted = onScreen && c.visible !== false;
+              if (c.parent === layer) {
+                  if (wanted) {
+                      r._pooled = false;
+                  } else {
+                      layer.removeChild(c);
+                      r._pooled = true;
+                  }
+              } else if (!c.parent && r._pooled) {
+                  if (wanted) {
+                      c.renderable = true; // clear any stale flag from pre-pool builds
+                      layer.addChild(c);
+                      r._pooled = false;
+                  }
+              } else if (c.parent) {
+                  // On another layer (metro rider) — legacy renderable culling only
+                  if (c.renderable !== onScreen) c.renderable = onScreen;
+              }
+              if (!wanted) { cChars++; hidden++; }
           }
       }
 
