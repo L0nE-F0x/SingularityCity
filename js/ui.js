@@ -251,21 +251,26 @@ const UI = {
     // ─────────────────────────────────────────────────────────────
     _tipHideT: null,
 
-    // Tag a single display object with a hover tooltip. First (most
-    // specific) label wins, so a prop drawn inside another prop keeps
-    // its own name. Hover is pointer-only — skipped on touch.
+    // Tag a single display object with a label. On desktop it shows on hover;
+    // on touch there's no hover, so the same label shows on TAP and auto-hides
+    // after a couple seconds. First (most specific) label wins, so a prop drawn
+    // inside another prop keeps its own name.
     tip(obj, title, sub) {
-      if (!obj || window.isMobile || obj._tipT || obj.destroyed) return obj;
+      if (!obj || obj._tipT || obj.destroyed) return obj;
       // Skip anything that's already an interactive entity (NPC/avatar/clickable
-      // with its own hover) — its own tooltip/handler wins. Lets area-level
+      // with its own hover OR tap) — its own tooltip/handler wins. Lets area-level
       // include-maps wrap orchestrators that also spawn NPCs without clobbering.
-      if (obj.listenerCount && obj.listenerCount('pointerover') > 0) return obj;
+      if (obj.listenerCount && (obj.listenerCount('pointerover') > 0 || obj.listenerCount('pointertap') > 0)) return obj;
       obj._tipT = title;
       obj._tipS = sub || '';
       obj.eventMode = 'static';
-      obj.cursor = 'help';
-      obj.on('pointerover', UI._tipOver);
-      obj.on('pointerout', UI._tipOut);
+      obj.cursor = window.isMobile ? 'pointer' : 'help';
+      if (window.isMobile) {
+        obj.on('pointertap', UI._tipTap);
+      } else {
+        obj.on('pointerover', UI._tipOver);
+        obj.on('pointerout', UI._tipOut);
+      }
       return obj;
     },
 
@@ -273,6 +278,16 @@ const UI = {
       clearTimeout(UI._tipHideT);
       const o = e.currentTarget;
       if (o && o._tipT) UI.showTooltip(e, o._tipT, o._tipS);
+    },
+
+    // Touch: tap a prop to reveal its label, auto-dismissed after ~2.2s (no
+    // pointerout on touch). Tapping another prop replaces it immediately.
+    _tipTap(e) {
+      const o = e.currentTarget;
+      if (!o || !o._tipT) return;
+      clearTimeout(UI._tipHideT);
+      UI.showTooltip(e, o._tipT, o._tipS);
+      UI._tipHideT = setTimeout(() => UI.hideTooltip(), 2200);
     },
 
     _tipOut() {
@@ -299,7 +314,7 @@ const UI = {
     //     bespoke interiors whose leaf-prop helpers are named freely (e.g.
     //     InteriorDC._rack). Only the listed methods are wrapped.
     autoTipModule(mod, opts = {}) {
-      if (!mod || window.isMobile) return;
+      if (!mod) return;
       const overrides = opts.overrides || {};
       const exclude = new Set(opts.exclude || []);
       const include = opts.include || null;
@@ -336,7 +351,7 @@ const UI = {
     // Auto-instrument the interior modules once. Runs lazily the first time
     // any interior is opened (all modules are loaded by then).
     initInteriorTips() {
-      if (this._interiorTipsReady || window.isMobile) return;
+      if (this._interiorTipsReady) return;
       this._interiorTipsReady = true;
 
       // sub-text per prop. value = "sub string"  OR  { title, sub }.
