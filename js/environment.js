@@ -24,6 +24,11 @@ const Environment = {
     nextDesertWeatherTick: 1200,
     season: 'spring',
     rainDrops: [], snowFlakes: [], petals: [], sandParticles: [],
+    rainSplashes: [],            // transient rain-impact rings (drained by age)
+    puddles: null,               // lazily-seeded persistent puddle spots (deterministic)
+    _wetness: 0,                 // 0..1 ground wetness — fades puddles in/out with rain
+    _groundFxGfx: null,          // lazy layer BELOW characters: puddles, cloud shadows, splashes
+    _boltPath: null, _boltLife: 0, // lightning bolt polyline + frames remaining
 
     starsLayer: null, celestialGfx: null, cloudLayer: null,
     bldLayer: null, groundGfx: null, reflectionLayer: null, refMask: null,
@@ -1096,6 +1101,7 @@ const Environment = {
         c.y = G.groundY - 100 - (i % 6) * 22 - this._labNoise(i * 3 + 2) * 50;
         c.alpha = 0.10 + this._labNoise(i * 3 + 3) * 0.06;
         c._i = i;
+        c._w = w;   // half-span used to size this cloud's ground shadow
         c._drift = 0.002 + this._labNoise(i * 3 + 4) * 0.003;
         this.cloudLayer.addChild(c);
       }
@@ -4682,6 +4688,10 @@ const Environment = {
         const rainAlpha = (w === 'drizzle' ? 0.22 : w === 'thunderstorm' ? 0.5 : 0.38) * (0.3 + intensity * 0.7);
         const windX = wind.x * (w === 'drizzle' ? 0.6 : 1.0);
         const streakLen = w === 'drizzle' ? 9 : w === 'thunderstorm' ? 18 : 14;
+        // Splash spawning: a fraction of ground-hitting drops kick up an impact ring.
+        const splashCap = 60;
+        const splashChance = (w === 'thunderstorm' ? 0.05 : w === 'rain' ? 0.035 : 0.014) * (0.4 + intensity * 0.6);
+        const splashes = this.rainSplashes;
         g.lineStyle(1, 0x88bbdd, rainAlpha);
         const drops = this.rainDrops;
         for (let i = 0; i < drops.length; i++) {
@@ -4690,6 +4700,12 @@ const Environment = {
             d.x += windX - 0.2;
             // Respawn when drop hits ground OR exits viewport bottom.
             if (d.y > groundTop || d.y > yMax) {
+              // True ground impact (not just a viewport-bottom exit) → occasional splash,
+              // but only where the ground is actually on-screen and outside the desert.
+              if (d.y > groundTop && d.x >= xMin && d.x <= xMax && splashes.length < splashCap
+                  && (!desert || d.x < ds || d.x > de) && Math.random() < splashChance) {
+                  splashes.push({ x: d.x, y: groundTop, age: 0 });
+              }
               d.y = yMin;
               d.x = wx + Math.random() * vw;
             } else if (d.x < xMin || d.x > xMax || d.y < yMin) {
@@ -4861,6 +4877,21 @@ const Environment = {
           if (G.tick >= this._nextLightningTick) {
               this.lightningFlash = 0.9 + Math.random() * 0.1;
               this._nextLightningTick = G.tick + 200 + Math.floor(Math.random() * 600);
+              // Forge a jagged bolt from above the viewport down to the rooftops.
+              const boltX = wx + Math.random() * vw;
+              const segs = 9;
+              const endY = groundTop - 60 - Math.random() * 140;
+              const startY = wy - 120;
+              const pts = [];
+              for (let s2 = 0; s2 <= segs; s2++) {
+                  const t = s2 / segs;
+                  pts.push({
+                      x: boltX + (Math.random() - 0.5) * 46 + wind.x * t * 30,
+                      y: startY + (endY - startY) * t
+                  });
+              }
+              this._boltPath = pts;
+              this._boltLife = 5;
               // Thunder SFX delayed by 10-35 ticks (~0.2-0.6s at 60fps) — distant rumble.
               if (typeof SND !== 'undefined' && SND.playTone) {
                   const delay = 150 + Math.random() * 450;
@@ -4880,6 +4911,18 @@ const Environment = {
           flashG.drawRect(wx - 200, wy - 200, vw + 400, vh + 400);
           flashG.endFill();
           this.lightningFlash *= 0.82;  // fast decay, 3-4 visible frames
+      }
+      // Bolt: fat soft glow underlay + bright core, both fading over ~5 frames.
+      if (this._boltLife > 0 && this._boltPath && this._boltPath.length > 1) {
+          const ba = this._boltLife / 5;
+          const pts = this._boltPath;
+          for (let pass = 0; pass < 2; pass++) {
+              flashG.lineStyle(pass === 0 ? 6 : 2, pass === 0 ? 0x9ec5ff : 0xfdfdff, ba * (pass === 0 ? 0.28 : 0.95));
+              flashG.moveTo(pts[0].x, pts[0].y);
+              for (let pi = 1; pi < pts.length; pi++) flashG.lineTo(pts[pi].x, pts[pi].y);
+          }
+          flashG.lineStyle(0);
+          this._boltLife--;
       }
 
       // ─── DESERT WEATHER (sandstorm — only in desert zone) ───
@@ -4919,6 +4962,107 @@ const Environment = {
             g.drawRect(desert.start, hazeTop, desert.end - desert.start, hazeH);
             g.endFill();
         }
+      }
+
+      // ─── GROUND FX (below characters): cloud shadows, puddles, rain splashes ───
+      // Its own layer sits just above the ground and below shadows/characters, so
+      // people walk over puddles and through splashes instead of behind them.
+      if (!this._groundFxGfx) {
+          this._groundFxGfx = new PIXI.Graphics();
+          if (this.groundGfx && this.groundGfx.parent) {
+              const par = this.groundGfx.parent;
+              par.addChildAt(this._groundFxGfx, par.getChildIndex(this.groundGfx) + 1);
+          }
+      }
+      const gfxG = this._groundFxGfx;
+      gfxG.clear();
+
+      const dpNow = (typeof G.getDayPhase === 'function') ? G.getDayPhase() : 0.5;
+      const nightNow = dpNow > 0.83 || dpNow < 0.25;
+      const isRainNow = (w === 'drizzle' || w === 'rain' || w === 'thunderstorm');
+
+      // Wetness accumulates while raining, evaporates otherwise — drives puddle alpha.
+      const wetTarget = isRainNow ? (0.35 + intensity * 0.65) : 0;
+      this._wetness += (wetTarget - this._wetness) * (isRainNow ? 0.02 : 0.01);
+
+      // ── Cloud ground-shadows: only when the sun is up and skies are clear/partly
+      //    cloudy (overcast/rain give diffuse light that casts no crisp shadow). ──
+      const isDay = dpNow >= 0.25 && dpNow <= 0.83;
+      const sunHeight = isDay ? Math.sin(((dpNow - 0.25) / 0.58) * Math.PI) : 0;
+      if (sunHeight > 0.05 && (w === 'clear' || w === 'partly_cloudy') && this.cloudLayer) {
+          const shadowOffset = (dpNow - 0.54) * 90; // low sun skews shadows to the side
+          const clouds = this.cloudLayer.children;
+          for (let ci = 0; ci < clouds.length; ci++) {
+              const c = clouds[ci];
+              const sxc = c.x + shadowOffset;
+              if (sxc < wx - 120 || sxc > wx + vw + 120) continue;
+              if (desert && sxc >= ds && sxc <= de) continue;
+              const a = sunHeight * (c.alpha || 0.1) * 0.85;
+              if (a < 0.012) continue;
+              const rw = (c._w || 60) * 0.6;
+              gfxG.beginFill(0x0a0f1a, a);
+              gfxG.drawEllipse(sxc, groundTop + 5, rw, 6);
+              gfxG.endFill();
+          }
+      }
+
+      // ── Puddles: deterministic spots, faded by wetness; neon shimmer at night. ──
+      if (this._wetness > 0.04) {
+          if (!this.puddles) {
+              this.puddles = [];
+              const span = (G.cityW || 8000);
+              const neonPal = [0x22d3ee, 0xf472b6, 0xfbbf24, 0x4ade80, 0xa855f7];
+              let idx = 0;
+              for (let px = 120; px < span; px += 260) {
+                  if (this._labNoise(px * 0.5 + 3) < 0.35) continue; // leave dry gaps
+                  this.puddles.push({
+                      x: px + this._labNoise(px + 7) * 120,
+                      w: 18 + this._labNoise(px + 11) * 46,
+                      neon: neonPal[idx % neonPal.length],
+                      ph: this._labNoise(px + 13) * Math.PI * 2
+                  });
+                  idx++;
+              }
+          }
+          const wet = this._wetness;
+          const pud = this.puddles;
+          for (let i = 0; i < pud.length; i++) {
+              const p = pud[i];
+              if (p.x < wx - 60 || p.x > wx + vw + 60) continue;
+              if (desert && p.x >= ds && p.x <= de) continue;
+              const py = groundTop + 3;
+              const rw = p.w, rh = Math.max(2.5, p.w * 0.11);
+              // Dark water body
+              gfxG.beginFill(0x0a1420, wet * 0.5);
+              gfxG.drawEllipse(p.x, py, rw, rh); gfxG.endFill();
+              // Sky sheen on the near edge
+              gfxG.beginFill(0x9fb8d4, wet * 0.16);
+              gfxG.drawEllipse(p.x, py - rh * 0.3, rw * 0.85, rh * 0.5); gfxG.endFill();
+              // Reflected-neon shimmer — night only, drifts and pulses
+              if (nightNow) {
+                  const shimmer = 0.10 + Math.sin(tick * 0.05 + p.ph) * 0.06;
+                  if (shimmer > 0) {
+                      gfxG.beginFill(p.neon, wet * shimmer);
+                      gfxG.drawEllipse(p.x + Math.sin(tick * 0.03 + p.ph) * 3, py, rw * 0.5, rh * 0.6);
+                      gfxG.endFill();
+                  }
+              }
+          }
+      }
+
+      // ── Rain splashes: expanding rings that thin out over ~14 frames. ──
+      const spl = this.rainSplashes;
+      for (let i = spl.length - 1; i >= 0; i--) {
+          const s = spl[i];
+          s.age++;
+          const life = s.age / 14;
+          if (life >= 1) { spl.splice(i, 1); continue; }
+          if (s.x < wx - 40 || s.x > wx + vw + 40) { spl.splice(i, 1); continue; }
+          const r = 1 + life * 7;
+          const a = (1 - life) * 0.4;
+          gfxG.lineStyle(1, 0xbcd8ee, a);
+          gfxG.drawEllipse(s.x, s.y + 2, r, r * 0.42);
+          gfxG.lineStyle(0);
       }
     },
 
