@@ -1405,6 +1405,468 @@ const Environment = {
         }
     },
 
+    // ─── SOCIAL STRIP FACADES ───
+    // The café/gym/arena/open-source-hub/newspaper block sits in the busiest
+    // stretch of the map, so each gets a hand-built exterior that mirrors its
+    // interior identity — same playbook as the lab HQ towers: deterministic
+    // noise (no Math.random reshuffle) and pure-geometry draws so
+    // cacheAsBitmap batches the whole facade into one sprite.
+    _drawSocialFacade(gfx, container, b, h, floors) {
+        const seed = this._labHash(b.id);
+        const n = (i) => this._labNoise(seed + i);
+        // Right-edge depth shadow (shared with every other facade style)
+        gfx.beginFill(0x000000, 0.14); gfx.drawRect(b.w, 4, 6, h - 4); gfx.endFill();
+        if (b.id === 'cafe') this._drawCafeExt(gfx, b, h, floors, n);
+        else if (b.id === 'gym') this._drawGymExt(gfx, b, h, floors, n);
+        else if (b.id === 'arena') this._drawArenaExt(gfx, b, h, floors, n);
+        else if (b.id === 'open_square') this._drawOpenSquareExt(gfx, b, h, floors, n);
+        else this._drawTimesExt(gfx, container, b, h, floors, n);
+        // Base ambient occlusion
+        gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
+    },
+
+    // API Café — warm brick coffee house: awning, shopfront, sidewalk terrace,
+    // rooftop planters (mirrors the interior's cafe/lounge/kitchen/rooftop floors).
+    _drawCafeExt(gfx, b, h, floors, n) {
+        const AC = 0xf59e0b, CREAM = 0xf5e6c8;
+        // Warm brick body
+        gfx.beginFill(0x241410); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+        gfx.beginFill(AC, 0.07); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.04); gfx.drawRect(0, 8, 3, h - 8); gfx.endFill();
+        gfx.beginFill(0x000000, 0.16); gfx.drawRect(b.w - 4, 8, 4, h - 8); gfx.endFill();
+        // Brick coursing: mortar lines + staggered joints
+        gfx.beginFill(0x000000, 0.13);
+        for (let my = 12; my < h - 30; my += 7) gfx.drawRect(2, my, b.w - 4, 1);
+        gfx.endFill();
+        gfx.beginFill(0x000000, 0.10);
+        for (let my = 12, r = 0; my < h - 34; my += 7, r++)
+            for (let mx = (r % 2 ? 6 : 13); mx < b.w - 6; mx += 14) gfx.drawRect(mx, my, 1, 7);
+        gfx.endFill();
+        // Cream parapet + amber trim
+        gfx.beginFill(CREAM, 0.9); gfx.drawRect(0, 0, b.w, 6); gfx.endFill();
+        gfx.beginFill(AC, 0.9); gfx.drawRect(0, 6, b.w, 2.5); gfx.endFill();
+        gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, 8.5, b.w, 2); gfx.endFill();
+        // Rooftop terrace: railing + planters (mirrors the cafe_rooftop floor)
+        gfx.beginFill(0x8a6a4a);
+        for (let rx = 3; rx < b.w - 2; rx += 8) gfx.drawRect(rx, -6, 1.2, 6);
+        gfx.endFill();
+        gfx.beginFill(0xa9825a); gfx.drawRect(0, -7, b.w, 1.5); gfx.endFill();
+        [6, b.w - 24].forEach((px) => {
+            gfx.beginFill(0x7c2d12); gfx.drawRect(px, -4, 18, 4); gfx.endFill();
+            gfx.beginFill(0x2d6a4f);
+            gfx.drawCircle(px + 4, -6, 3); gfx.drawCircle(px + 9, -7, 3.5); gfx.drawCircle(px + 14, -6, 3);
+            gfx.endFill();
+        });
+        // Arched upper windows, warm-lit, some with flower boxes
+        for (let f = 0; f < floors - 1; f++) {
+            const wy = 16 + f * 18;
+            if (wy + 14 > h - 32) break;
+            const cols = Math.max(2, Math.floor((b.w - 16) / 26));
+            const gap = (b.w - cols * 16) / (cols + 1);
+            for (let c = 0; c < cols; c++) {
+                const wx = gap + c * (16 + gap);
+                gfx.beginFill(0x000000, 0.25); gfx.drawRoundedRect(wx - 1.5, wy - 1.5, 19, 15, 6); gfx.endFill();
+                const lit = n(f * 31 + c * 7) < 0.8;
+                gfx.beginFill(lit ? 0xffd9a0 : 0x14100c, lit ? 0.9 : 1);
+                gfx.drawRoundedRect(wx, wy, 16, 12, 5); gfx.endFill();
+                gfx.beginFill(AC, 0.5); gfx.drawRect(wx - 1, wy + 12.5, 18, 1.5); gfx.endFill();
+                if (n(f * 17 + c * 5) < 0.4) {
+                    gfx.beginFill(0x2d6a4f); gfx.drawRect(wx + 1, wy + 10, 14, 2); gfx.endFill();
+                    gfx.beginFill(0xef4444, 0.9); gfx.drawCircle(wx + 4, wy + 10, 1); gfx.drawCircle(wx + 11, wy + 10, 1); gfx.endFill();
+                }
+            }
+        }
+        // Scalloped awning over the shopfront
+        const awnY = h - 30;
+        for (let ax = 4, i2 = 0; ax < b.w - 4; ax += 12, i2++) {
+            const sw = Math.min(12, b.w - 4 - ax);
+            gfx.beginFill(i2 % 2 ? CREAM : AC, 0.95);
+            gfx.drawRect(ax, awnY, sw, 5);
+            gfx.drawCircle(ax + sw / 2, awnY + 5, sw / 2);
+            gfx.endFill();
+        }
+        gfx.beginFill(0x000000, 0.18); gfx.drawRect(4, awnY + 12, b.w - 8, 2); gfx.endFill();
+        // Shopfront glass: warm glow, pendant lamps, pastry-case silhouettes
+        gfx.beginFill(0x1a1208); gfx.drawRect(4, h - 22, b.w - 8, 20); gfx.endFill();
+        gfx.beginFill(0xffd9a0, 0.45);
+        for (let gx = 8; gx < b.w - 26; gx += 24) gfx.drawRect(gx, h - 19, 18, 17);
+        gfx.endFill();
+        gfx.beginFill(0x3a2a18, 0.9);
+        for (let gx = 10; gx < b.w - 24; gx += 48) gfx.drawRect(gx, h - 9, 14, 7);
+        gfx.endFill();
+        gfx.beginFill(0xffe9a8, 0.9);
+        for (let gx = 16; gx < b.w - 16; gx += 24) { gfx.drawRect(gx, h - 19, 0.8, 4); gfx.drawCircle(gx + 0.4, h - 14, 1.8); }
+        gfx.endFill();
+        // Entrance
+        gfx.beginFill(0x140d06); gfx.drawRect(b.w / 2 - 9, h - 20, 18, 18); gfx.endFill();
+        gfx.beginFill(AC, 0.6); gfx.drawRect(b.w / 2 - 9, h - 20, 18, 2); gfx.endFill();
+        gfx.beginFill(0xffe9a8, 0.8); gfx.drawCircle(b.w / 2 + 6, h - 11, 1); gfx.endFill();
+        // Projecting shingle sign: steaming coffee cup on a round board
+        const sx = -9, sy = h - 46;
+        gfx.beginFill(0x5a3a22); gfx.drawRect(-14, sy - 11, 15, 2); gfx.endFill();
+        gfx.beginFill(0x0e0a06, 0.95); gfx.drawCircle(sx, sy, 10); gfx.endFill();
+        gfx.lineStyle(1.2, AC, 0.9); gfx.drawCircle(sx, sy, 10); gfx.lineStyle(0);
+        gfx.beginFill(CREAM); gfx.drawRoundedRect(sx - 4, sy - 1, 8, 6, 1.5); gfx.endFill();
+        gfx.lineStyle(1.2, CREAM, 0.9); gfx.drawCircle(sx + 5, sy + 2, 2); gfx.lineStyle(0);
+        gfx.lineStyle(1, AC, 0.8);
+        gfx.moveTo(sx - 2, sy - 3); gfx.lineTo(sx - 1, sy - 6);
+        gfx.moveTo(sx + 1, sy - 3); gfx.lineTo(sx + 2, sy - 6);
+        gfx.lineStyle(0);
+        // Sidewalk terrace: striped umbrellas + tables flanking the entrance
+        [18, b.w - 34].forEach((tx) => {
+            gfx.beginFill(0x8a6a4a); gfx.drawRect(tx + 7.5, h - 26, 1.5, 26); gfx.endFill();
+            for (let sg = 0; sg < 4; sg++) {
+                gfx.beginFill(sg % 2 ? CREAM : AC);
+                gfx.drawPolygon([tx - 6 + sg * 7, h - 26, tx + 1 + sg * 7, h - 26, tx + 8, h - 33]);
+                gfx.endFill();
+            }
+            gfx.beginFill(0x3a2a18);
+            gfx.drawRect(tx + 4, h - 8, 8, 1.5); gfx.drawRect(tx + 7.5, h - 8, 1, 8);
+            gfx.drawRect(tx - 1, h - 5, 4, 1.2); gfx.drawRect(tx + 0.5, h - 5, 1, 5);
+            gfx.drawRect(tx + 13, h - 5, 4, 1.2); gfx.drawRect(tx + 14.5, h - 5, 1, 5);
+            gfx.endFill();
+        });
+    },
+
+    // RLHF Gym — glass training atrium with per-floor activity silhouettes,
+    // rooftop lap pool (the interior's 5th floor), hanging dumbbell banner.
+    _drawGymExt(gfx, b, h, floors, n) {
+        const AC = 0x22d3ee, GLASS = 0xd6f6ff;
+        // Athletic dark body
+        gfx.beginFill(0x101822); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+        gfx.beginFill(AC, 0.05); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.04); gfx.drawRect(0, 8, 3, h - 8); gfx.endFill();
+        gfx.beginFill(0x000000, 0.16); gfx.drawRect(b.w - 4, 8, 4, h - 8); gfx.endFill();
+        // Cyan crown
+        gfx.beginFill(AC, 0.92); gfx.drawRect(0, 0, b.w, 8); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.18); gfx.drawRect(0, 0, b.w, 2); gfx.endFill();
+        gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, 8, b.w, 2); gfx.endFill();
+        // Rooftop lap pool (left) with lane glints + ladder, HVAC on the right
+        const poolW = b.w * 0.26;
+        gfx.beginFill(0x0e7490); gfx.drawRect(6, -6, poolW, 6); gfx.endFill();
+        gfx.beginFill(0x38bdf8, 0.8); gfx.drawRect(6, -6, poolW, 4.5); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.5);
+        for (let px = 12; px < poolW - 4; px += 14) gfx.drawRect(px, -4.5, 6, 0.8);
+        gfx.endFill();
+        gfx.beginFill(0xe2e8f0);
+        gfx.drawRect(6 + poolW - 3, -8, 1, 8); gfx.drawRect(6 + poolW, -8, 1, 8);
+        gfx.drawRect(6 + poolW - 3, -6.5, 4, 0.8); gfx.drawRect(6 + poolW - 3, -3.5, 4, 0.8);
+        gfx.endFill();
+        gfx.beginFill(0x475569); gfx.drawRect(b.w - 34, -5, 12, 5); gfx.endFill();
+        gfx.beginFill(0x64748b, 0.7); gfx.drawRect(b.w - 32.5, -3.8, 9, 1); gfx.drawRect(b.w - 32.5, -2, 9, 1); gfx.endFill();
+        // Full-height glass atrium (left) — training silhouettes per floor
+        const atX = 8, atW = Math.max(52, b.w * 0.30);
+        gfx.beginFill(0x0a1220); gfx.drawRect(atX, 12, atW, h - 34); gfx.endFill();
+        gfx.beginFill(GLASS, 0.14); gfx.drawRect(atX, 12, atW, h - 34); gfx.endFill();
+        for (let f = 0; f < floors - 1; f++) {
+            const by = 16 + f * 18;
+            if (by + 12 > h - 24) break;
+            gfx.beginFill(GLASS, 0.55); gfx.drawRect(atX + 2, by, atW - 4, 12); gfx.endFill();
+            gfx.beginFill(AC, 0.2); gfx.drawRect(atX + 2, by, atW - 4, 2.5); gfx.endFill();
+            const cx2 = atX + atW / 2;
+            gfx.beginFill(0x06121c, 0.95);
+            const kind = f % 4;
+            if (kind === 0) { // treadmill runner
+                gfx.drawPolygon([cx2 - 10, by + 11, cx2 + 10, by + 11, cx2 + 8, by + 8.5, cx2 - 8, by + 8.5]);
+                gfx.drawCircle(cx2, by + 3.5, 1.8);
+                gfx.drawRect(cx2 - 1.2, by + 5, 2.4, 4);
+            } else if (kind === 1) { // barbell rack
+                gfx.drawRect(cx2 - 9, by + 6, 18, 1.4);
+                gfx.drawCircle(cx2 - 8, by + 6.7, 2.6); gfx.drawCircle(cx2 + 8, by + 6.7, 2.6);
+                gfx.drawRect(cx2 - 1.2, by + 7.5, 2.4, 3.5);
+            } else if (kind === 2) { // heavy bag
+                gfx.drawRect(cx2 - 0.6, by, 1.2, 3);
+                gfx.drawRoundedRect(cx2 - 2.5, by + 3, 5, 7, 2);
+            } else { // yoga pose
+                gfx.drawCircle(cx2, by + 4, 1.8);
+                gfx.drawPolygon([cx2 - 5, by + 11, cx2 + 5, by + 11, cx2, by + 5.5]);
+            }
+            gfx.endFill();
+        }
+        gfx.beginFill(0x0a0e18, 0.9); gfx.drawRect(atX + atW / 2 - 0.7, 12, 1.4, h - 34); gfx.endFill();
+        // Hanging banner with dumbbell mark (right edge)
+        const bnX = b.w - 24;
+        gfx.beginFill(0x0c4a6e, 0.95); gfx.drawRect(bnX, 12, 16, 46); gfx.endFill();
+        gfx.beginFill(AC, 0.9); gfx.drawRect(bnX, 12, 16, 3); gfx.endFill();
+        gfx.beginFill(0x101822); gfx.drawPolygon([bnX, 58, bnX + 16, 58, bnX + 8, 52]); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.9);
+        gfx.drawRect(bnX + 3, 30, 10, 1.6);
+        gfx.drawRect(bnX + 2, 27, 2.4, 8); gfx.drawRect(bnX + 11.6, 27, 2.4, 8);
+        gfx.endFill();
+        // Window grid on the right wing (clear of atrium + banner)
+        for (let f = 0; f < floors - 1; f++) {
+            const wy = 16 + f * 18;
+            if (wy + 12 > h - 24) break;
+            for (let wx = atX + atW + 10; wx + 15 < bnX - 4; wx += 22) {
+                if (wy < 60 && wx + 15 > bnX - 4) continue;
+                const lit = n(f * 43 + wx) < 0.62;
+                gfx.beginFill(0x000000, 0.25); gfx.drawRect(wx - 1, wy - 1, 16, 13); gfx.endFill();
+                gfx.beginFill(lit ? GLASS : 0x0a1018, lit ? 0.8 : 1); gfx.drawRect(wx, wy, 14, 11); gfx.endFill();
+                if (lit) { gfx.beginFill(AC, 0.25); gfx.drawRect(wx, wy, 14, 2.5); gfx.endFill(); }
+            }
+        }
+        // Reception floor: glass, turnstiles, cyan canopy
+        gfx.beginFill(0x0a141e); gfx.drawRect(4, h - 22, b.w - 8, 20); gfx.endFill();
+        gfx.beginFill(AC, 0.14); gfx.drawRect(4, h - 22, b.w - 8, 20); gfx.endFill();
+        gfx.beginFill(AC, 0.8); gfx.drawRect(4, h - 22, b.w - 8, 2); gfx.endFill();
+        gfx.beginFill(GLASS, 0.35);
+        for (let lx = 12; lx < b.w - 28; lx += 26) gfx.drawRect(lx, h - 18, 16, 13);
+        gfx.endFill();
+        gfx.beginFill(0x05090f); gfx.drawRect(b.w / 2 - 10, h - 19, 20, 17); gfx.endFill();
+        gfx.beginFill(AC, 0.55); gfx.drawRect(b.w / 2 - 10, h - 19, 20, 2); gfx.endFill();
+        gfx.beginFill(0x94a3b8, 0.8); gfx.drawRect(b.w / 2 - 6, h - 9, 4, 1.2); gfx.drawRect(b.w / 2 + 2, h - 9, 4, 1.2); gfx.endFill();
+        gfx.beginFill(AC, 0.85); gfx.drawRect(b.w / 2 - 15, h - 21, 30, 2.5); gfx.endFill();
+    },
+
+    // LMSYS Arena — e-sports stadium: giant jumbotron with a bot-vs-bot match,
+    // floodlight masts, championship pennants, grand arched gate + ticket booths.
+    _drawArenaExt(gfx, b, h, floors, n) {
+        const AC = 0xef4444, GOLD = 0xfbbf24;
+        // Stadium body (lowered roofline at the edges, raised centre bay)
+        gfx.beginFill(0x1c1016); gfx.drawRect(0, 14, b.w, h - 14); gfx.endFill();
+        gfx.beginFill(AC, 0.05); gfx.drawRect(0, 14, b.w, h - 14); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.04); gfx.drawRect(0, 14, 3, h - 14); gfx.endFill();
+        gfx.beginFill(0x000000, 0.16); gfx.drawRect(b.w - 4, 14, 4, h - 14); gfx.endFill();
+        gfx.beginFill(AC, 0.85); gfx.drawRect(0, 14, b.w, 2); gfx.endFill();
+        const jbW = Math.min(b.w - 56, 150), jbX = (b.w - jbW) / 2;
+        gfx.beginFill(0x140a10); gfx.drawRect(jbX - 6, 2, jbW + 12, 14); gfx.endFill();
+        gfx.beginFill(AC, 0.9); gfx.drawRect(jbX - 6, 0, jbW + 12, 3); gfx.endFill();
+        // ── JUMBOTRON — the arena's signature match screen ──
+        const scrY = 16, scrH = Math.min(34, h - 60);
+        gfx.beginFill(0x05070d); gfx.drawRect(jbX, scrY, jbW, scrH); gfx.endFill();
+        gfx.lineStyle(1.5, 0x334155, 1); gfx.drawRect(jbX, scrY, jbW, scrH); gfx.lineStyle(0);
+        gfx.beginFill(0x0ea5e9, 0.06);
+        for (let sy2 = scrY + 2; sy2 < scrY + scrH - 2; sy2 += 4) gfx.drawRect(jbX + 2, sy2, jbW - 4, 1.5);
+        gfx.endFill();
+        // Two fighter bots + gold VS
+        const p1x = jbX + jbW * 0.22, p2x = jbX + jbW * 0.78, pcy = scrY + scrH * 0.42;
+        gfx.beginFill(0x3b82f6, 0.9); gfx.drawRoundedRect(p1x - 12, pcy - 8, 24, 16, 3); gfx.endFill();
+        gfx.beginFill(AC, 0.9); gfx.drawRoundedRect(p2x - 12, pcy - 8, 24, 16, 3); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.9);
+        gfx.drawRect(p1x - 5, pcy - 3, 3, 3); gfx.drawRect(p1x + 2, pcy - 3, 3, 3); gfx.drawRect(p1x - 4, pcy + 3, 8, 1.5);
+        gfx.drawRect(p2x - 5, pcy - 3, 3, 3); gfx.drawRect(p2x + 2, pcy - 3, 3, 3); gfx.drawRect(p2x - 4, pcy + 3, 8, 1.5);
+        gfx.endFill();
+        const vx = jbX + jbW / 2;
+        gfx.lineStyle(2.2, GOLD, 1);
+        gfx.moveTo(vx - 8, pcy - 6); gfx.lineTo(vx - 4.5, pcy + 4); gfx.lineTo(vx - 1, pcy - 6);
+        gfx.moveTo(vx + 8, pcy - 6); gfx.lineTo(vx + 3, pcy - 6); gfx.lineTo(vx + 3, pcy - 1);
+        gfx.lineTo(vx + 8, pcy - 1); gfx.lineTo(vx + 8, pcy + 4); gfx.lineTo(vx + 3, pcy + 4);
+        gfx.lineStyle(0);
+        // ELO ticker pixels along the screen's bottom edge (deterministic)
+        for (let tx2 = jbX + 3, i2 = 0; tx2 < jbX + jbW - 8; tx2 += 7, i2++) {
+            gfx.beginFill([0x4ade80, 0xfbbf24, 0x38bdf8, 0xf87171][Math.floor(n(i2) * 4)], 0.85);
+            gfx.drawRect(tx2, scrY + scrH - 5, 4 + n(i2 + 99) * 2, 2);
+            gfx.endFill();
+        }
+        // Championship pennants flanking the screen
+        [[jbX - 18, AC], [jbX + jbW + 6, 0x3b82f6]].forEach(([px, pc]) => {
+            if (px < 4 || px + 12 > b.w - 4) return;
+            gfx.beginFill(pc, 0.92); gfx.drawRect(px, 18, 12, 26); gfx.endFill();
+            gfx.beginFill(0x1c1016); gfx.drawPolygon([px, 44, px + 12, 44, px + 6, 38]); gfx.endFill();
+            gfx.beginFill(GOLD, 0.95); gfx.drawCircle(px + 6, 26, 3); gfx.endFill();
+            gfx.beginFill(GOLD, 0.7); gfx.drawRect(px + 2, 33, 8, 1.5); gfx.endFill();
+        });
+        // Floodlight masts at both roof edges
+        [12, b.w - 12].forEach((mx) => {
+            gfx.beginFill(0x64748b); gfx.drawRect(mx - 1, -2, 2, 16); gfx.endFill();
+            gfx.beginFill(0x334155); gfx.drawRect(mx - 7, -8, 14, 6); gfx.endFill();
+            gfx.beginFill(0xfef9c3, 0.9);
+            gfx.drawRect(mx - 6, -7, 3, 4); gfx.drawRect(mx - 1.5, -7, 3, 4); gfx.drawRect(mx + 3, -7, 3, 4);
+            gfx.endFill();
+        });
+        // Concourse windows below the screen
+        for (let f = 2; f < floors - 1; f++) {
+            const wy = 16 + f * 18;
+            if (wy < scrY + scrH + 2 || wy + 11 > h - 24) continue;
+            for (let wx = 10; wx < b.w - 24; wx += 24) {
+                const lit = n(f * 57 + wx) < 0.55;
+                gfx.beginFill(0x000000, 0.25); gfx.drawRect(wx - 1, wy - 1, 16, 12); gfx.endFill();
+                gfx.beginFill(lit ? 0xffd9c0 : 0x0e0a10, lit ? 0.8 : 1); gfx.drawRect(wx, wy, 14, 10); gfx.endFill();
+            }
+        }
+        // Concourse floor: gold trim, grand arch gate, ticket booths
+        gfx.beginFill(0x0e0a10); gfx.drawRect(4, h - 22, b.w - 8, 20); gfx.endFill();
+        gfx.beginFill(AC, 0.10); gfx.drawRect(4, h - 22, b.w - 8, 20); gfx.endFill();
+        gfx.beginFill(GOLD, 0.7); gfx.drawRect(4, h - 22, b.w - 8, 1.5); gfx.endFill();
+        gfx.beginFill(0x05070d); gfx.drawRect(b.w / 2 - 12, h - 16, 24, 16); gfx.drawCircle(b.w / 2, h - 16, 12); gfx.endFill();
+        gfx.lineStyle(1.5, GOLD, 0.8); gfx.drawCircle(b.w / 2, h - 16, 12); gfx.lineStyle(0);
+        gfx.beginFill(0xffe9a8, 0.5); gfx.drawCircle(b.w / 2, h - 16, 2); gfx.endFill();
+        [b.w * 0.22, b.w * 0.78 - 16].forEach((bx2) => {
+            gfx.beginFill(0x1a1420); gfx.drawRect(bx2, h - 18, 16, 16); gfx.endFill();
+            gfx.beginFill(AC, 0.85); gfx.drawRect(bx2 - 1, h - 19, 18, 2.5); gfx.endFill();
+            gfx.beginFill(0xffe9a8, 0.75); gfx.drawRect(bx2 + 3, h - 14, 10, 7); gfx.endFill();
+            gfx.beginFill(0x05070d, 0.8); gfx.drawRect(bx2 + 3, h - 9, 10, 1.5); gfx.endFill();
+        });
+    },
+
+    // Open Source Hub — converted warehouse: giant live-code terminal wall,
+    // git-branch emblem, hackathon pennants, graffiti + poster wall at street level.
+    _drawOpenSquareExt(gfx, b, h, floors, n) {
+        const AC = 0xa855f7, CODE = 0x4ade80;
+        const pcols = [0x4ade80, 0xfbbf24, 0x38bdf8, 0xf87171, 0xa855f7];
+        // Converted-warehouse body
+        gfx.beginFill(0x161020); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+        gfx.beginFill(AC, 0.06); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.04); gfx.drawRect(0, 8, 3, h - 8); gfx.endFill();
+        gfx.beginFill(0x000000, 0.16); gfx.drawRect(b.w - 4, 8, 4, h - 8); gfx.endFill();
+        // Parapet
+        gfx.beginFill(AC, 0.9); gfx.drawRect(0, 0, b.w, 8); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.15); gfx.drawRect(0, 0, b.w, 2); gfx.endFill();
+        gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, 8, b.w, 2); gfx.endFill();
+        // Hackathon pennant string across the roof + self-hosted dish
+        gfx.lineStyle(1, 0x94a3b8, 0.7); gfx.moveTo(4, -8); gfx.lineTo(b.w - 4, -8); gfx.lineStyle(0);
+        for (let fx = 8, i2 = 0; fx < b.w - 8; fx += 12, i2++) {
+            gfx.beginFill(pcols[i2 % 5], 0.9); gfx.drawPolygon([fx, -8, fx + 8, -8, fx + 4, -2]); gfx.endFill();
+        }
+        gfx.beginFill(0x94a3b8); gfx.drawRect(14, -14, 1.5, 6); gfx.endFill();
+        gfx.beginFill(0xcbd5e1, 0.9); gfx.drawEllipse(11, -15, 5, 3.5); gfx.endFill();
+        // ── LIVE CODE WALL — giant terminal pane, the hub's signature ──
+        const twX = 10, twW = Math.max(64, b.w * 0.34), twY = 15, twH = Math.min(42, h - 44);
+        gfx.beginFill(0x04070d); gfx.drawRect(twX, twY, twW, twH); gfx.endFill();
+        gfx.lineStyle(1.2, CODE, 0.5); gfx.drawRect(twX, twY, twW, twH); gfx.lineStyle(0);
+        gfx.beginFill(0xf87171); gfx.drawCircle(twX + 4, twY + 3.5, 1.2); gfx.endFill();
+        gfx.beginFill(0xfbbf24); gfx.drawCircle(twX + 8, twY + 3.5, 1.2); gfx.endFill();
+        gfx.beginFill(0x4ade80); gfx.drawCircle(twX + 12, twY + 3.5, 1.2); gfx.endFill();
+        const nLines = Math.floor((twH - 12) / 3.6);
+        for (let li = 0; li < nLines; li++) {
+            const ly = twY + 8 + li * 3.6;
+            const indent = [0, 4, 8, 8, 4, 0, 4, 8, 4][li % 9];
+            const lw = 10 + n(li * 13) * (twW - 26 - indent);
+            gfx.beginFill(li % 4 === 3 ? AC : CODE, li % 4 === 3 ? 0.85 : 0.7);
+            gfx.drawRect(twX + 4 + indent, ly, lw, 1.8);
+            gfx.endFill();
+        }
+        gfx.beginFill(CODE, 0.95); gfx.drawRect(twX + 4, twY + 8 + nLines * 3.6, 4, 2); gfx.endFill();
+        // Git-branch emblem medallion (right of the code wall)
+        const gx2 = twX + twW + (b.w - twX - twW) / 2, gy2 = 34;
+        gfx.beginFill(0x0a0714, 0.85); gfx.drawRoundedRect(gx2 - 16, gy2 - 16, 32, 32, 5); gfx.endFill();
+        gfx.lineStyle(1, AC, 0.6); gfx.drawRoundedRect(gx2 - 16, gy2 - 16, 32, 32, 5); gfx.lineStyle(0);
+        gfx.lineStyle(2, 0xe2e8f0, 0.9);
+        gfx.moveTo(gx2 - 6, gy2 - 9); gfx.lineTo(gx2 - 6, gy2 + 9);
+        gfx.moveTo(gx2 - 6, gy2 - 2); gfx.lineTo(gx2 + 7, gy2 - 9);
+        gfx.lineStyle(0);
+        gfx.beginFill(CODE); gfx.drawCircle(gx2 - 6, gy2 - 9, 3); gfx.endFill();
+        gfx.beginFill(AC); gfx.drawCircle(gx2 - 6, gy2 + 9, 3); gfx.endFill();
+        gfx.beginFill(0xfbbf24); gfx.drawCircle(gx2 + 7, gy2 - 9, 3); gfx.endFill();
+        // Hackathon windows — nearly all lit, mixed warm/cool/purple
+        for (let f = 0; f < floors - 1; f++) {
+            const wy = 16 + f * 18;
+            if (wy + 11 > h - 24) break;
+            const startX = (wy < twY + twH + 4) ? twX + twW + 8 : 10;
+            for (let wx = startX; wx < b.w - 24; wx += 24) {
+                if (wy < gy2 + 18 && wy + 12 > gy2 - 16 && wx + 15 > gx2 - 18 && wx < gx2 + 18) continue;
+                const rr = n(f * 71 + wx);
+                const lit = rr < 0.85;
+                gfx.beginFill(0x000000, 0.25); gfx.drawRect(wx - 1, wy - 1, 16, 12); gfx.endFill();
+                gfx.beginFill(lit ? (rr < 0.3 ? 0xd6ecff : rr < 0.6 ? 0xffe9c0 : 0xe9d5ff) : 0x0c0916, lit ? 0.85 : 1);
+                gfx.drawRect(wx, wy, 14, 10); gfx.endFill();
+            }
+        }
+        // Street level: roll-up door, graffiti tags, meetup poster wall
+        gfx.beginFill(0x0d0a16); gfx.drawRect(4, h - 22, b.w - 8, 20); gfx.endFill();
+        gfx.beginFill(AC, 0.10); gfx.drawRect(4, h - 22, b.w - 8, 20); gfx.endFill();
+        gfx.beginFill(AC, 0.7); gfx.drawRect(4, h - 22, b.w - 8, 1.5); gfx.endFill();
+        [[0x22d3ee, b.w * 0.14, 8], [0xf472b6, b.w * 0.2, 5], [0x4ade80, b.w * 0.82, 7]].forEach(([gc, gx3, gr]) => {
+            gfx.beginFill(gc, 0.30); gfx.drawEllipse(gx3, h - 10, gr, gr * 0.55); gfx.endFill();
+            gfx.beginFill(gc, 0.18); gfx.drawEllipse(gx3 + gr * 0.8, h - 13, gr * 0.5, gr * 0.3); gfx.endFill();
+        });
+        // "</>" tag over the left graffiti
+        const tgx = b.w * 0.16, tgy = h - 12;
+        gfx.lineStyle(1.5, 0xf8fafc, 0.9);
+        gfx.moveTo(tgx - 6, tgy - 3); gfx.lineTo(tgx - 9, tgy); gfx.lineTo(tgx - 6, tgy + 3);
+        gfx.moveTo(tgx + 6, tgy - 3); gfx.lineTo(tgx + 9, tgy); gfx.lineTo(tgx + 6, tgy + 3);
+        gfx.moveTo(tgx + 2, tgy - 4); gfx.lineTo(tgx - 2, tgy + 4);
+        gfx.lineStyle(0);
+        for (let pi = 0; pi < 4; pi++) {
+            const px2 = b.w * 0.62 + pi * 13;
+            if (px2 + 10 > b.w - 6) break;
+            gfx.beginFill([0x1e293b, 0x312e81, 0x3f1d38, 0x1a2e05][pi % 4], 0.95);
+            gfx.drawRect(px2, h - 19, 10, 13);
+            gfx.endFill();
+            gfx.beginFill(pcols[pi % 5], 0.8); gfx.drawRect(px2 + 1.5, h - 17.5, 7, 3); gfx.endFill();
+            gfx.beginFill(0x94a3b8, 0.6); gfx.drawRect(px2 + 1.5, h - 12, 7, 1); gfx.drawRect(px2 + 1.5, h - 10, 5, 1); gfx.endFill();
+        }
+        gfx.beginFill(0x05070d); gfx.drawRect(b.w / 2 - 11, h - 19, 22, 17); gfx.endFill();
+        gfx.beginFill(0x1e293b, 0.9);
+        for (let dy2 = h - 17; dy2 < h - 4; dy2 += 3) gfx.drawRect(b.w / 2 - 10, dy2, 20, 1);
+        gfx.endFill();
+        gfx.beginFill(CODE, 0.6); gfx.drawRect(b.w / 2 - 11, h - 19, 22, 1.5); gfx.endFill();
+    },
+
+    // Singularity City Times — classical newspaper office: serif masthead band,
+    // street clock, printing press behind the ground-floor glass, news kiosk.
+    _drawTimesExt(gfx, container, b, h, floors, n) {
+        const INK = 0x14141c, CREAM = 0xd8d3c8, RED = 0xb91c1c;
+        // Stone body with per-floor cornice lines
+        gfx.beginFill(0x262229); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+        gfx.beginFill(CREAM, 0.08); gfx.drawRect(0, 8, b.w, h - 8); gfx.endFill();
+        gfx.beginFill(0xffffff, 0.05); gfx.drawRect(0, 8, 3, h - 8); gfx.endFill();
+        gfx.beginFill(0x000000, 0.16); gfx.drawRect(b.w - 4, 8, 4, h - 8); gfx.endFill();
+        gfx.beginFill(CREAM, 0.18);
+        for (let f = 1; f < floors; f++) gfx.drawRect(2, 14 + f * 18 - 1, b.w - 4, 1.5);
+        gfx.endFill();
+        // ── MASTHEAD — ink band with the paper's serif name ──
+        gfx.beginFill(INK, 0.98); gfx.drawRect(0, 0, b.w, 14); gfx.endFill();
+        gfx.beginFill(CREAM, 0.9); gfx.drawRect(0, 0, b.w, 1.2); gfx.drawRect(0, 12.8, b.w, 1.2); gfx.endFill();
+        const mast = new PIXI.Text(b.name || 'Singularity City Times', {
+            fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 10, fontWeight: 'bold',
+            fill: 0xf5f0e6, fontStyle: 'italic'
+        });
+        mast.anchor.set(0.5, 0.5); mast.x = b.w / 2; mast.y = 7;
+        if (mast.width > b.w - 12) mast.scale.set((b.w - 12) / mast.width);
+        container.addChild(mast);
+        // Street clock under the masthead
+        const ccx = b.w / 2, ccy = 25;
+        gfx.beginFill(0x0d0d12); gfx.drawCircle(ccx, ccy, 7); gfx.endFill();
+        gfx.lineStyle(1.2, CREAM, 0.85); gfx.drawCircle(ccx, ccy, 7); gfx.lineStyle(0);
+        gfx.lineStyle(1, 0xf5f0e6, 0.9);
+        gfx.moveTo(ccx, ccy); gfx.lineTo(ccx, ccy - 4.5);
+        gfx.moveTo(ccx, ccy); gfx.lineTo(ccx + 3.2, ccy + 1.5);
+        gfx.lineStyle(0);
+        // Sash windows (newsroom floors)
+        for (let f = 0; f < floors - 1; f++) {
+            const wy = 18 + f * 18;
+            if (wy + 12 > h - 26) break;
+            for (let wx = 10; wx < b.w - 20; wx += 24) {
+                if (f === 0 && wx + 14 > ccx - 10 && wx < ccx + 10) continue;
+                const lit = n(f * 29 + wx) < 0.7;
+                gfx.beginFill(0x000000, 0.25); gfx.drawRect(wx - 1, wy - 1, 16, 13); gfx.endFill();
+                gfx.beginFill(lit ? 0xf5eeda : 0x121016, lit ? 0.85 : 1); gfx.drawRect(wx, wy, 14, 11); gfx.endFill();
+                gfx.beginFill(0x000000, 0.3); gfx.drawRect(wx, wy + 5, 14, 1); gfx.endFill();
+            }
+        }
+        // ── PRESS HALL — printing press behind the ground-floor glass ──
+        gfx.beginFill(0x0f0d12); gfx.drawRect(4, h - 24, b.w - 8, 22); gfx.endFill();
+        gfx.beginFill(0xf5eeda, 0.10); gfx.drawRect(4, h - 24, b.w - 8, 22); gfx.endFill();
+        gfx.beginFill(CREAM, 0.6); gfx.drawRect(4, h - 24, b.w - 8, 1.5); gfx.endFill();
+        const prX = 10, prW = Math.max(46, b.w * 0.34);
+        gfx.beginFill(0xe7e2d4, 0.85);
+        gfx.drawPolygon([prX, h - 14, prX + prW * 0.25, h - 19, prX + prW * 0.55, h - 12, prX + prW * 0.85, h - 18, prX + prW, h - 13,
+                         prX + prW, h - 11, prX + prW * 0.85, h - 16, prX + prW * 0.55, h - 10, prX + prW * 0.25, h - 17, prX, h - 12]);
+        gfx.endFill();
+        [[prX + prW * 0.25, h - 19], [prX + prW * 0.55, h - 11], [prX + prW * 0.85, h - 17]].forEach(([rx2, ry2]) => {
+            gfx.beginFill(0x3f3f46); gfx.drawCircle(rx2, ry2, 3.5); gfx.endFill();
+            gfx.beginFill(0x71717a, 0.9); gfx.drawCircle(rx2, ry2, 1.5); gfx.endFill();
+        });
+        gfx.beginFill(0x27272e); gfx.drawRect(prX + 2, h - 8, prW - 4, 6); gfx.endFill();
+        gfx.beginFill(RED, 0.8); gfx.drawRect(prX + 2, h - 8, prW - 4, 1.2); gfx.endFill();
+        // Entrance + fresh paper bundle
+        gfx.beginFill(0x0a0a10); gfx.drawRect(b.w / 2 - 9, h - 20, 18, 18); gfx.endFill();
+        gfx.beginFill(RED, 0.7); gfx.drawRect(b.w / 2 - 9, h - 20, 18, 2); gfx.endFill();
+        gfx.beginFill(0xffe9a8, 0.7); gfx.drawCircle(b.w / 2 + 6, h - 11, 1); gfx.endFill();
+        gfx.beginFill(0xe7e2d4, 0.9); gfx.drawRect(b.w / 2 + 12, h - 5, 9, 5); gfx.endFill();
+        gfx.beginFill(0x9ca3af, 0.9); gfx.drawRect(b.w / 2 + 12, h - 3.5, 9, 0.8); gfx.endFill();
+        // News kiosk (right wing) with red awning + racked papers
+        const kx = b.w - 34;
+        gfx.beginFill(0x1e3a2f); gfx.drawRect(kx, h - 16, 22, 16); gfx.endFill();
+        gfx.beginFill(RED, 0.9); gfx.drawRect(kx - 2, h - 18, 26, 3); gfx.endFill();
+        gfx.beginFill(0xf5eeda, 0.85); gfx.drawRect(kx + 2, h - 12, 5, 7); gfx.drawRect(kx + 9, h - 12, 5, 7); gfx.endFill();
+        gfx.beginFill(0x0a0a10, 0.8); gfx.drawRect(kx + 3, h - 11, 3, 1); gfx.drawRect(kx + 10, h - 11, 3, 1); gfx.endFill();
+        // Rooftop wire-service mast with beacon
+        gfx.beginFill(0x64748b); gfx.drawRect(b.w - 22, -14, 1.5, 14); gfx.drawRect(b.w - 26, -8, 9, 1); gfx.endFill();
+        gfx.beginFill(RED, 0.9); gfx.drawCircle(b.w - 21.2, -14.5, 1.5); gfx.endFill();
+    },
+
     buildBuildings() {
       // ─── DIRTY CHECK: skip entire rebuild if no visual state changed ───
       if (window.BLDS && this.bldLayer.children.length > 0) {
@@ -3493,6 +3955,10 @@ const Environment = {
           // Base shadow
           gfx.beginFill(0x000000, 0.2); gfx.drawRect(0, h - 1, b.w, 3); gfx.endFill();
 
+        } else if (b.id === 'cafe' || b.id === 'gym' || b.id === 'arena' || b.id === 'open_square' || b.id === 'times_hq') {
+          // ── SOCIAL STRIP — bespoke facades for the city's gathering places ──
+          this._drawSocialFacade(gfx, container, b, h, floors);
+
         } else if (lab) {
           // ── AI LAB HQ TOWERS — procedural architectural identity ──
           // Style is deterministic per lab (hash + region, iconic fixed picks for the
@@ -3925,7 +4391,7 @@ const Environment = {
         };
         // Auto-generate neon sign for any non-lab, non-special building
         let nc = neonConfig[b.id];
-        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('suburb_') && !b.id.startsWith('res_') && !b.id.startsWith('embassy_') && !b.id.startsWith('align_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market') {
+        if (!nc && !lab && !b.id.startsWith('metro_') && !b.id.startsWith('forest_') && !b.id.startsWith('house_') && !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('npc_apt_') && !b.id.startsWith('suburb_') && !b.id.startsWith('res_') && !b.id.startsWith('embassy_') && !b.id.startsWith('align_') && b.id !== 'graveyard' && b.id !== 'visitor_monument' && b.id !== 'park' && b.id !== 'city_park' && b.id !== 'ai_index' && b.id !== 'black_market' && b.id !== 'times_hq') {
             nc = { text: (b.emoji || '🏢') + ' ' + (b.name || '').toUpperCase(), col: 0x6688aa, speed: 0.06, flicker: 0.2 };
         }
         if (nc) {

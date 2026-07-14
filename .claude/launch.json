@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["node_modules/serve/build/main.js", "-l", "5500", "--no-clipboard"],
       "port": 5500
+    },
+    {
+      "name": "dev2",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/serve/build/main.js", "-l", "5510", "--no-clipboard"],
+      "port": 5510
     }
   ]
 }
