@@ -2007,6 +2007,9 @@ const UI = {
       const musicOn = (typeof SND !== 'undefined') ? SND.musicEnabled : (p.music !== false);
       const idle = p.idleTourMin || 5;
       const idleOpt = (v, lbl) => `<option value="${v}" ${idle === v ? 'selected' : ''}>${lbl}</option>`;
+      const reduceMotionOn = (typeof G.reduceMotionOn === 'function') ? G.reduceMotionOn() : (p.reduceMotion === true);
+      const uiScale = p.uiScale || 1;
+      const scaleOpt = (v, lbl) => `<option value="${v}" ${Math.abs(uiScale - v) < 0.01 ? 'selected' : ''}>${lbl}</option>`;
       return `
         <div style="margin-top:20px; margin-bottom:14px; border-top:1px solid var(--bd); padding-top:20px">
           <div class="sc-settings-section-title">NOTIFICATIONS</div>
@@ -2030,6 +2033,17 @@ const UI = {
           <div class="sc-settings-section-title">SOUND</div>
           ${this._toggleRow('prefSfx', '🔊 Sound effects', 'UI clicks and city ambiance', sfxOn)}
           ${this._toggleRow('prefMusic', '🎵 Background music', 'The Singularity City soundtrack', musicOn)}
+        </div>
+
+        <div style="margin-bottom:14px">
+          <div class="sc-settings-section-title">ACCESSIBILITY</div>
+          ${this._toggleRow('prefReduceMotion', '🌀 Reduce motion', 'No lightning flashes, fewer particles & animations', reduceMotionOn)}
+          <div class="sc-toggle-row">
+            <div class="sc-toggle-text"><span class="sc-toggle-name">🔠 Text size</span><span class="sc-toggle-desc">Enlarge tickers, tooltips & panel text</span></div>
+            <select id="prefUiScale" class="sel-select" style="width:auto;margin:0;padding:6px 8px;font-size:10px">
+              ${scaleOpt(1,'Normal')}${scaleOpt(1.15,'Large')}${scaleOpt(1.3,'Larger')}
+            </select>
+          </div>
         </div>`;
     },
 

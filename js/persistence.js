@@ -77,6 +77,13 @@ const Persistence = {
         const idleSel = document.getElementById('prefIdleTourMin');
         if (idleSel) this.prefs.idleTourMin = parseInt(idleSel.value) || 5;
 
+        // Accessibility: reduced-motion (explicit override) + UI text scale.
+        const rmEl = document.getElementById('prefReduceMotion');
+        if (rmEl) this.prefs.reduceMotion = rmEl.checked;
+        const scaleEl = document.getElementById('prefUiScale');
+        if (scaleEl) this.prefs.uiScale = parseFloat(scaleEl.value) || 1;
+        if (typeof this.applyAccessibility === 'function') this.applyAccessibility();
+
         // Sound prefs mirror the SND layer's own persisted flags.
         if (typeof SND !== 'undefined') {
             const sfxEl = document.getElementById('prefSfx');

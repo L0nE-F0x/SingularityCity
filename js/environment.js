@@ -4814,12 +4814,14 @@ const Environment = {
       const w = this.weather;
       const intensity = this.weatherIntensity;
       const wind = this.wind;
+      // Reduced-motion thins particle fields (less on-screen movement).
+      const rmMul = window._reduceMotion ? 0.45 : 1;
 
       // RAINY FAMILY (drizzle, rain, thunderstorm) — unified render path
       if (w === 'drizzle' || w === 'rain' || w === 'thunderstorm') {
         // Target particle count scales with intensity. Drizzle caps low.
         const baseTarget = w === 'thunderstorm' ? 340 : w === 'rain' ? 260 : 100;
-        const target = Math.floor(baseTarget * intensity);
+        const target = Math.floor(baseTarget * intensity * rmMul);
         // Spawn up to target; remove surplus gradually (during fade-out).
         while (this.rainDrops.length < target) {
           this.rainDrops.push({
@@ -4866,7 +4868,7 @@ const Environment = {
 
       // SNOW — drifts with wind
       } else if (w === 'snow') {
-        const target = Math.floor(220 * intensity);
+        const target = Math.floor(220 * intensity * rmMul);
         while (this.snowFlakes.length < target) {
           this.snowFlakes.push({
             x: wx + Math.random() * vw,
@@ -4898,7 +4900,7 @@ const Environment = {
 
       // CHERRY BLOSSOMS — unchanged look, now wind-aware
       } else if (w === 'cherry') {
-        const target = Math.floor(130 * intensity);
+        const target = Math.floor(130 * intensity * rmMul);
         while (this.petals.length < target) {
           this.petals.push({
             x: wx + Math.random() * vw,
@@ -4930,7 +4932,7 @@ const Environment = {
 
       // AUTUMN LEAVES — cherry variant with warm palette
       } else if (w === 'leaves') {
-        const target = Math.floor(110 * intensity);
+        const target = Math.floor(110 * intensity * rmMul);
         while (this.petals.length < target) {
           this.petals.push({
             x: wx + Math.random() * vw,
@@ -5016,7 +5018,9 @@ const Environment = {
       }
       const flashG = this._flashGfx;
       flashG.clear();
-      if (w === 'thunderstorm') {
+      // Reduced-motion: no strobing lightning at all (photosensitivity). Rain
+      // still falls, the sky just never flashes and no bolt is forged.
+      if (w === 'thunderstorm' && !window._reduceMotion) {
           // Schedule next strike 3-13s ahead (200-800 ticks) — only during storm.
           if (this._nextLightningTick <= 0) this._nextLightningTick = G.tick + 200 + Math.floor(Math.random() * 600);
           if (G.tick >= this._nextLightningTick) {

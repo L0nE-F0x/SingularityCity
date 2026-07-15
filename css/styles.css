@@ -1772,3 +1772,31 @@ h1, h2, h3, p { margin: 0; }
         scroll-behavior: auto !important;
     }
 }
+/* Explicit user opt-in from Settings (G.applyAccessibility adds .reduce-motion),
+   so motion can be reduced even when the OS setting isn't enabled. */
+body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+}
+
+/* ─── ACCESSIBILITY: UI text scale ──────────────────────────────────────────
+   Enlarges the smallest, most-squinted-at HUD text (ticker, tooltips, buttons,
+   info bar, toasts) without disturbing canvas or layout-critical dimensions.
+   Driven by G.applyAccessibility from the Settings "Text size" control. */
+body.ui-lg .btn { font-size: 12px; }
+body.ui-lg .tick, body.ui-lg .tick-txt { font-size: 12px; }
+body.ui-lg .tick-lbl { font-size: 11px; }
+body.ui-lg .tt-name { font-size: 13px; }
+body.ui-lg .tt-sub  { font-size: 11px; }
+body.ui-lg .tt-hint { font-size: 10px; }
+body.ui-lg .nfo { font-size: 13px; }
+body.ui-lg .toast { font-size: 12px; }
+body.ui-xl .btn { font-size: 13px; }
+body.ui-xl .tick, body.ui-xl .tick-txt { font-size: 14px; }
+body.ui-xl .tick-lbl { font-size: 12px; }
+body.ui-xl .tt-name { font-size: 15px; }
+body.ui-xl .tt-sub  { font-size: 12px; }
+body.ui-xl .tt-hint { font-size: 11px; }
+body.ui-xl .nfo { font-size: 15px; }
+body.ui-xl .toast { font-size: 14px; }

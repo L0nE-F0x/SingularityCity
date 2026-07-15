@@ -32,8 +32,32 @@ const G = {
         sfx: true,            // procedural sound effects & ambiance
         music: true,          // background soundtrack
         weather: true,        // dynamic weather (rain/fog) effects
+        reduceMotion: null,   // null = follow OS prefers-reduced-motion; true/false = explicit override
+        uiScale: 1,           // UI text scale: 1 (normal), 1.15 (large), 1.3 (larger)
     },
     pref(k) { return this.prefs ? this.prefs[k] : undefined; },
+
+    // True when motion should be minimised (photosensitivity / vestibular needs):
+    // an explicit user override wins, otherwise we honour the OS setting. Read by
+    // the weather effects (no lightning flash, fewer particles) and CSS.
+    reduceMotionOn() {
+        if (this.prefs && this.prefs.reduceMotion !== null && this.prefs.reduceMotion !== undefined) return !!this.prefs.reduceMotion;
+        try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+    },
+
+    // Apply accessibility prefs to the DOM: reduced-motion body class + global
+    // flag for the canvas effects, and the UI text-scale class. Idempotent —
+    // called on boot and after Settings save.
+    applyAccessibility() {
+        const rm = this.reduceMotionOn();
+        window._reduceMotion = rm;
+        if (document.body) document.body.classList.toggle('reduce-motion', rm);
+        const scale = (this.prefs && this.prefs.uiScale) || 1;
+        if (document.body) {
+            document.body.classList.toggle('ui-lg', scale >= 1.15 && scale < 1.3);
+            document.body.classList.toggle('ui-xl', scale >= 1.3);
+        }
+    },
     
     supabaseUrl: "https://uojpqygjbxranpdvkwwz.supabase.co", 
     supabaseKey: "sb_publishable_Dm4KFmAqRuSSXkKWT04ATw_Ki8QFdZj",
@@ -1430,8 +1454,9 @@ const G = {
       if (typeof SND !== 'undefined') SND.init(); 
       if (typeof NOTIFY !== 'undefined') NOTIFY.init();
       
-      this.models = [...SEED]; 
-      this.load(); 
+      this.models = [...SEED];
+      this.load();
+      if (typeof this.applyAccessibility === 'function') this.applyAccessibility();
       this.pingRings = [];
       
       // Remove nursery building (replaced by University Campus)
