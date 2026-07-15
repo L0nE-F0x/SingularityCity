@@ -2305,6 +2305,13 @@ Object.assign(G, EasterEggs, Persistence, MacroView);
 })();
 
 async function enterCity(opts = {}) {
+  // One-shot guard. The landing buttons disable themselves on click, but a
+  // programmatic double-call (tutorial race, embed auto-boot + manual click)
+  // would run the whole boot twice and duplicate every polling setInterval
+  // (news/launches/HuggingFace/etc.), doubling API traffic. Belt-and-suspenders.
+  if (window._cityEntering) return;
+  window._cityEntering = true;
+
   const isTerminal = !!opts.terminal;
 
   // ─── BUTTON ANIMATION — only the clicked button animates ───
