@@ -358,8 +358,8 @@ const SpaceEnvironment = {
             gfx.beginFill(0x1e293b);
             gfx.drawRect(0, 14, b.w, h - 14);
             gfx.endFill();
-            // Multiple dishes
-            [-30, 0, 30].forEach(offset => {
+            // Flanking static dishes (the centre one is a separate rotating dish below)
+            [-30, 30].forEach(offset => {
                 const dx = b.w/2 + offset;
                 gfx.beginFill(0xf1f5f9);
                 gfx.drawPolygon([dx - 12, 14, dx, -2, dx + 12, 14]);
@@ -373,6 +373,20 @@ const SpaceEnvironment = {
                 gfx.drawCircle(dx, -4, 10);
                 gfx.lineStyle(0);
             });
+            // ── Centre SCAN DISH — fixed mast (in the cached gfx) with only the
+            //    dish BOWL pivoting on top, so SpaceEntities.update can sweep it
+            //    across the sky like it's tracking a satellite. ──
+            gfx.beginFill(0x64748b); gfx.drawRect(b.w / 2 - 1.5, 0, 3, 14); gfx.endFill(); // fixed mast
+            gfx.beginFill(0x475569); gfx.drawCircle(b.w / 2, 0, 2.5); gfx.endFill();        // yoke hub
+            const scanDish = new PIXI.Container();
+            const dg = new PIXI.Graphics();
+            dg.beginFill(0xf1f5f9); dg.drawPolygon([-14, 0, 0, -16, 14, 0]); dg.endFill(); // dish bowl
+            dg.beginFill(0xcbd5e1); dg.drawPolygon([-9, -1, 0, -12, 9, -1]); dg.endFill();  // inner
+            dg.beginFill(0x475569); dg.drawRect(-1, -11, 2, 8); dg.endFill();       // feed strut
+            dg.beginFill(0xef4444); dg.drawCircle(0, -11, 1.6); dg.endFill();       // feed horn tip
+            scanDish.addChild(dg);
+            scanDish.x = b.w / 2; scanDish.y = 0; // pivot at the mast top
+            b._scanDish = scanDish; // attached on top after the body gfx (see below)
             // Status lights
             gfx.beginFill(0x4ade80);
             gfx.drawCircle(15, h - 8, 3);
@@ -386,7 +400,9 @@ const SpaceEnvironment = {
         }
         
         container.addChild(gfx);
-        
+        // Rotating scan dish sits ON TOP of the cached body gfx.
+        if (b._scanDish) container.addChild(b._scanDish);
+
         // Tooltip + click
         container.eventMode = 'static';
         container.cursor = 'pointer';

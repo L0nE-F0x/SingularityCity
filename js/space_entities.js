@@ -298,6 +298,15 @@ const SpaceEntities = {
         if (G.tick % 60 === 0) {
             this.matchLaunchesToPads();
         }
+
+        // Sweep the tracking-station scan dishes across the sky (side-view radar).
+        if (!this._trackBlds) this._trackBlds = (window.BLDS || []).filter(b => b.type === 'tracking');
+        for (let i = 0; i < this._trackBlds.length; i++) {
+            const tb = this._trackBlds[i];
+            if (tb._scanDish && !tb._scanDish.destroyed) {
+                tb._scanDish.rotation = Math.sin(G.tick * 0.012 + tb.x * 0.01) * 0.6;
+            }
+        }
         
         // Update each rocket
         Object.values(this.rockets).forEach(r => {
