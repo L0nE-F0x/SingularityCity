@@ -155,7 +155,7 @@ const STEPS = [
     {
         chapter: 'Chapter 3 · Zones',
         title: '🚀 Space Zone',
-        body: "The desert biome with <b>7 launch pads</b> (SpaceX, Blue Origin, NASA, CNSA, ESA, ULA, Rocket Lab), Vehicle Assembly Building, Mission Control, and an Orbital Tracking Station. Rockets launch based on <b>real-time data</b> from the Launch Library 2 API.",
+        body: "The desert biome with <b>13 launch pads</b> (SpaceX, Blue Origin, NASA, CNSA, ESA, ULA, Rocket Lab, ISRO, JAXA, Roscosmos and more), Vehicle Assembly Building, Mission Control, and an Orbital Tracking Station. Rockets launch based on <b>real-time data</b> from the Launch Library 2 API.",
         target: null,
         placement: 'center',
         onEnter: function () {

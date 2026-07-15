@@ -58,6 +58,10 @@ const AutoTour = {
         { bldId: 'robotics_assembly', label: 'Robotics Factory',   zoom: 0.90, yOffset: -25,  pan: 0.14 },
         { bldId: 'longevity_discovery',label:'Longevity Wing',     zoom: 0.95, yOffset: -20,  pan: 0.10 },
         { bldId: 'times_hq',          label: 'Newspaper HQ',      zoom: 1.10, yOffset: -15,  pan: 0.06 },
+        { bldId: 'agents_orchestrator', label: 'Agent District',  zoom: 0.90, yOffset: -25,  pan: 0.12 },
+        { bldId: 'align_redwood',     label: 'Alignment Forest',   zoom: 0.90, yOffset: -25,  pan: 0.14 },
+        { bldId: 'embassy_us',        label: 'Embassy Row',        zoom: 0.95, yOffset: -20,  pan: 0.12 },
+        { bldId: 'vcrow_apex',        label: 'VC Row',             zoom: 0.95, yOffset: -25,  pan: 0.10 },
         // Black Market is underground — auto-tour can't visit it
     ],
 
@@ -74,6 +78,9 @@ const AutoTour = {
         'backbone_ixp',
         'power_nuclear', 'power_solar',
         'res_us', 'res_eu', 'res_cn',
+        'agents_orchestrator', 'agents_sandbox',
+        'align_redwood', 'align_apollo',
+        'embassy_us', 'embassy_cn', 'diplomat_villa_us',
     ],
 
     /* ── Runtime state ────────────────────────────────────────── */

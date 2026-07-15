@@ -2,7 +2,7 @@
 
 **The entire AI industry — alive in your browser.**
 
-A globally synced, real-time pixel-art simulation where every AI model is a citizen, every lab is a district, and every benchmark, launch, and price war happens in real time. Built with PixiJS 7, Three.js r128, and vanilla JS — zero bundler, ~97 JS files, ~63K lines.
+A globally synced, real-time pixel-art simulation where every AI model is a citizen, every lab is a district, and every benchmark, launch, and price war happens in real time. Built with PixiJS 7, Three.js r128, and vanilla JS — zero bundler, ~100 JS files, ~69K lines.
 
 🌐 **[Play Live](https://singularitycity.net)** · 📰 **[Read the Paper](https://singularitycity.net)** · 🖼️ **[Embed it](https://singularitycity.net/embed.html)**
 
@@ -10,7 +10,7 @@ A globally synced, real-time pixel-art simulation where every AI model is a citi
 
 ## Embed it anywhere
 
-Drop a live view of Singularity City into any page with an iframe. The embed auto-boots into a hands-free auto-tour that cycles through 9 city landmarks, perfect for blog posts, tweets, Notion pages, and kiosks.
+Drop a live view of Singularity City into any page with an iframe. The embed auto-boots into a hands-free, cinematic auto-tour that roams a large pool of city landmarks, labs, zones, and building interiors, perfect for blog posts, tweets, Notion pages, and kiosks.
 
 ```html
 <iframe src="https://singularitycity.net/embed.html"
@@ -29,13 +29,16 @@ Drop a live view of Singularity City into any page with an iframe. The embed aut
 - **Per-climate Markov chains** — Bali gets monsoon thunderstorms, Phoenix gets year-round clear skies, Reykjavik gets polar snow, Tokyo gets cherry blossoms in spring
 - **Smooth intensity transitions** — weather fades in/out over ~4 seconds instead of popping on/off
 - **Wind vector** drives slanted rain, drifting snow, tumbling petals and leaves
-- **Thunderstorm** adds lightning flash overlays and delayed thunder SFX
+- **Thunderstorm** adds a full-screen flash, a jagged lightning bolt, and delayed thunder SFX
+- **Rain payoffs** — drops kick up ground-splash rings, wetness accumulates into neon-reflecting puddles that shimmer at night, and the streets glisten
+- **Cloud ground-shadows** drift across the city under a clear or partly-cloudy sun
+- **Rippling harbor water** — the port surface reflects sky, moon, neon, and ship lights through a live PIXI DisplacementFilter
 - **Fog** layers a drifting wash with streaks across the viewport
 - **Power grid reacts** — solar derates under clouds/storm, wind turbines spin harder during storms and stall in fog
 - **Manual override** via `localStorage.setItem('sc_climate', 'polar')` for players who want a different biome
 
 ### 🏢 Living City
-- **960+ AI model citizens** with daily routines — commuting, working, socializing, sleeping
+- **900+ AI model citizens** with daily routines — commuting, working, socializing, sleeping
 - **Goal-driven archetypes** — ~20% of citizens have lifestyle routines (gym rats, foodies, bar regulars, bookworms, park joggers, coffee addicts, night owls)
 - **Dynamic zoning** — new labs auto-generate districts as models are discovered
 - **5 real-time data pipelines** — HuggingFace, Google AI Studio, ZeroEval, Launch Library 2, TechCrunch/Ars Technica
