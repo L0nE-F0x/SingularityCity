@@ -96,8 +96,8 @@ A single real event ripples across zones — make sure it's reflected everywhere
 Every item here is a chance to turn a hand-maintained string into a live feed — the long game for "the app updates itself":
 - [x] Move `vc_row.js` `FUNDING` valuations to a small Supabase table refreshed by a scheduled function (like `port_commodities`). **Done (2026-07):** `update-vc-funding.mjs` (daily) writes the curated floor to `vc_funding` and auto-raises a lab's valuation from venture RSS (monotonic + band-guarded); client MAX-merges so code stays authoritative. One-time setup: run `netlify/functions/vc_funding_schema.sql`. Curated floor in the function's `BASELINE` should be kept roughly in sync with `VCRow.FUNDING`.
 - [ ] Consider a Netlify function that pulls funding-round headlines into `FIRMS[*].milestone` automatically (with the same review-PR gate).
-- [ ] A lightweight "data freshness" self-check surfaced in the Terminal: flag any panel whose newest `milestone` date is older than N months.
-- [ ] Auto-flip `datacenter_data.js` construction→operational from `completion` dates (partially exists — verify it fires).
+- [x] A lightweight "data freshness" self-check. **Done (2026-07):** `node tools/freshness.mjs [months]` scans every `js/*.js` for `milestone:` strings, parses the leading date, and flags any feed whose newest milestone is older than the threshold (default 6 months), counting undated ones too. Robust source-scan (no per-zone object coupling); exits 1 if any dated feed is stale so it can gate a pre-refresh check. Run it at the top of this checklist each month.
+- [x] Auto-flip `datacenter_data.js` construction→operational from `completion` dates. **Verified (2026-07):** `DCManager.checkCompletions()` fires from `evolveCity` (engine.js) and on boot; a backdated-completion test flips status→operational, updates the BLDS entry, syncs to Supabase, toasts, and rebuilds. All 6 current construction sites correctly stay pending (completions 2027–2028).
 
 ---
 
