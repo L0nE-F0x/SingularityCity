@@ -31,6 +31,8 @@ const Environment = {
     _boltPath: null, _boltLife: 0, // lightning bolt polyline + frames remaining
     _portWaterCont: null,        // lazy rippling-water reflection layer (DisplacementFilter)
     _portWaterGfx: null, _waterDispSprite: null, _waterFilter: null,
+    _snowAccum: 0,               // 0..1 settled-snow depth — builds during snow, melts after
+    _snowGfx: null,              // lazy layer for accumulated snow (ground blanket + roof caps)
 
     starsLayer: null, celestialGfx: null, cloudLayer: null,
     bldLayer: null, groundGfx: null, reflectionLayer: null, refMask: null,
@@ -4777,6 +4779,74 @@ const Environment = {
         this._waterDispSprite.y = Math.sin(tick * 0.02) * 10;
     },
 
+    // Settled snow that builds up during snowfall and slowly melts after — a
+    // ground blanket plus white caps on building rooftops. Draws on its own
+    // layer above the ground (in front of buildings, behind characters).
+    _drawSnowAccum() {
+        if (!this._snowGfx) {
+            if (!this.groundGfx || !this.groundGfx.parent) return;
+            this._snowGfx = new PIXI.Graphics();
+            const par = this.groundGfx.parent;
+            par.addChildAt(this._snowGfx, par.getChildIndex(this.groundGfx) + 1);
+        }
+        const g = this._snowGfx;
+        // Build up while snowing, melt afterward (melt slower than buildup).
+        const isSnow = this.weather === 'snow';
+        const target = isSnow ? (0.3 + (this.weatherIntensity || 0) * 0.7) : 0;
+        this._snowAccum += (target - this._snowAccum) * (isSnow ? 0.01 : 0.006);
+        if (this._snowAccum < 0.02) { g.clear(); return; }
+        g.clear();
+        const acc = this._snowAccum;
+        const solid = Math.min(1, acc * 1.7); // near-opaque so snow reads white, not translucent-blue
+        const zoom = (G.world && G.world.scale && G.world.scale.x) ? G.world.scale.x : 1;
+        const vw = G.vpW / zoom;
+        const wx = -(G.world.x || 0) / zoom;
+        const viewL = wx - 100, viewR = wx + vw + 100;
+        const gy = G.groundY;
+        const groundTop = gy - 24;
+        const desert = this._getDesertRange();
+        const ds = desert ? desert.start : Infinity, de = desert ? desert.end : -Infinity;
+
+        // ── Ground blanket: white strip along the surface, split around the
+        //    (snow-free) desert zone. Thickness grows with accumulation. ──
+        const blanketH = 3 + acc * 7;
+        const drawStrip = (x0, x1) => {
+            if (x1 <= x0) return;
+            g.beginFill(0xeaf2ff, 0.92 * solid);
+            g.drawRect(x0, groundTop - blanketH + 2, x1 - x0, blanketH);
+            g.endFill();
+            g.beginFill(0xffffff, solid); // brighter crest line
+            g.drawRect(x0, groundTop - blanketH + 2, x1 - x0, 1.5);
+            g.endFill();
+        };
+        if (desert && de > viewL && ds < viewR) {
+            drawStrip(viewL, Math.max(viewL, ds));
+            drawStrip(Math.min(viewR, de), viewR);
+        } else {
+            drawStrip(viewL, viewR);
+        }
+
+        // ── Rooftop caps: a white sliver on each building's roofline. ──
+        if (window.BLDS) {
+            const capH = 2 + acc * 5;
+            for (let i = 0; i < BLDS.length; i++) {
+                const b = BLDS[i];
+                if (!b._container || b._container.destroyed) continue;
+                if (b.id.startsWith('forest_') || b.id === 'black_market') continue;
+                const rx = b.x, rw = b.w;
+                if (rx > viewR || rx + rw < viewL) continue;
+                if (desert && rx + rw > ds && rx < de) continue; // desert = no snow
+                const roofY = b._container.y; // world-Y of the building's top
+                g.beginFill(0xfbfdff, solid);
+                g.drawRect(rx + 1, roofY - capH * 0.5, rw - 2, capH);
+                // Soft rounded shoulders so the cap doesn't read as a hard bar.
+                g.drawCircle(rx + 1, roofY, capH * 0.5);
+                g.drawCircle(rx + rw - 1, roofY, capH * 0.5);
+                g.endFill();
+            }
+        }
+    },
+
     drawWeather() {
       // Throttle weather particle drawing to every other frame
       if (G.tick % 2 !== 0) return;
@@ -5357,6 +5427,7 @@ const Environment = {
         this._tickWeatherTransition();
         this.drawWeather();
         this._drawPortWater();
+        this._drawSnowAccum();
         // Reflection alpha scales with rain intensity and stacks with night/golden-hour boosts.
         let targetRefAlpha = 0;
         const _rw = this.weather, _rwi = this.weatherIntensity || 0;
