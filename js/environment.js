@@ -33,6 +33,7 @@ const Environment = {
     _portWaterGfx: null, _waterDispSprite: null, _waterFilter: null,
     _snowAccum: 0,               // 0..1 settled-snow depth — builds during snow, melts after
     _snowGfx: null,              // lazy layer for accumulated snow (ground blanket + roof caps)
+    _ditherGfx: null,            // cached pixel-art shadow-side dither overlay (rebuilt with buildings)
 
     starsLayer: null, celestialGfx: null, cloudLayer: null,
     bldLayer: null, groundGfx: null, reflectionLayer: null, refMask: null,
@@ -4478,8 +4479,58 @@ const Environment = {
           BlackMarket.createDumpster(this.bldLayer);
       }
 
+      // Pixel-art shadow-side dithering over the city towers.
+      this._buildFacadeDither();
+
       // Store fingerprint after build so subsequent calls can compare
       this._lastBuildFP = this._buildFingerprint();
+    },
+
+    // Ordered-dither shadow gradient down the shadow (right) side of the city
+    // towers — the classic pixel-art way to shade a flat facade, giving the
+    // skyline depth without touching each bespoke facade branch. Drawn once
+    // into a cached overlay above the buildings (below the ground/characters);
+    // skips organic/low structures where a hard shadow band would look wrong.
+    _buildFacadeDither() {
+        if (!window.BLDS || !this.bldLayer || !this.bldLayer.parent) return;
+        // (Re)create the overlay layer just above bldLayer.
+        if (this._ditherGfx && !this._ditherGfx.destroyed) {
+            this._ditherGfx.destroy();
+        }
+        const g = new PIXI.Graphics();
+        const SKIP = ['forest_', 'house_', 'res_', 'metro_', 'dc_', 'fab_', 'npc_apt_', 'suburb_', 'port_'];
+        const SKIP_IDS = { park: 1, city_park: 1, graveyard: 1, ai_index: 1, black_market: 1, visitor_monument: 1 };
+        const SPACE_TYPES = { launchpad: 1, mission_control: 1, assembly: 1, tracking: 1 };
+        const gy = G.groundY;
+        g.beginFill(0x000000);
+        for (let i = 0; i < BLDS.length; i++) {
+            const b = BLDS[i];
+            if (!b._container || SKIP_IDS[b.id] || (b.type && SPACE_TYPES[b.type])) continue;
+            if (SKIP.some(p => b.id.startsWith(p))) continue;
+            const floors = b.dynamicFl || b.fl || 3;
+            const h = floors * 18 + 24;
+            const topY = gy - 24 - h;      // world-Y of the building top
+            const baseY = gy - 24;         // groundline
+            // Shadow side = right ~38% of the facade, 3px ordered-dither grid.
+            const shX = b.x + b.w * 0.62;
+            const shW = b.w * 0.38;
+            for (let yy = topY + 14, row = 0; yy < baseY - 2; yy += 3, row++) {
+                // Density ramps left→right (deeper shadow toward the outer edge)
+                // via a Bayer-ish checker threshold — the ordered-dither look.
+                for (let xx = shX, col = 0; xx < shX + shW; xx += 3, col++) {
+                    const across = (xx - shX) / shW;           // 0 at inner edge, 1 at outer
+                    const on = ((row + col) & 1) === 0 ? across > 0.35 : across > 0.7;
+                    if (on) g.drawRect(xx, yy, 2, 2);
+                }
+            }
+        }
+        g.endFill();
+        // Whole overlay is faint — it's shading, not paint.
+        g.alpha = 0.15;
+        g.cacheAsBitmap = true;
+        const par = this.bldLayer.parent;
+        par.addChildAt(g, par.getChildIndex(this.bldLayer) + 1);
+        this._ditherGfx = g;
     },
 
     // ─── WEATHER SELECTION (Markov chain, climate + season aware) ───
