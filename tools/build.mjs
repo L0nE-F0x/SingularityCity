@@ -6,6 +6,15 @@
    Netlify builds from a fresh git clone each time — source repo stays untouched.
 
    Usage: node tools/build.mjs
+
+   NOTE — single-bundle concatenation was evaluated (audit A2) and deliberately
+   NOT adopted. Concatenating the ~99 shared-global classic scripts into one
+   file regresses boot: engine.js's top-level `const G` lands in the temporal
+   dead zone in the merged script scope while `var` globals survive, so the app
+   stalls at "Connecting to cloud". Per-file minification below already captures
+   the main win (~1.75 MB saved) and Netlify serves everything gzip/brotli over
+   HTTP/2, which multiplexes the request count away — so bundling's marginal
+   benefit isn't worth the fragility. Keep dev unbundled; ship minified.
    ════════════════════════════════════════════════════════════════════════════════ */
 
 import { readdir, readFile, writeFile } from 'fs/promises';
