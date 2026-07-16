@@ -4491,18 +4491,43 @@ const Environment = {
     // skyline depth without touching each bespoke facade branch. Drawn once
     // into a cached overlay above the buildings (below the ground/characters);
     // skips organic/low structures where a hard shadow band would look wrong.
+    //
+    // The overlay is split into horizontal CHUNKS so each cacheAsBitmap texture
+    // stays within the GPU's MAX_TEXTURE_SIZE. A single graphic spanning the
+    // whole ~39k-px-wide city would cache to a texture far wider than the limit
+    // (16384 on most GPUs, ×renderer.resolution on retina) — PIXI then renders a
+    // clamped/garbled bitmap that showed up as a dark rectangular block floating
+    // in the sky over the tall-tower district. Chunking keeps every cache legal.
     _buildFacadeDither() {
         if (!window.BLDS || !this.bldLayer || !this.bldLayer.parent) return;
         // (Re)create the overlay layer just above bldLayer.
         if (this._ditherGfx && !this._ditherGfx.destroyed) {
-            this._ditherGfx.destroy();
+            this._ditherGfx.destroy({ children: true });
         }
-        const g = new PIXI.Graphics();
         const SKIP = ['forest_', 'house_', 'res_', 'metro_', 'dc_', 'fab_', 'npc_apt_', 'suburb_', 'port_'];
         const SKIP_IDS = { park: 1, city_park: 1, graveyard: 1, ai_index: 1, black_market: 1, visitor_monument: 1 };
         const SPACE_TYPES = { launchpad: 1, mission_control: 1, assembly: 1, tracking: 1 };
         const gy = G.groundY;
-        g.beginFill(0x000000);
+
+        // Safe world-space chunk width: the cached bitmap is rendered at
+        // renderer.resolution, so texture_px = worldWidth × resolution must stay
+        // under MAX_TEXTURE_SIZE. Leave a margin for tower widths straddling a
+        // boundary. Falls back to a conservative 4096 if the limit is unreadable.
+        const rnd = G.app.renderer;
+        const res = rnd.resolution || 1;
+        let maxTex = 4096;
+        try { maxTex = rnd.gl.getParameter(rnd.gl.MAX_TEXTURE_SIZE) || 4096; } catch (e) { /* no gl */ }
+        const chunkW = Math.max(1024, Math.floor(maxTex / res) - 256);
+
+        // Bucket each building's dither into the chunk its shadow band lives in.
+        const chunks = new Map();  // chunkIndex -> PIXI.Graphics
+        const chunkFor = (worldX) => {
+            const idx = Math.floor(worldX / chunkW);
+            let g = chunks.get(idx);
+            if (!g) { g = new PIXI.Graphics(); g.beginFill(0x000000); chunks.set(idx, g); }
+            return g;
+        };
+
         for (let i = 0; i < BLDS.length; i++) {
             const b = BLDS[i];
             if (!b._container || SKIP_IDS[b.id] || (b.type && SPACE_TYPES[b.type])) continue;
@@ -4514,6 +4539,7 @@ const Environment = {
             // Shadow side = right ~38% of the facade, 3px ordered-dither grid.
             const shX = b.x + b.w * 0.62;
             const shW = b.w * 0.38;
+            const g = chunkFor(shX);       // all of one tower's band shares a chunk
             for (let yy = topY + 14, row = 0; yy < baseY - 2; yy += 3, row++) {
                 // Density ramps left→right (deeper shadow toward the outer edge)
                 // via a Bayer-ish checker threshold — the ordered-dither look.
@@ -4524,13 +4550,21 @@ const Environment = {
                 }
             }
         }
-        g.endFill();
+
+        // Group the chunks under one container so the `_ditherGfx` reference and
+        // its z-order / teardown stay single-handled. Each chunk caches its own
+        // (now legally-sized) bitmap.
+        const overlay = new PIXI.Container();
         // Whole overlay is faint — it's shading, not paint.
-        g.alpha = 0.15;
-        g.cacheAsBitmap = true;
+        overlay.alpha = 0.15;
+        chunks.forEach((g) => {
+            g.endFill();
+            g.cacheAsBitmap = true;
+            overlay.addChild(g);
+        });
         const par = this.bldLayer.parent;
-        par.addChildAt(g, par.getChildIndex(this.bldLayer) + 1);
-        this._ditherGfx = g;
+        par.addChildAt(overlay, par.getChildIndex(this.bldLayer) + 1);
+        this._ditherGfx = overlay;
     },
 
     // ─── WEATHER SELECTION (Markov chain, climate + season aware) ───
