@@ -250,6 +250,21 @@ const VCRow = {
         return `  ${arrow} ${sym}  $${price}  ${chgStr}  `;
     },
 
+    // Stablecoins & wrapped/staked derivatives — skipped on the big billboard so the
+    // "top 5" board shows real movers (BTC/ETH/majors), not USDT parked at $1.00 +0.0%
+    // or WBTC/stETH duplicating an asset already on the board.
+    _BILLBOARD_SKIP: new Set([
+        'usdt', 'usdc', 'dai', 'busd', 'tusd', 'usde', 'fdusd', 'usdd', 'pyusd', 'usds', 'gusd', 'usdl', 'susde', 'buidl',
+        'wbtc', 'weth', 'wsteth', 'steth', 'weeth', 'reth', 'cbbtc', 'lbtc'
+    ]),
+
+    // Top-N coins by market cap for the Cryptex billboard, live from CoinGecko
+    // (API.cryptoCoins). Stablecoins/wrapped assets filtered out — see _BILLBOARD_SKIP.
+    getTopCoins(n = 5) {
+        const coins = (typeof API !== 'undefined' && Array.isArray(API.cryptoCoins)) ? API.cryptoCoins : [];
+        return coins.filter(c => c && c.symbol && !this._BILLBOARD_SKIP.has(c.symbol.toLowerCase())).slice(0, n);
+    },
+
     // Get total industry funding
     getTotalFunding() {
         return Object.values(this.FUNDING).reduce((s, d) => s + d.total, 0);

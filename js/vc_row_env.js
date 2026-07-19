@@ -67,6 +67,201 @@ const VCRowEnv = {
             charLayer.addChild(logo);
             this.cryptexLogo = logo;
         }
+
+        // ─── CRYPTO BILLBOARD: big elevated LED board in the Cryptex→Embassy gap ───
+        this._buildBillboard(charLayer);
+    },
+
+    // Panel geometry (local coords; container origin sits on the ground at gap centre).
+    _BB: { panelW: 210, panelH: 82, poleH: 120 },
+
+    // Build the standalone billboard structure once. Position is re-synced every frame
+    // in _updateBillboard() so it tracks the gap even after the city re-zones.
+    _buildBillboard(charLayer) {
+        if (this.billboard) return;
+        const { panelW, panelH, poleH } = this._BB;
+        const topY = -(poleH + panelH);   // panel top edge, local
+        const botY = -poleH;              // panel bottom edge, local
+
+        const cont = new PIXI.Container();
+        cont.zIndex = Math.round(G.groundY) - 1;   // people walk in front of the poles
+        // Seed position so frame 1 looks right (update() keeps it synced thereafter).
+        const cryptex = G.bldById['vcrow_cryptex'];
+        const seedL = cryptex ? cryptex.x + cryptex.w : (VCRow.zoneEndX - 40);
+        const seedR = (typeof EmbassyRow !== 'undefined' && EmbassyRow.zoneStartX) ? EmbassyRow.zoneStartX : (VCRow.zoneEndX + 120);
+        cont.x = (seedL + seedR) / 2;
+        cont.y = G.groundY;
+        charLayer.addChild(cont);
+        this.billboard = cont;
+
+        // Soft night glow behind the panel (ADD; alpha driven in _updateBillboard).
+        const glow = new PIXI.Graphics();
+        glow.beginFill(0xf7931a, 0.5);
+        glow.drawEllipse(0, topY + panelH / 2, panelW * 0.72, panelH * 0.95);
+        glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        glow.alpha = 0;
+        cont.addChild(glow);
+        this.bbGlow = glow;
+
+        // Support poles + base plates + cross-brace behind the panel.
+        const px = panelW / 2 - 24;
+        const poles = new PIXI.Graphics();
+        poles.beginFill(0x2a2f3a);
+        poles.drawRect(-px - 4, botY, 8, poleH);
+        poles.drawRect(px - 4, botY, 8, poleH);
+        poles.endFill();
+        poles.beginFill(0x14161c);
+        poles.drawRect(-px - 9, -6, 18, 6);
+        poles.drawRect(px - 9, -6, 18, 6);
+        poles.endFill();
+        poles.lineStyle(4, 0x2a2f3a);
+        poles.moveTo(-px, botY + 5); poles.lineTo(px, botY + 5);
+        cont.addChild(poles);
+
+        // Panel backing + neon (bitcoin-orange) frame.
+        const panel = new PIXI.Graphics();
+        panel.beginFill(0x0a0a12, 0.96);
+        panel.drawRoundedRect(-panelW / 2, topY, panelW, panelH, 6);
+        panel.endFill();
+        panel.lineStyle(2, 0xf7931a, 0.95);
+        panel.drawRoundedRect(-panelW / 2, topY, panelW, panelH, 6);
+        cont.addChild(panel);
+
+        // Hover label (matches the app's tip-on-everything convention).
+        panel.eventMode = 'static';
+        panel.cursor = 'help';
+        panel.hitArea = new PIXI.Rectangle(-panelW / 2, topY, panelW, panelH);
+        panel.on('pointerover', (e) => { if (typeof UI !== 'undefined' && UI.showTooltip) UI.showTooltip(e, 'Crypto Ticker', 'Live top-5 by market cap · CoinGecko'); });
+        panel.on('pointerout', () => { if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip(); });
+
+        // Header row: pulsing LIVE dot + title + divider.
+        const dot = new PIXI.Graphics();
+        dot.beginFill(0xff3b3b); dot.drawCircle(0, 0, 3.5); dot.endFill();
+        dot.x = -panelW / 2 + 14; dot.y = topY + 13;
+        cont.addChild(dot); this.bbDot = dot;
+
+        const title = new PIXI.Text('LIVE  ·  TOP 5 CRYPTO', {
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: '900',
+            fill: 0xf7931a, letterSpacing: 1
+        });
+        title.anchor.set(0, 0.5);
+        title.x = -panelW / 2 + 24; title.y = topY + 13;
+        cont.addChild(title);
+
+        const divider = new PIXI.Graphics();
+        divider.beginFill(0xf7931a, 0.35);
+        divider.drawRect(-panelW / 2 + 8, topY + 24, panelW - 16, 1);
+        divider.endFill();
+        cont.addChild(divider);
+
+        // Masked marquee window. The strip holds per-coin coloured segments (built below).
+        const winX = -panelW / 2 + 8, winY = topY + 30, winW = panelW - 16, winH = panelH - 38;
+        const mask = new PIXI.Graphics();
+        mask.beginFill(0xffffff); mask.drawRect(winX, winY, winW, winH); mask.endFill();
+        cont.addChild(mask);
+
+        const strip = new PIXI.Container();
+        strip.mask = mask;
+        cont.addChild(strip);
+        this.bbStrip = strip;
+        this.bbWin = { x: winX, y: winY, w: winW, h: winH };
+        this.bbUnitW = 0;
+        this.bbHasData = false;
+
+        this._rebuildBillboardStrip();
+        strip.x = winX + winW;   // start just off the right edge
+    },
+
+    // (Re)build the marquee from live top-5 data. Two identical copies are laid
+    // back-to-back so the scroll loops seamlessly; prices refresh on each wrap.
+    _rebuildBillboardStrip() {
+        const strip = this.bbStrip;
+        if (!strip || strip.destroyed) return;
+        strip.removeChildren().forEach(c => c.destroy());
+
+        const coins = (typeof VCRow !== 'undefined' && VCRow.getTopCoins) ? VCRow.getTopCoins(5) : [];
+        const midY = this.bbWin.y + this.bbWin.h / 2;
+
+        if (coins.length === 0) {
+            const t = new PIXI.Text('◉ AWAITING MARKET FEED…', {
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: '700', fill: 0x888888
+            });
+            t.anchor.set(0, 0.5); t.x = 0; t.y = midY;
+            strip.addChild(t);
+            this.bbUnitW = t.width + 40;
+            this.bbHasData = false;
+            return;
+        }
+        this.bbHasData = true;
+
+        const buildSet = (offsetX) => {
+            let x = offsetX;
+            coins.forEach(c => {
+                const up = c.change >= 0;
+                const sym = c.symbol.toUpperCase();
+                const price = c.price >= 1000 ? c.price.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                            : c.price >= 1    ? c.price.toFixed(2)
+                            :                   c.price.toFixed(4);
+                const chg = (up ? '+' : '') + c.change.toFixed(2) + '%';
+                const col = up ? 0x4ade80 : 0xf87171;
+                const seg = new PIXI.Text(`${up ? '▲' : '▼'} ${sym}  $${price}  ${chg}`, {
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: 15, fontWeight: '900',
+                    fill: col, dropShadow: true, dropShadowColor: col, dropShadowBlur: 6, dropShadowDistance: 0, padding: 6
+                });
+                seg.anchor.set(0, 0.5);
+                seg.x = x; seg.y = midY;
+                seg.blendMode = PIXI.BLEND_MODES.ADD;
+                strip.addChild(seg);
+                x += seg.width + 34;   // gap between coins
+            });
+            return x - offsetX;        // width of one full set incl. trailing gap
+        };
+
+        const unit = buildSet(0);
+        this.bbUnitW = unit;
+        buildSet(unit);                // second copy, seamless loop
+    },
+
+    // Per-frame billboard update: re-anchor to the gap, scroll the marquee, pulse lights.
+    // Runs 24/7 (crypto never sleeps) — kept out of the business-hours arrow block below.
+    _updateBillboard(dp) {
+        if (!this.billboard || this.billboard.destroyed) return;
+
+        const cryptex = G.bldById['vcrow_cryptex'];
+        if (cryptex) {
+            const leftEdge = cryptex.x + cryptex.w;
+            const rightEdge = (typeof EmbassyRow !== 'undefined' && EmbassyRow.zoneStartX)
+                ? EmbassyRow.zoneStartX : (VCRow.zoneEndX + 120);
+            this.billboard.x = (leftEdge + rightEdge) / 2;
+            this.billboard.y = G.groundY;
+        }
+
+        const strip = this.bbStrip, win = this.bbWin;
+        if (strip && !strip.destroyed && win && this.bbUnitW > 0) {
+            strip.x -= 0.65;
+            if (this.bbHasData) {
+                if (strip.x <= win.x - this.bbUnitW) {
+                    strip.x += this.bbUnitW;        // seamless wrap (shift by old unit)
+                    this._rebuildBillboardStrip();  // then refresh prices for the next lap
+                }
+            } else {
+                // Awaiting data — retry the build until coins arrive, then relaunch.
+                if (G.tick % 60 === 0) {
+                    this._rebuildBillboardStrip();
+                    if (this.bbHasData) strip.x = win.x + win.w;
+                }
+                if (strip.x + this.bbUnitW < win.x) strip.x = win.x + win.w;
+            }
+        }
+
+        if (this.bbDot && !this.bbDot.destroyed) {
+            this.bbDot.alpha = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(G.tick * 0.12));
+        }
+        if (this.bbGlow && !this.bbGlow.destroyed) {
+            const isNight = dp < 0.25 || dp > 0.83;
+            this.bbGlow.alpha = (isNight ? 0.5 : 0.14) * (0.82 + 0.18 * Math.sin(G.tick * 0.04));
+        }
     },
 
     update() {
@@ -107,6 +302,9 @@ const VCRowEnv = {
             const throb = 0.85 + Math.sin(G.tick * 0.05 + this.cryptexLogo._basePulse) * 0.15;
             this.cryptexLogo.alpha = (isNight ? 1.0 : 0.65) * throb;
         }
+
+        // ─── CRYPTO BILLBOARD (24/7 — scrolls + glows regardless of business hours) ───
+        this._updateBillboard(dp);
 
         // ─── MARKET ARROWS (redraw every 120 frames) ───
         this._arrowTimer++;
