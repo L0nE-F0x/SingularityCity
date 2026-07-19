@@ -73,7 +73,9 @@ const VCRowEnv = {
     },
 
     // Panel geometry (local coords; container origin sits on the ground at gap centre).
-    _BB: { panelW: 210, panelH: 82, poleH: 120 },
+    // Sized to fit inside the ~140px Cryptex→Embassy gap without overlapping either
+    // neighbour; a single slim centre pylon keeps the sidewalk footprint minimal.
+    _BB: { panelW: 124, panelH: 60, poleH: 92 },
 
     // Build the standalone billboard structure once. Position is re-synced every frame
     // in _updateBillboard() so it tracks the gap even after the city re-zones.
@@ -95,28 +97,27 @@ const VCRowEnv = {
         this.billboard = cont;
 
         // Soft night glow behind the panel (ADD; alpha driven in _updateBillboard).
+        // Kept narrower than the gap half-width so the halo never bleeds onto neighbours.
         const glow = new PIXI.Graphics();
         glow.beginFill(0xf7931a, 0.5);
-        glow.drawEllipse(0, topY + panelH / 2, panelW * 0.72, panelH * 0.95);
+        glow.drawEllipse(0, topY + panelH / 2, panelW * 0.56, panelH * 0.95);
         glow.endFill();
         glow.blendMode = PIXI.BLEND_MODES.ADD;
         glow.alpha = 0;
         cont.addChild(glow);
         this.bbGlow = glow;
 
-        // Support poles + base plates + cross-brace behind the panel.
-        const px = panelW / 2 - 24;
+        // Single central monopole (small sidewalk footprint) + base plate.
         const poles = new PIXI.Graphics();
         poles.beginFill(0x2a2f3a);
-        poles.drawRect(-px - 4, botY, 8, poleH);
-        poles.drawRect(px - 4, botY, 8, poleH);
+        poles.drawRect(-6, botY + 2, 12, poleH - 2);
         poles.endFill();
-        poles.beginFill(0x14161c);
-        poles.drawRect(-px - 9, -6, 18, 6);
-        poles.drawRect(px - 9, -6, 18, 6);
+        poles.beginFill(0x3a4150);            // subtle highlight edge down the pole
+        poles.drawRect(-6, botY + 2, 3, poleH - 2);
         poles.endFill();
-        poles.lineStyle(4, 0x2a2f3a);
-        poles.moveTo(-px, botY + 5); poles.lineTo(px, botY + 5);
+        poles.beginFill(0x14161c);            // base plate planted on the ground
+        poles.drawRect(-13, -5, 26, 5);
+        poles.endFill();
         cont.addChild(poles);
 
         // Panel backing + neon (bitcoin-orange) frame.
@@ -137,26 +138,26 @@ const VCRowEnv = {
 
         // Header row: pulsing LIVE dot + title + divider.
         const dot = new PIXI.Graphics();
-        dot.beginFill(0xff3b3b); dot.drawCircle(0, 0, 3.5); dot.endFill();
-        dot.x = -panelW / 2 + 14; dot.y = topY + 13;
+        dot.beginFill(0xff3b3b); dot.drawCircle(0, 0, 3); dot.endFill();
+        dot.x = -panelW / 2 + 12; dot.y = topY + 11;
         cont.addChild(dot); this.bbDot = dot;
 
-        const title = new PIXI.Text('LIVE  ·  TOP 5 CRYPTO', {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: '900',
-            fill: 0xf7931a, letterSpacing: 1
+        const title = new PIXI.Text('LIVE · TOP 5', {
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: '900',
+            fill: 0xf7931a, letterSpacing: 0.5
         });
         title.anchor.set(0, 0.5);
-        title.x = -panelW / 2 + 24; title.y = topY + 13;
+        title.x = -panelW / 2 + 20; title.y = topY + 11;
         cont.addChild(title);
 
         const divider = new PIXI.Graphics();
         divider.beginFill(0xf7931a, 0.35);
-        divider.drawRect(-panelW / 2 + 8, topY + 24, panelW - 16, 1);
+        divider.drawRect(-panelW / 2 + 8, topY + 19, panelW - 16, 1);
         divider.endFill();
         cont.addChild(divider);
 
         // Masked marquee window. The strip holds per-coin coloured segments (built below).
-        const winX = -panelW / 2 + 8, winY = topY + 30, winW = panelW - 16, winH = panelH - 38;
+        const winX = -panelW / 2 + 8, winY = topY + 23, winW = panelW - 16, winH = panelH - 29;
         const mask = new PIXI.Graphics();
         mask.beginFill(0xffffff); mask.drawRect(winX, winY, winW, winH); mask.endFill();
         cont.addChild(mask);
@@ -185,7 +186,7 @@ const VCRowEnv = {
 
         if (coins.length === 0) {
             const t = new PIXI.Text('◉ AWAITING MARKET FEED…', {
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: '700', fill: 0x888888
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: '700', fill: 0x888888
             });
             t.anchor.set(0, 0.5); t.x = 0; t.y = midY;
             strip.addChild(t);
@@ -206,14 +207,14 @@ const VCRowEnv = {
                 const chg = (up ? '+' : '') + c.change.toFixed(2) + '%';
                 const col = up ? 0x4ade80 : 0xf87171;
                 const seg = new PIXI.Text(`${up ? '▲' : '▼'} ${sym}  $${price}  ${chg}`, {
-                    fontFamily: 'JetBrains Mono, monospace', fontSize: 15, fontWeight: '900',
+                    fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: '900',
                     fill: col, dropShadow: true, dropShadowColor: col, dropShadowBlur: 6, dropShadowDistance: 0, padding: 6
                 });
                 seg.anchor.set(0, 0.5);
                 seg.x = x; seg.y = midY;
                 seg.blendMode = PIXI.BLEND_MODES.ADD;
                 strip.addChild(seg);
-                x += seg.width + 34;   // gap between coins
+                x += seg.width + 28;   // gap between coins
             });
             return x - offsetX;        // width of one full set incl. trailing gap
         };
