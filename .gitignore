@@ -21,6 +21,14 @@ codebase_overview.txt
 # Python scripts (asset generation)
 *.py
 __pycache__/
+# ...except the local playtest server. python -m http.server is single-threaded,
+# so a keep-alive connection from one tab hangs every other request; this one is
+# threaded and adds the dev-only /__shot endpoint First Person uses to capture
+# WebGL frames without a browser pane.
+!serve.py
+
+# Dev-only screenshot drop written by serve.py POST /__shot
+.shots/
 
 # Logs
 *.log

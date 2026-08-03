@@ -1,0 +1,1105 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   TEXTURE FACTORY — everything is procedural canvas textures (zero assets),
+   in the spirit of the 2D version. One shared sign atlas keeps draw calls low.
+   ══════════════════════════════════════════════════════════════════════════ */
+import * as THREE from 'three';
+
+function canvas(w, h) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    return [c, c.getContext('2d')];
+}
+/* Anisotropy was hard-coded to 4. Every ground surface in this game is seen at
+   a grazing angle from eye height 17, and at aniso 4 the road mushes into a
+   grey smear about 15 m out — one of the loudest "cheap 3D" tells there is.
+   `setMaxAnisotropy` is called from main.js once the renderer exists; the 8
+   fallback covers the texture calls that happen before that. */
+let MAX_ANISO = 8;
+export function setMaxAnisotropy(n) { MAX_ANISO = Math.max(1, n | 0); }
+
+function tex(c, srgb = true) {
+    const t = new THREE.CanvasTexture(c);
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = MAX_ANISO;
+    return t;
+}
+
+// ─── Building facades ────────────────────────────────────────────────────────
+// Grayscale so per-instance color tints the facade. Emissive = windows only,
+// glowing warm at night regardless of the building tint.
+// AAA street-read: mullions, sky reflections, shopfronts, dirt, expensive night glow.
+export function facade(floors, opts = {}) {
+    /* Deterministic per-variant randomness. This used to call Math.random
+       directly, which meant the file header's promise that "the city is
+       identical every visit" was false for facades, and — worse — the mullion
+       style, the dirt streaks and the lit-window pattern were each rolled ONCE
+       per tier, so every mid-rise in the city had identical windows lit in
+       identical positions after dark. world.js now bakes several seeded
+       variants per tier and buckets buildings between them. */
+    let _s = (opts.seed ?? 1) | 0;
+    const rand = () => {
+        _s = (_s + 0x6D2B79F5) | 0;
+        let t = Math.imul(_s ^ (_s >>> 15), 1 | _s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const W = 512, H = 512;
+    const cols = opts.cols || 8;
+    const rows = Math.max(2, floors);
+    const litRatio = opts.litRatio ?? 0.55;
+    const [c, x] = canvas(W, H);
+    const [ec, ex] = canvas(W, H);
+    ex.fillStyle = '#000'; ex.fillRect(0, 0, W, H);
+
+    // ── cladding: cool concrete with vertical sky gradient ──
+    const g = x.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#e8ecf4');
+    g.addColorStop(0.28, '#d0d6e0');
+    g.addColorStop(0.62, '#b4bbc8');
+    g.addColorStop(0.88, '#9aa3b2');
+    g.addColorStop(1, '#7e8796');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+
+    // panel joints (curtain-wall grid under windows)
+    x.strokeStyle = 'rgba(55,62,74,0.14)'; x.lineWidth = 1;
+    for (let i = 1; i < cols; i++) {
+        x.beginPath(); x.moveTo(i * (W / cols), 0); x.lineTo(i * (W / cols), H); x.stroke();
+    }
+
+    // fine aggregate grain
+    for (let i = 0; i < 5200; i++) {
+        const v = rand();
+        x.fillStyle = v < 0.55
+            ? `rgba(255,255,255,${rand() * 0.06})`
+            : `rgba(0,0,0,${rand() * 0.05})`;
+        x.fillRect(rand() * W, rand() * H, 1 + (v > 0.9 ? 2 : 1), 1 + (v > 0.85 ? 2 : 1));
+    }
+
+    // rain / soot streaks (mostly upper→lower)
+    for (let i = 0; i < 55; i++) {
+        const sx = rand() * W;
+        const sy = rand() * H * 0.75;
+        x.fillStyle = `rgba(48,54,64,${0.025 + rand() * 0.055})`;
+        x.fillRect(sx, sy, 1 + rand() * 2.5, 28 + rand() * 110);
+    }
+    // corner / edge darkening
+    const edge = x.createLinearGradient(0, 0, 18, 0);
+    edge.addColorStop(0, 'rgba(30,36,48,0.16)'); edge.addColorStop(1, 'rgba(30,36,48,0)');
+    x.fillStyle = edge; x.fillRect(0, 0, 18, H);
+    const edgeR = x.createLinearGradient(W, 0, W - 18, 0);
+    edgeR.addColorStop(0, 'rgba(30,36,48,0.16)'); edgeR.addColorStop(1, 'rgba(30,36,48,0)');
+    x.fillStyle = edgeR; x.fillRect(W - 18, 0, 18, H);
+
+    const cw = W / cols;
+    const groundH = H / rows * 1.42;                // taller ground floor for shopfronts
+    const upperH = (H - groundH) / (rows - 1 || 1);
+
+    // mullion style: 0 = cross, 1 = double vertical, 2 = grid
+    const mullionStyle = Math.floor(rand() * 3);
+
+    // ── upper floors ──
+    for (let r = 0; r < rows - 1; r++) {
+        const y0 = r * upperH;
+        // floor slab band (horizontal massing read)
+        x.fillStyle = 'rgba(255,255,255,0.28)';
+        x.fillRect(0, y0, W, 2.5);
+        x.fillStyle = 'rgba(35,42,54,0.32)';
+        x.fillRect(0, y0 + upperH - 3.5, W, 3.5);
+        // thin spandrel panel under windows
+        x.fillStyle = 'rgba(90,98,112,0.18)';
+        x.fillRect(0, y0 + upperH * 0.72, W, upperH * 0.12);
+
+        for (let col = 0; col < cols; col++) {
+            const pad = cw * 0.12;
+            const wx = col * cw + pad, ww = cw - pad * 2;
+            const wy = y0 + upperH * 0.18, wh = upperH * 0.52;
+
+            // recessed reveal / shadow box
+            x.fillStyle = 'rgba(42,48,60,0.55)';
+            x.fillRect(wx - 2.5, wy - 2.5, ww + 5, wh + 5);
+
+            // glass body: sky reflection top → room depth bottom
+            const wg = x.createLinearGradient(wx, wy, wx + ww * 0.15, wy + wh);
+            wg.addColorStop(0, '#c8e0f8');
+            wg.addColorStop(0.18, '#8eb0d0');
+            wg.addColorStop(0.42, '#4a6a88');
+            wg.addColorStop(0.72, '#243848');
+            wg.addColorStop(1, '#121a28');
+            x.fillStyle = wg; x.fillRect(wx, wy, ww, wh);
+
+            // secondary sky specular (diagonal sheen)
+            const spec = x.createLinearGradient(wx, wy, wx + ww, wy + wh * 0.55);
+            spec.addColorStop(0, 'rgba(240,248,255,0.32)');
+            spec.addColorStop(0.35, 'rgba(200,220,245,0.12)');
+            spec.addColorStop(0.55, 'rgba(200,220,245,0)');
+            x.fillStyle = spec; x.fillRect(wx, wy, ww, wh * 0.55);
+            // vertical highlight strip (curtain-wall read)
+            x.fillStyle = 'rgba(230,240,255,0.14)';
+            x.fillRect(wx + 1, wy + 1, ww * 0.22, wh - 2);
+
+            // interior room tone (dark furniture mass at bottom of pane)
+            if (rand() < 0.55) {
+                x.fillStyle = 'rgba(12,16,24,0.35)';
+                x.fillRect(wx + ww * 0.15, wy + wh * 0.55, ww * 0.7, wh * 0.4);
+            }
+
+            // ── mullions ──
+            x.fillStyle = 'rgba(200,208,220,0.78)';
+            if (mullionStyle === 0) {
+                // classic cross
+                x.fillRect(wx + ww * 0.5 - 0.7, wy, 1.4, wh);
+                x.fillRect(wx, wy + wh * 0.38, ww, 1.3);
+            } else if (mullionStyle === 1) {
+                // double vertical + transom
+                x.fillRect(wx + ww * 0.33 - 0.6, wy, 1.2, wh);
+                x.fillRect(wx + ww * 0.66 - 0.6, wy, 1.2, wh);
+                x.fillRect(wx, wy + wh * 0.42, ww, 1.1);
+            } else {
+                // 2×2 grid
+                x.fillRect(wx + ww * 0.5 - 0.65, wy, 1.3, wh);
+                x.fillRect(wx, wy + wh * 0.33, ww, 1.15);
+                x.fillRect(wx, wy + wh * 0.66, ww, 1.15);
+            }
+            // outer frame
+            x.strokeStyle = 'rgba(185,194,208,0.55)';
+            x.lineWidth = 1.4;
+            x.strokeRect(wx + 0.7, wy + 0.7, ww - 1.4, wh - 1.4);
+            // head flashing
+            x.fillStyle = 'rgba(230,236,246,0.55)';
+            x.fillRect(wx - 1, wy - 1.5, ww + 2, 1.8);
+            // sill (bright ledge)
+            x.fillStyle = 'rgba(236,242,250,0.82)';
+            x.fillRect(wx - 2.5, wy + wh + 1.5, ww + 5, 2.8);
+            // bird dirt / drip under sill
+            if (rand() < 0.45) {
+                x.fillStyle = `rgba(55,60,70,${0.08 + rand() * 0.1})`;
+                x.fillRect(wx + ww * 0.2, wy + wh + 4.5, 1 + rand() * 2, 6 + rand() * 14);
+            }
+
+            // ── night emissive (expensive interior lighting) ──
+            if (rand() < litRatio) {
+                const warm = rand() < 0.74;
+                const base = warm
+                    ? (rand() < 0.35 ? '#ffe8b8' : rand() < 0.5 ? '#ffd49a' : '#ffc878')
+                    : (rand() < 0.4 ? '#d8ecff' : '#b8d8f8');
+                // floor-lamp gradient: brighter toward bottom of room
+                const eg = ex.createLinearGradient(wx, wy, wx, wy + wh);
+                eg.addColorStop(0, warm ? '#6a5030' : '#304858');
+                eg.addColorStop(0.35, base);
+                eg.addColorStop(0.75, base);
+                eg.addColorStop(1, warm ? '#fff0d0' : '#e8f4ff');
+                ex.fillStyle = eg; ex.fillRect(wx, wy, ww, wh);
+
+                // secondary monitor / cool task light patch
+                if (rand() < 0.35) {
+                    ex.fillStyle = warm ? 'rgba(140,190,255,0.55)' : 'rgba(255,220,160,0.4)';
+                    ex.fillRect(wx + ww * 0.55, wy + wh * 0.2, ww * 0.28, wh * 0.28);
+                }
+                // soft lamp blob
+                if (rand() < 0.4) {
+                    const lx = wx + ww * (0.2 + rand() * 0.5);
+                    const ly = wy + wh * (0.45 + rand() * 0.35);
+                    const rg = ex.createRadialGradient(lx, ly, 1, lx, ly, ww * 0.35);
+                    rg.addColorStop(0, warm ? 'rgba(255,240,200,0.95)' : 'rgba(220,240,255,0.9)');
+                    rg.addColorStop(1, 'rgba(0,0,0,0)');
+                    ex.fillStyle = rg; ex.fillRect(wx, wy, ww, wh);
+                }
+                // blinds / shade (mask top or half — not a hard black rectangle)
+                const shade = rand();
+                if (shade < 0.38) {
+                    const bh = wh * (0.18 + rand() * 0.28);
+                    ex.fillStyle = 'rgba(0,0,0,0.82)';
+                    ex.fillRect(wx, wy, ww, bh);
+                    // slat lines
+                    ex.strokeStyle = 'rgba(0,0,0,0.35)';
+                    ex.lineWidth = 1;
+                    for (let sy = wy; sy < wy + bh; sy += 3) {
+                        ex.beginPath(); ex.moveTo(wx, sy); ex.lineTo(wx + ww, sy); ex.stroke();
+                    }
+                } else if (shade < 0.55) {
+                    // side curtain
+                    ex.fillStyle = 'rgba(0,0,0,0.75)';
+                    ex.fillRect(wx, wy, ww * (0.18 + rand() * 0.15), wh);
+                }
+            }
+        }
+    }
+
+    // ── ground floor: shopfronts ──
+    const gy = H - groundH;
+    // stone / granite plinth
+    const plinth = x.createLinearGradient(0, gy, 0, H);
+    plinth.addColorStop(0, '#9aa1ac');
+    plinth.addColorStop(0.35, '#858c98');
+    plinth.addColorStop(1, '#6a717c');
+    x.fillStyle = plinth; x.fillRect(0, gy, W, groundH);
+    // street grime band at base
+    const grime = x.createLinearGradient(0, H - groundH * 0.28, 0, H);
+    grime.addColorStop(0, 'rgba(40,44,52,0)');
+    grime.addColorStop(0.5, 'rgba(40,44,52,0.18)');
+    grime.addColorStop(1, 'rgba(28,32,40,0.38)');
+    x.fillStyle = grime; x.fillRect(0, H - groundH * 0.28, W, groundH * 0.28);
+    // cornice above ground floor
+    x.fillStyle = 'rgba(30,36,46,0.4)'; x.fillRect(0, gy, W, 4);
+    x.fillStyle = 'rgba(220,228,240,0.35)'; x.fillRect(0, gy + 4, W, 2);
+
+    const bays = Math.max(3, Math.round(cols * 0.75));
+    const bw = W / bays;
+    const fasciaCols = ['#3a4658', '#4a3a52', '#3a5248', '#524838', '#3a4858', '#483a4a'];
+
+    for (let i = 0; i < bays; i++) {
+        const bx = i * bw + 5;
+        const bayW = bw - 10;
+        const glassY = gy + groundH * 0.22;
+        const glassH = groundH * 0.58;
+
+        // pier / column between bays
+        if (i > 0) {
+            x.fillStyle = 'rgba(70,76,88,0.55)';
+            x.fillRect(i * bw - 2.5, gy + 6, 5, groundH - 10);
+            x.fillStyle = 'rgba(200,208,220,0.25)';
+            x.fillRect(i * bw - 1, gy + 8, 2, groundH - 14);
+        }
+
+        // fascia / signboard band
+        x.fillStyle = fasciaCols[i % fasciaCols.length];
+        x.fillRect(bx, gy + groundH * 0.07, bayW, groundH * 0.12);
+        // fascia highlight edge
+        x.fillStyle = 'rgba(255,255,255,0.12)';
+        x.fillRect(bx, gy + groundH * 0.07, bayW, 1.5);
+
+        // shopfront glass
+        const sg = x.createLinearGradient(bx, glassY, bx, glassY + glassH);
+        sg.addColorStop(0, '#5a7898');
+        sg.addColorStop(0.25, '#3a5068');
+        sg.addColorStop(0.6, '#243848');
+        sg.addColorStop(1, '#141c28');
+        x.fillStyle = sg;
+        x.fillRect(bx, glassY, bayW, glassH);
+        // glass reflection sheen
+        const sh = x.createLinearGradient(bx, glassY, bx + bayW * 0.5, glassY + glassH * 0.5);
+        sh.addColorStop(0, 'rgba(210,230,255,0.28)');
+        sh.addColorStop(0.5, 'rgba(180,210,240,0.08)');
+        sh.addColorStop(1, 'rgba(180,210,240,0)');
+        x.fillStyle = sh; x.fillRect(bx, glassY, bayW, glassH * 0.55);
+
+        // frame + mid mullion
+        x.strokeStyle = 'rgba(220,228,240,0.55)'; x.lineWidth = 2.2;
+        x.strokeRect(bx + 1, glassY + 1, bayW - 2, glassH - 2);
+        x.fillStyle = 'rgba(200,210,224,0.55)';
+        x.fillRect(bx + bayW * 0.5 - 1, glassY, 2, glassH);
+        // transom bar
+        x.fillRect(bx, glassY + glassH * 0.22, bayW, 1.5);
+        // kick plate
+        x.fillStyle = 'rgba(50,56,66,0.75)';
+        x.fillRect(bx, glassY + glassH - 5, bayW, 5);
+        x.fillStyle = 'rgba(180,188,200,0.25)';
+        x.fillRect(bx, glassY + glassH - 5, bayW, 1);
+
+        // warm shop interior emissive (display + ceiling cans)
+        if (rand() < 0.82) {
+            const eg = ex.createLinearGradient(bx, glassY, bx, glassY + glassH);
+            eg.addColorStop(0, '#fff2d0');
+            eg.addColorStop(0.45, '#ffe0a8');
+            eg.addColorStop(1, '#e8b060');
+            ex.fillStyle = eg;
+            ex.fillRect(bx + 3, glassY + 3, bayW - 6, glassH - 8);
+            // product / mannequin silhouettes (dark against light)
+            if (rand() < 0.5) {
+                ex.fillStyle = 'rgba(0,0,0,0.25)';
+                ex.fillRect(bx + bayW * 0.2, glassY + glassH * 0.35, bayW * 0.15, glassH * 0.5);
+                ex.fillRect(bx + bayW * 0.6, glassY + glassH * 0.4, bayW * 0.18, glassH * 0.45);
+            }
+            // cool accent LED strip at top of glass
+            if (rand() < 0.4) {
+                ex.fillStyle = '#88d4ff';
+                ex.fillRect(bx + 4, glassY + 4, bayW - 8, 3);
+            }
+        }
+    }
+
+    // main entrance (centre bay, full height doors)
+    const mid = Math.floor(bays / 2);
+    const ex0 = mid * bw + bw * 0.12;
+    const exW = bw * 0.76;
+    x.fillStyle = '#10141c';
+    x.fillRect(ex0, gy + groundH * 0.16, exW, groundH * 0.84);
+    // door glass panels
+    const dg = x.createLinearGradient(ex0, gy + groundH * 0.2, ex0, H);
+    dg.addColorStop(0, '#3a5068'); dg.addColorStop(1, '#1a2434');
+    x.fillStyle = dg;
+    x.fillRect(ex0 + 4, gy + groundH * 0.22, exW * 0.42 - 6, groundH * 0.72);
+    x.fillRect(ex0 + exW * 0.5 + 2, gy + groundH * 0.22, exW * 0.42 - 6, groundH * 0.72);
+    // centre mullion / door split
+    x.fillStyle = 'rgba(210,218,230,0.7)';
+    x.fillRect(ex0 + exW * 0.5 - 1.5, gy + groundH * 0.16, 3, groundH * 0.84);
+    // handles
+    x.fillStyle = 'rgba(220,200,140,0.85)';
+    x.fillRect(ex0 + exW * 0.42, gy + groundH * 0.52, 3, 10);
+    x.fillRect(ex0 + exW * 0.55, gy + groundH * 0.52, 3, 10);
+    // lobby glow
+    ex.fillStyle = '#fff4dc';
+    ex.fillRect(ex0 + 5, gy + groundH * 0.24, exW - 10, groundH * 0.72);
+    // canopy / marquee shadow + bar
+    x.fillStyle = 'rgba(16,20,28,0.55)';
+    x.fillRect(ex0 - 8, gy + groundH * 0.1, exW + 16, 7);
+    x.fillStyle = 'rgba(200,210,224,0.4)';
+    x.fillRect(ex0 - 8, gy + groundH * 0.1, exW + 16, 2);
+
+    // final street soot speckles near base
+    for (let i = 0; i < 180; i++) {
+        x.fillStyle = `rgba(20,24,32,${rand() * 0.2})`;
+        x.fillRect(rand() * W, H - 8 - rand() * 20, 1.5, 1.5);
+    }
+
+    const map = tex(c), emissive = tex(ec);
+    map.anisotropy = MAX_ANISO;
+    // The emissive map is what you look at all night — it earns the same filtering.
+    emissive.anisotropy = MAX_ANISO;
+    return { map, emissiveMap: emissive };
+}
+
+// ─── Neon sign atlas ─────────────────────────────────────────────────────────
+// All building signs on ONE 4096×2048 texture → merged quads → 1 draw call.
+// High-contrast readable text; never empty boards; neon-friendly plates.
+/** One full-bleed sign plate texture (no atlas UV math — always readable). */
+/** Full-bleed sign texture. ASCII-only label so glyph fallback never blanks the canvas. */
+/** Full-bleed sign plate as DataTexture (most reliable GPU upload path). */
+export function makeSignPlate(text, color = '#22d3ee', emoji = '') {
+    const W = 512, H = 128;
+    const canvasEl = document.createElement('canvas');
+    canvasEl.width = W;
+    canvasEl.height = H;
+    const x = canvasEl.getContext('2d', { alpha: false, willReadFrequently: true });
+
+    // High-contrast panel
+    x.fillStyle = '#050a14';
+    x.fillRect(0, 0, W, H);
+    x.fillStyle = '#0f172a';
+    x.fillRect(6, 6, W - 12, H - 12);
+
+    const neon = (typeof color === 'string' && color[0] === '#') ? color : '#22d3ee';
+    x.strokeStyle = neon;
+    x.lineWidth = 10;
+    x.strokeRect(8, 8, W - 16, H - 16);
+    x.strokeStyle = '#ffffff';
+    x.lineWidth = 2;
+    x.strokeRect(16, 16, W - 32, H - 32);
+
+    // Text band
+    x.fillStyle = '#1e293b';
+    x.fillRect(28, H / 2 - 32, W - 56, 64);
+
+    let label = String(text || 'BUILDING').toUpperCase()
+        .replace(/[^A-Z0-9 \-.'&]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || 'BUILDING';
+
+    // wrap long names to 2 lines
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    let lines = [label];
+    let fs = 42;
+    x.font = 'bold ' + fs + 'px monospace, Consolas, "Courier New", sans-serif';
+    if (x.measureText(label).width > W - 64) {
+        const words = label.split(' ');
+        let a = '', b = '';
+        for (const w of words) {
+            const t = (a + ' ' + w).trim();
+            if (x.measureText(t).width < W - 64) a = t;
+            else b = (b + ' ' + w).trim();
+        }
+        if (b) lines = [a || label, b];
+        else {
+            while (x.measureText(label).width > W - 64 && fs > 18) {
+                fs -= 2;
+                x.font = 'bold ' + fs + 'px monospace, Consolas, "Courier New", sans-serif';
+            }
+            lines = [label];
+        }
+    }
+    fs = lines.length > 1 ? 28 : fs;
+    x.font = 'bold ' + fs + 'px monospace, Consolas, "Courier New", sans-serif';
+
+    const drawLine = (str, y) => {
+        x.lineWidth = 5;
+        x.strokeStyle = '#000000';
+        x.strokeText(str, W / 2, y, W - 64);
+        x.fillStyle = neon;
+        x.fillText(str, W / 2, y, W - 64);
+        x.fillStyle = '#ffffff';
+        x.fillText(str, W / 2, y, W - 64);
+    };
+    if (lines.length === 1) drawLine(lines[0], H / 2);
+    else {
+        drawLine(lines[0], H / 2 - fs * 0.65);
+        drawLine(lines[1], H / 2 + fs * 0.65);
+    }
+
+    // Upload as DataTexture — avoids CanvasTexture quirks on some GPUs
+    const img = x.getImageData(0, 0, W, H);
+    const data = new Uint8Array(img.data.buffer.slice(0));
+    const t = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearFilter;
+    t.generateMipmaps = false;
+    t.flipY = true;
+    t.needsUpdate = true;
+    return t;
+}
+
+/* Every building sign on ONE texture, with a per-sign UV rect.
+   This replaces the per-building `makeSignPlate` path, which allocated a
+   512x128 DataTexture per building (~34 MB and ~130 synchronous GPU uploads at
+   boot) and drew three separate meshes each, for roughly 390 draw calls of
+   signage alone in a renderer budgeted at 150 for the entire city. The atlas
+   is sized to the sign count rather than fixed at 8x16, so it never wastes
+   VRAM on empty cells and never silently drops the 129th building's sign.
+
+   Mipmaps matter here: without them a sign more than ~30 m away aliases into
+   crawling noise as you walk, which is one of the most conspicuous cheap-3D
+   tells there is. */
+export function signAtlas(signs) {
+    const COLS = 4, CW = 512, CH = 128;
+    const rows = Math.max(1, Math.ceil(signs.length / COLS));
+    const [c, x] = canvas(COLS * CW, rows * CH);
+    // Fill dark so any unused cell reads as an unlit board, never as clear.
+    x.fillStyle = '#050a14';
+    x.fillRect(0, 0, c.width, c.height);
+
+    const uv = new Map();
+    signs.forEach((s, i) => {
+        const col = i % COLS, row = Math.floor(i / COLS);
+        const px = col * CW, py = row * CH;
+        drawSignPlate(x, px, py, CW, CH, s.text ?? s.id, s.color);
+        uv.set(s.id, {
+            u0: px / c.width,
+            v0: 1 - (py + CH) / c.height,
+            u1: (px + CW) / c.width,
+            v1: 1 - py / c.height
+        });
+    });
+
+    const t = tex(c);
+    t.anisotropy = MAX_ANISO;
+    t.generateMipmaps = true;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.needsUpdate = true;
+    return { texture: t, uv, cell: { w: CW, h: CH } };
+}
+
+/** Draw one sign plate into `x` at (px, py). Shared by the atlas and the
+ *  single-plate path so both always look identical. */
+function drawSignPlate(x, px, py, W, H, text, color) {
+    const neon = (typeof color === 'string' && color[0] === '#') ? color : '#22d3ee';
+
+    x.fillStyle = '#050a14';
+    x.fillRect(px, py, W, H);
+    x.fillStyle = '#0f172a';
+    x.fillRect(px + 6, py + 6, W - 12, H - 12);
+    x.strokeStyle = neon;
+    x.lineWidth = 10;
+    x.strokeRect(px + 8, py + 8, W - 16, H - 16);
+    x.strokeStyle = '#ffffff';
+    x.lineWidth = 2;
+    x.strokeRect(px + 16, py + 16, W - 32, H - 32);
+    x.fillStyle = '#1e293b';
+    x.fillRect(px + 28, py + H / 2 - 32, W - 56, 64);
+
+    // ASCII-only so a missing glyph can never blank the board
+    const label = String(text || 'BUILDING').toUpperCase()
+        .replace(/[^A-Z0-9 \-.'&]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim() || 'BUILDING';
+
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    let fs = 42;
+    let lines = [label];
+    const font = (n) => 'bold ' + n + 'px monospace, Consolas, "Courier New", sans-serif';
+    x.font = font(fs);
+    if (x.measureText(label).width > W - 64) {
+        const words = label.split(' ');
+        let a = '', b = '';
+        for (const w of words) {
+            const t = (a + ' ' + w).trim();
+            if (x.measureText(t).width < W - 64) a = t;
+            else b = (b + ' ' + w).trim();
+        }
+        if (b) { lines = [a || label, b]; fs = 28; }
+        else {
+            while (x.measureText(label).width > W - 64 && fs > 18) { fs -= 2; x.font = font(fs); }
+        }
+    }
+    x.font = font(fs);
+
+    const drawLine = (str, y) => {
+        x.lineWidth = 5;
+        x.strokeStyle = '#000000';
+        x.strokeText(str, px + W / 2, y, W - 64);
+        x.fillStyle = neon;
+        x.fillText(str, px + W / 2, y, W - 64);
+        x.fillStyle = '#ffffff';
+        x.fillText(str, px + W / 2, y, W - 64);
+    };
+    if (lines.length === 1) drawLine(lines[0], py + H / 2);
+    else {
+        drawLine(lines[0], py + H / 2 - fs * 0.65);
+        drawLine(lines[1], py + H / 2 + fs * 0.65);
+    }
+}
+
+function roundRect(x, px, py, w, h, r) {
+    x.beginPath();
+    x.moveTo(px + r, py);
+    x.arcTo(px + w, py, px + w, py + h, r);
+    x.arcTo(px + w, py + h, px, py + h, r);
+    x.arcTo(px, py + h, px, py, r);
+    x.arcTo(px, py, px + w, py, r);
+    x.closePath();
+}
+
+// ─── Road ────────────────────────────────────────────────────────────────────
+// Plain asphalt — NO lane markings. This tile repeats in both directions, so
+// anything painted into it (there used to be a centre line here) shows up as a
+// grid running across the road as well as along it. Markings are geometry, in
+// world.js `_buildRoadMarkings`.
+
+/** Seamless grassy ground tile for parks / lawns. */
+let _grassGround;
+export function grassGround() {
+    if (_grassGround) return _grassGround;
+    const [c, x] = canvas(256, 256);
+    // richer multi-tone lawn (reads better from altitude too)
+    const g = x.createLinearGradient(0, 0, 256, 256);
+    g.addColorStop(0, '#3f7336');
+    g.addColorStop(0.35, '#356830');
+    g.addColorStop(0.7, '#2c5828');
+    g.addColorStop(1, '#3a6b32');
+    x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+    // soft light/dark clumps
+    for (let i = 0; i < 50; i++) {
+        x.fillStyle = Math.random() < 0.5
+            ? `rgba(110,180,80,${0.06 + Math.random() * 0.1})`
+            : `rgba(30,60,25,${0.06 + Math.random() * 0.1})`;
+        x.beginPath();
+        x.ellipse(Math.random() * 256, Math.random() * 256,
+            12 + Math.random() * 28, 8 + Math.random() * 20, Math.random(), 0, Math.PI * 2);
+        x.fill();
+    }
+    // blade streaks
+    for (let i = 0; i < 2800; i++) {
+        const px = Math.random() * 256, py = Math.random() * 256;
+        const h = 4 + Math.random() * 12;
+        x.strokeStyle = Math.random() < 0.5
+            ? `rgba(100,175,75,${0.22 + Math.random() * 0.35})`
+            : `rgba(28,68,24,${0.18 + Math.random() * 0.3})`;
+        x.lineWidth = 0.7 + Math.random();
+        x.beginPath();
+        x.moveTo(px, py);
+        x.lineTo(px + (Math.random() - 0.5) * 3.5, py - h);
+        x.stroke();
+    }
+    // dark patches / bare dirt
+    for (let i = 0; i < 36; i++) {
+        x.fillStyle = `rgba(60,45,30,${0.08 + Math.random() * 0.12})`;
+        x.beginPath();
+        x.ellipse(Math.random() * 256, Math.random() * 256, 8 + Math.random() * 18, 5 + Math.random() * 10, Math.random(), 0, Math.PI * 2);
+        x.fill();
+    }
+    // light flower flecks
+    for (let i = 0; i < 55; i++) {
+        x.fillStyle = Math.random() < 0.5 ? 'rgba(255,240,180,0.4)' : 'rgba(200,120,160,0.35)';
+        x.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 1.5);
+    }
+    const t = tex(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    // NOTE: world.js scales the grass tile UVs itself. Setting repeat here as
+    // well MULTIPLIED with that, giving ~96 repeats across an 800-unit cell —
+    // far past Nyquist, so parks rendered as green moire noise.
+    t.repeat.set(1, 1);
+    return (_grassGround = t);
+}
+let _road;
+export function road() {
+    if (_road) return _road;
+    const [c, x] = canvas(256, 256);
+    // layered asphalt base
+    /* Asphalt was authored at #23-2a, i.e. sRGB ~0.16. Multiplied by scene
+       light and pushed through ACES that lands at ~30/255 — the road rendered
+       as a black void covering the bottom third of every street-level frame.
+       Real dry asphalt in daylight sits around sRGB 0.22-0.28 — dark, but a
+       long way from black, and clearly darker than the pavement beside it. */
+    const g = x.createLinearGradient(0, 0, 256, 256);
+    g.addColorStop(0, '#3e424b'); g.addColorStop(0.5, '#363942'); g.addColorStop(1, '#2f323a');
+    x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+    // aggregate / chip seal
+    for (let i = 0; i < 2800; i++) {
+        const v = Math.random();
+        x.fillStyle = v < 0.45 ? `rgba(255,255,255,${Math.random() * 0.05})`
+            : v < 0.8 ? `rgba(0,0,0,${Math.random() * 0.18})`
+            : `rgba(90,100,110,${Math.random() * 0.08})`;
+        x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    }
+    // wheel-polished longitudinal bands
+    for (let i = 0; i < 8; i++) {
+        x.fillStyle = `rgba(255,255,255,${0.01 + Math.random() * 0.018})`;
+        x.fillRect(0, 20 + i * 28 + Math.random() * 6, 256, 5 + Math.random() * 10);
+    }
+    // oil stains / patches
+    for (let i = 0; i < 14; i++) {
+        x.fillStyle = `rgba(0,0,0,${0.06 + Math.random() * 0.1})`;
+        const w = 22 + Math.random() * 55;
+        x.beginPath();
+        x.ellipse(Math.random() * 256, Math.random() * 256, w, w * (0.4 + Math.random() * 0.4), Math.random() * Math.PI, 0, Math.PI * 2);
+        x.fill();
+    }
+    // hairline cracks
+    x.strokeStyle = 'rgba(0,0,0,0.2)'; x.lineWidth = 1;
+    for (let i = 0; i < 12; i++) {
+        x.beginPath();
+        let px = Math.random() * 256, py = Math.random() * 256;
+        x.moveTo(px, py);
+        for (let k = 0; k < 4; k++) {
+            px += (Math.random() - 0.5) * 40; py += (Math.random() - 0.5) * 40;
+            x.lineTo(px, py);
+        }
+        x.stroke();
+    }
+    const t = tex(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return (_road = t);
+}
+
+// ─── Sidewalk / plaza pavement ───────────────────────────────────────────────
+let _pavement;
+export function pavement() {
+    if (_pavement) return _pavement;
+    const [c, x] = canvas(128, 128);
+    x.fillStyle = '#6e7480'; x.fillRect(0, 0, 128, 128);
+    // per-tile variation
+    for (let ty = 0; ty < 128; ty += 32) {
+        for (let tx = 0; tx < 128; tx += 32) {
+            x.fillStyle = `rgba(${100 + Math.random() * 30|0},${105 + Math.random() * 25|0},${110 + Math.random() * 25|0},${0.15 + Math.random() * 0.2})`;
+            x.fillRect(tx + 1, ty + 1, 30, 30);
+        }
+    }
+    // joint lines (grout)
+    x.strokeStyle = 'rgba(30,34,42,0.45)'; x.lineWidth = 2;
+    for (let i = 0; i <= 128; i += 32) {
+        x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 128); x.stroke();
+        x.beginPath(); x.moveTo(0, i); x.lineTo(128, i); x.stroke();
+    }
+    x.strokeStyle = 'rgba(200,206,216,0.12)'; x.lineWidth = 1;
+    for (let i = 0; i <= 128; i += 32) {
+        x.beginPath(); x.moveTo(i + 1, 0); x.lineTo(i + 1, 128); x.stroke();
+        x.beginPath(); x.moveTo(0, i + 1); x.lineTo(128, i + 1); x.stroke();
+    }
+    // surface grit
+    for (let i = 0; i < 600; i++) {
+        x.fillStyle = `rgba(0,0,0,${Math.random() * 0.12})`;
+        x.fillRect(Math.random() * 128, Math.random() * 128, 1.5, 1.5);
+    }
+    const t = tex(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return (_pavement = t);
+}
+
+// ─── Shared surface detail for specialty structures ──────────────────────────
+// Near-white so it multiplies the vertex tint without shifting colour; carries
+// concrete grain, faint form-work seams and streaking so big flat structures
+// (cooling towers, plant halls, plinths) stop reading as solid blocks.
+let _detail;
+export function detail() {
+    if (_detail) return _detail;
+    const [c, x] = canvas(256, 256);
+    x.fillStyle = '#ececec'; x.fillRect(0, 0, 256, 256);
+    // fine aggregate speckle
+    for (let i = 0; i < 4200; i++) {
+        const v = Math.random();
+        x.fillStyle = v < 0.5 ? `rgba(255,255,255,${Math.random() * 0.5})`
+            : `rgba(90,96,104,${Math.random() * 0.22})`;
+        x.fillRect(Math.random() * 256, Math.random() * 256, 1.6, 1.6);
+    }
+    // horizontal form-work seams every ~32px (concrete pour lines)
+    for (let y = 0; y < 256; y += 32) {
+        x.fillStyle = 'rgba(120,126,134,0.16)';
+        x.fillRect(0, y + (Math.random() - 0.5) * 3, 256, 1.4);
+    }
+    // vertical weathering streaks
+    for (let i = 0; i < 26; i++) {
+        x.fillStyle = `rgba(96,102,110,${0.04 + Math.random() * 0.08})`;
+        const w = 1 + Math.random() * 3;
+        x.fillRect(Math.random() * 256, Math.random() * 256, w, 40 + Math.random() * 120);
+    }
+    // a few darker patches so tiling is less obvious
+    for (let i = 0; i < 8; i++) {
+        x.fillStyle = `rgba(80,86,94,${0.03 + Math.random() * 0.05})`;
+        const s = 20 + Math.random() * 60;
+        x.fillRect(Math.random() * 256, Math.random() * 256, s, s * 0.7);
+    }
+    _detail = tex(c);
+    _detail.wrapS = _detail.wrapT = THREE.RepeatWrapping;
+    return _detail;
+}
+
+// ─── Lobby floor: big polished stone tiles ───────────────────────────────────
+export function lobbyFloor() {
+    const [c, x] = canvas(128, 128);
+    x.fillStyle = '#b9bec7'; x.fillRect(0, 0, 128, 128);
+    // veining
+    for (let i = 0; i < 26; i++) {
+        x.strokeStyle = `rgba(120,128,142,${0.08 + Math.random() * 0.16})`;
+        x.lineWidth = 0.6 + Math.random() * 1.4;
+        x.beginPath();
+        let px = Math.random() * 128, py = Math.random() * 128;
+        x.moveTo(px, py);
+        for (let s = 0; s < 4; s++) {
+            px += (Math.random() - 0.5) * 60; py += (Math.random() - 0.5) * 60;
+            x.lineTo(px, py);
+        }
+        x.stroke();
+    }
+    // sheen + tile joints
+    const g = x.createLinearGradient(0, 0, 128, 128);
+    g.addColorStop(0, 'rgba(255,255,255,0.14)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0)');
+    g.addColorStop(1, 'rgba(255,255,255,0.10)');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+    x.strokeStyle = 'rgba(90,98,112,0.5)'; x.lineWidth = 1.5;
+    x.strokeRect(0, 0, 128, 128);
+    x.beginPath(); x.moveTo(64, 0); x.lineTo(64, 128); x.moveTo(0, 64); x.lineTo(128, 64);
+    x.strokeStyle = 'rgba(90,98,112,0.28)'; x.lineWidth = 1; x.stroke();
+    const t = tex(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+}
+
+// ─── Lobby name board (interiors) ────────────────────────────────────────────
+export function lobbySign(name, emoji, accent, sub) {
+    const [c, x] = canvas(1024, 256);
+    x.clearRect(0, 0, 1024, 256);
+    x.fillStyle = 'rgba(16,20,28,0.92)';
+    x.fillRect(0, 0, 1024, 256);
+    x.fillStyle = accent;
+    x.fillRect(0, 0, 1024, 10);
+    x.fillRect(0, 246, 1024, 10);
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.fillStyle = '#f2f5f9';
+    x.font = 'bold 88px Silkscreen, monospace';
+    x.fillText(`${emoji} ${name}`.slice(0, 30), 512, 108);
+    if (sub) {
+        x.fillStyle = accent;
+        x.font = '44px Silkscreen, monospace';
+        x.fillText(String(sub).toUpperCase().slice(0, 40), 512, 186);
+    }
+    return tex(c);
+}
+
+// ─── Water ───────────────────────────────────────────────────────────────────
+// Richer coastal ocean: depth bands, soft swell stripes, specular flecks and
+// faint foam so it reads from altitude instead of a flat blue slab.
+export function water() {
+    const [c, x] = canvas(512, 512);
+    // deep → mid gradient base
+    const g = x.createLinearGradient(0, 0, 512, 512);
+    g.addColorStop(0, '#0c3a5c');
+    g.addColorStop(0.35, '#15608a');
+    g.addColorStop(0.7, '#1a7aa0');
+    g.addColorStop(1, '#0e4a6e');
+    x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+
+    // large-scale swell undulations
+    for (let i = 0; i < 28; i++) {
+        const y = (i / 28) * 512 + Math.sin(i * 1.7) * 8;
+        const band = x.createLinearGradient(0, y - 18, 0, y + 18);
+        band.addColorStop(0, 'rgba(40,120,160,0)');
+        band.addColorStop(0.5, `rgba(120,200,230,${0.04 + (i % 3) * 0.015})`);
+        band.addColorStop(1, 'rgba(40,120,160,0)');
+        x.fillStyle = band;
+        x.fillRect(0, y - 18, 512, 36);
+    }
+
+    // shorter wave strokes
+    for (let i = 0; i < 160; i++) {
+        const y = Math.random() * 512;
+        const wx = Math.random() * 512;
+        const w = 30 + Math.random() * 140;
+        x.strokeStyle = `rgba(170,220,255,${0.04 + Math.random() * 0.1})`;
+        x.lineWidth = 0.8 + Math.random() * 2.2;
+        x.beginPath();
+        x.moveTo(wx, y);
+        x.bezierCurveTo(wx + w * 0.35, y + (Math.random() - 0.5) * 10,
+            wx + w * 0.65, y + (Math.random() - 0.5) * 10,
+            wx + w, y + (Math.random() - 0.5) * 4);
+        x.stroke();
+    }
+
+    // bright specular flecks (sun glints)
+    for (let i = 0; i < 90; i++) {
+        x.fillStyle = `rgba(230,245,255,${0.08 + Math.random() * 0.18})`;
+        x.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 3, 1);
+    }
+
+    // soft foam patches near "shore" noise
+    for (let i = 0; i < 24; i++) {
+        x.fillStyle = `rgba(210,235,245,${0.05 + Math.random() * 0.08})`;
+        x.beginPath();
+        x.ellipse(Math.random() * 512, Math.random() * 512,
+            18 + Math.random() * 50, 6 + Math.random() * 14, Math.random() * Math.PI, 0, Math.PI * 2);
+        x.fill();
+    }
+
+    // subtle depth mottling
+    for (let i = 0; i < 40; i++) {
+        x.fillStyle = `rgba(8,40,70,${0.04 + Math.random() * 0.07})`;
+        x.beginPath();
+        x.ellipse(Math.random() * 512, Math.random() * 512,
+            20 + Math.random() * 60, 14 + Math.random() * 40, Math.random(), 0, Math.PI * 2);
+        x.fill();
+    }
+
+    const t = tex(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(18, 18);
+    return t;
+}
+
+// ─── Beach sand ──────────────────────────────────────────────────────────────
+let _sand;
+export function sand() {
+    if (_sand) return _sand;
+    const [c, x] = canvas(256, 256);
+    const g = x.createLinearGradient(0, 0, 256, 256);
+    g.addColorStop(0, '#e2c992');
+    g.addColorStop(0.5, '#d4b878');
+    g.addColorStop(1, '#c9a96a');
+    x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+    // grain
+    for (let i = 0; i < 5000; i++) {
+        const v = Math.random();
+        x.fillStyle = v < 0.5
+            ? `rgba(255,245,210,${Math.random() * 0.18})`
+            : `rgba(120,90,50,${Math.random() * 0.14})`;
+        x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 1.5, 1 + Math.random() * 1.5);
+    }
+    // wetter dark band stripes (tide marks)
+    for (let i = 0; i < 6; i++) {
+        x.fillStyle = `rgba(90,70,45,${0.06 + Math.random() * 0.06})`;
+        x.fillRect(0, 20 + i * 40 + Math.random() * 8, 256, 3 + Math.random() * 5);
+    }
+    // shells / pebbles
+    for (let i = 0; i < 40; i++) {
+        x.fillStyle = Math.random() < 0.5 ? 'rgba(220,210,190,0.35)' : 'rgba(160,140,120,0.3)';
+        x.beginPath();
+        x.ellipse(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2.5, 0.8 + Math.random() * 1.5, Math.random(), 0, Math.PI * 2);
+        x.fill();
+    }
+    _sand = tex(c);
+    _sand.wrapS = _sand.wrapT = THREE.RepeatWrapping;
+    return _sand;
+}
+
+// ─── Countryside / outer-world grass (large-scale aerial read) ───────────────
+let _countryside;
+export function countryside() {
+    if (_countryside) return _countryside;
+    const [c, x] = canvas(512, 512);
+    // soft meadow base
+    const g = x.createLinearGradient(0, 0, 512, 512);
+    g.addColorStop(0, '#3d6a34');
+    g.addColorStop(0.4, '#4a7a3c');
+    g.addColorStop(0.7, '#356330');
+    g.addColorStop(1, '#2f5a2a');
+    x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+
+    // field patches (visible from altitude)
+    for (let i = 0; i < 22; i++) {
+        const hue = Math.random() < 0.35 ? '70,100,40' : (Math.random() < 0.5 ? '55,90,45' : '40,75,35');
+        x.fillStyle = `rgba(${hue},${0.12 + Math.random() * 0.18})`;
+        x.beginPath();
+        x.ellipse(Math.random() * 512, Math.random() * 512,
+            40 + Math.random() * 100, 30 + Math.random() * 70, Math.random() * Math.PI, 0, Math.PI * 2);
+        x.fill();
+    }
+
+    // dirt / path streaks
+    for (let i = 0; i < 10; i++) {
+        x.strokeStyle = `rgba(90,70,40,${0.08 + Math.random() * 0.1})`;
+        x.lineWidth = 4 + Math.random() * 10;
+        x.beginPath();
+        let px = Math.random() * 512, py = Math.random() * 512;
+        x.moveTo(px, py);
+        for (let k = 0; k < 5; k++) {
+            px += (Math.random() - 0.5) * 120;
+            py += (Math.random() - 0.5) * 120;
+            x.lineTo(px, py);
+        }
+        x.stroke();
+    }
+
+    // fine grass noise
+    for (let i = 0; i < 8000; i++) {
+        x.fillStyle = Math.random() < 0.5
+            ? `rgba(100,170,70,${Math.random() * 0.2})`
+            : `rgba(25,55,20,${Math.random() * 0.15})`;
+        x.fillRect(Math.random() * 512, Math.random() * 512, 1.2, 1.2);
+    }
+
+    // sparse tree-canopy dots (read as forest freckles from the sky)
+    for (let i = 0; i < 120; i++) {
+        x.fillStyle = `rgba(30,70,28,${0.15 + Math.random() * 0.25})`;
+        x.beginPath();
+        x.arc(Math.random() * 512, Math.random() * 512, 2 + Math.random() * 5, 0, Math.PI * 2);
+        x.fill();
+    }
+
+    _countryside = tex(c);
+    _countryside.wrapS = _countryside.wrapT = THREE.RepeatWrapping;
+    return _countryside;
+}
+
+// ─── Mountain / hill surface (forest base → rock → pale ridge) ───────────────
+let _mountain;
+export function mountain() {
+    if (_mountain) return _mountain;
+    const [c, x] = canvas(512, 512);
+    // vertical biome: deep forest → alpine meadow → rock → snow fleck
+    const g = x.createLinearGradient(0, 512, 0, 0);
+    g.addColorStop(0, '#2a4024');
+    g.addColorStop(0.25, '#3d5c32');
+    g.addColorStop(0.5, '#5a6b48');
+    g.addColorStop(0.72, '#7a7568');
+    g.addColorStop(0.88, '#9a9588');
+    g.addColorStop(1, '#e8eef4');
+    x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+
+    // rock strata
+    for (let i = 0; i < 40; i++) {
+        const y = Math.random() * 512;
+        x.strokeStyle = `rgba(60,55,48,${0.08 + Math.random() * 0.14})`;
+        x.lineWidth = 1 + Math.random() * 3;
+        x.beginPath();
+        x.moveTo(0, y);
+        for (let s = 0; s < 8; s++) x.lineTo(s * 64 + Math.random() * 20, y + (Math.random() - 0.5) * 18);
+        x.stroke();
+    }
+
+    // forest mottling on lower half
+    for (let i = 0; i < 200; i++) {
+        const py = 200 + Math.random() * 312;
+        x.fillStyle = `rgba(25,55,22,${0.1 + Math.random() * 0.2})`;
+        x.beginPath();
+        x.arc(Math.random() * 512, py, 3 + Math.random() * 10, 0, Math.PI * 2);
+        x.fill();
+    }
+
+    // snow / highlight noise on upper band
+    for (let i = 0; i < 600; i++) {
+        const py = Math.random() * 180;
+        x.fillStyle = `rgba(255,255,255,${0.08 + Math.random() * 0.25})`;
+        x.fillRect(Math.random() * 512, py, 1 + Math.random() * 3, 1 + Math.random() * 2);
+    }
+
+    // cliff shadow flecks
+    for (let i = 0; i < 80; i++) {
+        x.fillStyle = `rgba(20,22,28,${0.06 + Math.random() * 0.12})`;
+        x.beginPath();
+        x.ellipse(Math.random() * 512, Math.random() * 512,
+            8 + Math.random() * 30, 4 + Math.random() * 16, Math.random(), 0, Math.PI * 2);
+        x.fill();
+    }
+
+    _mountain = tex(c);
+    _mountain.wrapS = _mountain.wrapT = THREE.RepeatWrapping;
+    return _mountain;
+}
+
+// ─── Blimp side panel ────────────────────────────────────────────────────────
+export function blimpPanel(headline) {
+    const [c, x] = canvas(512, 128);
+    x.fillStyle = '#0d1526'; x.fillRect(0, 0, 512, 128);
+    x.strokeStyle = '#f59e0b'; x.lineWidth = 6; x.strokeRect(4, 4, 504, 120);
+    x.fillStyle = '#fbbf24'; x.font = 'bold 26px Silkscreen, monospace';
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    const words = headline.split(' ');
+    let line = '', lines = [];
+    for (const w of words) {
+        if ((line + ' ' + w).trim().length > 30) { lines.push(line.trim()); line = w; }
+        else line += ' ' + w;
+    }
+    lines.push(line.trim());
+    lines = lines.slice(0, 3);
+    lines.forEach((l, i) => x.fillText(l, 256, 64 + (i - (lines.length - 1) / 2) * 32));
+    return tex(c);
+}
+
+// ─── AI Index billboard (dynamic, redrawn periodically) ─────────────────────
+export function aiIndexBoard() {
+    const [c, x] = canvas(512, 256);
+    const t = tex(c);
+    const history = [];
+    function draw(score, delta) {
+        history.push(score); if (history.length > 40) history.shift();
+        x.fillStyle = '#05080f'; x.fillRect(0, 0, 512, 256);
+        x.strokeStyle = '#22d3ee'; x.lineWidth = 8; x.strokeRect(6, 6, 500, 244);
+        x.fillStyle = '#7c8db0'; x.font = 'bold 22px Silkscreen, monospace'; x.textAlign = 'center';
+        x.fillText('GLOBAL AI INDEX', 256, 40);
+        const col = score < 200 ? '#ef4444' : score < 500 ? '#facc15' : score < 800 ? '#4ade80' : '#22d3ee';
+        x.fillStyle = col; x.font = 'bold 84px Silkscreen, monospace';
+        x.shadowColor = col; x.shadowBlur = 24;
+        x.fillText(String(Math.round(score)), 256, 120);
+        x.shadowBlur = 0;
+        x.fillStyle = delta >= 0 ? '#4ade80' : '#ef4444'; x.font = 'bold 22px Silkscreen, monospace';
+        x.fillText(`${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)} / day`, 256, 156);
+        // sparkline
+        if (history.length > 1) {
+            x.strokeStyle = '#4ade80'; x.lineWidth = 3; x.beginPath();
+            const min = Math.min(...history), max = Math.max(...history), span = Math.max(1, max - min);
+            history.forEach((v, i) => {
+                const px = 40 + (i / (history.length - 1)) * 432;
+                const py = 230 - ((v - min) / span) * 50;
+                i ? x.lineTo(px, py) : x.moveTo(px, py);
+            });
+            x.stroke();
+        }
+        t.needsUpdate = true;
+    }
+    draw(512, 1.2);
+    return { texture: t, draw };
+}
+
+// ─── Sky sprites ─────────────────────────────────────────────────────────────
+export function sunSprite() {
+    const [c, x] = canvas(128, 128);
+    const g = x.createRadialGradient(64, 64, 8, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,250,220,1)');
+    g.addColorStop(0.25, 'rgba(255,220,120,0.95)');
+    g.addColorStop(1, 'rgba(255,180,60,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+    return tex(c, false);
+}
+export function moonSprite() {
+    const [c, x] = canvas(128, 128);
+    x.fillStyle = '#e8e4d8';
+    x.beginPath(); x.arc(64, 64, 40, 0, Math.PI * 2); x.fill();
+    x.fillStyle = 'rgba(150,146,138,0.6)';
+    [[52, 50, 9], [76, 68, 12], [58, 78, 6], [80, 44, 5]].forEach(([cx, cy, r]) => {
+        x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill();
+    });
+    const g = x.createRadialGradient(64, 64, 40, 64, 64, 64);
+    g.addColorStop(0, 'rgba(220,220,200,0.35)'); g.addColorStop(1, 'rgba(220,220,200,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+    return tex(c, false);
+}
+export function glowSprite(color = 'rgba(255,255,255,1)') {
+    const [c, x] = canvas(64, 64);
+    const g = x.createRadialGradient(32, 32, 2, 32, 32, 32);
+    g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+    return tex(c, false);
+}
+

@@ -922,6 +922,12 @@ if (_isMobile) {
 <script defer src="js/terminal.js?v=533"></script>
 <script defer src="js/engine.js?v=533"></script>
 
+<!-- ═══ FIRST PERSON BRIDGE ═══
+     Adds the 🚶 FP toolbar button and keeps progress shared with the Three.js
+     city at /first-person/. Must load after engine.js: it reads G / UI / Camera.
+     Purely additive — the 2D city behaves identically if this script fails. -->
+<script defer src="js/sc_integrated_bridge.js?v=533"></script>
+
 <!-- ═══ EMBED MODE AUTO-BOOT (Phase 3b) ═══
      When ?embed=1: auto-enter the city and kick off AutoTour once PixiJS is ready. -->
 <script>
