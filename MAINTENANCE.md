@@ -34,6 +34,7 @@ Most numbers update themselves. The real risk is a **silently dead source** show
 
 The scheduled task **`monthly-ai-zone-refresh`** (runs 1st of month, 9am) opens a review-first PR that patches the qualitative `milestone`/`facts` fields across all zones.
 
+- [ ] **First: confirm the run actually happened.** `git branch -r | grep zone-refresh` should show a branch for the current month. A missing branch means the task never fired (e.g. no API credits on the 1st) — the failure is silent, so nothing will alert you. If it's missing, run the refresh manually.
 - [ ] Open the PR (`gh pr view` or GitHub). Read the **Sources** list — every claim must trace to a real, reputable URL.
 - [ ] Sanity-check each changed fact against your own knowledge. Reject anything unsourced, vague, or that "feels" like a hallucination.
 - [ ] Confirm it only touched data strings (no logic/id/structure changes).
