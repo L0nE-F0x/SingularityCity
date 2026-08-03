@@ -8,17 +8,17 @@
 
 const XRayMode = {
     active: false,
-    overlay: null,         // PIXI container for x-ray graphics
-    _dataFlows: [],        // Animated data packets between buildings
-    _statLabels: [],       // Building stat text overlays
-    _wireframes: [],       // Building wireframe outlines
-    _gridLines: null,      // Background grid
+    overlay: null, // PIXI container for x-ray graphics
+    _dataFlows: [], // Animated data packets between buildings
+    _statLabels: [], // Building stat text overlays
+    _wireframes: [], // Building wireframe outlines
+    _gridLines: null, // Background grid
     _connectionLines: null, // Lab-to-lab connection lines
-    _pulseRings: [],       // Pulse rings at building bases
-    _scanLine: null,       // Horizontal scan line effect
+    _pulseRings: [], // Pulse rings at building bases
+    _scanLine: null, // Horizontal scan line effect
     _scanY: 0,
-    _dataStreams: [],       // Vertical data streams inside buildings
-    _hud: null,            // HUD container (fixed on screen)
+    _dataStreams: [], // Vertical data streams inside buildings
+    _hud: null, // HUD container (fixed on screen)
 
     // Saved layer alphas for restoration
     _savedAlphas: {},
@@ -94,7 +94,6 @@ const XRayMode = {
         this._buildStatLabels();
         this._buildScanLine();
         this._buildHUD();
-
     },
 
     exit() {
@@ -147,7 +146,6 @@ const XRayMode = {
         this._gridLines = null;
         this._connectionLines = null;
         this._scanLine = null;
-
     },
 
     // ─── BACKDROP: Solid near-black rectangle covering the full world area ───
@@ -173,17 +171,21 @@ const XRayMode = {
 
         g.lineStyle(1, 0x00ff88, 0.05);
         for (let x = 0; x < cityW; x += 120) {
-            g.moveTo(x, topY); g.lineTo(x, botY);
+            g.moveTo(x, topY);
+            g.lineTo(x, botY);
         }
         for (let y = topY; y <= botY; y += 60) {
-            g.moveTo(0, y); g.lineTo(cityW, y);
+            g.moveTo(0, y);
+            g.lineTo(cityW, y);
         }
         g.lineStyle(1, 0x00ff88, 0.12);
         for (let x = 0; x < cityW; x += 600) {
-            g.moveTo(x, topY); g.lineTo(x, botY);
+            g.moveTo(x, topY);
+            g.lineTo(x, botY);
         }
         for (let y = topY; y <= botY; y += 300) {
-            g.moveTo(0, y); g.lineTo(cityW, y);
+            g.moveTo(0, y);
+            g.lineTo(cityW, y);
         }
 
         this._gridLines = g;
@@ -197,9 +199,11 @@ const XRayMode = {
         const cityW = G.cityW || G.getCityWidth();
 
         g.lineStyle(2, 0x00ff88, 0.8);
-        g.moveTo(-2000, gy); g.lineTo(cityW + 2000, gy);
+        g.moveTo(-2000, gy);
+        g.lineTo(cityW + 2000, gy);
         g.lineStyle(4, 0x00ff88, 0.15);
-        g.moveTo(-2000, gy + 2); g.lineTo(cityW + 2000, gy + 2);
+        g.moveTo(-2000, gy + 2);
+        g.lineTo(cityW + 2000, gy + 2);
 
         g.beginFill(0x001a12, 0.5);
         g.drawRect(-2000, gy + 4, cityW + 4000, 280);
@@ -208,15 +212,18 @@ const XRayMode = {
         // Dotted depth horizons
         g.lineStyle(1, 0x00ff88, 0.25);
         for (let x = -2000; x < cityW + 2000; x += 12) {
-            g.moveTo(x, gy + 120); g.lineTo(x + 6, gy + 120);
+            g.moveTo(x, gy + 120);
+            g.lineTo(x + 6, gy + 120);
         }
         g.lineStyle(1, 0x06b6d4, 0.35);
         for (let x = -2000; x < cityW + 2000; x += 14) {
-            g.moveTo(x, gy + 220); g.lineTo(x + 7, gy + 220);
+            g.moveTo(x, gy + 220);
+            g.lineTo(x + 7, gy + 220);
         }
         g.lineStyle(1, 0xf59e0b, 0.3);
         for (let x = -2000; x < cityW + 2000; x += 14) {
-            g.moveTo(x, gy + 237); g.lineTo(x + 7, gy + 237);
+            g.moveTo(x, gy + 237);
+            g.lineTo(x + 7, gy + 237);
         }
 
         this.overlay.addChild(g);
@@ -229,7 +236,7 @@ const XRayMode = {
         this._dataStreams = [];
         const gy = G.groundY;
 
-        BLDS.forEach(b => {
+        BLDS.forEach((b) => {
             if (!b.w || b.w < 10) return;
             const h = this._getBldH(b);
             const floors = this._getBldFloors(b);
@@ -262,16 +269,25 @@ const XRayMode = {
             wf.lineStyle(0.5, labColor, 0.25);
             for (let f = 1; f < floors; f++) {
                 const fy = gy - f * 18;
-                wf.moveTo(b.x, fy); wf.lineTo(b.x + b.w, fy);
+                wf.moveTo(b.x, fy);
+                wf.lineTo(b.x + b.w, fy);
             }
 
             // Corner brackets
             const bracketLen = Math.min(12, b.w * 0.15);
             wf.lineStyle(2, labColor, 1.0);
-            wf.moveTo(b.x, gy - h + bracketLen); wf.lineTo(b.x, gy - h); wf.lineTo(b.x + bracketLen, gy - h);
-            wf.moveTo(b.x + b.w - bracketLen, gy - h); wf.lineTo(b.x + b.w, gy - h); wf.lineTo(b.x + b.w, gy - h + bracketLen);
-            wf.moveTo(b.x, gy - bracketLen); wf.lineTo(b.x, gy); wf.lineTo(b.x + bracketLen, gy);
-            wf.moveTo(b.x + b.w - bracketLen, gy); wf.lineTo(b.x + b.w, gy); wf.lineTo(b.x + b.w, gy - bracketLen);
+            wf.moveTo(b.x, gy - h + bracketLen);
+            wf.lineTo(b.x, gy - h);
+            wf.lineTo(b.x + bracketLen, gy - h);
+            wf.moveTo(b.x + b.w - bracketLen, gy - h);
+            wf.lineTo(b.x + b.w, gy - h);
+            wf.lineTo(b.x + b.w, gy - h + bracketLen);
+            wf.moveTo(b.x, gy - bracketLen);
+            wf.lineTo(b.x, gy);
+            wf.lineTo(b.x + bracketLen, gy);
+            wf.moveTo(b.x + b.w - bracketLen, gy);
+            wf.lineTo(b.x + b.w, gy);
+            wf.lineTo(b.x + b.w, gy - bracketLen);
 
             // ─── Benchmark score bar (left edge, inside building) ───
             const bmScore = this._getBldBenchmark(b);
@@ -293,7 +309,7 @@ const XRayMode = {
             if (floors >= 5 && b.w >= 40) {
                 const streamCount = Math.min(4, Math.floor(b.w / 40));
                 for (let si = 0; si < streamCount; si++) {
-                    const sx = b.x + b.w * (0.2 + si * 0.6 / Math.max(1, streamCount - 1));
+                    const sx = b.x + b.w * (0.2 + (si * 0.6) / Math.max(1, streamCount - 1));
                     const stream = new PIXI.Graphics();
                     stream._bx = sx;
                     stream._topY = gy - h + 4;
@@ -324,7 +340,7 @@ const XRayMode = {
         const g = new PIXI.Graphics();
         const labGroups = {};
 
-        BLDS.forEach(b => {
+        BLDS.forEach((b) => {
             if (!b.lab) return;
             if (!labGroups[b.lab]) labGroups[b.lab] = [];
             labGroups[b.lab].push(b);
@@ -365,7 +381,7 @@ const XRayMode = {
             ['power_', 0xfbbf24],
         ];
         zonePairs.forEach(([prefix, col]) => {
-            const zoneBlds = BLDS.filter(b => b.id.startsWith(prefix));
+            const zoneBlds = BLDS.filter((b) => b.id.startsWith(prefix));
             for (let i = 0; i < zoneBlds.length - 1; i++) {
                 const a = zoneBlds[i];
                 const bld = zoneBlds[i + 1];
@@ -413,7 +429,7 @@ const XRayMode = {
         const gy = G.groundY;
         this._statLabels = [];
 
-        BLDS.forEach(b => {
+        BLDS.forEach((b) => {
             if (!b.w || b.w < 30) return;
             const h = this._getBldH(b);
             const floors = this._getBldFloors(b);
@@ -423,7 +439,10 @@ const XRayMode = {
             // Building name (use readable name, fallback to id)
             const displayName = b.name || b.id;
             const idLabel = new PIXI.Text(displayName, {
-                fontFamily: 'monospace', fontSize: 7, fill: hexStr, fontWeight: 'bold'
+                fontFamily: 'monospace',
+                fontSize: 7,
+                fill: hexStr,
+                fontWeight: 'bold',
             });
             idLabel.anchor.set(0.5, 1);
             idLabel.x = b.x + b.w / 2;
@@ -447,7 +466,9 @@ const XRayMode = {
 
             if (stats.length > 0) {
                 const statLine = new PIXI.Text(stats.join(' | '), {
-                    fontFamily: 'monospace', fontSize: 6, fill: 0x64748b
+                    fontFamily: 'monospace',
+                    fontSize: 6,
+                    fill: 0x64748b,
                 });
                 statLine.anchor.set(0.5, 1);
                 statLine.x = b.x + b.w / 2;
@@ -471,7 +492,10 @@ const XRayMode = {
                 this.overlay.addChild(badge);
 
                 const countTxt = new PIXI.Text(String(pop), {
-                    fontFamily: 'monospace', fontSize: pop >= 10 ? 6 : 7, fill: hexStr, fontWeight: 'bold'
+                    fontFamily: 'monospace',
+                    fontSize: pop >= 10 ? 6 : 7,
+                    fill: hexStr,
+                    fontWeight: 'bold',
                 });
                 countTxt.anchor.set(0.5, 0.5);
                 countTxt.x = badgeX;
@@ -513,21 +537,28 @@ const XRayMode = {
 
         // Title
         const title = new PIXI.Text('X-RAY DIAGNOSTIC', {
-            fontFamily: 'monospace', fontSize: 9, fill: 0x00ff88, fontWeight: 'bold', letterSpacing: 2
+            fontFamily: 'monospace',
+            fontSize: 9,
+            fill: 0x00ff88,
+            fontWeight: 'bold',
+            letterSpacing: 2,
         });
-        title.x = pad; title.y = y;
+        title.x = pad;
+        title.y = y;
         this._hud.addChild(title);
         y += lineH + 4;
 
         // Separator
         const sep = new PIXI.Graphics();
-        sep.beginFill(0x00ff88, 0.3); sep.drawRect(pad, y, 130, 1); sep.endFill();
+        sep.beginFill(0x00ff88, 0.3);
+        sep.drawRect(pad, y, 130, 1);
+        sep.endFill();
         this._hud.addChild(sep);
         y += 6;
 
         // Live stats (updated each frame)
         const models = G.models || [];
-        const alive = models.filter(m => !m.ret || new Date(m.ret) > new Date()).length;
+        const alive = models.filter((m) => !m.ret || new Date(m.ret) > new Date()).length;
         const labCount = typeof LABS !== 'undefined' ? Object.keys(LABS).length : 0;
         const bldCount = BLDS.length;
 
@@ -539,13 +570,21 @@ const XRayMode = {
 
         // Add benchmark leader if available
         if (typeof BM !== 'undefined') {
-            let topElo = 0, topName = '';
-            models.forEach(m => {
+            let topElo = 0,
+                topName = '';
+            models.forEach((m) => {
                 const elo = BM[m.id]?.ELO || 0;
-                if (elo > topElo) { topElo = elo; topName = m.name; }
+                if (elo > topElo) {
+                    topElo = elo;
+                    topName = m.name;
+                }
             });
             if (topName) {
-                statLines.push({ label: 'TOP ELO', val: topName.split(' ')[0] + ' ' + topElo.toFixed(0), col: 0xef4444 });
+                statLines.push({
+                    label: 'TOP ELO',
+                    val: topName.split(' ')[0] + ' ' + topElo.toFixed(0),
+                    col: 0xef4444,
+                });
             }
         }
 
@@ -553,27 +592,40 @@ const XRayMode = {
         const dp = G.getDayPhase();
         const hours = Math.floor(dp * 24);
         const mins = Math.floor((dp * 24 - hours) * 60);
-        statLines.push({ label: 'TIME', val: String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0'), col: 0x64748b });
+        statLines.push({
+            label: 'TIME',
+            val: String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0'),
+            col: 0x64748b,
+        });
 
-        statLines.forEach(s => {
+        statLines.forEach((s) => {
             const lbl = new PIXI.Text(s.label, {
-                fontFamily: 'monospace', fontSize: 7, fill: 0x475569
+                fontFamily: 'monospace',
+                fontSize: 7,
+                fill: 0x475569,
             });
-            lbl.x = pad; lbl.y = y;
+            lbl.x = pad;
+            lbl.y = y;
             this._hud.addChild(lbl);
 
             const val = new PIXI.Text(s.val, {
-                fontFamily: 'monospace', fontSize: 7, fill: s.col, fontWeight: 'bold'
+                fontFamily: 'monospace',
+                fontSize: 7,
+                fill: s.col,
+                fontWeight: 'bold',
             });
             val.anchor.set(1, 0);
-            val.x = pad + 138; val.y = y;
+            val.x = pad + 138;
+            val.y = y;
             this._hud.addChild(val);
             y += lineH;
         });
 
         y += 4;
         const sep2 = new PIXI.Graphics();
-        sep2.beginFill(0x00ff88, 0.3); sep2.drawRect(pad, y, 130, 1); sep2.endFill();
+        sep2.beginFill(0x00ff88, 0.3);
+        sep2.drawRect(pad, y, 130, 1);
+        sep2.endFill();
         this._hud.addChild(sep2);
         y += 6;
 
@@ -583,14 +635,19 @@ const XRayMode = {
             { col: 0x00ff88, label: 'Population Heat' },
             { col: 0xfbbf24, label: 'Data Flow' },
         ];
-        legendItems.forEach(item => {
+        legendItems.forEach((item) => {
             const dot = new PIXI.Graphics();
-            dot.beginFill(item.col, 0.9); dot.drawCircle(pad + 4, y + 4, 3); dot.endFill();
+            dot.beginFill(item.col, 0.9);
+            dot.drawCircle(pad + 4, y + 4, 3);
+            dot.endFill();
             this._hud.addChild(dot);
             const txt = new PIXI.Text(item.label, {
-                fontFamily: 'monospace', fontSize: 6, fill: 0x94a3b8
+                fontFamily: 'monospace',
+                fontSize: 6,
+                fill: 0x94a3b8,
             });
-            txt.x = pad + 12; txt.y = y;
+            txt.x = pad + 12;
+            txt.y = y;
             this._hud.addChild(txt);
             y += lineH - 2;
         });
@@ -611,25 +668,30 @@ const XRayMode = {
         const fc = G.tick;
 
         // Data flow packets — move along arcs
-        this._dataFlows.forEach(p => {
+        this._dataFlows.forEach((p) => {
             if (!p || p.destroyed) return;
             p._t += p._speed * p._dir;
-            if (p._t > 1) { p._t = 0; }
-            if (p._t < 0) { p._t = 1; }
+            if (p._t > 1) {
+                p._t = 0;
+            }
+            if (p._t < 0) {
+                p._t = 1;
+            }
 
             const t = p._t;
             const ax = p._ax;
             const bx = p._bx;
             const midX = (ax + bx) / 2;
             const x = (1 - t) * (1 - t) * ax + 2 * (1 - t) * t * midX + t * t * bx;
-            const y = (1 - t) * (1 - t) * p._baseY + 2 * (1 - t) * t * (p._baseY - p._arcHeight) + t * t * p._baseY;
+            const y =
+                (1 - t) * (1 - t) * p._baseY + 2 * (1 - t) * t * (p._baseY - p._arcHeight) + t * t * p._baseY;
             p.x = x;
             p.y = y;
             p.alpha = 0.4 + Math.sin(t * Math.PI) * 0.6;
         });
 
         // Pulse rings — breathing effect
-        this._pulseRings.forEach(ring => {
+        this._pulseRings.forEach((ring) => {
             if (!ring || ring.destroyed) return;
             ring.clear();
             ring._phase += 0.03;
@@ -640,7 +702,7 @@ const XRayMode = {
         });
 
         // Vertical data streams inside tall buildings
-        this._dataStreams.forEach(s => {
+        this._dataStreams.forEach((s) => {
             if (!s || s.destroyed) return;
             s.clear();
             s._phase += s._speed;
@@ -648,7 +710,7 @@ const XRayMode = {
             if (streamH <= 0) return;
             // Draw falling dots
             for (let di = 0; di < 5; di++) {
-                const dotY = s._topY + ((s._phase + di * streamH / 5) % streamH);
+                const dotY = s._topY + ((s._phase + (di * streamH) / 5) % streamH);
                 const a = 0.15 + Math.sin(fc * 0.05 + di * 1.3) * 0.15;
                 s.beginFill(s._col, a);
                 s.drawCircle(s._bx, dotY, 1);
@@ -656,7 +718,8 @@ const XRayMode = {
             }
             // Dim vertical line
             s.lineStyle(0.5, s._col, 0.06);
-            s.moveTo(s._bx, s._topY); s.lineTo(s._bx, s._botY);
+            s.moveTo(s._bx, s._topY);
+            s.lineTo(s._bx, s._botY);
         });
 
         // Scan line — sweep up and down
@@ -671,13 +734,16 @@ const XRayMode = {
     _getBldPop(b) {
         if (!G.models) return 0;
         if (b.lab) {
-            return G.models.filter(m => m.lab === b.lab && (!m.ret || new Date(m.ret) > new Date())).length;
+            return G.models.filter((m) => m.lab === b.lab && (!m.ret || new Date(m.ret) > new Date())).length;
         }
         if (b.id.startsWith('res_')) {
             const region = b.id.split('_')[1] || 'eu';
-            return G.models.filter(m => {
+            return G.models.filter((m) => {
                 if (m.ret && new Date(m.ret) <= new Date()) return false;
-                const r = (typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].region) ? LABS[m.lab].region : 'eu';
+                const r =
+                    typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].region
+                        ? LABS[m.lab].region
+                        : 'eu';
                 return r === region;
             }).length;
         }
@@ -687,14 +753,14 @@ const XRayMode = {
     _getBldBenchmark(b) {
         if (!b.lab || typeof BM === 'undefined' || !G.models) return 0;
         let best = 0;
-        G.models.forEach(m => {
+        G.models.forEach((m) => {
             if (m.lab !== b.lab) return;
             if (m.ret && new Date(m.ret) <= new Date()) return;
             const elo = BM[m.id]?.ELO || 0;
             if (elo > best) best = elo;
             if (best === 0) {
                 const bms = BM[m.id] || {};
-                const vals = Object.values(bms).filter(v => typeof v === 'number' && v > 0);
+                const vals = Object.values(bms).filter((v) => typeof v === 'number' && v > 0);
                 if (vals.length > 0) {
                     const avg = vals.reduce((a, c) => a + c, 0) / vals.length;
                     if (avg > best) best = avg;
@@ -730,5 +796,5 @@ const XRayMode = {
             return parseInt(LABS[labId].color.replace('#', ''), 16) || 0x00ff88;
         }
         return 0x00ff88;
-    }
+    },
 };

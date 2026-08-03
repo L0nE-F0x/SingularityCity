@@ -35,7 +35,7 @@ const HNBlimps = {
     async _fetch() {
         try {
             const r = await fetch('/.netlify/functions/hn-ai-stories', {
-                signal: AbortSignal.timeout(8000)
+                signal: AbortSignal.timeout(8000),
             });
             if (!r.ok) throw new Error('hn fetch HTTP ' + r.status);
             const d = await r.json();
@@ -56,7 +56,7 @@ const HNBlimps = {
         this._blimps = [];
 
         const n = Math.min(this.MAX_BLIMPS, this._stories.length);
-        const cityW = (typeof G !== 'undefined' && G.cityW) ? G.cityW : 4000;
+        const cityW = typeof G !== 'undefined' && G.cityW ? G.cityW : 4000;
         for (let i = 0; i < n; i++) {
             const story = this._stories[i];
             const color = this.COLORS[i % this.COLORS.length];
@@ -71,8 +71,8 @@ const HNBlimps = {
 
     _makeBlimp(story, color) {
         const c = new PIXI.Container();
-        const BW = 78;   // body half-width
-        const BH = 17;   // body half-height
+        const BW = 78; // body half-width
+        const BH = 17; // body half-height
 
         // Drop shadow behind hull for depth
         const shadow = new PIXI.Graphics();
@@ -174,7 +174,7 @@ const HNBlimps = {
             fill: color,
             stroke: 0x000000,
             strokeThickness: 1.5,
-            letterSpacing: 0.5
+            letterSpacing: 0.5,
         });
         tickerText.anchor.set(0, 0.5);
         tickerText.x = BW * 0.9;
@@ -210,7 +210,7 @@ const HNBlimps = {
             fontWeight: '700',
             fill: 0xff6600,
             stroke: 0x000000,
-            strokeThickness: 1.5
+            strokeThickness: 1.5,
         });
         tag.anchor.set(1, 0.5);
         tag.x = BW * 0.8;
@@ -231,13 +231,15 @@ const HNBlimps = {
             tickerStartX: BW * 0.9,
             vx: 0.3,
             beaconPhase: Math.random() * Math.PI * 2,
-            glowPhase: Math.random() * Math.PI * 2
+            glowPhase: Math.random() * Math.PI * 2,
         };
     },
 
     _onClick(story) {
         if (typeof SND !== 'undefined' && SND.playTone) {
-            try { SND.playTone(880, 'sine', 0.06, 0.03, 120); } catch (_e) {}
+            try {
+                SND.playTone(880, 'sine', 0.06, 0.03, 120);
+            } catch (_e) {}
         }
         if (typeof G !== 'undefined' && G.unlockAchieve) G.unlockAchieve('hn_read');
         this.showModal(story);
@@ -248,9 +250,10 @@ const HNBlimps = {
         const pan = document.getElementById('hnPan');
         if (!ov || !pan) return;
         const title = this._escape(story.title || 'Untitled');
-        const url = story.url && /^https?:\/\//i.test(story.url)
-            ? story.url
-            : ('https://news.ycombinator.com/item?id=' + story.id);
+        const url =
+            story.url && /^https?:\/\//i.test(story.url)
+                ? story.url
+                : 'https://news.ycombinator.com/item?id=' + story.id;
         const hnThread = 'https://news.ycombinator.com/item?id=' + story.id;
         const safeUrl = safeHref(url); // protocol allowlist — HN story URLs are external input
         const safeThread = this._escape(hnThread);
@@ -276,8 +279,11 @@ const HNBlimps = {
     },
 
     _domainOf(url) {
-        try { return new URL(url).hostname.replace(/^www\./, ''); }
-        catch (_e) { return ''; }
+        try {
+            return new URL(url).hostname.replace(/^www\./, '');
+        } catch (_e) {
+            return '';
+        }
     },
 
     _escape(s) {
@@ -293,7 +299,7 @@ const HNBlimps = {
         }
         if (!this._container || !this._blimps.length) return;
 
-        const cityW = (typeof G !== 'undefined' && G.cityW) ? G.cityW : 4000;
+        const cityW = typeof G !== 'undefined' && G.cityW ? G.cityW : 4000;
         for (const b of this._blimps) {
             b.container.x += b.vx;
             if (b.container.x > cityW + 140) b.container.x = -140;
@@ -318,5 +324,5 @@ const HNBlimps = {
                 b.glow.alpha = 0.7 + 0.3 * Math.sin(b.glowPhase);
             }
         }
-    }
+    },
 };

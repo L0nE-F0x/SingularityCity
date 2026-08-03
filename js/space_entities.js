@@ -4,33 +4,32 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const SpaceEntities = {
-    rockets: {},      // keyed by pad building id
-    particles: [],    // smoke/flame particles
+    rockets: {}, // keyed by pad building id
+    particles: [], // smoke/flame particles
     particlePool: [], // recycled particle graphics
     countdownTexts: {},
-    layer: null,      // PIXI container for all space entities
-    
+    layer: null, // PIXI container for all space entities
+
     init(carLayer) {
         this.layer = new PIXI.Container();
         carLayer.addChild(this.layer);
-        
+
         // Create a rocket entity for each launch pad
-        BLDS.forEach(b => {
+        BLDS.forEach((b) => {
             if (b.type === 'launchpad' && b.org) {
                 this.createRocket(b);
             }
         });
-        
     },
-    
+
     createRocket(padBld) {
         const org = SPACE_ORGS[padBld.org];
         if (!org) return;
-        
+
         const colHex = parseInt(org.color.slice(1), 16);
         const cont = new PIXI.Container();
         cont.sortableChildren = true;
-        
+
         // Rocket body — the org's real-world flagship vehicle (shared silhouette lib)
         const body = new PIXI.Graphics();
         if (typeof SpaceRockets !== 'undefined') {
@@ -45,8 +44,8 @@ const SpaceEntities = {
         }
         body.zIndex = 10;
         cont.addChild(body);
-        const vehHeight = (typeof SpaceRockets !== 'undefined') ? SpaceRockets.height(padBld.org) : 58;
-        
+        const vehHeight = typeof SpaceRockets !== 'undefined' ? SpaceRockets.height(padBld.org) : 58;
+
         // Flame container (visible during ignition/liftoff)
         const flame = new PIXI.Container();
         flame.visible = false;
@@ -74,7 +73,7 @@ const SpaceEntities = {
             fontWeight: 'bold',
             align: 'center',
             stroke: 0x000000,
-            strokeThickness: 3
+            strokeThickness: 3,
         });
         countdownTxt.anchor.set(0.5, 1);
         countdownTxt.y = -(vehHeight + 10); // above rocket nose
@@ -108,26 +107,26 @@ const SpaceEntities = {
             baseX: cont.x,
             ascentSpeed: 0,
             shakeIntensity: 0,
-            trailParticles: []
+            trailParticles: [],
         };
 
         this.rockets[padBld.id] = rocket;
         this.countdownTexts[padBld.id] = countdownTxt;
     },
-    
+
     // ─── Match real launches to pads ───
     matchLaunchesToPads() {
         if (typeof SpaceData === 'undefined' || !SpaceData.launches.length) return;
 
         const now = new Date();
 
-        Object.values(this.rockets).forEach(r => {
+        Object.values(this.rockets).forEach((r) => {
             // Skip if mid-flight — don't reassign once a launch is in progress
             const inFlight = ['ignition', 'liftoff', 'ascending', 'orbit', 'resetting'].includes(r.state);
             if (inFlight) return;
 
             const orgKey = r.org;
-            const match = SpaceData.launches.find(l => {
+            const match = SpaceData.launches.find((l) => {
                 const provider = SpaceData.getOrgForProvider(l.provider);
                 const diff = new Date(l.net) - now;
                 return provider === orgKey && diff > -300000; // future or within 5 min past
@@ -178,7 +177,7 @@ const SpaceEntities = {
             UI.addToast(`🚀 T-${label} · ${launch.name} · head to Space Zone`);
         }
     },
-    
+
     // ─── Manual launch trigger (for demo / when API reports T-0) ───
     triggerLaunch(padId) {
         const r = this.rockets[padId];
@@ -197,15 +196,15 @@ const SpaceEntities = {
             UI.addToast(`🚀 LAUNCH: ${name}`);
         }
     },
-    
+
     // ─── Simulate a launch on a random pad (for visual testing / demo) ───
     triggerRandomLaunch() {
-        const idle = Object.values(this.rockets).filter(r => r.state === 'idle');
+        const idle = Object.values(this.rockets).filter((r) => r.state === 'idle');
         if (idle.length === 0) return;
         const pick = idle[Math.floor(Math.random() * idle.length)];
         this.triggerLaunch(pick.padId);
     },
-    
+
     // ─── Spawn a particle ───
     spawnParticle(x, y, type, color) {
         let g;
@@ -217,10 +216,10 @@ const SpaceEntities = {
             g = new PIXI.Graphics();
             this.layer.addChild(g);
         }
-        
+
         const size = type === 'smoke' ? 3 + Math.random() * 6 : 2 + Math.random() * 4;
         const alpha = type === 'smoke' ? 0.3 + Math.random() * 0.3 : 0.7 + Math.random() * 0.3;
-        
+
         g.beginFill(color, alpha);
         g.drawCircle(0, 0, size);
         g.endFill();
@@ -229,24 +228,24 @@ const SpaceEntities = {
         } else {
             g.blendMode = PIXI.BLEND_MODES.NORMAL;
         }
-        
+
         g.x = x;
         g.y = y;
         g.zIndex = type === 'smoke' ? 1 : 3;
-        
+
         const particle = {
             g,
             vx: (Math.random() - 0.5) * (type === 'smoke' ? 3 : 1.5),
             vy: type === 'smoke' ? 0.5 + Math.random() * 1.5 : -1 - Math.random() * 2,
             life: type === 'smoke' ? 60 + Math.random() * 60 : 20 + Math.random() * 30,
             maxLife: 0,
-            type
+            type,
         };
         particle.maxLife = particle.life;
-        
+
         this.particles.push(particle);
     },
-    
+
     // ─── Draw animated flame on rocket ───
     drawFlame(rocket, intensity) {
         const f = rocket.flame;
@@ -265,31 +264,26 @@ const SpaceEntities = {
         // Outer flame (orange-red)
         flameGfx.beginFill(0xef4444, 0.8);
         flameGfx.drawPolygon([
-            -6 - intensity * 2, 0,
-            0, h + Math.sin(G.tick * 0.3) * 5,
-            6 + intensity * 2, 0
+            -6 - intensity * 2,
+            0,
+            0,
+            h + Math.sin(G.tick * 0.3) * 5,
+            6 + intensity * 2,
+            0,
         ]);
         flameGfx.endFill();
 
         // Inner flame (yellow-white)
         flameGfx.beginFill(0xfbbf24, 0.9);
-        flameGfx.drawPolygon([
-            -3 - intensity, 0,
-            0, h * 0.6 + Math.sin(G.tick * 0.5) * 3,
-            3 + intensity, 0
-        ]);
+        flameGfx.drawPolygon([-3 - intensity, 0, 0, h * 0.6 + Math.sin(G.tick * 0.5) * 3, 3 + intensity, 0]);
         flameGfx.endFill();
 
         // Core (white hot)
         flameGfx.beginFill(0xffffff, 0.7);
-        flameGfx.drawPolygon([
-            -1, 0,
-            0, h * 0.3 + Math.sin(G.tick * 0.7) * 2,
-            1, 0
-        ]);
+        flameGfx.drawPolygon([-1, 0, 0, h * 0.3 + Math.sin(G.tick * 0.7) * 2, 1, 0]);
         flameGfx.endFill();
     },
-    
+
     // ─── Main update loop — called every frame ───
     update() {
         if (!this.layer) return;
@@ -300,16 +294,16 @@ const SpaceEntities = {
         }
 
         // Sweep the tracking-station scan dishes across the sky (side-view radar).
-        if (!this._trackBlds) this._trackBlds = (window.BLDS || []).filter(b => b.type === 'tracking');
+        if (!this._trackBlds) this._trackBlds = (window.BLDS || []).filter((b) => b.type === 'tracking');
         for (let i = 0; i < this._trackBlds.length; i++) {
             const tb = this._trackBlds[i];
             if (tb._scanDish && !tb._scanDish.destroyed) {
                 tb._scanDish.rotation = Math.sin(G.tick * 0.012 + tb.x * 0.01) * 0.6;
             }
         }
-        
+
         // Update each rocket
-        Object.values(this.rockets).forEach(r => {
+        Object.values(this.rockets).forEach((r) => {
             switch (r.state) {
                 case 'idle': {
                     r.cont.x = r.baseX;
@@ -370,7 +364,12 @@ const SpaceEntities = {
 
                     // Vapor venting at base — slow, sparse white puffs
                     if (G.tick % 25 === 0) {
-                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 10, r.baseY - 6, 'smoke', 0xe2e8f0);
+                        this.spawnParticle(
+                            r.baseX + (Math.random() - 0.5) * 10,
+                            r.baseY - 6,
+                            'smoke',
+                            0xe2e8f0
+                        );
                     }
 
                     // Transition to countdown if NET drops under 60 sec
@@ -401,7 +400,7 @@ const SpaceEntities = {
 
                     // Fast strobe beacon
                     r.beacon.visible = true;
-                    const stroboscope = (G.tick % 20 < 10) ? 1 : 0.2;
+                    const stroboscope = G.tick % 20 < 10 ? 1 : 0.2;
                     r.beacon.clear();
                     r.beacon.beginFill(0xef4444, stroboscope);
                     r.beacon.drawCircle(-12, -(r.vehH + 8), 4);
@@ -416,7 +415,12 @@ const SpaceEntities = {
 
                     // Heavier vapor + occasional flame puff at base
                     if (G.tick % 5 === 0) {
-                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 14, r.baseY - 4, 'smoke', 0xcbd5e1);
+                        this.spawnParticle(
+                            r.baseX + (Math.random() - 0.5) * 14,
+                            r.baseY - 4,
+                            'smoke',
+                            0xcbd5e1
+                        );
                     }
                     if (secs < 15 && G.tick % 8 === 0) {
                         this.spawnParticle(r.baseX + (Math.random() - 0.5) * 6, r.baseY, 'flame', 0xfbbf24);
@@ -438,16 +442,26 @@ const SpaceEntities = {
                     r.cont.x = r.baseX + (Math.random() - 0.5) * r.shakeIntensity;
                     r.shakeIntensity = Math.min(4, r.shakeIntensity + 0.02);
 
-                    const ignitionProgress = 1 - (r.timer / 180);
+                    const ignitionProgress = 1 - r.timer / 180;
                     this.drawFlame(r, ignitionProgress * 2.2);
 
                     // Massive smoke plume + flame jets
                     if (G.tick % 2 === 0) {
-                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 18, r.baseY + 4, 'smoke', 0x94a3b8);
+                        this.spawnParticle(
+                            r.baseX + (Math.random() - 0.5) * 18,
+                            r.baseY + 4,
+                            'smoke',
+                            0x94a3b8
+                        );
                         this.spawnParticle(r.baseX + (Math.random() - 0.5) * 8, r.baseY, 'flame', 0xfbbf24);
                     }
                     if (G.tick % 3 === 0) {
-                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 24, r.baseY + 2, 'smoke', 0xe5e7eb);
+                        this.spawnParticle(
+                            r.baseX + (Math.random() - 0.5) * 24,
+                            r.baseY + 2,
+                            'smoke',
+                            0xe5e7eb
+                        );
                     }
 
                     // Spotlight blazing
@@ -484,12 +498,26 @@ const SpaceEntities = {
 
                     // Heavy smoke at pad + flame at exhaust
                     if (G.tick % 2 === 0) {
-                        this.spawnParticle(r.baseX + (Math.random() - 0.5) * 16, r.baseY + 4, 'smoke', 0x94a3b8);
-                        this.spawnParticle(r.cont.x + (Math.random() - 0.5) * 6, r.cont.y + 4, 'flame',
-                            Math.random() > 0.5 ? 0xfbbf24 : 0xef4444);
+                        this.spawnParticle(
+                            r.baseX + (Math.random() - 0.5) * 16,
+                            r.baseY + 4,
+                            'smoke',
+                            0x94a3b8
+                        );
+                        this.spawnParticle(
+                            r.cont.x + (Math.random() - 0.5) * 6,
+                            r.cont.y + 4,
+                            'flame',
+                            Math.random() > 0.5 ? 0xfbbf24 : 0xef4444
+                        );
                     }
                     if (G.tick % 3 === 0) {
-                        this.spawnParticle(r.cont.x + (Math.random() - 0.5) * 4, r.cont.y + 2, 'smoke', 0xffffff);
+                        this.spawnParticle(
+                            r.cont.x + (Math.random() - 0.5) * 4,
+                            r.cont.y + 2,
+                            'smoke',
+                            0xffffff
+                        );
                     }
 
                     // Switch to ascending once clear of the gantry
@@ -517,10 +545,20 @@ const SpaceEntities = {
                     // Persistent flame + exhaust trail
                     this.drawFlame(r, 2 + Math.sin(G.tick * 0.2) * 0.4);
                     if (G.tick % 3 === 0) {
-                        this.spawnParticle(r.cont.x + (Math.random() - 0.5) * 4, r.cont.y + 4, 'smoke', 0xffffff);
+                        this.spawnParticle(
+                            r.cont.x + (Math.random() - 0.5) * 4,
+                            r.cont.y + 4,
+                            'smoke',
+                            0xffffff
+                        );
                     }
                     if (G.tick % 5 === 0) {
-                        this.spawnParticle(r.cont.x + (Math.random() - 0.5) * 6, r.cont.y + 6, 'flame', 0xfbbf24);
+                        this.spawnParticle(
+                            r.cont.x + (Math.random() - 0.5) * 6,
+                            r.cont.y + 6,
+                            'flame',
+                            0xfbbf24
+                        );
                     }
 
                     if (altitude > 2200 || r.cont.alpha < 0.02) {
@@ -554,7 +592,7 @@ const SpaceEntities = {
                     r.cont.y = r.baseY;
                     r.cont.scale.set(1);
                     r.cont.visible = true;
-                    r.cont.alpha = 1 - (r.timer / 120);
+                    r.cont.alpha = 1 - r.timer / 120;
                     r.flame.visible = false;
                     r.beacon.visible = false;
                     r.spotlight.visible = false;
@@ -574,28 +612,28 @@ const SpaceEntities = {
                 }
             }
         });
-        
+
         // Update particles
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.g.x += p.vx;
             p.g.y += p.vy;
             p.life--;
-            
+
             // Smoke drifts and expands
             if (p.type === 'smoke') {
                 p.vx *= 0.98;
                 p.vy *= 0.97;
                 p.g.scale.set(1 + (1 - p.life / p.maxLife) * 1.5);
             }
-            
+
             p.g.alpha = (p.life / p.maxLife) * 0.6;
-            
+
             if (p.life <= 0) {
                 p.g.visible = false;
                 this.particlePool.push(p.g);
                 this.particles.splice(i, 1);
             }
         }
-    }
+    },
 };

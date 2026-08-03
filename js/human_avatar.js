@@ -22,9 +22,9 @@
 
 const HumanAvatar = {
     SKIN_TONES: [0xfdd7b0, 0xe8b68a, 0xd19867, 0x8b5a3c, 0x5a3823],
-    HAIR_COLS:  [0x2a1a0e, 0x1a1008, 0x4a2e18, 0x8b5a2b, 0xc4a777, 0xd4d4d4, 0x5a3a20],
+    HAIR_COLS: [0x2a1a0e, 0x1a1008, 0x4a2e18, 0x8b5a2b, 0xc4a777, 0xd4d4d4, 0x5a3a20],
     SHIRT_COLS: [0x374151, 0x1e3a8a, 0x064e3b, 0x7c2d12, 0x581c87, 0x525252, 0x0e7490],
-    SUIT_COLS:  [0x1a1a28, 0x14213d, 0x252525, 0x2a1f1f, 0x101020],
+    SUIT_COLS: [0x1a1a28, 0x14213d, 0x252525, 0x2a1f1f, 0x101020],
 
     // Heuristic: NPC names containing "Bot" (case-insensitive) or matching the
     // known synthetic-citizen ids should NOT use the human style.
@@ -44,12 +44,16 @@ const HumanAvatar = {
             h = Math.imul(h, 16777619);
         }
         return () => {
-            h ^= h << 13; h ^= h >>> 17; h ^= h << 5;
+            h ^= h << 13;
+            h ^= h >>> 17;
+            h ^= h << 5;
             return ((h >>> 0) % 10000) / 10000;
         };
     },
 
-    pick(arr, rng) { return arr[Math.floor(rng() * arr.length)]; },
+    pick(arr, rng) {
+        return arr[Math.floor(rng() * arr.length)];
+    },
 
     /**
      * Draw a human avatar onto `parent`. Returns the parts so the caller can
@@ -76,20 +80,21 @@ const HumanAvatar = {
     draw(parent, opts) {
         opts = opts || {};
         const rng = this._seedRng(opts.seed || opts.name || 'human');
-        const skinCol  = (opts.skinColor != null) ? opts.skinColor : this.pick(this.SKIN_TONES, rng);
-        const hairCol  = (opts.hairColor != null) ? opts.hairColor : this.pick(this.HAIR_COLS,  rng);
-        const shirtCol = (opts.shirt != null)     ? opts.shirt     : this.pick(this.SHIRT_COLS, rng);
-        const accent   = (opts.accent != null)    ? opts.accent    : shirtCol;
-        const isSuit   = !!opts.suit;
-        const tieCol   = (opts.tieColor != null) ? opts.tieColor : accent;
+        const skinCol = opts.skinColor != null ? opts.skinColor : this.pick(this.SKIN_TONES, rng);
+        const hairCol = opts.hairColor != null ? opts.hairColor : this.pick(this.HAIR_COLS, rng);
+        const shirtCol = opts.shirt != null ? opts.shirt : this.pick(this.SHIRT_COLS, rng);
+        const accent = opts.accent != null ? opts.accent : shirtCol;
+        const isSuit = !!opts.suit;
+        const tieCol = opts.tieColor != null ? opts.tieColor : accent;
         const trouserCol = isSuit ? 0x0a0a14 : 0x1a1a1a;
         const shoeCol = 0x000000;
 
         // Standard pixel-doll dimensions — keep same proportions as embassy/housing
         // so humans can stand alongside bots without scale mismatches.
-        const bw = 16, h = 32;
+        const bw = 16,
+            h = 32;
         const headH = Math.round(h * 0.38); // ≈12
-        const bodyH = h - headH - 4;        // ≈16
+        const bodyH = h - headH - 4; // ≈16
         const legH = 4;
 
         const cont = new PIXI.Container();
@@ -106,32 +111,65 @@ const HumanAvatar = {
         // ─── Legs (drawn first so the body sits in front) ───
         const lw = Math.max(2, bw * 0.25);
         const legL = new PIXI.Graphics();
-        legL.beginFill(trouserCol); legL.drawRect(-lw / 2, 0, lw, legH); legL.endFill();
-        legL.beginFill(shoeCol);    legL.drawRect(-lw / 2, legH - 1, lw, 1); legL.endFill();
+        legL.beginFill(trouserCol);
+        legL.drawRect(-lw / 2, 0, lw, legH);
+        legL.endFill();
+        legL.beginFill(shoeCol);
+        legL.drawRect(-lw / 2, legH - 1, lw, 1);
+        legL.endFill();
         legL.x = -bw * 0.15;
         const legR = new PIXI.Graphics();
-        legR.beginFill(trouserCol); legR.drawRect(-lw / 2, 0, lw, legH); legR.endFill();
-        legR.beginFill(shoeCol);    legR.drawRect(-lw / 2, legH - 1, lw, 1); legR.endFill();
+        legR.beginFill(trouserCol);
+        legR.drawRect(-lw / 2, 0, lw, legH);
+        legR.endFill();
+        legR.beginFill(shoeCol);
+        legR.drawRect(-lw / 2, legH - 1, lw, 1);
+        legR.endFill();
         legR.x = bw * 0.15;
 
         // ─── Body — drawn in LOCAL coords (y=0..bodyH), positioned via body.y ───
         const body = new PIXI.Graphics();
         if (isSuit) {
             // Suit jacket
-            body.beginFill(shirtCol); body.drawRoundedRect(-bw / 2, 0, bw, bodyH, bw * 0.1); body.endFill();
+            body.beginFill(shirtCol);
+            body.drawRoundedRect(-bw / 2, 0, bw, bodyH, bw * 0.1);
+            body.endFill();
             // White shirt V
-            body.beginFill(0xfffbe8); body.drawPolygon([-bw * 0.15, 0, bw * 0.15, 0, 0, bodyH * 0.5]); body.endFill();
+            body.beginFill(0xfffbe8);
+            body.drawPolygon([-bw * 0.15, 0, bw * 0.15, 0, 0, bodyH * 0.5]);
+            body.endFill();
             // Tie (accent colour)
-            body.beginFill(tieCol); body.drawPolygon([-bw * 0.06, 0, bw * 0.06, 0, bw * 0.035, bodyH * 0.7, -bw * 0.035, bodyH * 0.7]); body.endFill();
+            body.beginFill(tieCol);
+            body.drawPolygon([
+                -bw * 0.06,
+                0,
+                bw * 0.06,
+                0,
+                bw * 0.035,
+                bodyH * 0.7,
+                -bw * 0.035,
+                bodyH * 0.7,
+            ]);
+            body.endFill();
             // Lapels
-            body.beginFill(0x0a0a14); body.drawPolygon([-bw * 0.4, 0, -bw * 0.15, 0, -bw * 0.25, bodyH * 0.45]); body.endFill();
-            body.beginFill(0x0a0a14); body.drawPolygon([bw * 0.4, 0, bw * 0.15, 0, bw * 0.25, bodyH * 0.45]); body.endFill();
+            body.beginFill(0x0a0a14);
+            body.drawPolygon([-bw * 0.4, 0, -bw * 0.15, 0, -bw * 0.25, bodyH * 0.45]);
+            body.endFill();
+            body.beginFill(0x0a0a14);
+            body.drawPolygon([bw * 0.4, 0, bw * 0.15, 0, bw * 0.25, bodyH * 0.45]);
+            body.endFill();
             // Pocket pin (subtle accent)
-            body.beginFill(accent, 0.95); body.drawCircle(-bw * 0.28, bodyH * 0.18, 0.9); body.endFill();
+            body.beginFill(accent, 0.95);
+            body.drawCircle(-bw * 0.28, bodyH * 0.18, 0.9);
+            body.endFill();
         } else {
             // Casual sweater — top highlight strip for a knit feel
-            body.beginFill(shirtCol); body.drawRoundedRect(-bw / 2, 0, bw, bodyH, bw * 0.1); body.endFill();
-            body.beginFill(shirtCol, 0.7); body.drawRect(-bw / 2, 0, bw, 2); body.endFill();
+            body.beginFill(shirtCol);
+            body.drawRoundedRect(-bw / 2, 0, bw, bodyH, bw * 0.1);
+            body.endFill();
+            body.beginFill(shirtCol, 0.7);
+            body.drawRect(-bw / 2, 0, bw, 2);
+            body.endFill();
             // Optional accent stripe across the chest
             if (rng() < 0.35) {
                 body.beginFill(0xffffff, 0.18);
@@ -147,7 +185,7 @@ const HumanAvatar = {
         // `head.y = -h + Math.sin(t)*1.5` continue to work as before.
         const head = new PIXI.Graphics();
         const skullCY = headH * 0.5;
-        const skullR  = headH * 0.5;
+        const skullR = headH * 0.5;
         // Round skull (researcher look)
         head.beginFill(skinCol);
         head.drawCircle(0, skullCY, skullR);
@@ -167,14 +205,15 @@ const HumanAvatar = {
         const eyeY = headH * 0.55;
         head.beginFill(0x1a1a1a);
         head.drawCircle(-headH * 0.18, eyeY, 0.9);
-        head.drawCircle( headH * 0.18, eyeY, 0.9);
+        head.drawCircle(headH * 0.18, eyeY, 0.9);
         head.endFill();
         // Optional round glasses
         if (opts.glasses) {
             head.lineStyle(0.8, 0x1a1a1a, 0.9);
             head.drawCircle(-headH * 0.18, eyeY, 1.6);
-            head.drawCircle( headH * 0.18, eyeY, 1.6);
-            head.moveTo(-headH * 0.05, eyeY); head.lineTo(headH * 0.05, eyeY); // bridge
+            head.drawCircle(headH * 0.18, eyeY, 1.6);
+            head.moveTo(-headH * 0.05, eyeY);
+            head.lineTo(headH * 0.05, eyeY); // bridge
             head.lineStyle(0);
         }
         // Mouth
@@ -189,13 +228,25 @@ const HumanAvatar = {
         }
         // Optional headwear
         if (opts.hat === 'cap') {
-            head.beginFill(0x111827); head.drawRect(-headH * 0.5, -1, headH, 2); head.endFill();
-            head.beginFill(0x111827); head.drawRect(-headH * 0.7, -1, headH * 0.4, 1); head.endFill(); // brim
+            head.beginFill(0x111827);
+            head.drawRect(-headH * 0.5, -1, headH, 2);
+            head.endFill();
+            head.beginFill(0x111827);
+            head.drawRect(-headH * 0.7, -1, headH * 0.4, 1);
+            head.endFill(); // brim
         } else if (opts.hat === 'beret') {
-            head.beginFill(0x7c2d12); head.drawCircle(0, -1, headH * 0.55); head.endFill();
+            head.beginFill(0x7c2d12);
+            head.drawCircle(0, -1, headH * 0.55);
+            head.endFill();
         } else if (opts.hat === 'crown') {
-            head.beginFill(0xfbbf24); head.drawRect(-headH * 0.45, -2, headH * 0.9, 2); head.endFill();
-            head.beginFill(0xfbbf24); head.drawRect(-headH * 0.45, -4, 1.5, 2); head.drawRect(0, -4, 1.5, 2); head.drawRect(headH * 0.45 - 1.5, -4, 1.5, 2); head.endFill();
+            head.beginFill(0xfbbf24);
+            head.drawRect(-headH * 0.45, -2, headH * 0.9, 2);
+            head.endFill();
+            head.beginFill(0xfbbf24);
+            head.drawRect(-headH * 0.45, -4, 1.5, 2);
+            head.drawRect(0, -4, 1.5, 2);
+            head.drawRect(headH * 0.45 - 1.5, -4, 1.5, 2);
+            head.endFill();
         }
         head.y = -h;
 
@@ -203,7 +254,9 @@ const HumanAvatar = {
         let dot = null;
         if (opts.showDot !== false) {
             dot = new PIXI.Graphics();
-            dot.beginFill(accent); dot.drawCircle(0, 0, 2); dot.endFill();
+            dot.beginFill(accent);
+            dot.drawCircle(0, 0, 2);
+            dot.endFill();
             dot.y = -h - 8;
         }
 
@@ -211,7 +264,10 @@ const HumanAvatar = {
         let tag = null;
         if (opts.showTag !== false && opts.name) {
             tag = new PIXI.Text(opts.name, {
-                fontFamily: 'JetBrains Mono', fontSize: 7, fill: accent, fontWeight: 'bold'
+                fontFamily: 'JetBrains Mono',
+                fontSize: 7,
+                fill: accent,
+                fontWeight: 'bold',
             });
             tag.anchor.set(0.5, 1);
             tag.y = -h - 12;
@@ -240,26 +296,166 @@ const HumanAvatar = {
     //   suit             bool      → render suit jacket vs. casual sweater
     //   shirt            0xRRGGBB → jacket / sweater colour
     FOUNDER_LOOKS: {
-        'Sam Altman':       { skin: 0xfdd7b0, hair: 0x4a2e18, glasses: false, beard: false, suit: false, shirt: 0x6b7280 },
-        'Dario Amodei':     { skin: 0xfdd7b0, hair: 0x2a1a0e, glasses: false, beard: true,  suit: false, shirt: 0x374151 },
-        'Demis Hassabis':   { skin: 0xfdd7b0, hair: 0x2a1a0e, glasses: false, beard: false, suit: true,  shirt: 0x14213d },
-        'Mark Zuckerberg':  { skin: 0xfdd7b0, hair: 0x4a2e18, glasses: false, beard: false, suit: false, shirt: 0x9ca3af }, // signature gray tee
-        'Elon Musk':        { skin: 0xfdd7b0, hair: 0x8b5a2b, glasses: false, beard: false, suit: false, shirt: 0x111827 }, // dark tee
-        'Liang Wenfeng':    { skin: 0xe8b68a, hair: 0x1a1008, glasses: true,  beard: false, suit: false, shirt: 0x374151 },
-        'Eddie Wu':         { skin: 0xe8b68a, hair: 0x1a1008, glasses: true,  beard: false, suit: true,  shirt: 0x14213d },
-        'Arthur Mensch':    { skin: 0xfdd7b0, hair: 0x2a1a0e, glasses: false, beard: true,  suit: false, shirt: 0x064e3b },
-        'Najwa Aaraj':      { skin: 0xd19867, hair: 0x1a1008, glasses: false, beard: false, suit: true,  shirt: 0x14213d },
-        'Satya Nadella':    { skin: 0xd19867, hair: 0x1a1008, glasses: true,  beard: false, suit: true,  shirt: 0x1a1a28 },
-        'Jensen Huang':     { skin: 0xe8b68a, hair: 0xd4d4d4, glasses: true,  beard: false, suit: false, shirt: 0x0a0a0a }, // signature leather jacket
-        'Robin Li':         { skin: 0xe8b68a, hair: 0x1a1008, glasses: false, beard: false, suit: true,  shirt: 0x14213d },
-        'Emad Mostaque':    { skin: 0xd19867, hair: 0x1a1008, glasses: false, beard: true,  suit: false, shirt: 0x581c87 },
-        'Aidan Gomez':      { skin: 0xfdd7b0, hair: 0x2a1a0e, glasses: false, beard: false, suit: false, shirt: 0x0e7490 },
-        'Tim Cook':         { skin: 0xfdd7b0, hair: 0xd4d4d4, glasses: false, beard: false, suit: false, shirt: 0x525252 }, // silver hair
-        'Arvind Krishna':   { skin: 0xd19867, hair: 0x1a1008, glasses: true,  beard: false, suit: true,  shirt: 0x14213d },
-        'Ori Goshen':       { skin: 0xe8b68a, hair: 0x2a1a0e, glasses: false, beard: true,  suit: false, shirt: 0x374151 },
-        'Julien Chaumond':  { skin: 0xfdd7b0, hair: 0x4a2e18, glasses: false, beard: false, suit: false, shirt: 0xfbbf24 }, // HF yellow
-        'Andy Jassy':       { skin: 0xfdd7b0, hair: 0x4a2e18, glasses: false, beard: false, suit: true,  shirt: 0x374151 },
-        'Tang Jie':         { skin: 0xe8b68a, hair: 0x1a1008, glasses: true,  beard: false, suit: true,  shirt: 0x14213d },
+        'Sam Altman': {
+            skin: 0xfdd7b0,
+            hair: 0x4a2e18,
+            glasses: false,
+            beard: false,
+            suit: false,
+            shirt: 0x6b7280,
+        },
+        'Dario Amodei': {
+            skin: 0xfdd7b0,
+            hair: 0x2a1a0e,
+            glasses: false,
+            beard: true,
+            suit: false,
+            shirt: 0x374151,
+        },
+        'Demis Hassabis': {
+            skin: 0xfdd7b0,
+            hair: 0x2a1a0e,
+            glasses: false,
+            beard: false,
+            suit: true,
+            shirt: 0x14213d,
+        },
+        'Mark Zuckerberg': {
+            skin: 0xfdd7b0,
+            hair: 0x4a2e18,
+            glasses: false,
+            beard: false,
+            suit: false,
+            shirt: 0x9ca3af,
+        }, // signature gray tee
+        'Elon Musk': {
+            skin: 0xfdd7b0,
+            hair: 0x8b5a2b,
+            glasses: false,
+            beard: false,
+            suit: false,
+            shirt: 0x111827,
+        }, // dark tee
+        'Liang Wenfeng': {
+            skin: 0xe8b68a,
+            hair: 0x1a1008,
+            glasses: true,
+            beard: false,
+            suit: false,
+            shirt: 0x374151,
+        },
+        'Eddie Wu': {
+            skin: 0xe8b68a,
+            hair: 0x1a1008,
+            glasses: true,
+            beard: false,
+            suit: true,
+            shirt: 0x14213d,
+        },
+        'Arthur Mensch': {
+            skin: 0xfdd7b0,
+            hair: 0x2a1a0e,
+            glasses: false,
+            beard: true,
+            suit: false,
+            shirt: 0x064e3b,
+        },
+        'Najwa Aaraj': {
+            skin: 0xd19867,
+            hair: 0x1a1008,
+            glasses: false,
+            beard: false,
+            suit: true,
+            shirt: 0x14213d,
+        },
+        'Satya Nadella': {
+            skin: 0xd19867,
+            hair: 0x1a1008,
+            glasses: true,
+            beard: false,
+            suit: true,
+            shirt: 0x1a1a28,
+        },
+        'Jensen Huang': {
+            skin: 0xe8b68a,
+            hair: 0xd4d4d4,
+            glasses: true,
+            beard: false,
+            suit: false,
+            shirt: 0x0a0a0a,
+        }, // signature leather jacket
+        'Robin Li': {
+            skin: 0xe8b68a,
+            hair: 0x1a1008,
+            glasses: false,
+            beard: false,
+            suit: true,
+            shirt: 0x14213d,
+        },
+        'Emad Mostaque': {
+            skin: 0xd19867,
+            hair: 0x1a1008,
+            glasses: false,
+            beard: true,
+            suit: false,
+            shirt: 0x581c87,
+        },
+        'Aidan Gomez': {
+            skin: 0xfdd7b0,
+            hair: 0x2a1a0e,
+            glasses: false,
+            beard: false,
+            suit: false,
+            shirt: 0x0e7490,
+        },
+        'Tim Cook': {
+            skin: 0xfdd7b0,
+            hair: 0xd4d4d4,
+            glasses: false,
+            beard: false,
+            suit: false,
+            shirt: 0x525252,
+        }, // silver hair
+        'Arvind Krishna': {
+            skin: 0xd19867,
+            hair: 0x1a1008,
+            glasses: true,
+            beard: false,
+            suit: true,
+            shirt: 0x14213d,
+        },
+        'Ori Goshen': {
+            skin: 0xe8b68a,
+            hair: 0x2a1a0e,
+            glasses: false,
+            beard: true,
+            suit: false,
+            shirt: 0x374151,
+        },
+        'Julien Chaumond': {
+            skin: 0xfdd7b0,
+            hair: 0x4a2e18,
+            glasses: false,
+            beard: false,
+            suit: false,
+            shirt: 0xfbbf24,
+        }, // HF yellow
+        'Andy Jassy': {
+            skin: 0xfdd7b0,
+            hair: 0x4a2e18,
+            glasses: false,
+            beard: false,
+            suit: true,
+            shirt: 0x374151,
+        },
+        'Tang Jie': {
+            skin: 0xe8b68a,
+            hair: 0x1a1008,
+            glasses: true,
+            beard: false,
+            suit: true,
+            shirt: 0x14213d,
+        },
     },
 
     lookupFounder(name) {
@@ -273,30 +469,29 @@ const HumanAvatar = {
     drawFounder(parent, founder, opts) {
         opts = opts || {};
         const look = this.lookupFounder(founder && founder.name);
-        const labColHex = (founder && founder.color)
-            ? parseInt(String(founder.color).replace('#', ''), 16)
-            : 0x64748b;
+        const labColHex =
+            founder && founder.color ? parseInt(String(founder.color).replace('#', ''), 16) : 0x64748b;
 
         const merged = Object.assign({}, opts);
-        merged.seed   = opts.seed   || ('founder_' + (founder && founder.name));
-        merged.accent = (opts.accent != null) ? opts.accent : labColHex;
-        merged.name   = (opts.name !== undefined) ? opts.name : (founder && founder.name);
+        merged.seed = opts.seed || 'founder_' + (founder && founder.name);
+        merged.accent = opts.accent != null ? opts.accent : labColHex;
+        merged.name = opts.name !== undefined ? opts.name : founder && founder.name;
 
         if (look) {
             if (merged.skinColor == null) merged.skinColor = look.skin;
             if (merged.hairColor == null) merged.hairColor = look.hair;
-            if (merged.glasses   == null) merged.glasses   = look.glasses;
-            if (merged.beard     == null) merged.beard     = look.beard;
-            if (merged.suit      == null) merged.suit      = look.suit;
-            if (merged.shirt     == null) merged.shirt     = look.shirt;
-            if (merged.tieColor  == null) merged.tieColor  = labColHex;
+            if (merged.glasses == null) merged.glasses = look.glasses;
+            if (merged.beard == null) merged.beard = look.beard;
+            if (merged.suit == null) merged.suit = look.suit;
+            if (merged.shirt == null) merged.shirt = look.shirt;
+            if (merged.tieColor == null) merged.tieColor = labColHex;
         } else {
             // Unknown founder — default to suit so they still read as a CEO
             if (merged.suit == null) merged.suit = true;
             if (merged.tieColor == null) merged.tieColor = labColHex;
         }
         return this.draw(parent, merged);
-    }
+    },
 };
 
 if (typeof window !== 'undefined') window.HumanAvatar = HumanAvatar;

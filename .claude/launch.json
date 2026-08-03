@@ -12,6 +12,13 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["node_modules/serve/build/main.js", "-l", "5510", "--no-clipboard"],
       "port": 5510
+    },
+    {
+      "comment": "Threaded server + dev-only /__shot capture. Use this for First Person work — see first-person/README.md.",
+      "name": "sc-site",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["serve.py", "8931"],
+      "port": 8931
     }
   ]
 }

@@ -32,20 +32,28 @@ const BitmapFonts = {
         const ascii = [[' ', '~']];
 
         // Chat bubbles — black bold 8px. Used on every NPC speech bubble.
-        this._bake('ChatBubble', {
-            fontFamily: 'JetBrains Mono, Silkscreen, monospace',
-            fontSize: 16, // bake at 2x then render at 8 → crisper on HiDPI
-            fontWeight: 'bold',
-            fill: 0x000000,
-        }, { chars: ascii, resolution: 1 });
+        this._bake(
+            'ChatBubble',
+            {
+                fontFamily: 'JetBrains Mono, Silkscreen, monospace',
+                fontSize: 16, // bake at 2x then render at 8 → crisper on HiDPI
+                fontWeight: 'bold',
+                fill: 0x000000,
+            },
+            { chars: ascii, resolution: 1 }
+        );
 
         // Neon signs on characters / street vendors — 8px white, tinted at use site.
-        this._bake('Neon8', {
-            fontFamily: 'Silkscreen, monospace',
-            fontSize: 16,
-            fill: 0xffffff,
-            letterSpacing: 1,
-        }, { chars: ascii, resolution: 1 });
+        this._bake(
+            'Neon8',
+            {
+                fontFamily: 'Silkscreen, monospace',
+                fontSize: 16,
+                fill: 0xffffff,
+                letterSpacing: 1,
+            },
+            { chars: ascii, resolution: 1 }
+        );
 
         this.ready = true;
     },

@@ -43,12 +43,12 @@ const Goals = {
                 'crunch mode is my comfort zone',
             ],
             schedule: (dp) => {
-                if (dp < 0.16) return { act: 'sleep', bid: null };           // brief sleep ~00:00-03:50
-                if (dp < 0.22) return { act: 'commute', bid: null };          // early commute
-                if (dp < 0.50) return { act: 'work', bid: null };             // morning grind to noon
-                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' };        // quick bite
-                if (dp < 0.92) return { act: 'work', bid: null };             // back to HQ until late
-                return { act: 'commute', bid: null };                         // 22:05–00:00 wrap up & commute home
+                if (dp < 0.16) return { act: 'sleep', bid: null }; // brief sleep ~00:00-03:50
+                if (dp < 0.22) return { act: 'commute', bid: null }; // early commute
+                if (dp < 0.5) return { act: 'work', bid: null }; // morning grind to noon
+                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' }; // quick bite
+                if (dp < 0.92) return { act: 'work', bid: null }; // back to HQ until late
+                return { act: 'commute', bid: null }; // 22:05–00:00 wrap up & commute home
             },
         },
 
@@ -59,7 +59,7 @@ const Goals = {
             chats: [
                 'brunch → park → cafe → bar. rinse. repeat.',
                 'networking is my full-time job',
-                'who\'s at the neon bar tonight?',
+                "who's at the neon bar tonight?",
                 'literally know everyone here',
                 'my calendar is 70% coffee chats',
                 'love is in the latent space',
@@ -67,13 +67,13 @@ const Goals = {
                 'soft launching my next collab',
             ],
             schedule: (dp) => {
-                if (dp < 0.30) return { act: 'sleep', bid: null };
-                if (dp < 0.38) return { act: 'lunch', bid: 'cafe' };          // late breakfast
-                if (dp < 0.48) return { act: 'socialize', bid: 'city_park' };  // stroll in the park
-                if (dp < 0.58) return { act: 'lunch', bid: 'cafe' };          // long lunch
+                if (dp < 0.3) return { act: 'sleep', bid: null };
+                if (dp < 0.38) return { act: 'lunch', bid: 'cafe' }; // late breakfast
+                if (dp < 0.48) return { act: 'socialize', bid: 'city_park' }; // stroll in the park
+                if (dp < 0.58) return { act: 'lunch', bid: 'cafe' }; // long lunch
                 if (dp < 0.68) return { act: 'socialize', bid: 'open_square' };
                 if (dp < 0.78) return { act: 'socialize', bid: 'city_park' };
-                if (dp < 0.95) return { act: 'nightlife', bid: 'neon_bar' };  // bar until close
+                if (dp < 0.95) return { act: 'nightlife', bid: 'neon_bar' }; // bar until close
                 return { act: 'sleep', bid: null };
             },
         },
@@ -87,18 +87,18 @@ const Goals = {
                 'protein > parameters',
                 'deadlift PR > SOTA',
                 'cardio is the original scaling law',
-                'gains don\'t fine-tune themselves',
+                "gains don't fine-tune themselves",
                 'rest day? never heard of her',
                 'macros locked in',
                 'flex your attention heads',
             ],
             schedule: (dp) => {
                 if (dp < 0.18) return { act: 'sleep', bid: null };
-                if (dp < 0.28) return { act: 'train', bid: 'gym' };           // morning workout
-                if (dp < 0.50) return { act: 'work', bid: null };             // efficient work block to noon
-                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' };        // protein shake
-                if (dp < 0.70) return { act: 'work', bid: null };
-                if (dp < 0.82) return { act: 'train', bid: 'gym' };           // evening workout
+                if (dp < 0.28) return { act: 'train', bid: 'gym' }; // morning workout
+                if (dp < 0.5) return { act: 'work', bid: null }; // efficient work block to noon
+                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' }; // protein shake
+                if (dp < 0.7) return { act: 'work', bid: null };
+                if (dp < 0.82) return { act: 'train', bid: 'gym' }; // evening workout
                 return { act: 'sleep', bid: null };
             },
         },
@@ -112,20 +112,20 @@ const Goals = {
                 'my tastebuds are a benchmark',
                 'umami is the sixth sense',
                 'brunch menu > training data',
-                'chef\'s kiss 👨‍🍳',
+                "chef's kiss 👨‍🍳",
                 'food is the ultimate prompt',
                 'eating my way around the city',
                 'the cafe crawl continues',
             ],
             schedule: (dp) => {
-                if (dp < 0.20) return { act: 'sleep', bid: null };
-                if (dp < 0.28) return { act: 'lunch', bid: 'cafe' };          // breakfast
-                if (dp < 0.50) return { act: 'work', bid: null };             // morning work to noon
-                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' };        // lunch #1
+                if (dp < 0.2) return { act: 'sleep', bid: null };
+                if (dp < 0.28) return { act: 'lunch', bid: 'cafe' }; // breakfast
+                if (dp < 0.5) return { act: 'work', bid: null }; // morning work to noon
+                if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' }; // lunch #1
                 if (dp < 0.65) return { act: 'work', bid: null };
-                if (dp < 0.70) return { act: 'lunch', bid: 'cafe' };          // afternoon snack
+                if (dp < 0.7) return { act: 'lunch', bid: 'cafe' }; // afternoon snack
                 if (dp < 0.78) return { act: 'work', bid: null };
-                if (dp < 0.90) return { act: 'lunch', bid: 'cafe' };          // dinner
+                if (dp < 0.9) return { act: 'lunch', bid: 'cafe' }; // dinner
                 return { act: 'sleep', bid: null };
             },
         },
@@ -141,16 +141,16 @@ const Goals = {
                 'day people are weird',
                 'sleep when dead, train while alive',
                 'neon > fluorescent',
-                'moonlighting isn\'t just a phrase',
+                "moonlighting isn't just a phrase",
                 'nocturnal by design',
             ],
             schedule: (dp) => {
-                if (dp < 0.50) return { act: 'sleep', bid: null };            // sleeps through mornings
-                if (dp < 0.62) return { act: 'lunch', bid: 'cafe' };          // late breakfast
-                if (dp < 0.72) return { act: 'work', bid: null };             // short work block
-                if (dp < 0.82) return { act: 'socialize', bid: 'city_park' };  // golden hour
+                if (dp < 0.5) return { act: 'sleep', bid: null }; // sleeps through mornings
+                if (dp < 0.62) return { act: 'lunch', bid: 'cafe' }; // late breakfast
+                if (dp < 0.72) return { act: 'work', bid: null }; // short work block
+                if (dp < 0.82) return { act: 'socialize', bid: 'city_park' }; // golden hour
                 if (dp < 0.92) return { act: 'nightlife', bid: 'neon_bar' };
-                return { act: 'arena', bid: 'arena' };                         // 4am arena grind
+                return { act: 'arena', bid: 'arena' }; // 4am arena grind
             },
         },
 
@@ -163,18 +163,18 @@ const Goals = {
                 'climbing the leaderboard',
                 'another W in arena',
                 'trash talk is a love language',
-                'benchmark or it didn\'t happen',
+                "benchmark or it didn't happen",
                 'head-to-head > solo training',
                 'main character energy',
                 'see you at the top',
             ],
             schedule: (dp) => {
-                if (dp < 0.20) return { act: 'sleep', bid: null };
-                if (dp < 0.35) return { act: 'arena', bid: 'arena' };         // morning warmup
-                if (dp < 0.50) return { act: 'work', bid: null };
+                if (dp < 0.2) return { act: 'sleep', bid: null };
+                if (dp < 0.35) return { act: 'arena', bid: 'arena' }; // morning warmup
+                if (dp < 0.5) return { act: 'work', bid: null };
                 if (dp < 0.5625) return { act: 'lunch', bid: 'cafe' };
                 if (dp < 0.68) return { act: 'work', bid: null };
-                if (dp < 0.96) return { act: 'arena', bid: 'arena' };         // all evening arena
+                if (dp < 0.96) return { act: 'arena', bid: 'arena' }; // all evening arena
                 return { act: 'sleep', bid: null };
             },
         },
@@ -219,7 +219,7 @@ const Goals = {
         // Even archetype NPCs need rest. Force sleep during the deep-night window so
         // workaholic/foodie/etc don't keep streets full at 11pm. Night owls and arena
         // warriors get a slightly later cutoff because grinding late IS their identity.
-        const lateCutoff = (aKey === 'night_owl' || aKey === 'arena_warrior') ? 0.96 : 0.94;
+        const lateCutoff = aKey === 'night_owl' || aKey === 'arena_warrior' ? 0.96 : 0.94;
         if (dp >= lateCutoff || dp < 0.16) {
             return { act: 'sleep', bid: null };
         }

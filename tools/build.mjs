@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* ════════════════════════════════════════════════════════════════════════════════
+/* ============================================================================
    BUILD SCRIPT — Minify JS + CSS for production deploy
 
    Runs as Netlify build command. Minifies files IN-PLACE which is safe because
@@ -15,7 +15,11 @@
    the main win (~1.75 MB saved) and Netlify serves everything gzip/brotli over
    HTTP/2, which multiplexes the request count away — so bundling's marginal
    benefit isn't worth the fragility. Keep dev unbundled; ship minified.
-   ════════════════════════════════════════════════════════════════════════════════ */
+
+   First Person lives under first-person/ as ESM modules (with nested interiors/
+   and store/). Those trees are minified recursively. Vendored three.js under
+   first-person/lib/ is left alone — it is already a production build.
+   ============================================================================ */
 
 import { readdir, readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
@@ -23,17 +27,41 @@ import esbuild from 'esbuild';
 
 const ROOT = process.cwd();
 
-async function minifyDir(dir, loader) {
+/**
+ * Collect every file under `dir` whose name ends with `ext`.
+ * Non-recursive when recursive=false (classic js/ and css/ layout).
+ */
+async function listFiles(dir, ext, recursive) {
     const fullDir = join(ROOT, dir);
-    let files;
-    try { files = await readdir(fullDir); } catch { return { count: 0, saved: 0 }; }
+    let entries;
+    try {
+        entries = await readdir(fullDir, { withFileTypes: true });
+    } catch {
+        return [];
+    }
 
-    let count = 0, saved = 0;
-    const ext = loader === 'js' ? '.js' : '.css';
+    const out = [];
+    for (const entry of entries) {
+        const rel = join(dir, entry.name);
+        if (entry.isDirectory()) {
+            if (recursive) {
+                out.push(...(await listFiles(rel, ext, true)));
+            }
+            continue;
+        }
+        if (entry.isFile() && entry.name.endsWith(ext)) {
+            out.push(rel);
+        }
+    }
+    return out;
+}
 
-    for (const file of files) {
-        if (!file.endsWith(ext)) continue;
-        const filePath = join(fullDir, file);
+async function minifyPaths(paths, loader) {
+    let count = 0;
+    let saved = 0;
+
+    for (const rel of paths) {
+        const filePath = join(ROOT, rel);
         const original = await readFile(filePath, 'utf8');
         const originalSize = Buffer.byteLength(original, 'utf8');
 
@@ -47,23 +75,39 @@ async function minifyDir(dir, loader) {
             saved += originalSize - newSize;
             count++;
         } catch (e) {
-            console.warn(`  ⚠ Skipped ${file}: ${e.message}`);
+            console.warn(`  ⚠ Skipped ${rel}: ${e.message}`);
         }
     }
     return { count, saved };
 }
 
-function fmtKB(bytes) { return (bytes / 1024).toFixed(0) + ' KB'; }
+async function minifyDir(dir, loader, { recursive = false } = {}) {
+    const ext = loader === 'js' ? '.js' : '.css';
+    const paths = await listFiles(dir, ext, recursive);
+    return minifyPaths(paths, loader);
+}
 
-console.log('🔧 Singularity City — Production Build');
-console.log('─'.repeat(50));
+function fmtKB(bytes) {
+    return (bytes / 1024).toFixed(0) + ' KB';
+}
+
+console.log('Singularity City — Production Build');
+console.log('-'.repeat(50));
 
 const js = await minifyDir('js', 'js');
-console.log(`  ✅ Minified ${js.count} JS files  (saved ${fmtKB(js.saved)})`);
+console.log(`  Minified ${js.count} JS files  (saved ${fmtKB(js.saved)})`);
 
 const css = await minifyDir('css', 'css');
-console.log(`  ✅ Minified ${css.count} CSS files (saved ${fmtKB(css.saved)})`);
+console.log(`  Minified ${css.count} CSS files (saved ${fmtKB(css.saved)})`);
 
-console.log('─'.repeat(50));
-console.log(`  📦 Total savings: ${fmtKB(js.saved + css.saved)}`);
-console.log('  🚀 Build complete — ready for deploy');
+// First Person: recursive ESM tree. Do not touch first-person/lib (vendored three).
+const fpJs = await minifyDir('first-person/js', 'js', { recursive: true });
+console.log(`  Minified ${fpJs.count} First Person JS files  (saved ${fmtKB(fpJs.saved)})`);
+
+const fpCss = await minifyDir('first-person/css', 'css', { recursive: true });
+console.log(`  Minified ${fpCss.count} First Person CSS files (saved ${fmtKB(fpCss.saved)})`);
+
+const totalSaved = js.saved + css.saved + fpJs.saved + fpCss.saved;
+console.log('-'.repeat(50));
+console.log(`  Total savings: ${fmtKB(totalSaved)}`);
+console.log('  Build complete — ready for deploy');

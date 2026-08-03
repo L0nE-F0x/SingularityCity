@@ -48,8 +48,10 @@ class CityElevator {
             let rightDoor = new PIXI.Graphics();
             this.drawDoor(leftDoor, true);
             this.drawDoor(rightDoor, false);
-            leftDoor.x = this.x; leftDoor.y = fy;
-            rightDoor.x = this.x; rightDoor.y = fy;
+            leftDoor.x = this.x;
+            leftDoor.y = fy;
+            rightDoor.x = this.x;
+            rightDoor.y = fy;
 
             this.layer.addChild(leftDoor, rightDoor);
 
@@ -64,7 +66,11 @@ class CityElevator {
                 const maxW = 36;
                 const spacing = Math.min(6, maxW / totalFloors);
                 const lightIdx = j + 1;
-                l.drawCircle((lightIdx - totalFloors / 2) * spacing + (spacing / 2), 0, Math.min(1.5, spacing / 3));
+                l.drawCircle(
+                    (lightIdx - totalFloors / 2) * spacing + spacing / 2,
+                    0,
+                    Math.min(1.5, spacing / 3)
+                );
                 l.endFill();
                 floorLights.push(l);
                 lightContainer.addChild(l);
@@ -76,7 +82,7 @@ class CityElevator {
                 right: rightDoor,
                 openAmt: 0,
                 lights: floorLights,
-                floorNum: i
+                floorNum: i,
             });
         }
     }
@@ -100,7 +106,10 @@ class CityElevator {
     }
 
     update() {
-        if (this.destroyed || !this.car || this.car.destroyed) { this.destroyed = true; return; }
+        if (this.destroyed || !this.car || this.car.destroyed) {
+            this.destroyed = true;
+            return;
+        }
         let currentPassingFloor = -Math.round(this.car.y / this.floorHeight);
         const totalFloors = this.numFloors + 1;
         const maxW = 36;
@@ -115,7 +124,11 @@ class CityElevator {
                 } else {
                     light.beginFill(0x222222);
                 }
-                light.drawCircle((lightIdx - totalFloors / 2) * spacing + (spacing / 2), 0, Math.min(1.5, spacing / 3));
+                light.drawCircle(
+                    (lightIdx - totalFloors / 2) * spacing + spacing / 2,
+                    0,
+                    Math.min(1.5, spacing / 3)
+                );
                 light.endFill();
             });
         });
@@ -129,8 +142,7 @@ class CityElevator {
                     this.state = 'moving';
                 }
             }
-        }
-        else if (this.state === 'moving') {
+        } else if (this.state === 'moving') {
             let targetY = -this.targetFloor * this.floorHeight;
             let dir = Math.sign(targetY - this.car.y);
             this.car.y += dir * this.speed;
@@ -140,8 +152,7 @@ class CityElevator {
                 this.currentFloor = this.targetFloor;
                 this.state = 'opening';
             }
-        }
-        else if (this.state === 'opening') {
+        } else if (this.state === 'opening') {
             let door = this.doors[this.currentFloor + 1];
             door.openAmt += 0.05;
             if (door.openAmt >= 1) {
@@ -150,14 +161,12 @@ class CityElevator {
                 this.timer = 90;
             }
             this.updateDoorVisuals(door);
-        }
-        else if (this.state === 'open') {
+        } else if (this.state === 'open') {
             this.timer--;
             if (this.timer <= 0) {
                 this.state = 'closing';
             }
-        }
-        else if (this.state === 'closing') {
+        } else if (this.state === 'closing') {
             let door = this.doors[this.currentFloor + 1];
             door.openAmt -= 0.05;
             if (door.openAmt <= 0) {
@@ -169,8 +178,8 @@ class CityElevator {
     }
 
     updateDoorVisuals(door) {
-        door.left.x = this.x - (door.openAmt * this.doorWidth * 0.9);
-        door.right.x = this.x + (door.openAmt * this.doorWidth * 0.9);
+        door.left.x = this.x - door.openAmt * this.doorWidth * 0.9;
+        door.right.x = this.x + door.openAmt * this.doorWidth * 0.9;
     }
 
     destroy() {
@@ -181,10 +190,13 @@ class CityElevator {
         if (this.car && !this.car.destroyed) this.car.destroy();
         this.car = null;
         if (this.doors) {
-            this.doors.forEach(d => {
+            this.doors.forEach((d) => {
                 if (d.left && !d.left.destroyed) d.left.destroy();
                 if (d.right && !d.right.destroyed) d.right.destroy();
-                if (d.lights) d.lights.forEach(l => { if (l && !l.destroyed) l.destroy(); });
+                if (d.lights)
+                    d.lights.forEach((l) => {
+                        if (l && !l.destroyed) l.destroy();
+                    });
             });
             this.doors = [];
         }

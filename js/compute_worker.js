@@ -3,7 +3,7 @@
    Off-main-thread model data aggregation — eliminates redundant array scans from the game loop
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-self.onmessage = function(e) {
+self.onmessage = function (e) {
     const { type, payload } = e.data;
     if (type === 'crunch') {
         self.postMessage({ type: 'crunched', payload: crunch(payload) });
@@ -24,7 +24,9 @@ function crunch({ models, benchmarks, costs, labRegions }) {
     const now = Date.now();
 
     // ─── Global counters (HUD stats) ───
-    let alive = 0, discovered = 0, training = 0;
+    let alive = 0,
+        discovered = 0,
+        training = 0;
     const labSet = new Set();
 
     // ─── Per-lab aggregation ───
@@ -32,8 +34,10 @@ function crunch({ models, benchmarks, costs, labRegions }) {
     const perLab = {};
 
     // ─── Global leaders ───
-    let topElo = 0, topLab = null;
-    let lowestCost = Infinity, cheapestLab = null;
+    let topElo = 0,
+        topLab = null;
+    let lowestCost = Infinity,
+        cheapestLab = null;
 
     // ─── Per-region active counts ───
     const perRegion = {};
@@ -70,10 +74,14 @@ function crunch({ models, benchmarks, costs, labRegions }) {
             }
             if (score === 0) {
                 const keys = Object.keys(bm);
-                let sum = 0, cnt = 0;
+                let sum = 0,
+                    cnt = 0;
                 for (let k = 0; k < keys.length; k++) {
                     const v = bm[keys[k]];
-                    if (typeof v === 'number' && v > 0) { sum += v; cnt++; }
+                    if (typeof v === 'number' && v > 0) {
+                        sum += v;
+                        cnt++;
+                    }
                 }
                 if (cnt > 0) score = sum / cnt;
             }
@@ -83,7 +91,10 @@ function crunch({ models, benchmarks, costs, labRegions }) {
             }
 
             // Global top ELO
-            if (bm.ELO && bm.ELO > topElo) { topElo = bm.ELO; topLab = m.lab; }
+            if (bm.ELO && bm.ELO > topElo) {
+                topElo = bm.ELO;
+                topLab = m.lab;
+            }
         }
 
         // Global cheapest
@@ -107,11 +118,11 @@ function crunch({ models, benchmarks, costs, labRegions }) {
             discovered,
             training,
             labCount: labSet.size,
-            total: models.length
+            total: models.length,
         },
         perLab,
         perRegion,
         topLab,
-        cheapestLab
+        cheapestLab,
     };
 }

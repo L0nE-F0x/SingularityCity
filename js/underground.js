@@ -34,9 +34,9 @@ const Underground = {
     /* ─── Layer thicknesses (depths from topY) ─── */
     H_CABLE_TRAY: 38,
     H_TUNNEL: 100,
-    H_INFRA: 100,   // dark-navy infrastructure depth (mirrors exterior gy+170…+270)
+    H_INFRA: 100, // dark-navy infrastructure depth (mirrors exterior gy+170…+270)
     H_OCEAN_FLOOR: 20,
-    H_SILO: 240,    // missile silo bunker depth (4 levels × 55 + headroom)
+    H_SILO: 240, // missile silo bunker depth (4 levels × 55 + headroom)
     /* Total depth of the full mirrored stack (cable + tunnel + infrastructure). */
     FULL_STACK_DEPTH: 238,
 
@@ -49,23 +49,96 @@ const Underground = {
     PROFILES: {
         // Default — central city, residential, court, university, conference, vc row, dc, etc.
         // Cable tray + metro tunnel + infrastructure (with pipes & boxes). Has live trains.
-        city:      { cables: true,    tunnel: true,  infra: true,  earthZone: 'tech',        liveTrains: true,  ocean: false, silo: false },
+        city: {
+            cables: true,
+            tunnel: true,
+            infra: true,
+            earthZone: 'tech',
+            liveTrains: true,
+            ocean: false,
+            silo: false,
+        },
         // Backbone trunk — DENSE cable tray, no tunnel, no pipes. (Backbone is *just* cables.)
-        backbone:  { cables: 'dense', tunnel: false, infra: false, earthZone: 'tech',        liveTrains: false, ocean: false, silo: false },
+        backbone: {
+            cables: 'dense',
+            tunnel: false,
+            infra: false,
+            earthZone: 'tech',
+            liveTrains: false,
+            ocean: false,
+            silo: false,
+        },
         // Port — deep ocean cover, no cables, no tunnel, no pipes.
-        port:      { cables: false,   tunnel: false, infra: false, earthZone: 'port',        liveTrains: false, ocean: true,  silo: false },
+        port: {
+            cables: false,
+            tunnel: false,
+            infra: false,
+            earthZone: 'port',
+            liveTrains: false,
+            ocean: true,
+            silo: false,
+        },
         // Space — desert biome (sandstone → sedimentary → bedrock). Warm browns. No cables/tunnel/pipes.
-        space:     { cables: false,   tunnel: false, infra: false, earthZone: 'space',       liveTrains: false, ocean: false, silo: false, desert: true },
+        space: {
+            cables: false,
+            tunnel: false,
+            infra: false,
+            earthZone: 'space',
+            liveTrains: false,
+            ocean: false,
+            silo: false,
+            desert: true,
+        },
         // Power — substations & switchgear. No fiber tray, no metro, no city pipes (yet — TBD per zone).
-        power:     { cables: false,   tunnel: false, infra: false, earthZone: 'tech',        liveTrains: false, ocean: false, silo: false },
+        power: {
+            cables: false,
+            tunnel: false,
+            infra: false,
+            earthZone: 'tech',
+            liveTrains: false,
+            ocean: false,
+            silo: false,
+        },
         // Agents — same full stack as city but with rose-tinted earth fill.
-        agents:    { cables: true,    tunnel: true,  infra: true,  earthZone: 'agents',      liveTrains: true,  ocean: false, silo: false },
+        agents: {
+            cables: true,
+            tunnel: true,
+            infra: true,
+            earthZone: 'agents',
+            liveTrains: true,
+            ocean: false,
+            silo: false,
+        },
         // Forest — just earth & roots. No cables, no tunnel, no pipes.
-        forest:    { cables: false,   tunnel: false, infra: false, earthZone: 'forest',      liveTrains: false, ocean: false, silo: false },
+        forest: {
+            cables: false,
+            tunnel: false,
+            infra: false,
+            earthZone: 'forest',
+            liveTrains: false,
+            ocean: false,
+            silo: false,
+        },
         // East rock — past metro terminus (vc row, longevity, robotics suburbs). Pipes continue, no cables/tunnel.
-        east_rock: { cables: false,   tunnel: false, infra: true,  earthZone: 'east_rock',   liveTrains: false, ocean: false, silo: false },
+        east_rock: {
+            cables: false,
+            tunnel: false,
+            infra: true,
+            earthZone: 'east_rock',
+            liveTrains: false,
+            ocean: false,
+            silo: false,
+        },
         // Silo — Billionaire's Row missile bunker shafts. Bunker walls + hazard stripes + LED levels.
-        silo:      { cables: false,   tunnel: false, infra: false, earthZone: 'tech',        liveTrains: false, ocean: false, silo: true  }
+        silo: {
+            cables: false,
+            tunnel: false,
+            infra: false,
+            earthZone: 'tech',
+            liveTrains: false,
+            ocean: false,
+            silo: true,
+        },
     },
 
     /* Resolve a profile (string key or object) to a normalized config. */
@@ -79,9 +152,9 @@ const Underground = {
         const p = this._profile(profileKey);
         if (p.silo) return this.H_SILO;
         if (p.desert) return 300; // full desert geology stack (sandstone → sedimentary → bedrock)
-        return (p.cables ? this.H_CABLE_TRAY : 0)
-             + (p.tunnel ? this.H_TUNNEL : 0)
-             + (p.infra  ? this.H_INFRA  : 0);
+        return (
+            (p.cables ? this.H_CABLE_TRAY : 0) + (p.tunnel ? this.H_TUNNEL : 0) + (p.infra ? this.H_INFRA : 0)
+        );
     },
 
     /* Map a zone tag to earth tint variants. */
@@ -107,8 +180,11 @@ const Underground = {
 
     /* Deterministic PRNG — same x always seeds same texture, so adjacent draws line up. */
     _seedRng(seed) {
-        let s = (seed | 0) || 1;
-        return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+        let s = seed | 0 || 1;
+        return () => {
+            s = (s * 16807) % 2147483647;
+            return (s - 1) / 2147483646;
+        };
     },
 
     /**
@@ -133,7 +209,7 @@ const Underground = {
      */
     drawBasementStack(g, x, topY, w, h, profile, worldSeed, opts) {
         const p = this._profile(profile);
-        const seed = worldSeed != null ? worldSeed : (x | 0);
+        const seed = worldSeed != null ? worldSeed : x | 0;
         // Silo / ocean / desert profiles fill the whole space themselves.
         if (p.silo) {
             this.drawSiloBunker(g, x, topY, w, h, seed, opts || {});
@@ -170,12 +246,16 @@ const Underground = {
         const fibers = dense ? 16 : 10;
         const fiberAlpha = dense ? 0.85 : 0.55;
         const dotAlpha = dense ? 0.85 : 0.6;
-        g.beginFill(this.CABLE_TRAY_BG); g.drawRect(x, topY, w, this.H_CABLE_TRAY); g.endFill();
+        g.beginFill(this.CABLE_TRAY_BG);
+        g.drawRect(x, topY, w, this.H_CABLE_TRAY);
+        g.endFill();
         const fiberSpacing = (this.H_CABLE_TRAY - 6) / fibers;
         for (let fi = 0; fi < fibers; fi++) {
             const fy = topY + 3 + fi * fiberSpacing;
             const col = this.CABLE_COLS[fi % this.CABLE_COLS.length];
-            g.beginFill(col, fiberAlpha); g.drawRect(x + 5, fy, w - 10, dense ? 2 : 2); g.endFill();
+            g.beginFill(col, fiberAlpha);
+            g.drawRect(x + 5, fy, w - 10, dense ? 2 : 2);
+            g.endFill();
         }
         const r = this._seedRng(seed + 7919);
         const dotCount = Math.max(6, Math.floor(w / (dense ? 10 : 18)));
@@ -190,9 +270,13 @@ const Underground = {
 
     /* ─── 2. Tunnel cavity (dark void + tracks + ties + pillars) ─── */
     drawTunnelCavity(g, x, topY, w, seed) {
-        g.beginFill(this.TUNNEL_CAVITY); g.drawRect(x, topY, w, this.H_TUNNEL); g.endFill();
+        g.beginFill(this.TUNNEL_CAVITY);
+        g.drawRect(x, topY, w, this.H_TUNNEL);
+        g.endFill();
         // Track bed
-        g.beginFill(this.TUNNEL_FLOOR); g.drawRect(x, topY + 80, w, 20); g.endFill();
+        g.beginFill(this.TUNNEL_FLOOR);
+        g.drawRect(x, topY + 80, w, 20);
+        g.endFill();
         // Twin rails
         g.beginFill(this.TUNNEL_RAIL);
         g.drawRect(x, topY + 85, w, 2);
@@ -203,13 +287,19 @@ const Underground = {
         for (let tx = x; tx < x + w; tx += 16) g.drawRect(tx, topY + 88, 8, 4);
         g.endFill();
         // Yellow safety stripe at platform edge
-        g.beginFill(0xfacc15, 0.6); g.drawRect(x, topY + 78, w, 1); g.endFill();
+        g.beginFill(0xfacc15, 0.6);
+        g.drawRect(x, topY + 78, w, 1);
+        g.endFill();
         // Support pillars with red status lights
         const r = this._seedRng(seed + 1337);
         let px = x + 30 + r() * 40;
         while (px < x + w - 14) {
-            g.beginFill(this.TUNNEL_PILLAR); g.drawRect(px, topY, 14, this.H_TUNNEL); g.endFill();
-            g.beginFill(this.TUNNEL_LIGHT); g.drawCircle(px + 7, topY + 18, 1.5); g.endFill();
+            g.beginFill(this.TUNNEL_PILLAR);
+            g.drawRect(px, topY, 14, this.H_TUNNEL);
+            g.endFill();
+            g.beginFill(this.TUNNEL_LIGHT);
+            g.drawCircle(px + 7, topY + 18, 1.5);
+            g.endFill();
             px += 130 + r() * 30;
         }
     },
@@ -218,15 +308,25 @@ const Underground = {
        deep navy water gradient + sandy floor + coral patches + bubbles + light rays. ─── */
     drawOcean(g, x, topY, w, h, seed) {
         // Solid deep ocean
-        g.beginFill(0x061220); g.drawRect(x, topY, w, h); g.endFill();
+        g.beginFill(0x061220);
+        g.drawRect(x, topY, w, h);
+        g.endFill();
         // Water gradient layers (top → mid)
-        g.beginFill(0x081830, 0.8); g.drawRect(x, topY, w, Math.min(40, h)); g.endFill();
-        g.beginFill(0x0a2040, 0.5); g.drawRect(x, topY + 38, w, Math.min(30, h - 38)); g.endFill();
+        g.beginFill(0x081830, 0.8);
+        g.drawRect(x, topY, w, Math.min(40, h));
+        g.endFill();
+        g.beginFill(0x0a2040, 0.5);
+        g.drawRect(x, topY + 38, w, Math.min(30, h - 38));
+        g.endFill();
         // Sandy ocean floor at the bottom
         const floorH = this.H_OCEAN_FLOOR;
         if (h > floorH + 10) {
-            g.beginFill(0x3a3228, 0.5); g.drawRect(x, topY + h - floorH - 5, w, 8); g.endFill();
-            g.beginFill(0x2a2218); g.drawRect(x, topY + h - floorH, w, floorH); g.endFill();
+            g.beginFill(0x3a3228, 0.5);
+            g.drawRect(x, topY + h - floorH - 5, w, 8);
+            g.endFill();
+            g.beginFill(0x2a2218);
+            g.drawRect(x, topY + h - floorH, w, floorH);
+            g.endFill();
         }
         const r = this._seedRng(seed + 7777);
         const coralCols = [0xff6b6b, 0xff9a76, 0xffd166, 0xa8e6cf, 0xf4845f, 0xf78ca0, 0x7ec8e3, 0xc5a3ff];
@@ -258,8 +358,11 @@ const Underground = {
         for (let ri = 0; ri < 4; ri++) {
             const rx = x + 60 + ri * (w / 4);
             g.beginFill(0x4488cc, 0.03);
-            g.moveTo(rx, topY); g.lineTo(rx - 20, topY + Math.min(170, h - 20)); g.lineTo(rx + 20, topY + Math.min(170, h - 20));
-            g.closePath(); g.endFill();
+            g.moveTo(rx, topY);
+            g.lineTo(rx - 20, topY + Math.min(170, h - 20));
+            g.lineTo(rx + 20, topY + Math.min(170, h - 20));
+            g.closePath();
+            g.endFill();
         }
     },
 
@@ -274,19 +377,33 @@ const Underground = {
        Below the stack, a final fill covers anything past depthOf.                ─── */
     drawDesertGeology(g, x, topY, w, h, seed) {
         // Upper sandstone band (where city cables would be)
-        g.beginFill(0x6b4423); g.drawRect(x, topY, w, 38); g.endFill();
-        g.beginFill(0x8b6533); g.drawRect(x, topY + 8, w, 8); g.endFill();
-        g.beginFill(0x5c3a1e); g.drawRect(x, topY + 23, w, 15); g.endFill();
+        g.beginFill(0x6b4423);
+        g.drawRect(x, topY, w, 38);
+        g.endFill();
+        g.beginFill(0x8b6533);
+        g.drawRect(x, topY + 8, w, 8);
+        g.endFill();
+        g.beginFill(0x5c3a1e);
+        g.drawRect(x, topY + 23, w, 15);
+        g.endFill();
         // Sedimentary rock (where metro tunnel would be)
-        g.beginFill(0x4a2e14); g.drawRect(x, topY + 38, w, Math.min(100, Math.max(0, h - 38))); g.endFill();
-        g.beginFill(0x3d2510); g.drawRect(x, topY + 58, w, Math.min(40, Math.max(0, h - 58))); g.endFill();
+        g.beginFill(0x4a2e14);
+        g.drawRect(x, topY + 38, w, Math.min(100, Math.max(0, h - 38)));
+        g.endFill();
+        g.beginFill(0x3d2510);
+        g.drawRect(x, topY + 58, w, Math.min(40, Math.max(0, h - 58)));
+        g.endFill();
         // Darker bedrock band
-        g.beginFill(0x2d1a0c); g.drawRect(x, topY + 98, w, Math.min(40, Math.max(0, h - 98))); g.endFill();
+        g.beginFill(0x2d1a0c);
+        g.drawRect(x, topY + 98, w, Math.min(40, Math.max(0, h - 98)));
+        g.endFill();
         // Deep bedrock (where water/sewer pipes would be)
-        if (h > 138) g.beginFill(0x231508), g.drawRect(x, topY + 138, w, Math.min(60, h - 138)), g.endFill();
-        if (h > 168) g.beginFill(0x1a0f05), g.drawRect(x, topY + 168, w, Math.min(60, h - 168)), g.endFill();
+        if (h > 138)
+            (g.beginFill(0x231508), g.drawRect(x, topY + 138, w, Math.min(60, h - 138)), g.endFill());
+        if (h > 168)
+            (g.beginFill(0x1a0f05), g.drawRect(x, topY + 168, w, Math.min(60, h - 168)), g.endFill());
         // Absolute bottom fill — covers everything past the stack
-        if (h > 220) g.beginFill(0x110a03), g.drawRect(x, topY + 220, w, h - 220 + 1500), g.endFill();
+        if (h > 220) (g.beginFill(0x110a03), g.drawRect(x, topY + 220, w, h - 220 + 1500), g.endFill());
 
         // Ore/mineral deposits scattered through the strata
         const r = this._seedRng(seed + 5151);
@@ -316,19 +433,25 @@ const Underground = {
        `opts.buildingX` + `opts.buildingW` define the building footprint inside the bunker;
        if omitted we fill the whole span as bunker (no exclusion). ─── */
     drawSiloBunker(g, x, topY, w, h, seed, opts) {
-        const bx = (opts && typeof opts.buildingX === 'number') ? opts.buildingX : -1;
-        const bw = (opts && typeof opts.buildingW === 'number') ? opts.buildingW : 0;
+        const bx = opts && typeof opts.buildingX === 'number' ? opts.buildingX : -1;
+        const bw = opts && typeof opts.buildingW === 'number' ? opts.buildingW : 0;
         const hasBuilding = bx >= 0 && bw > 0;
         // Dark bunker void across full span
-        g.beginFill(0x0a0a0f); g.drawRect(x, topY, w, h); g.endFill();
+        g.beginFill(0x0a0a0f);
+        g.drawRect(x, topY, w, h);
+        g.endFill();
         // Helper: paint bunker walls inside a horizontal segment [sx, sxEnd]
         const paintSegment = (sx, sxEnd) => {
             const segW = sxEnd - sx;
             if (segW < 12) return;
             // Concrete wall
-            g.beginFill(0x1e293b); g.drawRect(sx + 6, topY + 6, segW - 12, h - 12); g.endFill();
+            g.beginFill(0x1e293b);
+            g.drawRect(sx + 6, topY + 6, segW - 12, h - 12);
+            g.endFill();
             // Hazard stripe (yellow) at top
-            g.beginFill(0xfacc15); g.drawRect(sx + 6, topY + 6, segW - 12, 5); g.endFill();
+            g.beginFill(0xfacc15);
+            g.drawRect(sx + 6, topY + 6, segW - 12, 5);
+            g.endFill();
             // Black hazard triangles
             g.beginFill(0x000000);
             for (let hx = sx + 6; hx < sxEnd - 12; hx += 14) {
@@ -339,10 +462,14 @@ const Underground = {
             for (let levelI = 0; levelI < 4; levelI++) {
                 const lvY = topY + 30 + levelI * 55;
                 if (lvY > topY + h - 10) break;
-                g.beginFill(0x334155); g.drawRect(sx + 6, lvY, segW - 12, 3); g.endFill();
+                g.beginFill(0x334155);
+                g.drawRect(sx + 6, lvY, segW - 12, 3);
+                g.endFill();
                 // Warning LEDs every 30px
                 for (let lx = sx + 20; lx < sxEnd - 20; lx += 30) {
-                    g.beginFill(0x10b981); g.drawCircle(lx, lvY - 6, 1.5); g.endFill();
+                    g.beginFill(0x10b981);
+                    g.drawCircle(lx, lvY - 6, 1.5);
+                    g.endFill();
                 }
             }
         };
@@ -357,7 +484,9 @@ const Underground = {
     /* ─── 3. Deep earth (zone-tinted base + scattered rock + mineral veins) ─── */
     drawDeepEarth(g, x, topY, w, h, zone, seed) {
         const e = this._zoneEarth(zone);
-        g.beginFill(e.base); g.drawRect(x, topY, w, h); g.endFill();
+        g.beginFill(e.base);
+        g.drawRect(x, topY, w, h);
+        g.endFill();
         const r = this._seedRng(seed + 31337);
         for (let rx = x; rx < x + w; rx += 12) {
             for (let ry = topY; ry < topY + h; ry += 12) {
@@ -387,16 +516,30 @@ const Underground = {
        Translated to local coords with topY = infra start (= exterior gy+170).         ─── */
     drawInfrastructure(g, x, topY, w, seed) {
         // Dark navy backdrop
-        g.beginFill(this.INFRA_DEEP); g.drawRect(x, topY, w, this.H_INFRA); g.endFill();
+        g.beginFill(this.INFRA_DEEP);
+        g.drawRect(x, topY, w, this.H_INFRA);
+        g.endFill();
         // Platform overlays
-        g.beginFill(this.INFRA_PLAT_1); g.drawRect(x, topY + 10, w, 30); g.endFill();
-        g.beginFill(this.INFRA_PLAT_2); g.drawRect(x, topY + 15, w, 20); g.endFill();
+        g.beginFill(this.INFRA_PLAT_1);
+        g.drawRect(x, topY + 10, w, 30);
+        g.endFill();
+        g.beginFill(this.INFRA_PLAT_2);
+        g.drawRect(x, topY + 15, w, 20);
+        g.endFill();
         // Water pipe (gy+220 → topY+50)
-        g.beginFill(this.WATER_PIPE); g.drawRect(x, topY + 50, w, 8); g.endFill();
-        g.beginFill(this.WATER_PIPE_INNER); g.drawRect(x, topY + 52, w, 4); g.endFill();
+        g.beginFill(this.WATER_PIPE);
+        g.drawRect(x, topY + 50, w, 8);
+        g.endFill();
+        g.beginFill(this.WATER_PIPE_INNER);
+        g.drawRect(x, topY + 52, w, 4);
+        g.endFill();
         // Sewer pipe (gy+235 → topY+65)
-        g.beginFill(this.SEWER_PIPE); g.drawRect(x, topY + 65, w, 12); g.endFill();
-        g.beginFill(this.SEWER_PIPE_INNER); g.drawRect(x, topY + 67, w, 8); g.endFill();
+        g.beginFill(this.SEWER_PIPE);
+        g.drawRect(x, topY + 65, w, 12);
+        g.endFill();
+        g.beginFill(this.SEWER_PIPE_INNER);
+        g.drawRect(x, topY + 67, w, 8);
+        g.endFill();
 
         // Junction boxes — staggered horizontally every 200px
         const r = this._seedRng(seed + 4242);
@@ -404,17 +547,23 @@ const Underground = {
         for (let bx = x - 200 + phase; bx < x + w + 50; bx += 200) {
             // Cable junction body 15x40 at gy+175 → topY+5
             if (bx + 15 > x && bx < x + w) {
-                g.beginFill(this.JBOX_BODY); g.drawRect(bx, topY + 5, 15, 40); g.endFill();
+                g.beginFill(this.JBOX_BODY);
+                g.drawRect(bx, topY + 5, 15, 40);
+                g.endFill();
             }
             // Water mini-box 10x12 at +50 right, gy+218 → topY+48
             const wx = bx + 50;
             if (wx + 10 > x && wx < x + w) {
-                g.beginFill(this.JBOX_WATER); g.drawRect(wx, topY + 48, 10, 12); g.endFill();
+                g.beginFill(this.JBOX_WATER);
+                g.drawRect(wx, topY + 48, 10, 12);
+                g.endFill();
             }
             // Sewer mini-box 10x16 at +100 right, gy+233 → topY+63
             const sx = bx + 100;
             if (sx + 10 > x && sx < x + w) {
-                g.beginFill(this.JBOX_SEWER); g.drawRect(sx, topY + 63, 10, 16); g.endFill();
+                g.beginFill(this.JBOX_SEWER);
+                g.drawRect(sx, topY + 63, 10, 16);
+                g.endFill();
             }
         }
     },
@@ -434,7 +583,14 @@ const Underground = {
      * @param {number} viewSliceWorld — how many world-px to fit into localTunnelW (e.g. 1200)
      * @returns {{ container: PIXI.Container, update: Function, destroy: Function }}
      */
-    attachLiveTrains(parent, buildingWorldX, localTunnelX, localTunnelY, localTunnelW, viewSliceWorld = 1200) {
+    attachLiveTrains(
+        parent,
+        buildingWorldX,
+        localTunnelX,
+        localTunnelY,
+        localTunnelW,
+        viewSliceWorld = 1200
+    ) {
         const container = new PIXI.Container();
         container.sortableChildren = true;
         parent.addChild(container);
@@ -445,7 +601,7 @@ const Underground = {
         const xRatio = localTunnelW / viewSliceWorld;
         const spriteScale = Math.min(xRatio, (this.H_TUNNEL - 8) / TRAIN_NATIVE_H);
 
-        const sprites = trainKeys.map(key => {
+        const sprites = trainKeys.map((key) => {
             const s = new PIXI.Container();
             let passengerGfx = null;
             // Use the SAME sprite builder as the exterior train so visuals never drift.
@@ -476,9 +632,15 @@ const Underground = {
                 sprites.forEach(({ s, key, passengerGfx }) => {
                     if (!s || s.destroyed) return;
                     const t = Entities[key];
-                    if (!t || typeof t.x !== 'number') { s.visible = false; return; }
+                    if (!t || typeof t.x !== 'number') {
+                        s.visible = false;
+                        return;
+                    }
                     const dx = t.x - sliceLeft;
-                    if (dx < -200 || dx > viewSliceWorld + 200) { s.visible = false; return; }
+                    if (dx < -200 || dx > viewSliceWorld + 200) {
+                        s.visible = false;
+                        return;
+                    }
                     s.visible = true;
                     s.x = localTunnelX + (dx / viewSliceWorld) * localTunnelW;
                     s.y = tunnelCenterY;
@@ -505,9 +667,11 @@ const Underground = {
                 });
             },
             destroy() {
-                sprites.forEach(({ s }) => { if (s && !s.destroyed) s.destroy(); });
+                sprites.forEach(({ s }) => {
+                    if (s && !s.destroyed) s.destroy();
+                });
                 if (container && !container.destroyed) container.destroy();
-            }
+            },
         };
-    }
+    },
 };

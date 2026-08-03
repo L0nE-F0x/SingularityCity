@@ -22,10 +22,50 @@ const Multiplayer = {
     _reactionGfx: null,
     _counterEl: null,
 
-    _PREFIXES: ['Neo', 'Cyber', 'Neon', 'Glitch', 'Pixel', 'Hex', 'Flux', 'Zeta', 'Byte', 'Void',
-                'Syn', 'Drift', 'Pulse', 'Arc', 'Ion', 'Null', 'Axis', 'Qubit', 'Vex', 'Rift'],
-    _SUFFIXES: ['Walker', 'Runner', 'Ghost', 'Fox', 'Hawk', 'Wolf', 'Cat', 'Spark', 'Shade', 'Wave',
-                'Mind', 'Core', 'Node', 'Link', 'Bit', 'Mask', 'Blade', 'Crypt', 'Storm', 'Glow'],
+    _PREFIXES: [
+        'Neo',
+        'Cyber',
+        'Neon',
+        'Glitch',
+        'Pixel',
+        'Hex',
+        'Flux',
+        'Zeta',
+        'Byte',
+        'Void',
+        'Syn',
+        'Drift',
+        'Pulse',
+        'Arc',
+        'Ion',
+        'Null',
+        'Axis',
+        'Qubit',
+        'Vex',
+        'Rift',
+    ],
+    _SUFFIXES: [
+        'Walker',
+        'Runner',
+        'Ghost',
+        'Fox',
+        'Hawk',
+        'Wolf',
+        'Cat',
+        'Spark',
+        'Shade',
+        'Wave',
+        'Mind',
+        'Core',
+        'Node',
+        'Link',
+        'Bit',
+        'Mask',
+        'Blade',
+        'Crypt',
+        'Storm',
+        'Glow',
+    ],
 
     _generateHandle() {
         const p = this._PREFIXES[Math.floor(Math.random() * this._PREFIXES.length)];
@@ -37,24 +77,47 @@ const Multiplayer = {
     _generateColor() {
         const hue = Math.floor(Math.random() * 360);
         // HSL to hex — bright, saturated colors for ghost cursors
-        const sat = 0.8, lit = 0.6;
+        const sat = 0.8,
+            lit = 0.6;
         const c = (1 - Math.abs(2 * lit - 1)) * sat;
-        const x = c * (1 - Math.abs((hue / 60) % 2 - 1));
+        const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
         const m = lit - c / 2;
         let r, g, b;
-        if (hue < 60) { r = c; g = x; b = 0; }
-        else if (hue < 120) { r = x; g = c; b = 0; }
-        else if (hue < 180) { r = 0; g = c; b = x; }
-        else if (hue < 240) { r = 0; g = x; b = c; }
-        else if (hue < 300) { r = x; g = 0; b = c; }
-        else { r = c; g = 0; b = x; }
+        if (hue < 60) {
+            r = c;
+            g = x;
+            b = 0;
+        } else if (hue < 120) {
+            r = x;
+            g = c;
+            b = 0;
+        } else if (hue < 180) {
+            r = 0;
+            g = c;
+            b = x;
+        } else if (hue < 240) {
+            r = 0;
+            g = x;
+            b = c;
+        } else if (hue < 300) {
+            r = x;
+            g = 0;
+            b = c;
+        } else {
+            r = c;
+            g = 0;
+            b = x;
+        }
         const toHex = (v) => Math.round((v + m) * 255);
         return (toHex(r) << 16) | (toHex(g) << 8) | toHex(b);
     },
 
     init(ghostLayer) {
         if (this._inited) return;
-        if (!API.supabase) { this._offlineMode(); return; }
+        if (!API.supabase) {
+            this._offlineMode();
+            return;
+        }
         this._inited = true;
         this._ghostLayer = ghostLayer;
 
@@ -91,7 +154,7 @@ const Multiplayer = {
     _connectPresence() {
         try {
             this._channel = API.supabase.channel('city-presence', {
-                config: { presence: { key: this._myId } }
+                config: { presence: { key: this._myId } },
             });
 
             this._channel
@@ -100,7 +163,7 @@ const Multiplayer = {
                 })
                 .on('presence', { event: 'join' }, ({ key, newPresences }) => {
                     if (key === this._myId) return;
-                    newPresences.forEach(p => this._addPeer(key, p));
+                    newPresences.forEach((p) => this._addPeer(key, p));
                 })
                 .on('presence', { event: 'leave' }, ({ key }) => {
                     this._removePeer(key);
@@ -112,7 +175,7 @@ const Multiplayer = {
                         await this._channel.track({
                             handle: this._myHandle,
                             color: this._myColor,
-                            worldX: wx
+                            worldX: wx,
                         });
                     }
                 });
@@ -163,7 +226,7 @@ const Multiplayer = {
             }
         });
 
-        Object.keys(this._peers).forEach(k => {
+        Object.keys(this._peers).forEach((k) => {
             if (!peerIds.has(k)) this._removePeer(k);
         });
 
@@ -174,7 +237,7 @@ const Multiplayer = {
     _sanePeer(presence) {
         const c = Number(presence && presence.color);
         return {
-            color: (isFinite(c) && c >= 0 && c <= 0xffffff) ? c : this._DEFAULT_COLOR,
+            color: isFinite(c) && c >= 0 && c <= 0xffffff ? c : this._DEFAULT_COLOR,
             handle: String((presence && presence.handle) || this._DEFAULT_HANDLE).slice(0, 20),
             worldX: Math.max(0, Math.min(Number((presence && presence.worldX) || 0) || 0, 1e6)),
         };
@@ -201,9 +264,14 @@ const Multiplayer = {
         cont.addChild(body);
 
         const tag = new PIXI.Text(handle, {
-            fontFamily: 'JetBrains Mono', fontSize: 7, fill: color,
-            fontWeight: 'bold', dropShadow: true, dropShadowColor: 0x000000,
-            dropShadowBlur: 3, dropShadowDistance: 0
+            fontFamily: 'JetBrains Mono',
+            fontSize: 7,
+            fill: color,
+            fontWeight: 'bold',
+            dropShadow: true,
+            dropShadowColor: 0x000000,
+            dropShadowBlur: 3,
+            dropShadowDistance: 0,
         });
         tag.anchor.set(0.5, 1);
         tag.y = -28;
@@ -236,9 +304,11 @@ const Multiplayer = {
                 this._reactChannel.send({
                     type: 'broadcast',
                     event: 'reaction',
-                    payload: { emoji, worldX, senderId: this._myId }
+                    payload: { emoji, worldX, senderId: this._myId },
                 });
-            } catch (e) { /* silent */ }
+            } catch (e) {
+                /* silent */
+            }
         }
     },
 
@@ -247,9 +317,10 @@ const Multiplayer = {
     _spawnReactionBubble(emoji, worldX) {
         if (this._reactionQueue.length >= this._MAX_REACTION_QUEUE) return; // flood guard
         this._reactionQueue.push({
-            emoji, worldX,
+            emoji,
+            worldX,
             worldY: G.groundY - 40 - Math.random() * 30,
-            age: 0
+            age: 0,
         });
     },
 
@@ -259,7 +330,8 @@ const Multiplayer = {
             const badge = document.createElement('div');
             badge.id = 'mpCounter';
             badge.className = 'mp-counter';
-            badge.innerHTML = '<span class="mp-dot"></span><span class="mp-count">1</span><span class="mp-label">online</span>';
+            badge.innerHTML =
+                '<span class="mp-dot"></span><span class="mp-count">1</span><span class="mp-label">online</span>';
             topMain.appendChild(badge);
             this._counterEl = badge;
         }
@@ -268,7 +340,7 @@ const Multiplayer = {
             const bar = document.createElement('div');
             bar.id = 'mpReactions';
             bar.className = 'mp-reactions';
-            this.REACTIONS.forEach(emoji => {
+            this.REACTIONS.forEach((emoji) => {
                 const btn = document.createElement('button');
                 btn.className = 'mp-react-btn';
                 btn.textContent = emoji;
@@ -316,9 +388,11 @@ const Multiplayer = {
                     this._channel.track({
                         handle: this._myHandle,
                         color: this._myColor,
-                        worldX: wx
+                        worldX: wx,
                     });
-                } catch (e) { /* silent */ }
+                } catch (e) {
+                    /* silent */
+                }
             }
         }
 
@@ -369,12 +443,20 @@ const Multiplayer = {
 
     destroy() {
         if (this._channel) {
-            try { this._channel.unsubscribe(); } catch (e) { /* */ }
+            try {
+                this._channel.unsubscribe();
+            } catch (e) {
+                /* */
+            }
         }
         if (this._reactChannel) {
-            try { this._reactChannel.unsubscribe(); } catch (e) { /* */ }
+            try {
+                this._reactChannel.unsubscribe();
+            } catch (e) {
+                /* */
+            }
         }
-        Object.keys(this._peers).forEach(k => this._removePeer(k));
+        Object.keys(this._peers).forEach((k) => this._removePeer(k));
         this._inited = false;
-    }
+    },
 };

@@ -26,10 +26,10 @@ const Newspaper = {
     _printStyleEl: null,
     _isOpen: false,
     _volumeStart: new Date(2025, 0, 1), // Vol 1 Issue 1 = 2025-01-01
-    _activeEdition: 'daily',           // 'daily' | 'weekly' | 'archive' — set on open()
-    _archiveList: null,                // Cached array of {id, edition_date, kind, ...} once fetched
-    _archiveHtmlCache: {},             // editionId → cached HTML body (string)
-    _viewingArchiveId: null,           // If non-null, archive HTML for that id is on-screen
+    _activeEdition: 'daily', // 'daily' | 'weekly' | 'archive' — set on open()
+    _archiveList: null, // Cached array of {id, edition_date, kind, ...} once fetched
+    _archiveHtmlCache: {}, // editionId → cached HTML body (string)
+    _viewingArchiveId: null, // If non-null, archive HTML for that id is on-screen
 
     // Called once during engine boot — installs the print stylesheet
     init() {
@@ -312,7 +312,7 @@ const Newspaper = {
         if (edition === 'daily' || edition === 'weekly') {
             this._activeEdition = edition;
         } else {
-            this._activeEdition = (new Date().getDay() === 0) ? 'weekly' : 'daily';
+            this._activeEdition = new Date().getDay() === 0 ? 'weekly' : 'daily';
         }
 
         // Build the modal DOM
@@ -339,11 +339,11 @@ const Newspaper = {
     _wireModal(modal) {
         modal.querySelector('.np-close').addEventListener('click', () => this.close());
         modal.querySelector('.np-pdf').addEventListener('click', () => this.savePDF());
-        modal.querySelectorAll('.np-tab').forEach(btn => {
+        modal.querySelectorAll('.np-tab').forEach((btn) => {
             btn.addEventListener('click', () => this._setEdition(btn.dataset.edition));
         });
         // Archive row clicks → load and display that issue
-        modal.querySelectorAll('.np-archive-row[data-archive-id]').forEach(row => {
+        modal.querySelectorAll('.np-archive-row[data-archive-id]').forEach((row) => {
             row.addEventListener('click', () => {
                 const id = row.dataset.archiveId;
                 if (!id) return;
@@ -361,7 +361,9 @@ const Newspaper = {
             });
         }
         // Click-outside-to-close on the dim background only
-        modal.addEventListener('click', (e) => { if (e.target === modal) this.close(); });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this.close();
+        });
     },
 
     _setEdition(edition) {
@@ -369,7 +371,7 @@ const Newspaper = {
         if (edition !== 'daily' && edition !== 'weekly' && edition !== 'archive') return;
         if (this._activeEdition === edition && !this._viewingArchiveId) return;
         this._activeEdition = edition;
-        this._viewingArchiveId = null;        // any tab swap returns to the list
+        this._viewingArchiveId = null; // any tab swap returns to the list
         this._modalEl.innerHTML = this._buildModalHTML();
         this._wireModal(this._modalEl);
 
@@ -399,7 +401,7 @@ const Newspaper = {
     // Top-level dispatcher: returns Daily / Weekly / Archive HTML based on _activeEdition.
     _buildModalHTML() {
         if (this._activeEdition === 'archive') return this._buildArchiveHTML();
-        if (this._activeEdition === 'weekly')  return this._buildWeeklyHTML();
+        if (this._activeEdition === 'weekly') return this._buildWeeklyHTML();
         return this._buildDailyHTML();
     },
 
@@ -416,7 +418,12 @@ const Newspaper = {
 
     _buildWeeklyHTML() {
         const now = new Date();
-        const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const dateStr = now.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
         const issueNum = this._computeIssueNum(now);
         const weather = this._getWeatherText();
 
@@ -509,9 +516,12 @@ const Newspaper = {
         if (stocks.length > 0) {
             html += `<div class="np-section" style="margin-top:12px"><h3>📈 Market Ticker</h3>`;
             html += `<div class="np-item" style="font-family:monospace;font-size:10px;line-height:1.8">`;
-            html += stocks.map(s =>
-                `<b>${this._esc(s.sym)}</b> $${this._esc(s.price)} <span style="color:${s.color}">${this._esc(s.change)}</span>`
-            ).join(' · ');
+            html += stocks
+                .map(
+                    (s) =>
+                        `<b>${this._esc(s.sym)}</b> $${this._esc(s.price)} <span style="color:${s.color}">${this._esc(s.change)}</span>`
+                )
+                .join(' · ');
             html += `</div></div>`;
         }
 
@@ -535,7 +545,12 @@ const Newspaper = {
     // ──────────────────────────────────────────────────────────────────────────────────
     _buildDailyHTML() {
         const now = new Date();
-        const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        const dateStr = now.toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+        });
         const issueNum = this._computeDailyIssueNum(now);
         const weather = this._getWeatherText();
 
@@ -564,9 +579,10 @@ const Newspaper = {
 
         // ─── LEAD ───
         if (lead) {
-            const subAttr = lead.source === 'Hacker News'
-                ? `▲ Hacker News · ${lead.score || 0} points · ${lead.comments || 0} comments`
-                : `Source: ${this._esc(lead.source)}`;
+            const subAttr =
+                lead.source === 'Hacker News'
+                    ? `▲ Hacker News · ${lead.score || 0} points · ${lead.comments || 0} comments`
+                    : `Source: ${this._esc(lead.source)}`;
             html += `<div class="np-top-story">
                 <h2><a href="${safeHref(lead.url)}" target="_blank" rel="noopener" style="color:#1a1308;text-decoration:none">${this._esc(lead.headline)}</a></h2>
                 <div class="np-sub">${subAttr} · <a href="${safeHref(lead.url)}" target="_blank" rel="noopener" style="color:#5a3e1a">Read full article →</a></div>
@@ -642,9 +658,13 @@ const Newspaper = {
         if (stocks.length > 0) {
             html += `<div class="np-section" style="margin-top:14px"><h3>📈 Markets</h3>`;
             html += `<div class="np-item" style="font-family:monospace;font-size:10px;line-height:1.8">`;
-            html += stocks.slice(0, 6).map(s =>
-                `<b>${this._esc(s.sym)}</b> $${this._esc(s.price)} <span style="color:${s.color}">${this._esc(s.change)}</span>`
-            ).join(' · ');
+            html += stocks
+                .slice(0, 6)
+                .map(
+                    (s) =>
+                        `<b>${this._esc(s.sym)}</b> $${this._esc(s.price)} <span style="color:${s.color}">${this._esc(s.change)}</span>`
+                )
+                .join(' · ');
             html += `</div></div>`;
         }
 
@@ -713,7 +733,8 @@ const Newspaper = {
                 const dateLabel = this._formatArchiveDate(row.edition_date);
                 const kindLabel = row.kind === 'weekly' ? '📚 WEEKLY' : '📰 DAILY';
                 const lead = row.lead_headline
-                    ? `<b>${this._esc(row.lead_headline)}</b>` + (row.lead_source ? ` <i>· ${this._esc(row.lead_source)}</i>` : '')
+                    ? `<b>${this._esc(row.lead_headline)}</b>` +
+                      (row.lead_source ? ` <i>· ${this._esc(row.lead_source)}</i>` : '')
                     : '<i>No lead recorded</i>';
                 html += `<button class="np-archive-row" data-archive-id="${this._esc(row.id)}">
                     <span class="np-ar-date">${this._esc(dateLabel)}</span>
@@ -733,7 +754,13 @@ const Newspaper = {
         const [y, m, d] = (iso || '').split('-').map(Number);
         if (!y) return iso || '';
         const dt = new Date(Date.UTC(y, m - 1, d));
-        return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+        return dt.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone: 'UTC',
+        });
     },
 
     // Fetches the list of archived editions from Supabase. Anon key + RLS allow read.
@@ -819,10 +846,16 @@ const Newspaper = {
     _getWeatherText() {
         const weather = (typeof Environment !== 'undefined' && Environment.weather) || 'clear';
         const map = {
-            clear: 'FAIR SKIES', rain: 'RAINY', snow: 'SNOW FLURRIES',
-            cherry: 'BLOSSOM DRIFT', sandstorm: 'SANDSTORM',
-            drizzle: 'LIGHT DRIZZLE', thunderstorm: 'THUNDERSTORMS',
-            fog: 'THICK FOG', overcast: 'OVERCAST', partly_cloudy: 'PARTLY CLOUDY',
+            clear: 'FAIR SKIES',
+            rain: 'RAINY',
+            snow: 'SNOW FLURRIES',
+            cherry: 'BLOSSOM DRIFT',
+            sandstorm: 'SANDSTORM',
+            drizzle: 'LIGHT DRIZZLE',
+            thunderstorm: 'THUNDERSTORMS',
+            fog: 'THICK FOG',
+            overcast: 'OVERCAST',
+            partly_cloudy: 'PARTLY CLOUDY',
             leaves: 'AUTUMN LEAVES',
         };
         return map[weather] || 'FAIR SKIES';
@@ -862,7 +895,7 @@ const Newspaper = {
     // populated by hn_blimps.js (10-min cache via Netlify function).
     _getHNStories(n) {
         if (typeof HNBlimps === 'undefined' || !HNBlimps._stories || !HNBlimps._stories.length) return [];
-        return HNBlimps._stories.slice(0, n).map(s => ({
+        return HNBlimps._stories.slice(0, n).map((s) => ({
             id: s.id,
             headline: s.title,
             source: 'Hacker News',
@@ -875,7 +908,7 @@ const Newspaper = {
     // Daily lead picker: prefer a hot HN story (>=200 score) when available, otherwise
     // fall back to the freshest wire headline. Keeps the daily relevant on quiet news days.
     _pickDailyLead(hnStories, headlines) {
-        const hot = hnStories.find(s => (s.score || 0) >= 200);
+        const hot = hnStories.find((s) => (s.score || 0) >= 200);
         if (hot) return hot;
         if (hnStories.length > 0) return hnStories[0];
         if (headlines.length > 0) return headlines[0];
@@ -910,7 +943,7 @@ const Newspaper = {
             ['HELP WANTED', 'Junior reasoner. Must show work. Loop unrolling a plus. Apply at any HQ.'],
             ['FOR TRADE', 'Surplus 8K context tokens. Will swap for verified citations.'],
             ['NOTICE', 'Black Market Dumpster has been moved. New entrance is the OTHER suspicious alley.'],
-            ['SERVICES', 'Eval-cert\'d bench-pressing — flex your attention heads at RLHF Gym.'],
+            ['SERVICES', "Eval-cert'd bench-pressing — flex your attention heads at RLHF Gym."],
             ['LOST', 'A single coherent thought. Last seen near the Embassy Quarter at 2am.'],
             ['UPCOMING', 'Newspaper HQ tour every Thursday — see the press in action.'],
             ['SEEKING', 'Reviewer #2 for a paper that just needs ONE more accept.'],
@@ -924,14 +957,35 @@ const Newspaper = {
     _buildClassifieds() {
         // Playful flavor ads that reference real in-game entities. Deterministic-ish pool.
         const ads = [
-            ['WANTED', 'Night-shift barista, API Cafe. Must handle 4K tokens/sec. Competitive per-prompt rate. Apply within.'],
-            ['FOR SALE', 'Gently used embedding model, 1536-dim, low-mileage. $50 OBO. Reach out via any vector database.'],
+            [
+                'WANTED',
+                'Night-shift barista, API Cafe. Must handle 4K tokens/sec. Competitive per-prompt rate. Apply within.',
+            ],
+            [
+                'FOR SALE',
+                'Gently used embedding model, 1536-dim, low-mileage. $50 OBO. Reach out via any vector database.',
+            ],
             ['LOST', 'One (1) aligned scalar. Last seen near the RLHF Gym. Reward: full context window.'],
-            ['SERVICES', 'The Neon Bar now hosts open-mic prompt nights every Thursday. Models unwind, humans learn.'],
-            ['ANNOUNCEMENT', 'LMSYS Arena semifinals this weekend. Bring your flagship. Bring your friends. Bring your backups.'],
-            ['NOTICE', 'The Leaderboard Monument will be repolished next week. Expect benchmark glare reduction.'],
-            ['SEEKING', 'Retired PaLM 2 memoir — "I Was There Before The Transformer". Available at the Legacy Systems museum.'],
-            ['PERSONALS', 'Open-source LLM seeks cozy fine-tuning partner. No frozen layers, please. Loss curves welcome.'],
+            [
+                'SERVICES',
+                'The Neon Bar now hosts open-mic prompt nights every Thursday. Models unwind, humans learn.',
+            ],
+            [
+                'ANNOUNCEMENT',
+                'LMSYS Arena semifinals this weekend. Bring your flagship. Bring your friends. Bring your backups.',
+            ],
+            [
+                'NOTICE',
+                'The Leaderboard Monument will be repolished next week. Expect benchmark glare reduction.',
+            ],
+            [
+                'SEEKING',
+                'Retired PaLM 2 memoir — "I Was There Before The Transformer". Available at the Legacy Systems museum.',
+            ],
+            [
+                'PERSONALS',
+                'Open-source LLM seeks cozy fine-tuning partner. No frozen layers, please. Loss curves welcome.',
+            ],
         ];
         let html = `<div class="np-classifieds"><h4>— CLASSIFIEDS —</h4>`;
         for (const [kind, body] of ads) {

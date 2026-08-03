@@ -15,7 +15,7 @@ const VCRowEnv = {
         const gy = G.groundY;
 
         // ─── MONEY PARTICLES (floating coins/bills during business hours) ───
-        VCRow.BLDS.forEach(def => {
+        VCRow.BLDS.forEach((def) => {
             const bld = G.bldById[def.id];
             if (!bld) return;
             const bldH = (bld.fl || 3) * 18 + 24;
@@ -55,9 +55,16 @@ const VCRowEnv = {
         if (cryptex) {
             const bldH = (cryptex.fl || 8) * 18 + 24;
             const logo = new PIXI.Text('₿', {
-                fontFamily: 'Arial, sans-serif', fontSize: 72, fontWeight: '900',
-                fill: 0xf7931a, stroke: 0xffa940, strokeThickness: 2,
-                dropShadow: true, dropShadowColor: 0xf7931a, dropShadowBlur: 18, dropShadowDistance: 0
+                fontFamily: 'Arial, sans-serif',
+                fontSize: 72,
+                fontWeight: '900',
+                fill: 0xf7931a,
+                stroke: 0xffa940,
+                strokeThickness: 2,
+                dropShadow: true,
+                dropShadowColor: 0xf7931a,
+                dropShadowBlur: 18,
+                dropShadowDistance: 0,
             });
             logo.anchor.set(0.5, 0.5);
             logo.x = cryptex.x + cryptex.w / 2;
@@ -82,15 +89,18 @@ const VCRowEnv = {
     _buildBillboard(charLayer) {
         if (this.billboard) return;
         const { panelW, panelH, poleH } = this._BB;
-        const topY = -(poleH + panelH);   // panel top edge, local
-        const botY = -poleH;              // panel bottom edge, local
+        const topY = -(poleH + panelH); // panel top edge, local
+        const botY = -poleH; // panel bottom edge, local
 
         const cont = new PIXI.Container();
-        cont.zIndex = Math.round(G.groundY) - 1;   // people walk in front of the poles
+        cont.zIndex = Math.round(G.groundY) - 1; // people walk in front of the poles
         // Seed position so frame 1 looks right (update() keeps it synced thereafter).
         const cryptex = G.bldById['vcrow_cryptex'];
-        const seedL = cryptex ? cryptex.x + cryptex.w : (VCRow.zoneEndX - 40);
-        const seedR = (typeof EmbassyRow !== 'undefined' && EmbassyRow.zoneStartX) ? EmbassyRow.zoneStartX : (VCRow.zoneEndX + 120);
+        const seedL = cryptex ? cryptex.x + cryptex.w : VCRow.zoneEndX - 40;
+        const seedR =
+            typeof EmbassyRow !== 'undefined' && EmbassyRow.zoneStartX
+                ? EmbassyRow.zoneStartX
+                : VCRow.zoneEndX + 120;
         cont.x = (seedL + seedR) / 2;
         cont.y = G.groundY;
         charLayer.addChild(cont);
@@ -112,10 +122,10 @@ const VCRowEnv = {
         poles.beginFill(0x2a2f3a);
         poles.drawRect(-6, botY + 2, 12, poleH - 2);
         poles.endFill();
-        poles.beginFill(0x3a4150);            // subtle highlight edge down the pole
+        poles.beginFill(0x3a4150); // subtle highlight edge down the pole
         poles.drawRect(-6, botY + 2, 3, poleH - 2);
         poles.endFill();
-        poles.beginFill(0x14161c);            // base plate planted on the ground
+        poles.beginFill(0x14161c); // base plate planted on the ground
         poles.drawRect(-13, -5, 26, 5);
         poles.endFill();
         cont.addChild(poles);
@@ -133,21 +143,34 @@ const VCRowEnv = {
         panel.eventMode = 'static';
         panel.cursor = 'help';
         panel.hitArea = new PIXI.Rectangle(-panelW / 2, topY, panelW, panelH);
-        panel.on('pointerover', (e) => { if (typeof UI !== 'undefined' && UI.showTooltip) UI.showTooltip(e, 'Crypto Ticker', 'Live top-5 by market cap · CoinGecko'); });
-        panel.on('pointerout', () => { if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip(); });
+        panel.on('pointerover', (e) => {
+            if (typeof UI !== 'undefined' && UI.showTooltip)
+                UI.showTooltip(e, 'Crypto Ticker', 'Live top-5 by market cap · CoinGecko');
+        });
+        panel.on('pointerout', () => {
+            if (typeof UI !== 'undefined' && UI.hideTooltip) UI.hideTooltip();
+        });
 
         // Header row: pulsing LIVE dot + title + divider.
         const dot = new PIXI.Graphics();
-        dot.beginFill(0xff3b3b); dot.drawCircle(0, 0, 3); dot.endFill();
-        dot.x = -panelW / 2 + 12; dot.y = topY + 11;
-        cont.addChild(dot); this.bbDot = dot;
+        dot.beginFill(0xff3b3b);
+        dot.drawCircle(0, 0, 3);
+        dot.endFill();
+        dot.x = -panelW / 2 + 12;
+        dot.y = topY + 11;
+        cont.addChild(dot);
+        this.bbDot = dot;
 
         const title = new PIXI.Text('LIVE · TOP 5', {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: '900',
-            fill: 0xf7931a, letterSpacing: 0.5
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 8,
+            fontWeight: '900',
+            fill: 0xf7931a,
+            letterSpacing: 0.5,
         });
         title.anchor.set(0, 0.5);
-        title.x = -panelW / 2 + 20; title.y = topY + 11;
+        title.x = -panelW / 2 + 20;
+        title.y = topY + 11;
         cont.addChild(title);
 
         const divider = new PIXI.Graphics();
@@ -157,9 +180,14 @@ const VCRowEnv = {
         cont.addChild(divider);
 
         // Masked marquee window. The strip holds per-coin coloured segments (built below).
-        const winX = -panelW / 2 + 8, winY = topY + 23, winW = panelW - 16, winH = panelH - 29;
+        const winX = -panelW / 2 + 8,
+            winY = topY + 23,
+            winW = panelW - 16,
+            winH = panelH - 29;
         const mask = new PIXI.Graphics();
-        mask.beginFill(0xffffff); mask.drawRect(winX, winY, winW, winH); mask.endFill();
+        mask.beginFill(0xffffff);
+        mask.drawRect(winX, winY, winW, winH);
+        mask.endFill();
         cont.addChild(mask);
 
         const strip = new PIXI.Container();
@@ -171,7 +199,7 @@ const VCRowEnv = {
         this.bbHasData = false;
 
         this._rebuildBillboardStrip();
-        strip.x = winX + winW;   // start just off the right edge
+        strip.x = winX + winW; // start just off the right edge
     },
 
     // (Re)build the marquee from live top-5 data. Two identical copies are laid
@@ -179,16 +207,21 @@ const VCRowEnv = {
     _rebuildBillboardStrip() {
         const strip = this.bbStrip;
         if (!strip || strip.destroyed) return;
-        strip.removeChildren().forEach(c => c.destroy());
+        strip.removeChildren().forEach((c) => c.destroy());
 
-        const coins = (typeof VCRow !== 'undefined' && VCRow.getTopCoins) ? VCRow.getTopCoins(5) : [];
+        const coins = typeof VCRow !== 'undefined' && VCRow.getTopCoins ? VCRow.getTopCoins(5) : [];
         const midY = this.bbWin.y + this.bbWin.h / 2;
 
         if (coins.length === 0) {
             const t = new PIXI.Text('◉ AWAITING MARKET FEED…', {
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: '700', fill: 0x888888
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 10,
+                fontWeight: '700',
+                fill: 0x888888,
             });
-            t.anchor.set(0, 0.5); t.x = 0; t.y = midY;
+            t.anchor.set(0, 0.5);
+            t.x = 0;
+            t.y = midY;
             strip.addChild(t);
             this.bbUnitW = t.width + 40;
             this.bbHasData = false;
@@ -198,30 +231,41 @@ const VCRowEnv = {
 
         const buildSet = (offsetX) => {
             let x = offsetX;
-            coins.forEach(c => {
+            coins.forEach((c) => {
                 const up = c.change >= 0;
                 const sym = c.symbol.toUpperCase();
-                const price = c.price >= 1000 ? c.price.toLocaleString('en-US', { maximumFractionDigits: 0 })
-                            : c.price >= 1    ? c.price.toFixed(2)
-                            :                   c.price.toFixed(4);
+                const price =
+                    c.price >= 1000
+                        ? c.price.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                        : c.price >= 1
+                          ? c.price.toFixed(2)
+                          : c.price.toFixed(4);
                 const chg = (up ? '+' : '') + c.change.toFixed(2) + '%';
                 const col = up ? 0x4ade80 : 0xf87171;
                 const seg = new PIXI.Text(`${up ? '▲' : '▼'} ${sym}  $${price}  ${chg}`, {
-                    fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: '900',
-                    fill: col, dropShadow: true, dropShadowColor: col, dropShadowBlur: 6, dropShadowDistance: 0, padding: 6
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: 13,
+                    fontWeight: '900',
+                    fill: col,
+                    dropShadow: true,
+                    dropShadowColor: col,
+                    dropShadowBlur: 6,
+                    dropShadowDistance: 0,
+                    padding: 6,
                 });
                 seg.anchor.set(0, 0.5);
-                seg.x = x; seg.y = midY;
+                seg.x = x;
+                seg.y = midY;
                 seg.blendMode = PIXI.BLEND_MODES.ADD;
                 strip.addChild(seg);
-                x += seg.width + 28;   // gap between coins
+                x += seg.width + 28; // gap between coins
             });
-            return x - offsetX;        // width of one full set incl. trailing gap
+            return x - offsetX; // width of one full set incl. trailing gap
         };
 
         const unit = buildSet(0);
         this.bbUnitW = unit;
-        buildSet(unit);                // second copy, seamless loop
+        buildSet(unit); // second copy, seamless loop
     },
 
     // Per-frame billboard update: re-anchor to the gap, scroll the marquee, pulse lights.
@@ -232,19 +276,22 @@ const VCRowEnv = {
         const cryptex = G.bldById['vcrow_cryptex'];
         if (cryptex) {
             const leftEdge = cryptex.x + cryptex.w;
-            const rightEdge = (typeof EmbassyRow !== 'undefined' && EmbassyRow.zoneStartX)
-                ? EmbassyRow.zoneStartX : (VCRow.zoneEndX + 120);
+            const rightEdge =
+                typeof EmbassyRow !== 'undefined' && EmbassyRow.zoneStartX
+                    ? EmbassyRow.zoneStartX
+                    : VCRow.zoneEndX + 120;
             this.billboard.x = (leftEdge + rightEdge) / 2;
             this.billboard.y = G.groundY;
         }
 
-        const strip = this.bbStrip, win = this.bbWin;
+        const strip = this.bbStrip,
+            win = this.bbWin;
         if (strip && !strip.destroyed && win && this.bbUnitW > 0) {
             strip.x -= 0.65;
             if (this.bbHasData) {
                 if (strip.x <= win.x - this.bbUnitW) {
-                    strip.x += this.bbUnitW;        // seamless wrap (shift by old unit)
-                    this._rebuildBillboardStrip();  // then refresh prices for the next lap
+                    strip.x += this.bbUnitW; // seamless wrap (shift by old unit)
+                    this._rebuildBillboardStrip(); // then refresh prices for the next lap
                 }
             } else {
                 // Awaiting data — retry the build until coins arrive, then relaunch.
@@ -271,9 +318,12 @@ const VCRowEnv = {
         const isBusinessHours = dp >= 0.33 && dp < 0.75;
 
         // ─── MONEY PARTICLES (float upward, reset — x re-anchors to live building on respawn) ───
-        this.moneyParts.forEach(p => {
+        this.moneyParts.forEach((p) => {
             if (!p || p.destroyed) return;
-            if (!isBusinessHours) { p.alpha = 0; return; }
+            if (!isBusinessHours) {
+                p.alpha = 0;
+                return;
+            }
             p.y -= p._speed;
             p.x += p._driftX + Math.sin(G.tick * 0.05 + p._phase) * 0.15;
             p.alpha = Math.min(0.7, p.alpha + 0.01);
@@ -314,7 +364,7 @@ const VCRowEnv = {
             if (!isBusinessHours) return;
             const gy = G.groundY;
 
-            VCRow.BLDS.forEach(def => {
+            VCRow.BLDS.forEach((def) => {
                 const bld = G.bldById[def.id];
                 if (!bld) return;
                 const bldH = (bld.fl || 3) * 18 + 24;
@@ -341,5 +391,5 @@ const VCRowEnv = {
                 this.arrowGfx.endFill();
             });
         }
-    }
+    },
 };

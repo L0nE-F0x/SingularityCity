@@ -23,64 +23,85 @@ const AutoTour = {
     embedSticky: false,
 
     /* ── Tuning ───────────────────────────────────────────────── */
-    IDLE_MS:  300000,          // 5 minutes of no input before tour auto-starts
-    HOLD_MS_MIN: 10000,        // slower pace between location jumps
+    IDLE_MS: 300000, // 5 minutes of no input before tour auto-starts
+    HOLD_MS_MIN: 10000, // slower pace between location jumps
     HOLD_MS_MAX: 18000,
     INTERIOR_HOLD_MS: 16000,
     TRACK_HOLD_MS: 14000,
     MIN_STOPS: 3,
 
     /* ── Category weights (must sum to 1.0) ──────────────────── */
-    W_ACTIVITY: 0.40,
-    W_SCENIC:   0.30,
-    W_INTERIOR: 0.20,
-    W_TRACKING: 0.10,
+    W_ACTIVITY: 0.4,
+    W_SCENIC: 0.3,
+    W_INTERIOR: 0.2,
+    W_TRACKING: 0.1,
 
     /* ── Scenic panorama stops (wide shots of beautiful zones) ─ */
     _scenicDefs: [
-        { bldId: 'mission_control',   label: 'Space Port',        zoom: 0.75, yOffset: -60,  pan: 0.15 },
-        { bldId: 'pad_spacex',        label: 'SpaceX Launch Pad',  zoom: 0.90, yOffset: -40,  pan: 0.10 },
-        { bldId: 'park',              label: 'Leaderboard Park',   zoom: 1.10, yOffset: -20,  pan: 0.08 },
-        { bldId: 'arena',             label: 'LMSYS Arena',        zoom: 1.00, yOffset: -25,  pan: 0.10 },
-        { bldId: 'visitor_monument',  label: 'Visitor Monument',   zoom: 1.20, yOffset:  -5,  pan: 0.05 },
-        { bldId: 'neon_bar',          label: 'Neon Nightlife',     zoom: 1.05, yOffset: -20,  pan: 0.12 },
-        { bldId: 'forest_0',          label: 'Pine Reserve',       zoom: 0.85, yOffset: -30,  pan: 0.18 },
-        { bldId: 'power_solar',       label: 'Solar + Storage',    zoom: 0.80, yOffset: -40,  pan: 0.15 },
-        { bldId: 'power_nuclear',     label: 'Crane Clean Energy', zoom: 0.90, yOffset: -30,  pan: 0.10 },
-        { bldId: 'port_authority',    label: 'Trade Port',         zoom: 0.80, yOffset: -35,  pan: 0.18 },
-        { bldId: 'graveyard',         label: 'Model Graveyard',    zoom: 1.10, yOffset: -15,  pan: 0.06 },
-        { bldId: 'convention_center', label: 'Conference Center',  zoom: 0.95, yOffset: -25,  pan: 0.12 },
-        { bldId: 'court_hearing',     label: 'AI Court',           zoom: 1.10, yOffset: -15,  pan: 0.08 },
-        { bldId: 'city_park',         label: 'Central Park',       zoom: 0.90, yOffset: -20,  pan: 0.14 },
-        { bldId: 'uni_main',          label: 'AI Academy',         zoom: 1.00, yOffset: -25,  pan: 0.10 },
-        { bldId: 'metro_mid',         label: 'Central Metro',      zoom: 1.05, yOffset: -20,  pan: 0.08 },
-        { bldId: 'backbone_ixp',      label: 'Internet Exchange',  zoom: 0.90, yOffset: -30,  pan: 0.12 },
-        { bldId: 'robotics_assembly', label: 'Robotics Factory',   zoom: 0.90, yOffset: -25,  pan: 0.14 },
-        { bldId: 'longevity_discovery',label:'Longevity Wing',     zoom: 0.95, yOffset: -20,  pan: 0.10 },
-        { bldId: 'times_hq',          label: 'Newspaper HQ',      zoom: 1.10, yOffset: -15,  pan: 0.06 },
-        { bldId: 'agents_orchestrator', label: 'Agent District',  zoom: 0.90, yOffset: -25,  pan: 0.12 },
-        { bldId: 'align_redwood',     label: 'Alignment Forest',   zoom: 0.90, yOffset: -25,  pan: 0.14 },
-        { bldId: 'embassy_us',        label: 'Embassy Row',        zoom: 0.95, yOffset: -20,  pan: 0.12 },
-        { bldId: 'vcrow_apex',        label: 'VC Row',             zoom: 0.95, yOffset: -25,  pan: 0.10 },
+        { bldId: 'mission_control', label: 'Space Port', zoom: 0.75, yOffset: -60, pan: 0.15 },
+        { bldId: 'pad_spacex', label: 'SpaceX Launch Pad', zoom: 0.9, yOffset: -40, pan: 0.1 },
+        { bldId: 'park', label: 'Leaderboard Park', zoom: 1.1, yOffset: -20, pan: 0.08 },
+        { bldId: 'arena', label: 'LMSYS Arena', zoom: 1.0, yOffset: -25, pan: 0.1 },
+        { bldId: 'visitor_monument', label: 'Visitor Monument', zoom: 1.2, yOffset: -5, pan: 0.05 },
+        { bldId: 'neon_bar', label: 'Neon Nightlife', zoom: 1.05, yOffset: -20, pan: 0.12 },
+        { bldId: 'forest_0', label: 'Pine Reserve', zoom: 0.85, yOffset: -30, pan: 0.18 },
+        { bldId: 'power_solar', label: 'Solar + Storage', zoom: 0.8, yOffset: -40, pan: 0.15 },
+        { bldId: 'power_nuclear', label: 'Crane Clean Energy', zoom: 0.9, yOffset: -30, pan: 0.1 },
+        { bldId: 'port_authority', label: 'Trade Port', zoom: 0.8, yOffset: -35, pan: 0.18 },
+        { bldId: 'graveyard', label: 'Model Graveyard', zoom: 1.1, yOffset: -15, pan: 0.06 },
+        { bldId: 'convention_center', label: 'Conference Center', zoom: 0.95, yOffset: -25, pan: 0.12 },
+        { bldId: 'court_hearing', label: 'AI Court', zoom: 1.1, yOffset: -15, pan: 0.08 },
+        { bldId: 'city_park', label: 'Central Park', zoom: 0.9, yOffset: -20, pan: 0.14 },
+        { bldId: 'uni_main', label: 'AI Academy', zoom: 1.0, yOffset: -25, pan: 0.1 },
+        { bldId: 'metro_mid', label: 'Central Metro', zoom: 1.05, yOffset: -20, pan: 0.08 },
+        { bldId: 'backbone_ixp', label: 'Internet Exchange', zoom: 0.9, yOffset: -30, pan: 0.12 },
+        { bldId: 'robotics_assembly', label: 'Robotics Factory', zoom: 0.9, yOffset: -25, pan: 0.14 },
+        { bldId: 'longevity_discovery', label: 'Longevity Wing', zoom: 0.95, yOffset: -20, pan: 0.1 },
+        { bldId: 'times_hq', label: 'Newspaper HQ', zoom: 1.1, yOffset: -15, pan: 0.06 },
+        { bldId: 'agents_orchestrator', label: 'Agent District', zoom: 0.9, yOffset: -25, pan: 0.12 },
+        { bldId: 'align_redwood', label: 'Alignment Forest', zoom: 0.9, yOffset: -25, pan: 0.14 },
+        { bldId: 'embassy_us', label: 'Embassy Row', zoom: 0.95, yOffset: -20, pan: 0.12 },
+        { bldId: 'vcrow_apex', label: 'VC Row', zoom: 0.95, yOffset: -25, pan: 0.1 },
         // Black Market is underground — auto-tour can't visit it
     ],
 
     /* ── Buildings eligible for interior visits ───────────────── */
     _interiorBldIds: [
-        'neon_bar', 'bld_1', 'convention_center', 'times_hq',
-        'uni_main', 'uni_lab', 'uni_library',
-        'court_hearing', 'court_senate',
-        'dc_xai_memphis', 'dc_google_dalles', 'dc_stargate', 'dc_aws_virginia',
-        'metro_east', 'metro_mid', 'metro_dc',
-        'vcrow_apex', 'vcrow_titan',
-        'robotics_assembly', 'robotics_testing',
-        'longevity_discovery', 'longevity_genomics',
+        'neon_bar',
+        'bld_1',
+        'convention_center',
+        'times_hq',
+        'uni_main',
+        'uni_lab',
+        'uni_library',
+        'court_hearing',
+        'court_senate',
+        'dc_xai_memphis',
+        'dc_google_dalles',
+        'dc_stargate',
+        'dc_aws_virginia',
+        'metro_east',
+        'metro_mid',
+        'metro_dc',
+        'vcrow_apex',
+        'vcrow_titan',
+        'robotics_assembly',
+        'robotics_testing',
+        'longevity_discovery',
+        'longevity_genomics',
         'backbone_ixp',
-        'power_nuclear', 'power_solar',
-        'res_us', 'res_eu', 'res_cn',
-        'agents_orchestrator', 'agents_sandbox',
-        'align_redwood', 'align_apollo',
-        'embassy_us', 'embassy_cn', 'diplomat_villa_us',
+        'power_nuclear',
+        'power_solar',
+        'res_us',
+        'res_eu',
+        'res_cn',
+        'agents_orchestrator',
+        'agents_sandbox',
+        'align_redwood',
+        'align_apollo',
+        'embassy_us',
+        'embassy_cn',
+        'diplomat_villa_us',
     ],
 
     /* ── Runtime state ────────────────────────────────────────── */
@@ -93,10 +114,10 @@ const AutoTour = {
     _savedZoom: 1,
     _savedTargetX: 0,
     _savedTargetY: 0,
-    _recentStops: [],       // last N stop IDs to avoid repeats
+    _recentStops: [], // last N stop IDs to avoid repeats
     _currentMode: 'scenic', // 'activity' | 'scenic' | 'interior' | 'tracking'
-    _panDrift: 0,           // pixels/frame horizontal drift for cinematic feel
-    _panDir: 1,             // 1 or -1
+    _panDrift: 0, // pixels/frame horizontal drift for cinematic feel
+    _panDir: 1, // 1 or -1
     _isInsideBuilding: false,
     _trackingModelId: null,
 
@@ -140,26 +161,45 @@ const AutoTour = {
         /* ── Input listeners ────────────────────────────────── */
         const bump = () => this._onUserInput();
         window.addEventListener('pointerdown', bump, true);
-        window.addEventListener('pointermove', (e) => {
-            if (this._lastMoveX === undefined) { this._lastMoveX = e.clientX; this._lastMoveY = e.clientY; return; }
-            const dx = e.clientX - this._lastMoveX;
-            const dy = e.clientY - this._lastMoveY;
-            if (dx * dx + dy * dy < 9) return;
-            this._lastMoveX = e.clientX;
-            this._lastMoveY = e.clientY;
-            bump();
-        }, true);
+        window.addEventListener(
+            'pointermove',
+            (e) => {
+                if (this._lastMoveX === undefined) {
+                    this._lastMoveX = e.clientX;
+                    this._lastMoveY = e.clientY;
+                    return;
+                }
+                const dx = e.clientX - this._lastMoveX;
+                const dy = e.clientY - this._lastMoveY;
+                if (dx * dx + dy * dy < 9) return;
+                this._lastMoveX = e.clientX;
+                this._lastMoveY = e.clientY;
+                bump();
+            },
+            true
+        );
         window.addEventListener('wheel', bump, { capture: true, passive: true });
         window.addEventListener('touchstart', bump, { capture: true, passive: true });
-        window.addEventListener('keydown', (e) => {
-            if ((e.key === 't' || e.key === 'T') &&
-                !(e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable))) {
-                e.preventDefault();
-                this.toggle();
-                return;
-            }
-            bump();
-        }, true);
+        window.addEventListener(
+            'keydown',
+            (e) => {
+                if (
+                    (e.key === 't' || e.key === 'T') &&
+                    !(
+                        e.target &&
+                        (e.target.tagName === 'INPUT' ||
+                            e.target.tagName === 'TEXTAREA' ||
+                            e.target.isContentEditable)
+                    )
+                ) {
+                    e.preventDefault();
+                    this.toggle();
+                    return;
+                }
+                bump();
+            },
+            true
+        );
     },
 
     /* ═══════════════════════════════════════════════════════════ */
@@ -175,9 +215,10 @@ const AutoTour = {
         // Idle watchdog — user can disable the auto-start screensaver or change
         // its delay in Settings. Manual start (T / toggle()) is unaffected.
         if (typeof G !== 'undefined' && G.prefs && G.prefs.autoTour === false) return;
-        const idleMs = (typeof G !== 'undefined' && G.prefs && G.prefs.idleTourMin > 0)
-            ? G.prefs.idleTourMin * 60000
-            : this.IDLE_MS;
+        const idleMs =
+            typeof G !== 'undefined' && G.prefs && G.prefs.idleTourMin > 0
+                ? G.prefs.idleTourMin * 60000
+                : this.IDLE_MS;
         if (now - this._lastInputAt >= idleMs && this._canStart()) {
             this.start();
         }
@@ -186,7 +227,7 @@ const AutoTour = {
     _canStart() {
         if (typeof G === 'undefined' || !G.app) return false;
         if (G.activeInterior) return false;
-        if (G.trainFocus) return false;            // don't hijack the camera while riding a train
+        if (G.trainFocus) return false; // don't hijack the camera while riding a train
         if (G.viewMode === 'macro') return false;
         if (G.tracking) return false;
         if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) return false;
@@ -200,7 +241,8 @@ const AutoTour = {
         if (this.active) this.stop('toggle');
         else {
             if (!this._canStart()) {
-                if (typeof UI !== 'undefined' && UI.addToast) UI.addToast('Auto-tour unavailable in this mode');
+                if (typeof UI !== 'undefined' && UI.addToast)
+                    UI.addToast('Auto-tour unavailable in this mode');
                 return;
             }
             this.start();
@@ -256,9 +298,18 @@ const AutoTour = {
     /* ═══════════════════════════════════════════════════════════ */
     _tickActive(now) {
         // Safety — bail if we entered a blocking mode
-        if (G.viewMode === 'macro') { this.stop('mode-change'); return; }
-        if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) { this.stop('mode-change'); return; }
-        if (typeof XRayMode !== 'undefined' && XRayMode.active) { this.stop('mode-change'); return; }
+        if (G.viewMode === 'macro') {
+            this.stop('mode-change');
+            return;
+        }
+        if (typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) {
+            this.stop('mode-change');
+            return;
+        }
+        if (typeof XRayMode !== 'undefined' && XRayMode.active) {
+            this.stop('mode-change');
+            return;
+        }
 
         // Safety — if we think we're inside but the interior was already closed, reset flag.
         // IMPORTANT: skip during an in-flight transition — `_transitionEnter` sets
@@ -341,17 +392,26 @@ const AutoTour = {
         this._currentMode = mode;
 
         switch (mode) {
-            case 'activity': this._advanceActivity(); break;
-            case 'scenic':   this._advanceScenic();   break;
-            case 'interior': this._advanceInterior(); break;
-            case 'tracking': this._advanceTracking(); break;
+            case 'activity':
+                this._advanceActivity();
+                break;
+            case 'scenic':
+                this._advanceScenic();
+                break;
+            case 'interior':
+                this._advanceInterior();
+                break;
+            case 'tracking':
+                this._advanceTracking();
+                break;
         }
     },
 
     /* ── ACTIVITY: find the busiest buildings and visit one ──── */
     _advanceActivity() {
         if (typeof G === 'undefined' || !G.models || !G.charRefs || !G.bldById) {
-            this._advanceScenic(); return;
+            this._advanceScenic();
+            return;
         }
 
         // Count population per building
@@ -369,7 +429,10 @@ const AutoTour = {
             .filter(([id]) => G.bldById[id] && !this._recentStops.includes(id))
             .sort((a, b) => b[1] - a[1]);
 
-        if (entries.length === 0) { this._advanceScenic(); return; }
+        if (entries.length === 0) {
+            this._advanceScenic();
+            return;
+        }
 
         const topN = entries.slice(0, Math.min(10, entries.length));
         const pick = topN[Math.floor(Math.random() * topN.length)];
@@ -390,7 +453,7 @@ const AutoTour = {
         // (metro rails, water/electric pipes) stays visible throughout the tour.
         const z = Camera.zoom || this._userZoom || 1;
         const worldX = b.x + b.w / 2;
-        Camera.targetX = -(worldX) + (G.vpW / 2) / z;
+        Camera.targetX = -worldX + G.vpW / 2 / z;
 
         const label = (b.lab ? b.lab.toUpperCase() + ' HQ' : b.label || b.id) + ' (' + count + ' active)';
         this._setLabel(label);
@@ -399,14 +462,14 @@ const AutoTour = {
     /* ── SCENIC: pick a random panoramic shot ──────────────── */
     _advanceScenic() {
         // Filter to only existing buildings, exclude recent
-        const avail = this._scenicDefs.filter(d =>
-            G.bldById && G.bldById[d.bldId] && !this._recentStops.includes(d.bldId)
+        const avail = this._scenicDefs.filter(
+            (d) => G.bldById && G.bldById[d.bldId] && !this._recentStops.includes(d.bldId)
         );
 
         if (avail.length === 0) {
             // Reset recents if we've exhausted everything
             this._recentStops = [];
-            const fallback = this._scenicDefs.filter(d => G.bldById && G.bldById[d.bldId]);
+            const fallback = this._scenicDefs.filter((d) => G.bldById && G.bldById[d.bldId]);
             if (fallback.length === 0) return;
             this._advanceScenic();
             return;
@@ -420,14 +483,14 @@ const AutoTour = {
         this._currentHoldMs = holdMs;
 
         // Cinematic drift (halved for smoother cinematic feel)
-        this._panDrift = (def.pan || 0.10) * 0.5;
+        this._panDrift = (def.pan || 0.1) * 0.5;
         this._panDir = Math.random() < 0.5 ? 1 : -1;
 
         // Only pan horizontally — preserve user's zoom and Y so underground view
         // (metro rails, water/electric pipes) stays visible throughout the tour.
         const z = Camera.zoom || this._userZoom || 1;
         const worldX = b.x + b.w / 2;
-        Camera.targetX = -(worldX) + (G.vpW / 2) / z;
+        Camera.targetX = -worldX + G.vpW / 2 / z;
 
         this._setLabel(def.label);
     },
@@ -435,15 +498,17 @@ const AutoTour = {
     /* ── INTERIOR: enter a random building ─────────────────── */
     _advanceInterior() {
         if (typeof G === 'undefined' || !G.bldById || G.activeInterior) {
-            this._advanceScenic(); return;
+            this._advanceScenic();
+            return;
         }
 
         // Filter to existing, non-recent buildings
-        const avail = this._interiorBldIds.filter(id =>
-            G.bldById[id] && !this._recentStops.includes(id)
-        );
+        const avail = this._interiorBldIds.filter((id) => G.bldById[id] && !this._recentStops.includes(id));
 
-        if (avail.length === 0) { this._advanceScenic(); return; }
+        if (avail.length === 0) {
+            this._advanceScenic();
+            return;
+        }
 
         const bldId = avail[Math.floor(Math.random() * avail.length)];
         const b = G.bldById[bldId];
@@ -452,7 +517,7 @@ const AutoTour = {
         // First pan to the building — only modify X so the user's Y/zoom is preserved
         const z = Camera.zoom || this._userZoom || 1;
         const worldX = b.x + b.w / 2;
-        Camera.targetX = -(worldX) + (G.vpW / 2) / z;
+        Camera.targetX = -worldX + G.vpW / 2 / z;
         this._panDrift = 0;
 
         const label = b.lab ? b.lab.toUpperCase() + ' — Inside' : (b.label || bldId) + ' — Inside';
@@ -477,12 +542,13 @@ const AutoTour = {
     /* ── TRACKING: follow a random walking model ───────────── */
     _advanceTracking() {
         if (typeof G === 'undefined' || !G.models || !G.charRefs) {
-            this._advanceScenic(); return;
+            this._advanceScenic();
+            return;
         }
 
         // Find models that are currently walking outside (visible, no building)
         const now = Date.now();
-        const walkers = G.models.filter(m => {
+        const walkers = G.models.filter((m) => {
             if (m.ret && new Date(m.ret).getTime() <= now) return false;
             const refs = G.charRefs[m.id];
             if (!refs || !refs.c) return false;
@@ -491,7 +557,10 @@ const AutoTour = {
             return true;
         });
 
-        if (walkers.length === 0) { this._advanceActivity(); return; }
+        if (walkers.length === 0) {
+            this._advanceActivity();
+            return;
+        }
 
         const model = walkers[Math.floor(Math.random() * walkers.length)];
 

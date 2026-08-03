@@ -16,9 +16,16 @@ const Interior = {
         // Route to the appropriate interior module
         if (bld.id.startsWith('res_') || bld.id.startsWith('house_')) {
             this.activeModule = InteriorRes;
-        } else if (bld.type && ['launchpad', 'mission_control', 'assembly', 'tracking'].includes(bld.type) && typeof SpaceInterior !== 'undefined') {
+        } else if (
+            bld.type &&
+            ['launchpad', 'mission_control', 'assembly', 'tracking'].includes(bld.type) &&
+            typeof SpaceInterior !== 'undefined'
+        ) {
             this.activeModule = SpaceInterior;
-        } else if ((bld.id.startsWith('dc_') || bld.id.startsWith('fab_')) && typeof InteriorDC !== 'undefined') {
+        } else if (
+            (bld.id.startsWith('dc_') || bld.id.startsWith('fab_')) &&
+            typeof InteriorDC !== 'undefined'
+        ) {
             this.activeModule = InteriorDC;
         } else if (bld.id === 'neon_bar' && typeof InteriorBar !== 'undefined') {
             this.activeModule = InteriorBar;
@@ -56,8 +63,8 @@ const Interior = {
             this.activeModule = InteriorAlignment;
         } else if (bld.type === 'embassy' && typeof InteriorEmbassy !== 'undefined') {
             this.activeModule = InteriorEmbassy;
-        // NB: trains are NOT a building interior — clicking one calls G.enterTrainFocus()
-        // (a real-world camera cutaway), so there is no 'train' route here.
+            // NB: trains are NOT a building interior — clicking one calls G.enterTrainFocus()
+            // (a real-world camera cutaway), so there is no 'train' route here.
         } else if (bld.id && bld.id.startsWith('metro_') && typeof InteriorMetroStation !== 'undefined') {
             this.activeModule = InteriorMetroStation;
         } else if (bld.id === 'times_hq' && typeof InteriorNewspaper !== 'undefined') {
@@ -129,9 +136,11 @@ const Interior = {
                     const ns = scene.scale.x + (scene._restScale - scene.scale.x) * lerp;
                     scene.scale.set(ns);
                 }
-                if (Math.abs(scene.x - scene._restX) < 0.5
-                    && Math.abs(scene.y - scene._restY) < 0.5
-                    && (!scene.scale || Math.abs(scene.scale.x - scene._restScale) < 0.005)) {
+                if (
+                    Math.abs(scene.x - scene._restX) < 0.5 &&
+                    Math.abs(scene.y - scene._restY) < 0.5 &&
+                    (!scene.scale || Math.abs(scene.scale.x - scene._restScale) < 0.005)
+                ) {
                     scene.x = scene._restX;
                     scene.y = scene._restY;
                     if (scene.scale) scene.scale.set(scene._restScale);
@@ -194,5 +203,5 @@ const Interior = {
             if (npc && npc.cont && npc.cont.visible) return npc;
         }
         return null;
-    }
+    },
 };

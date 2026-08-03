@@ -25,16 +25,15 @@
    events for "yesterday" and immediately enters briefing mode.
    ════════════════════════════════════════════════════════════════════════════════ */
 
-window.DailyBriefing = (function() {
-
+window.DailyBriefing = (function () {
     const STATE = {
         // Prompt
         promptEl: null,
         // Briefing
         active: false,
-        date: null,           // "YYYY-MM-DD" — the day this briefing summarizes
+        date: null, // "YYYY-MM-DD" — the day this briefing summarizes
         events: [],
-        phase: 'idle',        // 'idle' | 'intro' | 'reel' | 'outro' | 'done'
+        phase: 'idle', // 'idle' | 'intro' | 'reel' | 'outro' | 'done'
         phaseStartMs: 0,
         eventIdx: -1,
         eventStartMs: 0,
@@ -61,25 +60,25 @@ window.DailyBriefing = (function() {
         // re-prompt for the rest of this session (Skip Today persists across
         // reloads; × is just "not now"). Without this the prompt re-appeared
         // every 5s because dismissPrompt() saves no state.
-        dismissedSession: false
+        dismissedSession: false,
     };
 
-    const LS_BRIEF_KEY = 'sc_briefing_v1';     // { generatedDate, skippedDate }
+    const LS_BRIEF_KEY = 'sc_briefing_v1'; // { generatedDate, skippedDate }
     const LS_EVENTS_KEY = 'sc_news_events_v1'; // shared with news_reactivity.js
     const FPS = 30;
 
     // Phase timings in ms — total = 3000 + 6*4000 + 3000 = 30,000ms (30s)
     const TIMING = {
-        intro:    3000,
+        intro: 3000,
         perEvent: 4000,
         eventCount: 6,
-        outro:    3000
+        outro: 3000,
     };
 
     // ─── DATE UTILS ──────────────────────────────────────────────────────────
     function utcDateString(d) {
         d = d || new Date();
-        return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
     }
     function yesterdayUtcDateString() {
         return utcDateString(new Date(Date.now() - 86400000));
@@ -89,25 +88,40 @@ window.DailyBriefing = (function() {
         try {
             const [y, m, d] = s.split('-').map(Number);
             const dt = new Date(Date.UTC(y, m - 1, d));
-            return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-        } catch { return s; }
+            return dt.toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                timeZone: 'UTC',
+            });
+        } catch {
+            return s;
+        }
     }
 
     // ─── PERSISTENCE ─────────────────────────────────────────────────────────
     function loadBriefState() {
-        try { return JSON.parse(localStorage.getItem(LS_BRIEF_KEY) || '{}') || {}; }
-        catch { return {}; }
+        try {
+            return JSON.parse(localStorage.getItem(LS_BRIEF_KEY) || '{}') || {};
+        } catch {
+            return {};
+        }
     }
     function saveBriefState(p) {
         try {
             const cur = loadBriefState();
             const next = Object.assign({}, cur, p);
             localStorage.setItem(LS_BRIEF_KEY, JSON.stringify(next));
-        } catch { /* ignore */ }
+        } catch {
+            /* ignore */
+        }
     }
     function loadNewsEvents() {
-        try { return JSON.parse(localStorage.getItem(LS_EVENTS_KEY) || '[]') || []; }
-        catch { return []; }
+        try {
+            return JSON.parse(localStorage.getItem(LS_EVENTS_KEY) || '[]') || [];
+        } catch {
+            return [];
+        }
     }
 
     // ─── EVENT SELECTION ─────────────────────────────────────────────────────
@@ -118,9 +132,9 @@ window.DailyBriefing = (function() {
         if (typeof API !== 'undefined' && typeof API.getEventsByDate === 'function') {
             all = API.getEventsByDate(dateStr);
         } else {
-            all = loadNewsEvents().filter(e => e && e.date === dateStr);
+            all = loadNewsEvents().filter((e) => e && e.date === dateStr);
         }
-        const filtered = all.filter(e => e && e.lab);
+        const filtered = all.filter((e) => e && e.lab);
         // Up to 6 events. Prefer one per lab for variety, then fill chronologically.
         const seenLabs = new Set();
         const primary = [];
@@ -163,7 +177,7 @@ window.DailyBriefing = (function() {
         STATE.promptEl = host;
 
         host.querySelector('.sc-bp-close').onclick = () => {
-            STATE.dismissedSession = true;   // don't nag again until reload
+            STATE.dismissedSession = true; // don't nag again until reload
             dismissPrompt();
         };
         host.querySelector('.sc-bp-skip').onclick = () => {
@@ -181,7 +195,9 @@ window.DailyBriefing = (function() {
         STATE.promptEl.classList.remove('sc-bp-in');
         const el = STATE.promptEl;
         STATE.promptEl = null;
-        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 280);
+        setTimeout(() => {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        }, 280);
     }
 
     // ─── STOP BUTTON ─────────────────────────────────────────────────────────
@@ -200,7 +216,9 @@ window.DailyBriefing = (function() {
         STATE.stopBtnEl.classList.remove('sc-bs-in');
         const el = STATE.stopBtnEl;
         STATE.stopBtnEl = null;
-        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 280);
+        setTimeout(() => {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        }, 280);
     }
 
     // ─── SKY BACKDROP (drawn INTO the canvas so MediaRecorder captures the
@@ -243,24 +261,32 @@ window.DailyBriefing = (function() {
                 const bc = getComputedStyle(vp).backgroundColor;
                 const m = bc && bc.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
                 if (m) {
-                    const r = +m[1], gn = +m[2], b = +m[3];
+                    const r = +m[1],
+                        gn = +m[2],
+                        b = +m[3];
                     const c = (r << 16) | (gn << 8) | b;
                     return [c, c, c];
                 }
                 return null;
             }
-            const hexes = matches.map(s => {
+            const hexes = matches.map((s) => {
                 const p = s.match(/\d+/g).map(Number);
                 return ((p[0] & 0xff) << 16) | ((p[1] & 0xff) << 8) | (p[2] & 0xff);
             });
             while (hexes.length < 3) hexes.push(hexes[hexes.length - 1]);
             return hexes.slice(0, 3);
-        } catch (_e) { return null; }
+        } catch (_e) {
+            return null;
+        }
     }
 
     function lerpColor(a, b, t) {
-        const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
-        const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
+        const ar = (a >> 16) & 0xff,
+            ag = (a >> 8) & 0xff,
+            ab = a & 0xff;
+        const br = (b >> 16) & 0xff,
+            bg = (b >> 8) & 0xff,
+            bb = b & 0xff;
         const r = Math.round(ar + (br - ar) * t);
         const g = Math.round(ag + (bg - ag) * t);
         const bv = Math.round(ab + (bb - ab) * t);
@@ -281,9 +307,7 @@ window.DailyBriefing = (function() {
         const bandH = h / BANDS;
         for (let i = 0; i < BANDS; i++) {
             const t = i / (BANDS - 1);
-            const c = (t < 0.5)
-                ? lerpColor(top, mid, t * 2)
-                : lerpColor(mid, bot, (t - 0.5) * 2);
+            const c = t < 0.5 ? lerpColor(top, mid, t * 2) : lerpColor(mid, bot, (t - 0.5) * 2);
             g.beginFill(c, 1);
             g.drawRect(0, i * bandH, w, bandH + 1);
             g.endFill();
@@ -310,13 +334,13 @@ window.DailyBriefing = (function() {
             dropShadowColor: '#000',
             dropShadowDistance: 0,
             dropShadowBlur: 12,
-            align: 'center'
+            align: 'center',
         });
         const subStyle = new PIXI.TextStyle({
             fontFamily: 'JetBrains Mono, monospace',
             fontSize: 16,
             fill: '#e8e8f0',
-            align: 'center'
+            align: 'center',
         });
         const title = new PIXI.Text('', titleStyle);
         title.anchor.set(0.5);
@@ -354,7 +378,7 @@ window.DailyBriefing = (function() {
 
         // Lower-third dark band with cyan border. Drawn in screen space.
         const bandH = 110;
-        const cy = bandY != null ? bandY : (h * 0.5);
+        const cy = bandY != null ? bandY : h * 0.5;
         STATE.overlayBg.clear();
         STATE.overlayBg.beginFill(0x040410, 0.78 * alpha);
         STATE.overlayBg.drawRect(0, cy - bandH / 2, w, bandH);
@@ -386,7 +410,7 @@ window.DailyBriefing = (function() {
     function camFlyToLab(labId) {
         if (typeof G === 'undefined' || !G.bldsByLab) return;
         const blds = G.bldsByLab[labId] || [];
-        const hq = blds.find(b => !b.id.startsWith('house_'));
+        const hq = blds.find((b) => !b.id.startsWith('house_'));
         if (!hq) return;
         const cx = hq.x + hq.w / 2;
         // Disable any active tracking so we own the camera target
@@ -398,7 +422,7 @@ window.DailyBriefing = (function() {
             // Zoom matches the player's default city view (~0.85) so the shot
             // feels familiar, not zoomed-in surveillance-cam.
             const targetZoom = 0.85;
-            Camera.targetX = -(cx) + (G.vpW / 2) / targetZoom;
+            Camera.targetX = -cx + G.vpW / 2 / targetZoom;
             Camera.targetY = 0;
             Camera.targetZoom = targetZoom;
         }
@@ -411,20 +435,21 @@ window.DailyBriefing = (function() {
         // Wider shot for the intro/outro. Same Y=0 rule — never frame above
         // the sky's draw bounds.
         const targetZoom = 0.6;
-        Camera.targetX = -(cw / 2) + (G.vpW / 2) / targetZoom;
+        Camera.targetX = -(cw / 2) + G.vpW / 2 / targetZoom;
         Camera.targetY = 0;
         Camera.targetZoom = targetZoom;
     }
 
     // ─── RECORDING ───────────────────────────────────────────────────────────
     function pickBestMimeType() {
-        const candidates = [
-            'video/webm;codecs=vp9',
-            'video/webm;codecs=vp8',
-            'video/webm'
-        ];
+        const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
         for (const m of candidates) {
-            if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
+            if (
+                typeof MediaRecorder !== 'undefined' &&
+                MediaRecorder.isTypeSupported &&
+                MediaRecorder.isTypeSupported(m)
+            )
+                return m;
         }
         return 'video/webm';
     }
@@ -432,8 +457,11 @@ window.DailyBriefing = (function() {
     function startRecording() {
         if (!G.app || !G.app.view) return false;
         let stream;
-        try { stream = G.app.view.captureStream(FPS); }
-        catch (_e) { return false; }
+        try {
+            stream = G.app.view.captureStream(FPS);
+        } catch (_e) {
+            return false;
+        }
         if (!stream) return false;
 
         STATE.chunks = [];
@@ -446,18 +474,32 @@ window.DailyBriefing = (function() {
             rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
         } catch (_e) {
             // Fallback without explicit mime
-            try { rec = new MediaRecorder(stream); } catch { return false; }
+            try {
+                rec = new MediaRecorder(stream);
+            } catch {
+                return false;
+            }
         }
-        rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) STATE.chunks.push(e.data); };
+        rec.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) STATE.chunks.push(e.data);
+        };
         rec.onstop = () => onRecordingStop(mimeType);
-        try { rec.start(250); } catch (_e) { return false; }
+        try {
+            rec.start(250);
+        } catch (_e) {
+            return false;
+        }
         STATE.recorder = rec;
         return true;
     }
 
     function stopRecording() {
         if (STATE.recorder && STATE.recorder.state !== 'inactive') {
-            try { STATE.recorder.stop(); } catch (_e) { /* ignore */ }
+            try {
+                STATE.recorder.stop();
+            } catch (_e) {
+                /* ignore */
+            }
         }
     }
 
@@ -489,7 +531,10 @@ window.DailyBriefing = (function() {
 
     // ─── SHARE TOAST (post-briefing) ─────────────────────────────────────────
     function showShareToast(dateStr, events) {
-        const summary = events.slice(0, 4).map(e => `${e.emoji || '•'} ${labShortName(e.lab)}`).join('  ');
+        const summary = events
+            .slice(0, 4)
+            .map((e) => `${e.emoji || '•'} ${labShortName(e.lab)}`)
+            .join('  ');
         const body = `Yesterday in Singularity City — ${prettyDate(dateStr)}.\n${summary}\n\nWatch: https://singularitycity.net`;
 
         const host = document.createElement('div');
@@ -515,11 +560,16 @@ window.DailyBriefing = (function() {
             window.open(intent, '_blank', 'noopener');
         };
         host.querySelector('.sc-bs-copy').onclick = async () => {
-            try { await navigator.clipboard.writeText(body); }
-            catch { /* ignore */ }
+            try {
+                await navigator.clipboard.writeText(body);
+            } catch {
+                /* ignore */
+            }
             const b = host.querySelector('.sc-bs-copy');
             b.textContent = '✓ Copied';
-            setTimeout(() => { b.textContent = '📋 Copy Text'; }, 1500);
+            setTimeout(() => {
+                b.textContent = '📋 Copy Text';
+            }, 1500);
         };
 
         // Auto-fade after 60s
@@ -529,7 +579,9 @@ window.DailyBriefing = (function() {
     function fadeOut(host) {
         if (!host || !host.parentNode) return;
         host.classList.remove('sc-bs-show-in');
-        setTimeout(() => { if (host.parentNode) host.parentNode.removeChild(host); }, 280);
+        setTimeout(() => {
+            if (host.parentNode) host.parentNode.removeChild(host);
+        }, 280);
     }
 
     function labShortName(labId) {
@@ -553,16 +605,27 @@ window.DailyBriefing = (function() {
         STATE.eventReactionFired = false;
 
         // Disable AutoTour and other camera hijackers for the duration
-        try { if (typeof AutoTour !== 'undefined' && AutoTour.stop) AutoTour.stop(); } catch (_e) { /* ignore */ }
+        try {
+            if (typeof AutoTour !== 'undefined' && AutoTour.stop) AutoTour.stop();
+        } catch (_e) {
+            /* ignore */
+        }
         try {
             if (typeof AutoTour !== 'undefined') {
                 AutoTour._briefingDisabled = true;
                 AutoTour._disabled = true;
             }
-        } catch (_e) { /* ignore */ }
+        } catch (_e) {
+            /* ignore */
+        }
 
         // Tell NewsReactivity to not flood share toasts during replay
-        try { if (typeof NewsReactivity !== 'undefined' && NewsReactivity.setReplayMode) NewsReactivity.setReplayMode(true); } catch (_e) { /* ignore */ }
+        try {
+            if (typeof NewsReactivity !== 'undefined' && NewsReactivity.setReplayMode)
+                NewsReactivity.setReplayMode(true);
+        } catch (_e) {
+            /* ignore */
+        }
 
         buildBackdrop();
         buildOverlay();
@@ -601,20 +664,27 @@ window.DailyBriefing = (function() {
         destroyBackdrop();
         hideStopButton();
 
-        try { if (typeof NewsReactivity !== 'undefined' && NewsReactivity.setReplayMode) NewsReactivity.setReplayMode(false); } catch (_e) { /* ignore */ }
+        try {
+            if (typeof NewsReactivity !== 'undefined' && NewsReactivity.setReplayMode)
+                NewsReactivity.setReplayMode(false);
+        } catch (_e) {
+            /* ignore */
+        }
         try {
             if (typeof AutoTour !== 'undefined') {
                 AutoTour._briefingDisabled = false;
                 AutoTour._disabled = false;
             }
-        } catch (_e) { /* ignore */ }
+        } catch (_e) {
+            /* ignore */
+        }
     }
 
     // ─── UPDATE TICK ─────────────────────────────────────────────────────────
     function update() {
         // First-load auto-prompt detection (cheap, run once per ~5s)
         const now = Date.now();
-        if (!STATE.active && (now - STATE.lastChecked) > 5000) {
+        if (!STATE.active && now - STATE.lastChecked > 5000) {
             STATE.lastChecked = now;
             maybeShowPrompt();
         }
@@ -624,7 +694,7 @@ window.DailyBriefing = (function() {
 
         // Refresh the canvas sky backdrop ~once per second so it tracks
         // any dp/weather changes the Environment makes mid-briefing.
-        if (STATE.backdropGfx && (G.tick - STATE.backdropLastTick) > 60) {
+        if (STATE.backdropGfx && G.tick - STATE.backdropLastTick > 60) {
             STATE.backdropLastTick = G.tick;
             updateBackdrop();
         }
@@ -632,11 +702,11 @@ window.DailyBriefing = (function() {
         switch (STATE.phase) {
             case 'intro': {
                 const t = Math.min(1, elapsed / TIMING.intro);
-                const fade = t < 0.85 ? Math.min(1, t / 0.25) : Math.max(0, (1 - (t - 0.85) / 0.15));
+                const fade = t < 0.85 ? Math.min(1, t / 0.25) : Math.max(0, 1 - (t - 0.85) / 0.15);
                 drawOverlay({
                     alpha: fade,
                     title: 'DAILY BRIEFING',
-                    subtitle: prettyDate(STATE.date) + ' · @SingularityCity'
+                    subtitle: prettyDate(STATE.date) + ' · @SingularityCity',
                 });
                 if (elapsed >= TIMING.intro) {
                     STATE.phase = 'reel';
@@ -662,15 +732,18 @@ window.DailyBriefing = (function() {
                     alpha: 0.92,
                     title: (ev.emoji || '🚨') + ' ' + (ev.archetype || 'News'),
                     subtitle: trimTitle(ev.title || ''),
-                    bandY: G.vpH - 80
+                    bandY: G.vpH - 80,
                 });
 
                 // Fire the actual reaction at +1.2s so the camera has settled
                 if (!STATE.eventReactionFired && evElapsed >= 1200) {
                     STATE.eventReactionFired = true;
                     try {
-                        if (typeof NewsReactivity !== 'undefined' && NewsReactivity.fire) NewsReactivity.fire(ev);
-                    } catch (_e) { /* ignore */ }
+                        if (typeof NewsReactivity !== 'undefined' && NewsReactivity.fire)
+                            NewsReactivity.fire(ev);
+                    } catch (_e) {
+                        /* ignore */
+                    }
                 }
 
                 if (evElapsed >= TIMING.perEvent) advanceEvent(now);
@@ -678,16 +751,17 @@ window.DailyBriefing = (function() {
             }
             case 'outro': {
                 const t = Math.min(1, elapsed / TIMING.outro);
-                const fade = t < 0.85 ? Math.min(1, t / 0.25) : Math.max(0, (1 - (t - 0.85) / 0.15));
+                const fade = t < 0.85 ? Math.min(1, t / 0.25) : Math.max(0, 1 - (t - 0.85) / 0.15);
                 drawOverlay({
                     alpha: fade,
                     title: 'SINGULARITY CITY',
-                    subtitle: 'singularitycity.net · @SingularityCity'
+                    subtitle: 'singularitycity.net · @SingularityCity',
                 });
                 if (elapsed >= TIMING.outro) finishBriefing(false);
                 break;
             }
-            default: break;
+            default:
+                break;
         }
     }
 
@@ -731,16 +805,16 @@ window.DailyBriefing = (function() {
     }
 
     function maybeShowPrompt() {
-        if (typeof G === 'undefined' || !G.app) return;   // wait for boot
+        if (typeof G === 'undefined' || !G.app) return; // wait for boot
         if (G.prefs && G.prefs.dailyBrief === false) return; // user disabled the auto-prompt
-        if (STATE.promptEl) return;                        // already shown
-        if (STATE.dismissedSession) return;                // user closed it this session
+        if (STATE.promptEl) return; // already shown
+        if (STATE.dismissedSession) return; // user closed it this session
         const today = utcDateString();
         const brief = loadBriefState();
-        if (brief.generatedDate === today) return;         // already generated today
-        if (brief.skippedDate === today) return;           // user said skip today
+        if (brief.generatedDate === today) return; // already generated today
+        if (brief.skippedDate === today) return; // user said skip today
         const result = findMostRecentBriefingDate(3);
-        if (!result) return;                               // no recent day has enough drama
+        if (!result) return; // no recent day has enough drama
         showPrompt(result.events, result.date);
     }
 
@@ -792,15 +866,24 @@ window.DailyBriefing = (function() {
     }
 
     function setupHotkey() {
-        window.addEventListener('keydown', (e) => {
-            // Shift+B (or shift+b) — only when not typing in an input
-            if (!e.shiftKey) return;
-            if (e.key !== 'B' && e.key !== 'b') return;
-            const tag = (document.activeElement && document.activeElement.tagName) || '';
-            if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) return;
-            e.preventDefault();
-            triggerManual();
-        }, { passive: false });
+        window.addEventListener(
+            'keydown',
+            (e) => {
+                // Shift+B (or shift+b) — only when not typing in an input
+                if (!e.shiftKey) return;
+                if (e.key !== 'B' && e.key !== 'b') return;
+                const tag = (document.activeElement && document.activeElement.tagName) || '';
+                if (
+                    tag === 'INPUT' ||
+                    tag === 'TEXTAREA' ||
+                    (document.activeElement && document.activeElement.isContentEditable)
+                )
+                    return;
+                e.preventDefault();
+                triggerManual();
+            },
+            { passive: false }
+        );
     }
 
     function buildTriggerButton() {
@@ -819,7 +902,10 @@ window.DailyBriefing = (function() {
     function tryAttachTriggerButton(retries) {
         retries = retries || 0;
         if (document.getElementById('briefing-btn')) return;
-        if (document.getElementById('mpReactions')) { buildTriggerButton(); return; }
+        if (document.getElementById('mpReactions')) {
+            buildTriggerButton();
+            return;
+        }
         if (retries > 100) return;
         setTimeout(() => tryAttachTriggerButton(retries + 1), 100);
     }
@@ -828,19 +914,29 @@ window.DailyBriefing = (function() {
     function _test() {
         // Synthesize 6 fake events for "yesterday" and start the briefing now.
         const yest = yesterdayUtcDateString();
-        const labs = (typeof LABS !== 'undefined') ? Object.keys(LABS).filter(k => k !== 'other').slice(0, 6) : ['openai','anthropic','google','xai','meta','deepseek'];
+        const labs =
+            typeof LABS !== 'undefined'
+                ? Object.keys(LABS)
+                      .filter((k) => k !== 'other')
+                      .slice(0, 6)
+                : ['openai', 'anthropic', 'google', 'xai', 'meta', 'deepseek'];
         if (!labs.length) labs.push('openai');
-        const types = ['celebrate','crisis','emergency','regulatory','celebrate','crisis'];
+        const types = ['celebrate', 'crisis', 'emergency', 'regulatory', 'celebrate', 'crisis'];
         const titles = [
             'Lab unveils next-gen reasoning model',
             'Lab faces controversy over training data',
             'Board fires CEO in late-night meeting',
             'EU regulators open hearing on lab',
             'Lab partners with Microsoft for $10B deal',
-            'Outage hits flagship API for 4 hours'
+            'Outage hits flagship API for 4 hours',
         ];
-        const archetypes = { celebrate: 'Launch Party', crisis: 'Crisis Flicker', emergency: 'Emergency Huddle', regulatory: 'Court Convene' };
-        const emojis     = { celebrate: '🎉',           crisis: '😰',             emergency: '🚁',                 regulatory: '⚖️'           };
+        const archetypes = {
+            celebrate: 'Launch Party',
+            crisis: 'Crisis Flicker',
+            emergency: 'Emergency Huddle',
+            regulatory: 'Court Convene',
+        };
+        const emojis = { celebrate: '🎉', crisis: '😰', emergency: '🚁', regulatory: '⚖️' };
         const fake = [];
         for (let i = 0; i < 6; i++) {
             const t = types[i];
@@ -852,7 +948,7 @@ window.DailyBriefing = (function() {
                 emoji: emojis[t],
                 lab: labs[i % labs.length],
                 title: titles[i] + ' (test)',
-                url: 'https://news.ycombinator.com'
+                url: 'https://news.ycombinator.com',
             });
         }
         startBriefing(fake, yest);
@@ -860,8 +956,11 @@ window.DailyBriefing = (function() {
 
     function escapeHtml(s) {
         return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function init() {
@@ -873,7 +972,7 @@ window.DailyBriefing = (function() {
 })();
 
 // Auto-init on DOM ready
-(function() {
+(function () {
     function tryInit() {
         if (typeof DailyBriefing !== 'undefined') DailyBriefing.init();
     }

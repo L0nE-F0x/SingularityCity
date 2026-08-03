@@ -84,6 +84,35 @@
     Content-Type = "text/html; charset=utf-8"
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# ─── FIRST PERSON (/first-person/) ───
+# The 2D app defeats the immutable /*.js rule with ?v=NNN query strings written
+# by tools/cachebust.mjs. First Person has no such versioning — its ESM modules
+# import each other by bare relative path, so a query string can't be threaded
+# through them. Under the site-wide immutable rule the first visitor to load
+# /first-person/ would be pinned to that build for a year. Scope shorter
+# lifetimes here; deeper paths win over the site-wide /*.js and /*.css rules.
+[[headers]]
+  for = "/first-person/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/first-person/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/first-person/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# Three.js is genuinely immutable — it only changes when we deliberately
+# vendor a new build, which lands as a new deploy anyway.
+[[headers]]
+  for = "/first-person/lib/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [[headers]]
   for = "/*.png"
   [headers.values]
