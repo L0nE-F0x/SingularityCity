@@ -27,32 +27,31 @@
    console to force-fire a reaction without waiting for real news.
    ════════════════════════════════════════════════════════════════════════════════ */
 
-window.NewsReactivity = (function() {
-
+window.NewsReactivity = (function () {
     const STATE = {
-        seenIds: new Set(),         // story ids already reacted to (or skipped)
-        activeFlickers: [],         // [{ bldId, until, color }]
-        activeFireworks: [],        // [{ x, y, vx, vy, life, maxLife, color, size }]
-        recent: [],                 // last N reactions for the share UI
+        seenIds: new Set(), // story ids already reacted to (or skipped)
+        activeFlickers: [], // [{ bldId, until, color }]
+        activeFireworks: [], // [{ x, y, vx, vy, life, maxLife, color, size }]
+        recent: [], // last N reactions for the share UI
         lastReactionTick: -100000,
-        cooldownTicks: 60 * 180,    // 3 minutes at 60fps
-        scanTickStride: 30,         // check for new stories every N ticks (~0.5s)
-        bootGraceTicks: 600,        // skip the first ~10s of HN data so we don't
-                                    // dump a parade of reactions on first boot
+        cooldownTicks: 60 * 180, // 3 minutes at 60fps
+        scanTickStride: 30, // check for new stories every N ticks (~0.5s)
+        bootGraceTicks: 600, // skip the first ~10s of HN data so we don't
+        // dump a parade of reactions on first boot
         bootedAt: -1,
         disabled: false,
-        replayMode: false,        // Briefing replay — suppresses persistEvent
-                                  // AND share toast (full silent replay)
-        skipPersistOnly: false    // Cloud-driven reaction — suppresses just
-                                  // persistEvent (event is already in Supabase);
-                                  // share toast still fires so user is alerted
+        replayMode: false, // Briefing replay — suppresses persistEvent
+        // AND share toast (full silent replay)
+        skipPersistOnly: false, // Cloud-driven reaction — suppresses just
+        // persistEvent (event is already in Supabase);
+        // share toast still fires so user is alerted
     };
 
-    const LS_SEEN_KEY    = 'sc_news_seen_ids_v1';
-    const LS_OFF_KEY     = 'sc_news_reactivity_off';
-    const LS_EVENTS_KEY  = 'sc_news_events_v1';   // shared with citizen_of_day.js — keep in sync
-    const SEEN_CAP       = 250;
-    const EVENTS_CAP     = 200;
+    const LS_SEEN_KEY = 'sc_news_seen_ids_v1';
+    const LS_OFF_KEY = 'sc_news_reactivity_off';
+    const LS_EVENTS_KEY = 'sc_news_events_v1'; // shared with citizen_of_day.js — keep in sync
+    const SEEN_CAP = 250;
+    const EVENTS_CAP = 200;
 
     // ─── LAB ROUTER ──────────────────────────────────────────────────────────
     // Order matters — first match wins. Founder names are intentionally listed
@@ -62,42 +61,48 @@ window.NewsReactivity = (function() {
     // means the same headline reads differently server vs client.
     const LAB_KEYWORDS = [
         ['anthropic', /\b(anthropic|claude|dario amodei|amodei)\b/i],
-        ['openai',    /\b(openai|chatgpt|sam altman|altman|gpt-?\d|sora|o1|o3|o4)\b/i], // no bare o2 — matches 'O2 arena'
-        ['google',    /\b(google|deepmind|gemini|hassabis|pichai|alphabet)\b/i],
-        ['xai',       /\b(xai|x\.ai|grok|elon musk|musk)\b/i],
-        ['meta',      /\b(meta|llama|zuckerberg|mark zuck|fb research)\b/i],
-        ['mistral',   /\b(mistral|arthur mensch|mensch|mixtral)\b/i],
-        ['deepseek',  /\b(deepseek|liang wenfeng)\b/i],
+        ['openai', /\b(openai|chatgpt|sam altman|altman|gpt-?\d|sora|o1|o3|o4)\b/i], // no bare o2 — matches 'O2 arena'
+        ['google', /\b(google|deepmind|gemini|hassabis|pichai|alphabet)\b/i],
+        ['xai', /\b(xai|x\.ai|grok|elon musk|musk)\b/i],
+        ['meta', /\b(meta|llama|zuckerberg|mark zuck|fb research)\b/i],
+        ['mistral', /\b(mistral|arthur mensch|mensch|mixtral)\b/i],
+        ['deepseek', /\b(deepseek|liang wenfeng)\b/i],
         ['microsoft', /\b(microsoft|nadella|copilot|bing chat)\b/i],
-        ['nvidia',    /\b(nvidia|jensen huang|cuda|h100|h200|b100|blackwell)\b/i],
-        ['tesla',     /\b(tesla|optimus)\b/i],
-        ['alibaba',   /\b(alibaba|qwen|tongyi)\b/i],
-        ['cohere',    /\b(cohere|aidan gomez|command r)\b/i],
-        ['perplexity',/\b(perplexity|aravind)\b/i],
+        ['nvidia', /\b(nvidia|jensen huang|cuda|h100|h200|b100|blackwell)\b/i],
+        ['tesla', /\b(tesla|optimus)\b/i],
+        ['alibaba', /\b(alibaba|qwen|tongyi)\b/i],
+        ['cohere', /\b(cohere|aidan gomez|command r)\b/i],
+        ['perplexity', /\b(perplexity|aravind)\b/i],
         ['stability', /\b(stable diffusion|stability ai)\b/i],
-        ['hugging_face', /\b(hugging ?face)\b/i]
+        ['hugging_face', /\b(hugging ?face)\b/i],
     ];
 
     // ─── SENTIMENT CLASSIFIER ────────────────────────────────────────────────
     // Multi-class. Order: emergency > regulatory > crisis > celebrate.
     const SENTIMENT = {
-        emergency: /\b(fired|lawsuit|sued|breach(es|ed)?|hack(ed|s)?|leak(ed|s)?|exposed|whistleblow|board fires|departs|resigns|stepping down|class action|criminal|fraud|insider trading)\b/i,
-        regulatory: /\b(regulation|regulat(es|ed|ing)|ban(ned)?|eu ai act|congress|senate|ftc|doj|antitrust|hearing|subpoena|investig(ation|ates)|complaint|fines?|copyright suit)\b/i,
+        emergency:
+            /\b(fired|lawsuit|sued|breach(es|ed)?|hack(ed|s)?|leak(ed|s)?|exposed|whistleblow|board fires|departs|resigns|stepping down|class action|criminal|fraud|insider trading)\b/i,
+        regulatory:
+            /\b(regulation|regulat(es|ed|ing)|ban(ned)?|eu ai act|congress|senate|ftc|doj|antitrust|hearing|subpoena|investig(ation|ates)|complaint|fines?|copyright suit)\b/i,
         crisis: /\b(controversy|criticized|under fire|backlash|outage|down|crash|recall|apologi[sz]e|delays?|deprecat(es|ed|ing)|shut(s|ting)? down)\b/i,
-        celebrate: /\b(raises?|releases?|launches?|launched|ships?|shipped|announces?|unveils?|debuts?|tops?|beats?|sets record|breakthrough|introduces?|open[- ]?sources?|funded|partnership|partners with|acquires?|valuation|ipo|integration with)\b/i
+        celebrate:
+            /\b(raises?|releases?|launches?|launched|ships?|shipped|announces?|unveils?|debuts?|tops?|beats?|sets record|breakthrough|introduces?|open[- ]?sources?|funded|partnership|partners with|acquires?|valuation|ipo|integration with)\b/i,
     };
 
     function classifyStory(story) {
         const title = (story && story.title) || '';
         let lab = null;
         for (const [labId, re] of LAB_KEYWORDS) {
-            if (re.test(title)) { lab = labId; break; }
+            if (re.test(title)) {
+                lab = labId;
+                break;
+            }
         }
         let sentiment = null;
-        if      (SENTIMENT.emergency.test(title))  sentiment = 'emergency';
+        if (SENTIMENT.emergency.test(title)) sentiment = 'emergency';
         else if (SENTIMENT.regulatory.test(title)) sentiment = 'regulatory';
-        else if (SENTIMENT.crisis.test(title))     sentiment = 'crisis';
-        else if (SENTIMENT.celebrate.test(title))  sentiment = 'celebrate';
+        else if (SENTIMENT.crisis.test(title)) sentiment = 'crisis';
+        else if (SENTIMENT.celebrate.test(title)) sentiment = 'celebrate';
 
         return { lab, sentiment, title };
     }
@@ -109,7 +114,9 @@ window.NewsReactivity = (function() {
             if (!raw) return;
             const arr = JSON.parse(raw);
             if (Array.isArray(arr)) STATE.seenIds = new Set(arr);
-        } catch (_e) { /* ignore */ }
+        } catch (_e) {
+            /* ignore */
+        }
     }
     function saveSeen() {
         try {
@@ -117,17 +124,23 @@ window.NewsReactivity = (function() {
             const arr = Array.from(STATE.seenIds).slice(-SEEN_CAP);
             STATE.seenIds = new Set(arr);
             localStorage.setItem(LS_SEEN_KEY, JSON.stringify(arr));
-        } catch (_e) { /* ignore */ }
+        } catch (_e) {
+            /* ignore */
+        }
     }
     function isDisabled() {
-        try { return localStorage.getItem(LS_OFF_KEY) === '1'; } catch (_e) { return false; }
+        try {
+            return localStorage.getItem(LS_OFF_KEY) === '1';
+        } catch (_e) {
+            return false;
+        }
     }
 
     // ─── HQ LOOKUP ───────────────────────────────────────────────────────────
     function findHq(labId) {
         if (!labId || typeof G === 'undefined' || !G.bldsByLab) return null;
         const blds = G.bldsByLab[labId] || [];
-        return blds.find(b => !b.id.startsWith('house_')) || null;
+        return blds.find((b) => !b.id.startsWith('house_')) || null;
     }
 
     // ─── REACTION 1: LAUNCH PARTY (🎉) ───────────────────────────────────────
@@ -136,15 +149,19 @@ window.NewsReactivity = (function() {
         if (!hq) return false;
         const cx = hq.x + hq.w / 2;
         const flH = (hq.dynamicFl || 3) * 45;
-        const cy = (G.groundY - flH) - 30;
+        const cy = G.groundY - flH - 30;
         // Three bursts staggered over ~3 seconds for a real "celebration" feel
         spawnFireworksBurst(cx, cy, 0xfbbf24);
         setTimeout(() => spawnFireworksBurst(cx + 40, cy + 10, 0x22d3ee), 700);
         setTimeout(() => spawnFireworksBurst(cx - 40, cy - 10, 0xf472b6), 1400);
         addToTicker(`🎉 Celebration at ${labName(labId)} HQ — ${story.title}`, story.url, '#fbbf24');
         recordReaction({
-            type: 'celebrate', archetype: 'Launch Party', emoji: '🎉',
-            labId, hq, story
+            type: 'celebrate',
+            archetype: 'Launch Party',
+            emoji: '🎉',
+            labId,
+            hq,
+            story,
         });
         return true;
     }
@@ -156,8 +173,12 @@ window.NewsReactivity = (function() {
         addBuildingFlicker(hq, { color: 0xef4444, durationTicks: 720, intensity: 0.85 });
         addToTicker(`😰 Tension at ${labName(labId)} HQ — ${story.title}`, story.url, '#ef4444');
         recordReaction({
-            type: 'crisis', archetype: 'Crisis Flicker', emoji: '😰',
-            labId, hq, story
+            type: 'crisis',
+            archetype: 'Crisis Flicker',
+            emoji: '😰',
+            labId,
+            hq,
+            story,
         });
         return true;
     }
@@ -178,11 +199,17 @@ window.NewsReactivity = (function() {
                     if (heli.cont) heli.cont.visible = true;
                 }
             }
-        } catch (_e) { /* helicopter system optional */ }
+        } catch (_e) {
+            /* helicopter system optional */
+        }
         addToTicker(`🚁 Emergency at ${labName(labId)} — ${story.title}`, story.url, '#ef4444');
         recordReaction({
-            type: 'emergency', archetype: 'Emergency Huddle', emoji: '🚁',
-            labId, hq, story
+            type: 'emergency',
+            archetype: 'Emergency Huddle',
+            emoji: '🚁',
+            labId,
+            hq,
+            story,
         });
         return true;
     }
@@ -195,16 +222,25 @@ window.NewsReactivity = (function() {
                 CourtData._pickModelsForSummon();
                 triggered = true;
             }
-        } catch (_e) { /* court system optional */ }
+        } catch (_e) {
+            /* court system optional */
+        }
         // Even if Court summon failed, still flicker the AI Court building if
         // we can find it, so the player has a visual cue.
-        const courtBld = (typeof G !== 'undefined' && G.bldById) ? (G.bldById['court_senate'] || G.bldById['court_hearing']) : null;
+        const courtBld =
+            typeof G !== 'undefined' && G.bldById
+                ? G.bldById['court_senate'] || G.bldById['court_hearing']
+                : null;
         if (courtBld) addBuildingFlicker(courtBld, { color: 0xa78bfa, durationTicks: 900, intensity: 0.7 });
         const labLabel = labId ? `for ${labName(labId)}` : '';
         addToTicker(`⚖️ Regulatory hearing convening ${labLabel} — ${story.title}`, story.url, '#a78bfa');
         recordReaction({
-            type: 'regulatory', archetype: 'Court Convene', emoji: '⚖️',
-            labId, hq: courtBld, story
+            type: 'regulatory',
+            archetype: 'Court Convene',
+            emoji: '⚖️',
+            labId,
+            hq: courtBld,
+            story,
         });
         return triggered || !!courtBld;
     }
@@ -213,16 +249,17 @@ window.NewsReactivity = (function() {
     function spawnFireworksBurst(cx, cy, color) {
         const count = 18;
         for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 / count) * i + (Math.random() - 0.5) * 0.4;
+            const angle = ((Math.PI * 2) / count) * i + (Math.random() - 0.5) * 0.4;
             const speed = 1.6 + Math.random() * 1.8;
             STATE.activeFireworks.push({
-                x: cx, y: cy,
+                x: cx,
+                y: cy,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed - 0.4, // slight upward bias
                 life: 70 + Math.floor(Math.random() * 30),
                 maxLife: 100,
                 color: color || 0xffffff,
-                size: 1.6 + Math.random()
+                size: 1.6 + Math.random(),
             });
         }
     }
@@ -232,12 +269,12 @@ window.NewsReactivity = (function() {
         if (!bld) return;
         const until = (typeof G !== 'undefined' ? G.tick : 0) + (opts.durationTicks || 600);
         // Replace any existing flicker on the same building
-        STATE.activeFlickers = STATE.activeFlickers.filter(f => f.bldId !== bld.id);
+        STATE.activeFlickers = STATE.activeFlickers.filter((f) => f.bldId !== bld.id);
         STATE.activeFlickers.push({
             bldId: bld.id,
             until,
             color: opts.color != null ? opts.color : 0xef4444,
-            intensity: opts.intensity != null ? opts.intensity : 0.8
+            intensity: opts.intensity != null ? opts.intensity : 0.8,
         });
     }
 
@@ -252,7 +289,10 @@ window.NewsReactivity = (function() {
                 continue;
             }
             const bld = G.bldById[f.bldId];
-            if (!bld) { STATE.activeFlickers.splice(i, 1); continue; }
+            if (!bld) {
+                STATE.activeFlickers.splice(i, 1);
+                continue;
+            }
 
             const flH = (bld.dynamicFl || 3) * 45;
             const x = bld.x;
@@ -271,7 +311,7 @@ window.NewsReactivity = (function() {
             const bands = 6;
             for (let b = 0; b < bands; b++) {
                 const t = b / (bands - 1); // 0 at bottom, 1 at top
-                const bandAlpha = (1 - t) * (0.10 + pulse * 0.06) * intens;
+                const bandAlpha = (1 - t) * (0.1 + pulse * 0.06) * intens;
                 gfx.beginFill(f.color, bandAlpha);
                 gfx.drawRect(x, y + flH * t, w, flH / bands + 1);
                 gfx.endFill();
@@ -320,7 +360,7 @@ window.NewsReactivity = (function() {
             const p = STATE.activeFireworks[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.04;        // gravity
+            p.vy += 0.04; // gravity
             p.vx *= 0.985;
             p.life--;
             if (p.life <= 0) {
@@ -340,23 +380,27 @@ window.NewsReactivity = (function() {
         if (!Array.isArray(API.liveNews)) API.liveNews = [];
         // Strip any existing "Live: SC" entries first to avoid stacking many
         // reactive lines back-to-back; keep only the most recent two.
-        API.liveNews = API.liveNews.filter(n => n.source !== 'Live: SC');
+        API.liveNews = API.liveNews.filter((n) => n.source !== 'Live: SC');
         API.liveNews.unshift({
             headline: reactiveLine,
             url: url || 'https://singularitycity.net',
             source: 'Live: SC',
-            color: color || '#22d3ee'
+            color: color || '#22d3ee',
         });
         // Reset the ticker pointer so the new line shows next, not after a long
         // queue of older items.
-        try { API.newsIdx = 0; } catch (_e) { /* ignore */ }
+        try {
+            API.newsIdx = 0;
+        } catch (_e) {
+            /* ignore */
+        }
     }
 
     // ─── RECORD REACTION + SHOW SHARE TOAST ──────────────────────────────────
     function recordReaction(r) {
         STATE.recent.unshift(r);
         if (STATE.recent.length > 10) STATE.recent.length = 10;
-        STATE.lastReactionTick = (typeof G !== 'undefined' ? G.tick : 0);
+        STATE.lastReactionTick = typeof G !== 'undefined' ? G.tick : 0;
         // During briefing-replay we don't want to (a) re-persist yesterday's
         // events as today's, or (b) flood the user with N share toasts.
         if (!STATE.replayMode) {
@@ -375,7 +419,7 @@ window.NewsReactivity = (function() {
     function persistEvent(r) {
         try {
             const d = new Date();
-            const date = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+            const date = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
             const entry = {
                 date,
                 ts: d.toISOString(),
@@ -384,7 +428,7 @@ window.NewsReactivity = (function() {
                 emoji: r.emoji,
                 lab: r.labId || null,
                 title: (r.story && r.story.title) || '',
-                url: (r.story && r.story.url) || ''
+                url: (r.story && r.story.url) || '',
             };
             const raw = localStorage.getItem(LS_EVENTS_KEY);
             const arr = raw ? JSON.parse(raw) : [];
@@ -392,17 +436,19 @@ window.NewsReactivity = (function() {
             // Trim oldest if over cap
             const trimmed = arr.slice(-EVENTS_CAP);
             localStorage.setItem(LS_EVENTS_KEY, JSON.stringify(trimmed));
-        } catch (_e) { /* ignore quota / parse errors */ }
+        } catch (_e) {
+            /* ignore quota / parse errors */
+        }
     }
 
     function postTextFor(r) {
         const lab = labName(r.labId);
         const headline = (r.story && r.story.title) || 'AI news';
         const linePerType = {
-            celebrate:  `🎉 The crowd at ${lab} is celebrating — fireworks are going off in Singularity City after this just dropped:`,
-            crisis:     `😰 ${lab} HQ is flickering red in Singularity City — tension is high after:`,
-            emergency:  `🚁 Helicopter just lifted off ${lab} HQ in Singularity City after:`,
-            regulatory: `⚖️ Models being summoned to the AI Court in Singularity City after:`
+            celebrate: `🎉 The crowd at ${lab} is celebrating — fireworks are going off in Singularity City after this just dropped:`,
+            crisis: `😰 ${lab} HQ is flickering red in Singularity City — tension is high after:`,
+            emergency: `🚁 Helicopter just lifted off ${lab} HQ in Singularity City after:`,
+            regulatory: `⚖️ Models being summoned to the AI Court in Singularity City after:`,
         };
         const lead = linePerType[r.type] || '🚨 Live in Singularity City:';
         const url = (r.story && r.story.url) || 'https://singularitycity.net';
@@ -438,9 +484,9 @@ window.NewsReactivity = (function() {
         host.classList.add('sc-news-share-in');
 
         const closeBtn = host.querySelector('.sc-news-share-close');
-        const postBtn  = host.querySelector('.sc-news-share-post');
-        const copyBtn  = host.querySelector('.sc-news-share-copy');
-        const camBtn   = host.querySelector('.sc-news-share-camera');
+        const postBtn = host.querySelector('.sc-news-share-post');
+        const copyBtn = host.querySelector('.sc-news-share-copy');
+        const camBtn = host.querySelector('.sc-news-share-camera');
 
         closeBtn.onclick = () => host.classList.remove('sc-news-share-in');
         postBtn.onclick = () => {
@@ -451,10 +497,14 @@ window.NewsReactivity = (function() {
             try {
                 await navigator.clipboard.writeText(post);
                 copyBtn.textContent = '✓ Copied';
-                setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 1500);
+                setTimeout(() => {
+                    copyBtn.textContent = '📋 Copy';
+                }, 1500);
             } catch (_e) {
                 copyBtn.textContent = '⚠ Copy failed';
-                setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 1800);
+                setTimeout(() => {
+                    copyBtn.textContent = '📋 Copy';
+                }, 1800);
             }
         };
         camBtn.onclick = (e) => {
@@ -466,10 +516,12 @@ window.NewsReactivity = (function() {
             try {
                 if (typeof Camera !== 'undefined') {
                     const targetX = hq.x + hq.w / 2;
-                    Camera.targetX = -(targetX) + (G.vpW / 2) / Camera.zoom;
+                    Camera.targetX = -targetX + G.vpW / 2 / Camera.zoom;
                     G.tracking = null;
                 }
-            } catch (_e) { /* ignore */ }
+            } catch (_e) {
+                /* ignore */
+            }
         };
 
         // Auto-fade after 45s — long enough to read + click, short enough not
@@ -482,8 +534,11 @@ window.NewsReactivity = (function() {
 
     function escape(s) {
         return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function labName(labId) {
@@ -499,8 +554,8 @@ window.NewsReactivity = (function() {
         // — skip rather than fire a generic reaction.
         if (sentiment === 'celebrate' && lab) return reactLaunchParty(lab, story);
         if (sentiment === 'emergency' && lab) return reactEmergencyHuddle(lab, story);
-        if (sentiment === 'crisis' && lab)    return reactCrisisFlicker(lab, story);
-        if (sentiment === 'regulatory')       return reactCourtConvene(lab, story);
+        if (sentiment === 'crisis' && lab) return reactCrisisFlicker(lab, story);
+        if (sentiment === 'regulatory') return reactCourtConvene(lab, story);
         return false;
     }
 
@@ -553,8 +608,13 @@ window.NewsReactivity = (function() {
             let fired = false;
             try {
                 fired = fire({
-                    type: ev.event_type, archetype: ev.archetype, emoji: ev.emoji,
-                    lab: ev.lab, title: ev.title, url: ev.url, ts: ev.ts
+                    type: ev.event_type,
+                    archetype: ev.archetype,
+                    emoji: ev.emoji,
+                    lab: ev.lab,
+                    title: ev.title,
+                    url: ev.url,
+                    ts: ev.ts,
                 });
             } finally {
                 STATE.skipPersistOnly = false;
@@ -581,7 +641,10 @@ window.NewsReactivity = (function() {
     // Lookup table so the cloud-events path knows which event_type values
     // map to firable reactions (skip non-reactive types like 'launch'/'paper').
     const ARCHETYPE_TO_REACT = {
-        celebrate: true, crisis: true, emergency: true, regulatory: true
+        celebrate: true,
+        crisis: true,
+        emergency: true,
+        regulatory: true,
     };
 
     function readHnStories() {
@@ -617,22 +680,26 @@ window.NewsReactivity = (function() {
     function _test(kind, labId) {
         const fakeStory = {
             id: 'test-' + Date.now(),
-            title: ({
-                celebrate:  `${labName(labId) || 'OpenAI'} unveils breakthrough AI model`,
-                crisis:     `${labName(labId) || 'OpenAI'} faces controversy over training data`,
-                emergency:  `${labName(labId) || 'OpenAI'} board fires CEO in late-night meeting`,
-                regulatory: `EU regulators open hearing on ${labName(labId) || 'OpenAI'}`
-            })[kind] || `${labName(labId) || 'OpenAI'} in the news`,
-            url: 'https://news.ycombinator.com'
+            title:
+                {
+                    celebrate: `${labName(labId) || 'OpenAI'} unveils breakthrough AI model`,
+                    crisis: `${labName(labId) || 'OpenAI'} faces controversy over training data`,
+                    emergency: `${labName(labId) || 'OpenAI'} board fires CEO in late-night meeting`,
+                    regulatory: `EU regulators open hearing on ${labName(labId) || 'OpenAI'}`,
+                }[kind] || `${labName(labId) || 'OpenAI'} in the news`,
+            url: 'https://news.ycombinator.com',
         };
         const map = {
-            celebrate:  () => reactLaunchParty(labId || 'openai', fakeStory),
-            crisis:     () => reactCrisisFlicker(labId || 'openai', fakeStory),
-            emergency:  () => reactEmergencyHuddle(labId || 'openai', fakeStory),
-            regulatory: () => reactCourtConvene(labId, fakeStory)
+            celebrate: () => reactLaunchParty(labId || 'openai', fakeStory),
+            crisis: () => reactCrisisFlicker(labId || 'openai', fakeStory),
+            emergency: () => reactEmergencyHuddle(labId || 'openai', fakeStory),
+            regulatory: () => reactCourtConvene(labId, fakeStory),
         };
         const fn = map[kind];
-        if (!fn) { console.warn('Unknown kind:', kind, '— use celebrate|crisis|emergency|regulatory'); return false; }
+        if (!fn) {
+            console.warn('Unknown kind:', kind, '— use celebrate|crisis|emergency|regulatory');
+            return false;
+        }
         STATE.lastReactionTick = -100000; // bypass cooldown for tests
         return fn();
     }
@@ -653,26 +720,33 @@ window.NewsReactivity = (function() {
         const synthStory = {
             id: 'replay-' + (event.ts || Date.now()),
             title: event.title || 'AI news',
-            url: event.url || 'https://news.ycombinator.com'
+            url: event.url || 'https://news.ycombinator.com',
         };
         STATE.lastReactionTick = -100000; // bypass cooldown for the replay
         const labId = event.lab;
         switch (event.type) {
-            case 'celebrate':  return reactLaunchParty(labId, synthStory);
-            case 'crisis':     return reactCrisisFlicker(labId, synthStory);
-            case 'emergency':  return reactEmergencyHuddle(labId, synthStory);
-            case 'regulatory': return reactCourtConvene(labId, synthStory);
-            default:           return false;
+            case 'celebrate':
+                return reactLaunchParty(labId, synthStory);
+            case 'crisis':
+                return reactCrisisFlicker(labId, synthStory);
+            case 'emergency':
+                return reactEmergencyHuddle(labId, synthStory);
+            case 'regulatory':
+                return reactCourtConvene(labId, synthStory);
+            default:
+                return false;
         }
     }
 
-    function setReplayMode(on) { STATE.replayMode = !!on; }
+    function setReplayMode(on) {
+        STATE.replayMode = !!on;
+    }
 
     return { init, update, _test, fire, setReplayMode, _state: STATE };
 })();
 
 // Auto-init on DOM ready (idempotent — safe even if engine.js calls init too)
-(function() {
+(function () {
     function tryInit() {
         if (typeof NewsReactivity !== 'undefined') NewsReactivity.init();
     }

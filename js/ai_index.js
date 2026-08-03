@@ -6,44 +6,52 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const AIIndex = {
-
     BLDS: [
-        { id: 'ai_index', name: 'Global AI Index', w: 160, fl: 5, emoji: '📊', type: 'ai_index', desc: 'A colossal digital billboard tracking humanity\'s composite AI capability score in real time. Six weighted components distilled into a single number: 0-1000.' },
+        {
+            id: 'ai_index',
+            name: 'Global AI Index',
+            w: 160,
+            fl: 5,
+            emoji: '📊',
+            type: 'ai_index',
+            desc: "A colossal digital billboard tracking humanity's composite AI capability score in real time. Six weighted components distilled into a single number: 0-1000.",
+        },
     ],
 
     _score: 0,
     _targetScore: 0,
     _components: {},
-    _history: [],       // rolling 30-day history for sparkline
+    _history: [], // rolling 30-day history for sparkline
     _allTimeHigh: 0,
-    _billboard: null,   // PIXI container for the rendered billboard
+    _billboard: null, // PIXI container for the rendered billboard
     _lastCalcTick: 0,
     _zoneStartX: 0,
     _zoneEndX: 0,
 
     // Reference ceilings — tuned so mid-2026 industry scores ~400-500
     CEILINGS: {
-        benchmarkCeiling: 100,     // max avg benchmark (perfect = 100%)
-        population:       1500,    // total active models
-        labDiversity:     25,      // distinct labs with ≥3 models
-        openSource:       1.0,     // 100% open source ratio
-        compute:          50000,   // total MW + GPU equivalents
-        velocity:         200,     // models released in last 90 days
+        benchmarkCeiling: 100, // max avg benchmark (perfect = 100%)
+        population: 1500, // total active models
+        labDiversity: 25, // distinct labs with ≥3 models
+        openSource: 1.0, // 100% open source ratio
+        compute: 50000, // total MW + GPU equivalents
+        velocity: 200, // models released in last 90 days
     },
 
     WEIGHTS: {
         benchmarkCeiling: 0.25,
-        population:       0.15,
-        labDiversity:     0.15,
-        openSource:       0.10,
-        compute:          0.20,
-        velocity:         0.15,
+        population: 0.15,
+        labDiversity: 0.15,
+        openSource: 0.1,
+        compute: 0.2,
+        velocity: 0.15,
     },
 
     init() {
-        this.BLDS.forEach(b => {
-            b.x = 0; b.lab = null;
-            if (!BLDS.find(eb => eb.id === b.id)) {
+        this.BLDS.forEach((b) => {
+            b.x = 0;
+            b.lab = null;
+            if (!BLDS.find((eb) => eb.id === b.id)) {
                 BLDS.push(b);
             }
             G.bldById[b.id] = b;
@@ -53,9 +61,12 @@ const AIIndex = {
     positionZone(startX) {
         let cx = startX + 30;
         this._zoneStartX = cx;
-        this.BLDS.forEach(b => {
+        this.BLDS.forEach((b) => {
             const bld = G.bldById[b.id];
-            if (bld) { bld.x = cx; cx += bld.w + 30; }
+            if (bld) {
+                bld.x = cx;
+                cx += bld.w + 30;
+            }
         });
         this._zoneEndX = cx;
         return cx;
@@ -102,12 +113,12 @@ const AIIndex = {
         }
 
         // Lab diversity: labs with ≥3 models
-        const diverseLabs = Object.values(labModelCounts).filter(c => c >= 3).length;
+        const diverseLabs = Object.values(labModelCounts).filter((c) => c >= 3).length;
 
         // Compute scale: sum from DC facilities if available
         let computeScore = 0;
         if (typeof DC_FACILITIES !== 'undefined') {
-            DC_FACILITIES.forEach(dc => {
+            DC_FACILITIES.forEach((dc) => {
                 if (dc.power_mw) computeScore += dc.power_mw;
                 if (dc.gpus) computeScore += dc.gpus * 0.01; // normalize GPU count
             });
@@ -120,11 +131,11 @@ const AIIndex = {
         // Calculate components (0-1 each)
         this._components = {
             benchmarkCeiling: Math.min(1, bestAvgBench / this.CEILINGS.benchmarkCeiling),
-            population:       Math.min(1, aliveCount / this.CEILINGS.population),
-            labDiversity:     Math.min(1, diverseLabs / this.CEILINGS.labDiversity),
-            openSource:       aliveCount > 0 ? Math.min(1, osCount / aliveCount) : 0,
-            compute:          Math.min(1, computeScore / this.CEILINGS.compute),
-            velocity:         Math.min(1, recentCount / this.CEILINGS.velocity),
+            population: Math.min(1, aliveCount / this.CEILINGS.population),
+            labDiversity: Math.min(1, diverseLabs / this.CEILINGS.labDiversity),
+            openSource: aliveCount > 0 ? Math.min(1, osCount / aliveCount) : 0,
+            compute: Math.min(1, computeScore / this.CEILINGS.compute),
+            velocity: Math.min(1, recentCount / this.CEILINGS.velocity),
         };
 
         // Weighted sum → 0-1000
@@ -152,11 +163,19 @@ const AIIndex = {
         const w = b.w;
 
         // ── STEEL SUPPORT STRUCTURE ──
-        gfx.beginFill(0x3a3a4a); gfx.drawRect(w / 2 - 4, h - 14, 8, 14); gfx.endFill();
-        gfx.beginFill(0x4a4a5a); gfx.drawRect(w / 2 - 6, h - 16, 12, 4); gfx.endFill();
+        gfx.beginFill(0x3a3a4a);
+        gfx.drawRect(w / 2 - 4, h - 14, 8, 14);
+        gfx.endFill();
+        gfx.beginFill(0x4a4a5a);
+        gfx.drawRect(w / 2 - 6, h - 16, 12, 4);
+        gfx.endFill();
         // Cross braces
-        gfx.beginFill(0x333344); gfx.drawRect(w / 2 - 20, h - 20, 40, 2); gfx.endFill();
-        gfx.beginFill(0x333344); gfx.drawRect(w / 2 - 3, h - 80, 6, 66); gfx.endFill();
+        gfx.beginFill(0x333344);
+        gfx.drawRect(w / 2 - 20, h - 20, 40, 2);
+        gfx.endFill();
+        gfx.beginFill(0x333344);
+        gfx.drawRect(w / 2 - 3, h - 80, 6, 66);
+        gfx.endFill();
 
         // ── BILLBOARD SCREEN ──
         const screenW = w - 20;
@@ -164,16 +183,24 @@ const AIIndex = {
         const screenX = 10;
         const screenY = h - 82;
         // Outer frame
-        gfx.beginFill(0x1a1a2e); gfx.drawRoundedRect(screenX - 2, screenY - 2, screenW + 4, screenH + 4, 3); gfx.endFill();
+        gfx.beginFill(0x1a1a2e);
+        gfx.drawRoundedRect(screenX - 2, screenY - 2, screenW + 4, screenH + 4, 3);
+        gfx.endFill();
         // Screen background
-        gfx.beginFill(0x0a0a18); gfx.drawRoundedRect(screenX, screenY, screenW, screenH, 2); gfx.endFill();
+        gfx.beginFill(0x0a0a18);
+        gfx.drawRoundedRect(screenX, screenY, screenW, screenH, 2);
+        gfx.endFill();
         // Scan line effect
         for (let sy = screenY + 2; sy < screenY + screenH - 2; sy += 3) {
-            gfx.beginFill(0x111122, 0.3); gfx.drawRect(screenX + 1, sy, screenW - 2, 1); gfx.endFill();
+            gfx.beginFill(0x111122, 0.3);
+            gfx.drawRect(screenX + 1, sy, screenW - 2, 1);
+            gfx.endFill();
         }
 
         // ── GROUND ──
-        gfx.beginFill(0x2a2a3a); gfx.drawRect(0, h - 4, w, 4); gfx.endFill();
+        gfx.beginFill(0x2a2a3a);
+        gfx.drawRect(0, h - 4, w, 4);
+        gfx.endFill();
 
         // Create dynamic text container for score updates
         const dynCont = new PIXI.Container();
@@ -188,7 +215,8 @@ const AIIndex = {
         b._screenY = screenY;
 
         // Tooltip
-        b.tip = '📊 Global AI Index<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">Composite AI capability score (0-1000).<br>Tracks benchmarks, population, diversity,<br>open source, compute, and velocity.</span>';
+        b.tip =
+            '📊 Global AI Index<br><br><span style="color:#a0a0b8;font-size:9px;line-height:1.4;display:block;">Composite AI capability score (0-1000).<br>Tracks benchmarks, population, diversity,<br>open source, compute, and velocity.</span>';
     },
 
     updateBillboard() {
@@ -218,14 +246,24 @@ const AIIndex = {
         if (this._score >= 800) scoreCol = 0x22d3ee; // blue (800+)
 
         // Title
-        const title = new PIXI.Text('GLOBAL AI INDEX', { fontFamily: 'Silkscreen', fontSize: 5, fill: 0x6688aa });
-        title.x = 4; title.y = 3;
+        const title = new PIXI.Text('GLOBAL AI INDEX', {
+            fontFamily: 'Silkscreen',
+            fontSize: 5,
+            fill: 0x6688aa,
+        });
+        title.x = 4;
+        title.y = 3;
         cont.addChild(title);
 
         // Main score number
-        const scoreTxt = new PIXI.Text(String(this._score), { fontFamily: 'Press Start 2P', fontSize: 14, fill: scoreCol });
+        const scoreTxt = new PIXI.Text(String(this._score), {
+            fontFamily: 'Press Start 2P',
+            fontSize: 14,
+            fill: scoreCol,
+        });
         scoreTxt.anchor.set(0.5, 0);
-        scoreTxt.x = sw / 2; scoreTxt.y = 10;
+        scoreTxt.x = sw / 2;
+        scoreTxt.y = 10;
         cont.addChild(scoreTxt);
 
         // Score label
@@ -233,9 +271,15 @@ const AIIndex = {
         if (this._score >= 200) label = 'ACCELERATING';
         if (this._score >= 500) label = 'ADVANCED';
         if (this._score >= 800) label = 'APPROACHING SINGULARITY';
-        const labelTxt = new PIXI.Text(label, { fontFamily: 'Silkscreen', fontSize: 4, fill: scoreCol, letterSpacing: 1 });
+        const labelTxt = new PIXI.Text(label, {
+            fontFamily: 'Silkscreen',
+            fontSize: 4,
+            fill: scoreCol,
+            letterSpacing: 1,
+        });
         labelTxt.anchor.set(0.5, 0);
-        labelTxt.x = sw / 2; labelTxt.y = 28;
+        labelTxt.x = sw / 2;
+        labelTxt.y = 28;
         cont.addChild(labelTxt);
 
         // Sparkline (bottom area)
@@ -273,7 +317,8 @@ const AIIndex = {
         // ATH indicator
         if (this._score >= this._allTimeHigh && this._allTimeHigh > 0) {
             const athTxt = new PIXI.Text('ATH', { fontFamily: 'Silkscreen', fontSize: 4, fill: 0xfacc15 });
-            athTxt.x = sw - 16; athTxt.y = 3;
+            athTxt.x = sw - 16;
+            athTxt.y = 3;
             cont.addChild(athTxt);
         }
     },
@@ -285,5 +330,5 @@ const AIIndex = {
             this._lastCalcTick = G.tick;
         }
         this.updateBillboard();
-    }
+    },
 };

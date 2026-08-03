@@ -35,27 +35,117 @@ const InteriorNewspaper = {
     // their desks when the player is inside the building.
     NPCS: [
         // ── Day shift ────────────────────────────────────────────────────────────────
-        { id: 'np_editor',     name: 'Editor-in-Chief',  role: 'Editor-in-Chief',         workplace: 'times_hq', shift: 'day',   floor: 2, xOff: 0.20, color: '#fbbf24',
-          desc: 'Runs the editorial floor. Decides which AI release leads the front page and which obituary gets a column inch. Veteran of three model graveyard expansions.' },
-        { id: 'np_reporter1',  name: 'Senior Reporter',  role: 'Senior Reporter',         workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.15, color: '#3b82f6',
-          desc: 'Files the daily AI Industry Watch column. Has the founders of every major lab on speed-dial and the receipts to prove it.' },
-        { id: 'np_journalist', name: 'Journalist',       role: 'General Reporter',        workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.35, color: '#22c55e',
-          desc: 'Covers benchmarks, releases, and the occasional CEO helicopter mishap. Working on a long-form piece about what models do at lunch.' },
-        { id: 'np_journalist2',name: 'Investigative',    role: 'Investigative Reporter',  workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.60, color: '#06b6d4',
-          desc: 'Specializes in the Black Market beat. Has been refused entry to three AI Court hearings and never seen smiling.' },
-        { id: 'np_photog',     name: 'Photographer',     role: 'Photographer',            workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.75, color: '#a855f7',
-          desc: 'Camera always at the ready for rocket launches, conference signings, and the Apex Beacon transferring labs.' },
-        { id: 'np_copyedit',   name: 'Copy Editor',      role: 'Copy Editor',             workplace: 'times_hq', shift: 'day',   floor: 1, xOff: 0.50, color: '#f97316',
-          desc: 'The reason the Times never publishes "GPT-4" when it means "GPT-4o". Defender of the en-dash and the Oxford comma.' },
-        { id: 'np_reception',  name: 'Receptionist',     role: 'Receptionist',            workplace: 'times_hq', shift: 'day',   floor: 0, xOff: 0.18, color: '#fb7185',
-          desc: 'First point of contact for tipsters, founders, and the occasional model citizen demanding a correction. Knows everyone in the city by name.' },
+        {
+            id: 'np_editor',
+            name: 'Editor-in-Chief',
+            role: 'Editor-in-Chief',
+            workplace: 'times_hq',
+            shift: 'day',
+            floor: 2,
+            xOff: 0.2,
+            color: '#fbbf24',
+            desc: 'Runs the editorial floor. Decides which AI release leads the front page and which obituary gets a column inch. Veteran of three model graveyard expansions.',
+        },
+        {
+            id: 'np_reporter1',
+            name: 'Senior Reporter',
+            role: 'Senior Reporter',
+            workplace: 'times_hq',
+            shift: 'day',
+            floor: 1,
+            xOff: 0.15,
+            color: '#3b82f6',
+            desc: 'Files the daily AI Industry Watch column. Has the founders of every major lab on speed-dial and the receipts to prove it.',
+        },
+        {
+            id: 'np_journalist',
+            name: 'Journalist',
+            role: 'General Reporter',
+            workplace: 'times_hq',
+            shift: 'day',
+            floor: 1,
+            xOff: 0.35,
+            color: '#22c55e',
+            desc: 'Covers benchmarks, releases, and the occasional CEO helicopter mishap. Working on a long-form piece about what models do at lunch.',
+        },
+        {
+            id: 'np_journalist2',
+            name: 'Investigative',
+            role: 'Investigative Reporter',
+            workplace: 'times_hq',
+            shift: 'day',
+            floor: 1,
+            xOff: 0.6,
+            color: '#06b6d4',
+            desc: 'Specializes in the Black Market beat. Has been refused entry to three AI Court hearings and never seen smiling.',
+        },
+        {
+            id: 'np_photog',
+            name: 'Photographer',
+            role: 'Photographer',
+            workplace: 'times_hq',
+            shift: 'day',
+            floor: 1,
+            xOff: 0.75,
+            color: '#a855f7',
+            desc: 'Camera always at the ready for rocket launches, conference signings, and the Apex Beacon transferring labs.',
+        },
+        {
+            id: 'np_copyedit',
+            name: 'Copy Editor',
+            role: 'Copy Editor',
+            workplace: 'times_hq',
+            shift: 'day',
+            floor: 1,
+            xOff: 0.5,
+            color: '#f97316',
+            desc: 'The reason the Times never publishes "GPT-4" when it means "GPT-4o". Defender of the en-dash and the Oxford comma.',
+        },
+        {
+            id: 'np_reception',
+            name: 'Receptionist',
+            role: 'Receptionist',
+            workplace: 'times_hq',
+            shift: 'day',
+            floor: 0,
+            xOff: 0.18,
+            color: '#fb7185',
+            desc: 'First point of contact for tipsters, founders, and the occasional model citizen demanding a correction. Knows everyone in the city by name.',
+        },
         // ── Night shift ──────────────────────────────────────────────────────────────
-        { id: 'np_nightedit',  name: 'Night Editor',     role: 'Night Editor',            workplace: 'times_hq', shift: 'night', floor: 2, xOff: 0.20, color: '#fbbf24',
-          desc: 'Steers the paper through the late hours. Owns the call on whether a midnight HackerNews drop is worth waking the front page for.' },
-        { id: 'np_breaking',   name: 'Breaking News',    role: 'Breaking News Desk',      workplace: 'times_hq', shift: 'night', floor: 1, xOff: 0.30, color: '#ef4444',
-          desc: 'Watches the news ticker and the arena leaderboard simultaneously. First to know when a frontier model lands at 3am UTC.' },
-        { id: 'np_printop',    name: 'Print Operator',   role: 'Print Operator',          workplace: 'times_hq', shift: 'night', floor: 0, xOff: 0.55, color: '#22c55e',
-          desc: 'Runs the press through the night so the morning Daily Brief is ready by 06:00. Knows every quirk of every roller.' },
+        {
+            id: 'np_nightedit',
+            name: 'Night Editor',
+            role: 'Night Editor',
+            workplace: 'times_hq',
+            shift: 'night',
+            floor: 2,
+            xOff: 0.2,
+            color: '#fbbf24',
+            desc: 'Steers the paper through the late hours. Owns the call on whether a midnight HackerNews drop is worth waking the front page for.',
+        },
+        {
+            id: 'np_breaking',
+            name: 'Breaking News',
+            role: 'Breaking News Desk',
+            workplace: 'times_hq',
+            shift: 'night',
+            floor: 1,
+            xOff: 0.3,
+            color: '#ef4444',
+            desc: 'Watches the news ticker and the arena leaderboard simultaneously. First to know when a frontier model lands at 3am UTC.',
+        },
+        {
+            id: 'np_printop',
+            name: 'Print Operator',
+            role: 'Print Operator',
+            workplace: 'times_hq',
+            shift: 'night',
+            floor: 0,
+            xOff: 0.55,
+            color: '#22c55e',
+            desc: 'Runs the press through the night so the morning Daily Brief is ready by 06:00. Knows every quirk of every roller.',
+        },
     ],
 
     // Register staff with NPCHousing so commuter routines run on city boot. Same
@@ -66,7 +156,7 @@ const InteriorNewspaper = {
         this._inited = true;
         if (typeof NPCHousing !== 'undefined' && Array.isArray(NPCHousing.REGISTRY)) {
             for (const npc of this.NPCS) {
-                if (!NPCHousing.REGISTRY.find(n => n.id === npc.id)) {
+                if (!NPCHousing.REGISTRY.find((n) => n.id === npc.id)) {
                     NPCHousing.REGISTRY.push(npc);
                 }
             }
@@ -139,8 +229,10 @@ const InteriorNewspaper = {
         this.scene.addChild(roof);
 
         const signTxt = new PIXI.Text('SINGULARITY CITY TIMES', {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 7,
-            fill: 0xfbbf24, letterSpacing: 1
+            fontFamily: 'Press Start 2P, monospace',
+            fontSize: 7,
+            fill: 0xfbbf24,
+            letterSpacing: 1,
         });
         signTxt.anchor.set(0.5, 0.5);
         signTxt.x = startX + bldW / 2;
@@ -189,10 +281,18 @@ const InteriorNewspaper = {
                 const mullionW = 8;
 
                 InteriorCity._drawWallWithWindowCutout(
-                    rg, wallCol,
-                    startX, fy, bldW, floorH,
-                    winX, winY, winW, winH,
-                    mullionPitch, mullionW
+                    rg,
+                    wallCol,
+                    startX,
+                    fy,
+                    bldW,
+                    floorH,
+                    winX,
+                    winY,
+                    winW,
+                    winH,
+                    mullionPitch,
+                    mullionW
                 );
 
                 // Window frame outlines
@@ -284,7 +384,7 @@ const InteriorNewspaper = {
 
         // ─── INITIAL POSITION + SCROLL HANDLERS ───
         const bottomPad = 40;
-        const undergroundDepth = (typeof Underground !== 'undefined') ? Underground.FULL_STACK_DEPTH + 6 : 244;
+        const undergroundDepth = typeof Underground !== 'undefined' ? Underground.FULL_STACK_DEPTH + 6 : 244;
         this.scene.y = G.vpH - bottomPad - totalH + floorH;
         this.minY = Math.min(this.scene.y - floorH * 3, G.vpH - bottomPad - totalH - undergroundDepth);
         this.maxY = Math.max(this.scene.y + floorH * 3, G.vpH - bottomPad);
@@ -351,8 +451,13 @@ const InteriorNewspaper = {
             // Live trains overlay
             if (this._liveTrains) this._liveTrains.destroy();
             this._liveTrains = Underground.attachLiveTrains(
-                this.scene, this.bld.x + (this.bld.w || bldW) / 2, 0,
-                undergroundY + Underground.H_CABLE_TRAY, W, 1200);
+                this.scene,
+                this.bld.x + (this.bld.w || bldW) / 2,
+                0,
+                undergroundY + Underground.H_CABLE_TRAY,
+                W,
+                1200
+            );
             return;
         }
 
@@ -362,7 +467,10 @@ const InteriorNewspaper = {
         g.endFill();
         const cableCols = [0x22d3ee, 0x4ade80, 0xf43f5e, 0xfacc15, 0x8b5cf6, 0x3b82f6];
         let cr = 101;
-        const cr2 = () => { cr = (cr * 16807) % 2147483647; return (cr - 1) / 2147483646; };
+        const cr2 = () => {
+            cr = (cr * 16807) % 2147483647;
+            return (cr - 1) / 2147483646;
+        };
 
         for (let ci = 0; ci < 20; ci++) {
             const cy = belowY + 3 + cr2() * 28;
@@ -373,7 +481,7 @@ const InteriorNewspaper = {
             g.moveTo(0, cy);
             let currentY = cy;
             for (let cx = 0; cx < W; cx += 60) {
-                currentY += (cr2() * 8 - 4);
+                currentY += cr2() * 8 - 4;
                 if (currentY < belowY + 3) currentY = belowY + 3;
                 if (currentY > belowY + 31) currentY = belowY + 31;
                 g.lineTo(cx, currentY);
@@ -501,7 +609,7 @@ const InteriorNewspaper = {
         const boxCols = [0x78350f, 0x5c3a1e, 0x4a2e16];
         for (let i = 0; i < 4; i++) {
             const bx = startX + usableW - 100 + i * 22;
-            const bh = 14 + Math.floor(i * 3.7) % 8;
+            const bh = 14 + (Math.floor(i * 3.7) % 8);
             g.beginFill(boxCols[i % boxCols.length]);
             g.drawRect(bx, pY - bh, 18, bh);
             g.endFill();
@@ -531,8 +639,10 @@ const InteriorNewspaper = {
         cont.addChild(g);
 
         const label = new PIXI.Text('ARCHIVES', {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 6,
-            fill: 0x64748b, letterSpacing: 1
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 6,
+            fill: 0x64748b,
+            letterSpacing: 1,
         });
         label.x = startX + 8;
         label.y = fy + 4;
@@ -583,7 +693,9 @@ const InteriorNewspaper = {
             g.drawRect(shelfX + 2, sy, 46, 2);
             g.endFill();
             for (let bx = shelfX + 4; bx < shelfX + 46; bx += 6) {
-                const bookCol = [0x3b82f6, 0xef4444, 0x22c55e, 0xfbbf24, 0xa855f7, 0x06b6d4][Math.floor(Math.random() * 6)];
+                const bookCol = [0x3b82f6, 0xef4444, 0x22c55e, 0xfbbf24, 0xa855f7, 0x06b6d4][
+                    Math.floor(Math.random() * 6)
+                ];
                 g.beginFill(bookCol, 0.7);
                 g.drawRect(bx, sy - 12, 4, 12);
                 g.endFill();
@@ -614,9 +726,11 @@ const InteriorNewspaper = {
         g.endFill();
 
         cont.addChild(g);
-        const label = new PIXI.Text('EDITOR\'S OFFICE', {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 6,
-            fill: 0x94a3b8, letterSpacing: 1
+        const label = new PIXI.Text("EDITOR'S OFFICE", {
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 6,
+            fill: 0x94a3b8,
+            letterSpacing: 1,
         });
         label.x = startX + 8;
         label.y = fy + 36;
@@ -684,7 +798,9 @@ const InteriorNewspaper = {
         this.indoorLights.push({ g: bnGlow, maxA: 0.35, type: 'screen' });
 
         const bnText = new PIXI.Text('BREAKING', {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 5, fill: 0xef4444
+            fontFamily: 'Press Start 2P, monospace',
+            fontSize: 5,
+            fill: 0xef4444,
         });
         bnText.anchor.set(0.5, 0.5);
         bnText.x = bnX + 25;
@@ -701,8 +817,10 @@ const InteriorNewspaper = {
 
         cont.addChild(g);
         const label = new PIXI.Text('NEWSROOM', {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 6,
-            fill: 0x94a3b8, letterSpacing: 1
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 6,
+            fill: 0x94a3b8,
+            letterSpacing: 1,
         });
         label.x = startX + 8;
         label.y = fy + 36;
@@ -794,8 +912,10 @@ const InteriorNewspaper = {
         cont.addChild(pressHit);
 
         const pressLabel = new PIXI.Text('CLICK PRESS TO READ', {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 5,
-            fill: 0xfbbf24, letterSpacing: 0.5
+            fontFamily: 'Press Start 2P, monospace',
+            fontSize: 5,
+            fill: 0xfbbf24,
+            letterSpacing: 0.5,
         });
         // Anchor bottom-center so the label hovers just above the press
         // machine instead of crossing into the basement wall.
@@ -829,8 +949,10 @@ const InteriorNewspaper = {
         cont.addChild(dollyG);
 
         const label = new PIXI.Text('LOBBY & PRESS ROOM', {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 6,
-            fill: 0x94a3b8, letterSpacing: 1
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 6,
+            fill: 0x94a3b8,
+            letterSpacing: 1,
         });
         label.x = startX + 8;
         label.y = fy + 36;
@@ -841,8 +963,8 @@ const InteriorNewspaper = {
     //  STAFF NPCs — day/night shift rotation
     // ═══════════════════════════════════════════════════════════════
     _spawnStaff(startX, usableW, floors) {
-        const day   = this.NPCS.filter(n => n.shift === 'day');
-        const night = this.NPCS.filter(n => n.shift === 'night');
+        const day = this.NPCS.filter((n) => n.shift === 'day');
+        const night = this.NPCS.filter((n) => n.shift === 'night');
         this._staff = { day, night };
 
         for (const w of this.NPCS) {
@@ -854,11 +976,17 @@ const InteriorNewspaper = {
             // Model object shaped to match what UI.selectModel + UI.showTooltip expect
             // for an NPC. isNPC:true routes the panel to the NPC layout; phase 'released'
             // keeps it out of any "training/rumored" code paths.
-            const colHex = typeof w.color === 'string' ? parseInt(w.color.replace('#', ''), 16) : (w.color || 0x22d3ee);
+            const colHex =
+                typeof w.color === 'string' ? parseInt(w.color.replace('#', ''), 16) : w.color || 0x22d3ee;
             const npcModel = {
-                id: w.id, name: w.name, role: w.role,
-                isNPC: true, phase: 'released', lab: 'other',
-                desc: w.desc, _npcColor: colHex
+                id: w.id,
+                name: w.name,
+                role: w.role,
+                isNPC: true,
+                phase: 'released',
+                lab: 'other',
+                desc: w.desc,
+                _npcColor: colHex,
             };
             const av = this._makeAvatarSprite(npcModel);
             av.cont.x = wx;
@@ -897,10 +1025,16 @@ const InteriorNewspaper = {
         const cont = new PIXI.Container();
         let suitHex = 0x22d3ee;
         if (m._npcColor) {
-            suitHex = typeof m._npcColor === 'number' ? m._npcColor : parseInt(String(m._npcColor).replace('#', ''), 16);
+            suitHex =
+                typeof m._npcColor === 'number'
+                    ? m._npcColor
+                    : parseInt(String(m._npcColor).replace('#', ''), 16);
         }
 
-        const bw = 16, h = 32, headH = Math.round(h * 0.4), bodyH = h - headH - 4;
+        const bw = 16,
+            h = 32,
+            headH = Math.round(h * 0.4),
+            bodyH = h - headH - 4;
 
         const shadow = new PIXI.Graphics();
         shadow.beginFill(0x000000, 0.25);
@@ -914,13 +1048,18 @@ const InteriorNewspaper = {
         highlight.visible = false;
         cont.addChild(highlight);
 
-        const lw = Math.max(2, bw * 0.25), lh = Math.max(4, 2);
+        const lw = Math.max(2, bw * 0.25),
+            lh = Math.max(4, 2);
         const legL = new PIXI.Graphics();
-        legL.beginFill(0x3d2914); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill();
+        legL.beginFill(0x3d2914);
+        legL.drawRect(-lw / 2, 0, lw, lh);
+        legL.endFill();
         legL.x = -bw * 0.15;
         cont.addChild(legL);
         const legR = new PIXI.Graphics();
-        legR.beginFill(0x3d2914); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill();
+        legR.beginFill(0x3d2914);
+        legR.drawRect(-lw / 2, 0, lw, lh);
+        legR.endFill();
         legR.x = bw * 0.15;
         cont.addChild(legR);
 
@@ -949,7 +1088,9 @@ const InteriorNewspaper = {
         cont.addChild(head);
 
         const dot = new PIXI.Graphics();
-        dot.beginFill(suitHex); dot.drawCircle(0, 0, 2); dot.endFill();
+        dot.beginFill(suitHex);
+        dot.drawCircle(0, 0, 2);
+        dot.endFill();
         dot.y = -h - 6;
         cont.addChild(dot);
 
@@ -972,27 +1113,28 @@ const InteriorNewspaper = {
         const vp = document.getElementById('viewport');
         if (vp) {
             let sky;
-            if (dp < .22) {
+            if (dp < 0.22) {
                 sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
-            } else if (dp < .30) {
-                const t = (dp - .22) / .08;
-                sky = `linear-gradient(180deg,rgb(${8 + t * 40 | 0},${10 + t * 30 | 0},${30 + t * 40 | 0}),rgb(${15 + t * 80 | 0},${15 + t * 50 | 0},${40 + t * 50 | 0}) 50%,rgb(${20 + t * 120 | 0},${20 + t * 80 | 0},${40 + t * 30 | 0}))`;
-            } else if (dp < .72) {
+            } else if (dp < 0.3) {
+                const t = (dp - 0.22) / 0.08;
+                sky = `linear-gradient(180deg,rgb(${(8 + t * 40) | 0},${(10 + t * 30) | 0},${(30 + t * 40) | 0}),rgb(${(15 + t * 80) | 0},${(15 + t * 50) | 0},${(40 + t * 50) | 0}) 50%,rgb(${(20 + t * 120) | 0},${(20 + t * 80) | 0},${(40 + t * 30) | 0}))`;
+            } else if (dp < 0.72) {
                 sky = 'linear-gradient(180deg,#2d4a7a,#5a8fbb 50%,#87b5d6)';
-            } else if (dp < .84) {
-                const t = (dp - .72) / .12;
-                sky = `linear-gradient(180deg,rgb(${45 + t * 30 | 0},${74 - t * 40 | 0},${122 - t * 60 | 0}),rgb(${90 + t * 80 | 0},${143 - t * 80 | 0},${187 - t * 100 | 0}) 50%,rgb(${135 + t * 60 | 0},${100 - t * 50 | 0},${50 - t * 10 | 0}))`;
+            } else if (dp < 0.84) {
+                const t = (dp - 0.72) / 0.12;
+                sky = `linear-gradient(180deg,rgb(${(45 + t * 30) | 0},${(74 - t * 40) | 0},${(122 - t * 60) | 0}),rgb(${(90 + t * 80) | 0},${(143 - t * 80) | 0},${(187 - t * 100) | 0}) 50%,rgb(${(135 + t * 60) | 0},${(100 - t * 50) | 0},${(50 - t * 10) | 0}))`;
             } else {
                 sky = 'linear-gradient(180deg,#080a1e,#0f0f28 50%,#141430)';
             }
             // Weather overrides (matches InteriorCity exactly)
-            if (typeof Environment !== 'undefined' && !night && dp > .3 && dp < .72) {
+            if (typeof Environment !== 'undefined' && !night && dp > 0.3 && dp < 0.72) {
                 const _ew = Environment.weather;
-                if (_ew === 'rain' || _ew === 'drizzle')   sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
-                else if (_ew === 'thunderstorm')           sky = 'linear-gradient(180deg,#1a1f2a,#2d3340 50%,#444a55)';
-                else if (_ew === 'overcast')               sky = 'linear-gradient(180deg,#4a5568,#64748b 50%,#94a3b8)';
-                else if (_ew === 'fog')                    sky = 'linear-gradient(180deg,#8a9099,#a8b1bb 50%,#c0c8d0)';
-                else if (_ew === 'partly_cloudy')          sky = 'linear-gradient(180deg,#355088,#6a9abf 50%,#93b9d8)';
+                if (_ew === 'rain' || _ew === 'drizzle')
+                    sky = 'linear-gradient(180deg,#2f3640,#475569 50%,#64748b)';
+                else if (_ew === 'thunderstorm') sky = 'linear-gradient(180deg,#1a1f2a,#2d3340 50%,#444a55)';
+                else if (_ew === 'overcast') sky = 'linear-gradient(180deg,#4a5568,#64748b 50%,#94a3b8)';
+                else if (_ew === 'fog') sky = 'linear-gradient(180deg,#8a9099,#a8b1bb 50%,#c0c8d0)';
+                else if (_ew === 'partly_cloudy') sky = 'linear-gradient(180deg,#355088,#6a9abf 50%,#93b9d8)';
             }
             if (typeof Environment !== 'undefined' && Environment.weather === 'snow') {
                 sky = 'linear-gradient(180deg,#1a1a2e,#2d3748 50%,#4a5568)';
@@ -1021,7 +1163,7 @@ const InteriorNewspaper = {
         if (this.starsLayer) {
             this.starsLayer.visible = night;
             if (night) {
-                this.starsLayer.children.forEach(s => {
+                this.starsLayer.children.forEach((s) => {
                     s.alpha = 0.15 + Math.abs(Math.sin(tick * 0.03 + s._phase)) * 0.5;
                 });
             }
@@ -1032,11 +1174,19 @@ const InteriorNewspaper = {
         // ─── Day/night shift rotation ───
         const isNightShift = night;
         const activeShift = isNightShift
-            ? (this._staff ? this._staff.night : [])
-            : (this._staff ? this._staff.day : []);
+            ? this._staff
+                ? this._staff.night
+                : []
+            : this._staff
+              ? this._staff.day
+              : [];
         const inactiveShift = isNightShift
-            ? (this._staff ? this._staff.day : [])
-            : (this._staff ? this._staff.night : []);
+            ? this._staff
+                ? this._staff.day
+                : []
+            : this._staff
+              ? this._staff.night
+              : [];
 
         for (const w of activeShift) {
             const av = this.avatarPool.get('staff_' + w.id);
@@ -1056,8 +1206,12 @@ const InteriorNewspaper = {
                     av.legR.y = -phase * 2.5;
                 }
             } else {
-                if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
-                if (av.body) av.body.rotation = Math.sin(tick * 0.04 + (w.id.charCodeAt(3) || 0) * 0.5) * 0.02;
+                if (av.legL && av.legR) {
+                    av.legL.y = 0;
+                    av.legR.y = 0;
+                }
+                if (av.body)
+                    av.body.rotation = Math.sin(tick * 0.04 + (w.id.charCodeAt(3) || 0) * 0.5) * 0.02;
             }
             av.cont.zIndex = Math.round(av.cont.y);
         }
@@ -1082,7 +1236,8 @@ const InteriorNewspaper = {
     //  SCROLL HANDLERS
     // ═══════════════════════════════════════════════════════════════
     onMove: (e) => {
-        if (!InteriorNewspaper.isDragging || !InteriorNewspaper.scene || InteriorNewspaper.scene.destroyed) return;
+        if (!InteriorNewspaper.isDragging || !InteriorNewspaper.scene || InteriorNewspaper.scene.destroyed)
+            return;
         let newY = InteriorNewspaper._startSceneY + (e.clientY - InteriorNewspaper._startY);
         if (newY < InteriorNewspaper.minY) newY = InteriorNewspaper.minY;
         if (newY > InteriorNewspaper.maxY) newY = InteriorNewspaper.maxY;

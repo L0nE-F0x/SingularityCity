@@ -17,36 +17,48 @@ const InteriorLongevity = {
     bubbles: [],
 
     layouts: {
-        'longevity_protein': {
-            floors: ['Structure Prediction', 'Interactome Modeling', 'AlphaFold 3 Cluster', 'Target Validation', 'Therapy Pipeline'],
+        longevity_protein: {
+            floors: [
+                'Structure Prediction',
+                'Interactome Modeling',
+                'AlphaFold 3 Cluster',
+                'Target Validation',
+                'Therapy Pipeline',
+            ],
             roofLabel: 'AI PROTEIN FOUNDRY',
             col: 0x3b82f6,
-            npcs: ['AlphaFold 3 Ops', 'Protein Modeling']
+            npcs: ['AlphaFold 3 Ops', 'Protein Modeling'],
         },
-        'longevity_discovery': {
-            floors: ['Compound Synthesis', 'Molecular Screening', 'Generative Chemistry AI', 'Target Identification', 'Lead Optimization'],
+        longevity_discovery: {
+            floors: [
+                'Compound Synthesis',
+                'Molecular Screening',
+                'Generative Chemistry AI',
+                'Target Identification',
+                'Lead Optimization',
+            ],
             roofLabel: 'DRUG DISCOVERY LAB',
             col: 0x22c55e,
-            npcs: ['Drug Design', 'Molecular Modeling', 'Compound Synthesis']
+            npcs: ['Drug Design', 'Molecular Modeling', 'Compound Synthesis'],
         },
-        'longevity_trials': {
+        longevity_trials: {
             floors: ['Patient Intake', 'Phase I Safety', 'Phase II Efficacy', 'Adaptive Protocol Engine'],
             roofLabel: 'CLINICAL TRIALS CENTER',
             col: 0xec4899,
-            npcs: ['Clinical Operations', 'Data Analysis']
+            npcs: ['Clinical Operations', 'Data Analysis'],
         },
-        'longevity_genomics': {
+        longevity_genomics: {
             floors: ['Sample Prep', 'Sequencing Arrays', 'Bioinformatics Pipeline', 'Epigenome Analysis'],
             roofLabel: 'GENOMICS SEQUENCING',
             col: 0x8b5cf6,
-            npcs: ['Sequencing Lead', 'Pipeline Dev']
+            npcs: ['Sequencing Lead', 'Pipeline Dev'],
         },
-        'longevity_cryo': {
+        longevity_cryo: {
             floors: ['Intake Processing', 'Vitrification Chamber', 'Deep Storage (-196°C)'],
             roofLabel: 'CRYONICS VAULT',
             col: 0x67e8f9,
-            npcs: ['Preservation Ops']
-        }
+            npcs: ['Preservation Ops'],
+        },
     },
 
     build(bld, layer) {
@@ -93,7 +105,10 @@ const InteriorLongevity = {
         this.scene.addChild(roof);
 
         const roofTxt = new PIXI.Text(layout.roofLabel, {
-            fontFamily: 'monospace', fontSize: 11, fill: layout.col, fontWeight: 'bold'
+            fontFamily: 'monospace',
+            fontSize: 11,
+            fill: layout.col,
+            fontWeight: 'bold',
         });
         roofTxt.anchor.set(0.5, 0.5);
         roofTxt.x = startX + bldW / 2;
@@ -103,22 +118,20 @@ const InteriorLongevity = {
         // ─── ELEVATOR LAYOUT (defined early so floor props can use usableW) ───
         // CityElevator shaft is 48px wide (doorWidth=24 each side of center).
         // Place center so right edge of shaft = right edge of building wall.
-        const elevatorX = startX + bldW - 26;   // shaft right edge at startX+bldW-2
-        const usableW = bldW - 54;              // floor content stops 6px left of shaft
+        const elevatorX = startX + bldW - 26; // shaft right edge at startX+bldW-2
+        const usableW = bldW - 54; // floor content stops 6px left of shaft
 
         // ─── FLOORS (f = -1 is themed basement, f = 0..N-1 are normal floors) ───
         // Window band constants for above-ground floors — sky shows through cutout
-        const winMarginX = 40;           // space on left/right of window band
-        const winY_off = 12;             // window top offset from slab top
-        const winH_px = floorH - 26;     // window height (leaves sill + header)
-        const mullionPitch = 56;         // pillar spacing
+        const winMarginX = 40; // space on left/right of window band
+        const winY_off = 12; // window top offset from slab top
+        const winH_px = floorH - 26; // window height (leaves sill + header)
+        const mullionPitch = 56; // pillar spacing
         const mullionW = 6;
 
         for (let f = -1; f < numFloors; f++) {
             const isBasement = f === -1;
-            const fy = isBasement
-                ? roofH + numFloors * floorH
-                : roofH + (numFloors - 1 - f) * floorH;
+            const fy = isBasement ? roofH + numFloors * floorH : roofH + (numFloors - 1 - f) * floorH;
 
             // Floor slab
             const slab = new PIXI.Graphics();
@@ -134,10 +147,18 @@ const InteriorLongevity = {
                 const winW = bldW - winMarginX * 2;
                 const winY = fy + winY_off;
                 InteriorCity._drawWallWithWindowCutout(
-                    slab, wallCol,
-                    startX, fy, bldW, floorH,
-                    winX, winY, winW, winH_px,
-                    mullionPitch, mullionW
+                    slab,
+                    wallCol,
+                    startX,
+                    fy,
+                    bldW,
+                    floorH,
+                    winX,
+                    winY,
+                    winW,
+                    winH_px,
+                    mullionPitch,
+                    mullionW
                 );
                 // Window frame lines (stroked only — no fill)
                 slab.lineStyle(1.5, 0x1e293b, 0.9);
@@ -180,7 +201,9 @@ const InteriorLongevity = {
 
             // Floor label LAST, with a dark backing chip for legibility
             const label = new PIXI.Text(floorName, {
-                fontFamily: 'monospace', fontSize: 9, fill: isBasement ? 0x94a3b8 : 0xcbd5e1
+                fontFamily: 'monospace',
+                fontSize: 9,
+                fill: isBasement ? 0x94a3b8 : 0xcbd5e1,
             });
             label.x = startX + 8;
             label.y = fy + 5;
@@ -192,8 +215,8 @@ const InteriorLongevity = {
         }
 
         // ─── GROUND SECTION (below basement) ───
-        const surfaceY = roofH + numFloors * floorH;              // top of basement = street level
-        const belowBasementY = roofH + (numFloors + 1) * floorH;  // bottom of basement
+        const surfaceY = roofH + numFloors * floorH; // top of basement = street level
+        const belowBasementY = roofH + (numFloors + 1) * floorH; // bottom of basement
         const ground = new PIXI.Graphics();
         ground.beginFill(0x064e3b, 0.3);
         ground.drawRect(startX - 6, belowBasementY, bldW + 12, 40);
@@ -214,13 +237,22 @@ const InteriorLongevity = {
 
         // ─── ZONE-AWARE UNDERGROUND (longevity is past metro terminus → east_rock zone) ───
         if (typeof InteriorCity !== 'undefined' && InteriorCity._drawZoneUnderground) {
-            InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
+            InteriorCity._drawZoneUnderground.call(
+                InteriorCity,
+                this.scene,
+                bld,
+                startX,
+                bldW,
+                surfaceY,
+                belowBasementY,
+                floorH
+            );
         }
 
         // ─── ELEVATOR (shaftW/shaftX defined above with usableW) ───
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
-            ec.y = surfaceY;  // ground floor bottom (CityElevator draws upward)
+            ec.y = surfaceY; // ground floor bottom (CityElevator draws upward)
             this.scene.addChild(ec);
             // Mask: clip elevator to building bounds so shaft doesn't extend
             // past the right wall or below the ground floor
@@ -248,11 +280,18 @@ const InteriorLongevity = {
         if (this._onMove) window.removeEventListener('pointermove', this._onMove);
         if (this._onUp) window.removeEventListener('pointerup', this._onUp);
         layer.on('pointerdown', (e) => {
-            this.isDragging = true; this._startY = e.clientY;
-            this._startSceneY = this.scene.y; layer.cursor = 'grabbing';
+            this.isDragging = true;
+            this._startY = e.clientY;
+            this._startSceneY = this.scene.y;
+            layer.cursor = 'grabbing';
         });
         this._onMove = (e) => {
-            if (!InteriorLongevity.isDragging || !InteriorLongevity.scene || InteriorLongevity.scene.destroyed) return;
+            if (
+                !InteriorLongevity.isDragging ||
+                !InteriorLongevity.scene ||
+                InteriorLongevity.scene.destroyed
+            )
+                return;
             let ny = InteriorLongevity._startSceneY + (e.clientY - InteriorLongevity._startY);
             ny = Math.max(InteriorLongevity.minY, Math.min(ny, InteriorLongevity.maxY));
             InteriorLongevity.scene.y = ny;
@@ -266,13 +305,15 @@ const InteriorLongevity = {
     },
 
     _basementLabel(bldId) {
-        return {
-            'longevity_protein':   'GPU FOLDING CLUSTER',
-            'longevity_discovery': 'COMPOUND LIBRARY (-80°C)',
-            'longevity_trials':    'BIOHAZARD SAMPLE ARCHIVE',
-            'longevity_genomics':  'SEQUENCER COLD ROOM',
-            'longevity_cryo':      'VITRIFICATION VAULT (-196°C)'
-        }[bldId] || 'SUB-LEVEL';
+        return (
+            {
+                longevity_protein: 'GPU FOLDING CLUSTER',
+                longevity_discovery: 'COMPOUND LIBRARY (-80°C)',
+                longevity_trials: 'BIOHAZARD SAMPLE ARCHIVE',
+                longevity_genomics: 'SEQUENCER COLD ROOM',
+                longevity_cryo: 'VITRIFICATION VAULT (-196°C)',
+            }[bldId] || 'SUB-LEVEL'
+        );
     },
 
     _buildBasementProps(container, bldId, bldW, floorH, col) {
@@ -283,7 +324,7 @@ const InteriorLongevity = {
         floor.endFill();
         // Hazard stripe along front
         for (let i = 0; i < Math.floor(bldW / 16); i++) {
-            floor.beginFill((i % 2 === 0) ? 0xfbbf24 : 0x1a1a2e, 0.4);
+            floor.beginFill(i % 2 === 0 ? 0xfbbf24 : 0x1a1a2e, 0.4);
             floor.drawRect(8 + i * 16, floorH - 3, 14, 2);
             floor.endFill();
         }
@@ -325,7 +366,9 @@ const InteriorLongevity = {
             cart.drawRect(4, 4, 6, 10);
             cart.drawRect(40, 4, 6, 10);
             cart.beginFill(0x22c55e, 0.6);
-            for (let i = 0; i < 5; i++) { cart.drawRect(4 + i * 8, -6, 5, 6); }
+            for (let i = 0; i < 5; i++) {
+                cart.drawRect(4 + i * 8, -6, 5, 6);
+            }
             cart.endFill();
             cart.x = bldW * 0.5 - 25;
             cart.y = floorH - 20;
@@ -463,7 +506,7 @@ const InteriorLongevity = {
 
         if (fn.includes('pipeline')) {
             // ─── THERAPY PIPELINE — every real AI-bio company's lead candidate ───
-            const cos = (typeof LONGEVITY_COMPANIES !== 'undefined') ? Object.values(LONGEVITY_COMPANIES) : [];
+            const cos = typeof LONGEVITY_COMPANIES !== 'undefined' ? Object.values(LONGEVITY_COMPANIES) : [];
             if (cos.length) {
                 const cardW = (bldW - 20) / cos.length;
                 cos.forEach((co, i) => {
@@ -471,45 +514,91 @@ const InteriorLongevity = {
                     const card = new PIXI.Container();
                     const g = new PIXI.Graphics();
                     const coCol = parseInt(co.color.slice(1), 16);
-                    g.beginFill(0x0a1420, 0.9); g.drawRoundedRect(cx + 2, 12, cardW - 6, floorH - 26, 3); g.endFill();
-                    g.lineStyle(1, coCol, 0.55); g.drawRoundedRect(cx + 2, 12, cardW - 6, floorH - 26, 3); g.lineStyle(0);
-                    g.beginFill(coCol, 0.18); g.drawRect(cx + 2, 12, cardW - 6, 10); g.endFill();
+                    g.beginFill(0x0a1420, 0.9);
+                    g.drawRoundedRect(cx + 2, 12, cardW - 6, floorH - 26, 3);
+                    g.endFill();
+                    g.lineStyle(1, coCol, 0.55);
+                    g.drawRoundedRect(cx + 2, 12, cardW - 6, floorH - 26, 3);
+                    g.lineStyle(0);
+                    g.beginFill(coCol, 0.18);
+                    g.drawRect(cx + 2, 12, cardW - 6, 10);
+                    g.endFill();
                     // Little vial of the candidate, brand-colored
                     const vx = cx + cardW / 2;
-                    g.beginFill(0x94a3b8); g.drawRect(vx - 4, floorH - 34, 8, 4); g.endFill();
-                    g.beginFill(0xcbd5e1, 0.5); g.drawRect(vx - 3, floorH - 30, 6, 14); g.endFill();
-                    g.beginFill(coCol, 0.8); g.drawRect(vx - 3, floorH - 22, 6, 6); g.endFill();
+                    g.beginFill(0x94a3b8);
+                    g.drawRect(vx - 4, floorH - 34, 8, 4);
+                    g.endFill();
+                    g.beginFill(0xcbd5e1, 0.5);
+                    g.drawRect(vx - 3, floorH - 30, 6, 14);
+                    g.endFill();
+                    g.beginFill(coCol, 0.8);
+                    g.drawRect(vx - 3, floorH - 22, 6, 6);
+                    g.endFill();
                     card.addChild(g);
-                    const nm = new PIXI.Text(co.name, { fontFamily: 'monospace', fontSize: 6, fill: coCol, fontWeight: 'bold' });
-                    nm.anchor.set(0.5, 0); nm.x = vx; nm.y = 14; if (nm.width > cardW - 10) nm.scale.set((cardW - 10) / nm.width);
+                    const nm = new PIXI.Text(co.name, {
+                        fontFamily: 'monospace',
+                        fontSize: 6,
+                        fill: coCol,
+                        fontWeight: 'bold',
+                    });
+                    nm.anchor.set(0.5, 0);
+                    nm.x = vx;
+                    nm.y = 14;
+                    if (nm.width > cardW - 10) nm.scale.set((cardW - 10) / nm.width);
                     card.addChild(nm);
-                    const dg = new PIXI.Text(co.drug || '', { fontFamily: 'monospace', fontSize: 5.5, fill: 0xcbd5e1 });
-                    dg.anchor.set(0.5, 0); dg.x = vx; dg.y = floorH - 44; if (dg.width > cardW - 8) dg.scale.set((cardW - 8) / dg.width);
+                    const dg = new PIXI.Text(co.drug || '', {
+                        fontFamily: 'monospace',
+                        fontSize: 5.5,
+                        fill: 0xcbd5e1,
+                    });
+                    dg.anchor.set(0.5, 0);
+                    dg.x = vx;
+                    dg.y = floorH - 44;
+                    if (dg.width > cardW - 8) dg.scale.set((cardW - 8) / dg.width);
                     card.addChild(dg);
-                    if (typeof UI !== 'undefined') UI.tip(card, `${co.icon} ${co.name} — ${co.drug || ''}`, co.milestone);
+                    if (typeof UI !== 'undefined')
+                        UI.tip(card, `${co.icon} ${co.name} — ${co.drug || ''}`, co.milestone);
                     container.addChild(card);
                 });
             }
-        } else if (fn.includes('structure') || fn.includes('interactome') || fn.includes('alphafold') || (fn.includes('target') && bldId === 'longevity_protein')) {
+        } else if (
+            fn.includes('structure') ||
+            fn.includes('interactome') ||
+            fn.includes('alphafold') ||
+            (fn.includes('target') && bldId === 'longevity_protein')
+        ) {
             // AI Protein Foundry floors — folded-protein ribbons + GPU racks
             for (let i = 0; i < 3; i++) {
                 const rib = new PIXI.Graphics();
                 rib.lineStyle(2, [0x3b82f6, 0x22d3ee, 0x8b5cf6][i % 3], 0.8);
                 const rx = 30 + i * (bldW / 3.2);
                 for (let s = 0; s <= 14; s++) {
-                    const xx = rx + s * 3, yy = midY + Math.sin(s * 0.7) * 12;
-                    if (s === 0) rib.moveTo(xx, yy); else rib.lineTo(xx, yy);
+                    const xx = rx + s * 3,
+                        yy = midY + Math.sin(s * 0.7) * 12;
+                    if (s === 0) rib.moveTo(xx, yy);
+                    else rib.lineTo(xx, yy);
                 }
                 rib.lineStyle(0);
-                for (let s = 0; s <= 14; s += 2) { rib.beginFill([0x3b82f6, 0x22d3ee, 0x8b5cf6][i % 3]); rib.drawCircle(rx + s * 3, midY + Math.sin(s * 0.7) * 12, 1.8); rib.endFill(); }
-                rib.x = 0; rib.y = 0;
+                for (let s = 0; s <= 14; s += 2) {
+                    rib.beginFill([0x3b82f6, 0x22d3ee, 0x8b5cf6][i % 3]);
+                    rib.drawCircle(rx + s * 3, midY + Math.sin(s * 0.7) * 12, 1.8);
+                    rib.endFill();
+                }
+                rib.x = 0;
+                rib.y = 0;
                 if (typeof UI !== 'undefined') UI.tip(rib, 'Predicted Protein Fold', 'AlphaFold 3 structure');
                 container.addChild(rib);
             }
             // GPU fold cluster along the back
             const gpu = new PIXI.Graphics();
-            gpu.beginFill(0x0a0f1a); gpu.drawRect(bldW - 60, 14, 46, floorH - 30); gpu.endFill();
-            for (let ly = 20; ly < floorH - 24; ly += 8) { gpu.beginFill(0x22d3ee, 0.6); gpu.drawRect(bldW - 54, ly, 34, 2); gpu.endFill(); }
+            gpu.beginFill(0x0a0f1a);
+            gpu.drawRect(bldW - 60, 14, 46, floorH - 30);
+            gpu.endFill();
+            for (let ly = 20; ly < floorH - 24; ly += 8) {
+                gpu.beginFill(0x22d3ee, 0.6);
+                gpu.drawRect(bldW - 54, ly, 34, 2);
+                gpu.endFill();
+            }
             if (typeof UI !== 'undefined') UI.tip(gpu, 'Folding GPU Cluster', 'Runs AlphaFold 3 inference');
             container.addChild(gpu);
         } else if (fn.includes('synthesis') || fn.includes('compound')) {
@@ -540,7 +629,9 @@ const InteriorLongevity = {
                 // Wells grid
                 for (let r = 0; r < 4; r++) {
                     for (let c = 0; c < 6; c++) {
-                        const wellCol = [0x22c55e, 0x3b82f6, 0xfbbf24, 0xef4444][Math.floor(Math.random() * 4)];
+                        const wellCol = [0x22c55e, 0x3b82f6, 0xfbbf24, 0xef4444][
+                            Math.floor(Math.random() * 4)
+                        ];
                         plate.beginFill(wellCol, 0.5);
                         plate.drawCircle(6 + c * 7, 5 + r * 6, 2);
                         plate.endFill();
@@ -626,7 +717,7 @@ const InteriorLongevity = {
                 mon.lineStyle(1, 0x22c55e, 0.8);
                 mon.moveTo(2, 12);
                 for (let x = 0; x < 30; x += 3) {
-                    const spike = (x > 12 && x < 18) ? -8 + Math.random() * 16 : 0;
+                    const spike = x > 12 && x < 18 ? -8 + Math.random() * 16 : 0;
                     mon.lineTo(2 + x, 12 + spike);
                 }
                 mon.x = 15 + i * (bldW / 4.5);
@@ -643,7 +734,8 @@ const InteriorLongevity = {
                 // Kaplan-Meier curve hint
                 scr.lineStyle(1, 0x3b82f6, 0.7);
                 scr.moveTo(5, 5);
-                let cx = 5, cy = 5;
+                let cx = 5,
+                    cy = 5;
                 for (let s = 0; s < 5; s++) {
                     cx += 8;
                     scr.lineTo(cx, cy);
@@ -653,7 +745,8 @@ const InteriorLongevity = {
                 // Control arm
                 scr.lineStyle(1, 0xef4444, 0.5);
                 scr.moveTo(5, 5);
-                cx = 5; cy = 5;
+                cx = 5;
+                cy = 5;
                 for (let s = 0; s < 5; s++) {
                     cx += 8;
                     scr.lineTo(cx, cy);
@@ -821,7 +914,7 @@ const InteriorLongevity = {
             const ny = fy + floorH - 8;
             const floorName = layout.floors[fi];
             const floorNpcs = this._getNPCsForFloor(floorName, layout, bw);
-            floorNpcs.forEach(def => {
+            floorNpcs.forEach((def) => {
                 this.drawNPC(cont, sx + def.xOff, ny, def.role, def.col, def.prop);
             });
             // Reception on the lowest floor — clipboard greeter.
@@ -834,13 +927,27 @@ const InteriorLongevity = {
 
     _drawReceptionDesk(c, x, y, col) {
         const g = new PIXI.Graphics();
-        g.beginFill(0x1a2540); g.drawRect(x, y - 14, 60, 14); g.endFill();
-        g.beginFill(0x0f1a2d); g.drawRect(x, y - 14, 60, 2); g.endFill();
-        g.beginFill(col, 0.4); g.drawRect(x + 4, y - 12, 52, 1); g.endFill();
-        g.beginFill(0x0a0f1a); g.drawRect(x + 36, y - 24, 18, 10); g.endFill();
-        g.beginFill(col, 0.45); g.drawRect(x + 38, y - 22, 14, 6); g.endFill();
-        g.beginFill(0xfbbf24); g.drawRect(x + 8, y - 18, 8, 6); g.endFill();
-        g.beginFill(0xffffff, 0.6); g.drawRect(x + 9, y - 17, 6, 4); g.endFill();
+        g.beginFill(0x1a2540);
+        g.drawRect(x, y - 14, 60, 14);
+        g.endFill();
+        g.beginFill(0x0f1a2d);
+        g.drawRect(x, y - 14, 60, 2);
+        g.endFill();
+        g.beginFill(col, 0.4);
+        g.drawRect(x + 4, y - 12, 52, 1);
+        g.endFill();
+        g.beginFill(0x0a0f1a);
+        g.drawRect(x + 36, y - 24, 18, 10);
+        g.endFill();
+        g.beginFill(col, 0.45);
+        g.drawRect(x + 38, y - 22, 14, 6);
+        g.endFill();
+        g.beginFill(0xfbbf24);
+        g.drawRect(x + 8, y - 18, 8, 6);
+        g.endFill();
+        g.beginFill(0xffffff, 0.6);
+        g.drawRect(x + 9, y - 17, 6, 4);
+        g.endFill();
         c.addChild(g);
     },
 
@@ -855,93 +962,93 @@ const InteriorLongevity = {
 
         if (fn.includes('synthesis') || fn.includes('compound')) {
             return [
-                { role: 'Synthesis Tech',     col: 0x22c55e, xOff: bw * 0.25, prop: 'goggles' },
-                { role: 'Medicinal Chemist',  col: 0x06b6d4, xOff: bw * 0.55, prop: 'goggles' },
-                { role: 'Lab Assistant',      col: 0x84cc16, xOff: bw * 0.82, prop: 'clipboard' }
+                { role: 'Synthesis Tech', col: 0x22c55e, xOff: bw * 0.25, prop: 'goggles' },
+                { role: 'Medicinal Chemist', col: 0x06b6d4, xOff: bw * 0.55, prop: 'goggles' },
+                { role: 'Lab Assistant', col: 0x84cc16, xOff: bw * 0.82, prop: 'clipboard' },
             ];
         } else if (fn.includes('screening') || fn.includes('molecular')) {
             return [
-                { role: 'Screening Scientist', col: 0x22c55e, xOff: bw * 0.3,  prop: 'goggles' },
-                { role: 'HTS Operator',        col: 0x06b6d4, xOff: bw * 0.65, prop: 'goggles' }
+                { role: 'Screening Scientist', col: 0x22c55e, xOff: bw * 0.3, prop: 'goggles' },
+                { role: 'HTS Operator', col: 0x06b6d4, xOff: bw * 0.65, prop: 'goggles' },
             ];
         } else if (fn.includes('generative') || fn.includes('chemistry ai')) {
             return [
-                { role: 'ML Engineer',     col: 0x3b82f6, xOff: bw * 0.3,  prop: null },
-                { role: 'Research Chemist', col: 0x22c55e, xOff: bw * 0.6,  prop: 'goggles' },
-                { role: 'Data Scientist',  col: 0x8b5cf6, xOff: bw * 0.85, prop: null }
+                { role: 'ML Engineer', col: 0x3b82f6, xOff: bw * 0.3, prop: null },
+                { role: 'Research Chemist', col: 0x22c55e, xOff: bw * 0.6, prop: 'goggles' },
+                { role: 'Data Scientist', col: 0x8b5cf6, xOff: bw * 0.85, prop: null },
             ];
         } else if (fn.includes('target')) {
             return [
-                { role: 'Structural Bio',   col: 0x8b5cf6, xOff: bw * 0.3,  prop: null },
-                { role: 'Protein Modeler',  col: 0x06b6d4, xOff: bw * 0.7,  prop: null }
+                { role: 'Structural Bio', col: 0x8b5cf6, xOff: bw * 0.3, prop: null },
+                { role: 'Protein Modeler', col: 0x06b6d4, xOff: bw * 0.7, prop: null },
             ];
         } else if (fn.includes('lead optimization')) {
             return [
-                { role: 'ADMET Analyst',    col: 0xfbbf24, xOff: bw * 0.3,  prop: 'clipboard' },
-                { role: 'Pharmacologist',   col: 0xec4899, xOff: bw * 0.7,  prop: 'goggles' }
+                { role: 'ADMET Analyst', col: 0xfbbf24, xOff: bw * 0.3, prop: 'clipboard' },
+                { role: 'Pharmacologist', col: 0xec4899, xOff: bw * 0.7, prop: 'goggles' },
             ];
         } else if (fn.includes('intake processing') || (fn.includes('processing') && fn.includes('intake'))) {
             // Cryonics intake — cold chain, not clinical
             return [
                 { role: 'Intake Specialist', col: 0x67e8f9, xOff: bw * 0.3, prop: 'mask' },
-                { role: 'Cryo Intake',       col: 0x06b6d4, xOff: bw * 0.7, prop: 'cryo' }
+                { role: 'Cryo Intake', col: 0x06b6d4, xOff: bw * 0.7, prop: 'cryo' },
             ];
         } else if (fn.includes('patient') || fn.includes('intake')) {
             return [
                 { role: 'Trial Coordinator', col: 0xec4899, xOff: bw * 0.25, prop: 'clipboard' },
-                { role: 'Intake Nurse',      col: 0xf43f5e, xOff: bw * 0.55, prop: 'mask' },
-                { role: 'Patient Advocate',  col: 0xf97316, xOff: bw * 0.82, prop: 'clipboard' }
+                { role: 'Intake Nurse', col: 0xf43f5e, xOff: bw * 0.55, prop: 'mask' },
+                { role: 'Patient Advocate', col: 0xf97316, xOff: bw * 0.82, prop: 'clipboard' },
             ];
         } else if (fn.includes('phase ii') || fn.includes('efficacy')) {
             return [
-                { role: 'Biostatistician',  col: 0xfbbf24, xOff: bw * 0.3,  prop: null },
-                { role: 'Data Manager',     col: 0x3b82f6, xOff: bw * 0.7,  prop: 'clipboard' }
+                { role: 'Biostatistician', col: 0xfbbf24, xOff: bw * 0.3, prop: null },
+                { role: 'Data Manager', col: 0x3b82f6, xOff: bw * 0.7, prop: 'clipboard' },
             ];
         } else if (fn.includes('phase i') || fn.includes('safety')) {
             return [
-                { role: 'Clinical Monitor', col: 0xec4899, xOff: bw * 0.3,  prop: 'clipboard' },
-                { role: 'Safety Officer',   col: 0xef4444, xOff: bw * 0.65, prop: 'mask' }
+                { role: 'Clinical Monitor', col: 0xec4899, xOff: bw * 0.3, prop: 'clipboard' },
+                { role: 'Safety Officer', col: 0xef4444, xOff: bw * 0.65, prop: 'mask' },
             ];
         } else if (fn.includes('adaptive') || fn.includes('protocol')) {
             return [
-                { role: 'Trial Manager',    col: 0xec4899, xOff: bw * 0.3,  prop: 'clipboard' },
-                { role: 'Protocol Eng',     col: 0x22c55e, xOff: bw * 0.7,  prop: null }
+                { role: 'Trial Manager', col: 0xec4899, xOff: bw * 0.3, prop: 'clipboard' },
+                { role: 'Protocol Eng', col: 0x22c55e, xOff: bw * 0.7, prop: null },
             ];
         } else if (fn.includes('sample prep')) {
             return [
-                { role: 'Lab Tech',         col: 0x22c55e, xOff: bw * 0.3,  prop: 'goggles' },
-                { role: 'Sample Prepper',   col: 0x06b6d4, xOff: bw * 0.7,  prop: 'goggles' }
+                { role: 'Lab Tech', col: 0x22c55e, xOff: bw * 0.3, prop: 'goggles' },
+                { role: 'Sample Prepper', col: 0x06b6d4, xOff: bw * 0.7, prop: 'goggles' },
             ];
         } else if (fn.includes('sequencing') || fn.includes('arrays')) {
             return [
-                { role: 'Sequencing Lead',  col: 0x8b5cf6, xOff: bw * 0.3,  prop: 'goggles' },
-                { role: 'Machine Tech',     col: 0xa855f7, xOff: bw * 0.65, prop: null }
+                { role: 'Sequencing Lead', col: 0x8b5cf6, xOff: bw * 0.3, prop: 'goggles' },
+                { role: 'Machine Tech', col: 0xa855f7, xOff: bw * 0.65, prop: null },
             ];
         } else if (fn.includes('bioinformatics') || fn.includes('pipeline')) {
             return [
-                { role: 'Bioinformatics Eng', col: 0x8b5cf6, xOff: bw * 0.3,  prop: null },
-                { role: 'Pipeline Dev',       col: 0x06b6d4, xOff: bw * 0.65, prop: null },
-                { role: 'Genomics Scientist', col: 0xa855f7, xOff: bw * 0.9,  prop: null }
+                { role: 'Bioinformatics Eng', col: 0x8b5cf6, xOff: bw * 0.3, prop: null },
+                { role: 'Pipeline Dev', col: 0x06b6d4, xOff: bw * 0.65, prop: null },
+                { role: 'Genomics Scientist', col: 0xa855f7, xOff: bw * 0.9, prop: null },
             ];
         } else if (fn.includes('epigenome')) {
             return [
-                { role: 'Epigenetics Lead', col: 0x8b5cf6, xOff: bw * 0.3,  prop: null },
-                { role: 'Methyl Analyst',   col: 0xa855f7, xOff: bw * 0.7,  prop: null }
+                { role: 'Epigenetics Lead', col: 0x8b5cf6, xOff: bw * 0.3, prop: null },
+                { role: 'Methyl Analyst', col: 0xa855f7, xOff: bw * 0.7, prop: null },
             ];
         } else if (fn.includes('vitrification')) {
             return [
-                { role: 'Cryo Technician',  col: 0x67e8f9, xOff: bw * 0.3,  prop: 'cryo' },
-                { role: 'Preservation Lead', col: 0x93c5fd, xOff: bw * 0.7, prop: 'cryo' }
+                { role: 'Cryo Technician', col: 0x67e8f9, xOff: bw * 0.3, prop: 'cryo' },
+                { role: 'Preservation Lead', col: 0x93c5fd, xOff: bw * 0.7, prop: 'cryo' },
             ];
         } else if (fn.includes('deep storage') || fn.includes('-196')) {
             return [
-                { role: 'Vault Monitor',    col: 0x67e8f9, xOff: bw * 0.3,  prop: 'cryo' },
-                { role: 'Dewar Operator',   col: 0x93c5fd, xOff: bw * 0.7,  prop: 'cryo' }
+                { role: 'Vault Monitor', col: 0x67e8f9, xOff: bw * 0.3, prop: 'cryo' },
+                { role: 'Dewar Operator', col: 0x93c5fd, xOff: bw * 0.7, prop: 'cryo' },
             ];
         } else if (fn.includes('processing')) {
             return [
                 { role: 'Intake Specialist', col: 0x67e8f9, xOff: bw * 0.3, prop: 'mask' },
-                { role: 'Cryo Intake',       col: 0x06b6d4, xOff: bw * 0.7, prop: 'cryo' }
+                { role: 'Cryo Intake', col: 0x06b6d4, xOff: bw * 0.7, prop: 'cryo' },
             ];
         } else {
             return [{ role: 'Researcher', col: col, xOff: bw * 0.5, prop: 'goggles' }];
@@ -954,76 +1061,149 @@ const InteriorLongevity = {
 
     drawNPC(c, x, y, role, col, prop) {
         const colHex = col || 0x22c55e;
-        const bw = 16, h = 32, headH = Math.round(32 * 0.4), bodyH = h - headH - 4, legH = 4, eyeS = Math.max(1, 16 * 0.08);
+        const bw = 16,
+            h = 32,
+            headH = Math.round(32 * 0.4),
+            bodyH = h - headH - 4,
+            legH = 4,
+            eyeS = Math.max(1, 16 * 0.08);
         const cont = new PIXI.Container();
 
         const shadow = new PIXI.Graphics();
-        shadow.beginFill(0x000000, 0.25); shadow.drawEllipse(0, 2, bw * 0.6, 3); shadow.endFill();
+        shadow.beginFill(0x000000, 0.25);
+        shadow.drawEllipse(0, 2, bw * 0.6, 3);
+        shadow.endFill();
 
         const head = new PIXI.Graphics();
-        head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25); head.endFill();
-        head.beginFill(0x2c1810); head.drawCircle(-bw * 0.1, headH * 0.38, eyeS); head.drawCircle(bw * 0.1, headH * 0.38, eyeS); head.endFill();
-        head.beginFill(0x000000, 0.4); head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5); head.endFill();
+        head.beginFill(0xfdd8b5);
+        head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
+        head.endFill();
+        head.beginFill(0x2c1810);
+        head.drawCircle(-bw * 0.1, headH * 0.38, eyeS);
+        head.drawCircle(bw * 0.1, headH * 0.38, eyeS);
+        head.endFill();
+        head.beginFill(0x000000, 0.4);
+        head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
+        head.endFill();
         // Hair cap (muted so lab coat reads as dominant)
-        head.beginFill(0x4b5563); head.drawRoundedRect(-bw * 0.4, -1, bw * 0.8, 2, 1); head.endFill();
+        head.beginFill(0x4b5563);
+        head.drawRoundedRect(-bw * 0.4, -1, bw * 0.8, 2, 1);
+        head.endFill();
         // Prop on head / face
         if (prop === 'goggles') {
-            head.beginFill(0x93c5fd, 0.75); head.drawRect(-bw * 0.4, headH * 0.25, bw * 0.8, 2.5); head.endFill();
-            head.beginFill(0x0f172a); head.drawRect(-bw * 0.15, headH * 0.25, 0.8, 2.5); head.endFill();
+            head.beginFill(0x93c5fd, 0.75);
+            head.drawRect(-bw * 0.4, headH * 0.25, bw * 0.8, 2.5);
+            head.endFill();
+            head.beginFill(0x0f172a);
+            head.drawRect(-bw * 0.15, headH * 0.25, 0.8, 2.5);
+            head.endFill();
         } else if (prop === 'mask') {
-            head.beginFill(0xf8fafc); head.drawRect(-bw * 0.4, headH * 0.55, bw * 0.8, 3); head.endFill();
-            head.beginFill(0xcbd5e1, 0.6); head.drawRect(-bw * 0.4, headH * 0.55, bw * 0.8, 1); head.endFill();
+            head.beginFill(0xf8fafc);
+            head.drawRect(-bw * 0.4, headH * 0.55, bw * 0.8, 3);
+            head.endFill();
+            head.beginFill(0xcbd5e1, 0.6);
+            head.drawRect(-bw * 0.4, headH * 0.55, bw * 0.8, 1);
+            head.endFill();
         } else if (prop === 'cryo') {
             // Cold-weather cap / balaclava hint
-            head.beginFill(0x60a5fa); head.drawRoundedRect(-bw * 0.42, -2, bw * 0.84, 4, 1); head.endFill();
-            head.beginFill(0xbfdbfe); head.drawRect(-bw * 0.42, 0, bw * 0.84, 1); head.endFill();
+            head.beginFill(0x60a5fa);
+            head.drawRoundedRect(-bw * 0.42, -2, bw * 0.84, 4, 1);
+            head.endFill();
+            head.beginFill(0xbfdbfe);
+            head.drawRect(-bw * 0.42, 0, bw * 0.84, 1);
+            head.endFill();
         }
         head.y = -h;
 
         // Lab coat body (white), with role color as accent trim
         const body = new PIXI.Graphics();
-        body.beginFill(0xf8fafc); body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1); body.endFill();
+        body.beginFill(0xf8fafc);
+        body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1);
+        body.endFill();
         // Coat opening seam
-        body.beginFill(0xcbd5e1, 0.7); body.drawRect(-0.5, 0, 1, Math.max(bodyH, 4)); body.endFill();
+        body.beginFill(0xcbd5e1, 0.7);
+        body.drawRect(-0.5, 0, 1, Math.max(bodyH, 4));
+        body.endFill();
         // Role-color collar accent
-        body.beginFill(colHex); body.drawRect(-bw / 2, 0, bw, 1.5); body.endFill();
+        body.beginFill(colHex);
+        body.drawRect(-bw / 2, 0, bw, 1.5);
+        body.endFill();
         // Role-color pocket (left side)
-        body.beginFill(colHex, 0.6); body.drawRect(-bw * 0.4, Math.max(bodyH, 4) * 0.55, bw * 0.3, 1.5); body.endFill();
+        body.beginFill(colHex, 0.6);
+        body.drawRect(-bw * 0.4, Math.max(bodyH, 4) * 0.55, bw * 0.3, 1.5);
+        body.endFill();
         // Clipboard held in front (if assigned)
         if (prop === 'clipboard') {
-            body.beginFill(0x78350f); body.drawRect(bw * 0.15, Math.max(bodyH, 4) * 0.3, bw * 0.35, bw * 0.45); body.endFill();
-            body.beginFill(0xfef3c7); body.drawRect(bw * 0.2, Math.max(bodyH, 4) * 0.35, bw * 0.25, bw * 0.35); body.endFill();
-            body.beginFill(0x475569); body.drawRect(bw * 0.22, Math.max(bodyH, 4) * 0.4, bw * 0.2, 0.5); body.endFill();
-            body.beginFill(0x475569); body.drawRect(bw * 0.22, Math.max(bodyH, 4) * 0.5, bw * 0.15, 0.5); body.endFill();
+            body.beginFill(0x78350f);
+            body.drawRect(bw * 0.15, Math.max(bodyH, 4) * 0.3, bw * 0.35, bw * 0.45);
+            body.endFill();
+            body.beginFill(0xfef3c7);
+            body.drawRect(bw * 0.2, Math.max(bodyH, 4) * 0.35, bw * 0.25, bw * 0.35);
+            body.endFill();
+            body.beginFill(0x475569);
+            body.drawRect(bw * 0.22, Math.max(bodyH, 4) * 0.4, bw * 0.2, 0.5);
+            body.endFill();
+            body.beginFill(0x475569);
+            body.drawRect(bw * 0.22, Math.max(bodyH, 4) * 0.5, bw * 0.15, 0.5);
+            body.endFill();
         }
         // Cryo gloves (blue hands)
         if (prop === 'cryo') {
-            body.beginFill(0x60a5fa); body.drawRect(-bw * 0.55, Math.max(bodyH, 4) * 0.5, bw * 0.2, 2); body.endFill();
-            body.beginFill(0x60a5fa); body.drawRect(bw * 0.35, Math.max(bodyH, 4) * 0.5, bw * 0.2, 2); body.endFill();
+            body.beginFill(0x60a5fa);
+            body.drawRect(-bw * 0.55, Math.max(bodyH, 4) * 0.5, bw * 0.2, 2);
+            body.endFill();
+            body.beginFill(0x60a5fa);
+            body.drawRect(bw * 0.35, Math.max(bodyH, 4) * 0.5, bw * 0.2, 2);
+            body.endFill();
         }
         body.y = -h + headH;
 
-        const lw = Math.max(2, bw * 0.25), lh = Math.max(legH, 2);
+        const lw = Math.max(2, bw * 0.25),
+            lh = Math.max(legH, 2);
         const legL = new PIXI.Graphics();
-        legL.beginFill(0x1e293b); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill(); legL.x = -bw * 0.15;
+        legL.beginFill(0x1e293b);
+        legL.drawRect(-lw / 2, 0, lw, lh);
+        legL.endFill();
+        legL.x = -bw * 0.15;
         const legR = new PIXI.Graphics();
-        legR.beginFill(0x1e293b); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill(); legR.x = bw * 0.15;
+        legR.beginFill(0x1e293b);
+        legR.drawRect(-lw / 2, 0, lw, lh);
+        legR.endFill();
+        legR.x = bw * 0.15;
 
         const dot = new PIXI.Graphics();
-        dot.beginFill(colHex); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 6;
+        dot.beginFill(colHex);
+        dot.drawCircle(0, 0, 2);
+        dot.endFill();
+        dot.y = -h - 6;
 
         cont.addChild(shadow, legL, legR, body, head, dot);
-        cont.x = x; cont.y = y;
+        cont.x = x;
+        cont.y = y;
 
-        const txt = new PIXI.Text(role, { fontFamily: '"JetBrains Mono", monospace', fontSize: 6, fill: colHex });
-        txt.anchor.set(0.5, 1); txt.y = -h - 8;
+        const txt = new PIXI.Text(role, {
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: 6,
+            fill: colHex,
+        });
+        txt.anchor.set(0.5, 1);
+        txt.y = -h - 8;
         cont.addChild(txt);
 
-        cont.eventMode = 'static'; cont.cursor = 'pointer';
+        cont.eventMode = 'static';
+        cont.cursor = 'pointer';
         cont.hitArea = new PIXI.Rectangle(-bw, -h - 12, bw * 2, h + 16);
         cont.on('pointertap', () => {
             if (typeof UI !== 'undefined' && UI.selectModel) {
-                UI.selectModel({ id: 'longev_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true, _trackType: 'npc', role: role, lab: 'longevity', desc: role + '. Longevity Research.' });
+                UI.selectModel({
+                    id: 'longev_' + role.replace(/\s/g, '_').toLowerCase(),
+                    name: role,
+                    isNPC: true,
+                    _trackType: 'npc',
+                    role: role,
+                    lab: 'longevity',
+                    desc: role + '. Longevity Research.',
+                });
             }
         });
         cont.on('pointerover', (e) => {
@@ -1042,10 +1222,23 @@ const InteriorLongevity = {
 
         const agent = {
             m: { id: npcId, name: role, isNPC: true },
-            cont, head, body, legL, legR, dot, shadow, label: txt,
-            state: 'working', timer: 60 + Math.floor(Math.random() * 200),
-            deskX: x, floorY: y, targetX: x, speed: 0.7,
-            role, prop, _h: h
+            cont,
+            head,
+            body,
+            legL,
+            legR,
+            dot,
+            shadow,
+            label: txt,
+            state: 'working',
+            timer: 60 + Math.floor(Math.random() * 200),
+            deskX: x,
+            floorY: y,
+            targetX: x,
+            speed: 0.7,
+            role,
+            prop,
+            _h: h,
         };
         this.avatars.push(agent);
         return agent;
@@ -1057,16 +1250,30 @@ const InteriorLongevity = {
 
     updateAvatars() {
         const LONGEVITY_MSGS = [
-            "Compound 447 active.", "IC50 reached.", "Trial arm B promising.",
-            "Genome aligned.", "Protein folded.", "Senolytic working.",
-            "ADMET profile clean.", "Vital signs stable.", "Sequencing 2.3B reads.",
-            "Methylation dropping.", "Cryo stable at -196°C.", "Autophagy induced.",
-            "Patient enrolled.", "Dose escalation OK.", "Epigenetic clock -0.4y.",
-            "Telomerase upregulated.", "Assay clean.", "Phase II looking good.",
-            "Dewar nominal.", "Vitrification complete.", "Methyl signature found."
+            'Compound 447 active.',
+            'IC50 reached.',
+            'Trial arm B promising.',
+            'Genome aligned.',
+            'Protein folded.',
+            'Senolytic working.',
+            'ADMET profile clean.',
+            'Vital signs stable.',
+            'Sequencing 2.3B reads.',
+            'Methylation dropping.',
+            'Cryo stable at -196°C.',
+            'Autophagy induced.',
+            'Patient enrolled.',
+            'Dose escalation OK.',
+            'Epigenetic clock -0.4y.',
+            'Telomerase upregulated.',
+            'Assay clean.',
+            'Phase II looking good.',
+            'Dewar nominal.',
+            'Vitrification complete.',
+            'Methyl signature found.',
         ];
 
-        this.avatars.forEach(av => {
+        this.avatars.forEach((av) => {
             if (!av.cont || av.cont.destroyed) return;
             av.timer--;
 
@@ -1083,11 +1290,17 @@ const InteriorLongevity = {
                         } else if (r < 0.5) {
                             av.state = 'chatting';
                             av.timer = 80 + Math.floor(Math.random() * 60);
-                            this.spawnBubble(av, LONGEVITY_MSGS[Math.floor(Math.random() * LONGEVITY_MSGS.length)]);
+                            this.spawnBubble(
+                                av,
+                                LONGEVITY_MSGS[Math.floor(Math.random() * LONGEVITY_MSGS.length)]
+                            );
                         } else {
                             av.timer = 100 + Math.floor(Math.random() * 200);
                             if (Math.random() < 0.22) {
-                                this.spawnBubble(av, LONGEVITY_MSGS[Math.floor(Math.random() * LONGEVITY_MSGS.length)]);
+                                this.spawnBubble(
+                                    av,
+                                    LONGEVITY_MSGS[Math.floor(Math.random() * LONGEVITY_MSGS.length)]
+                                );
                             }
                         }
                     }
@@ -1144,14 +1357,23 @@ const InteriorLongevity = {
     spawnBubble(av, msg) {
         if (!this.scene || this.scene.destroyed) return;
         const bCont = new PIXI.Container();
-        const txt = new PIXI.Text(msg, { fontFamily: '"JetBrains Mono", monospace', fontSize: 8, fill: 0x000000, fontWeight: 'bold' });
-        txt.anchor.set(0.5, 1); txt.y = -6;
+        const txt = new PIXI.Text(msg, {
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: 8,
+            fill: 0x000000,
+            fontWeight: 'bold',
+        });
+        txt.anchor.set(0.5, 1);
+        txt.y = -6;
         const bg = new PIXI.Graphics();
         bg.beginFill(0xffffff);
         bg.drawRoundedRect(-txt.width / 2 - 6, -txt.height - 10, txt.width + 12, txt.height + 8, 4);
         bg.endFill();
         bg.beginFill(0xffffff);
-        bg.moveTo(-4, -4); bg.lineTo(4, -4); bg.lineTo(0, 2); bg.endFill();
+        bg.moveTo(-4, -4);
+        bg.lineTo(4, -4);
+        bg.lineTo(0, 2);
+        bg.endFill();
         bCont.addChild(bg, txt);
         bCont.x = av.cont.x;
         bCont.y = av.cont.y - av._h - 10;
@@ -1170,7 +1392,10 @@ const InteriorLongevity = {
     },
 
     cleanup() {
-        if (this._lift) { this._lift.destroy(); this._lift = null; }
+        if (this._lift) {
+            this._lift.destroy();
+            this._lift = null;
+        }
         this.container = null;
         this.layer = null;
         this.scene = null;
@@ -1180,5 +1405,5 @@ const InteriorLongevity = {
         this.isDragging = false;
         this.avatars = [];
         this.bubbles = [];
-    }
+    },
 };

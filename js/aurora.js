@@ -4,7 +4,6 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const Aurora = {
-
     _active: false,
     _cometActive: false,
     _duration: 0,
@@ -12,9 +11,9 @@ const Aurora = {
     _cometDuration: 0,
     _cometElapsed: 0,
     _nextCheck: 0,
-    _ribbons: [],           // aurora ribbon definitions
-    _comet: null,           // active comet object
-    _gfx: null,             // dedicated PIXI.Graphics for aurora (additive blend)
+    _ribbons: [], // aurora ribbon definitions
+    _comet: null, // active comet object
+    _gfx: null, // dedicated PIXI.Graphics for aurora (additive blend)
     _achieved: false,
 
     init() {
@@ -33,7 +32,7 @@ const Aurora = {
         if (this._active || this._cometActive) return;
 
         // Weather must be clear or only lightly cloudy for aurora to be visible.
-        const weather = (typeof Environment !== 'undefined') ? Environment.weather : 'clear';
+        const weather = typeof Environment !== 'undefined' ? Environment.weather : 'clear';
         if (weather !== 'clear' && weather !== 'partly_cloudy') return;
 
         const roll = Math.random();
@@ -132,8 +131,8 @@ const Aurora = {
             } else {
                 const t = G.tick;
                 // Camera offset so aurora stays fixed on screen
-                const camOff = (typeof Camera !== 'undefined') ? -Camera.x / (Camera.zoom || 1) : 0;
-                this._ribbons.forEach(r => {
+                const camOff = typeof Camera !== 'undefined' ? -Camera.x / (Camera.zoom || 1) : 0;
+                this._ribbons.forEach((r) => {
                     const g = this._gfx;
                     g.beginFill(r.color, r.alpha * envelope);
 
@@ -144,7 +143,10 @@ const Aurora = {
                         const wx = x + camOff;
                         const screenX = x + camOff;
                         const y1 = r.baseY + Math.sin(wx * r.frequency + t * r.speed + r.phase) * r.amplitude;
-                        const y2 = y1 + r.width + Math.sin(wx * r.frequency * 1.3 + t * r.speed * 0.7) * (r.width * 0.4);
+                        const y2 =
+                            y1 +
+                            r.width +
+                            Math.sin(wx * r.frequency * 1.3 + t * r.speed * 0.7) * (r.width * 0.4);
                         g.drawRect(screenX, y1, step + 1, y2 - y1);
                     }
                     g.endFill();
@@ -162,7 +164,7 @@ const Aurora = {
                 this._comet = null;
             } else {
                 const c = this._comet;
-                const cOff = (typeof Camera !== 'undefined') ? -Camera.x / (Camera.zoom || 1) : 0;
+                const cOff = typeof Camera !== 'undefined' ? -Camera.x / (Camera.zoom || 1) : 0;
                 const cx = c.startX + (c.endX - c.startX) * progress + cOff;
                 const cy = c.startY + (c.endY - c.startY) * progress;
                 const g = this._gfx;
@@ -189,5 +191,5 @@ const Aurora = {
                 g.endFill();
             }
         }
-    }
+    },
 };

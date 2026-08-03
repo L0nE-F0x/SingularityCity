@@ -22,7 +22,7 @@ const Debug = {
     graphCtx: null,
 
     // Rolling samples
-    _samples: [],           // last N frame times (ms)
+    _samples: [], // last N frame times (ms)
     _maxSamples: 120,
     _lastFrameTime: 0,
     _fpsMin: Infinity,
@@ -203,15 +203,13 @@ const Debug = {
         if (typeof G !== 'undefined' && G._cullStats) {
             const s = G._cullStats;
             const pct = s.total > 0 ? Math.round((s.hidden / s.total) * 100) : 0;
-            this.el.querySelector('#dbgCull').textContent =
-                `CULL: ${s.hidden}/${s.total} (${pct}%)`;
+            this.el.querySelector('#dbgCull').textContent = `CULL: ${s.hidden}/${s.total} (${pct}%)`;
         }
 
         // Lazy zone boot stats (how many of the deferred zones have been visited yet)
         if (typeof G !== 'undefined' && typeof G._lazyZoneStats === 'function') {
             const lz = G._lazyZoneStats();
-            this.el.querySelector('#dbgLazy').textContent =
-                `LZN: ${lz.booted}/${lz.total}`;
+            this.el.querySelector('#dbgLazy').textContent = `LZN: ${lz.booted}/${lz.total}`;
         }
 
         // Goal-driven NPC counts (~20% of adult models get a lifestyle archetype)
@@ -222,8 +220,7 @@ const Debug = {
                 this._goalCacheTick = this._textTick;
             }
             const gs = this._goalCache;
-            this.el.querySelector('#dbgGoal').textContent =
-                `GOAL: ${gs.withGoal}/${gs.total}`;
+            this.el.querySelector('#dbgGoal').textContent = `GOAL: ${gs.withGoal}/${gs.total}`;
         }
 
         // Engine tick

@@ -25,25 +25,24 @@
    off all night.
    ════════════════════════════════════════════════════════════════════════════════ */
 
-window.CitizenOfDay = (function() {
-
+window.CitizenOfDay = (function () {
     const STATE = {
         cotdId: null,
         cotdName: null,
         cotdLab: null,
-        cotdDate: null,         // UTC date string "YYYY-MM-DD"
-        crown: null,            // PIXI.Container attached to citizen
-        paparazzi: [],          // [{ cont, headG, bodyG, camG, lagX, lagY, flashTick, lastDir, anim }]
-        flashFx: [],            // [{ x, y, life, maxLife }]
-        card: null,             // DOM card element (built lazily)
-        button: null,           // DOM button element
-        attachAttempts: 0
+        cotdDate: null, // UTC date string "YYYY-MM-DD"
+        crown: null, // PIXI.Container attached to citizen
+        paparazzi: [], // [{ cont, headG, bodyG, camG, lagX, lagY, flashTick, lastDir, anim }]
+        flashFx: [], // [{ x, y, life, maxLife }]
+        card: null, // DOM card element (built lazily)
+        button: null, // DOM button element
+        attachAttempts: 0,
     };
 
     const LS_PICK_KEY = 'sc_cotd_pick_v1';
-    const LS_NEWS_KEY = 'sc_news_events_v1';   // shared with news_reactivity (we
-                                                // also write to this from
-                                                // recordReaction)
+    const LS_NEWS_KEY = 'sc_news_events_v1'; // shared with news_reactivity (we
+    // also write to this from
+    // recordReaction)
 
     // ─── DATE UTIL ───────────────────────────────────────────────────────────
     function utcDateString(d) {
@@ -65,9 +64,7 @@ window.CitizenOfDay = (function() {
     // ─── PICK LOGIC ──────────────────────────────────────────────────────────
     function pickActive() {
         if (typeof G === 'undefined' || !Array.isArray(G.models)) return [];
-        return G.models.filter(m =>
-            m && m.id && m.phase !== 'retired' && m.phase !== 'rumored' && !m.ret
-        );
+        return G.models.filter((m) => m && m.id && m.phase !== 'retired' && m.phase !== 'rumored' && !m.ret);
     }
 
     function tryPickFromNewsLab(active, today) {
@@ -84,7 +81,7 @@ window.CitizenOfDay = (function() {
                 events = API.getEventsByDate(yest);
             } else {
                 const log = JSON.parse(localStorage.getItem(LS_NEWS_KEY) || '[]');
-                events = (log || []).filter(e => e && e.date === yest);
+                events = (log || []).filter((e) => e && e.date === yest);
             }
             const labCounts = {};
             for (const ev of events) {
@@ -96,13 +93,17 @@ window.CitizenOfDay = (function() {
             // Top lab — break ties deterministically by lab id sort
             labIds.sort((a, b) => labCounts[b] - labCounts[a] || a.localeCompare(b));
             const topLab = labIds[0];
-            const candidates = active.filter(m => m.lab === topLab).sort((a, b) => (a.id || '').localeCompare(b.id || ''));
+            const candidates = active
+                .filter((m) => m.lab === topLab)
+                .sort((a, b) => (a.id || '').localeCompare(b.id || ''));
             if (!candidates.length) return null;
             // Date-deterministic offset within the lab so multi-day mention runs
             // don't re-pick the same model
             const idx = hashStr(today + '|' + topLab) % candidates.length;
             return candidates[idx];
-        } catch (_e) { return null; }
+        } catch (_e) {
+            return null;
+        }
     }
 
     function pickToday() {
@@ -115,14 +116,16 @@ window.CitizenOfDay = (function() {
                 if (cached && cached.date === today && cached.id) {
                     // Validate the cached model is still in the city
                     const active = pickActive();
-                    const found = active.find(m => m.id === cached.id);
+                    const found = active.find((m) => m.id === cached.id);
                     if (found) {
                         return { model: found, date: today, source: 'cache' };
                     }
                     // else fall through to re-pick (model might have retired)
                 }
             }
-        } catch (_e) { /* ignore */ }
+        } catch (_e) {
+            /* ignore */
+        }
 
         const active = pickActive();
         if (!active.length) return null;
@@ -139,7 +142,9 @@ window.CitizenOfDay = (function() {
 
         try {
             localStorage.setItem(LS_PICK_KEY, JSON.stringify({ date: today, id: model.id, source }));
-        } catch (_e) { /* ignore */ }
+        } catch (_e) {
+            /* ignore */
+        }
 
         return { model, date: today, source };
     }
@@ -154,8 +159,12 @@ window.CitizenOfDay = (function() {
         const goldHi = 0xffd97a;
         const goldShd = 0xb45309;
         // Base band
-        g.beginFill(goldShd); g.drawRect(-5, 0, 10, 1); g.endFill();
-        g.beginFill(gold);    g.drawRect(-5, -1, 10, 2); g.endFill();
+        g.beginFill(goldShd);
+        g.drawRect(-5, 0, 10, 1);
+        g.endFill();
+        g.beginFill(gold);
+        g.drawRect(-5, -1, 10, 2);
+        g.endFill();
         // 3 spikes
         g.beginFill(gold);
         g.drawRect(-5, -3, 2, 2);
@@ -194,7 +203,7 @@ window.CitizenOfDay = (function() {
         // Body
         const body = new PIXI.Graphics();
         body.beginFill(palette.coat);
-        body.drawRect(-3, -10, 6, 8);   // torso
+        body.drawRect(-3, -10, 6, 8); // torso
         body.endFill();
         // Pants
         body.beginFill(0x1f2937);
@@ -227,14 +236,14 @@ window.CitizenOfDay = (function() {
         if (STATE.paparazzi.length) return;
         if (!G.charLayer) return;
         const palettes = [
-            { coat: 0x2563eb, skin: 0xf4c89e },   // blue jacket
-            { coat: 0x9333ea, skin: 0xc89c7c },   // purple jacket
-            { coat: 0x16a34a, skin: 0xf2d8b6 }    // green jacket
+            { coat: 0x2563eb, skin: 0xf4c89e }, // blue jacket
+            { coat: 0x9333ea, skin: 0xc89c7c }, // purple jacket
+            { coat: 0x16a34a, skin: 0xf2d8b6 }, // green jacket
         ];
         const lags = [
-            { x: -28, y: 0,  speed: 1.4 },
+            { x: -28, y: 0, speed: 1.4 },
             { x: -46, y: -2, speed: 1.2 },
-            { x: -62, y: 1,  speed: 1.1 }
+            { x: -62, y: 1, speed: 1.1 },
         ];
         for (let i = 0; i < 3; i++) {
             const p = buildPaparazzo(palettes[i]);
@@ -263,7 +272,7 @@ window.CitizenOfDay = (function() {
         if (typeof G === 'undefined' || typeof G.getDayPhase !== 'function') return false;
         const dp = G.getDayPhase();
         // Morning commute (7:12am–1:12pm) and early afternoon (3:36pm–6:43pm)
-        return (dp >= 0.30 && dp <= 0.55) || (dp >= 0.65 && dp <= 0.78);
+        return (dp >= 0.3 && dp <= 0.55) || (dp >= 0.65 && dp <= 0.78);
     }
 
     // ─── UPDATE TICK ─────────────────────────────────────────────────────────
@@ -314,7 +323,7 @@ window.CitizenOfDay = (function() {
                 const bob = Math.sin(p.anim + i) * 0.6;
                 if (p.body) p.body.y = bob;
                 if (p.head) p.head.y = bob;
-                if (p.cam)  p.cam.y  = bob;
+                if (p.cam) p.cam.y = bob;
 
                 // Camera flash trigger
                 p.flashTick--;
@@ -324,7 +333,7 @@ window.CitizenOfDay = (function() {
                         x: p.cont.x + 6 * facing,
                         y: p.cont.y - 12,
                         life: 8,
-                        maxLife: 8
+                        maxLife: 8,
                     });
                 }
                 p.lastDir = facing;
@@ -337,7 +346,10 @@ window.CitizenOfDay = (function() {
             for (let i = STATE.flashFx.length - 1; i >= 0; i--) {
                 const f = STATE.flashFx[i];
                 f.life--;
-                if (f.life <= 0) { STATE.flashFx.splice(i, 1); continue; }
+                if (f.life <= 0) {
+                    STATE.flashFx.splice(i, 1);
+                    continue;
+                }
                 const t = f.life / f.maxLife;
                 gfx.beginFill(0xffffff, 0.85 * t);
                 gfx.drawCircle(f.x, f.y, 7 * (1 - t * 0.5));
@@ -387,7 +399,8 @@ window.CitizenOfDay = (function() {
 
     function bioFor(m) {
         if (!m) return '';
-        const lab = (typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].name) || m.lab || 'an independent';
+        const lab =
+            (typeof LABS !== 'undefined' && LABS[m.lab] && LABS[m.lab].name) || m.lab || 'an independent';
         const phase = m.phase ? m.phase[0].toUpperCase() + m.phase.slice(1) : '';
         const tal = m.talent || m.tal || '';
         const per = m.personality || m.per || '';
@@ -412,11 +425,15 @@ window.CitizenOfDay = (function() {
 
     function openCard() {
         if (!STATE.cotdId) return;
-        const m = G.models.find(x => x.id === STATE.cotdId);
+        const m = G.models.find((x) => x.id === STATE.cotdId);
         if (!m) return;
         if (STATE.card) closeCard();
 
-        const lab = (typeof LABS !== 'undefined' && LABS[m.lab]) || { name: m.lab, color: '#22d3ee', icon: '🏢' };
+        const lab = (typeof LABS !== 'undefined' && LABS[m.lab]) || {
+            name: m.lab,
+            color: '#22d3ee',
+            icon: '🏢',
+        };
         const card = document.createElement('div');
         card.id = 'cotd-card';
         card.innerHTML = `
@@ -446,7 +463,9 @@ window.CitizenOfDay = (function() {
         card.querySelector('.cotd-card-track').onclick = () => {
             try {
                 if (typeof G !== 'undefined') G.tracking = { type: 'model', id: STATE.cotdId };
-            } catch (_e) { /* ignore */ }
+            } catch (_e) {
+                /* ignore */
+            }
             closeCard();
         };
         card.querySelector('.cotd-card-share').onclick = () => {
@@ -456,12 +475,20 @@ window.CitizenOfDay = (function() {
         };
 
         // Achievement
-        try { if (typeof G !== 'undefined' && typeof G.unlockAchieve === 'function') G.unlockAchieve('cotd_seen'); } catch (_e) { /* ignore */ }
+        try {
+            if (typeof G !== 'undefined' && typeof G.unlockAchieve === 'function')
+                G.unlockAchieve('cotd_seen');
+        } catch (_e) {
+            /* ignore */
+        }
 
         // Click-outside to close
         setTimeout(() => {
             const onDocClick = (e) => {
-                if (!STATE.card) { document.removeEventListener('click', onDocClick); return; }
+                if (!STATE.card) {
+                    document.removeEventListener('click', onDocClick);
+                    return;
+                }
                 if (!STATE.card.contains(e.target) && e.target !== STATE.button) {
                     closeCard();
                     document.removeEventListener('click', onDocClick);
@@ -476,15 +503,22 @@ window.CitizenOfDay = (function() {
         STATE.card.classList.remove('cotd-card-in');
         const c = STATE.card;
         STATE.card = null;
-        setTimeout(() => { if (c && c.parentNode) c.parentNode.removeChild(c); }, 240);
+        setTimeout(() => {
+            if (c && c.parentNode) c.parentNode.removeChild(c);
+        }, 240);
     }
 
     function escapeHtml(s) {
         return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
-    function escapeAttr(s) { return escapeHtml(s); }
+    function escapeAttr(s) {
+        return escapeHtml(s);
+    }
 
     // ─── BUTTON BOOT (poll for multiplayer bar) ──────────────────────────────
     function tryAttachButton(retries) {
@@ -510,13 +544,15 @@ window.CitizenOfDay = (function() {
     function isCotd(modelId) {
         return STATE.cotdId && modelId === STATE.cotdId;
     }
-    function getId() { return STATE.cotdId; }
+    function getId() {
+        return STATE.cotdId;
+    }
 
     return { init, update, isCotd, getId, _state: STATE, _pickToday: pickToday };
 })();
 
 // Auto-init on DOM ready
-(function() {
+(function () {
     function tryInit() {
         if (typeof CitizenOfDay !== 'undefined') CitizenOfDay.init();
     }

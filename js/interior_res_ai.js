@@ -3,7 +3,6 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const InteriorResAI = {
-
     drawAvatar(m, x, y, container, floorIdx, isStatic = false, isCeo = false) {
         // ─── CEOs/Founders render as humans, not AI bots ───
         // Routes through HumanAvatar so Sam looks like Sam, Elon looks like Elon, etc.
@@ -16,20 +15,20 @@ const InteriorResAI = {
         const stg = getStage(m.rel, m.ret, m.phase);
         const sd = STAGES[stg] || STAGES.adult;
         const sc = sd.size;
-        
+
         let paramCount = 100;
         let isMoE = false;
         if (m.arch) {
             if (m.arch.type && m.arch.type.includes('MoE')) isMoE = true;
             if (m.arch.params) {
-                let pStr = m.arch.params.replace(/[^0-9.TBM]/ig, '');
+                let pStr = m.arch.params.replace(/[^0-9.TBM]/gi, '');
                 if (pStr.includes('T')) paramCount = parseFloat(pStr) * 1000;
                 else if (pStr.includes('B')) paramCount = parseFloat(pStr);
             }
         }
-        const paramScale = Math.max(0.7, Math.min(1.4, 0.6 + (Math.log10(Math.max(paramCount, 1)) * 0.2)));
+        const paramScale = Math.max(0.7, Math.min(1.4, 0.6 + Math.log10(Math.max(paramCount, 1)) * 0.2));
         const finalSc = sc * paramScale;
-        
+
         // ─── Proportions: identical to exterior updateCharStateVisuals ───
         const bw = Math.round(16 * finalSc);
         const h = Math.round(32 * finalSc);
@@ -37,18 +36,19 @@ const InteriorResAI = {
         const bodyH = h - headH - Math.round(4 * finalSc);
         const legH = Math.round(4 * finalSc);
         const eyeS = Math.max(1, bw * 0.08);
-        
+
         const lab = LABS[m.lab] || LABS.other || { color: '#64748b' };
-        const colHex = (isCeo && m.founderData && m.founderData.color)
-            ? parseInt(m.founderData.color.slice(1), 16)
-            : parseInt(lab.color.slice(1), 16);
-        
+        const colHex =
+            isCeo && m.founderData && m.founderData.color
+                ? parseInt(m.founderData.color.slice(1), 16)
+                : parseInt(lab.color.slice(1), 16);
+
         const isR = stg === 'retired';
         const isRm = stg === 'rumored';
         const suitCol = isR ? 0x667799 : colHex;
         const skinCol = isR ? 0xb8c0cc : isRm ? 0x8b5cf6 : 0xfdd8b5;
         const legCol = isR ? 0x7788aa : isRm ? 0x6b7280 : 0x3d2914;
-        
+
         // Shadow
         const shadow = new PIXI.Graphics();
         shadow.beginFill(0x000000, 0.25);
@@ -125,29 +125,49 @@ const InteriorResAI = {
         }
 
         cont.addChild(shadow, ghostL, ghostR, legL, legR, body, head, dot);
-        cont.x = x; 
+        cont.x = x;
         cont.y = y;
-        
+
         cont.alpha = isR ? 0.6 : isRm ? 0.8 : 1.0;
         cont.blendMode = isR ? PIXI.BLEND_MODES.ADD : PIXI.BLEND_MODES.NORMAL;
-        
-        cont.eventMode = 'static'; 
+
+        cont.eventMode = 'static';
         cont.cursor = 'pointer';
-        cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
+        cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined') UI.selectModel(m);
+        });
 
         container.addChild(cont);
 
         const agent = {
-            m, cont, head, body, legL, legR, dot, shadow, ghostL, ghostR, isMoE,
-            state: 'working', timer: 0, deskX: x, floorIdx, speed: 1.5,
+            m,
+            cont,
+            head,
+            body,
+            legL,
+            legR,
+            dot,
+            shadow,
+            ghostL,
+            ghostR,
+            isMoE,
+            state: 'working',
+            timer: 0,
+            deskX: x,
+            floorIdx,
+            speed: 1.5,
             isStaticRole: isStatic,
-            bedX: 0, bedY: 0
+            bedX: 0,
+            bedY: 0,
         };
 
         // Tracking highlight for followed entity
         if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
             const hl = G._addTrackHighlight(cont, m, false);
-            if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
+            if (hl) {
+                agent._trackGlow = hl.glow;
+                agent._trackArrow = hl.arrow;
+            }
         }
 
         this.avatars.push(agent);
@@ -160,30 +180,49 @@ const InteriorResAI = {
     // works without modification.
     _drawCeoAvatar(m, x, y, container, floorIdx, isStatic) {
         const av = HumanAvatar.drawFounder(container, m.founderData, {
-            x, y,
-            showTag: false,    // interiors render their own role labels above CEOs
+            x,
+            y,
+            showTag: false, // interiors render their own role labels above CEOs
             showDot: true,
-            seed: 'founder_' + (m.founderData && m.founderData.name)
+            seed: 'founder_' + (m.founderData && m.founderData.name),
         });
 
         av.cont.eventMode = 'static';
         av.cont.cursor = 'pointer';
-        av.cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
+        av.cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined') UI.selectModel(m);
+        });
 
         const agent = {
-            m, cont: av.cont, head: av.head, body: av.body,
-            legL: av.legL, legR: av.legR, dot: av.dot, shadow: av.shadow,
+            m,
+            cont: av.cont,
+            head: av.head,
+            body: av.body,
+            legL: av.legL,
+            legR: av.legR,
+            dot: av.dot,
+            shadow: av.shadow,
             // Humans never render MoE ghost bodies — left null so the existing
             // `if (av.ghostL)` guards in interior_res_core.js skip them cleanly.
-            ghostL: null, ghostR: null, isMoE: false,
-            state: 'working', timer: 0, deskX: x, floorIdx, speed: 1.5,
+            ghostL: null,
+            ghostR: null,
+            isMoE: false,
+            state: 'working',
+            timer: 0,
+            deskX: x,
+            floorIdx,
+            speed: 1.5,
             isStaticRole: isStatic,
-            bedX: 0, bedY: 0
+            bedX: 0,
+            bedY: 0,
         };
 
         if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
             const hl = G._addTrackHighlight(av.cont, m, false);
-            if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
+            if (hl) {
+                agent._trackGlow = hl.glow;
+                agent._trackArrow = hl.arrow;
+            }
         }
 
         this.avatars.push(agent);
@@ -198,16 +237,23 @@ const InteriorResAI = {
             msg = msgOverride;
         } else {
             // Pick from expanded CHAT_MSGS based on avatar state
-            const actMap = { working: 'work', ceo_working: 'work', sleeping: 'sleep', ceo_sleeping: 'sleep', socializing: 'socialize', relaxing: 'play' };
+            const actMap = {
+                working: 'work',
+                ceo_working: 'work',
+                sleeping: 'sleep',
+                ceo_sleeping: 'sleep',
+                socializing: 'socialize',
+                relaxing: 'play',
+            };
             const act = actMap[av.state] || 'work';
-            const pool = (typeof CHAT_MSGS !== 'undefined' && CHAT_MSGS[act]) ? CHAT_MSGS[act] : ['...'];
-            
+            const pool = typeof CHAT_MSGS !== 'undefined' && CHAT_MSGS[act] ? CHAT_MSGS[act] : ['...'];
+
             // 20% chance of personal quip using model name
             if (Math.random() < 0.2 && av.m && av.m.name) {
                 const nameQuips = [
                     `I'm ${av.m.name.split(' ')[0]}.`,
                     `${av.m.name.split(' ')[0]} here.`,
-                    `They call me ${av.m.name.split(' ')[0]}.`
+                    `They call me ${av.m.name.split(' ')[0]}.`,
                 ];
                 msg = nameQuips[Math.floor(Math.random() * nameQuips.length)];
             } else if (Math.random() < 0.15 && av.m && typeof BM !== 'undefined' && BM[av.m.id]) {
@@ -219,29 +265,35 @@ const InteriorResAI = {
                 msg = pool[Math.floor(Math.random() * pool.length)];
             }
         }
-        
+
         const bCont = new PIXI.Container();
         const bg = new PIXI.Graphics();
-        const txt = new PIXI.Text(msg, { 
-            fontFamily: 'JetBrains Mono', fontSize: 9, fill: 0x000000, fontWeight: 'bold' 
+        const txt = new PIXI.Text(msg, {
+            fontFamily: 'JetBrains Mono',
+            fontSize: 9,
+            fill: 0x000000,
+            fontWeight: 'bold',
         });
-        
+
         txt.anchor.set(0.5, 1);
         txt.y = -6;
-        
+
         bg.beginFill(0xffffff);
-        bg.drawRoundedRect(-txt.width/2 - 6, -txt.height - 10, txt.width + 12, txt.height + 8, 4);
+        bg.drawRoundedRect(-txt.width / 2 - 6, -txt.height - 10, txt.width + 12, txt.height + 8, 4);
         bg.endFill();
         bg.beginFill(0xffffff);
-        bg.moveTo(-4, -4); bg.lineTo(4, -4); bg.lineTo(0, 2); bg.endFill();
-        
+        bg.moveTo(-4, -4);
+        bg.lineTo(4, -4);
+        bg.lineTo(0, 2);
+        bg.endFill();
+
         bCont.addChild(bg, txt);
-        
+
         const finalSc = STAGES[getStage(av.m.rel, av.m.ret, av.m.phase)]?.size || 1;
         const h = Math.round(32 * finalSc);
         bCont.x = av.cont.x;
         bCont.y = av.cont.y - h - 10;
-        
+
         this.scene.addChild(bCont);
         this.bubbles.push({ cont: bCont, life: 120 });
     },
@@ -253,5 +305,5 @@ const InteriorResAI = {
             av.legL.y = Math.sin(G.tick * 0.3) * 3;
             av.legR.y = -Math.sin(G.tick * 0.3) * 3;
         }
-    }
+    },
 };

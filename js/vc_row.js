@@ -6,112 +6,289 @@
 
 const VCRow = {
     BLDS: [
-        { id: 'vcrow_apex',      name: 'Andreessen Horowitz', w: 210, fl: 7, emoji: '🅰️', type: 'vcrow', color: '#e07a5f', desc: 'a16z — raising $15B+ across its 2026 fund family, the largest VC fundraise in history. Co-led OpenAI\'s $122B round.' },
-        { id: 'vcrow_horizon',   name: 'Sequoia Capital',     w: 190, fl: 6, emoji: '🌲', type: 'vcrow', color: '#b23b34', desc: 'The OG. Led Anthropic\'s $65B Series H at a $965B valuation — biggest private round in history, just ahead of Anthropic\'s IPO filing.' },
-        { id: 'vcrow_thrive',    name: 'Thrive Capital',      w: 180, fl: 6, emoji: '📈', type: 'vcrow', color: '#6366f1', desc: 'Josh Kushner\'s firm. Closed a $10B fund in 2026 — its largest ever — and is OpenAI\'s most persistent backer.' },
-        { id: 'vcrow_foundersfund', name: 'Founders Fund',    w: 175, fl: 5, emoji: '🚀', type: 'vcrow', color: '#38bdf8', desc: 'Peter Thiel\'s contrarian fund. Closed $4.5B and rode xAI and Anduril to eleven-figure valuations.' },
-        { id: 'vcrow_launchpad', name: 'Y Combinator',        w: 180, fl: 4, emoji: '🟧', type: 'vcrow', color: '#ff6a00', desc: 'The accelerator. Every batch is now AI-first — fresh founders pitch for the seed check that turns a demo into a lab.' },
-        { id: 'vcrow_mgx',       name: 'MGX',                 w: 185, fl: 6, emoji: '💠', type: 'vcrow', color: '#c9a227', desc: 'Abu Dhabi\'s sovereign AI fund. A Stargate co-owner and a check in OpenAI\'s $122B round and xAI\'s Series E.' },
-        { id: 'vcrow_titan',     name: 'SoftBank',            w: 245, fl: 8, emoji: '🏦', type: 'vcrow', color: '#9aa0a6', desc: 'The Vision Fund tower — tallest on the Row. Masayoshi Son\'s $30B into OpenAI and 40% of the $500B Stargate build.' },
-        { id: 'vcrow_exchange',  name: 'AI Exchange',         w: 200, fl: 3, emoji: '📊', type: 'vcrow', color: '#ef4444', desc: 'Secondary-market trading floor. Pre-IPO share tenders, compute futures, and model-valuation derivatives.' },
-        { id: 'vcrow_cryptex',   name: 'Cryptex Exchange',    w: 220, fl: 8, emoji: '₿',  type: 'vcrow', color: '#f7931a', desc: 'Crypto × AI nexus. Live BTC/ETH/SOL feeds, agent-payment rails, and decentralized-compute futures. Neon BTC logo lights the skyline at night.' },
+        {
+            id: 'vcrow_apex',
+            name: 'Andreessen Horowitz',
+            w: 210,
+            fl: 7,
+            emoji: '🅰️',
+            type: 'vcrow',
+            color: '#e07a5f',
+            desc: "a16z — raising $15B+ across its 2026 fund family, the largest VC fundraise in history. Co-led OpenAI's $122B round.",
+        },
+        {
+            id: 'vcrow_horizon',
+            name: 'Sequoia Capital',
+            w: 190,
+            fl: 6,
+            emoji: '🌲',
+            type: 'vcrow',
+            color: '#b23b34',
+            desc: "The OG. Led Anthropic's $65B Series H at a $965B valuation — biggest private round in history, just ahead of Anthropic's IPO filing.",
+        },
+        {
+            id: 'vcrow_thrive',
+            name: 'Thrive Capital',
+            w: 180,
+            fl: 6,
+            emoji: '📈',
+            type: 'vcrow',
+            color: '#6366f1',
+            desc: "Josh Kushner's firm. Closed a $10B fund in 2026 — its largest ever — and is OpenAI's most persistent backer.",
+        },
+        {
+            id: 'vcrow_foundersfund',
+            name: 'Founders Fund',
+            w: 175,
+            fl: 5,
+            emoji: '🚀',
+            type: 'vcrow',
+            color: '#38bdf8',
+            desc: "Peter Thiel's contrarian fund. Closed $4.5B and rode xAI and Anduril to eleven-figure valuations.",
+        },
+        {
+            id: 'vcrow_launchpad',
+            name: 'Y Combinator',
+            w: 180,
+            fl: 4,
+            emoji: '🟧',
+            type: 'vcrow',
+            color: '#ff6a00',
+            desc: 'The accelerator. Every batch is now AI-first — fresh founders pitch for the seed check that turns a demo into a lab.',
+        },
+        {
+            id: 'vcrow_mgx',
+            name: 'MGX',
+            w: 185,
+            fl: 6,
+            emoji: '💠',
+            type: 'vcrow',
+            color: '#c9a227',
+            desc: "Abu Dhabi's sovereign AI fund. A Stargate co-owner and a check in OpenAI's $122B round and xAI's Series E.",
+        },
+        {
+            id: 'vcrow_titan',
+            name: 'SoftBank',
+            w: 245,
+            fl: 8,
+            emoji: '🏦',
+            type: 'vcrow',
+            color: '#9aa0a6',
+            desc: "The Vision Fund tower — tallest on the Row. Masayoshi Son's $30B into OpenAI and 40% of the $500B Stargate build.",
+        },
+        {
+            id: 'vcrow_exchange',
+            name: 'AI Exchange',
+            w: 200,
+            fl: 3,
+            emoji: '📊',
+            type: 'vcrow',
+            color: '#ef4444',
+            desc: 'Secondary-market trading floor. Pre-IPO share tenders, compute futures, and model-valuation derivatives.',
+        },
+        {
+            id: 'vcrow_cryptex',
+            name: 'Cryptex Exchange',
+            w: 220,
+            fl: 8,
+            emoji: '₿',
+            type: 'vcrow',
+            color: '#f7931a',
+            desc: 'Crypto × AI nexus. Live BTC/ETH/SOL feeds, agent-payment rails, and decentralized-compute futures. Neon BTC logo lights the skyline at night.',
+        },
     ],
 
     // Real-firm profiles for the info panel (keyed by building id).
     FIRMS: {
         vcrow_apex: {
-            firm: 'Andreessen Horowitz (a16z)', partner: 'Marc Andreessen & Ben Horowitz', founded: '2009', aum: '~$95B AUM',
-            milestone: '2026: raising $15B+ across its fund family — the single largest venture fundraise in history.',
+            firm: 'Andreessen Horowitz (a16z)',
+            partner: 'Marc Andreessen & Ben Horowitz',
+            founded: '2009',
+            aum: '~$95B AUM',
+            milestone:
+                '2026: raising $15B+ across its fund family — the single largest venture fundraise in history.',
             portfolio: ['OpenAI', 'Thinking Machines', 'Mistral', 'Anduril', 'Databricks'],
-            recentDeal: 'Co-led OpenAI\'s $122B round (Mar 2026) · led Thinking Machines\' $2B seed at $12B',
+            recentDeal: "Co-led OpenAI's $122B round (Mar 2026) · led Thinking Machines' $2B seed at $12B",
             facts: [
                 'Its "American Dynamism" thesis pours into defense + AI (Anduril at $61B)',
-                'Backed Mira Murati\'s Thinking Machines before it had a product',
-                'The firm that made "software is eating the world" the industry motto'
-            ]
+                "Backed Mira Murati's Thinking Machines before it had a product",
+                'The firm that made "software is eating the world" the industry motto',
+            ],
         },
         vcrow_horizon: {
-            firm: 'Sequoia Capital', partner: 'Roelof Botha', founded: '1972', aum: '~$85B AUM',
-            milestone: 'May 2026: led Anthropic\'s $65B Series H at a $965B post-money valuation — the largest private round ever.',
+            firm: 'Sequoia Capital',
+            partner: 'Roelof Botha',
+            founded: '1972',
+            aum: '~$85B AUM',
+            milestone:
+                "May 2026: led Anthropic's $65B Series H at a $965B post-money valuation — the largest private round ever.",
             portfolio: ['Anthropic', 'Google', 'NVIDIA', 'Stripe', 'OpenAI'],
             recentDeal: 'Anthropic Series H, $65B (with Altimeter, Dragoneer, Greenoaks)',
             facts: [
                 'Seeded Apple, Google, NVIDIA, YouTube, Stripe — the canonical VC track record',
                 'Anthropic filed confidentially for an IPO on Jun 1, 2026 at $965B',
-                '50+ years old and still writing the biggest checks in AI'
-            ]
+                '50+ years old and still writing the biggest checks in AI',
+            ],
         },
         vcrow_thrive: {
-            firm: 'Thrive Capital', partner: 'Josh Kushner', founded: '2010', aum: '~$25B AUM',
+            firm: 'Thrive Capital',
+            partner: 'Josh Kushner',
+            founded: '2010',
+            aum: '~$25B AUM',
             milestone: 'Feb 2026: closed a $10B fund — its largest ever — extending an all-in bet on OpenAI.',
             portfolio: ['OpenAI', 'Anduril', 'Stripe', 'Ramp', 'Databricks'],
             recentDeal: '~$1B into OpenAI; co-led Anduril at a $61B valuation with a16z',
             facts: [
                 'Josh Kushner turned a concentrated OpenAI bet into the envy of the Row',
                 'Thrive Holdings raised a further $2B to buy and AI-rewire services firms',
-                'Bets big and rarely — a handful of names, enormous positions'
-            ]
+                'Bets big and rarely — a handful of names, enormous positions',
+            ],
         },
         vcrow_foundersfund: {
-            firm: 'Founders Fund', partner: 'Peter Thiel', founded: '2005', aum: '~$16B AUM',
-            milestone: '2026: closed a $4.5B fund and rode xAI\'s Series E and Anduril\'s defense boom.',
+            firm: 'Founders Fund',
+            partner: 'Peter Thiel',
+            founded: '2005',
+            aum: '~$16B AUM',
+            milestone: "2026: closed a $4.5B fund and rode xAI's Series E and Anduril's defense boom.",
             portfolio: ['xAI', 'Anduril', 'SpaceX', 'Palantir', 'Ramp'],
             recentDeal: 'Backer of xAI (now merged into SpaceX at a $250B mark)',
             facts: [
-                'Thiel\'s fund famously wrote SpaceX and Palantir\'s early checks',
+                "Thiel's fund famously wrote SpaceX and Palantir's early checks",
                 'Its portfolio ties VC Row straight to the Space Zone (SpaceX • xAI)',
-                'Contrarian by design: "we wanted flying cars, we got 140 characters"'
-            ]
+                'Contrarian by design: "we wanted flying cars, we got 140 characters"',
+            ],
         },
         vcrow_launchpad: {
-            firm: 'Y Combinator', partner: 'Garry Tan', founded: '2005', aum: '2,000+ startups funded',
-            milestone: 'Every 2026 batch is AI-first — the accelerator that turns a weekend demo into a funded lab.',
+            firm: 'Y Combinator',
+            partner: 'Garry Tan',
+            founded: '2005',
+            aum: '2,000+ startups funded',
+            milestone:
+                'Every 2026 batch is AI-first — the accelerator that turns a weekend demo into a funded lab.',
             portfolio: ['OpenAI (Sam Altman, ex-president)', 'Stripe', 'Airbnb', 'Coinbase', 'Cruise'],
             recentDeal: 'Standard deal: $500K for 7% — then Demo Day to the whole Row',
             facts: [
                 'Sam Altman ran YC before founding OpenAI',
                 'Its Demo Day sets the seed-stage AI market each batch',
-                'Orange is the most valuable color on Sand Hill Road'
-            ]
+                'Orange is the most valuable color on Sand Hill Road',
+            ],
         },
         vcrow_mgx: {
-            firm: 'MGX', partner: 'Sheikh Tahnoon bin Zayed', founded: '2024', aum: '~$100B mandate',
-            milestone: 'A founding Stargate partner — Abu Dhabi\'s sovereign wealth aimed squarely at the AI buildout.',
+            firm: 'MGX',
+            partner: 'Sheikh Tahnoon bin Zayed',
+            founded: '2024',
+            aum: '~$100B mandate',
+            milestone:
+                "A founding Stargate partner — Abu Dhabi's sovereign wealth aimed squarely at the AI buildout.",
             portfolio: ['Stargate', 'OpenAI', 'xAI', 'AI infrastructure'],
-            recentDeal: 'Stargate co-owner; checks in OpenAI\'s $122B round and xAI\'s $20B Series E',
+            recentDeal: "Stargate co-owner; checks in OpenAI's $122B round and xAI's $20B Series E",
             facts: [
                 'Sovereign capital is now a top-tier AI investor — MGX writes nation-scale checks',
                 'Stargate: $500B and 10 GW of US AI data centers by 2029',
-                'Backed by Mubadala + G42 — the Gulf\'s AI ambitions in one vehicle'
-            ]
+                "Backed by Mubadala + G42 — the Gulf's AI ambitions in one vehicle",
+            ],
         },
         vcrow_titan: {
-            firm: 'SoftBank / Vision Fund', partner: 'Masayoshi Son', founded: '1981', aum: '~$160B deployed',
-            milestone: 'Mar 2026: put $30B into OpenAI\'s $122B round and committed 40% of the $500B Stargate joint venture.',
+            firm: 'SoftBank / Vision Fund',
+            partner: 'Masayoshi Son',
+            founded: '1981',
+            aum: '~$160B deployed',
+            milestone:
+                "Mar 2026: put $30B into OpenAI's $122B round and committed 40% of the $500B Stargate joint venture.",
             portfolio: ['OpenAI', 'Stargate', 'Arm', 'Nvidia', 'Ampere'],
             recentDeal: 'OpenAI $122B round (co-lead) · Stargate JV (40% / $19B committed)',
             facts: [
                 'Masa bets on the future harder than anyone — Stargate is his biggest yet',
                 'Owns Arm, whose chips are in nearly every phone on Earth',
-                'The tallest tower on the Row, because of course it is'
-            ]
-        }
+                'The tallest tower on the Row, because of course it is',
+            ],
+        },
     },
 
     SUBURB_BLDS: [
-        { id: 'suburb_1', name: 'Maple Crescent',   w: 150, fl: 2, emoji: '🏡', desc: 'Upper middle-class townhome. Home of a VC Partner. Picket fence, two-car garage, smart driveway.' },
-        { id: 'suburb_2', name: 'Cypress Drive',    w: 150, fl: 2, emoji: '🏡', desc: 'Brick-front Craftsman. Home of the Analyst. Home office with multi-monitor workstation.' },
-        { id: 'suburb_3', name: 'Oakwood Lane',     w: 150, fl: 2, emoji: '🏡', desc: 'Colonial townhouse. Home of the Startup Mentor. Fireplace, whiskey collection, pitch deck archive.' },
-        { id: 'suburb_4', name: 'Birch Hollow',     w: 150, fl: 2, emoji: '🏡', desc: 'Modern farmhouse. Home of the Investment Banker. Commutes to the SoftBank tower every dawn.' },
-        { id: 'suburb_5', name: 'Willow Terrace',   w: 150, fl: 2, emoji: '🏡', desc: 'Corner lot Tudor. Home of the Floor Trader. Three monitors above the kitchen island.' },
+        {
+            id: 'suburb_1',
+            name: 'Maple Crescent',
+            w: 150,
+            fl: 2,
+            emoji: '🏡',
+            desc: 'Upper middle-class townhome. Home of a VC Partner. Picket fence, two-car garage, smart driveway.',
+        },
+        {
+            id: 'suburb_2',
+            name: 'Cypress Drive',
+            w: 150,
+            fl: 2,
+            emoji: '🏡',
+            desc: 'Brick-front Craftsman. Home of the Analyst. Home office with multi-monitor workstation.',
+        },
+        {
+            id: 'suburb_3',
+            name: 'Oakwood Lane',
+            w: 150,
+            fl: 2,
+            emoji: '🏡',
+            desc: 'Colonial townhouse. Home of the Startup Mentor. Fireplace, whiskey collection, pitch deck archive.',
+        },
+        {
+            id: 'suburb_4',
+            name: 'Birch Hollow',
+            w: 150,
+            fl: 2,
+            emoji: '🏡',
+            desc: 'Modern farmhouse. Home of the Investment Banker. Commutes to the SoftBank tower every dawn.',
+        },
+        {
+            id: 'suburb_5',
+            name: 'Willow Terrace',
+            w: 150,
+            fl: 2,
+            emoji: '🏡',
+            desc: 'Corner lot Tudor. Home of the Floor Trader. Three monitors above the kitchen island.',
+        },
     ],
 
     NPCS: [
-        { id: 'npc_vc_partner',    name: 'VC Partner',     role: 'Venture Partner',     workplace: 'vcrow', color: '#4ade80', shift: 'day' },
-        { id: 'npc_analyst_vc',    name: 'Analyst',        role: 'Financial Analyst',   workplace: 'vcrow', color: '#22d3ee', shift: 'day' },
-        { id: 'npc_founder_coach', name: 'Mentor',         role: 'Startup Mentor',      workplace: 'vcrow', color: '#fbbf24', shift: 'day' },
-        { id: 'npc_banker',        name: 'Banker',         role: 'Investment Banker',   workplace: 'vcrow', color: '#94a3b8', shift: 'day' },
-        { id: 'npc_trader',        name: 'Trader',         role: 'Floor Trader',        workplace: 'vcrow', color: '#ef4444', shift: 'day' },
+        {
+            id: 'npc_vc_partner',
+            name: 'VC Partner',
+            role: 'Venture Partner',
+            workplace: 'vcrow',
+            color: '#4ade80',
+            shift: 'day',
+        },
+        {
+            id: 'npc_analyst_vc',
+            name: 'Analyst',
+            role: 'Financial Analyst',
+            workplace: 'vcrow',
+            color: '#22d3ee',
+            shift: 'day',
+        },
+        {
+            id: 'npc_founder_coach',
+            name: 'Mentor',
+            role: 'Startup Mentor',
+            workplace: 'vcrow',
+            color: '#fbbf24',
+            shift: 'day',
+        },
+        {
+            id: 'npc_banker',
+            name: 'Banker',
+            role: 'Investment Banker',
+            workplace: 'vcrow',
+            color: '#94a3b8',
+            shift: 'day',
+        },
+        {
+            id: 'npc_trader',
+            name: 'Trader',
+            role: 'Floor Trader',
+            workplace: 'vcrow',
+            color: '#ef4444',
+            shift: 'day',
+        },
     ],
 
     // Real-world AI funding data (approximate, in $M) — 2026-Q2
@@ -119,14 +296,38 @@ const VCRow = {
     // that copy is the curated floor the daily writer ratchets from; this copy
     // is the client's max-merge baseline. Update both together.
     FUNDING: {
-        openai:    { total: 179000, valuation: 852000, rounds: 'YC → Microsoft $13B → SoftBank → $122B round at $852B (Amazon $50B, Nvidia/SoftBank $30B each) · Jul 2026: in talks for a 5% US-govt stake (~$43B); IPO advisors reportedly lean toward 2027' },
-        anthropic: { total: 83000,  valuation: 965000, rounds: 'Google → Amazon $8B → Series G → Series H $65B at $965B (Sequoia-led) → IPO filed' },
-        xai:       { total: 32000,  valuation: 230000, rounds: 'Series A $6B → Series C $6B → Series E $20B at $230B → merged into SpaceX at $250B' },
-        mistral:   { total: 3200,   valuation: 23200,  rounds: 'Seed €105M → Series B €600M → Series C €1.7B at €12B → Jun 2026: in talks to raise ~€3B at ~€20B valuation' },
-        cohere:    { total: 1500,   valuation: 7000,   rounds: 'Series C $270M → Series D $500M → 2026 raise at $7B' },
-        inflection:{ total: 1525,   valuation: 4000,   rounds: 'Series A $225M → Microsoft $1.3B → pivot to enterprise' },
-        stability: { total: 350,    valuation: 1200,   rounds: 'Series A $150M → 2024 recap' },
-        adept:     { total: 415,    valuation: 1000,   rounds: 'Series B $350M → Amazon licensing deal' },
+        openai: {
+            total: 179000,
+            valuation: 852000,
+            rounds: 'YC → Microsoft $13B → SoftBank → $122B round at $852B (Amazon $50B, Nvidia/SoftBank $30B each) · Jul 2026: in talks for a 5% US-govt stake (~$43B); IPO advisors reportedly lean toward 2027',
+        },
+        anthropic: {
+            total: 83000,
+            valuation: 965000,
+            rounds: 'Google → Amazon $8B → Series G → Series H $65B at $965B (Sequoia-led) → IPO filed',
+        },
+        xai: {
+            total: 32000,
+            valuation: 230000,
+            rounds: 'Series A $6B → Series C $6B → Series E $20B at $230B → merged into SpaceX at $250B',
+        },
+        mistral: {
+            total: 3200,
+            valuation: 23200,
+            rounds: 'Seed €105M → Series B €600M → Series C €1.7B at €12B → Jun 2026: in talks to raise ~€3B at ~€20B valuation',
+        },
+        cohere: {
+            total: 1500,
+            valuation: 7000,
+            rounds: 'Series C $270M → Series D $500M → 2026 raise at $7B',
+        },
+        inflection: {
+            total: 1525,
+            valuation: 4000,
+            rounds: 'Series A $225M → Microsoft $1.3B → pivot to enterprise',
+        },
+        stability: { total: 350, valuation: 1200, rounds: 'Series A $150M → 2024 recap' },
+        adept: { total: 415, valuation: 1000, rounds: 'Series B $350M → Amazon licensing deal' },
     },
 
     _inited: false,
@@ -141,8 +342,8 @@ const VCRow = {
         if (this._inited) return;
         this._inited = true;
 
-        this.BLDS.forEach(def => {
-            if (!BLDS.find(b => b.id === def.id)) {
+        this.BLDS.forEach((def) => {
+            if (!BLDS.find((b) => b.id === def.id)) {
                 const bld = { ...def, x: 0, lab: null };
                 BLDS.push(bld);
                 G.bldById[def.id] = bld;
@@ -150,8 +351,8 @@ const VCRow = {
         });
 
         // Middle-class suburbia for VC Row commuters
-        this.SUBURB_BLDS.forEach(def => {
-            if (!BLDS.find(b => b.id === def.id)) {
+        this.SUBURB_BLDS.forEach((def) => {
+            if (!BLDS.find((b) => b.id === def.id)) {
                 const bld = { ...def, x: 0, lab: null };
                 BLDS.push(bld);
                 G.bldById[def.id] = bld;
@@ -167,9 +368,12 @@ const VCRow = {
     positionZone(afterX) {
         let x = afterX + 60;
         this.zoneStartX = x;
-        this.BLDS.forEach(def => {
-            const bld = BLDS.find(b => b.id === def.id);
-            if (bld) { bld.x = x; x += bld.w + 50; }
+        this.BLDS.forEach((def) => {
+            const bld = BLDS.find((b) => b.id === def.id);
+            if (bld) {
+                bld.x = x;
+                x += bld.w + 50;
+            }
         });
         this.zoneEndX = x + 40;
         return this.zoneEndX;
@@ -179,9 +383,12 @@ const VCRow = {
     positionSuburbs(afterX) {
         let x = afterX + 80;
         this.suburbStartX = x;
-        this.SUBURB_BLDS.forEach(def => {
-            const bld = BLDS.find(b => b.id === def.id);
-            if (bld) { bld.x = x; x += bld.w + 30; }
+        this.SUBURB_BLDS.forEach((def) => {
+            const bld = BLDS.find((b) => b.id === def.id);
+            if (bld) {
+                bld.x = x;
+                x += bld.w + 30;
+            }
         });
         this.suburbEndX = x + 60;
         return this.suburbEndX;
@@ -191,21 +398,22 @@ const VCRow = {
         this.dealTicker = [];
         // Lab aggregate totals (reference data)
         Object.entries(this.FUNDING).forEach(([lab, data]) => {
-            const labName = (typeof LABS !== 'undefined' && LABS[lab]) ? LABS[lab].name : lab;
+            const labName = typeof LABS !== 'undefined' && LABS[lab] ? LABS[lab].name : lab;
             if (data.total > 0) {
                 this.dealTicker.push(`💰 ${labName}: $${(data.total / 1000).toFixed(1)}B raised`);
-                if (data.valuation) this.dealTicker.push(`📊 ${labName} valued at $${(data.valuation / 1000).toFixed(0)}B`);
+                if (data.valuation)
+                    this.dealTicker.push(`📊 ${labName} valued at $${(data.valuation / 1000).toFixed(0)}B`);
             }
         });
         // Real firm headlines (the funds themselves)
         if (this.FIRMS) {
-            Object.values(this.FIRMS).forEach(f => {
+            Object.values(this.FIRMS).forEach((f) => {
                 if (f.milestone) this.dealTicker.push(`🔔 ${f.firm.split('(')[0].trim()}: ${f.milestone}`);
             });
         }
         // Real RSS-sourced deal headlines (replaces old hardcoded filler)
         if (typeof API !== 'undefined' && API.vcDeals?.length > 0) {
-            API.vcDeals.slice(0, 10).forEach(deal => {
+            API.vcDeals.slice(0, 10).forEach((deal) => {
                 const emoji = /series\s+[c-f]/i.test(deal.round) ? '🦄' : deal.round ? '🔔' : '💰';
                 this.dealTicker.push(`${emoji} ${deal.headline}`);
             });
@@ -236,14 +444,17 @@ const VCRow = {
     // Returns one assembled line per call (the scroller shows one line at a time).
     _cryptoIdx: 0,
     getNextCryptoTickerItem() {
-        const coins = (typeof API !== 'undefined' && Array.isArray(API.cryptoCoins)) ? API.cryptoCoins : [];
+        const coins = typeof API !== 'undefined' && Array.isArray(API.cryptoCoins) ? API.cryptoCoins : [];
         if (coins.length === 0) return '  ₿ CRYPTEX EXCHANGE — booting market feed...  ';
         const c = coins[this._cryptoIdx % coins.length];
         this._cryptoIdx++;
         const sym = c.symbol.toUpperCase();
-        const price = c.price >= 1000 ? c.price.toLocaleString('en-US', { maximumFractionDigits: 0 })
-                     : c.price >= 1   ? c.price.toFixed(2)
-                     :                   c.price.toFixed(4);
+        const price =
+            c.price >= 1000
+                ? c.price.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                : c.price >= 1
+                  ? c.price.toFixed(2)
+                  : c.price.toFixed(4);
         const chg = c.change;
         const arrow = chg >= 0 ? '▲' : '▼';
         const chgStr = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
@@ -254,15 +465,37 @@ const VCRow = {
     // "top 5" board shows real movers (BTC/ETH/majors), not USDT parked at $1.00 +0.0%
     // or WBTC/stETH duplicating an asset already on the board.
     _BILLBOARD_SKIP: new Set([
-        'usdt', 'usdc', 'dai', 'busd', 'tusd', 'usde', 'fdusd', 'usdd', 'pyusd', 'usds', 'gusd', 'usdl', 'susde', 'buidl',
-        'wbtc', 'weth', 'wsteth', 'steth', 'weeth', 'reth', 'cbbtc', 'lbtc'
+        'usdt',
+        'usdc',
+        'dai',
+        'busd',
+        'tusd',
+        'usde',
+        'fdusd',
+        'usdd',
+        'pyusd',
+        'usds',
+        'gusd',
+        'usdl',
+        'susde',
+        'buidl',
+        'wbtc',
+        'weth',
+        'wsteth',
+        'steth',
+        'weeth',
+        'reth',
+        'cbbtc',
+        'lbtc',
     ]),
 
     // Top-N coins by market cap for the Cryptex billboard, live from CoinGecko
     // (API.cryptoCoins). Stablecoins/wrapped assets filtered out — see _BILLBOARD_SKIP.
     getTopCoins(n = 5) {
-        const coins = (typeof API !== 'undefined' && Array.isArray(API.cryptoCoins)) ? API.cryptoCoins : [];
-        return coins.filter(c => c && c.symbol && !this._BILLBOARD_SKIP.has(c.symbol.toLowerCase())).slice(0, n);
+        const coins = typeof API !== 'undefined' && Array.isArray(API.cryptoCoins) ? API.cryptoCoins : [];
+        return coins
+            .filter((c) => c && c.symbol && !this._BILLBOARD_SKIP.has(c.symbol.toLowerCase()))
+            .slice(0, n);
     },
 
     // Get total industry funding
@@ -286,20 +519,41 @@ const VCRow = {
 
             // CEO-style car body
             const gfx = new PIXI.Graphics();
-            gfx.beginFill(col); gfx.drawRoundedRect(-22, -18, 44, 18, 4); gfx.endFill();
-            gfx.beginFill(col, 0.8); gfx.drawRoundedRect(-12, -28, 24, 12, 4); gfx.endFill();
-            gfx.beginFill(0xffffff, 0.15); gfx.drawRect(-10, -26, 9, 8); gfx.drawRect(1, -26, 9, 8); gfx.endFill();
-            gfx.beginFill(0x333333); gfx.drawCircle(-12, -1, 4); gfx.drawCircle(12, -1, 4); gfx.endFill();
-            gfx.beginFill(0x555555); gfx.drawCircle(-12, -1, 2); gfx.drawCircle(12, -1, 2); gfx.endFill();
+            gfx.beginFill(col);
+            gfx.drawRoundedRect(-22, -18, 44, 18, 4);
+            gfx.endFill();
+            gfx.beginFill(col, 0.8);
+            gfx.drawRoundedRect(-12, -28, 24, 12, 4);
+            gfx.endFill();
+            gfx.beginFill(0xffffff, 0.15);
+            gfx.drawRect(-10, -26, 9, 8);
+            gfx.drawRect(1, -26, 9, 8);
+            gfx.endFill();
+            gfx.beginFill(0x333333);
+            gfx.drawCircle(-12, -1, 4);
+            gfx.drawCircle(12, -1, 4);
+            gfx.endFill();
+            gfx.beginFill(0x555555);
+            gfx.drawCircle(-12, -1, 2);
+            gfx.drawCircle(12, -1, 2);
+            gfx.endFill();
             // Daytime headlight/tail light housings (dim, always visible)
-            gfx.beginFill(0x888888, 0.5); gfx.drawRect(20, -8, 4, 6); gfx.endFill();
-            gfx.beginFill(0x993333, 0.4); gfx.drawRect(-26, -10, 4, 4); gfx.endFill();
+            gfx.beginFill(0x888888, 0.5);
+            gfx.drawRect(20, -8, 4, 6);
+            gfx.endFill();
+            gfx.beginFill(0x993333, 0.4);
+            gfx.drawRect(-26, -10, 4, 4);
+            gfx.endFill();
             carCont.addChild(gfx);
 
             // Headlight & tail light glow (on at night / bad weather only)
             const lights = new PIXI.Graphics();
-            lights.beginFill(0xffffff, 1.0); lights.drawRect(20, -8, 4, 6); lights.endFill();
-            lights.beginFill(0xff3333, 1.0); lights.drawRect(-26, -10, 4, 4); lights.endFill();
+            lights.beginFill(0xffffff, 1.0);
+            lights.drawRect(20, -8, 4, 6);
+            lights.endFill();
+            lights.beginFill(0xff3333, 1.0);
+            lights.drawRect(-26, -10, 4, 4);
+            lights.endFill();
             lights.alpha = 0;
             carCont.addChild(lights);
 
@@ -314,9 +568,15 @@ const VCRow = {
 
             // NPC face in car
             const face = new PIXI.Graphics();
-            face.beginFill(0xfdd8b5); face.drawCircle(0, 0, 3.5); face.endFill();
-            face.beginFill(0x2c1810); face.drawCircle(-1.2, -0.5, 0.7); face.drawCircle(1.2, -0.5, 0.7); face.endFill();
-            face.x = 0; face.y = -22;
+            face.beginFill(0xfdd8b5);
+            face.drawCircle(0, 0, 3.5);
+            face.endFill();
+            face.beginFill(0x2c1810);
+            face.drawCircle(-1.2, -0.5, 0.7);
+            face.drawCircle(1.2, -0.5, 0.7);
+            face.endFill();
+            face.x = 0;
+            face.y = -22;
             carCont.addChild(face);
 
             // Start with headlights off (controlled by day/night in updateCommuters)
@@ -329,7 +589,7 @@ const VCRow = {
 
             // Home = a suburb townhome (one per VC NPC), work = VC Row
             const suburbDef = this.SUBURB_BLDS[i % this.SUBURB_BLDS.length];
-            const homeBld = suburbDef ? BLDS.find(b => b.id === suburbDef.id) : null;
+            const homeBld = suburbDef ? BLDS.find((b) => b.id === suburbDef.id) : null;
             const homeX = homeBld ? homeBld.x + homeBld.w / 2 : 200;
             const workBld = G.bldById['vcrow_titan'] || G.bldById['vcrow_apex'];
             const workX = workBld ? workBld.x + workBld.w / 2 + i * 40 : this.zoneStartX + 100;
@@ -338,8 +598,12 @@ const VCRow = {
             const dp = G.getDayPhase();
             const shouldWork = dp > 0.33 && dp < 0.75;
 
-            const workBldId = G.bldById['vcrow_titan'] ? 'vcrow_titan' : (G.bldById['vcrow_apex'] ? 'vcrow_apex' : null);
-            const homeBldId = homeBld ? homeBld.id : (suburbDef ? suburbDef.id : 'suburb_1');
+            const workBldId = G.bldById['vcrow_titan']
+                ? 'vcrow_titan'
+                : G.bldById['vcrow_apex']
+                  ? 'vcrow_apex'
+                  : null;
+            const homeBldId = homeBld ? homeBld.id : suburbDef ? suburbDef.id : 'suburb_1';
 
             // Click to select/track VC commuter
             carCont.eventMode = 'static';
@@ -347,21 +611,36 @@ const VCRow = {
             carCont.hitArea = new PIXI.Rectangle(-28, -34, 56, 40);
             const _npc = npc;
             carCont.on('pointertap', () => {
-                if (typeof UI !== 'undefined') UI.selectModel({
-                    id: _npc.id, name: _npc.name, isNPC: true, _trackType: 'vc_commuter',
-                    role: _npc.role, lab: 'other',
-                    desc: `${_npc.name} commutes to VC Row by car. ${_npc.role} in the financial district.`
-                });
+                if (typeof UI !== 'undefined')
+                    UI.selectModel({
+                        id: _npc.id,
+                        name: _npc.name,
+                        isNPC: true,
+                        _trackType: 'vc_commuter',
+                        role: _npc.role,
+                        lab: 'other',
+                        desc: `${_npc.name} commutes to VC Row by car. ${_npc.role} in the financial district.`,
+                    });
             });
-            carCont.on('pointerover', (e) => { if (typeof UI !== 'undefined') UI.showTooltip(e, _npc.name, _npc.role); });
-            carCont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+            carCont.on('pointerover', (e) => {
+                if (typeof UI !== 'undefined') UI.showTooltip(e, _npc.name, _npc.role);
+            });
+            carCont.on('pointerout', () => {
+                if (typeof UI !== 'undefined') UI.hideTooltip();
+            });
 
             this.carCommuters.push({
-                npc, carCont, beam, lights, homeX, workX,
+                npc,
+                carCont,
+                beam,
+                lights,
+                homeX,
+                workX,
                 state: shouldWork ? 'at_work' : 'at_home',
                 speed: 2.5 + Math.random() * 1.0,
                 bld: shouldWork ? workBldId : homeBldId,
-                workBldId, homeBldId
+                workBldId,
+                homeBldId,
             });
         });
     },
@@ -373,11 +652,13 @@ const VCRow = {
 
         // Headlights: on at night or in bad weather, off during clear day
         const night = dp > 0.83 || dp < 0.25;
-        const badWeather = typeof Environment !== 'undefined' && (
-            Environment.isRainy?.() || Environment.weather === 'snow' ||
-            Environment.weather === 'overcast' || Environment.weather === 'fog'
-        );
-        const beamTarget = night ? 1 : (badWeather ? 0.5 : 0);
+        const badWeather =
+            typeof Environment !== 'undefined' &&
+            (Environment.isRainy?.() ||
+                Environment.weather === 'snow' ||
+                Environment.weather === 'overcast' ||
+                Environment.weather === 'fog');
+        const beamTarget = night ? 1 : badWeather ? 0.5 : 0;
 
         this.carCommuters.forEach((cm, ci) => {
             // Smooth headlight + tail light transition
@@ -405,14 +686,16 @@ const VCRow = {
             }
             // Lunch break — staggered by NPC index so they don't all leave at once
             else if (lunchWindow && cm.state === 'at_work' && !cm._lunchDone) {
-                const lunchThreshold = 0.45 + (ci * 0.015);
+                const lunchThreshold = 0.45 + ci * 0.015;
                 if (dp >= lunchThreshold && Math.random() < 0.003) {
                     cm.state = 'driving_to_lunch';
                     cm.carCont.visible = true;
                     cm.carCont.x = cm.workX;
                     // Drive to a random spot (cafe area or a short cruise)
                     const cafeBld = G.bldById['cafe'];
-                    cm._lunchX = cafeBld ? cafeBld.x + cafeBld.w / 2 : cm.workX + (Math.random() > 0.5 ? 400 : -400);
+                    cm._lunchX = cafeBld
+                        ? cafeBld.x + cafeBld.w / 2
+                        : cm.workX + (Math.random() > 0.5 ? 400 : -400);
                     cm.carCont.scale.x = cm._lunchX > cm.workX ? 1 : -1;
                     cm.bld = null;
                     cm._lunchDone = true;
@@ -444,7 +727,7 @@ const VCRow = {
                 const dx = cm._lunchX - cm.carCont.x;
                 if (Math.abs(dx) < 5) {
                     cm.state = 'at_lunch';
-                    cm.carCont.visible = false;  // Car disappears — NPC enters building
+                    cm.carCont.visible = false; // Car disappears — NPC enters building
                     cm._lunchTimer = 400 + Math.random() * 300;
                 } else {
                     cm.carCont.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
@@ -454,7 +737,7 @@ const VCRow = {
                 cm._lunchTimer--;
                 if (cm._lunchTimer <= 0) {
                     cm.state = 'driving_from_lunch';
-                    cm.carCont.visible = true;   // Car reappears — NPC exits building
+                    cm.carCont.visible = true; // Car reappears — NPC exits building
                     cm.carCont.scale.x = cm.workX > cm.carCont.x ? 1 : -1;
                 }
             } else if (cm.state === 'driving_from_lunch') {
@@ -466,7 +749,14 @@ const VCRow = {
                 } else {
                     cm.carCont.x += Math.sign(dx) * Math.min(cm.speed, Math.abs(dx));
                 }
-            } else if (cm.state !== 'driving_to_work' && cm.state !== 'driving_home' && cm.state !== 'driving_to_lunch' && cm.state !== 'at_lunch' && cm.state !== 'driving_from_lunch' && cm.state !== 'back_from_lunch') {
+            } else if (
+                cm.state !== 'driving_to_work' &&
+                cm.state !== 'driving_home' &&
+                cm.state !== 'driving_to_lunch' &&
+                cm.state !== 'at_lunch' &&
+                cm.state !== 'driving_from_lunch' &&
+                cm.state !== 'back_from_lunch'
+            ) {
                 cm.carCont.visible = false;
             }
         });
@@ -526,7 +816,9 @@ const VCRow = {
 
     _spawnDeal() {
         // Pick a VC commuter (the partner or analyst)
-        const vcCandidates = this.carCommuters.filter(c => c.state === 'at_work' || c.state === 'back_from_lunch');
+        const vcCandidates = this.carCommuters.filter(
+            (c) => c.state === 'at_work' || c.state === 'back_from_lunch'
+        );
         if (vcCandidates.length === 0) return;
         const vc = vcCandidates[Math.floor(Math.random() * vcCandidates.length)];
 
@@ -534,12 +826,15 @@ const VCRow = {
         const fundedLabs = Object.keys(this.FUNDING);
         const lab = fundedLabs[Math.floor(Math.random() * fundedLabs.length)];
         const labBlds = G.bldsByLab[lab] || [];
-        const hq = labBlds.find(b => !b.id.startsWith('house_'));
+        const hq = labBlds.find((b) => !b.id.startsWith('house_'));
         if (!hq) return;
 
         const funding = this.FUNDING[lab];
-        const labName = (typeof LABS !== 'undefined' && LABS[lab]) ? LABS[lab].name : lab;
-        const labCol = (typeof LABS !== 'undefined' && LABS[lab]) ? parseInt(LABS[lab].color.replace('#', ''), 16) : 0x4ade80;
+        const labName = typeof LABS !== 'undefined' && LABS[lab] ? LABS[lab].name : lab;
+        const labCol =
+            typeof LABS !== 'undefined' && LABS[lab]
+                ? parseInt(LABS[lab].color.replace('#', ''), 16)
+                : 0x4ade80;
 
         // Mark commuter as doing a deal trip
         vc.state = 'deal_trip';
@@ -610,7 +905,10 @@ const VCRow = {
             // Handshake indicator
             if (deal.timer === 80) {
                 // Spawn handshake emoji
-                const shake = new PIXI.Text('🤝', { fontSize: 16, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif' });
+                const shake = new PIXI.Text('🤝', {
+                    fontSize: 16,
+                    fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif',
+                });
                 shake.anchor.set(0.5, 0.5);
                 shake.x = vc._dealTargetX;
                 shake.y = G.groundY - 40;
@@ -679,14 +977,20 @@ const VCRow = {
         }
 
         // Dollar sign popup
-        const dollar = new PIXI.Text('💰', { fontSize: 18, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif' });
+        const dollar = new PIXI.Text('💰', {
+            fontSize: 18,
+            fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif',
+        });
         dollar.anchor.set(0.5, 0.5);
-        dollar.x = x; dollar.y = y - 10;
+        dollar.x = x;
+        dollar.y = y - 10;
         this._dealLayer.addChild(dollar);
         this._dealParticles.push({
             sprite: dollar,
-            vx: 0, vy: -0.8,
-            life: 60, maxLife: 60,
+            vx: 0,
+            vy: -0.8,
+            life: 60,
+            maxLife: 60,
         });
-    }
+    },
 };

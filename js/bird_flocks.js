@@ -5,7 +5,6 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const BirdFlocks = {
-
     MAX_FLOCKS: 3,
     BIRDS_PER_FLOCK: 6,
     _flocks: [],
@@ -50,7 +49,7 @@ const BirdFlocks = {
 
             // Remove dead flocks
             if (flock.state === 'dead') {
-                flock.birds.forEach(bird => {
+                flock.birds.forEach((bird) => {
                     if (bird.sprite && bird.sprite.parent) {
                         bird.sprite.parent.removeChild(bird.sprite);
                     }
@@ -120,8 +119,11 @@ const BirdFlocks = {
         g.endFill();
         // Beak
         g.beginFill(0xd4a020);
-        g.moveTo(6, -1); g.lineTo(8, -0.5); g.lineTo(6, 0);
-        g.closePath(); g.endFill();
+        g.moveTo(6, -1);
+        g.lineTo(8, -0.5);
+        g.lineTo(6, 0);
+        g.closePath();
+        g.endFill();
         // Wings drawn dynamically in update
         g._wingL = new PIXI.Graphics();
         g._wingR = new PIXI.Graphics();
@@ -146,11 +148,17 @@ const BirdFlocks = {
             // Flapping wings — larger, more visible
             const wingY = Math.sin(phase) * 5;
             wingL.beginFill(0x5a4838, 0.85);
-            wingL.moveTo(0, 0); wingL.lineTo(-8, wingY - 2); wingL.lineTo(-5, wingY);
-            wingL.closePath(); wingL.endFill();
+            wingL.moveTo(0, 0);
+            wingL.lineTo(-8, wingY - 2);
+            wingL.lineTo(-5, wingY);
+            wingL.closePath();
+            wingL.endFill();
             wingR.beginFill(0x5a4838, 0.85);
-            wingR.moveTo(0, 0); wingR.lineTo(8, wingY - 2); wingR.lineTo(5, wingY);
-            wingR.closePath(); wingR.endFill();
+            wingR.moveTo(0, 0);
+            wingR.lineTo(8, wingY - 2);
+            wingR.lineTo(5, wingY);
+            wingR.closePath();
+            wingR.endFill();
         }
     },
 
@@ -224,7 +232,7 @@ const BirdFlocks = {
         if (camDist < camW * 0.3 && Camera.zoom > 0.8) {
             flock.state = 'scattering';
             flock.dir = leaderX > camCenter ? 1 : -1;
-            flock.birds.forEach(bird => {
+            flock.birds.forEach((bird) => {
                 bird._scatterVx = flock.dir * (2 + Math.random() * 2);
                 bird._scatterVy = -(3 + Math.random() * 3);
             });
@@ -235,7 +243,7 @@ const BirdFlocks = {
         if (flock.perchTimer <= 0) {
             flock.state = 'scattering';
             flock.dir = Math.random() < 0.5 ? 1 : -1;
-            flock.birds.forEach(bird => {
+            flock.birds.forEach((bird) => {
                 bird._scatterVx = flock.dir * (1.5 + Math.random() * 1.5);
                 bird._scatterVy = -(2 + Math.random() * 2);
             });
@@ -244,7 +252,7 @@ const BirdFlocks = {
 
     _updateScattering(flock, viewLeft, viewRight) {
         let allGone = true;
-        flock.birds.forEach(bird => {
+        flock.birds.forEach((bird) => {
             bird.sprite.x += bird._scatterVx || 0;
             bird.sprite.y += bird._scatterVy || 0;
             bird._scatterVy = (bird._scatterVy || 0) + 0.03; // gentle gravity
@@ -261,5 +269,5 @@ const BirdFlocks = {
         if (allGone) {
             flock.state = 'dead';
         }
-    }
+    },
 };

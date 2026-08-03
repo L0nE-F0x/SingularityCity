@@ -6,22 +6,21 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const SupplyChain = {
-
     // City-wide commodity inventory (units in stockpile)
     inventory: {
-        gpu_h100:      { stock: 500, capacity: 1000, consumeRate: 0.8 },
-        gpu_b200:      { stock: 300, capacity: 800,  consumeRate: 0.5 },
-        helium:        { stock: 400, capacity: 600,  consumeRate: 0.3 },
-        hbm_memory:    { stock: 350, capacity: 700,  consumeRate: 0.6 },
-        coolant_sys:   { stock: 200, capacity: 400,  consumeRate: 0.2 },
-        electricity:   { stock: 800, capacity: 1000, consumeRate: 1.2 },
+        gpu_h100: { stock: 500, capacity: 1000, consumeRate: 0.8 },
+        gpu_b200: { stock: 300, capacity: 800, consumeRate: 0.5 },
+        helium: { stock: 400, capacity: 600, consumeRate: 0.3 },
+        hbm_memory: { stock: 350, capacity: 700, consumeRate: 0.6 },
+        coolant_sys: { stock: 200, capacity: 400, consumeRate: 0.2 },
+        electricity: { stock: 800, capacity: 1000, consumeRate: 1.2 },
     },
 
-    _trucks: [],           // animated delivery sprites
+    _trucks: [], // animated delivery sprites
     _truckLayer: null,
     _lastConsumeTick: 0,
     _lastDeliveryTick: 0,
-    _shortageEffects: {},  // DC building ID → shortage severity (0-1)
+    _shortageEffects: {}, // DC building ID → shortage severity (0-1)
     MAX_TRUCKS: 4,
 
     init(carLayer) {
@@ -39,7 +38,7 @@ const SupplyChain = {
 
         // ── DELIVER: Ships that dock add to inventory ──
         if (typeof PortZone !== 'undefined') {
-            PortZone.ships.forEach(ship => {
+            PortZone.ships.forEach((ship) => {
                 if (ship.state === 'docked' && !ship._delivered) {
                     this._deliverCargo(ship);
                     ship._delivered = true;
@@ -70,7 +69,7 @@ const SupplyChain = {
         // Scale consumption by number of operational DCs
         let dcCount = 0;
         if (typeof DC_FACILITIES !== 'undefined') {
-            dcCount = DC_FACILITIES.filter(dc => dc.status === 'operational').length;
+            dcCount = DC_FACILITIES.filter((dc) => dc.status === 'operational').length;
         }
         if (dcCount === 0) dcCount = 5; // fallback
 
@@ -87,7 +86,7 @@ const SupplyChain = {
             gpu_h100: 'gpu_h100',
             gpu_b200: 'gpu_b200',
             helium: 'helium',
-            rare_earth: 'hbm_memory',  // rare earth → processed into HBM
+            rare_earth: 'hbm_memory', // rare earth → processed into HBM
         };
         const invKey = cargoMap[ship.cargo];
         if (invKey && this.inventory[invKey]) {
@@ -115,7 +114,7 @@ const SupplyChain = {
     _spawnTruck() {
         // Find port warehouse and a random DC
         const warehouse = G.bldById['port_warehouse'];
-        const dcBlds = BLDS ? BLDS.filter(b => b.id.startsWith('dc_') && b.x > 0) : [];
+        const dcBlds = BLDS ? BLDS.filter((b) => b.id.startsWith('dc_') && b.x > 0) : [];
         if (!warehouse || dcBlds.length === 0) return;
 
         const targetDc = dcBlds[Math.floor(Math.random() * dcBlds.length)];
@@ -125,7 +124,8 @@ const SupplyChain = {
         // Pick cargo type for visual label
         const cargoTypes = ['gpu_h100', 'gpu_b200', 'hbm_memory', 'coolant_sys'];
         const cargo = cargoTypes[Math.floor(Math.random() * cargoTypes.length)];
-        const comm = typeof PortZone !== 'undefined' ? PortZone.COMMODITIES.find(c => c.id === cargo) : null;
+        const comm =
+            typeof PortZone !== 'undefined' ? PortZone.COMMODITIES.find((c) => c.id === cargo) : null;
 
         const truck = this._createTruckSprite(comm);
         truck.x = startX;
@@ -148,30 +148,54 @@ const SupplyChain = {
 
         // Layout: trailer on LEFT, cab on RIGHT → cab leads when moving right (scale.x=1)
         // Truck body/trailer
-        g.beginFill(0x475569); g.drawRect(0, -20, 36, 20); g.endFill();
+        g.beginFill(0x475569);
+        g.drawRect(0, -20, 36, 20);
+        g.endFill();
         // Cargo color stripe
         const cargoCol = commodity ? 0x4ade80 : 0xfbbf24;
-        g.beginFill(cargoCol, 0.7); g.drawRect(1, -19, 34, 5); g.endFill();
+        g.beginFill(cargoCol, 0.7);
+        g.drawRect(1, -19, 34, 5);
+        g.endFill();
         // Side rivets
         for (let ri = 0; ri < 4; ri++) {
-            g.beginFill(0x5a6a7a, 0.5); g.drawCircle(6 + ri * 8, -7, 1); g.endFill();
+            g.beginFill(0x5a6a7a, 0.5);
+            g.drawCircle(6 + ri * 8, -7, 1);
+            g.endFill();
         }
         // Truck cab (right side = front)
-        g.beginFill(0x3b82f6); g.drawRoundedRect(36, -18, 16, 18, 2); g.endFill();
+        g.beginFill(0x3b82f6);
+        g.drawRoundedRect(36, -18, 16, 18, 2);
+        g.endFill();
         // Windshield (on front face of cab)
-        g.beginFill(0x88ccee, 0.7); g.drawRect(42, -16, 8, 7); g.endFill();
+        g.beginFill(0x88ccee, 0.7);
+        g.drawRect(42, -16, 8, 7);
+        g.endFill();
         // Exhaust pipe (behind trailer = left side)
-        g.beginFill(0x3a3a4a); g.drawRect(-3, -6, 3, 6); g.endFill();
+        g.beginFill(0x3a3a4a);
+        g.drawRect(-3, -6, 3, 6);
+        g.endFill();
         // Wheels
-        g.beginFill(0x1a1a2e); g.drawCircle(8, 2, 4); g.drawCircle(24, 2, 4); g.drawCircle(44, 2, 4); g.endFill();
-        g.beginFill(0x555566); g.drawCircle(8, 2, 2); g.drawCircle(24, 2, 2); g.drawCircle(44, 2, 2); g.endFill();
+        g.beginFill(0x1a1a2e);
+        g.drawCircle(8, 2, 4);
+        g.drawCircle(24, 2, 4);
+        g.drawCircle(44, 2, 4);
+        g.endFill();
+        g.beginFill(0x555566);
+        g.drawCircle(8, 2, 2);
+        g.drawCircle(24, 2, 2);
+        g.drawCircle(44, 2, 2);
+        g.endFill();
 
         c.addChild(g);
 
         // Cargo label (emoji on trailer)
-        const label = new PIXI.Text(commodity?.emoji || '📦', { fontSize: 12, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif' });
+        const label = new PIXI.Text(commodity?.emoji || '📦', {
+            fontSize: 12,
+            fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif',
+        });
         label.anchor.set(0.5, 0.5);
-        label.x = 18; label.y = -10;
+        label.x = 18;
+        label.y = -10;
         c.addChild(label);
 
         // Tooltip on hover
@@ -179,9 +203,12 @@ const SupplyChain = {
         c.cursor = 'pointer';
         c.on('pointerover', (e) => {
             const cargo = commodity ? commodity.name : 'GPU Shipment';
-            if (typeof UI !== 'undefined') UI.showTooltip(e, '🚚 ' + cargo, 'Supply chain delivery in transit');
+            if (typeof UI !== 'undefined')
+                UI.showTooltip(e, '🚚 ' + cargo, 'Supply chain delivery in transit');
         });
-        c.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+        c.on('pointerout', () => {
+            if (typeof UI !== 'undefined') UI.hideTooltip();
+        });
 
         return c;
     },
@@ -226,7 +253,7 @@ const SupplyChain = {
 
         // Apply visual effects to DC buildings
         if (BLDS) {
-            BLDS.forEach(b => {
+            BLDS.forEach((b) => {
                 if (!b.id.startsWith('dc_') && !b.id.startsWith('fab_')) return;
                 if (!b._container || b._container.destroyed) return;
 
@@ -264,11 +291,25 @@ const SupplyChain = {
             const pct = Math.round((inv.stock / inv.capacity) * 100);
             let status = 'OK';
             let color = '#4ade80';
-            if (pct < 25) { status = 'CRITICAL'; color = '#ef4444'; }
-            else if (pct < 50) { status = 'LOW'; color = '#f59e0b'; }
-            else if (pct < 75) { status = 'MODERATE'; color = '#fbbf24'; }
-            result.push({ id: key, stock: Math.round(inv.stock), capacity: inv.capacity, pct, status, color });
+            if (pct < 25) {
+                status = 'CRITICAL';
+                color = '#ef4444';
+            } else if (pct < 50) {
+                status = 'LOW';
+                color = '#f59e0b';
+            } else if (pct < 75) {
+                status = 'MODERATE';
+                color = '#fbbf24';
+            }
+            result.push({
+                id: key,
+                stock: Math.round(inv.stock),
+                capacity: inv.capacity,
+                pct,
+                status,
+                color,
+            });
         }
         return result;
-    }
+    },
 };

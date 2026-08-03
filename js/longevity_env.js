@@ -5,21 +5,21 @@
 
 const LongevityEnv = {
     _built: false,
-    dnaParticles: [],     // Double-helix DNA strand particles
-    molecules: [],        // Floating molecule bubbles near discovery lab
-    heartbeats: [],       // Pulse indicators on clinical trials building
-    cryoVapor: [],        // Cold vapor drifting from cryonics vault
-    sequencerLEDs: [],    // Sequencing status lights on genomics building
+    dnaParticles: [], // Double-helix DNA strand particles
+    molecules: [], // Floating molecule bubbles near discovery lab
+    heartbeats: [], // Pulse indicators on clinical trials building
+    cryoVapor: [], // Cold vapor drifting from cryonics vault
+    sequencerLEDs: [], // Sequencing status lights on genomics building
 
     buildAnimations(charLayer) {
         if (this._built || typeof LongevityZone === 'undefined') return;
         this._built = true;
         const gy = G.groundY;
 
-        const discovery = BLDS.find(b => b.id === 'longevity_discovery');
-        const trials = BLDS.find(b => b.id === 'longevity_trials');
-        const genomics = BLDS.find(b => b.id === 'longevity_genomics');
-        const cryo = BLDS.find(b => b.id === 'longevity_cryo');
+        const discovery = BLDS.find((b) => b.id === 'longevity_discovery');
+        const trials = BLDS.find((b) => b.id === 'longevity_trials');
+        const genomics = BLDS.find((b) => b.id === 'longevity_genomics');
+        const cryo = BLDS.find((b) => b.id === 'longevity_cryo');
 
         // ─── DNA DOUBLE HELIX between Discovery Lab and Trials ───
         if (discovery && trials) {
@@ -140,14 +140,15 @@ const LongevityEnv = {
         const fc = G.tick;
 
         // ─── DNA HELIX: rotate in 3D-projected double helix (center re-derived live) ───
-        this.dnaParticles.forEach(p => {
+        this.dnaParticles.forEach((p) => {
             if (!p || p.destroyed) return;
             p._phase += 0.03;
             const offset = p._strand === 0 ? 0 : Math.PI;
             // Live helix center — stays between Discovery and Trials even after re-zoning
-            const centerX = (p._discBld && p._trialBld)
-                ? (p._discBld.x + p._discBld.w + (p._trialBld.x - p._discBld.x - p._discBld.w) / 2)
-                : 0;
+            const centerX =
+                p._discBld && p._trialBld
+                    ? p._discBld.x + p._discBld.w + (p._trialBld.x - p._discBld.x - p._discBld.w) / 2
+                    : 0;
             p.x = centerX + Math.sin(p._phase + offset) * p._amplitude;
             // Depth simulation: scale and alpha based on cos
             const depth = Math.cos(p._phase + offset);
@@ -156,7 +157,7 @@ const LongevityEnv = {
         });
 
         // ─── MOLECULES: float up, fade, respawn (respawn origin tracks live building) ───
-        this.molecules.forEach(m => {
+        this.molecules.forEach((m) => {
             if (!m || m.destroyed) return;
             m.x += m._vx;
             m.y += m._vy;
@@ -174,28 +175,28 @@ const LongevityEnv = {
         });
 
         // ─── HEARTBEATS: rhythmic pulse (expand + fade; re-anchor x) ───
-        this.heartbeats.forEach(pulse => {
+        this.heartbeats.forEach((pulse) => {
             if (!pulse || pulse.destroyed) return;
             if (pulse._bld) pulse.x = pulse._bld.x + pulse._offX;
             const beat = (fc + pulse._phase) % pulse._beatRate;
             const t = beat / pulse._beatRate;
             // Double-beat pattern: two spikes per cycle
-            const spike1 = t < 0.1 ? Math.sin(t / 0.1 * Math.PI) : 0;
-            const spike2 = (t > 0.15 && t < 0.25) ? Math.sin((t - 0.15) / 0.1 * Math.PI) * 0.6 : 0;
+            const spike1 = t < 0.1 ? Math.sin((t / 0.1) * Math.PI) : 0;
+            const spike2 = t > 0.15 && t < 0.25 ? Math.sin(((t - 0.15) / 0.1) * Math.PI) * 0.6 : 0;
             const intensity = Math.max(spike1, spike2);
             pulse.scale.set(1 + intensity * 1.5);
             pulse.alpha = 0.3 + intensity * 0.7;
         });
 
         // ─── SEQUENCER LEDs: rapid cascade pattern (re-anchor x to live building) ───
-        this.sequencerLEDs.forEach(led => {
+        this.sequencerLEDs.forEach((led) => {
             if (!led || led.destroyed) return;
             if (led._bld) led.x = led._bld.x + led._offX;
-            led.visible = ((fc + led._phase) % led._rate) < led._rate * 0.5;
+            led.visible = (fc + led._phase) % led._rate < led._rate * 0.5;
         });
 
         // ─── CRYO VAPOR: slow rise with sway, fade, respawn (respawn tracks building) ───
-        this.cryoVapor.forEach(v => {
+        this.cryoVapor.forEach((v) => {
             if (!v || v.destroyed) return;
             v._sway += 0.02;
             v.x += v._vx + Math.sin(v._sway) * 0.15;
@@ -211,5 +212,5 @@ const LongevityEnv = {
                 v.alpha = 0.25;
             }
         });
-    }
+    },
 };

@@ -6,35 +6,87 @@
 
 const StreetVendors = {
     VENDORS: [
-        { id: 'sv_taco',    name: 'Taco Bot',      emoji: '🌮', item: 'Street Tacos',  color: 0xff6b35, canopy: 0xcc4422 },
-        { id: 'sv_coffee',  name: 'Byte Brew',     emoji: '☕', item: 'Artisan Coffee', color: 0x8b4513, canopy: 0x5c2e0a },
-        { id: 'sv_noodle',  name: 'Ramen-san',     emoji: '🍜', item: 'Hot Noodles',    color: 0xdc143c, canopy: 0x9b0f2e },
-        { id: 'sv_ice',     name: 'Gelato GPU',    emoji: '🍦', item: 'Gelato',         color: 0xff69b4, canopy: 0xcc5590 },
-        { id: 'sv_pretzel', name: 'Pretzel Net',    emoji: '🥨', item: 'Fresh Pretzels', color: 0xdaa520, canopy: 0x8b6914 },
-        { id: 'sv_book',    name: 'PageRank Books', emoji: '📚', item: 'Used Books',     color: 0x228b22, canopy: 0x186618 },
+        {
+            id: 'sv_taco',
+            name: 'Taco Bot',
+            emoji: '🌮',
+            item: 'Street Tacos',
+            color: 0xff6b35,
+            canopy: 0xcc4422,
+        },
+        {
+            id: 'sv_coffee',
+            name: 'Byte Brew',
+            emoji: '☕',
+            item: 'Artisan Coffee',
+            color: 0x8b4513,
+            canopy: 0x5c2e0a,
+        },
+        {
+            id: 'sv_noodle',
+            name: 'Ramen-san',
+            emoji: '🍜',
+            item: 'Hot Noodles',
+            color: 0xdc143c,
+            canopy: 0x9b0f2e,
+        },
+        { id: 'sv_ice', name: 'Gelato GPU', emoji: '🍦', item: 'Gelato', color: 0xff69b4, canopy: 0xcc5590 },
+        {
+            id: 'sv_pretzel',
+            name: 'Pretzel Net',
+            emoji: '🥨',
+            item: 'Fresh Pretzels',
+            color: 0xdaa520,
+            canopy: 0x8b6914,
+        },
+        {
+            id: 'sv_book',
+            name: 'PageRank Books',
+            emoji: '📚',
+            item: 'Used Books',
+            color: 0x228b22,
+            canopy: 0x186618,
+        },
     ],
 
     vendors: [],
 
     CALLS: [
-        'Fresh {item}! 🔥', '{emoji} Best {item} in the city!',
-        'Hot off the cart!', '{emoji} {item} special today!',
-        'Come try our {item}!', 'Nothing beats street {item}!',
-        '{emoji} Get em while they last!', 'Freshly made {item}!',
+        'Fresh {item}! 🔥',
+        '{emoji} Best {item} in the city!',
+        'Hot off the cart!',
+        '{emoji} {item} special today!',
+        'Come try our {item}!',
+        'Nothing beats street {item}!',
+        '{emoji} Get em while they last!',
+        'Freshly made {item}!',
     ],
 
     init(charLayer) {
         if (!charLayer || this.vendors.length > 0) return;
 
         // Find tech district buildings for positioning
-        const techBlds = BLDS.filter(b =>
-            b.lab && !b.id.startsWith('house_') && !b.id.startsWith('res_') &&
-            !b.id.startsWith('dc_') && !b.id.startsWith('fab_') && !b.id.startsWith('port_') &&
-            !b.id.startsWith('power_') && !b.id.startsWith('uni_') && !b.id.startsWith('court_') &&
-            !b.id.startsWith('npc_apt_') && !b.id.startsWith('metro_') && !b.id.startsWith('pad_') &&
-            b.id !== 'forest_0' && b.id !== 'forest_1' && b.id !== 'forest_space' &&
-            !b.id.startsWith('space_') && b.id !== 'convention_center' &&
-            b.id !== 'visitor_monument' && b.id !== 'neon_bar'
+        const techBlds = BLDS.filter(
+            (b) =>
+                b.lab &&
+                !b.id.startsWith('house_') &&
+                !b.id.startsWith('res_') &&
+                !b.id.startsWith('dc_') &&
+                !b.id.startsWith('fab_') &&
+                !b.id.startsWith('port_') &&
+                !b.id.startsWith('power_') &&
+                !b.id.startsWith('uni_') &&
+                !b.id.startsWith('court_') &&
+                !b.id.startsWith('npc_apt_') &&
+                !b.id.startsWith('metro_') &&
+                !b.id.startsWith('pad_') &&
+                b.id !== 'forest_0' &&
+                b.id !== 'forest_1' &&
+                b.id !== 'forest_space' &&
+                !b.id.startsWith('space_') &&
+                b.id !== 'convention_center' &&
+                b.id !== 'visitor_monument' &&
+                b.id !== 'neon_bar'
         ).sort((a, b) => a.x - b.x);
 
         // Place stalls in gaps between tech buildings
@@ -73,12 +125,16 @@ const StreetVendors = {
 
             const homeBldId = 'npc_apt_1';
             this.vendors.push({
-                def: v, ...av, stall, stallX, homeX,
+                def: v,
+                ...av,
+                stall,
+                stallX,
+                homeX,
                 state: isVending ? 'vending' : 'home',
                 speed: 1.0 + Math.random() * 0.4,
                 chatTimer: 0,
                 bld: isVending ? null : homeBldId,
-                homeBldId
+                homeBldId,
             });
         });
     },
@@ -151,7 +207,6 @@ const StreetVendors = {
         sign.y = -52;
         cont.addChild(sign);
 
-
         // Click interaction
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
@@ -160,7 +215,7 @@ const StreetVendors = {
         cont.on('pointertap', () => {
             if (typeof UI !== 'undefined') UI.addToast(`${v.emoji} ${v.name} — Fresh ${v.item}!`);
         });
-        cont.on('pointerover', e => {
+        cont.on('pointerover', (e) => {
             if (typeof UI !== 'undefined') UI.showTooltip(e, v.name, `Selling ${v.item}`);
         });
         cont.on('pointerout', () => {
@@ -174,7 +229,11 @@ const StreetVendors = {
     // ─── VENDOR AVATAR (small NPC with chef hat) ───
     _drawAvatar(parent, v) {
         const c = new PIXI.Container();
-        const bw = 14, h = 28, headH = 10, bodyH = 12, legH = 4;
+        const bw = 14,
+            h = 28,
+            headH = 10,
+            bodyH = 12,
+            legH = 4;
 
         // Shadow
         const shadow = new PIXI.Graphics();
@@ -185,11 +244,15 @@ const StreetVendors = {
         // Legs
         const lw = Math.max(2, bw * 0.25);
         const legL = new PIXI.Graphics();
-        legL.beginFill(0x3d2914); legL.drawRect(-lw / 2, 0, lw, legH); legL.endFill();
+        legL.beginFill(0x3d2914);
+        legL.drawRect(-lw / 2, 0, lw, legH);
+        legL.endFill();
         legL.x = -bw * 0.15;
 
         const legR = new PIXI.Graphics();
-        legR.beginFill(0x3d2914); legR.drawRect(-lw / 2, 0, lw, legH); legR.endFill();
+        legR.beginFill(0x3d2914);
+        legR.drawRect(-lw / 2, 0, lw, legH);
+        legR.endFill();
         legR.x = bw * 0.15;
 
         // Body (apron color)
@@ -218,10 +281,17 @@ const StreetVendors = {
         // Chat bubble — matches standard entity style (white rounded bg + tail)
         const chat = new PIXI.Container();
         const chatBg = new PIXI.Graphics();
-        const chatTxt = (typeof BitmapFonts !== 'undefined' && BitmapFonts.has('ChatBubble'))
-            ? new PIXI.BitmapText('', { fontName: 'ChatBubble', fontSize: 8 })
-            : new PIXI.Text('', { fontFamily: 'JetBrains Mono', fontSize: 8, fill: 0x000000, fontWeight: 'bold' });
-        chatTxt.anchor.set(0.5, 1); chatTxt.y = -4;
+        const chatTxt =
+            typeof BitmapFonts !== 'undefined' && BitmapFonts.has('ChatBubble')
+                ? new PIXI.BitmapText('', { fontName: 'ChatBubble', fontSize: 8 })
+                : new PIXI.Text('', {
+                      fontFamily: 'JetBrains Mono',
+                      fontSize: 8,
+                      fill: 0x000000,
+                      fontWeight: 'bold',
+                  });
+        chatTxt.anchor.set(0.5, 1);
+        chatTxt.y = -4;
         chat.addChild(chatBg, chatTxt);
         chat.y = -h - 10;
         chat.visible = false;
@@ -232,16 +302,25 @@ const StreetVendors = {
         c.eventMode = 'static';
         c.cursor = 'pointer';
         const hitPad = window.isMobile ? 10 : 0;
-        c.hitArea = new PIXI.Rectangle(-bw - hitPad, -h - 16 - hitPad, bw * 2 + hitPad * 2, h + 20 + hitPad * 2);
+        c.hitArea = new PIXI.Rectangle(
+            -bw - hitPad,
+            -h - 16 - hitPad,
+            bw * 2 + hitPad * 2,
+            h + 20 + hitPad * 2
+        );
         c.on('pointertap', () => {
-            if (typeof UI !== 'undefined') UI.selectModel({
-                id: v.id, name: v.name, isNPC: true, _trackType: 'vendor',
-                role: `Street Vendor — ${v.item}`,
-                lab: 'other',
-                desc: `${v.name} sells ${v.item.toLowerCase()} from a mobile cart in the tech district.`
-            });
+            if (typeof UI !== 'undefined')
+                UI.selectModel({
+                    id: v.id,
+                    name: v.name,
+                    isNPC: true,
+                    _trackType: 'vendor',
+                    role: `Street Vendor — ${v.item}`,
+                    lab: 'other',
+                    desc: `${v.name} sells ${v.item.toLowerCase()} from a mobile cart in the tech district.`,
+                });
         });
-        c.on('pointerover', e => {
+        c.on('pointerover', (e) => {
             if (typeof UI !== 'undefined') UI.showTooltip(e, v.name, `${v.emoji} ${v.item}`);
         });
         c.on('pointerout', () => {
@@ -258,7 +337,7 @@ const StreetVendors = {
 
         this.vendors.forEach((vm, vi) => {
             const vendTime = dp >= 0.33 && dp < 0.83;
-            const goTime   = dp >= 0.28 && dp < 0.33;
+            const goTime = dp >= 0.28 && dp < 0.33;
 
             // State machine — use metro like other NPCs
             if ((vendTime || goTime) && vm.state === 'home') {
@@ -308,7 +387,6 @@ const StreetVendors = {
                     this._animWalk(vm, vi);
                 }
                 vm.chat.visible = false;
-
             } else if (vm.state === 'riding_metro') {
                 vm.chat.visible = false;
                 const goingToStall = Math.abs(vm._finalX - (vm.stallX - 20)) < 50;
@@ -324,7 +402,6 @@ const StreetVendors = {
                         vm.state = goingToStall ? 'commute_to' : 'commute_home';
                     }
                 }
-
             } else if (vm.state === 'commute_to') {
                 const dx = vm.stallX - 20 - vm.c.x;
                 if (Math.abs(dx) < 3) {
@@ -339,7 +416,6 @@ const StreetVendors = {
                     this._animWalk(vm, vi);
                 }
                 vm.chat.visible = false;
-
             } else if (vm.state === 'commute_home') {
                 const dx = vm.homeX - vm.c.x;
                 if (Math.abs(dx) < 3) {
@@ -353,7 +429,6 @@ const StreetVendors = {
                     this._animWalk(vm, vi);
                 }
                 vm.chat.visible = false;
-
             } else if (vm.state === 'vending') {
                 vm.c.visible = true;
 
@@ -385,16 +460,24 @@ const StreetVendors = {
                     vm.chatTxt.text = msg;
                     vm.chatBg.clear();
                     vm.chatBg.beginFill(0xffffff);
-                    vm.chatBg.drawRoundedRect(-vm.chatTxt.width / 2 - 6, -vm.chatTxt.height - 8, vm.chatTxt.width + 12, vm.chatTxt.height + 8, 4);
+                    vm.chatBg.drawRoundedRect(
+                        -vm.chatTxt.width / 2 - 6,
+                        -vm.chatTxt.height - 8,
+                        vm.chatTxt.width + 12,
+                        vm.chatTxt.height + 8,
+                        4
+                    );
                     vm.chatBg.endFill();
                     vm.chatBg.beginFill(0xffffff);
-                    vm.chatBg.moveTo(-3, -4); vm.chatBg.lineTo(3, -4); vm.chatBg.lineTo(0, 2); vm.chatBg.endFill();
+                    vm.chatBg.moveTo(-3, -4);
+                    vm.chatBg.lineTo(3, -4);
+                    vm.chatBg.lineTo(0, 2);
+                    vm.chatBg.endFill();
                     vm.chat.visible = true;
                     vm.chatTimer = 300;
                 } else if (vm.chatTimer <= 0) {
                     vm.chat.visible = false;
                 }
-
             } else {
                 // Home — hidden
                 vm.c.visible = false;
@@ -408,5 +491,5 @@ const StreetVendors = {
         vm.legR.y = -Math.sin(G.tick * 0.2 + vi) * 3;
         vm.head.y = -28 + Math.sin(G.tick * 0.15 + vi) * 1.5;
         vm.body.y = -28 + 10 + Math.abs(Math.sin(G.tick * 0.15 + vi)) * 1.5;
-    }
+    },
 };

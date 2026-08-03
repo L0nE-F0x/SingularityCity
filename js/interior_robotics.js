@@ -4,32 +4,48 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const InteriorRobotics = {
-    scene: null, layer: null, bld: null, avatars: [], bubbles: [],
-    skyContainer: null, starsLayer: null, celestialGfx: null,
-    isDragging: false, _startY: 0, _startSceneY: 0,
-    minY: 0, maxY: 0, totalH: 0,
+    scene: null,
+    layer: null,
+    bld: null,
+    avatars: [],
+    bubbles: [],
+    skyContainer: null,
+    starsLayer: null,
+    celestialGfx: null,
+    isDragging: false,
+    _startY: 0,
+    _startSceneY: 0,
+    minY: 0,
+    maxY: 0,
+    totalH: 0,
 
     LAYOUTS: {
-        'robotics_assembly': {
+        robotics_assembly: {
             roofLabel: 'ROBOTICS ASSEMBLY LINE',
             col: 0xec4899,
-            floors: ['Finished Goods Bay', 'Calibration Station', 'AI Brain Upload', 'Motor Integration', 'Chassis Fabrication']
+            floors: [
+                'Finished Goods Bay',
+                'Calibration Station',
+                'AI Brain Upload',
+                'Motor Integration',
+                'Chassis Fabrication',
+            ],
         },
-        'robotics_testing': {
+        robotics_testing: {
             roofLabel: 'TESTING GROUND',
             col: 0x06b6d4,
-            floors: ['Endurance Run', 'Obstacle Course', 'Walk Test Chamber']
+            floors: ['Endurance Run', 'Obstacle Course', 'Walk Test Chamber'],
         },
-        'robotics_deploy': {
+        robotics_deploy: {
             roofLabel: 'DEPLOYMENT DOCK',
             col: 0x10b981,
-            floors: ['Loading Bay', 'Packaging', 'QA Final Check']
+            floors: ['Loading Bay', 'Packaging', 'QA Final Check'],
         },
-        'robotics_rd': {
+        robotics_rd: {
             roofLabel: 'R&D LABORATORY',
             col: 0x8b5cf6,
-            floors: ['Morphology Lab', 'Actuator R&D', 'Sensor Fusion', 'Embodied AI']
-        }
+            floors: ['Morphology Lab', 'Actuator R&D', 'Sensor Fusion', 'Embodied AI'],
+        },
     },
 
     build(bld, layer) {
@@ -39,8 +55,13 @@ const InteriorRobotics = {
         this.bubbles = [];
         layer.removeChildren();
 
-        const layout = this.LAYOUTS[bld.id] || { roofLabel: bld.name.toUpperCase(), col: 0xec4899, floors: ['Operations'] };
-        const W = G.vpW, H = G.vpH;
+        const layout = this.LAYOUTS[bld.id] || {
+            roofLabel: bld.name.toUpperCase(),
+            col: 0xec4899,
+            floors: ['Operations'],
+        };
+        const W = G.vpW,
+            H = G.vpH;
         const floorH = 75;
         const bldW = Math.min(W - 80, 800);
         const startX = (W - bldW) / 2;
@@ -67,8 +88,10 @@ const InteriorRobotics = {
         roof.drawRect(startX, roofH - 20, bldW, 20);
         roof.endFill();
         const roofText = new PIXI.Text(layout.roofLabel, {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 9,
-            fill: layout.col, letterSpacing: 2
+            fontFamily: 'Press Start 2P, monospace',
+            fontSize: 9,
+            fill: layout.col,
+            letterSpacing: 2,
         });
         roofText.x = startX + bldW / 2 - roofText.width / 2;
         roofText.y = roofH - 16;
@@ -84,8 +107,8 @@ const InteriorRobotics = {
         // ─── ELEVATOR LAYOUT (defined early so floor props can use usableW) ───
         // CityElevator shaft is 48px wide (doorWidth=24 each side of center).
         // Place center so right edge of shaft = right edge of building wall.
-        const elevatorX = startX + bldW - 26;   // shaft right edge at startX+bldW-2
-        const usableW = bldW - 54;              // floor content stops 6px left of shaft
+        const elevatorX = startX + bldW - 26; // shaft right edge at startX+bldW-2
+        const usableW = bldW - 54; // floor content stops 6px left of shaft
 
         // ─── DRAW FLOORS (top-down like Backbone/Longevity) ───
         // groundY = where the ground level sits in scene coords
@@ -96,11 +119,10 @@ const InteriorRobotics = {
         for (let f = -1; f < numFloors; f++) {
             const isBasement = f === -1;
             const fy = isBasement
-                ? roofH + numFloors * floorH          // basement below ground
+                ? roofH + numFloors * floorH // basement below ground
                 : roofH + (numFloors - 1 - f) * floorH; // floors drawn top-down
             // floors[4]=Chassis at top (f=4→fy=roofH), floors[0]=Finished at bottom (f=0→fy=roofH+4*fH)
-            const floorName = isBasement ? 'B1 · ' + this._basementLabel(bld.id)
-                                         : floors[f] || 'Operations';
+            const floorName = isBasement ? 'B1 · ' + this._basementLabel(bld.id) : floors[f] || 'Operations';
 
             const slab = new PIXI.Graphics();
             if (isBasement) {
@@ -120,10 +142,18 @@ const InteriorRobotics = {
                 const winW = bldW - winMarginX * 2;
                 const winY = fy + winY_off;
                 InteriorCity._drawWallWithWindowCutout(
-                    slab, wallCol,
-                    startX, fy, bldW, floorH,
-                    winX, winY, winW, winH_px,
-                    mullionPitch, mullionW
+                    slab,
+                    wallCol,
+                    startX,
+                    fy,
+                    bldW,
+                    floorH,
+                    winX,
+                    winY,
+                    winW,
+                    winH_px,
+                    mullionPitch,
+                    mullionW
                 );
                 slab.lineStyle(1.5, 0x1e293b, 0.9);
                 slab.drawRect(winX, winY, winW, winH_px);
@@ -135,8 +165,12 @@ const InteriorRobotics = {
                 slab.endFill();
             }
             // Floor slab
-            slab.beginFill(0x0a1018); slab.drawRect(startX, fy + floorH - 6, bldW, 6); slab.endFill();
-            slab.beginFill(layout.col, 0.08); slab.drawRect(startX, fy, bldW, 2); slab.endFill();
+            slab.beginFill(0x0a1018);
+            slab.drawRect(startX, fy + floorH - 6, bldW, 6);
+            slab.endFill();
+            slab.beginFill(layout.col, 0.08);
+            slab.drawRect(startX, fy, bldW, 2);
+            slab.endFill();
             this.scene.addChild(slab);
 
             // Floor-specific props FIRST — the label goes on top so it always reads
@@ -148,8 +182,10 @@ const InteriorRobotics = {
 
             // Floor label (dark backing chip keeps it legible over equipment)
             const label = new PIXI.Text(floorName.toUpperCase(), {
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 8,
-                fill: isBasement ? 0x94a3b8 : layout.col, letterSpacing: 1
+                fontFamily: 'JetBrains Mono, monospace',
+                fontSize: 8,
+                fill: isBasement ? 0x94a3b8 : layout.col,
+                letterSpacing: 1,
             });
             label.x = startX + 8;
             label.y = fy + 4;
@@ -181,13 +217,22 @@ const InteriorRobotics = {
         const surfaceY = groundY;
         const belowBasementY = roofH + (numFloors + 1) * floorH;
         if (typeof InteriorCity !== 'undefined' && InteriorCity._drawZoneUnderground) {
-            InteriorCity._drawZoneUnderground.call(InteriorCity, this.scene, bld, startX, bldW, surfaceY, belowBasementY, floorH);
+            InteriorCity._drawZoneUnderground.call(
+                InteriorCity,
+                this.scene,
+                bld,
+                startX,
+                bldW,
+                surfaceY,
+                belowBasementY,
+                floorH
+            );
         }
 
         // ─── ELEVATOR (shaftW/shaftX defined above with usableW) ───
         if (typeof CityElevator !== 'undefined') {
             const ec = new PIXI.Container();
-            ec.y = groundY;  // ground floor bottom (CityElevator draws upward)
+            ec.y = groundY; // ground floor bottom (CityElevator draws upward)
             this.scene.addChild(ec);
             const em = new PIXI.Graphics();
             em.beginFill(0xffffff);
@@ -206,16 +251,20 @@ const InteriorRobotics = {
         this.scene.y = H - bp - this.totalH + floorH;
         this.minY = this.scene.y - floorH * 3;
         this.maxY = this.scene.y + floorH * 3;
-        this.layer.eventMode = 'static'; this.layer.cursor = 'grab';
+        this.layer.eventMode = 'static';
+        this.layer.cursor = 'grab';
         this.layer.hitArea = new PIXI.Rectangle(0, 0, W, H);
         window.removeEventListener('pointermove', this._onMove);
         window.removeEventListener('pointerup', this._onUp);
         this.layer.on('pointerdown', (e) => {
-            this.isDragging = true; this._startY = e.clientY;
-            this._startSceneY = this.scene.y; this.layer.cursor = 'grabbing';
+            this.isDragging = true;
+            this._startY = e.clientY;
+            this._startSceneY = this.scene.y;
+            this.layer.cursor = 'grabbing';
         });
         this._onMove = (e) => {
-            if (!InteriorRobotics.isDragging || !InteriorRobotics.scene || InteriorRobotics.scene.destroyed) return;
+            if (!InteriorRobotics.isDragging || !InteriorRobotics.scene || InteriorRobotics.scene.destroyed)
+                return;
             let ny = InteriorRobotics._startSceneY + (e.clientY - InteriorRobotics._startY);
             ny = Math.max(InteriorRobotics.minY, Math.min(ny, InteriorRobotics.maxY));
             InteriorRobotics.scene.y = ny;
@@ -229,12 +278,14 @@ const InteriorRobotics = {
     },
 
     _basementLabel(bldId) {
-        return {
-            'robotics_assembly': 'PARTS WAREHOUSE',
-            'robotics_testing':  'CRASH-TEST PIT',
-            'robotics_deploy':   'SHIPPING DOCK',
-            'robotics_rd':       'PROTOTYPE GRAVEYARD'
-        }[bldId] || 'SUB-LEVEL';
+        return (
+            {
+                robotics_assembly: 'PARTS WAREHOUSE',
+                robotics_testing: 'CRASH-TEST PIT',
+                robotics_deploy: 'SHIPPING DOCK',
+                robotics_rd: 'PROTOTYPE GRAVEYARD',
+            }[bldId] || 'SUB-LEVEL'
+        );
     },
 
     _drawBasementProps(cont, sx, bw, fy, fh, bldId, col) {
@@ -244,7 +295,7 @@ const InteriorRobotics = {
         g.drawRect(sx + 6, fy + fh - 10, bw - 12, 8);
         g.endFill();
         for (let i = 0; i < Math.floor(bw / 18); i++) {
-            g.beginFill((i % 2 === 0) ? 0xfbbf24 : 0x1a1a2e, 0.35);
+            g.beginFill(i % 2 === 0 ? 0xfbbf24 : 0x1a1a2e, 0.35);
             g.drawRect(sx + 8 + i * 18, fy + fh - 3, 16, 2);
             g.endFill();
         }
@@ -273,7 +324,8 @@ const InteriorRobotics = {
                 }
                 rack.x = sx + 15 + i * ((bw - 30) / 6);
                 rack.y = fy + 10;
-                UI.tip(rack, 'Parts Rack', 'Chassis & components'); cont.addChild(rack);
+                UI.tip(rack, 'Parts Rack', 'Chassis & components');
+                cont.addChild(rack);
             }
             // Forklift
             const fl = new PIXI.Graphics();
@@ -293,14 +345,15 @@ const InteriorRobotics = {
             fl.endFill();
             fl.x = sx + bw * 0.55;
             fl.y = fy + fh - 38;
-            UI.tip(fl, 'Forklift'); cont.addChild(fl);
+            UI.tip(fl, 'Forklift');
+            cont.addChild(fl);
         } else if (bldId === 'robotics_testing') {
             // Crash-test pit — padded walls, dummies, impact sled
             // Padded walls
             const pad = new PIXI.Graphics();
             pad.beginFill(0xef4444, 0.3);
             for (let i = 0; i < 12; i++) {
-                pad.drawRect(sx + 8 + i * ((bw - 16) / 12), fy + 10, ((bw - 16) / 12) - 2, 12);
+                pad.drawRect(sx + 8 + i * ((bw - 16) / 12), fy + 10, (bw - 16) / 12 - 2, 12);
             }
             pad.endFill();
             cont.addChild(pad);
@@ -315,7 +368,8 @@ const InteriorRobotics = {
                 track.lineTo(sx + 12 + i * ((bw - 24) / 20) + 6, fy + fh - 17);
             }
             track.lineStyle(0);
-            UI.tip(track, 'Impact Track'); cont.addChild(track);
+            UI.tip(track, 'Impact Track');
+            cont.addChild(track);
             // Crash dummy robots in various poses
             for (let i = 0; i < 4; i++) {
                 const d = new PIXI.Graphics();
@@ -334,7 +388,8 @@ const InteriorRobotics = {
                 d.rotation = (i - 2) * 0.15;
                 d.x = sx + 30 + i * ((bw - 60) / 4);
                 d.y = fy + fh - 46;
-                UI.tip(d, 'Crash-Test Dummy'); cont.addChild(d);
+                UI.tip(d, 'Crash-Test Dummy');
+                cont.addChild(d);
             }
             // Impact sled
             const sled = new PIXI.Graphics();
@@ -346,7 +401,8 @@ const InteriorRobotics = {
             sled.endFill();
             sled.x = sx + 10;
             sled.y = fy + fh - 22;
-            UI.tip(sled, 'Impact Sled'); cont.addChild(sled);
+            UI.tip(sled, 'Impact Sled');
+            cont.addChild(sled);
         } else if (bldId === 'robotics_deploy') {
             // Shipping dock — loading bay doors, pallets stacked with shrink-wrapped robots, truck rear
             // Roll-up door sections at back wall
@@ -359,7 +415,8 @@ const InteriorRobotics = {
             door.lineStyle(2, 0x10b981, 0.4);
             door.drawRect(sx + 12, fy + 6, bw * 0.45 + 6, 40);
             door.lineStyle(0);
-            UI.tip(door, 'Loading Bay Door'); cont.addChild(door);
+            UI.tip(door, 'Loading Bay Door');
+            cont.addChild(door);
             // Truck rear backed into dock
             const truck = new PIXI.Graphics();
             truck.beginFill(0x1e293b);
@@ -372,7 +429,8 @@ const InteriorRobotics = {
             truck.drawCircle(sx + bw * 0.65, fy + fh - 14, 5);
             truck.drawCircle(sx + bw * 0.88, fy + fh - 14, 5);
             truck.endFill();
-            UI.tip(truck, 'Delivery Truck'); cont.addChild(truck);
+            UI.tip(truck, 'Delivery Truck');
+            cont.addChild(truck);
             // Pallets of shrink-wrapped robots waiting to load
             for (let i = 0; i < 4; i++) {
                 const p = new PIXI.Graphics();
@@ -391,7 +449,8 @@ const InteriorRobotics = {
                 p.endFill();
                 p.x = sx + 18 + i * 44;
                 p.y = fy + fh - 34;
-                UI.tip(p, 'Pallet', 'Shrink-wrapped robots'); cont.addChild(p);
+                UI.tip(p, 'Pallet', 'Shrink-wrapped robots');
+                cont.addChild(p);
             }
         } else if (bldId === 'robotics_rd') {
             // Prototype graveyard — stacked failed prototypes, shelves of spare parts, whiteboard with sketches
@@ -401,13 +460,20 @@ const InteriorRobotics = {
             wb.drawRect(0, 0, 80, 36);
             wb.endFill();
             wb.lineStyle(1, 0x8b5cf6, 0.6);
-            wb.moveTo(8, 10); wb.lineTo(22, 20); wb.lineTo(18, 28); wb.lineTo(30, 30);
-            wb.moveTo(40, 8); wb.drawCircle(46, 14, 4);
-            wb.moveTo(55, 20); wb.lineTo(72, 20); wb.lineTo(68, 30);
+            wb.moveTo(8, 10);
+            wb.lineTo(22, 20);
+            wb.lineTo(18, 28);
+            wb.lineTo(30, 30);
+            wb.moveTo(40, 8);
+            wb.drawCircle(46, 14, 4);
+            wb.moveTo(55, 20);
+            wb.lineTo(72, 20);
+            wb.lineTo(68, 30);
             wb.lineStyle(0);
             wb.x = sx + 12;
             wb.y = fy + 10;
-            UI.tip(wb, 'Whiteboard'); cont.addChild(wb);
+            UI.tip(wb, 'Whiteboard');
+            cont.addChild(wb);
             // Dismantled prototypes piled up
             for (let i = 0; i < 5; i++) {
                 const proto = new PIXI.Graphics();
@@ -420,8 +486,10 @@ const InteriorRobotics = {
                 proto.endFill();
                 // Exposed wires
                 proto.lineStyle(1, [0xef4444, 0xfbbf24, 0x22d3ee][i % 3], 0.7);
-                proto.moveTo(2, 32); proto.lineTo(5, 38);
-                proto.moveTo(8, 32); proto.lineTo(11, 40);
+                proto.moveTo(2, 32);
+                proto.lineTo(5, 38);
+                proto.moveTo(8, 32);
+                proto.lineTo(11, 40);
                 proto.lineStyle(0);
                 // Missing eye / cracked screen
                 proto.beginFill(0x0f172a);
@@ -433,7 +501,8 @@ const InteriorRobotics = {
                 proto.rotation = tilt;
                 proto.x = sx + 110 + i * 36;
                 proto.y = fy + fh - 44;
-                UI.tip(proto, 'Scrapped Prototype'); cont.addChild(proto);
+                UI.tip(proto, 'Scrapped Prototype');
+                cont.addChild(proto);
             }
             // Spare parts shelves at far right
             for (let shelf = 0; shelf < 3; shelf++) {
@@ -449,7 +518,8 @@ const InteriorRobotics = {
                 }
                 sh.x = sx + bw - 90;
                 sh.y = fy + 18 + shelf * 16;
-                UI.tip(sh, 'Spare Parts Shelf'); cont.addChild(sh);
+                UI.tip(sh, 'Spare Parts Shelf');
+                cont.addChild(sh);
             }
         }
     },
@@ -539,9 +609,11 @@ const InteriorRobotics = {
             if (typeof RobotModels !== 'undefined') {
                 const calBot = new PIXI.Graphics();
                 RobotModels.draw(calBot, 'tesla', 1.1);
-                calBot.x = cx; calBot.y = fy + fh - 8;
+                calBot.x = cx;
+                calBot.y = fy + fh - 8;
                 calBot.alpha = 0.85;
-                if (typeof UI !== 'undefined') UI.tip(calBot, '🤖 Optimus V3 — Tesla', 'Sensor calibration in the laser grid');
+                if (typeof UI !== 'undefined')
+                    UI.tip(calBot, '🤖 Optimus V3 — Tesla', 'Sensor calibration in the laser grid');
                 cont.addChild(calBot);
             } else {
                 g.beginFill(0xc0c0d0, 0.3);
@@ -553,9 +625,10 @@ const InteriorRobotics = {
             }
         } else if (fn.includes('finished') || fn.includes('goods')) {
             // ─── HALL OF HUMANOIDS — every real 2026 flagship in its own display bay ───
-            const keys = (typeof RobotModels !== 'undefined' && typeof ROBOTICS_COMPANIES !== 'undefined')
-                ? Object.keys(ROBOTICS_COMPANIES).filter(k => RobotModels.ROBOTS[k])
-                : [];
+            const keys =
+                typeof RobotModels !== 'undefined' && typeof ROBOTICS_COMPANIES !== 'undefined'
+                    ? Object.keys(ROBOTICS_COMPANIES).filter((k) => RobotModels.ROBOTS[k])
+                    : [];
             if (keys.length) {
                 const bayW = (bw - 50) / keys.length;
                 keys.forEach((key, i) => {
@@ -578,7 +651,8 @@ const InteriorRobotics = {
                     // The robot itself — real silhouette
                     const bot = new PIXI.Graphics();
                     RobotModels.draw(bot, key, 0.92);
-                    bot.x = cx; bot.y = fy + fh - 12;
+                    bot.x = cx;
+                    bot.y = fy + fh - 12;
                     // Bay divider
                     if (i > 0) {
                         bg.beginFill(0x1a2540, 0.4);
@@ -588,12 +662,18 @@ const InteriorRobotics = {
                     bay.addChild(bg, bot);
                     // Robot name plate
                     const lbl = new PIXI.Text(co.robot.toUpperCase(), {
-                        fontFamily: 'JetBrains Mono, monospace', fontSize: 5, fill: coCol, letterSpacing: 0.5
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 5,
+                        fill: coCol,
+                        letterSpacing: 0.5,
                     });
-                    lbl.anchor.set(0.5, 0); lbl.x = cx; lbl.y = fy + fh - 7;
+                    lbl.anchor.set(0.5, 0);
+                    lbl.x = cx;
+                    lbl.y = fy + fh - 7;
                     if (lbl.width > bayW - 8) lbl.scale.set((bayW - 8) / lbl.width);
                     bay.addChild(lbl);
-                    if (typeof UI !== 'undefined') UI.tip(bay, `${co.icon} ${co.robot} — ${co.name}`, co.milestone);
+                    if (typeof UI !== 'undefined')
+                        UI.tip(bay, `${co.icon} ${co.robot} — ${co.name}`, co.milestone);
                     cont.addChild(bay);
                 });
             }
@@ -622,14 +702,22 @@ const InteriorRobotics = {
             if (typeof RobotModels !== 'undefined' && typeof ROBOTICS_COMPANIES !== 'undefined') {
                 const atlas = new PIXI.Graphics();
                 RobotModels.draw(atlas, 'boston_dynamics', 0.95);
-                atlas.x = sx + bw * 0.32; atlas.y = fy + fh - 8;
-                if (typeof UI !== 'undefined') UI.tip(atlas, '🏃 Atlas — Boston Dynamics', 'Obstacle run — 2026 fleet ships to Hyundai');
+                atlas.x = sx + bw * 0.32;
+                atlas.y = fy + fh - 8;
+                if (typeof UI !== 'undefined')
+                    UI.tip(atlas, '🏃 Atlas — Boston Dynamics', 'Obstacle run — 2026 fleet ships to Hyundai');
                 cont.addChild(atlas);
                 const g1 = new PIXI.Graphics();
                 RobotModels.draw(g1, 'unitree', 0.95);
-                g1.x = sx + bw * 0.62; g1.y = fy + fh - 8;
+                g1.x = sx + bw * 0.62;
+                g1.y = fy + fh - 8;
                 g1.rotation = -0.18; // mid kung-fu kick
-                if (typeof UI !== 'undefined') UI.tip(g1, '🥋 Unitree G1', 'Autonomous kung-fu routine, as seen on Chinese TV (Feb 2026)');
+                if (typeof UI !== 'undefined')
+                    UI.tip(
+                        g1,
+                        '🥋 Unitree G1',
+                        'Autonomous kung-fu routine, as seen on Chinese TV (Feb 2026)'
+                    );
                 cont.addChild(g1);
             }
         } else if (fn.includes('endurance')) {
@@ -671,7 +759,12 @@ const InteriorRobotics = {
                 g.drawRect(tx + 2, fy + 14, 20, 15);
                 g.endFill();
             }
-        } else if (fn.includes('actuator') || fn.includes('sensor') || fn.includes('morphology') || fn.includes('embodied')) {
+        } else if (
+            fn.includes('actuator') ||
+            fn.includes('sensor') ||
+            fn.includes('morphology') ||
+            fn.includes('embodied')
+        ) {
             // Lab benches with equipment
             for (let bx = sx + 35; bx < sx + bw - 40; bx += 80) {
                 // Bench
@@ -695,23 +788,46 @@ const InteriorRobotics = {
             if (fn.includes('embodied')) {
                 const wall = new PIXI.Container();
                 const wg = new PIXI.Graphics();
-                const wx = sx + bw - 190, wy = fy + 10, ww = 170;
-                wg.beginFill(0x0a1018, 0.92); wg.drawRoundedRect(wx, wy, ww, 40, 3); wg.endFill();
-                wg.lineStyle(1, col, 0.55); wg.drawRoundedRect(wx, wy, ww, 40, 3); wg.lineStyle(0);
-                wg.beginFill(col, 0.16); wg.drawRect(wx, wy, ww, 9); wg.endFill();
+                const wx = sx + bw - 190,
+                    wy = fy + 10,
+                    ww = 170;
+                wg.beginFill(0x0a1018, 0.92);
+                wg.drawRoundedRect(wx, wy, ww, 40, 3);
+                wg.endFill();
+                wg.lineStyle(1, col, 0.55);
+                wg.drawRoundedRect(wx, wy, ww, 40, 3);
+                wg.lineStyle(0);
+                wg.beginFill(col, 0.16);
+                wg.drawRect(wx, wy, ww, 9);
+                wg.endFill();
                 wall.addChild(wg);
                 const wt = new PIXI.Text('★ EMBODIED AI — 2026', {
-                    fontFamily: 'JetBrains Mono, monospace', fontSize: 6, fill: col, fontWeight: 'bold', letterSpacing: 0.5
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: 6,
+                    fill: col,
+                    fontWeight: 'bold',
+                    letterSpacing: 0.5,
                 });
-                wt.x = wx + 5; wt.y = wy + 1.5;
+                wt.x = wx + 5;
+                wt.y = wy + 1.5;
                 wall.addChild(wt);
-                ['· Helix VLA runs Figure 03 end-to-end', '· Apollo 2 data trains Gemini Robotics', '· G1 fleet: autonomous kung-fu on TV'].forEach((ln, i) => {
-                    const lt = new PIXI.Text(ln, { fontFamily: 'JetBrains Mono, monospace', fontSize: 5.5, fill: 0xcbd5e1 });
-                    lt.x = wx + 5; lt.y = wy + 11 + i * 9;
+                [
+                    '· Helix VLA runs Figure 03 end-to-end',
+                    '· Apollo 2 data trains Gemini Robotics',
+                    '· G1 fleet: autonomous kung-fu on TV',
+                ].forEach((ln, i) => {
+                    const lt = new PIXI.Text(ln, {
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 5.5,
+                        fill: 0xcbd5e1,
+                    });
+                    lt.x = wx + 5;
+                    lt.y = wy + 11 + i * 9;
                     if (lt.width > ww - 10) lt.scale.set((ww - 10) / lt.width);
                     wall.addChild(lt);
                 });
-                if (typeof UI !== 'undefined') UI.tip(wall, 'Milestone Wall', 'The year robot brains went vision-language-action');
+                if (typeof UI !== 'undefined')
+                    UI.tip(wall, 'Milestone Wall', 'The year robot brains went vision-language-action');
                 cont.addChild(wall);
             }
         } else if (fn.includes('qa') || fn.includes('check')) {
@@ -739,7 +855,13 @@ const InteriorRobotics = {
         else if (fn.includes('finished') || fn.includes('goods')) _propTip = 'Finished Robots';
         else if (fn.includes('walk test') || fn.includes('obstacle')) _propTip = 'Obstacle Course';
         else if (fn.includes('loading') || fn.includes('packaging')) _propTip = 'Crates & Pallets';
-        else if (fn.includes('actuator') || fn.includes('sensor') || fn.includes('morphology') || fn.includes('embodied')) _propTip = 'Sensor Lab Benches';
+        else if (
+            fn.includes('actuator') ||
+            fn.includes('sensor') ||
+            fn.includes('morphology') ||
+            fn.includes('embodied')
+        )
+            _propTip = 'Sensor Lab Benches';
         else if (fn.includes('qa') || fn.includes('check')) _propTip = 'QA Checkpoints';
         if (typeof UI !== 'undefined') UI.tip(g, _propTip, 'Factory floor');
         cont.addChild(g);
@@ -752,7 +874,7 @@ const InteriorRobotics = {
             const ny = floorY + floorH - 8;
             const floorName = layout.floors[fi];
             const floorNpcs = this._getNPCsForFloor(floorName, layout, bw);
-            floorNpcs.forEach(def => {
+            floorNpcs.forEach((def) => {
                 this.drawNPC(cont, sx + def.xOff, ny, def.role, def.col);
             });
             // Lobby receptionist on the lowest floor (fi === 0).
@@ -765,13 +887,27 @@ const InteriorRobotics = {
 
     _drawReceptionDesk(c, x, y, col) {
         const g = new PIXI.Graphics();
-        g.beginFill(0x1a2540); g.drawRect(x, y - 14, 60, 14); g.endFill();
-        g.beginFill(0x0f1a2d); g.drawRect(x, y - 14, 60, 2); g.endFill();
-        g.beginFill(col, 0.4); g.drawRect(x + 4, y - 12, 52, 1); g.endFill();
-        g.beginFill(0x0a0f1a); g.drawRect(x + 36, y - 24, 18, 10); g.endFill();
-        g.beginFill(col, 0.45); g.drawRect(x + 38, y - 22, 14, 6); g.endFill();
-        g.beginFill(0xfbbf24); g.drawRect(x + 8, y - 18, 8, 6); g.endFill();
-        g.beginFill(0xffffff, 0.6); g.drawRect(x + 9, y - 17, 6, 4); g.endFill();
+        g.beginFill(0x1a2540);
+        g.drawRect(x, y - 14, 60, 14);
+        g.endFill();
+        g.beginFill(0x0f1a2d);
+        g.drawRect(x, y - 14, 60, 2);
+        g.endFill();
+        g.beginFill(col, 0.4);
+        g.drawRect(x + 4, y - 12, 52, 1);
+        g.endFill();
+        g.beginFill(0x0a0f1a);
+        g.drawRect(x + 36, y - 24, 18, 10);
+        g.endFill();
+        g.beginFill(col, 0.45);
+        g.drawRect(x + 38, y - 22, 14, 6);
+        g.endFill();
+        g.beginFill(0xfbbf24);
+        g.drawRect(x + 8, y - 18, 8, 6);
+        g.endFill();
+        g.beginFill(0xffffff, 0.6);
+        g.drawRect(x + 9, y - 17, 6, 4);
+        g.endFill();
         if (typeof UI !== 'undefined') UI.tip(g, 'Reception Desk');
         c.addChild(g);
     },
@@ -786,79 +922,77 @@ const InteriorRobotics = {
 
         if (fn.includes('chassis')) {
             return [
-                { role: 'BotQ Line Lead',   col: 0x3b82f6, xOff: bw * 0.25 },
-                { role: 'Fremont Welder',   col: 0xe82127, xOff: bw * 0.55 },
-                { role: 'Mfg Tech',         col: 0xfbbf24, xOff: bw * 0.8 }
+                { role: 'BotQ Line Lead', col: 0x3b82f6, xOff: bw * 0.25 },
+                { role: 'Fremont Welder', col: 0xe82127, xOff: bw * 0.55 },
+                { role: 'Mfg Tech', col: 0xfbbf24, xOff: bw * 0.8 },
             ];
         } else if (fn.includes('motor')) {
             return [
-                { role: 'Motor Engineer',    col: 0xf97316, xOff: bw * 0.3 },
-                { role: 'Tendon Drive Tech', col: 0xd9c9a8, xOff: bw * 0.65 }
+                { role: 'Motor Engineer', col: 0xf97316, xOff: bw * 0.3 },
+                { role: 'Tendon Drive Tech', col: 0xd9c9a8, xOff: bw * 0.65 },
             ];
         } else if (fn.includes('brain') || fn.includes('upload')) {
             return [
-                { role: 'Helix Trainer',       col: 0x3b82f6, xOff: bw * 0.3 },
+                { role: 'Helix Trainer', col: 0x3b82f6, xOff: bw * 0.3 },
                 { role: 'Gemini Robotics Eng', col: 0x22d3ee, xOff: bw * 0.6 },
-                { role: 'Neural Tuner',        col: 0xa855f7, xOff: bw * 0.85 }
+                { role: 'Neural Tuner', col: 0xa855f7, xOff: bw * 0.85 },
             ];
         } else if (fn.includes('calibration')) {
             return [
                 { role: 'Calibration Tech', col: 0x22d3ee, xOff: bw * 0.35 },
-                { role: 'Sensor Eng',       col: 0x06b6d4, xOff: bw * 0.7 }
+                { role: 'Sensor Eng', col: 0x06b6d4, xOff: bw * 0.7 },
             ];
         } else if (fn.includes('finished') || fn.includes('goods')) {
             return [
-                { role: 'QA Inspector',   col: 0x4ade80, xOff: bw * 0.25 },
-                { role: 'Fleet Allocator', col: 0x10b981, xOff: bw * 0.75 }
+                { role: 'QA Inspector', col: 0x4ade80, xOff: bw * 0.25 },
+                { role: 'Fleet Allocator', col: 0x10b981, xOff: bw * 0.75 },
             ];
         } else if (fn.includes('walk test')) {
             return [
-                { role: 'Gait Analyst',   col: 0x06b6d4, xOff: bw * 0.4 },
-                { role: 'Test Engineer',  col: col,      xOff: bw * 0.75 }
+                { role: 'Gait Analyst', col: 0x06b6d4, xOff: bw * 0.4 },
+                { role: 'Test Engineer', col: col, xOff: bw * 0.75 },
             ];
         } else if (fn.includes('obstacle')) {
             return [
-                { role: 'Course Designer',       col: 0x06b6d4, xOff: bw * 0.3 },
-                { role: 'Kung-Fu Choreographer', col: 0x10b981, xOff: bw * 0.7 }
+                { role: 'Course Designer', col: 0x06b6d4, xOff: bw * 0.3 },
+                { role: 'Kung-Fu Choreographer', col: 0x10b981, xOff: bw * 0.7 },
             ];
         } else if (fn.includes('endurance')) {
             return [
-                { role: 'Endurance Lead',    col: 0x06b6d4, xOff: bw * 0.35 },
-                { role: 'Battery Swap Tech', col: 0x1d4ed8, xOff: bw * 0.75 }
+                { role: 'Endurance Lead', col: 0x06b6d4, xOff: bw * 0.35 },
+                { role: 'Battery Swap Tech', col: 0x1d4ed8, xOff: bw * 0.75 },
             ];
         } else if (fn.includes('loading') || fn.includes('bay')) {
             return [
                 { role: 'Dock Foreman', col: 0x10b981, xOff: bw * 0.3 },
-                { role: 'GXO Liaison',  col: 0x14b8a6, xOff: bw * 0.7 }
+                { role: 'GXO Liaison', col: 0x14b8a6, xOff: bw * 0.7 },
             ];
         } else if (fn.includes('packaging')) {
-            return [
-                { role: 'NEO Gift-Wrapper', col: 0xd9c9a8, xOff: bw * 0.5 }
-            ];
+            return [{ role: 'NEO Gift-Wrapper', col: 0xd9c9a8, xOff: bw * 0.5 }];
         } else if (fn.includes('qa') || fn.includes('check')) {
             return [
-                { role: 'QA Lead',        col: 0x4ade80, xOff: bw * 0.3 },
-                { role: 'Final Inspect',  col: 0xf43f5e, xOff: bw * 0.7 }
+                { role: 'QA Lead', col: 0x4ade80, xOff: bw * 0.3 },
+                { role: 'Final Inspect', col: 0xf43f5e, xOff: bw * 0.7 },
             ];
         } else if (fn.includes('morphology')) {
             return [
                 { role: 'Apollo 2 Designer', col: 0xec4899, xOff: bw * 0.3 },
-                { role: 'Kinematics Eng',    col: 0xa855f7, xOff: bw * 0.7 }
+                { role: 'Kinematics Eng', col: 0xa855f7, xOff: bw * 0.7 },
             ];
         } else if (fn.includes('actuator')) {
             return [
                 { role: 'Actuator R&D', col: 0xf97316, xOff: bw * 0.35 },
-                { role: 'Torque Eng',   col: 0xfbbf24, xOff: bw * 0.7 }
+                { role: 'Torque Eng', col: 0xfbbf24, xOff: bw * 0.7 },
             ];
         } else if (fn.includes('sensor')) {
             return [
                 { role: 'Sensor Fusion', col: 0x22d3ee, xOff: bw * 0.3 },
-                { role: 'Lidar Eng',     col: 0x06b6d4, xOff: bw * 0.7 }
+                { role: 'Lidar Eng', col: 0x06b6d4, xOff: bw * 0.7 },
             ];
         } else if (fn.includes('embodied')) {
             return [
-                { role: 'VLA Researcher',  col: 0x8b5cf6, xOff: bw * 0.3 },
-                { role: 'Gemini Liaison',  col: 0x22d3ee, xOff: bw * 0.7 }
+                { role: 'VLA Researcher', col: 0x8b5cf6, xOff: bw * 0.3 },
+                { role: 'Gemini Liaison', col: 0x22d3ee, xOff: bw * 0.7 },
             ];
         } else {
             return [{ role: 'Technician', col: col, xOff: bw * 0.5 }];
@@ -871,48 +1005,95 @@ const InteriorRobotics = {
 
     drawNPC(c, x, y, role, col) {
         const colHex = col || 0xec4899;
-        const bw = 12, h = 28, headH = 10, bodyH = h - headH - 4, legH = 4, eyeS = 1;
+        const bw = 12,
+            h = 28,
+            headH = 10,
+            bodyH = h - headH - 4,
+            legH = 4,
+            eyeS = 1;
         const cont = new PIXI.Container();
 
         const shadow = new PIXI.Graphics();
-        shadow.beginFill(0x000000, 0.25); shadow.drawEllipse(0, 2, bw * 0.6, 3); shadow.endFill();
+        shadow.beginFill(0x000000, 0.25);
+        shadow.drawEllipse(0, 2, bw * 0.6, 3);
+        shadow.endFill();
 
         const head = new PIXI.Graphics();
-        head.beginFill(0xfdd8b5); head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25); head.endFill();
-        head.beginFill(0x2c1810); head.drawCircle(-bw * 0.1, headH * 0.38, eyeS); head.drawCircle(bw * 0.1, headH * 0.38, eyeS); head.endFill();
-        head.beginFill(0x000000, 0.4); head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5); head.endFill();
+        head.beginFill(0xfdd8b5);
+        head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
+        head.endFill();
+        head.beginFill(0x2c1810);
+        head.drawCircle(-bw * 0.1, headH * 0.38, eyeS);
+        head.drawCircle(bw * 0.1, headH * 0.38, eyeS);
+        head.endFill();
+        head.beginFill(0x000000, 0.4);
+        head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
+        head.endFill();
         // Hard hat (robotics factory signature)
-        head.beginFill(0xfbbf24); head.drawRoundedRect(-bw * 0.45, -2, bw * 0.9, 3, 1); head.endFill();
-        head.beginFill(0xf59e0b, 0.6); head.drawRect(-bw * 0.45, 0, bw * 0.9, 1); head.endFill();
+        head.beginFill(0xfbbf24);
+        head.drawRoundedRect(-bw * 0.45, -2, bw * 0.9, 3, 1);
+        head.endFill();
+        head.beginFill(0xf59e0b, 0.6);
+        head.drawRect(-bw * 0.45, 0, bw * 0.9, 1);
+        head.endFill();
         head.y = -h;
 
         const body = new PIXI.Graphics();
-        body.beginFill(colHex); body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1); body.endFill();
+        body.beginFill(colHex);
+        body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1);
+        body.endFill();
         // Safety vest stripe
-        body.beginFill(0xfef08a, 0.6); body.drawRect(-bw / 2, Math.max(bodyH, 4) * 0.4, bw, 1.5); body.endFill();
+        body.beginFill(0xfef08a, 0.6);
+        body.drawRect(-bw / 2, Math.max(bodyH, 4) * 0.4, bw, 1.5);
+        body.endFill();
         body.y = -h + headH;
 
-        const lw = Math.max(2, bw * 0.25), lh = Math.max(legH, 2);
+        const lw = Math.max(2, bw * 0.25),
+            lh = Math.max(legH, 2);
         const legL = new PIXI.Graphics();
-        legL.beginFill(0x1e293b); legL.drawRect(-lw / 2, 0, lw, lh); legL.endFill(); legL.x = -bw * 0.15;
+        legL.beginFill(0x1e293b);
+        legL.drawRect(-lw / 2, 0, lw, lh);
+        legL.endFill();
+        legL.x = -bw * 0.15;
         const legR = new PIXI.Graphics();
-        legR.beginFill(0x1e293b); legR.drawRect(-lw / 2, 0, lw, lh); legR.endFill(); legR.x = bw * 0.15;
+        legR.beginFill(0x1e293b);
+        legR.drawRect(-lw / 2, 0, lw, lh);
+        legR.endFill();
+        legR.x = bw * 0.15;
 
         const dot = new PIXI.Graphics();
-        dot.beginFill(colHex); dot.drawCircle(0, 0, 2); dot.endFill(); dot.y = -h - 6;
+        dot.beginFill(colHex);
+        dot.drawCircle(0, 0, 2);
+        dot.endFill();
+        dot.y = -h - 6;
 
         cont.addChild(shadow, legL, legR, body, head, dot);
-        cont.x = x; cont.y = y;
+        cont.x = x;
+        cont.y = y;
 
-        const txt = new PIXI.Text(role, { fontFamily: '"JetBrains Mono", monospace', fontSize: 6, fill: colHex });
-        txt.anchor.set(0.5, 1); txt.y = -h - 8;
+        const txt = new PIXI.Text(role, {
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: 6,
+            fill: colHex,
+        });
+        txt.anchor.set(0.5, 1);
+        txt.y = -h - 8;
         cont.addChild(txt);
 
-        cont.eventMode = 'static'; cont.cursor = 'pointer';
+        cont.eventMode = 'static';
+        cont.cursor = 'pointer';
         cont.hitArea = new PIXI.Rectangle(-bw, -h - 12, bw * 2, h + 16);
         cont.on('pointertap', () => {
             if (typeof UI !== 'undefined' && UI.selectModel) {
-                UI.selectModel({ id: 'robo_' + role.replace(/\s/g, '_').toLowerCase(), name: role, isNPC: true, _trackType: 'npc', role: role, lab: 'robotics', desc: role + '. Robotics Factory.' });
+                UI.selectModel({
+                    id: 'robo_' + role.replace(/\s/g, '_').toLowerCase(),
+                    name: role,
+                    isNPC: true,
+                    _trackType: 'npc',
+                    role: role,
+                    lab: 'robotics',
+                    desc: role + '. Robotics Factory.',
+                });
             }
         });
         cont.on('pointerover', (e) => {
@@ -931,10 +1112,22 @@ const InteriorRobotics = {
 
         const agent = {
             m: { id: npcId, name: role, isNPC: true },
-            cont, head, body, legL, legR, dot, shadow, label: txt,
-            state: 'working', timer: 60 + Math.floor(Math.random() * 200),
-            deskX: x, floorY: y, targetX: x, speed: 0.7,
-            role, _h: h
+            cont,
+            head,
+            body,
+            legL,
+            legR,
+            dot,
+            shadow,
+            label: txt,
+            state: 'working',
+            timer: 60 + Math.floor(Math.random() * 200),
+            deskX: x,
+            floorY: y,
+            targetX: x,
+            speed: 0.7,
+            role,
+            _h: h,
         };
         this.avatars.push(agent);
         return agent;
@@ -946,14 +1139,24 @@ const InteriorRobotics = {
 
     updateAvatars() {
         const ROBOTICS_MSGS = [
-            "Torque within spec.", "Chassis weld clean.", "Gait stable.",
-            "Battery at 94%.", "Calibration locked.", "Sensor fusion OK.",
-            "Actuator nominal.", "AI upload complete.", "Walk test passed.",
-            "Ready for shipping.", "QA green.", "Embodied loop live.",
-            "Morphology sweep done.", "Motor rpm nominal.", "Balance OK."
+            'Torque within spec.',
+            'Chassis weld clean.',
+            'Gait stable.',
+            'Battery at 94%.',
+            'Calibration locked.',
+            'Sensor fusion OK.',
+            'Actuator nominal.',
+            'AI upload complete.',
+            'Walk test passed.',
+            'Ready for shipping.',
+            'QA green.',
+            'Embodied loop live.',
+            'Morphology sweep done.',
+            'Motor rpm nominal.',
+            'Balance OK.',
         ];
 
-        this.avatars.forEach(av => {
+        this.avatars.forEach((av) => {
             if (!av.cont || av.cont.destroyed) return;
             av.timer--;
 
@@ -970,11 +1173,17 @@ const InteriorRobotics = {
                         } else if (r < 0.5) {
                             av.state = 'chatting';
                             av.timer = 80 + Math.floor(Math.random() * 60);
-                            this.spawnBubble(av, ROBOTICS_MSGS[Math.floor(Math.random() * ROBOTICS_MSGS.length)]);
+                            this.spawnBubble(
+                                av,
+                                ROBOTICS_MSGS[Math.floor(Math.random() * ROBOTICS_MSGS.length)]
+                            );
                         } else {
                             av.timer = 100 + Math.floor(Math.random() * 200);
                             if (Math.random() < 0.25) {
-                                this.spawnBubble(av, ROBOTICS_MSGS[Math.floor(Math.random() * ROBOTICS_MSGS.length)]);
+                                this.spawnBubble(
+                                    av,
+                                    ROBOTICS_MSGS[Math.floor(Math.random() * ROBOTICS_MSGS.length)]
+                                );
                             }
                         }
                     }
@@ -1031,14 +1240,23 @@ const InteriorRobotics = {
     spawnBubble(av, msg) {
         if (!this.scene || this.scene.destroyed) return;
         const bCont = new PIXI.Container();
-        const txt = new PIXI.Text(msg, { fontFamily: '"JetBrains Mono", monospace', fontSize: 8, fill: 0x000000, fontWeight: 'bold' });
-        txt.anchor.set(0.5, 1); txt.y = -6;
+        const txt = new PIXI.Text(msg, {
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: 8,
+            fill: 0x000000,
+            fontWeight: 'bold',
+        });
+        txt.anchor.set(0.5, 1);
+        txt.y = -6;
         const bg = new PIXI.Graphics();
         bg.beginFill(0xffffff);
         bg.drawRoundedRect(-txt.width / 2 - 6, -txt.height - 10, txt.width + 12, txt.height + 8, 4);
         bg.endFill();
         bg.beginFill(0xffffff);
-        bg.moveTo(-4, -4); bg.lineTo(4, -4); bg.lineTo(0, 2); bg.endFill();
+        bg.moveTo(-4, -4);
+        bg.lineTo(4, -4);
+        bg.lineTo(0, 2);
+        bg.endFill();
         bCont.addChild(bg, txt);
         bCont.x = av.cont.x;
         bCont.y = av.cont.y - av._h - 10;
@@ -1058,6 +1276,9 @@ const InteriorRobotics = {
         this.skyContainer = null;
         this.starsLayer = null;
         this.celestialGfx = null;
-        if (this._lift) { this._lift.destroy(); this._lift = null; }
-    }
+        if (this._lift) {
+            this._lift.destroy();
+            this._lift = null;
+        }
+    },
 };

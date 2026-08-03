@@ -5,16 +5,15 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const SeasonalEnv = {
-
     fxLayer: null,
     bldLayer: null,
-    _overlayGfx: null,       // persistent Graphics for building overlays
-    _fireworks: [],           // active firework particles
-    _fairyLights: [],         // fairy light positions for twinkle
-    _diyas: [],               // Diwali diya flame positions for flicker
-    _floatingLanterns: [],    // Mid-Autumn / Obon floating lanterns
-    _waterDrops: [],          // Songkran water splash particles
-    _lastEvent: null,         // cache to avoid rebuilding every frame
+    _overlayGfx: null, // persistent Graphics for building overlays
+    _fireworks: [], // active firework particles
+    _fairyLights: [], // fairy light positions for twinkle
+    _diyas: [], // Diwali diya flame positions for flicker
+    _floatingLanterns: [], // Mid-Autumn / Obon floating lanterns
+    _waterDrops: [], // Songkran water splash particles
+    _lastEvent: null, // cache to avoid rebuilding every frame
     _builtForTick: -9999,
 
     init(layers) {
@@ -32,7 +31,7 @@ const SeasonalEnv = {
         // Parent the overlay to the top-level world container, placed AFTER groundGfx
         // so Easter eggs and the bunny render on top of the ground and building trees
         // (the bldLayer is drawn BEFORE groundGfx, so overlays there get covered).
-        const world = (typeof G !== 'undefined') ? G.world : null;
+        const world = typeof G !== 'undefined' ? G.world : null;
         if (world && this._overlayGfx.parent !== world) {
             world.addChild(this._overlayGfx);
         } else if (world) {
@@ -48,7 +47,7 @@ const SeasonalEnv = {
         if (typeof Seasonal === 'undefined') return;
         this._ensureGfx();
         const evts = Seasonal.getActiveEvents();
-        const evtIds = evts.map(e => e.id).join(',');
+        const evtIds = evts.map((e) => e.id).join(',');
         if (evtIds === this._lastEvent) return; // don't rebuild if same events
         this._lastEvent = evtIds;
 
@@ -60,30 +59,32 @@ const SeasonalEnv = {
         if (!window.BLDS) return;
 
         const gy = G.groundY;
-        const isWinter    = evts.some(e => e.id === 'winter_holiday');
-        const isHalloween = evts.some(e => e.id === 'halloween');
-        const isEaster    = evts.some(e => e.id === 'easter');
-        const isLunar     = evts.some(e => e.id === 'lunar_new_year');
-        const isDiwali    = evts.some(e => e.id === 'diwali');
-        const isHoli      = evts.some(e => e.id === 'holi');
-        const isRamadan   = evts.some(e => e.id === 'ramadan');
-        const isEidFitr   = evts.some(e => e.id === 'eid_fitr');
-        const isEidAdha   = evts.some(e => e.id === 'eid_adha');
-        const isNyepi     = evts.some(e => e.id === 'nyepi');
-        const isGalungan  = evts.some(e => e.id === 'galungan');
-        const isMidAutumn = evts.some(e => e.id === 'mid_autumn');
-        const isObon      = evts.some(e => e.id === 'obon');
-        const isSongkran  = evts.some(e => e.id === 'songkran');
-        const isDiaMuertos = evts.some(e => e.id === 'dia_muertos');
-        const isHanukkah  = evts.some(e => e.id === 'hanukkah');
+        const isWinter = evts.some((e) => e.id === 'winter_holiday');
+        const isHalloween = evts.some((e) => e.id === 'halloween');
+        const isEaster = evts.some((e) => e.id === 'easter');
+        const isLunar = evts.some((e) => e.id === 'lunar_new_year');
+        const isDiwali = evts.some((e) => e.id === 'diwali');
+        const isHoli = evts.some((e) => e.id === 'holi');
+        const isRamadan = evts.some((e) => e.id === 'ramadan');
+        const isEidFitr = evts.some((e) => e.id === 'eid_fitr');
+        const isEidAdha = evts.some((e) => e.id === 'eid_adha');
+        const isNyepi = evts.some((e) => e.id === 'nyepi');
+        const isGalungan = evts.some((e) => e.id === 'galungan');
+        const isMidAutumn = evts.some((e) => e.id === 'mid_autumn');
+        const isObon = evts.some((e) => e.id === 'obon');
+        const isSongkran = evts.some((e) => e.id === 'songkran');
+        const isDiaMuertos = evts.some((e) => e.id === 'dia_muertos');
+        const isHanukkah = evts.some((e) => e.id === 'hanukkah');
         const g = this._overlayGfx;
 
-        BLDS.forEach(b => {
+        BLDS.forEach((b) => {
             if (!b.x || !b.w || !b.fl) return;
             if (b.id === 'forest_0' || b.id === 'forest_1' || b.id === 'forest_space') return;
             if (b.id.startsWith('port_') || b.type === 'launchpad') return;
 
-            const bx = b.x, bw = b.w, flH = b.fl * 18 + 24;
+            const bx = b.x,
+                bw = b.w,
+                flH = b.fl * 18 + 24;
             const roofY = gy - flH;
 
             /* ── WINTER: Snow caps + fairy lights ── */
@@ -94,13 +95,21 @@ const SeasonalEnv = {
                 for (let ix = bx + 8; ix < bx + bw - 5; ix += 12 + Math.floor(Math.random() * 8)) {
                     const iH = 4 + Math.floor(Math.random() * 6);
                     g.beginFill(0xd4eeff, 0.7);
-                    g.moveTo(ix, roofY + 2); g.lineTo(ix + 2, roofY + 2); g.lineTo(ix + 1, roofY + 2 + iH); g.closePath();
+                    g.moveTo(ix, roofY + 2);
+                    g.lineTo(ix + 2, roofY + 2);
+                    g.lineTo(ix + 1, roofY + 2 + iH);
+                    g.closePath();
                     g.endFill();
                 }
                 for (let lx = bx + 5; lx < bx + bw - 5; lx += 10) {
                     const colors = [0xff4444, 0x44ff44, 0x4488ff, 0xffdd44, 0xff44ff];
                     const col = colors[Math.floor(Math.random() * colors.length)];
-                    this._fairyLights.push({ x: lx, y: roofY + 1, color: col, phase: Math.random() * Math.PI * 2 });
+                    this._fairyLights.push({
+                        x: lx,
+                        y: roofY + 1,
+                        color: col,
+                        phase: Math.random() * Math.PI * 2,
+                    });
                 }
             }
 
@@ -124,7 +133,8 @@ const SeasonalEnv = {
             if (isLunar) {
                 const lnx = bx + bw * 0.5;
                 g.lineStyle(1, 0x888888, 0.5);
-                g.moveTo(lnx, roofY); g.lineTo(lnx, roofY + 10);
+                g.moveTo(lnx, roofY);
+                g.lineTo(lnx, roofY + 10);
                 g.lineStyle(0);
                 g.beginFill(0xee2222, 0.9);
                 g.drawEllipse(lnx, roofY + 15, 5, 6);
@@ -134,7 +144,8 @@ const SeasonalEnv = {
                 g.drawRect(lnx - 3, roofY + 19, 6, 2);
                 g.endFill();
                 g.lineStyle(1, 0xffcc00, 0.6);
-                g.moveTo(lnx, roofY + 21); g.lineTo(lnx, roofY + 26);
+                g.moveTo(lnx, roofY + 21);
+                g.lineTo(lnx, roofY + 26);
                 g.lineStyle(0);
             }
 
@@ -144,8 +155,10 @@ const SeasonalEnv = {
                 for (let dx = bx + 6; dx < bx + bw - 6; dx += 14) {
                     // Clay lamp base
                     g.beginFill(0xcc6633);
-                    g.moveTo(dx - 3, roofY + 2); g.lineTo(dx + 3, roofY + 2);
-                    g.lineTo(dx + 2, roofY - 1); g.lineTo(dx - 2, roofY - 1);
+                    g.moveTo(dx - 3, roofY + 2);
+                    g.lineTo(dx + 3, roofY + 2);
+                    g.lineTo(dx + 2, roofY - 1);
+                    g.lineTo(dx - 2, roofY - 1);
                     g.closePath();
                     g.endFill();
                     // Oil
@@ -155,10 +168,11 @@ const SeasonalEnv = {
                     this._diyas.push({ x: dx, y: roofY - 3, phase: Math.random() * Math.PI * 2 });
                 }
                 // Rangoli pattern at building entrance
-                const rx = bx + bw * 0.5, ry = gy - 2;
+                const rx = bx + bw * 0.5,
+                    ry = gy - 2;
                 const rangColors = [0xff1493, 0xff8c00, 0x00bfff, 0x32cd32, 0xffdd44, 0xc71585];
                 for (let ri = 0; ri < 8; ri++) {
-                    const angle = (Math.PI * 2 / 8) * ri;
+                    const angle = ((Math.PI * 2) / 8) * ri;
                     const col = rangColors[ri % rangColors.length];
                     // Petal
                     g.beginFill(col, 0.8);
@@ -201,15 +215,18 @@ const SeasonalEnv = {
                 const lnx = bx + bw * 0.5;
                 // String
                 g.lineStyle(1, 0x888888, 0.4);
-                g.moveTo(lnx, roofY); g.lineTo(lnx, roofY + 8);
+                g.moveTo(lnx, roofY);
+                g.lineTo(lnx, roofY + 8);
                 g.lineStyle(0);
                 // Ornate lantern body (fanous shape)
                 g.beginFill(0xffd700, 0.85);
-                g.drawRect(lnx - 3, roofY + 8, 6, 2);  // top cap
+                g.drawRect(lnx - 3, roofY + 8, 6, 2); // top cap
                 g.endFill();
                 g.beginFill(0x228b22, 0.8);
-                g.moveTo(lnx - 4, roofY + 10); g.lineTo(lnx + 4, roofY + 10);
-                g.lineTo(lnx + 3, roofY + 22); g.lineTo(lnx - 3, roofY + 22);
+                g.moveTo(lnx - 4, roofY + 10);
+                g.lineTo(lnx + 4, roofY + 10);
+                g.lineTo(lnx + 3, roofY + 22);
+                g.lineTo(lnx - 3, roofY + 22);
                 g.closePath();
                 g.endFill();
                 // Inner glow
@@ -221,11 +238,13 @@ const SeasonalEnv = {
                 g.drawRect(lnx - 3, roofY + 22, 6, 2);
                 g.endFill();
                 g.lineStyle(1, 0xffd700, 0.5);
-                g.moveTo(lnx, roofY + 24); g.lineTo(lnx, roofY + 28);
+                g.moveTo(lnx, roofY + 24);
+                g.lineTo(lnx, roofY + 28);
                 g.lineStyle(0);
                 // Crescent + star at ground level (for Eid, or if Ramadan)
                 if (isEidFitr || isEidAdha) {
-                    const cx = bx + bw * 0.8, cy = gy - 6;
+                    const cx = bx + bw * 0.8,
+                        cy = gy - 6;
                     // Crescent
                     g.beginFill(0xffd700, 0.9);
                     g.drawCircle(cx, cy, 4);
@@ -268,9 +287,11 @@ const SeasonalEnv = {
                 g.endFill();
                 // Offerings hanging from tip
                 for (let oi = 0; oi < 3; oi++) {
-                    const ox = px - 9 - oi * 3, oy = gy - 48 + oi * 6;
+                    const ox = px - 9 - oi * 3,
+                        oy = gy - 48 + oi * 6;
                     g.lineStyle(0.5, 0x8b7d3c, 0.5);
-                    g.moveTo(px - 8 + oi, gy - 55 + oi * 3); g.lineTo(ox, oy);
+                    g.moveTo(px - 8 + oi, gy - 55 + oi * 3);
+                    g.lineTo(ox, oy);
                     g.lineStyle(0);
                     g.beginFill(0xffd700, 0.7);
                     g.drawCircle(ox, oy, 2);
@@ -297,7 +318,8 @@ const SeasonalEnv = {
                     const col = lanternColors[Math.floor(Math.random() * lanternColors.length)];
                     // String
                     g.lineStyle(0.8, 0x888888, 0.4);
-                    g.moveTo(lx, roofY); g.lineTo(lx, roofY + 7);
+                    g.moveTo(lx, roofY);
+                    g.lineTo(lx, roofY + 7);
                     g.lineStyle(0);
                     // Round lantern body
                     g.beginFill(col, 0.85);
@@ -305,14 +327,21 @@ const SeasonalEnv = {
                     g.endFill();
                     // Horizontal ribs
                     g.lineStyle(0.5, 0x000000, 0.15);
-                    g.moveTo(lx - 4, roofY + 12); g.lineTo(lx + 4, roofY + 12);
-                    g.moveTo(lx - 4, roofY + 14); g.lineTo(lx + 4, roofY + 14);
+                    g.moveTo(lx - 4, roofY + 12);
+                    g.lineTo(lx + 4, roofY + 12);
+                    g.moveTo(lx - 4, roofY + 14);
+                    g.lineTo(lx + 4, roofY + 14);
                     g.lineStyle(0);
                     // Inner glow
                     g.beginFill(0xffee88, 0.3);
                     g.drawEllipse(lx, roofY + 13, 2, 3);
                     g.endFill();
-                    this._floatingLanterns.push({ x: lx, y: roofY + 13, color: col, phase: Math.random() * Math.PI * 2 });
+                    this._floatingLanterns.push({
+                        x: lx,
+                        y: roofY + 13,
+                        color: col,
+                        phase: Math.random() * Math.PI * 2,
+                    });
                 }
             }
 
@@ -321,7 +350,8 @@ const SeasonalEnv = {
                 const lx = bx + bw * 0.5;
                 // Hanging string
                 g.lineStyle(0.8, 0x444444, 0.5);
-                g.moveTo(lx, roofY); g.lineTo(lx, roofY + 6);
+                g.moveTo(lx, roofY);
+                g.lineTo(lx, roofY + 6);
                 g.lineStyle(0);
                 // Chochin body (white with red band)
                 g.beginFill(0xfff5ee, 0.9);
@@ -335,7 +365,12 @@ const SeasonalEnv = {
                 g.drawRect(lx - 2, roofY + 7, 4, 1);
                 g.drawRect(lx - 2, roofY + 17, 4, 1);
                 g.endFill();
-                this._floatingLanterns.push({ x: lx, y: roofY + 12, color: 0xffddaa, phase: Math.random() * Math.PI * 2 });
+                this._floatingLanterns.push({
+                    x: lx,
+                    y: roofY + 12,
+                    color: 0xffddaa,
+                    phase: Math.random() * Math.PI * 2,
+                });
             }
 
             /* ── SONGKRAN: Water splashes on buildings ── */
@@ -376,10 +411,12 @@ const SeasonalEnv = {
                 }
                 // String connecting them
                 g.lineStyle(0.8, 0x228b22, 0.4);
-                g.moveTo(bx + 4, roofY + 3); g.lineTo(bx + bw - 4, roofY + 3);
+                g.moveTo(bx + 4, roofY + 3);
+                g.lineTo(bx + bw - 4, roofY + 3);
                 g.lineStyle(0);
                 // Small sugar skull at entrance
-                const sx = bx + bw * 0.2, sy = gy - 5;
+                const sx = bx + bw * 0.2,
+                    sy = gy - 5;
                 g.beginFill(0xffffff);
                 g.drawEllipse(sx, sy, 4, 5);
                 g.endFill();
@@ -399,9 +436,11 @@ const SeasonalEnv = {
                 g.endFill();
                 // Grin
                 g.lineStyle(0.8, 0x222222);
-                g.moveTo(sx - 2, sy + 2.5); g.lineTo(sx + 2, sy + 2.5);
+                g.moveTo(sx - 2, sy + 2.5);
+                g.lineTo(sx + 2, sy + 2.5);
                 for (let ti = -1.5; ti <= 1.5; ti += 1) {
-                    g.moveTo(sx + ti, sy + 2); g.lineTo(sx + ti, sy + 3);
+                    g.moveTo(sx + ti, sy + 2);
+                    g.lineTo(sx + ti, sy + 3);
                 }
                 g.lineStyle(0);
                 // Flower crown
@@ -416,7 +455,8 @@ const SeasonalEnv = {
 
             /* ── HANUKKAH: Menorah on windowsill ── */
             if (isHanukkah) {
-                const mx = bx + bw * 0.5, my = roofY + Math.min(flH * 0.4, 20);
+                const mx = bx + bw * 0.5,
+                    my = roofY + Math.min(flH * 0.4, 20);
                 // Base
                 g.beginFill(0xdaa520, 0.9);
                 g.drawRect(mx - 8, my + 2, 16, 2);
@@ -451,9 +491,10 @@ const SeasonalEnv = {
 
     /* ─── OGOH-OGOH (Nyepi demon statue) in Pine Reserve ─── */
     _buildOgohOgoh(g, gy) {
-        const forest = (G.bldById && G.bldById['forest_0']) || BLDS.find(x => x.id === 'forest_0');
+        const forest = (G.bldById && G.bldById['forest_0']) || BLDS.find((x) => x.id === 'forest_0');
         if (!forest || !forest.x) return;
-        const ox = forest.x + forest.w * 0.6, oy = gy;
+        const ox = forest.x + forest.w * 0.6,
+            oy = gy;
 
         // Carrying platform (wooden base)
         g.beginFill(0x8b4513, 0.8);
@@ -488,8 +529,14 @@ const SeasonalEnv = {
 
         // Fangs
         g.beginFill(0xffffff);
-        g.moveTo(ox - 2, oy - 23); g.lineTo(ox - 1, oy - 20); g.lineTo(ox, oy - 23); g.closePath();
-        g.moveTo(ox + 1, oy - 23); g.lineTo(ox + 2, oy - 20); g.lineTo(ox + 3, oy - 23); g.closePath();
+        g.moveTo(ox - 2, oy - 23);
+        g.lineTo(ox - 1, oy - 20);
+        g.lineTo(ox, oy - 23);
+        g.closePath();
+        g.moveTo(ox + 1, oy - 23);
+        g.lineTo(ox + 2, oy - 20);
+        g.lineTo(ox + 3, oy - 23);
+        g.closePath();
         g.endFill();
 
         // Arms outstretched
@@ -517,16 +564,17 @@ const SeasonalEnv = {
 
     /* ─── OFRENDA (Día de los Muertos altar) at open_square ─── */
     _buildOfrenda(g, gy) {
-        const square = (G.bldById && G.bldById['open_square']) || BLDS.find(x => x.id === 'open_square');
+        const square = (G.bldById && G.bldById['open_square']) || BLDS.find((x) => x.id === 'open_square');
         if (!square || !square.x) return;
-        const ax = square.x + square.w * 0.5, ay = gy;
+        const ax = square.x + square.w * 0.5,
+            ay = gy;
 
         // Table / altar base (2 tiers)
         g.beginFill(0x8b4513);
-        g.drawRect(ax - 14, ay - 6, 28, 6);    // bottom tier
+        g.drawRect(ax - 14, ay - 6, 28, 6); // bottom tier
         g.endFill();
         g.beginFill(0xa0522d);
-        g.drawRect(ax - 10, ay - 14, 20, 8);   // top tier
+        g.drawRect(ax - 10, ay - 14, 20, 8); // top tier
         g.endFill();
 
         // Papel picado banner (cut paper)
@@ -544,7 +592,8 @@ const SeasonalEnv = {
         }
         // String
         g.lineStyle(0.8, 0x888888, 0.5);
-        g.moveTo(ax - 14, ay - 20); g.lineTo(ax + 14, ay - 20);
+        g.moveTo(ax - 14, ay - 20);
+        g.lineTo(ax + 14, ay - 20);
         g.lineStyle(0);
 
         // Candles on altar
@@ -577,11 +626,11 @@ const SeasonalEnv = {
         const eggColors = [0xff6b9d, 0x7dd3fc, 0xa5f3c0, 0xfde68a, 0xc4b5fd, 0xfb923c];
         const socialIds = ['forest_0', 'cafe', 'open_square', 'gym', 'arena', 'convention_center', 'bld_1'];
         const spots = socialIds
-            .map(id => (G.bldById && G.bldById[id]) || BLDS.find(x => x.id === id))
-            .filter(b => b && b.x && b.w);
+            .map((id) => (G.bldById && G.bldById[id]) || BLDS.find((x) => x.id === id))
+            .filter((b) => b && b.x && b.w);
         if (spots.length === 0) return;
 
-        spots.forEach(b => {
+        spots.forEach((b) => {
             const eggCount = 10 + Math.floor(Math.random() * 5);
             for (let ei = 0; ei < eggCount; ei++) {
                 const ex = b.x + 6 + (ei / eggCount) * (b.w - 12) + (Math.random() - 0.5) * 8;
@@ -612,7 +661,7 @@ const SeasonalEnv = {
         });
 
         // Easter Bunny on Pine Reserve
-        const forest = (G.bldById && G.bldById['forest_0']) || BLDS.find(x => x.id === 'forest_0');
+        const forest = (G.bldById && G.bldById['forest_0']) || BLDS.find((x) => x.id === 'forest_0');
         if (forest && forest.x) {
             const bx = forest.x + forest.w * 0.35;
             const by = gy - 5;
@@ -639,30 +688,40 @@ const SeasonalEnv = {
             g.beginFill(0xffffff);
             g.drawCircle(bx - 6, by - 1, 1.8);
             g.endFill();
-            const kx = bx + 14, ky = by;
+            const kx = bx + 14,
+                ky = by;
             g.beginFill(0x8b4513);
             g.drawRoundedRect(kx - 4, ky - 2, 8, 5, 1);
             g.endFill();
             g.lineStyle(0.5, 0x5c2d0c);
-            g.moveTo(kx - 4, ky - 2); g.lineTo(kx + 4, ky - 2);
+            g.moveTo(kx - 4, ky - 2);
+            g.lineTo(kx + 4, ky - 2);
             g.lineStyle(0);
             g.lineStyle(1, 0x8b4513);
-            g.moveTo(kx - 3, ky - 2); g.bezierCurveTo(kx - 3, ky - 8, kx + 3, ky - 8, kx + 3, ky - 2);
+            g.moveTo(kx - 3, ky - 2);
+            g.bezierCurveTo(kx - 3, ky - 8, kx + 3, ky - 8, kx + 3, ky - 2);
             g.lineStyle(0);
-            g.beginFill(0xff6b9d); g.drawEllipse(kx - 2, ky - 2, 1.3, 1.8); g.endFill();
-            g.beginFill(0x7dd3fc); g.drawEllipse(kx,     ky - 3, 1.3, 1.8); g.endFill();
-            g.beginFill(0xfde68a); g.drawEllipse(kx + 2, ky - 2, 1.3, 1.8); g.endFill();
+            g.beginFill(0xff6b9d);
+            g.drawEllipse(kx - 2, ky - 2, 1.3, 1.8);
+            g.endFill();
+            g.beginFill(0x7dd3fc);
+            g.drawEllipse(kx, ky - 3, 1.3, 1.8);
+            g.endFill();
+            g.beginFill(0xfde68a);
+            g.drawEllipse(kx + 2, ky - 2, 1.3, 1.8);
+            g.endFill();
         }
 
         // Pastel egg bunting
         const sortedByX = spots.slice().sort((a, b) => a.x - b.x);
         for (let i = 0; i < sortedByX.length - 1; i++) {
-            const a = sortedByX[i], c = sortedByX[i + 1];
+            const a = sortedByX[i],
+                c = sortedByX[i + 1];
             const gap = c.x - (a.x + a.w);
             if (gap < 20 || gap > 500) continue;
             const startX = a.x + a.w;
             const endX = c.x;
-            const anchorY = gy - Math.max((a.fl || 1), (c.fl || 1)) * 22 - 28;
+            const anchorY = gy - Math.max(a.fl || 1, c.fl || 1) * 22 - 28;
             const flagCount = Math.floor((endX - startX) / 18);
             for (let fi = 0; fi < flagCount; fi++) {
                 const t = fi / Math.max(1, flagCount - 1);
@@ -681,7 +740,8 @@ const SeasonalEnv = {
                     const nfx = startX + nt * (endX - startX);
                     const nfy = anchorY + Math.sin(nt * Math.PI) * 12;
                     g.lineStyle(0.8, 0xa0a0a0, 0.6);
-                    g.moveTo(fx, fy - 4); g.lineTo(nfx, nfy - 4);
+                    g.moveTo(fx, fy - 4);
+                    g.lineTo(nfx, nfy - 4);
                     g.lineStyle(0);
                 }
             }
@@ -693,7 +753,7 @@ const SeasonalEnv = {
         points = points || 5;
         const inner = r * 0.4;
         for (let i = 0; i < points * 2; i++) {
-            const angle = (Math.PI * 2 / (points * 2)) * i - Math.PI / 2;
+            const angle = ((Math.PI * 2) / (points * 2)) * i - Math.PI / 2;
             const rad = i % 2 === 0 ? r : inner;
             const px = cx + Math.cos(angle) * rad;
             const py = cy + Math.sin(angle) * rad;
@@ -711,7 +771,7 @@ const SeasonalEnv = {
 
         // Recreate overlay if destroyed by buildBuildings(), and rebuild content
         if (!this._overlayGfx || this._overlayGfx.destroyed) {
-            this._lastEvent = null;  // force rebuild
+            this._lastEvent = null; // force rebuild
             this.buildOverlays();
         }
 
@@ -719,7 +779,7 @@ const SeasonalEnv = {
         if (G.tick % 300 === 0) this.buildOverlays();
 
         // Twinkle fairy lights
-        this._fairyLights.forEach(fl => {
+        this._fairyLights.forEach((fl) => {
             const alpha = 0.3 + Math.abs(Math.sin(G.tick * 0.08 + fl.phase)) * 0.7;
             this.fxLayer.beginFill(fl.color, alpha);
             this.fxLayer.drawCircle(fl.x, fl.y, 1.5);
@@ -727,7 +787,7 @@ const SeasonalEnv = {
         });
 
         // Flicker diya / candle flames
-        this._diyas.forEach(d => {
+        this._diyas.forEach((d) => {
             const flicker = 0.5 + Math.abs(Math.sin(G.tick * 0.12 + d.phase)) * 0.5;
             const sway = Math.sin(G.tick * 0.06 + d.phase) * 0.5;
             // Outer glow
@@ -745,7 +805,7 @@ const SeasonalEnv = {
         });
 
         // Floating lantern glow (Mid-Autumn / Obon)
-        this._floatingLanterns.forEach(l => {
+        this._floatingLanterns.forEach((l) => {
             const pulse = 0.3 + Math.abs(Math.sin(G.tick * 0.04 + l.phase)) * 0.4;
             this.fxLayer.beginFill(0xffee88, pulse);
             this.fxLayer.drawCircle(l.x, l.y, 3);
@@ -753,7 +813,7 @@ const SeasonalEnv = {
         });
 
         // Songkran: animated water drops
-        if (evts.some(e => e.id === 'songkran')) {
+        if (evts.some((e) => e.id === 'songkran')) {
             this._updateWaterDrops();
         }
 
@@ -770,13 +830,14 @@ const SeasonalEnv = {
             const x = Math.random() * G.cityW;
             const colors = [0x4fc3f7, 0x29b6f6, 0x81d4fa];
             this._waterDrops.push({
-                x: x, y: 10 + Math.random() * 20,
+                x: x,
+                y: 10 + Math.random() * 20,
                 vx: (Math.random() - 0.5) * 2,
                 vy: 1 + Math.random() * 2,
                 life: 60 + Math.floor(Math.random() * 40),
                 maxLife: 100,
                 color: colors[Math.floor(Math.random() * colors.length)],
-                size: 1 + Math.random() * 2
+                size: 1 + Math.random() * 2,
             });
         }
         for (let i = this._waterDrops.length - 1; i >= 0; i--) {
@@ -811,16 +872,17 @@ const SeasonalEnv = {
             const col = burstColors[Math.floor(Math.random() * burstColors.length)];
             const count = 12 + Math.floor(Math.random() * 7);
             for (let i = 0; i < count; i++) {
-                const angle = (Math.PI * 2 / count) * i + Math.random() * 0.3;
+                const angle = ((Math.PI * 2) / count) * i + Math.random() * 0.3;
                 const speed = 1.5 + Math.random() * 2;
                 this._fireworks.push({
-                    x: cx, y: cy,
+                    x: cx,
+                    y: cy,
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed,
                     life: 60 + Math.floor(Math.random() * 40),
                     maxLife: 100,
                     color: col,
-                    size: 1.5 + Math.random()
+                    size: 1.5 + Math.random(),
                 });
             }
         }
@@ -842,5 +904,5 @@ const SeasonalEnv = {
                 this.fxLayer.endFill();
             }
         }
-    }
+    },
 };

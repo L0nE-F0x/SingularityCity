@@ -4,7 +4,6 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const InteriorAvatarStates = {
-
     updateAvatarStates(leftWall, rightWall, numFloors) {
         this.avatars.forEach((av, i) => {
             // Tracking highlight pulse
@@ -16,7 +15,7 @@ const InteriorAvatarStates = {
             if (av.isStaticRole) {
                 const bob = Math.sin(G.tick * 0.15 + i) * 1.5;
                 av.head.y = -32 + 4 + bob;
-                av.body.y = -32 + 12 + 4 + (bob * 0.5);
+                av.body.y = -32 + 12 + 4 + bob * 0.5;
                 if (av.legL && av.legR) {
                     av.legL.y = 0;
                     av.legR.y = 0;
@@ -33,17 +32,28 @@ const InteriorAvatarStates = {
             if (!av.m.isCeo && av.state !== 'gone') {
                 const _refs = G.charRefs[av.m.id];
                 if (_refs && _refs.wantsToLeave) {
-                    const _exitStates = ['walking_to_elevator_down', 'calling_lift', 'waiting_lift',
-                                         'delay_enter_lift', 'entering_lift', 'riding_lift', 'walking_out'];
+                    const _exitStates = [
+                        'walking_to_elevator_down',
+                        'calling_lift',
+                        'waiting_lift',
+                        'delay_enter_lift',
+                        'entering_lift',
+                        'riding_lift',
+                        'walking_out',
+                    ];
                     if (!_exitStates.includes(av.state)) {
                         // Stagger departures with a random delay so models don't all stampede
                         // to the elevator at once (0-3 seconds spread)
-                        if (typeof av._exitDelay === 'undefined') av._exitDelay = Math.floor(Math.random() * 180);
-                        if (av._exitDelay > 0) { av._exitDelay--; }
-                        else {
+                        if (typeof av._exitDelay === 'undefined')
+                            av._exitDelay = Math.floor(Math.random() * 180);
+                        if (av._exitDelay > 0) {
+                            av._exitDelay--;
+                        } else {
                             if (av.floorIdx === 0) {
                                 av.state = 'walking_out';
-                                av.targetX = this.startX + (this.bld.id === 'forest_0' ? this.bldW / 2 : this.usableW / 2);
+                                av.targetX =
+                                    this.startX +
+                                    (this.bld.id === 'forest_0' ? this.bldW / 2 : this.usableW / 2);
                             } else {
                                 av.state = 'walking_to_elevator_down';
                                 av.targetX = this.floors[av.floorIdx].elevatorX;
@@ -56,15 +66,20 @@ const InteriorAvatarStates = {
                 }
             }
 
-            if ((av.state === 'walking_to_prop' || av.state === 'returning') && av.timer <= 0 && !av.m.isCeo) {
-                let partner = this.avatars.find(other =>
-                    other !== av &&
-                    !other.isStaticRole &&
-                    !other.m.isCeo &&
-                    (other.state === 'walking_to_prop' || other.state === 'returning') &&
-                    other.floorIdx === av.floorIdx &&
-                    Math.abs(other.cont.x - av.cont.x) < 25 &&
-                    other.timer <= 0
+            if (
+                (av.state === 'walking_to_prop' || av.state === 'returning') &&
+                av.timer <= 0 &&
+                !av.m.isCeo
+            ) {
+                let partner = this.avatars.find(
+                    (other) =>
+                        other !== av &&
+                        !other.isStaticRole &&
+                        !other.m.isCeo &&
+                        (other.state === 'walking_to_prop' || other.state === 'returning') &&
+                        other.floorIdx === av.floorIdx &&
+                        Math.abs(other.cont.x - av.cont.x) < 25 &&
+                        other.timer <= 0
                 );
 
                 if (partner && Math.random() < 0.1) {
@@ -79,13 +94,26 @@ const InteriorAvatarStates = {
                     av.cont.scale.x = Math.sign(partner.cont.x - av.cont.x) || 1;
                     partner.cont.scale.x = Math.sign(av.cont.x - partner.cont.x) || -1;
 
-                    const topics = ["AGI timelines?", "Need more H100s.", "My loss curve...", "Open weights?", "Synthetic data is key.", "RLHF is tedious."];
+                    const topics = [
+                        'AGI timelines?',
+                        'Need more H100s.',
+                        'My loss curve...',
+                        'Open weights?',
+                        'Synthetic data is key.',
+                        'RLHF is tedious.',
+                    ];
                     this.spawnBubble(av, topics[Math.floor(Math.random() * topics.length)]);
 
                     setTimeout(() => {
                         if (!this.layer || !this.layer.visible || G.activeInterior !== this.bld.id) return;
                         if (partner.state === 'chatting') {
-                            const replies = ["Agreed.", "Not scalable.", "Pfft, closed source.", "Compute is king.", "Data wall approaching."];
+                            const replies = [
+                                'Agreed.',
+                                'Not scalable.',
+                                'Pfft, closed source.',
+                                'Compute is king.',
+                                'Data wall approaching.',
+                            ];
                             this.spawnBubble(partner, replies[Math.floor(Math.random() * replies.length)]);
                         }
                     }, 1500);
@@ -93,7 +121,6 @@ const InteriorAvatarStates = {
             }
 
             switch (av.state) {
-
                 case 'ceo_entering': {
                     this.animateWalk(av);
                     const dxEnter = this.floors[-1].elevatorX - av.cont.x;
@@ -108,18 +135,23 @@ const InteriorAvatarStates = {
                 }
                 case 'ceo_calling_up': {
                     const cLiftUp = this.getLift(this.bld.id);
-                    if (cLiftUp) { cLiftUp.call(-1); av.state = 'ceo_waiting_up'; }
+                    if (cLiftUp) {
+                        cLiftUp.call(-1);
+                        av.state = 'ceo_waiting_up';
+                    }
                     break;
                 }
                 case 'ceo_waiting_up': {
                     const wLiftUp = this.getLift(this.bld.id);
                     if (wLiftUp && wLiftUp.currentFloor === -1 && wLiftUp.state === 'open') {
-                        av.timer = 20; av.state = 'ceo_delay_up';
+                        av.timer = 20;
+                        av.state = 'ceo_delay_up';
                     }
                     break;
                 }
                 case 'ceo_delay_up': {
-                    av.timer--; if (av.timer <= 0) av.state = 'ceo_riding_up';
+                    av.timer--;
+                    if (av.timer <= 0) av.state = 'ceo_riding_up';
                     break;
                 }
                 case 'ceo_riding_up': {
@@ -127,7 +159,7 @@ const InteriorAvatarStates = {
                     if (rLiftUp) {
                         av.cont.visible = false;
                         rLiftUp.call(numFloors - 1);
-                        av.cont.y = (this.totalH - 80 - 4) + rLiftUp.car.y;
+                        av.cont.y = this.totalH - 80 - 4 + rLiftUp.car.y;
                         if (rLiftUp.currentFloor === numFloors - 1 && rLiftUp.state === 'open') {
                             av.cont.y = this.floors[numFloors - 1].y;
                             av.cont.visible = true;
@@ -138,7 +170,10 @@ const InteriorAvatarStates = {
                     break;
                 }
                 case 'ceo_walking_to_desk': {
-                    if (av.legL && av.legR) { av.legL.rotation = 0; av.legR.rotation = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.rotation = 0;
+                        av.legR.rotation = 0;
+                    }
                     this.animateWalk(av);
                     const dx = av.deskX - av.cont.x;
                     if (Math.abs(dx) < av.speed) {
@@ -169,13 +204,23 @@ const InteriorAvatarStates = {
                             av.legR.y = -4;
                         }
                         if (Math.random() < 0.002 && this.bubbles.length < 5) {
-                            this.spawnBubble(av, ["Reviewing the benchmarks.", "Check the stock price.", "We need more compute."][Math.floor(Math.random()*3)]);
+                            this.spawnBubble(
+                                av,
+                                [
+                                    'Reviewing the benchmarks.',
+                                    'Check the stock price.',
+                                    'We need more compute.',
+                                ][Math.floor(Math.random() * 3)]
+                            );
                         }
                     }
                     break;
                 }
                 case 'ceo_wandering': {
-                    if (av.legL && av.legR) { av.legL.rotation = 0; av.legR.rotation = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.rotation = 0;
+                        av.legR.rotation = 0;
+                    }
                     this.animateWalk(av);
                     const dxWander = av.targetX - av.cont.x;
                     if (Math.abs(dxWander) < av.speed) {
@@ -191,7 +236,10 @@ const InteriorAvatarStates = {
                 case 'ceo_standing': {
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.05) * 1.5;
                     av.body.y = -32 + 12 + 4;
-                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
 
                     av.timer--;
                     if (av.timer <= 0) {
@@ -203,12 +251,20 @@ const InteriorAvatarStates = {
                         }
                     }
                     if (Math.random() < 0.005 && this.bubbles.length < 5) {
-                        this.spawnBubble(av, ["Looking good.", "The city is growing.", "Need to align the models."][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Looking good.', 'The city is growing.', 'Need to align the models.'][
+                                Math.floor(Math.random() * 3)
+                            ]
+                        );
                     }
                     break;
                 }
                 case 'ceo_leaving': {
-                    if (av.legL && av.legR) { av.legL.rotation = 0; av.legR.rotation = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.rotation = 0;
+                        av.legR.rotation = 0;
+                    }
                     this.animateWalk(av);
                     const dxLeave = this.floors[numFloors - 1].elevatorX - av.cont.x;
                     if (Math.abs(dxLeave) < av.speed) {
@@ -222,18 +278,23 @@ const InteriorAvatarStates = {
                 }
                 case 'ceo_calling_down': {
                     const cLiftDn = this.getLift(this.bld.id);
-                    if (cLiftDn) { cLiftDn.call(numFloors - 1); av.state = 'ceo_waiting_down'; }
+                    if (cLiftDn) {
+                        cLiftDn.call(numFloors - 1);
+                        av.state = 'ceo_waiting_down';
+                    }
                     break;
                 }
                 case 'ceo_waiting_down': {
                     const wLiftDn = this.getLift(this.bld.id);
                     if (wLiftDn && wLiftDn.currentFloor === numFloors - 1 && wLiftDn.state === 'open') {
-                        av.timer = 20; av.state = 'ceo_delay_down';
+                        av.timer = 20;
+                        av.state = 'ceo_delay_down';
                     }
                     break;
                 }
                 case 'ceo_delay_down': {
-                    av.timer--; if (av.timer <= 0) av.state = 'ceo_riding_down';
+                    av.timer--;
+                    if (av.timer <= 0) av.state = 'ceo_riding_down';
                     break;
                 }
                 case 'ceo_riding_down': {
@@ -241,7 +302,7 @@ const InteriorAvatarStates = {
                     if (rLiftDn) {
                         av.cont.visible = false;
                         rLiftDn.call(-1);
-                        av.cont.y = (this.totalH - 80 - 4) + rLiftDn.car.y;
+                        av.cont.y = this.totalH - 80 - 4 + rLiftDn.car.y;
                         if (rLiftDn.currentFloor === -1 && rLiftDn.state === 'open') {
                             av.cont.y = this.totalH - 80 - 4;
                             av.cont.visible = true;
@@ -253,7 +314,7 @@ const InteriorAvatarStates = {
                 }
                 case 'ceo_walking_to_car': {
                     this.animateWalk(av);
-                    const dxCar = (this.startX + 180) - av.cont.x;
+                    const dxCar = this.startX + 180 - av.cont.x;
                     if (Math.abs(dxCar) < av.speed) {
                         av.cont.visible = false;
                         av.state = 'ceo_driving_out';
@@ -272,7 +333,7 @@ const InteriorAvatarStates = {
                     av._driveOutTick++;
                     if (this.ceoCarGfx) {
                         const t = av._driveOutTick / 90;
-                        this.ceoCarGfx.x = this.ceoCarGfx._origX + (t * t * 300);
+                        this.ceoCarGfx.x = this.ceoCarGfx._origX + t * t * 300;
                         this.ceoCarGfx.alpha = Math.max(0, 1 - t * 1.2);
                     }
                     if (av._driveOutTick >= 90) {
@@ -320,7 +381,10 @@ const InteriorAvatarStates = {
                 }
                 case 'calling_lift_up': {
                     const lift = this.getLift(this.bld.id);
-                    if (lift) { lift.call(0); av.state = 'waiting_lift_up'; }
+                    if (lift) {
+                        lift.call(0);
+                        av.state = 'waiting_lift_up';
+                    }
                     break;
                 }
                 case 'waiting_lift_up': {
@@ -341,7 +405,7 @@ const InteriorAvatarStates = {
                     if (lift) {
                         av.cont.visible = false;
                         lift.call(av.floorIdx);
-                        av.cont.y = (this.totalH - 80 - 4) + lift.car.y;
+                        av.cont.y = this.totalH - 80 - 4 + lift.car.y;
                         if (lift.currentFloor === av.floorIdx && lift.state === 'open') {
                             av.cont.y = av.floorY;
                             av.cont.visible = true;
@@ -371,7 +435,10 @@ const InteriorAvatarStates = {
                     av.cont.y = av.floorY;
                     av.head.y = -32 + 10 + Math.sin(G.tick * 0.02 + i) * 0.5;
                     av.body.y = -32 + 14;
-                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
 
                     if (!av.propGfx) {
                         av.propGfx = new PIXI.Graphics();
@@ -388,7 +455,12 @@ const InteriorAvatarStates = {
                     av.propGfx.endFill();
 
                     if (Math.random() < 0.002 && this.bubbles.length < 10) {
-                        this.spawnBubble(av, ["Perfect marshmallow.", "Campfire vibes.", "Nature is optimal."][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Perfect marshmallow.', 'Campfire vibes.', 'Nature is optimal.'][
+                                Math.floor(Math.random() * 3)
+                            ]
+                        );
                     }
                     if (Math.random() < 0.001) {
                         let offset = Math.random() > 0.5 ? 40 : -40;
@@ -402,7 +474,10 @@ const InteriorAvatarStates = {
                     av.cont.y = av.floorY;
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.05 + i) * 1;
                     av.body.y = -32 + 12 + 4;
-                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
 
                     if (!av.propGfx) {
                         av.propGfx = new PIXI.Graphics();
@@ -420,7 +495,12 @@ const InteriorAvatarStates = {
                     av.propGfx.lineStyle(0);
 
                     if (Math.random() < 0.002 && this.bubbles.length < 10) {
-                        this.spawnBubble(av, ["Got a bite!", "Fishing for data.", "So peaceful."][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Got a bite!', 'Fishing for data.', 'So peaceful.'][
+                                Math.floor(Math.random() * 3)
+                            ]
+                        );
                     }
                     break;
                 }
@@ -429,10 +509,18 @@ const InteriorAvatarStates = {
                     av.cont.y = av.floorY;
                     av.head.y = -32 + 8 + Math.sin(G.tick * 0.05 + i) * 1;
                     av.body.y = -32 + 12 + 4;
-                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
 
                     if (Math.random() < 0.002 && this.bubbles.length < 10) {
-                        this.spawnBubble(av, ["Great sandwich.", "Lovely weather.", "Pass the potato salad."][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Great sandwich.', 'Lovely weather.', 'Pass the potato salad.'][
+                                Math.floor(Math.random() * 3)
+                            ]
+                        );
                     }
                     if (Math.random() < 0.001) {
                         let offset = Math.random() > 0.5 ? 40 : -40;
@@ -449,18 +537,36 @@ const InteriorAvatarStates = {
                     av.cont.scale.x = -1;
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.03 + i) * 0.5;
                     av.body.y = -32 + 12 + 4;
-                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
-                    if (!av.propGfx) { av.propGfx = new PIXI.Graphics(); av.cont.addChild(av.propGfx); }
+                    if (av.legL && av.legR) {
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
+                    if (!av.propGfx) {
+                        av.propGfx = new PIXI.Graphics();
+                        av.cont.addChild(av.propGfx);
+                    }
                     av.propGfx.visible = true;
                     av.propGfx.clear();
-                    av.propGfx.beginFill(0xfbbf24, 0.6); av.propGfx.drawRect(6, -10, 4, 6); av.propGfx.endFill();
-                    av.propGfx.beginFill(0xffffff, 0.3); av.propGfx.drawRect(6, -12, 4, 2); av.propGfx.endFill();
+                    av.propGfx.beginFill(0xfbbf24, 0.6);
+                    av.propGfx.drawRect(6, -10, 4, 6);
+                    av.propGfx.endFill();
+                    av.propGfx.beginFill(0xffffff, 0.3);
+                    av.propGfx.drawRect(6, -12, 4, 2);
+                    av.propGfx.endFill();
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
-                        this.spawnBubble(av, ["Smooth.", "Peaty. Perfect.", "To AGI.", "Another round.", "Single malt only."][Math.floor(Math.random()*5)]);
+                        this.spawnBubble(
+                            av,
+                            ['Smooth.', 'Peaty. Perfect.', 'To AGI.', 'Another round.', 'Single malt only.'][
+                                Math.floor(Math.random() * 5)
+                            ]
+                        );
                     }
                     if (Math.random() < 0.0008) {
-                        av.targetX = Math.max(leftWall, Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 80));
+                        av.targetX = Math.max(
+                            leftWall,
+                            Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 80)
+                        );
                         av.state = 'walking_to_prop';
                     }
                     break;
@@ -472,8 +578,14 @@ const InteriorAvatarStates = {
                     av.cont.scale.x = 1;
                     av.head.y = -32 + 6 + Math.abs(pStroke) * 2;
                     av.body.y = -32 + 12 + 4 + Math.abs(pStroke);
-                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
-                    if (!av.propGfx) { av.propGfx = new PIXI.Graphics(); av.cont.addChild(av.propGfx); }
+                    if (av.legL && av.legR) {
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
+                    if (!av.propGfx) {
+                        av.propGfx = new PIXI.Graphics();
+                        av.cont.addChild(av.propGfx);
+                    }
                     av.propGfx.visible = true;
                     av.propGfx.clear();
                     av.propGfx.lineStyle(1, 0x94a3b8);
@@ -482,10 +594,18 @@ const InteriorAvatarStates = {
                     av.propGfx.lineStyle(0);
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
-                        this.spawnBubble(av, ["Under par.", "Fore!", "Hole in one.", "Nice lie.", "Needs more backspin."][Math.floor(Math.random()*5)]);
+                        this.spawnBubble(
+                            av,
+                            ['Under par.', 'Fore!', 'Hole in one.', 'Nice lie.', 'Needs more backspin.'][
+                                Math.floor(Math.random() * 5)
+                            ]
+                        );
                     }
                     if (Math.random() < 0.0008) {
-                        av.targetX = Math.max(leftWall, Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 80));
+                        av.targetX = Math.max(
+                            leftWall,
+                            Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 80)
+                        );
                         av.state = 'walking_to_prop';
                     }
                     break;
@@ -502,7 +622,16 @@ const InteriorAvatarStates = {
                     }
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
-                        this.spawnBubble(av, ["Ahhh...", "This is the life.", "108°F, perfect.", "Should've IPO'd sooner.", "Pure bliss."][Math.floor(Math.random()*5)]);
+                        this.spawnBubble(
+                            av,
+                            [
+                                'Ahhh...',
+                                'This is the life.',
+                                '108°F, perfect.',
+                                "Should've IPO'd sooner.",
+                                'Pure bliss.',
+                            ][Math.floor(Math.random() * 5)]
+                        );
                     }
                     break;
                 }
@@ -520,10 +649,22 @@ const InteriorAvatarStates = {
                     }
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
-                        this.spawnBubble(av, ["See that star?", "The embers...", "When's the singularity?", "I can smell the pines.", "Compute under the stars."][Math.floor(Math.random()*5)]);
+                        this.spawnBubble(
+                            av,
+                            [
+                                'See that star?',
+                                'The embers...',
+                                "When's the singularity?",
+                                'I can smell the pines.',
+                                'Compute under the stars.',
+                            ][Math.floor(Math.random() * 5)]
+                        );
                     }
                     if (Math.random() < 0.0008) {
-                        av.targetX = Math.max(leftWall, Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 60));
+                        av.targetX = Math.max(
+                            leftWall,
+                            Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 60)
+                        );
                         av.state = 'walking_to_prop';
                     }
                     break;
@@ -536,13 +677,28 @@ const InteriorAvatarStates = {
                     av.cont.scale.x = 1;
                     av.head.y = -32 + 6 + Math.sin(G.tick * 0.015 + i) * 0.5;
                     av.body.y = -32 + 12 + 6;
-                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
-                        this.spawnBubble(av, ["I see the rocket!", "Tracking the trajectory.", "Starlink visible!", "Is that a satellite?", "Beautiful orbit."][Math.floor(Math.random()*5)]);
+                        this.spawnBubble(
+                            av,
+                            [
+                                'I see the rocket!',
+                                'Tracking the trajectory.',
+                                'Starlink visible!',
+                                'Is that a satellite?',
+                                'Beautiful orbit.',
+                            ][Math.floor(Math.random() * 5)]
+                        );
                     }
                     if (Math.random() < 0.001) {
-                        av.targetX = Math.max(leftWall, Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 60));
+                        av.targetX = Math.max(
+                            leftWall,
+                            Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 60)
+                        );
                         av.state = 'walking_to_prop';
                     }
                     break;
@@ -560,10 +716,22 @@ const InteriorAvatarStates = {
                     }
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
-                        this.spawnBubble(av, ["Great spot to watch!", "Pass the coffee.", "T-minus vibes.", "The countdown board says soon!", "Love launch days."][Math.floor(Math.random()*5)]);
+                        this.spawnBubble(
+                            av,
+                            [
+                                'Great spot to watch!',
+                                'Pass the coffee.',
+                                'T-minus vibes.',
+                                'The countdown board says soon!',
+                                'Love launch days.',
+                            ][Math.floor(Math.random() * 5)]
+                        );
                     }
                     if (Math.random() < 0.0008) {
-                        av.targetX = Math.max(leftWall, Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 80));
+                        av.targetX = Math.max(
+                            leftWall,
+                            Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 80)
+                        );
                         av.state = 'walking_to_prop';
                     }
                     break;
@@ -574,10 +742,22 @@ const InteriorAvatarStates = {
                     av.head.y = -32 + 2 + Math.sin(G.tick * 0.01 + i) * 1;
                     av.body.y = -32 + 12 + 4;
                     av.cont.scale.x = Math.sign(Math.sin(G.tick * 0.005 + i)) || 1;
-                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
-                        this.spawnBubble(av, ["There it goes!", "Max-Q!", "Booster separation!", "Look at that plume!", "Godspeed!"][Math.floor(Math.random()*5)]);
+                        this.spawnBubble(
+                            av,
+                            [
+                                'There it goes!',
+                                'Max-Q!',
+                                'Booster separation!',
+                                'Look at that plume!',
+                                'Godspeed!',
+                            ][Math.floor(Math.random() * 5)]
+                        );
                     }
                     break;
                 }
@@ -587,18 +767,37 @@ const InteriorAvatarStates = {
                     av.cont.scale.x = -1;
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.05 + i) * 1;
                     av.body.y = -32 + 12 + 4;
-                    if (av.legL && av.legR) { av.legL.y = 0; av.legR.y = 0; }
+                    if (av.legL && av.legR) {
+                        av.legL.y = 0;
+                        av.legR.y = 0;
+                    }
 
-                    if (!av.propGfx) { av.propGfx = new PIXI.Graphics(); av.cont.addChild(av.propGfx); }
+                    if (!av.propGfx) {
+                        av.propGfx = new PIXI.Graphics();
+                        av.cont.addChild(av.propGfx);
+                    }
                     av.propGfx.visible = true;
                     av.propGfx.clear();
-                    av.propGfx.beginFill(0x22d3ee, 0.6); av.propGfx.drawRect(6, -10, 4, 7); av.propGfx.endFill();
+                    av.propGfx.beginFill(0x22d3ee, 0.6);
+                    av.propGfx.drawRect(6, -10, 4, 7);
+                    av.propGfx.endFill();
 
                     if (Math.random() < 0.002 && this.bubbles.length < 8) {
-                        this.spawnBubble(av, ["Hot cocoa time.", "Need more popcorn.", "Best snack stand.", "Fuel for the countdown."][Math.floor(Math.random()*4)]);
+                        this.spawnBubble(
+                            av,
+                            [
+                                'Hot cocoa time.',
+                                'Need more popcorn.',
+                                'Best snack stand.',
+                                'Fuel for the countdown.',
+                            ][Math.floor(Math.random() * 4)]
+                        );
                     }
                     if (Math.random() < 0.001) {
-                        av.targetX = Math.max(leftWall, Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 100));
+                        av.targetX = Math.max(
+                            leftWall,
+                            Math.min(rightWall, av.deskX + (Math.random() - 0.5) * 100)
+                        );
                         av.state = 'walking_to_prop';
                     }
                     break;
@@ -616,7 +815,12 @@ const InteriorAvatarStates = {
                             av.legR.y = -Math.sin(G.tick * 0.15) * 2;
                         }
                         if (Math.random() < 0.002 && this.bubbles.length < 15) {
-                            this.spawnBubble(av, ["Temps stable.", "Coolant optimal.", "Checking nodes.", "Hardware healthy."][Math.floor(Math.random()*4)]);
+                            this.spawnBubble(
+                                av,
+                                ['Temps stable.', 'Coolant optimal.', 'Checking nodes.', 'Hardware healthy.'][
+                                    Math.floor(Math.random() * 4)
+                                ]
+                            );
                         }
                     } else if (av.jobTheme === 'zen_garden') {
                         av.cont.x = av.deskX;
@@ -629,7 +833,12 @@ const InteriorAvatarStates = {
                             av.legR.y = 0;
                         }
                         if (Math.random() < 0.002 && this.bubbles.length < 15) {
-                            this.spawnBubble(av, ["...", "Clearing cache.", "Watching the gecko.", "Peace."][Math.floor(Math.random()*4)]);
+                            this.spawnBubble(
+                                av,
+                                ['...', 'Clearing cache.', 'Watching the gecko.', 'Peace.'][
+                                    Math.floor(Math.random() * 4)
+                                ]
+                            );
                         }
                     } else if (av.jobTheme === 'arcade') {
                         av.cont.x = av.deskX;
@@ -642,7 +851,12 @@ const InteriorAvatarStates = {
                             av.legR.y = 0;
                         }
                         if (Math.random() < 0.002 && this.bubbles.length < 15) {
-                            this.spawnBubble(av, ["Leveling my starter...", "Match point.", "Decompressing.", "High score!"][Math.floor(Math.random()*4)]);
+                            this.spawnBubble(
+                                av,
+                                ['Leveling my starter...', 'Match point.', 'Decompressing.', 'High score!'][
+                                    Math.floor(Math.random() * 4)
+                                ]
+                            );
                         }
                     } else {
                         // Default 'general' (cubicle) workspace — avatar sits at their desk.
@@ -652,7 +866,7 @@ const InteriorAvatarStates = {
 
                         if (av.isSeated) {
                             // Sit pose: body lower, legs folded back like CEO seated pose.
-                            av.head.y = -32 + 6 + Math.sin(G.tick * 0.10 + i) * 1.2;
+                            av.head.y = -32 + 6 + Math.sin(G.tick * 0.1 + i) * 1.2;
                             av.body.y = -32 + 14;
                             if (av.legL && av.legR) {
                                 av.legL.rotation = -Math.PI / 2;
@@ -663,7 +877,7 @@ const InteriorAvatarStates = {
                         } else {
                             // Standing fallback for non-seat floors / leftover avatars.
                             av.head.y = -32 + 4 + Math.sin(G.tick * 0.15 + i) * 1.5;
-                            av.body.y = -32 + 12 + 4 + (Math.sin(G.tick * 0.15 + i) * 1.5 * 0.5);
+                            av.body.y = -32 + 12 + 4 + Math.sin(G.tick * 0.15 + i) * 1.5 * 0.5;
                             if (av.legL && av.legR) {
                                 av.legL.rotation = 0;
                                 av.legR.rotation = 0;
@@ -682,9 +896,10 @@ const InteriorAvatarStates = {
                         // each time they return from a break.
                         if (typeof av.nextBreakTick === 'number' && G.tick >= av.nextBreakTick) {
                             const props = this.floors[av.floorIdx] && this.floors[av.floorIdx].breakSpots;
-                            av.targetX = (props && props.length > 0)
-                                ? props[Math.floor(Math.random() * props.length)]
-                                : leftWall + Math.random() * (rightWall - leftWall);
+                            av.targetX =
+                                props && props.length > 0
+                                    ? props[Math.floor(Math.random() * props.length)]
+                                    : leftWall + Math.random() * (rightWall - leftWall);
                             // Reset seated leg rotation BEFORE walking, otherwise legs
                             // remain folded sideways and the avatar moonwalks to coffee.
                             if (av.legL && av.legR) {
@@ -702,14 +917,14 @@ const InteriorAvatarStates = {
 
                 case 'chatting': {
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.1 + i) * 1.5;
-                    av.body.y = -32 + 12 + 4 + (Math.sin(G.tick * 0.1 + i) * 1.5 * 0.5);
+                    av.body.y = -32 + 12 + 4 + Math.sin(G.tick * 0.1 + i) * 1.5 * 0.5;
                     if (av.legL && av.legR) {
                         av.legL.y = 0;
                         av.legR.y = 0;
                     }
 
                     if (Math.random() < 0.01 && this.bubbles.length < 15) {
-                        const chats = ["Interesting.", "Hmm...", "Parameter count?", "Check my benchmarks."];
+                        const chats = ['Interesting.', 'Hmm...', 'Parameter count?', 'Check my benchmarks.'];
                         this.spawnBubble(av, chats[Math.floor(Math.random() * chats.length)]);
                     }
 
@@ -731,13 +946,19 @@ const InteriorAvatarStates = {
                         av.legR.y = 0;
                     }
                     if (Math.random() < 0.001 && this.bubbles.length < 5) {
-                        this.spawnBubble(av, ["Zzz...", "Legacy code...", "Deprecated."][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Zzz...', 'Legacy code...', 'Deprecated.'][Math.floor(Math.random() * 3)]
+                        );
                     }
                     break;
                 }
 
                 case 'collaborating': {
-                    av.cont.x = Math.max(leftWall, Math.min(rightWall, av.deskX + Math.sin(G.tick * 0.05 + i) * 15));
+                    av.cont.x = Math.max(
+                        leftWall,
+                        Math.min(rightWall, av.deskX + Math.sin(G.tick * 0.05 + i) * 15)
+                    );
                     av.cont.y = av.floorY;
                     av.cont.scale.x = Math.sign(Math.sin(G.tick * 0.05 + i)) || 1;
                     av.head.y = -32 + 4 + Math.sin(G.tick * 0.2 + i) * 1.5;
@@ -747,7 +968,10 @@ const InteriorAvatarStates = {
                         av.legR.y = -Math.sin(G.tick * 0.2 + i) * 2;
                     }
                     if (Math.random() < 0.002 && this.bubbles.length < 10) {
-                        this.spawnBubble(av, ["Merging PR...", "Open weights!", "LGTM!"][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Merging PR...', 'Open weights!', 'LGTM!'][Math.floor(Math.random() * 3)]
+                        );
                     }
                     break;
                 }
@@ -762,7 +986,10 @@ const InteriorAvatarStates = {
                         av.legR.y = 0;
                     }
                     if (Math.random() < 0.002 && this.bubbles.length < 10) {
-                        this.spawnBubble(av, ["Great coffee.", "Need more compute.", "Resting."][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Great coffee.', 'Need more compute.', 'Resting.'][Math.floor(Math.random() * 3)]
+                        );
                     }
                     if (Math.random() < 0.001) {
                         let offset = Math.random() > 0.5 ? 40 : -40;
@@ -782,25 +1009,39 @@ const InteriorAvatarStates = {
                         av.legR.y = -Math.sin(G.tick * 0.4 + i) * 3;
                     }
                     if (Math.random() < 0.002 && this.bubbles.length < 10) {
-                        this.spawnBubble(av, ["Feel the burn!", "Optimizing...", "Heavy weights!"][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Feel the burn!', 'Optimizing...', 'Heavy weights!'][
+                                Math.floor(Math.random() * 3)
+                            ]
+                        );
                     }
                     break;
                 }
 
                 case 'fighting': {
-                    av.cont.x = Math.max(leftWall, Math.min(rightWall, av.deskX + Math.sin(G.tick * 0.1 + i) * 30));
+                    av.cont.x = Math.max(
+                        leftWall,
+                        Math.min(rightWall, av.deskX + Math.sin(G.tick * 0.1 + i) * 30)
+                    );
                     av.cont.y = av.floorY - Math.abs(Math.sin(G.tick * 0.3 + i)) * 10;
                     av.cont.scale.x = Math.sign(Math.sin(G.tick * 0.05 + i)) || 1;
                     av.head.y = -32 + 4;
                     av.body.y = -32 + 12 + 4;
                     if (Math.random() < 0.002 && this.bubbles.length < 10) {
-                        this.spawnBubble(av, ["Take that!", "My ELO!", "Dodge!"][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Take that!', 'My ELO!', 'Dodge!'][Math.floor(Math.random() * 3)]
+                        );
                     }
                     break;
                 }
 
                 case 'playing': {
-                    av.cont.x = Math.max(leftWall, Math.min(rightWall, av.deskX + Math.sin(G.tick * 0.03 + i) * 30));
+                    av.cont.x = Math.max(
+                        leftWall,
+                        Math.min(rightWall, av.deskX + Math.sin(G.tick * 0.03 + i) * 30)
+                    );
                     let floatY = Math.sin(G.tick * 0.04 + i) * 20;
                     av.cont.y = av.floorY - 25 + floatY;
                     av.cont.scale.x = Math.sign(Math.sin(G.tick * 0.05 + i)) || 1;
@@ -811,7 +1052,12 @@ const InteriorAvatarStates = {
                         av.legR.y = 0;
                     }
                     if (Math.random() < 0.002 && this.bubbles.length < 10) {
-                        this.spawnBubble(av, ["Absorbing data...", "Epoch 1...", "Loss dropping..."][Math.floor(Math.random()*3)]);
+                        this.spawnBubble(
+                            av,
+                            ['Absorbing data...', 'Epoch 1...', 'Loss dropping...'][
+                                Math.floor(Math.random() * 3)
+                            ]
+                        );
                     }
                     break;
                 }
@@ -830,9 +1076,14 @@ const InteriorAvatarStates = {
                     }
                     if (Math.random() < 0.003 && this.bubbles.length < 10) {
                         const breakChats = [
-                            "\u2615 Refilling.", "Brain reset.", "Quick stretch.",
-                            "Need caffeine.", "Hot take incoming.", "Did you see the leaderboard?",
-                            "Compute is up today.", "Back in five."
+                            '\u2615 Refilling.',
+                            'Brain reset.',
+                            'Quick stretch.',
+                            'Need caffeine.',
+                            'Hot take incoming.',
+                            'Did you see the leaderboard?',
+                            'Compute is up today.',
+                            'Back in five.',
                         ];
                         this.spawnBubble(av, breakChats[Math.floor(Math.random() * breakChats.length)]);
                     }
@@ -854,15 +1105,21 @@ const InteriorAvatarStates = {
                             av.state = 'at_prop';
                             av.timer = 150 + Math.random() * 200;
                             if (Math.random() > 0.5 && this.bld.id !== 'graveyard') {
-                                this.spawnBubble(av, "\u2615 Refreshing.");
+                                this.spawnBubble(av, '\u2615 Refreshing.');
                             }
                         } else if (av.state === 'returning') {
-                            av.state = this.bld.id === 'cafe' ? 'chilling' :
-                                       this.bld.id === 'gym' ? 'working_out' :
-                                       this.bld.id === 'arena' ? 'fighting' :
-                                       this.bld.id === 'graveyard' ? 'resting' :
-                                       (this.bld.id === 'open_square' || this.bld.id === 'os_hub') ? 'collaborating' :
-                                       'working';
+                            av.state =
+                                this.bld.id === 'cafe'
+                                    ? 'chilling'
+                                    : this.bld.id === 'gym'
+                                      ? 'working_out'
+                                      : this.bld.id === 'arena'
+                                        ? 'fighting'
+                                        : this.bld.id === 'graveyard'
+                                          ? 'resting'
+                                          : this.bld.id === 'open_square' || this.bld.id === 'os_hub'
+                                            ? 'collaborating'
+                                            : 'working';
                             // Re-roll the next break: sit for another 30s\u201390s.
                             av.nextBreakTick = G.tick + 1800 + Math.floor(Math.random() * 3600);
                         }
@@ -876,7 +1133,8 @@ const InteriorAvatarStates = {
                 case 'walking_to_elevator_down': {
                     if (av.floorIdx === 0) {
                         av.state = 'walking_out';
-                        av.targetX = this.startX + (this.bld.id === 'forest_0' ? this.bldW / 2 : this.usableW / 2);
+                        av.targetX =
+                            this.startX + (this.bld.id === 'forest_0' ? this.bldW / 2 : this.usableW / 2);
                     } else {
                         av.cont.rotation = 0;
                         this.animateWalk(av);
@@ -959,7 +1217,7 @@ const InteriorAvatarStates = {
                         if (refs) {
                             refs.bld = null;
                             refs.wantsToLeave = false;
-                            refs.c.x = G.bldById[this.bld.id].x + (G.bldById[this.bld.id].w / 2);
+                            refs.c.x = G.bldById[this.bld.id].x + G.bldById[this.bld.id].w / 2;
                             refs.c.visible = true;
                         }
                     } else {
@@ -970,5 +1228,5 @@ const InteriorAvatarStates = {
                 }
             }
         });
-    }
+    },
 };

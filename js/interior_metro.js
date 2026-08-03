@@ -23,12 +23,16 @@ const InteriorMetroStation = {
     minY: 0,
     maxY: 0,
     STATION_THEME: {
-        'metro_dc':        { col: 0x06b6d4, label: 'COMPUTE DISTRICT',   sub: 'Line 1 · Westbound Terminus' },
-        'metro_res':       { col: 0x38bdf8, label: 'RESIDENTIAL SECTOR', sub: 'Line 1 · Residential' },
-        'metro_hq':        { col: 0xfacc15, label: 'TECH DISTRICT',      sub: 'Line 1 · Lab Row Interchange' },
-        'metro_mid':       { col: 0xf97316, label: 'CENTRAL LINE',       sub: 'Line 2 · Mid-Tech' },
-        'metro_east':      { col: 0xa855f7, label: 'EASTERN HUB',        sub: 'Line 2 · Neon Quarter' },
-        'metro_longevity': { col: 0x22c55e, label: 'INNOVATION LINE',    sub: 'Line 2 · Innovation Corridor Terminus' }
+        metro_dc: { col: 0x06b6d4, label: 'COMPUTE DISTRICT', sub: 'Line 1 · Westbound Terminus' },
+        metro_res: { col: 0x38bdf8, label: 'RESIDENTIAL SECTOR', sub: 'Line 1 · Residential' },
+        metro_hq: { col: 0xfacc15, label: 'TECH DISTRICT', sub: 'Line 1 · Lab Row Interchange' },
+        metro_mid: { col: 0xf97316, label: 'CENTRAL LINE', sub: 'Line 2 · Mid-Tech' },
+        metro_east: { col: 0xa855f7, label: 'EASTERN HUB', sub: 'Line 2 · Neon Quarter' },
+        metro_longevity: {
+            col: 0x22c55e,
+            label: 'INNOVATION LINE',
+            sub: 'Line 2 · Innovation Corridor Terminus',
+        },
     },
 
     build(bld, layer) {
@@ -37,8 +41,13 @@ const InteriorMetroStation = {
         this.avatarPool = new Map();
         layer.removeChildren();
 
-        const W = G.vpW, H = G.vpH;
-        const theme = this.STATION_THEME[bld.id] || { col: 0x22d3ee, label: bld.name ? bld.name.toUpperCase() : 'METRO STATION', sub: '' };
+        const W = G.vpW,
+            H = G.vpH;
+        const theme = this.STATION_THEME[bld.id] || {
+            col: 0x22d3ee,
+            label: bld.name ? bld.name.toUpperCase() : 'METRO STATION',
+            sub: '',
+        };
 
         // Scene container (scrollable)
         this.scene = new PIXI.Container();
@@ -66,11 +75,11 @@ const InteriorMetroStation = {
         const hallH = 140;
         const stairH = 110;
         const platH = 240;
-        const deepH = 300;   // extended deep strata for full city stack
+        const deepH = 300; // extended deep strata for full city stack
         const totalH = hallH + stairH + platH + deepH;
 
         this.totalH = totalH;
-        this.maxY = 80;                       // allow scrolling up to see sky above roof
+        this.maxY = 80; // allow scrolling up to see sky above roof
         this.minY = Math.min(0, H - totalH);
 
         // ─── STATION CANOPY / ROOF (y=0..30) ───
@@ -84,14 +93,14 @@ const InteriorMetroStation = {
         canopy.drawRect(0, 0, W, 6);
         canopy.endFill();
         canopy.beginFill(theme.col, 0.6);
-        canopy.drawRect(0, 0, W, 3);   // coloured accent strip at top edge
+        canopy.drawRect(0, 0, W, 3); // coloured accent strip at top edge
         canopy.endFill();
         // Steel I-beam supports
         canopy.beginFill(0x334155);
         for (let bx = 40; bx < W; bx += 80) {
             canopy.drawRect(bx - 2, 6, 4, 24);
-            canopy.drawRect(bx - 6, 6, 12, 3);   // top flange
-            canopy.drawRect(bx - 6, 27, 12, 3);   // bottom flange
+            canopy.drawRect(bx - 6, 6, 12, 3); // top flange
+            canopy.drawRect(bx - 6, 27, 12, 3); // bottom flange
         }
         canopy.endFill();
         // Glass skylight panels between beams (semi-transparent)
@@ -114,8 +123,10 @@ const InteriorMetroStation = {
         canopy.endFill();
         // Station name on canopy
         const canopyName = new PIXI.Text('M', {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 14,
-            fill: theme.col, fontWeight: 'bold'
+            fontFamily: 'Press Start 2P, monospace',
+            fontSize: 14,
+            fill: theme.col,
+            fontWeight: 'bold',
         });
         canopyName.anchor.set(0.5, 0.5);
         canopyName.x = W / 2;
@@ -141,7 +152,8 @@ const InteriorMetroStation = {
         const hallBottom = hallH;
         const hallH_total = hallBottom - hallTop;
         const hall = new PIXI.Graphics();
-        const hallX = 40, hallW = W - 80;
+        const hallX = 40,
+            hallW = W - 80;
         const headerH = 26;
         const winY = hallTop + headerH;
         const winH_px = 22;
@@ -151,10 +163,18 @@ const InteriorMetroStation = {
         const mullionW = 8;
 
         InteriorCity._drawWallWithWindowCutout(
-            hall, 0xf5f5f5,
-            hallX, hallTop, hallW, hallH_total,
-            winX, winY, winW, winH_px,
-            mullionPitch, mullionW
+            hall,
+            0xf5f5f5,
+            hallX,
+            hallTop,
+            hallW,
+            hallH_total,
+            winX,
+            winY,
+            winW,
+            winH_px,
+            mullionPitch,
+            mullionW
         );
         // Header accent
         hall.beginFill(theme.col, 0.18);
@@ -190,7 +210,16 @@ const InteriorMetroStation = {
             ceilLights.endFill();
             // Warm glow cone
             ceilLights.beginFill(0xfbbf24, 0.05);
-            ceilLights.drawPolygon([lx - 4, hallTop + 6, lx + 4, hallTop + 6, lx + 30, hallBottom - 12, lx - 30, hallBottom - 12]);
+            ceilLights.drawPolygon([
+                lx - 4,
+                hallTop + 6,
+                lx + 4,
+                hallTop + 6,
+                lx + 30,
+                hallBottom - 12,
+                lx - 30,
+                hallBottom - 12,
+            ]);
             ceilLights.endFill();
             // Fixture highlight
             ceilLights.beginFill(0xfef3c7, 0.7);
@@ -201,8 +230,10 @@ const InteriorMetroStation = {
 
         // Station name
         const nameTxt = new PIXI.Text(theme.label, {
-            fontFamily: 'Press Start 2P, monospace', fontSize: 9,
-            fill: theme.col, letterSpacing: 2
+            fontFamily: 'Press Start 2P, monospace',
+            fontSize: 9,
+            fill: theme.col,
+            letterSpacing: 2,
         });
         nameTxt.anchor.set(0.5, 0);
         nameTxt.x = W / 2;
@@ -212,8 +243,9 @@ const InteriorMetroStation = {
 
         // Subtitle
         const subTxt = new PIXI.Text(theme.sub, {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 7,
-            fill: 0x475569
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 7,
+            fill: 0x475569,
         });
         subTxt.anchor.set(0.5, 0);
         subTxt.x = W / 2;
@@ -238,7 +270,8 @@ const InteriorMetroStation = {
             tm.endFill();
             tm.x = 80 + i * 80;
             tm.y = hallBottom - 54;
-            UI.tip(tm, 'Ticket Machine'); this.scene.addChild(tm);
+            UI.tip(tm, 'Ticket Machine');
+            this.scene.addChild(tm);
         }
 
         // Turnstile row
@@ -255,7 +288,8 @@ const InteriorMetroStation = {
             ts.endFill();
             ts.x = W * 0.35 + i * 36;
             ts.y = hallBottom - 34;
-            UI.tip(ts, 'Turnstile'); this.scene.addChild(ts);
+            UI.tip(ts, 'Turnstile');
+            this.scene.addChild(ts);
         }
 
         // ─── EARTH/BEDROCK flanking the glass elevator shaft ───
@@ -266,11 +300,14 @@ const InteriorMetroStation = {
         const shaftLeft = W / 2 - shaftW / 2;
         const shaftRight = W / 2 + shaftW / 2;
         const shaftTop = hallBottom;
-        const shaftBottom = platFloorY;   // lift descends flush with platform
+        const shaftBottom = platFloorY; // lift descends flush with platform
 
         // Seeded rng
         let rs = (bld.x || 0) + 101;
-        const rr = () => { rs = (rs * 16807) % 2147483647; return (rs - 1) / 2147483646; };
+        const rr = () => {
+            rs = (rs * 16807) % 2147483647;
+            return (rs - 1) / 2147483646;
+        };
 
         // Rock flanks
         const rock = new PIXI.Graphics();
@@ -323,7 +360,7 @@ const InteriorMetroStation = {
         glassShaft.beginFill(0x050510, 0.85);
         glassShaft.drawRect(shaftLeft + 2, shaftTop + 2, shaftW - 4, shaftBottom - shaftTop - 4);
         glassShaft.endFill();
-        glassShaft.beginFill(0x22d3ee, 0.10);
+        glassShaft.beginFill(0x22d3ee, 0.1);
         glassShaft.drawRect(shaftLeft, shaftTop, shaftW, shaftBottom - shaftTop);
         glassShaft.endFill();
         glassShaft.lineStyle(2, 0x22d3ee, 0.4);
@@ -351,8 +388,9 @@ const InteriorMetroStation = {
         floorInd.lineStyle(0);
         this.scene.addChild(floorInd);
         const floorTxt = new PIXI.Text('⇅ LIFT', {
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 7,
-            fill: 0x22d3ee
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 7,
+            fill: 0x22d3ee,
         });
         floorTxt.anchor.set(0.5, 0.5);
         floorTxt.x = (shaftLeft + shaftRight) / 2;
@@ -419,7 +457,7 @@ const InteriorMetroStation = {
         shaftOverlay.drawRect(shaftLeft + 2, platTop, shaftW - 4, backWallH);
         shaftOverlay.endFill();
         // Cyan glass tint
-        shaftOverlay.beginFill(0x22d3ee, 0.10);
+        shaftOverlay.beginFill(0x22d3ee, 0.1);
         shaftOverlay.drawRect(shaftLeft, platTop, shaftW, backWallH);
         shaftOverlay.endFill();
         // Cyan frame continuing through platform zone
@@ -456,16 +494,26 @@ const InteriorMetroStation = {
         signBg.lineStyle(0);
         this.scene.addChild(signBg);
         const signL = new PIXI.Text(theme.label, {
-            fontFamily: 'Silkscreen, monospace', fontSize: 8, fill: theme.col,
-            dropShadow: true, dropShadowColor: theme.col, dropShadowBlur: 5, dropShadowDistance: 0
+            fontFamily: 'Silkscreen, monospace',
+            fontSize: 8,
+            fill: theme.col,
+            dropShadow: true,
+            dropShadowColor: theme.col,
+            dropShadowBlur: 5,
+            dropShadowDistance: 0,
         });
         signL.anchor.set(0.5, 0.5);
         signL.x = W / 2 - signXOff;
         signL.y = platTop + 28;
         this.scene.addChild(signL);
         const signR = new PIXI.Text(theme.label, {
-            fontFamily: 'Silkscreen, monospace', fontSize: 8, fill: theme.col,
-            dropShadow: true, dropShadowColor: theme.col, dropShadowBlur: 5, dropShadowDistance: 0
+            fontFamily: 'Silkscreen, monospace',
+            fontSize: 8,
+            fill: theme.col,
+            dropShadow: true,
+            dropShadowColor: theme.col,
+            dropShadowBlur: 5,
+            dropShadowDistance: 0,
         });
         signR.anchor.set(0.5, 0.5);
         signR.x = W / 2 + signXOff;
@@ -482,7 +530,16 @@ const InteriorMetroStation = {
             platLights.endFill();
             // Diffused glow cone
             platLights.beginFill(0xcbd5e1, 0.03);
-            platLights.drawPolygon([lx - 12, platTop + 6, lx + 12, platTop + 6, lx + 35, platFloorY - 5, lx - 35, platFloorY - 5]);
+            platLights.drawPolygon([
+                lx - 12,
+                platTop + 6,
+                lx + 12,
+                platTop + 6,
+                lx + 35,
+                platFloorY - 5,
+                lx - 35,
+                platFloorY - 5,
+            ]);
             platLights.endFill();
         }
         this.scene.addChild(platLights);
@@ -550,7 +607,8 @@ const InteriorMetroStation = {
             bench.endFill();
             bench.x = bx;
             bench.y = platFloorY - 12;
-            UI.tip(bench, 'Bench'); this.scene.addChild(bench);
+            UI.tip(bench, 'Bench');
+            this.scene.addChild(bench);
         }
 
         // ─── Trash cans ───
@@ -562,15 +620,16 @@ const InteriorMetroStation = {
             trash.beginFill(0x64748b);
             trash.drawRect(tx - 6, platFloorY - 14, 12, 2);
             trash.endFill();
-            UI.tip(trash, 'Trash Can'); this.scene.addChild(trash);
+            UI.tip(trash, 'Trash Can');
+            this.scene.addChild(trash);
         }
 
         // Store platform anchors
         this._platFloorY = platFloorY;
         this._platStandY = platFloorY;
         this._hallFloorY = hallBottom - 2;
-        this._platLeft = 40;         // left pillar + margin
-        this._platRight = W - 40;    // right pillar + margin
+        this._platLeft = 40; // left pillar + margin
+        this._platRight = W - 40; // right pillar + margin
         this._platW = W;
 
         // ─── TRACK BED + TRAIN CORRIDOR ───
@@ -753,7 +812,12 @@ const InteriorMetroStation = {
             this.layer.cursor = 'grabbing';
         });
         this._onMove = (e) => {
-            if (!InteriorMetroStation.isDragging || !InteriorMetroStation.scene || InteriorMetroStation.scene.destroyed) return;
+            if (
+                !InteriorMetroStation.isDragging ||
+                !InteriorMetroStation.scene ||
+                InteriorMetroStation.scene.destroyed
+            )
+                return;
             let ny = InteriorMetroStation._startSceneY + (e.clientY - InteriorMetroStation._startY);
             ny = Math.max(InteriorMetroStation.minY, Math.min(ny, InteriorMetroStation.maxY));
             InteriorMetroStation.scene.y = ny;
@@ -796,24 +860,23 @@ const InteriorMetroStation = {
 
             const trains = [];
             if (typeof Entities !== 'undefined') {
-                if (Entities.trainWest)      trains.push(Entities.trainWest);
-                if (Entities.trainEast)      trains.push(Entities.trainEast);
-                if (Entities.trainMid)       trains.push(Entities.trainMid);
-                if (Entities.trainDC)        trains.push(Entities.trainDC);
+                if (Entities.trainWest) trains.push(Entities.trainWest);
+                if (Entities.trainEast) trains.push(Entities.trainEast);
+                if (Entities.trainMid) trains.push(Entities.trainMid);
+                if (Entities.trainDC) trains.push(Entities.trainDC);
                 if (Entities.trainLongevity) trains.push(Entities.trainLongevity);
             }
 
             for (const t of trains) {
                 if (!t || t.st1 === undefined || t.st2 === undefined) continue;
-                const servesThisStation =
-                    Math.abs(t.st1 - stationX) < 8 || Math.abs(t.st2 - stationX) < 8;
+                const servesThisStation = Math.abs(t.st1 - stationX) < 8 || Math.abs(t.st2 - stationX) < 8;
                 if (!servesThisStation) continue;
 
                 const cxOffset = t.x - stationX;
                 if (Math.abs(cxOffset) > offscreenCut) continue;
 
                 const cx = W / 2 + cxOffset;
-                const bob = (t.state === 'moving') ? Math.sin(tick * 0.5) * 1.5 : 0;
+                const bob = t.state === 'moving' ? Math.sin(tick * 0.5) * 1.5 : 0;
                 const cy = trainCenterY + bob;
                 const atStation = Math.abs(cxOffset) < 5;
                 this._drawExteriorTrain(g, cx, cy, atStation, t.dir);
@@ -855,14 +918,17 @@ const InteriorMetroStation = {
             if (this._liftCable) {
                 this._liftCable.clear();
                 this._liftCable.beginFill(0x22d3ee, 0.35);
-                this._liftCable.drawRect(this._liftCar.x - 1, shaftTopY - 12, 2, (this._liftCar.y - 3) - (shaftTopY - 12));
+                this._liftCable.drawRect(
+                    this._liftCar.x - 1,
+                    shaftTopY - 12,
+                    2,
+                    this._liftCar.y - 3 - (shaftTopY - 12)
+                );
                 this._liftCable.endFill();
             }
             if (this._liftFloorTxt) {
                 const p = shaftRange > 0 ? (this._liftCar.y - shaftTopY) / shaftRange : 0;
-                this._liftFloorTxt.text = liftActive
-                    ? (p > 0.5 ? '▼ PLATFORM' : '▲ HALL')
-                    : '⇅ LIFT';
+                this._liftFloorTxt.text = liftActive ? (p > 0.5 ? '▼ PLATFORM' : '▲ HALL') : '⇅ LIFT';
             }
         }
 
@@ -882,7 +948,10 @@ const InteriorMetroStation = {
 
             let legIdx = -1;
             for (let li = 0; li < refs._metroLegs.length; li++) {
-                if (Math.abs(refs._metroLegs[li] - stationX) < 8) { legIdx = li; break; }
+                if (Math.abs(refs._metroLegs[li] - stationX) < 8) {
+                    legIdx = li;
+                    break;
+                }
             }
             if (legIdx === -1) continue;
 
@@ -891,9 +960,11 @@ const InteriorMetroStation = {
 
             const isRiding = refs._metroState === 'riding';
             const nextLegX = refs._metroLegs[refs._currentLeg + 1];
-            const passingThrough = isRiding && nextLegX !== undefined &&
-                                   ((currentLegX <= stationX && stationX <= nextLegX) ||
-                                    (nextLegX <= stationX && stationX <= currentLegX));
+            const passingThrough =
+                isRiding &&
+                nextLegX !== undefined &&
+                ((currentLegX <= stationX && stationX <= nextLegX) ||
+                    (nextLegX <= stationX && stationX <= currentLegX));
 
             if (!atThisStation && !passingThrough) continue;
 
@@ -906,7 +977,7 @@ const InteriorMetroStation = {
                 const ly = refs._logicalY != null ? refs._logicalY : surfaceY;
                 const progress = Math.max(0, Math.min(1, (ly - surfaceY) / descentRange));
                 if (progress < 0.02) {
-                    const dxExt = (refs.c && refs.c.x != null) ? (refs.c.x - stationX) : 0;
+                    const dxExt = refs.c && refs.c.x != null ? refs.c.x - stationX : 0;
                     const clampedDx = Math.max(-W / 2 + 80, Math.min(W / 2 - 80, dxExt));
                     ix = W / 2 + clampedDx;
                     iy = hallFloorY;
@@ -919,7 +990,7 @@ const InteriorMetroStation = {
                 }
             } else if (refs._metroState === 'waiting_train') {
                 // Spread across the full platform with idle milling
-                const platRange = (this._platRight - this._platLeft);
+                const platRange = this._platRight - this._platLeft;
                 const hash = (m.id.charCodeAt(0) * 2654435761 + mi * 131) >>> 0;
                 const baseX = this._platLeft + (hash % Math.floor(platRange));
                 const mill = Math.sin(tick * 0.012 + hash * 0.001) * 18;
@@ -939,7 +1010,7 @@ const InteriorMetroStation = {
                 iy = this._trackY - 8;
             } else {
                 // Fallback — spread across platform
-                const platRange = (this._platRight - this._platLeft);
+                const platRange = this._platRight - this._platLeft;
                 const hash = (m.id.charCodeAt(0) * 2654435761 + mi * 131) >>> 0;
                 ix = this._platLeft + (hash % Math.floor(platRange));
                 iy = platStandY;
@@ -956,13 +1027,13 @@ const InteriorMetroStation = {
             av.cont.visible = true;
             av.cont.zIndex = Math.round(iy);
 
-            const isWalking = (refs._metroState === 'entering' || refs._metroState === 'exiting');
+            const isWalking = refs._metroState === 'entering' || refs._metroState === 'exiting';
             if (av.legL && av.legR) {
-                const phase = isWalking ? Math.sin(tick * 0.25 + (m.id.charCodeAt(0) * 0.3)) : 0;
+                const phase = isWalking ? Math.sin(tick * 0.25 + m.id.charCodeAt(0) * 0.3) : 0;
                 const baseLegX = av._baseLegX != null ? av._baseLegX : 2.4;
                 const legSwing = av._legSwing != null ? av._legSwing : 1.2;
                 av.legL.x = -baseLegX + phase * legSwing;
-                av.legR.x =  baseLegX - phase * legSwing;
+                av.legR.x = baseLegX - phase * legSwing;
             }
             // Subtle idle sway for standing/waiting avatars
             if (!isWalking && av.body) {
@@ -1007,8 +1078,11 @@ const InteriorMetroStation = {
                 } else if (st === 'riding_metro') {
                     // Underground — spread across the full platform with milling
                     cm._liftProgress = 0; // reset for next time
-                    const hash = (cm.npc.id.charCodeAt(0) * 2654435761 + cm.npc.id.charCodeAt(Math.min(1, cm.npc.id.length - 1)) * 131) >>> 0;
-                    const platRange = (this._platRight - this._platLeft);
+                    const hash =
+                        (cm.npc.id.charCodeAt(0) * 2654435761 +
+                            cm.npc.id.charCodeAt(Math.min(1, cm.npc.id.length - 1)) * 131) >>>
+                        0;
+                    const platRange = this._platRight - this._platLeft;
                     const baseX = this._platLeft + (hash % Math.floor(platRange));
                     const mill = Math.sin(tick * 0.015 + hash * 0.001) * 15;
                     ix = Math.max(this._platLeft, Math.min(this._platRight, baseX + mill));
@@ -1037,7 +1111,7 @@ const InteriorMetroStation = {
                         id: cm.npc.id,
                         name: cm.npc.name,
                         lab: 'other',
-                        _npcColor: cm.npc.color
+                        _npcColor: cm.npc.color,
                     };
                     av = this._makeAvatarSprite(fakeModel);
                     this.avatarLayer.addChild(av.cont);
@@ -1049,13 +1123,13 @@ const InteriorMetroStation = {
                 av.cont.zIndex = Math.round(iy);
 
                 // Leg animation when walking
-                const isWalking = (st === 'walk_to_metro' || st === 'walk_from_metro');
+                const isWalking = st === 'walk_to_metro' || st === 'walk_from_metro';
                 if (av.legL && av.legR) {
-                    const phase = isWalking ? Math.sin(tick * 0.25 + (cm.npc.id.charCodeAt(0) * 0.3)) : 0;
+                    const phase = isWalking ? Math.sin(tick * 0.25 + cm.npc.id.charCodeAt(0) * 0.3) : 0;
                     const baseLegX = av._baseLegX != null ? av._baseLegX : 2.4;
                     const legSwing = av._legSwing != null ? av._legSwing : 1.2;
                     av.legL.x = -baseLegX + phase * legSwing;
-                    av.legR.x =  baseLegX - phase * legSwing;
+                    av.legR.x = baseLegX - phase * legSwing;
                 }
                 if (!isWalking && av.body) {
                     av.body.rotation = Math.sin(tick * 0.04 + cm.npc.id.charCodeAt(0) * 0.5) * 0.02;
@@ -1071,11 +1145,19 @@ const InteriorMetroStation = {
         const dp = G.getDayPhase();
         const isNightShift = dp > 0.83 || dp < 0.25;
         const activeShift = isNightShift
-            ? (this._stationWorkers ? this._stationWorkers.night : [])
-            : (this._stationWorkers ? this._stationWorkers.day : []);
+            ? this._stationWorkers
+                ? this._stationWorkers.night
+                : []
+            : this._stationWorkers
+              ? this._stationWorkers.day
+              : [];
         const inactiveShift = isNightShift
-            ? (this._stationWorkers ? this._stationWorkers.day : [])
-            : (this._stationWorkers ? this._stationWorkers.night : []);
+            ? this._stationWorkers
+                ? this._stationWorkers.day
+                : []
+            : this._stationWorkers
+              ? this._stationWorkers.night
+              : [];
 
         // Show active shift workers, hide inactive ones
         for (const w of activeShift) {
@@ -1099,13 +1181,14 @@ const InteriorMetroStation = {
                     const baseLegX = av._baseLegX != null ? av._baseLegX : 2.4;
                     const legSwing = av._legSwing != null ? av._legSwing : 1.2;
                     av.legL.x = -baseLegX + phase * legSwing;
-                    av.legR.x =  baseLegX - phase * legSwing;
+                    av.legR.x = baseLegX - phase * legSwing;
                 }
             } else {
                 // Idle sway
                 if (av.legL && av.legR) {
                     const baseLegX = av._baseLegX != null ? av._baseLegX : 2.4;
-                    av.legL.x = -baseLegX; av.legR.x = baseLegX;
+                    av.legL.x = -baseLegX;
+                    av.legR.x = baseLegX;
                 }
                 if (av.body) av.body.rotation = Math.sin(tick * 0.04 + w.id.charCodeAt(0) * 0.5) * 0.02;
             }
@@ -1129,18 +1212,74 @@ const InteriorMetroStation = {
     _spawnStationWorkers(theme, W, hallTop, hallH, platTop, platStandY) {
         // Day shift (roughly 06:00–18:00) and night shift (18:00–06:00)
         // rotate just like every other zone's interior NPCs.
-        const hallStandY = hallH - 2;          // feet on hall floor tiles (matches _hallFloorY)
+        const hallStandY = hallH - 2; // feet on hall floor tiles (matches _hallFloorY)
         const DAY_WORKERS = [
-            { id: 'metro_ticket',    name: 'Ticket Agent',       role: 'Ticket Agent',       x: W * 0.22, y: hallStandY,  col: 0x3b82f6 },
-            { id: 'metro_guard_d',   name: 'Station Guard',      role: 'Station Guard',      x: W * 0.78, y: hallStandY,  col: 0xef4444 },
-            { id: 'metro_attend_d',  name: 'Platform Attendant', role: 'Platform Attendant',  x: W * 0.35, y: platStandY, col: 0xfbbf24 },
-            { id: 'metro_dispatch',  name: 'Train Dispatcher',   role: 'Dispatcher',         x: W * 0.65, y: platStandY, col: 0x22c55e },
-            { id: 'metro_info',      name: 'Info Desk',          role: 'Info Desk',          x: W * 0.50, y: hallStandY,  col: 0x06b6d4 },
+            {
+                id: 'metro_ticket',
+                name: 'Ticket Agent',
+                role: 'Ticket Agent',
+                x: W * 0.22,
+                y: hallStandY,
+                col: 0x3b82f6,
+            },
+            {
+                id: 'metro_guard_d',
+                name: 'Station Guard',
+                role: 'Station Guard',
+                x: W * 0.78,
+                y: hallStandY,
+                col: 0xef4444,
+            },
+            {
+                id: 'metro_attend_d',
+                name: 'Platform Attendant',
+                role: 'Platform Attendant',
+                x: W * 0.35,
+                y: platStandY,
+                col: 0xfbbf24,
+            },
+            {
+                id: 'metro_dispatch',
+                name: 'Train Dispatcher',
+                role: 'Dispatcher',
+                x: W * 0.65,
+                y: platStandY,
+                col: 0x22c55e,
+            },
+            {
+                id: 'metro_info',
+                name: 'Info Desk',
+                role: 'Info Desk',
+                x: W * 0.5,
+                y: hallStandY,
+                col: 0x06b6d4,
+            },
         ];
         const NIGHT_WORKERS = [
-            { id: 'metro_guard_n',   name: 'Night Guard',        role: 'Night Guard',        x: W * 0.75, y: hallStandY,  col: 0xef4444 },
-            { id: 'metro_maint',     name: 'Maintenance Tech',   role: 'Maintenance',        x: W * 0.40, y: platStandY, col: 0x22c55e },
-            { id: 'metro_signal',    name: 'Signal Operator',    role: 'Signal Ops',         x: W * 0.85, y: platStandY, col: 0x06b6d4 },
+            {
+                id: 'metro_guard_n',
+                name: 'Night Guard',
+                role: 'Night Guard',
+                x: W * 0.75,
+                y: hallStandY,
+                col: 0xef4444,
+            },
+            {
+                id: 'metro_maint',
+                name: 'Maintenance Tech',
+                role: 'Maintenance',
+                x: W * 0.4,
+                y: platStandY,
+                col: 0x22c55e,
+            },
+            {
+                id: 'metro_signal',
+                name: 'Signal Operator',
+                role: 'Signal Ops',
+                x: W * 0.85,
+                y: platStandY,
+                col: 0x06b6d4,
+            },
         ];
         this._stationWorkers = { day: DAY_WORKERS, night: NIGHT_WORKERS };
         // Create avatar sprites for ALL workers (both shifts), hide inactive ones
@@ -1194,12 +1333,12 @@ const InteriorMetroStation = {
         // Windows
         g.beginFill(0x64748b);
         g.drawRect(cx - 100, cy - 28, 20, 50);
-        g.drawRect(cx + 0,   cy - 28, 20, 50);
+        g.drawRect(cx + 0, cy - 28, 20, 50);
         g.drawRect(cx + 100, cy - 28, 20, 50);
         g.endFill();
         g.beginFill(0x0f172a, 0.6);
         g.drawRect(cx - 96, cy - 18, 12, 16);
-        g.drawRect(cx + 4,  cy - 18, 12, 16);
+        g.drawRect(cx + 4, cy - 18, 12, 16);
         g.drawRect(cx + 104, cy - 18, 12, 16);
         g.endFill();
         // Skirt
@@ -1216,7 +1355,7 @@ const InteriorMetroStation = {
         g.endFill();
         // Headlights
         const dirSign = dir || 1;
-        const leftCol  = dirSign > 0 ? 0xef4444 : 0x4ade80;
+        const leftCol = dirSign > 0 ? 0xef4444 : 0x4ade80;
         const rightCol = dirSign > 0 ? 0x4ade80 : 0xef4444;
         g.beginFill(leftCol);
         g.drawCircle(cx - 175, cy, 4);
@@ -1264,12 +1403,12 @@ const InteriorMetroStation = {
             if (m.arch) {
                 if (m.arch.type && m.arch.type.includes('MoE')) isMoE = true;
                 if (m.arch.params) {
-                    let pStr = m.arch.params.replace(/[^0-9.TBM]/ig, '');
+                    let pStr = m.arch.params.replace(/[^0-9.TBM]/gi, '');
                     if (pStr.includes('T')) paramCount = parseFloat(pStr) * 1000;
                     else if (pStr.includes('B')) paramCount = parseFloat(pStr);
                 }
             }
-            paramScale = Math.max(0.7, Math.min(1.4, 0.6 + (Math.log10(Math.max(paramCount, 1)) * 0.2)));
+            paramScale = Math.max(0.7, Math.min(1.4, 0.6 + Math.log10(Math.max(paramCount, 1)) * 0.2));
         }
         const finalSc = sd.size * paramScale;
 
@@ -1285,11 +1424,27 @@ const InteriorMetroStation = {
         const isRm = stg === 'rumored';
         const suitCol = isR ? 0x667799 : suitHex;
         const babySkin = 0xffe4c4;
-        const kidSkin  = 0xfde0b8;
-        const skinCol = isR ? 0xb8c0cc : isRm ? 0x8b5cf6 : stg === 'baby' ? babySkin : stg === 'kid' ? kidSkin : 0xfdd8b5;
+        const kidSkin = 0xfde0b8;
+        const skinCol = isR
+            ? 0xb8c0cc
+            : isRm
+              ? 0x8b5cf6
+              : stg === 'baby'
+                ? babySkin
+                : stg === 'kid'
+                  ? kidSkin
+                  : 0xfdd8b5;
         const eyeCol = isR ? 0xaaccff : isRm ? 0xa78bfa : stg === 'baby' ? 0x1a1a2e : 0x2c1810;
         const ageEyeS = stg === 'baby' ? eyeS * 1.4 : eyeS;
-        const legCol = isR ? 0x7788aa : isRm ? 0x6b7280 : stg === 'baby' ? 0xfdd8b5 : stg === 'kid' ? 0x2a2a3a : 0x3d2914;
+        const legCol = isR
+            ? 0x7788aa
+            : isRm
+              ? 0x6b7280
+              : stg === 'baby'
+                ? 0xfdd8b5
+                : stg === 'kid'
+                  ? 0x2a2a3a
+                  : 0x3d2914;
 
         // ─── Shadow ───
         const shadow = new PIXI.Graphics();
@@ -1395,13 +1550,13 @@ const InteriorMetroStation = {
         head.endFill();
         head.beginFill(eyeCol);
         head.drawCircle(-bw * 0.12, headH * 0.38, isR ? eyeS * 1.5 : ageEyeS);
-        head.drawCircle( bw * 0.12, headH * 0.38, isR ? eyeS * 1.5 : ageEyeS);
+        head.drawCircle(bw * 0.12, headH * 0.38, isR ? eyeS * 1.5 : ageEyeS);
         head.endFill();
         if (stg === 'baby') {
             // Cute eye sparkles
             head.beginFill(0xffffff, 0.7);
             head.drawCircle(-bw * 0.12 + 1, headH * 0.35, ageEyeS * 0.4);
-            head.drawCircle( bw * 0.12 + 1, headH * 0.35, ageEyeS * 0.4);
+            head.drawCircle(bw * 0.12 + 1, headH * 0.35, ageEyeS * 0.4);
             head.endFill();
             // Small 'o' mouth
             head.beginFill(0xdd8888, 0.6);
@@ -1410,11 +1565,15 @@ const InteriorMetroStation = {
             // Tuft of hair
             head.beginFill(eyeCol, 0.7);
             head.drawEllipse(-bw * 0.1, -1, bw * 0.12, 3);
-            head.drawEllipse( bw * 0.05, -2, bw * 0.10, 2.5);
+            head.drawEllipse(bw * 0.05, -2, bw * 0.1, 2.5);
             head.endFill();
             // Pacifier
-            head.beginFill(0xff88aa, 0.8); head.drawCircle(0, headH * 0.72, bw * 0.1); head.endFill();
-            head.beginFill(0xffaacc, 0.9); head.drawCircle(0, headH * 0.72, bw * 0.06); head.endFill();
+            head.beginFill(0xff88aa, 0.8);
+            head.drawCircle(0, headH * 0.72, bw * 0.1);
+            head.endFill();
+            head.beginFill(0xffaacc, 0.9);
+            head.drawCircle(0, headH * 0.72, bw * 0.06);
+            head.endFill();
         } else {
             // Neutral mouth line
             head.beginFill(0x000000, 0.4);
@@ -1429,7 +1588,9 @@ const InteriorMetroStation = {
             head.beginFill(suitCol, 0.85);
             head.drawRoundedRect(-bw * 0.38, -4, bw * 0.76, 5, 2);
             head.endFill();
-            head.beginFill(0xffffff, 0.4); head.drawCircle(0, -3, 1); head.endFill();
+            head.beginFill(0xffffff, 0.4);
+            head.drawCircle(0, -3, 1);
+            head.endFill();
         }
         if (isRm) {
             // Floating question mark
@@ -1444,7 +1605,15 @@ const InteriorMetroStation = {
 
         // ─── Status dot ───
         const dot = new PIXI.Graphics();
-        const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : stg === 'kid' ? 0x22d3ee : 0x4ade80;
+        const dotCol = isR
+            ? 0x88aaff
+            : isRm
+              ? 0x8b5cf6
+              : stg === 'baby'
+                ? 0xff69b4
+                : stg === 'kid'
+                  ? 0x22d3ee
+                  : 0x4ade80;
         dot.beginFill(dotCol);
         dot.drawCircle(0, 0, stg === 'baby' ? 2.5 : 2);
         dot.endFill();
@@ -1464,14 +1633,23 @@ const InteriorMetroStation = {
         cont.on('pointertap', () => {
             if (typeof UI !== 'undefined') {
                 if (isNPC) {
-                    UI.selectModel({ id: m.id, name: m.name, isNPC: true, _trackType: 'npc', role: m.role || 'Worker', lab: 'other', desc: (m.role || 'Worker') + '. Commuting via metro.' });
+                    UI.selectModel({
+                        id: m.id,
+                        name: m.name,
+                        isNPC: true,
+                        _trackType: 'npc',
+                        role: m.role || 'Worker',
+                        lab: 'other',
+                        desc: (m.role || 'Worker') + '. Commuting via metro.',
+                    });
                 } else {
                     UI.selectModel(m);
                 }
             }
         });
         cont.on('pointerover', (e) => {
-            if (typeof UI !== 'undefined') UI.showTooltip(e, m.name || m.id, isNPC ? (m.role || 'Worker NPC') : (m.lab || ''));
+            if (typeof UI !== 'undefined')
+                UI.showTooltip(e, m.name || m.id, isNPC ? m.role || 'Worker NPC' : m.lab || '');
         });
         cont.on('pointerout', () => {
             if (typeof UI !== 'undefined') UI.hideTooltip();
@@ -1480,9 +1658,15 @@ const InteriorMetroStation = {
         // Store scaled leg base/swing so the leg-walk animation in update()
         // works correctly regardless of avatar size.
         return {
-            cont, body, head, legL, legR, dot, highlight,
+            cont,
+            body,
+            head,
+            legL,
+            legR,
+            dot,
+            highlight,
             _baseLegX: bw * 0.15,
-            _legSwing: Math.max(0.6, bw * 0.075)
+            _legSwing: Math.max(0.6, bw * 0.075),
         };
     },
 
@@ -1491,7 +1675,9 @@ const InteriorMetroStation = {
         if (this._onMove) window.removeEventListener('pointermove', this._onMove);
         if (this._onUp) window.removeEventListener('pointerup', this._onUp);
         if (this.avatarPool) {
-            this.avatarPool.forEach(av => { if (av.cont && av.cont.destroy) av.cont.destroy({ children: true }); });
+            this.avatarPool.forEach((av) => {
+                if (av.cont && av.cont.destroy) av.cont.destroy({ children: true });
+            });
             this.avatarPool.clear();
         }
         this.avatarPool = null;
@@ -1511,5 +1697,5 @@ const InteriorMetroStation = {
         this.celestialGfx = null;
         this._tunnelLightsCont = null;
         this.isDragging = false;
-    }
+    },
 };

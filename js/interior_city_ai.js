@@ -16,12 +16,17 @@ const InteriorCityAI = {
         models.forEach((m, i) => {
             const stg = getStage(m.rel, m.ret, m.phase);
             const { act } = getAct(stg, dp, i, m);
-            
-            if (!ACTS[act] || !ACTS[act].indoor) return;
-            if (stg === 'retired') return; 
 
-            let desk = InteriorCityCore.desks.length > 0 ? InteriorCityCore.desks[i % InteriorCityCore.desks.length] : null;
-            let floorIdx = desk ? desk.floor : Math.floor(Math.random() * (this.bld.dynamicFl || this.bld.fl));
+            if (!ACTS[act] || !ACTS[act].indoor) return;
+            if (stg === 'retired') return;
+
+            let desk =
+                InteriorCityCore.desks.length > 0
+                    ? InteriorCityCore.desks[i % InteriorCityCore.desks.length]
+                    : null;
+            let floorIdx = desk
+                ? desk.floor
+                : Math.floor(Math.random() * (this.bld.dynamicFl || this.bld.fl));
 
             // ─── FIX: Check if they just arrived so they can walk through the lobby! ───
             let refs = G.charRefs[m.id];
@@ -44,8 +49,8 @@ const InteriorCityAI = {
             let startX = desk ? desk.x : 50 + Math.random() * (bld.w - 100);
 
             if (isEntering) {
-                startFloor = 0; 
-                startX = bld.w / 2; 
+                startFloor = 0;
+                startX = bld.w / 2;
             } else if (isLeaving) {
                 startFloor = floorIdx;
                 startX = desk ? desk.x : 50 + Math.random() * (bld.w - 100);
@@ -69,7 +74,7 @@ const InteriorCityAI = {
 
     createWorker(m, x, y, floorIdx) {
         const c = new PIXI.Container();
-        c.x = x; 
+        c.x = x;
         c.y = y;
 
         const shadow = new PIXI.Graphics();
@@ -79,34 +84,42 @@ const InteriorCityAI = {
         const legR = new PIXI.Graphics();
         const dot = new PIXI.Graphics(); // ─── FIX: Restored the status dot! ───
 
-        c.addChild(shadow, legL, legR, body, head, dot); 
+        c.addChild(shadow, legL, legR, body, head, dot);
 
         const wObj = {
             m: m,
             c: c,
-            shadow, head, body, legL, legR, dot,
+            shadow,
+            head,
+            body,
+            legL,
+            legR,
+            dot,
             floorIdx: floorIdx,
             targetFloor: floorIdx,
             desk: null,
             speed: 1.5 + Math.random(),
             state: 'working',
-            paramScale: 1
+            paramScale: 1,
         };
 
         let paramCount = 100;
         if (m.arch && m.arch.params) {
-            let pStr = m.arch.params.replace(/[^0-9.TBM]/ig, '');
+            let pStr = m.arch.params.replace(/[^0-9.TBM]/gi, '');
             if (pStr.includes('T')) paramCount = parseFloat(pStr) * 1000;
             else if (pStr.includes('B')) paramCount = parseFloat(pStr);
         }
-        wObj.paramScale = Math.max(0.7, Math.min(1.4, 0.6 + (Math.log10(Math.max(paramCount, 1)) * 0.2)));
+        wObj.paramScale = Math.max(0.7, Math.min(1.4, 0.6 + Math.log10(Math.max(paramCount, 1)) * 0.2));
 
         this.updateWorkerVisuals(wObj);
 
         // Tracking highlight for followed entity
         if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
             const hl = G._addTrackHighlight(c, m, false);
-            if (hl) { wObj._trackGlow = hl.glow; wObj._trackArrow = hl.arrow; }
+            if (hl) {
+                wObj._trackGlow = hl.glow;
+                wObj._trackArrow = hl.arrow;
+            }
         }
 
         this.layer.addChild(c);
@@ -129,51 +142,60 @@ const InteriorCityAI = {
 
         const skinCol = isR ? 0xb8c0cc : isRm ? 0x8b5cf6 : 0xfdd8b5;
         const legCol = isR ? 0x7788aa : isRm ? 0x6b7280 : 0x3d2914;
-        const colHex = parseInt((LABS[w.m.lab] || LABS.other || {color: '#64748b'}).color.slice(1), 16);
+        const colHex = parseInt((LABS[w.m.lab] || LABS.other || { color: '#64748b' }).color.slice(1), 16);
         const suitCol = isR ? 0x667799 : colHex;
-        const eyeS = Math.max(1, bw * .08);
+        const eyeS = Math.max(1, bw * 0.08);
 
-        w.shadow.clear(); 
-        w.shadow.beginFill(0x000000, 0.25); 
-        w.shadow.drawEllipse(0, 2, bw * 0.6, 3); 
+        w.shadow.clear();
+        w.shadow.beginFill(0x000000, 0.25);
+        w.shadow.drawEllipse(0, 2, bw * 0.6, 3);
         w.shadow.endFill();
-        
+
         w.head.clear();
-        w.head.beginFill(skinCol, isR ? .3 : isRm ? .5 : 1);
-        w.head.drawRoundedRect(-bw * .4, 0, bw * .8, headH, headH * .25); 
+        w.head.beginFill(skinCol, isR ? 0.3 : isRm ? 0.5 : 1);
+        w.head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
         w.head.endFill();
-        w.head.beginFill(isR ? 0x88aaff : isRm ? 0xa78bfa : 0x2c1810); 
-        w.head.drawCircle(-bw * .1, headH * .38, eyeS);
-        w.head.drawCircle(bw * .1, headH * .38, eyeS); 
-        w.head.endFill(); 
-        w.head.beginFill(0x000000, 0.4); 
-        w.head.drawRect(-bw * .08, headH * .6, bw * .16, 1.5);
+        w.head.beginFill(isR ? 0x88aaff : isRm ? 0xa78bfa : 0x2c1810);
+        w.head.drawCircle(-bw * 0.1, headH * 0.38, eyeS);
+        w.head.drawCircle(bw * 0.1, headH * 0.38, eyeS);
+        w.head.endFill();
+        w.head.beginFill(0x000000, 0.4);
+        w.head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
         w.head.endFill();
         w.head.y = -h;
-        
-        w.body.clear(); 
-        w.body.beginFill(suitCol, isR ? .4 : isRm ? .4 : 1);
-        w.body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * .1); 
-        w.body.endFill(); 
+
+        w.body.clear();
+        w.body.beginFill(suitCol, isR ? 0.4 : isRm ? 0.4 : 1);
+        w.body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1);
+        w.body.endFill();
         w.body.y = -h + headH;
-        
-        const lw = Math.max(2, bw * .25), lh = Math.max(legH, 2); 
-        w.legL.clear(); w.legL.beginFill(legCol, isR ? .25 : 1); w.legL.drawRect(-lw / 2, 0, lw, lh); w.legL.endFill(); w.legL.x = -bw * .15; 
-        w.legR.clear(); w.legR.beginFill(legCol, isR ? .25 : 1); w.legR.drawRect(-lw / 2, 0, lw, lh); w.legR.endFill(); w.legR.x = bw * .15;
-        
-        w.dot.clear(); 
-        const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : 0x4ade80; 
-        w.dot.beginFill(dotCol); 
-        w.dot.drawCircle(0, 0, 2); 
+
+        const lw = Math.max(2, bw * 0.25),
+            lh = Math.max(legH, 2);
+        w.legL.clear();
+        w.legL.beginFill(legCol, isR ? 0.25 : 1);
+        w.legL.drawRect(-lw / 2, 0, lw, lh);
+        w.legL.endFill();
+        w.legL.x = -bw * 0.15;
+        w.legR.clear();
+        w.legR.beginFill(legCol, isR ? 0.25 : 1);
+        w.legR.drawRect(-lw / 2, 0, lw, lh);
+        w.legR.endFill();
+        w.legR.x = bw * 0.15;
+
+        w.dot.clear();
+        const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : 0x4ade80;
+        w.dot.beginFill(dotCol);
+        w.dot.drawCircle(0, 0, 2);
         w.dot.endFill();
         w.dot.y = -h - 6;
 
-        w.c.alpha = isR ? (0.25 + Math.abs(Math.sin(G.tick * 0.03)) * 0.4) : isRm ? .55 : 1;
+        w.c.alpha = isR ? 0.25 + Math.abs(Math.sin(G.tick * 0.03)) * 0.4 : isRm ? 0.55 : 1;
         w.c.blendMode = isR ? PIXI.BLEND_MODES.ADD : PIXI.BLEND_MODES.NORMAL;
     },
 
     update(dp) {
-        this.workers.forEach(w => {
+        this.workers.forEach((w) => {
             if (!w.c.visible) return;
 
             let bob = 0;
@@ -181,15 +203,14 @@ const InteriorCityAI = {
 
             if (w.state === 'working') {
                 if (w.desk) w.c.scale.x = w.desk.dir || 1;
-                bob = Math.sin(G.tick * 0.05 + w.c.x) * 1; 
-            }
-            else if (w.state === 'moving_to_elev_up' || w.state === 'moving_to_elev_down') {
+                bob = Math.sin(G.tick * 0.05 + w.c.x) * 1;
+            } else if (w.state === 'moving_to_elev_up' || w.state === 'moving_to_elev_down') {
                 isWalking = true;
                 let targetX = InteriorCityCore.shaftX;
                 let dir = Math.sign(targetX - w.c.x);
                 w.c.scale.x = dir || 1;
                 w.c.x += dir * w.speed;
-                
+
                 if (Math.abs(w.c.x - targetX) <= w.speed) {
                     w.c.x = targetX;
                     w.state = w.state === 'moving_to_elev_up' ? 'waiting_elev_up' : 'waiting_elev_down';
@@ -197,52 +218,48 @@ const InteriorCityAI = {
                     let lift = InteriorCityProps.getLift(this.bld.id);
                     if (lift) lift.call(callFloor);
                 }
-            }
-            else if (w.state === 'waiting_elev_up' || w.state === 'waiting_elev_down') {
-                w.c.scale.x = -1; 
+            } else if (w.state === 'waiting_elev_up' || w.state === 'waiting_elev_down') {
+                w.c.scale.x = -1;
                 let lift = InteriorCityProps.getLift(this.bld.id);
                 let waitFloor = w.state === 'waiting_elev_up' ? 0 : w.floorIdx;
-                
+
                 if (lift && lift.currentFloor === waitFloor && lift.state === 'open') {
                     w.state = w.state === 'waiting_elev_up' ? 'riding_elev_up' : 'riding_elev_down';
                     let targetFloor = w.state === 'riding_elev_up' ? w.targetFloor : 0;
                     lift.call(targetFloor);
                 }
-            }
-            else if (w.state === 'riding_elev_up' || w.state === 'riding_elev_down') {
-                w.c.scale.x = 1; 
+            } else if (w.state === 'riding_elev_up' || w.state === 'riding_elev_down') {
+                w.c.scale.x = 1;
                 let lift = InteriorCityProps.getLift(this.bld.id);
-                
+
                 if (lift) {
-                    w.c.y = G.groundY - 20 + lift.car.y; 
+                    w.c.y = G.groundY - 20 + lift.car.y;
                     let destFloor = w.state === 'riding_elev_up' ? w.targetFloor : 0;
-                    
+
                     if (lift.currentFloor === destFloor && lift.state === 'open') {
                         w.floorIdx = destFloor;
                         w.state = w.state === 'riding_elev_up' ? 'moving_to_desk' : 'leaving_lobby';
-                        w.c.y = InteriorCityCore.floorY(w.floorIdx); 
+                        w.c.y = InteriorCityCore.floorY(w.floorIdx);
                     }
                 }
-            }
-            else if (w.state === 'moving_to_desk') {
+            } else if (w.state === 'moving_to_desk') {
                 isWalking = true;
-                let destX = w.desk ? w.desk.x : (InteriorCityCore.bldW / 2);
+                let destX = w.desk ? w.desk.x : InteriorCityCore.bldW / 2;
                 let dir = Math.sign(destX - w.c.x);
                 w.c.scale.x = dir || 1;
                 w.c.x += dir * w.speed;
-                
+
                 if (Math.abs(w.c.x - destX) <= w.speed) {
                     w.c.x = destX;
                     w.state = 'working';
                 }
-            }
-            else if (w.state === 'leaving_lobby') {
+            } else if (w.state === 'leaving_lobby') {
                 isWalking = true;
-                let destX = InteriorCityCore.bldW / 2; 
+                let destX = InteriorCityCore.bldW / 2;
                 let dir = Math.sign(destX - w.c.x);
                 w.c.scale.x = dir || 1;
                 w.c.x += dir * w.speed;
-                
+
                 if (Math.abs(w.c.x - destX) <= w.speed) {
                     w.c.visible = false;
                 }
@@ -271,7 +288,7 @@ const InteriorCityAI = {
     },
 
     destroy() {
-        this.workers.forEach(w => w.c.destroy({ children: true }));
+        this.workers.forEach((w) => w.c.destroy({ children: true }));
         this.workers = [];
     },
 
@@ -295,12 +312,12 @@ const InteriorCityAI = {
         if (m.arch) {
             if (m.arch.type && m.arch.type.includes('MoE')) isMoE = true;
             if (m.arch.params) {
-                let pStr = m.arch.params.replace(/[^0-9.TBM]/ig, '');
+                let pStr = m.arch.params.replace(/[^0-9.TBM]/gi, '');
                 if (pStr.includes('T')) paramCount = parseFloat(pStr) * 1000;
                 else if (pStr.includes('B')) paramCount = parseFloat(pStr);
             }
         }
-        const paramScale = Math.max(0.7, Math.min(1.4, 0.6 + (Math.log10(Math.max(paramCount, 1)) * 0.2)));
+        const paramScale = Math.max(0.7, Math.min(1.4, 0.6 + Math.log10(Math.max(paramCount, 1)) * 0.2));
         const finalSc = sc * paramScale;
 
         // ─── Proportions: identical to exterior updateCharStateVisuals ───
@@ -312,9 +329,10 @@ const InteriorCityAI = {
         const eyeS = Math.max(1, bw * 0.08);
 
         const lab = LABS[m.lab] || LABS.other || { color: '#64748b' };
-        const colHex = (isCeo && m.founderData && m.founderData.color)
-            ? parseInt(m.founderData.color.slice(1), 16)
-            : parseInt(lab.color.slice(1), 16);
+        const colHex =
+            isCeo && m.founderData && m.founderData.color
+                ? parseInt(m.founderData.color.slice(1), 16)
+                : parseInt(lab.color.slice(1), 16);
 
         const isR = stg === 'retired';
         const isRm = stg === 'rumored';
@@ -404,30 +422,67 @@ const InteriorCityAI = {
 
         cont.eventMode = 'static';
         cont.cursor = 'pointer';
-        cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
+        cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined') UI.selectModel(m);
+        });
         cont.on('pointerover', (e) => {
             if (typeof UI === 'undefined') return;
-            const stg = getStage(m.rel, m.ret, m.phase); const sd = STAGES[stg] || STAGES.adult;
-            const dp = G.getDayPhase(); const idx = G.models.indexOf(m);
-            const ai = (typeof ACTS !== 'undefined' && ACTS[getAct(stg, dp, idx, m).act]) ? ACTS[getAct(stg, dp, idx, m).act] : { icon: '💻', label: 'Processing' };
-            UI.showTooltip(e, `${m.name}${m.phase === 'rumored' ? ' 🔮' : ''}`, `${ai.icon} ${ai.label} · ${sd.label}`, true);
+            const stg = getStage(m.rel, m.ret, m.phase);
+            const sd = STAGES[stg] || STAGES.adult;
+            const dp = G.getDayPhase();
+            const idx = G.models.indexOf(m);
+            const ai =
+                typeof ACTS !== 'undefined' && ACTS[getAct(stg, dp, idx, m).act]
+                    ? ACTS[getAct(stg, dp, idx, m).act]
+                    : { icon: '💻', label: 'Processing' };
+            UI.showTooltip(
+                e,
+                `${m.name}${m.phase === 'rumored' ? ' 🔮' : ''}`,
+                `${ai.icon} ${ai.label} · ${sd.label}`,
+                true
+            );
         });
-        cont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+        cont.on('pointerout', () => {
+            if (typeof UI !== 'undefined') UI.hideTooltip();
+        });
 
         container.addChild(cont);
 
         const agent = {
-            m, cont, head, body, legL, legR, dot, shadow, ghostL, ghostR, isMoE,
-            state: 'working', timer: 0, deskX: x, floorIdx, speed: 1.5,
-            floorY: y, targetX: x, jobTheme: null, propGfx: null,
-            isStaticRole: isStatic, isCeo: isCeo,
-            bedX: 0, bedY: 0, resumeState: null
+            m,
+            cont,
+            head,
+            body,
+            legL,
+            legR,
+            dot,
+            shadow,
+            ghostL,
+            ghostR,
+            isMoE,
+            state: 'working',
+            timer: 0,
+            deskX: x,
+            floorIdx,
+            speed: 1.5,
+            floorY: y,
+            targetX: x,
+            jobTheme: null,
+            propGfx: null,
+            isStaticRole: isStatic,
+            isCeo: isCeo,
+            bedX: 0,
+            bedY: 0,
+            resumeState: null,
         };
 
         // Tracking highlight for followed entity
         if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
             const hl = G._addTrackHighlight(cont, m, isCeo);
-            if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
+            if (hl) {
+                agent._trackGlow = hl.glow;
+                agent._trackArrow = hl.arrow;
+            }
         }
 
         this.avatars.push(agent);
@@ -440,37 +495,63 @@ const InteriorCityAI = {
     // animation, click and visibility logic in interior_city_core.js works unchanged.
     _drawCeoAvatar(m, x, y, container, floorIdx, isStatic) {
         const av = HumanAvatar.drawFounder(container, m.founderData, {
-            x, y,
-            showTag: false,    // interiors render their own role labels above CEOs
+            x,
+            y,
+            showTag: false, // interiors render their own role labels above CEOs
             showDot: true,
-            seed: 'founder_' + (m.founderData && m.founderData.name)
+            seed: 'founder_' + (m.founderData && m.founderData.name),
         });
 
         av.cont.eventMode = 'static';
         av.cont.cursor = 'pointer';
-        av.cont.on('pointertap', () => { if (typeof UI !== 'undefined') UI.selectModel(m); });
+        av.cont.on('pointertap', () => {
+            if (typeof UI !== 'undefined') UI.selectModel(m);
+        });
         av.cont.on('pointerover', (e) => {
             if (typeof UI === 'undefined') return;
-            const role = (m.founderData && m.founderData.role) ? m.founderData.role : 'Founder';
+            const role = m.founderData && m.founderData.role ? m.founderData.role : 'Founder';
             UI.showTooltip(e, m.name, role, true);
         });
-        av.cont.on('pointerout', () => { if (typeof UI !== 'undefined') UI.hideTooltip(); });
+        av.cont.on('pointerout', () => {
+            if (typeof UI !== 'undefined') UI.hideTooltip();
+        });
 
         const agent = {
-            m, cont: av.cont, head: av.head, body: av.body,
-            legL: av.legL, legR: av.legR, dot: av.dot, shadow: av.shadow,
+            m,
+            cont: av.cont,
+            head: av.head,
+            body: av.body,
+            legL: av.legL,
+            legR: av.legR,
+            dot: av.dot,
+            shadow: av.shadow,
             // Humans don't render MoE ghost bodies — left null so the existing
             // `if (av.ghostL)` guards skip them cleanly.
-            ghostL: null, ghostR: null, isMoE: false,
-            state: 'working', timer: 0, deskX: x, floorIdx, speed: 1.5,
-            floorY: y, targetX: x, jobTheme: null, propGfx: null,
-            isStaticRole: isStatic, isCeo: true,
-            bedX: 0, bedY: 0, resumeState: null
+            ghostL: null,
+            ghostR: null,
+            isMoE: false,
+            state: 'working',
+            timer: 0,
+            deskX: x,
+            floorIdx,
+            speed: 1.5,
+            floorY: y,
+            targetX: x,
+            jobTheme: null,
+            propGfx: null,
+            isStaticRole: isStatic,
+            isCeo: true,
+            bedX: 0,
+            bedY: 0,
+            resumeState: null,
         };
 
         if (typeof G !== 'undefined' && G.tracking && G._addTrackHighlight) {
             const hl = G._addTrackHighlight(av.cont, m, true);
-            if (hl) { agent._trackGlow = hl.glow; agent._trackArrow = hl.arrow; }
+            if (hl) {
+                agent._trackGlow = hl.glow;
+                agent._trackArrow = hl.arrow;
+            }
         }
 
         this.avatars.push(agent);
@@ -494,15 +575,22 @@ const InteriorCityAI = {
         if (!this.layer || !this.layer.visible) return;
 
         const msgs = [
-            "Calculating...", "Optimizing...", "Compiling...",
-            "Data incoming.", "Adjusting weights.", "Processing."
+            'Calculating...',
+            'Optimizing...',
+            'Compiling...',
+            'Data incoming.',
+            'Adjusting weights.',
+            'Processing.',
         ];
         const msg = msgOverride || msgs[Math.floor(Math.random() * msgs.length)];
 
         const bCont = new PIXI.Container();
         const bg = new PIXI.Graphics();
         const txt = new PIXI.Text(msg, {
-            fontFamily: 'JetBrains Mono', fontSize: 9, fill: 0x000000, fontWeight: 'bold'
+            fontFamily: 'JetBrains Mono',
+            fontSize: 9,
+            fill: 0x000000,
+            fontWeight: 'bold',
         });
 
         txt.anchor.set(0.5, 1);
@@ -512,7 +600,10 @@ const InteriorCityAI = {
         bg.drawRoundedRect(-txt.width / 2 - 6, -txt.height - 10, txt.width + 12, txt.height + 8, 4);
         bg.endFill();
         bg.beginFill(0xffffff);
-        bg.moveTo(-4, -4); bg.lineTo(4, -4); bg.lineTo(0, 2); bg.endFill();
+        bg.moveTo(-4, -4);
+        bg.lineTo(4, -4);
+        bg.lineTo(0, 2);
+        bg.endFill();
 
         bCont.addChild(bg, txt);
 
@@ -524,5 +615,5 @@ const InteriorCityAI = {
 
         if (this.scene) this.scene.addChild(bCont);
         this.bubbles.push({ cont: bCont, life: 120 });
-    }
+    },
 };

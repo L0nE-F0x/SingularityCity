@@ -10,18 +10,16 @@ const Shadows = {
     _lastDp: -999,
     _built: false,
 
-    SKIP_IDS: new Set([
-        'city_park', 'graveyard', 'fountain', 'open_square', 'park'
-    ]),
+    SKIP_IDS: new Set(['city_park', 'graveyard', 'fountain', 'open_square', 'park']),
     SKIP_PREFIXES: ['forest_', 'align_'],
 
     // Shadow geometry tuning
-    LEN_MULT: 2.2,          // horizontal shear per unit of effective height (sunrise/sunset stretch)
-    Y_EXTENT_MULT: 0.08,    // ground-perspective tilt — keep small so shadows lie flat on the ground
-    MAX_EFF_H: 200,         // cap applied to the *effective* shadow height, so both hShift AND yExt scale
-                            //   together for super-tall buildings — preserves a consistent shear angle
-                            //   across every shadow in the frame (parallel-sun rule).
-    BASE_INSET_Y: 24,       // buildings render their bottom at (groundY - 24); align shadow top to match.
+    LEN_MULT: 2.2, // horizontal shear per unit of effective height (sunrise/sunset stretch)
+    Y_EXTENT_MULT: 0.08, // ground-perspective tilt — keep small so shadows lie flat on the ground
+    MAX_EFF_H: 200, // cap applied to the *effective* shadow height, so both hShift AND yExt scale
+    //   together for super-tall buildings — preserves a consistent shear angle
+    //   across every shadow in the frame (parallel-sun rule).
+    BASE_INSET_Y: 24, // buildings render their bottom at (groundY - 24); align shadow top to match.
 
     init(layer) {
         this.layer = layer;
@@ -80,7 +78,7 @@ const Shadows = {
         this.layer.visible = true;
 
         const tRaw = (dp - 0.25) / 0.58;
-        const t = tRaw < 0 ? 0 : (tRaw > 1 ? 1 : tRaw);
+        const t = tRaw < 0 ? 0 : tRaw > 1 ? 1 : tRaw;
         const sunAngle = t * Math.PI;
         const sunX = -Math.cos(sunAngle);
         const sunY = Math.sin(sunAngle);
@@ -120,7 +118,7 @@ const Shadows = {
     invalidate() {
         this._built = false;
         this._lastDp = -999;
-    }
+    },
 };
 
 if (typeof window !== 'undefined') window.Shadows = Shadows;

@@ -51,7 +51,7 @@
             dayPhase: null,
             buildingId: null,
             districtHint: null,
-            camX: null
+            camX: null,
         };
         try {
             if (typeof G !== 'undefined') {
@@ -59,11 +59,15 @@
                 if (G.activeInterior && G.activeInterior.id) token.buildingId = G.activeInterior.id;
                 if (typeof Camera !== 'undefined' && Camera.targetX != null) token.camX = Camera.targetX;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            /* ignore */
+        }
         try {
             sessionStorage.setItem(RESUME_KEY, JSON.stringify(token));
             localStorage.setItem(RESUME_KEY, JSON.stringify(token));
-        } catch (e2) { /* ignore */ }
+        } catch (e2) {
+            /* ignore */
+        }
         return token;
     }
 
@@ -71,9 +75,17 @@
         // Pull Pixi achievements into unified city save so FP sees them.
         try {
             var prod = {};
-            try { prod = JSON.parse(localStorage.getItem(PROD_SAVE) || '{}') || {}; } catch (e) { prod = {}; }
+            try {
+                prod = JSON.parse(localStorage.getItem(PROD_SAVE) || '{}') || {};
+            } catch (e) {
+                prod = {};
+            }
             var city = {};
-            try { city = JSON.parse(localStorage.getItem(CITY_SAVE) || '{}') || {}; } catch (e2) { city = {}; }
+            try {
+                city = JSON.parse(localStorage.getItem(CITY_SAVE) || '{}') || {};
+            } catch (e2) {
+                city = {};
+            }
             if (!city.v) city.v = 1;
             if (!city.progress) city.progress = {};
             city.progress.achievements = Object.assign(
@@ -84,7 +96,7 @@
             if (prod.prefs) {
                 city.settings = Object.assign({}, city.settings || {}, {
                     music: prod.prefs.music != null ? prod.prefs.music : true,
-                    sfx: prod.prefs.sfx != null ? prod.prefs.sfx : true
+                    sfx: prod.prefs.sfx != null ? prod.prefs.sfx : true,
                 });
             }
             city.savedAt = Date.now();
@@ -93,11 +105,11 @@
             // Keep FP legacy key roughly in sync
             var legacy = {
                 achievements: city.progress.achievements,
-                visitedDistricts: (city.progress.visitedDistricts) || {},
-                metCitizens: (city.progress.metCitizens) || {},
+                visitedDistricts: city.progress.visitedDistricts || {},
+                metCitizens: city.progress.metCitizens || {},
                 stats: city.progress.stats || {},
                 settings: city.settings || {},
-                quality: city.quality || 'medium'
+                quality: city.quality || 'medium',
             };
             localStorage.setItem(FP_SAVE, JSON.stringify(legacy));
         } catch (e3) {
@@ -135,7 +147,7 @@
             'html.sc-integrated #btnMusic{margin-left:4px!important}',
             /* Ensure the horizontal strip can scroll if the viewport is very narrow */
             'html.sc-integrated .ctrls{overflow-x:auto;overflow-y:hidden}',
-            'html.sc-integrated .ctrls-scroll{scrollbar-width:thin}'
+            'html.sc-integrated .ctrls-scroll{scrollbar-width:thin}',
         ].join('');
         document.head.appendChild(s);
     }
@@ -161,7 +173,8 @@
         if (macro && macro.parentNode === bar) bar.insertBefore(btn, macro.nextSibling);
         else {
             // Fall back: insert before settings/sound cluster so it stays a "mode"
-            var settings = bar.querySelector('button[title="Settings"]') || document.getElementById('btnSound');
+            var settings =
+                bar.querySelector('button[title="Settings"]') || document.getElementById('btnSound');
             if (settings && settings.parentNode === bar) bar.insertBefore(btn, settings);
             else bar.appendChild(btn);
         }
@@ -201,14 +214,18 @@
                 }
                 try {
                     if (G.app.ticker && !G.app.ticker.started) G.app.ticker.start();
-                } catch (e) { /* ignore */ }
+                } catch (e) {
+                    /* ignore */
+                }
                 // If minimap zone list is empty after boot, rebuild it
                 try {
                     var zones = document.getElementById('mmZones');
                     if (zones && zones.children.length === 0 && typeof G.initMinimap === 'function') {
                         G.initMinimap();
                     }
-                } catch (e2) { /* ignore */ }
+                } catch (e2) {
+                    /* ignore */
+                }
                 clearInterval(iv);
                 return;
             }
@@ -219,20 +236,35 @@
     function applyIncomingResume() {
         // If we arrived from FP with a resume token, try to pan camera to saved camX
         var raw = null;
-        try { raw = sessionStorage.getItem(RESUME_KEY); } catch (e) { /* ignore */ }
+        try {
+            raw = sessionStorage.getItem(RESUME_KEY);
+        } catch (e) {
+            /* ignore */
+        }
         if (!raw) {
-            try { raw = localStorage.getItem(RESUME_KEY); } catch (e2) { /* ignore */ }
+            try {
+                raw = localStorage.getItem(RESUME_KEY);
+            } catch (e2) {
+                /* ignore */
+            }
         }
         if (!raw) return;
         var token;
-        try { token = JSON.parse(raw); } catch (e3) { return; }
+        try {
+            token = JSON.parse(raw);
+        } catch (e3) {
+            return;
+        }
         if (!token || token.view !== 'pixi') return;
 
         var tries = 0;
         var entered = false;
         var iv = setInterval(function () {
             tries++;
-            if (tries > 80) { clearInterval(iv); return; }   // ~20s
+            if (tries > 80) {
+                clearInterval(iv);
+                return;
+            } // ~20s
 
             // Enter the city BEFORE waiting on G.app. G.app is created *by*
             // enterCity(), so gating this on it deadlocks: the poll spins for
@@ -242,11 +274,17 @@
             if (!entered) {
                 try {
                     var landing = document.getElementById('landing');
-                    if (token.from === 'fp' && typeof enterCity === 'function' &&
-                        landing && getComputedStyle(landing).display !== 'none') {
+                    if (
+                        token.from === 'fp' &&
+                        typeof enterCity === 'function' &&
+                        landing &&
+                        getComputedStyle(landing).display !== 'none'
+                    ) {
                         enterCity();
                     }
-                } catch (e4) { /* ignore */ }
+                } catch (e4) {
+                    /* ignore */
+                }
                 entered = true;
             }
 
@@ -258,16 +296,22 @@
                     Camera.targetX = token.camX;
                     if (Camera.x != null) Camera.x = token.camX;
                 }
-            } catch (e5) { /* ignore */ }
+            } catch (e5) {
+                /* ignore */
+            }
             try {
                 if (typeof UI !== 'undefined' && UI.addToast) {
                     UI.addToast('↩ Resumed 2D city from First Person');
                 }
-            } catch (e6) { /* ignore */ }
+            } catch (e6) {
+                /* ignore */
+            }
             // consume one-shot resume
             try {
                 sessionStorage.removeItem(RESUME_KEY);
-            } catch (e7) { /* ignore */ }
+            } catch (e7) {
+                /* ignore */
+            }
         }, 250);
     }
 
@@ -295,7 +339,7 @@
         window.SCIntegrated = {
             goFirstPerson: goFirstPerson,
             mergeProgress: mergeProgressIntoCitySave,
-            captureResume: captureResume
+            captureResume: captureResume,
         };
         console.log('[SC Bridge] Integrated 2D→FP bridge ready (toolbar only)');
     }

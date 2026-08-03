@@ -19,7 +19,9 @@ const CrowdSeparation = {
         let obj;
         if (this._poolIdx < this._pool.length) {
             obj = this._pool[this._poolIdx++];
-            obj.x = x; obj.y = y; obj.i = i;
+            obj.x = x;
+            obj.y = y;
+            obj.i = i;
         } else {
             obj = { x, y, i };
             this._pool.push(obj);
@@ -43,12 +45,15 @@ const CrowdSeparation = {
             if (!refs.c.visible) continue;
             const x = refs.c.x;
             if (x < camLeft || x > camRight) continue;
-            const y = (typeof refs._logicalY === 'number') ? refs._logicalY : refs.c.y;
+            const y = typeof refs._logicalY === 'number' ? refs._logicalY : refs.c.y;
             const cellX = Math.floor(x / cs);
             const cellY = Math.floor(y / cs);
             const key = cellX * 10000 + cellY;
             let arr = this._cells.get(key);
-            if (!arr) { arr = []; this._cells.set(key, arr); }
+            if (!arr) {
+                arr = [];
+                this._cells.set(key, arr);
+            }
             arr.push(this._acquire(x, y, i));
         }
     },
@@ -63,7 +68,7 @@ const CrowdSeparation = {
         const yb = this.Y_BAND;
         const st = this.STRENGTH;
         const x = refs.c.x;
-        const y = (typeof refs._logicalY === 'number') ? refs._logicalY : refs.c.y;
+        const y = typeof refs._logicalY === 'number' ? refs._logicalY : refs.c.y;
         const cellX = Math.floor(x / cs);
         const cellY = Math.floor(y / cs);
         let dx = 0;
@@ -90,7 +95,7 @@ const CrowdSeparation = {
         if (dx > mx) dx = mx;
         else if (dx < -mx) dx = -mx;
         return dx;
-    }
+    },
 };
 
 if (typeof window !== 'undefined') window.CrowdSeparation = CrowdSeparation;
