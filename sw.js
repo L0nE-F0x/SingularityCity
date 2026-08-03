@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v533';
+const CACHE_NAME = 'singularity-city-v534';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -115,7 +115,8 @@ const CORE_ASSETS = [
     '/js/newspaper.js',
     '/js/kardashev.js',
     '/js/terminal.js',
-    '/js/engine.js'
+    '/js/engine.js',
+    '/js/sc_integrated_bridge.js'
 ];
 
 self.addEventListener('install', event => {

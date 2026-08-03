@@ -202,15 +202,13 @@ async function boot() {
     // fire a reaction for every story already in the feed.
     NewsReactivity.init(G.scene);
     G.newsReactivity = NewsReactivity;
-    // Arriving from Pixi 2D hard-swap: toast + consume token
+    // Arriving from Pixi 2D: keep continuity via URL (?dp= etc.) and progress merge.
+    // Do NOT auto-enter or toast "resumed" — the player should use the start screen
+    // (quality / music / ENTER THE CITY). Consume any leftover resume token so it
+    // cannot affect a later navigation.
     {
         const tok = readResumeToken();
-        if (tok && tok.from === 'pixi') {
-            clearResumeToken();
-            setTimeout(() => {
-                G.ui?.addToast?.('↩ Resumed First Person from 2D city', 'info');
-            }, 800);
-        }
+        if (tok && tok.from === 'pixi') clearResumeToken();
     }
 
     // ── start screen ──
