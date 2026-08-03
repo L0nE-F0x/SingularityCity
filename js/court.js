@@ -14,8 +14,8 @@ const CourtData = {
     DOCKET: [
         { case: 'NYT v. OpenAI & Microsoft', status: 'in discovery', color: '#ef4444',
           note: 'Jun 25, 2026: NYT moved for a 3rd amended complaint, narrowing claims against OpenAI but escalating against Microsoft — alleges MS built a custom supercomputer to enable the infringing training.' },
-        { case: 'Bartz v. Anthropic', status: 'pending final approval — $1.5B', color: '#fbbf24',
-          note: 'Largest copyright settlement in US history for pirated training books; May 14, 2026 fairness hearing held, judge took final approval under submission — claims rate ~92.8%.' },
+        { case: 'Bartz v. Anthropic', status: 'settled — $1.5B approved', color: '#22c55e',
+          note: 'Jul 20, 2026: Judge Martínez-Olguín granted final approval, entered judgment and dismissed with prejudice — the largest copyright settlement in US history for pirated training books, ~$3,000 per work.' },
         { case: 'Getty Images v. Stability AI', status: 'appeal pending', color: '#a855f7',
           note: 'UK High Court ruled model weights aren\'t "infringing copies"; Getty granted leave to appeal; US case refiled in N.D. Cal.' },
         { case: 'California SB 53 (TFAIA)', status: 'in force Jan 1, 2026', color: '#22c55e',
