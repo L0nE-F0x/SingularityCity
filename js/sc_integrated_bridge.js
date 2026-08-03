@@ -24,7 +24,9 @@
         // Root-absolute: embed.html redirects to index.html?embed=1, so the
         // document base is not reliably the site root when this runs.
         var u = new URL('/first-person/index.html', window.location.href);
-        u.searchParams.set('autostart', '1');
+        // Stay on the FP start screen (quality / music / ENTER THE CITY).
+        // Do NOT set autostart=1 — that skipped the landing and immediately
+        // "resumed" into the city before the player could choose options.
         u.searchParams.set('view', 'fp');
         u.searchParams.set('from', 'pixi');
         if (token) {
