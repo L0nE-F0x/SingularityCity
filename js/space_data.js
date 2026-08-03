@@ -11,8 +11,9 @@ const SPACE_ORGS = {
         name: 'SpaceX • xAI', ceo: 'Elon Musk', color: '#0033a0', icon: '🚀', region: 'us',
         hq: 'Starbase, Texas', founded: '2002 · merged with xAI Jan 2026', vehicle: 'Starship V3',
         program: 'AI1 orbital data-center constellation',
-        milestone: 'Jan 2026: SpaceX acquired xAI in a $1.25T deal — the largest private merger in history — to put AI compute in orbit.',
+        milestone: 'Jul 24, 2026: Starship Flight 13 deployed the first 20 next-gen Starlink V3 satellites and ended in the softest Starship splashdown yet — though the booster hit the Gulf hard with only 5 of 13 landing engines lit.',
         facts: [
+            'Jan 2026: SpaceX acquired xAI in a $1.25T deal — the largest private merger in history',
             'AI1 satellite: 70 m solar wingspan (wider than a 747-8), ~120–150 kW of compute per node',
             'FCC filing seeks up to 1,000,000 orbital data-center sats at 500–2,000 km altitude',
             '100 Gbps laser inter-sat links, backhauled through Starlink; robot arms do on-orbit repair',

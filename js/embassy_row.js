@@ -30,7 +30,7 @@ const EmbassyRow = {
             regulator: 'Cyberspace Administration (CAC)',
             framework: 'Interim Measures for Generative AI · AI content-labeling rules (2025)',
             stance: 'Strict pre-market registration and security assessments; content aligned with core socialist values. Now countering US chip curbs with its own gallium & rare-earth export licenses and a domestic-silicon push.',
-            milestone: 'Jul 2026: DeepSeek graduates V4 from preview to official release — 1M-token context window, new peak/off-peak API pricing — while Beijing keeps wielding rare-earth export licenses as leverage.',
+            milestone: 'Jul 2026: MOFCOM and the NDRC consulted Alibaba, ByteDance and Zhipu on export controls for AI model weights and training data — a tiered regime is only under discussion, not law — while DeepSeek graduated V4 to official release with a 1M-token context window.',
             labs: ['DeepSeek', 'Alibaba Qwen', 'Moonshot (Kimi)', 'Baidu Ernie', 'Tencent Hunyuan', 'Zhipu'],
             desc: 'People\'s Republic of China. The world\'s second AI superpower. Rapid open-weight releases (DeepSeek, Qwen, Kimi) despite US export controls — and an increasingly muscular counter using its grip on critical minerals.'
         },
@@ -42,7 +42,7 @@ const EmbassyRow = {
             regulator: 'European Commission · National DPAs',
             framework: 'EU AI Act · GPAI Code of Practice · Digital Omnibus (2026)',
             stance: 'World-first comprehensive AI law. GPAI obligations for >10^25-FLOP models went live Aug 2025; a Digital Omnibus formally adopted Jun 29, 2026 pushed high-risk compliance deadlines to Dec 2027 (standalone) / Aug 2028 (embedded) to ease competitiveness worries.',
-            milestone: 'Jun 29, 2026: EU Council formally adopted the Digital Omnibus, easing AI Act burdens — plus a new EU-wide ban on AI "nudification"/CSAM tools taking effect Dec 2026.',
+            milestone: 'Aug 2, 2026: the AI Act\'s next big tranche becomes applicable — transparency duties for synthetic content and AI-assisted interactions — following the Jun 29 Digital Omnibus that pushed the high-risk deadlines back.',
             labs: ['Mistral', 'Black Forest Labs', 'Kyutai', 'Aleph Alpha', 'Helsing'],
             desc: 'European Union. The world\'s first jurisdiction with a comprehensive horizontal AI law. The AI Act bans social scoring and untargeted biometric scraping and imposes transparency duties on foundation models — now balancing enforcement against a competitiveness push.'
         },

@@ -11,7 +11,7 @@ const ROBOTICS_COMPANIES = {
         name: 'Tesla', robot: 'Optimus V3', ceo: 'Elon Musk', color: '#e82127', icon: '🤖',
         hq: 'Fremont, California', founded: '2021 (program)',
         program: 'Mass-market humanoid on repurposed Model S/X line',
-        milestone: 'V3 production starts at Fremont in summer 2026 — on the line freed up when Model S/X ended in May.',
+        milestone: 'Jul 1, 2026: Musk showed Optimus walking the converted Fremont line, but V3 production had still not started by mid-July — guidance slipped to late Jul/Aug, with true mass production waiting on a dedicated Texas plant in 2027.',
         facts: [
             '10,000 unique parts on an all-new production line',
             'Fremont targets a 1M/yr run-rate; the Giga Texas line aims at 10M/yr',
@@ -85,8 +85,9 @@ const ROBOTICS_COMPANIES = {
         name: 'Unitree', robot: 'G1', ceo: 'Wang Xingxing', color: '#10b981', icon: '🥋',
         hq: 'Hangzhou, China', founded: '2016',
         program: 'Mass-market agile humanoids (G1/H2) + IPO run',
-        milestone: 'Jul 2, 2026: China\'s CSRC granted final approval for Unitree\'s ~$619M Shanghai STAR Market IPO — a record-fast 73-day review — with a trading debut targeted for late Jul 2026.',
+        milestone: 'Jul 30, 2026: Unitree filed its STAR Market prospectus — a ¥4.2B (~$620M) raise at a ¥42B implied valuation, with pricing Aug 5 and subscriptions opening Aug 10, on track to be the first humanoid-robot stock on China\'s A-share market.',
         facts: [
+            'Filed Mar 20, 2026 and cleared the CSRC in 104 days — a record-fast STAR Market review',
             'Feb 2026: a fleet of G1s performed a fully autonomous kung-fu routine on Chinese national TV',
             '5,500+ humanoids shipped in 2025 — volume leader; 10–20k targeted for 2026',
             'G1 starts around $16K — the price disruptor',
