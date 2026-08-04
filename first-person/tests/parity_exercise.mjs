@@ -11,7 +11,9 @@ import {
 import { makePaperJob, stepPaper, PAPER_LABS, PAPER_SOURCES } from '../js/research_papers.js';
 import { STAGE_CODE } from '../js/citizens.js';
 import { buildMetroRoutes, stepTrain } from '../js/metro.js';
-import { createJailState, tryArrest, stepJail, JAIL_BID } from '../js/jail.js';
+import { createJailState, detain, reconcileJail, JAIL_BID } from '../js/jail.js';
+import { selectDetained, ruleAppliesToViewer } from '../../shared/ai_bans.js';
+import { DOCKET, REGULATION_THEMES, pickHearingTheme } from '../../shared/ai_docket.js';
 import { BLDS, SEED as SEED_MODELS } from '../js/data.js';
 import { createCourtState, enqueueCase, stepCourt } from '../js/court.js';
 import { createOrbitState, enterOrbit, exitOrbit, updateOrbitCamera } from '../js/orbit_mode.js';
@@ -118,26 +120,67 @@ for (let i = 0; i < 200; i++) stepTrain(train, 0.05, routes);
 assert(train.x !== x0 || train.z !== z0 || train.seg > 0 || train.laps > 0, 'metro train moves along route');
 log('  metro trains lines=' + routes.length + ' pos=' + Math.round(train.x) + ',' + Math.round(train.z));
 
-// 5. Jail
+// 5. Jail — detention is a function of real ban rules, never a random arrest.
 const js = createJailState();
-const citizen = { idx: 7, model: { name: 'GPT-test' } };
-assert(tryArrest(js, citizen, 'jailbreak'), 'jail can arrest');
+const RULE = { id: 'r1', label: 'Test Ban', authority: 'Testland', reason: 'because' };
+const citizen = { idx: 7, model: { id: 'm1', name: 'GPT-test' } };
+assert(detain(js, citizen, RULE), 'jail detains under a rule');
 assert(js.inmates.length === 1, 'inmate held');
-js.inmates[0].timeLeft = 0.5;
-const rel = stepJail(js, 1);
-assert(rel.length === 1 && js.processed === 1, 'jail releases after time');
+assert(!detain(js, citizen, RULE), 'detain is idempotent per citizen');
+assert(js.inmates[0].authority === 'Testland', 'detention cites the authority');
+// When a different rule takes over an existing detention the citation must
+// follow, or the panel attributes a UK order to a Turkish court.
+const RULE2 = { id: 'r2', label: 'Other Ban', authority: 'Otherland', reason: 'different' };
+detain(js, citizen, RULE2);
+assert(js.inmates.length === 1, 'superseding rule does not duplicate the inmate');
+assert(js.inmates[0].authority === 'Otherland', 'citation follows the governing rule');
+// Release happens because the rule stopped applying — NOT because a timer ran out.
+const rel = reconcileJail(js, new Set());
+assert(rel.length === 1 && js.processed === 1, 'jail releases when the rule lifts');
+assert(js.inmates.length === 0, 'released model leaves the facility');
+
+// Jurisdiction scoping: a Turkey-only order must not detain a US viewer's city.
+const trRule = { id: 'tr', scope: { countries: ['TR'] }, test: (m) => /grok/i.test(m.name) };
+assert(ruleAppliesToViewer(trRule, 'TR'), 'TR order applies to a Turkish viewer');
+assert(!ruleAppliesToViewer(trRule, 'US'), 'TR order does NOT apply to a US viewer');
+const grok = [{ id: 'g', name: 'Grok 4', lab: 'xai' }];
+assert(selectDetained(grok, [trRule], 'TR').size === 1, 'scoped ban detains in scope');
+assert(selectDetained(grok, [trRule], 'US').size === 0, 'scoped ban is inert out of scope');
+
+// Expiry: a rule past its `until` date releases the model on its own.
+const expired = { id: 'x', scope: 'global', until: '2020-01-01', test: () => true };
+assert(!ruleAppliesToViewer(expired, 'US'), 'expired rule stops applying');
+assert(selectDetained(grok, [expired], 'US').size === 0, 'expired ban detains nobody');
 // The jail used to borrow the Black Market as a holding area because there was
 // no detention building. There is one now, and it must be a real placed building.
 assert(JAIL_BID === 'ai_jail', 'jail venue is the AI Detention Center');
 assert(BLDS.some(b => b.id === JAIL_BID), 'detention centre exists in BLDS');
 
-// 6. Court
+// 6. Court — hears the REAL docket, not invented case types.
 const cs = createCourtState();
-enqueueCase(cs, 'alignment audit', 'Claude');
+const realCase = DOCKET[0];
+const queued = enqueueCase(cs, realCase, 'Claude');
+assert(queued.title === realCase.case, 'court queues the real case name');
+assert(queued.caseStatus === realCase.status, 'court carries the real case status');
+assert(queued.note === realCase.note, 'court carries the sourced note');
 let ruled = null;
 for (let i = 0; i < 200; i++) ruled = stepCourt(cs, 0.1) || ruled;
 assert(ruled && ruled.status === 'ruled', 'court reaches ruling');
 assert(cs.rulings >= 1, 'court rulings counted');
+
+// Every seeded proceeding must be a real one — this is the regression guard
+// against reintroducing synthesised case types.
+const realTitles = new Set(DOCKET.map(d => d.case));
+assert(DOCKET.length >= 6, 'docket carries the landmark 2026 cases');
+assert(realTitles.has('NYT v. OpenAI & Microsoft'), 'docket includes the NYT case');
+// A summoned party is chosen from the case's actual parties where named.
+const nyt = DOCKET.find(d => d.case === 'NYT v. OpenAI & Microsoft');
+assert(nyt.parties.includes('openai'), 'NYT case names OpenAI as a party');
+// Hearing subjects come from real headlines or real themes, never invented.
+const themed = pickHearingTheme([], () => 0);
+assert(REGULATION_THEMES.includes(themed.theme), 'hearing theme is a real regulatory subject');
+const liveThemed = pickHearingTheme([{ headline: 'Senate opens AI antitrust probe' }], () => 0);
+assert(liveThemed.live && /antitrust/.test(liveThemed.theme), 'live regulation headline preferred');
 
 // 7. Orbit mode
 const cam = new THREE.PerspectiveCamera(70, 1, 0.5, 12000);

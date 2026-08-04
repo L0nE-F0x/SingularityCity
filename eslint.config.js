@@ -328,6 +328,17 @@ export default [
         },
     },
 
+    // ─── ESM in the browser: the shared/ source-of-truth modules and the one
+    //     module script the 2D page loads to bridge to them. Everything else in
+    //     js/ is a classic script, hence the narrow override. ───
+    {
+        files: ['shared/**/*.js', 'js/shared_boot.js'],
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'module',
+        },
+    },
+
     // ─── Service worker: worker global scope ───
     {
         files: ['sw.js'],

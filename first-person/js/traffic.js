@@ -7,6 +7,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G, CITY_W, CITY_D } from './state.js';
 import { SPACE_ORGS, NEWS, FOUNDERS, LAB_HQ, LABS } from './data.js';
+import {
+    fetchLaunches, matchLaunchesToOrgs, getCountdown, LAUNCH_GRACE_MS
+} from '../../shared/space_live.js';
 import * as TEX from './textures.js';
 import { City, LANE_W } from './city.js';
 
@@ -550,7 +553,10 @@ export const Traffic = {
     trams: [],
     blimps: [],
     heli: null,
-    rocket: null, rocketT: 0, nextLaunch: 45,
+    // Real launches only — see shared/space_live.mjs. `pads` is keyed by pad
+    // building id and holds one state machine per pad, mirroring the 2D city's
+    // SpaceEntities.rockets. There is deliberately no random launch timer.
+    pads: null, launchesByOrg: {}, _launchPoll: 0, _notified: null,
     onBlimpClick: null,
 
     init(scene) {
@@ -868,36 +874,129 @@ export const Traffic = {
         return g;
     },
 
-    _updateRockets(dt, t) {
-        if (!this.rocket) {
-            this.nextLaunch -= dt;
-            if (this.nextLaunch <= 0) {
-                const pads = ['pad_spacex', 'pad_blue_origin', 'pad_nasa', 'pad_cnsa', 'pad_esa', 'pad_ula', 'pad_rocketlab']
-                    .map(id => G.bldById[id]).filter(Boolean);
-                const pad = pads[Math.floor(Math.random() * pads.length)];
-                if (!pad) { this.nextLaunch = 90; return; }
-                const org = SPACE_ORGS[pad.org] || { color: 0xffffff, name: 'Space' };
-                this.rocket = this._buildRocket(org.color);
-                this.rocket.position.set(pad.worldX, 90, pad.worldZ);
-                this.rocketT = 0;
-                G.scene.add(this.rocket);
-                this.nextLaunch = 60 + Math.random() * 120;
-                G.ui?.addToast(`🚀 ${org.name} launch from ${pad.name}!`);
-                G.ui?.event('rocket_launch', { x: pad.worldX, z: pad.worldZ });
-                G.audio?.sfx('rocket');
+    /* One state machine per pad, driven entirely by real upcoming launches.
+
+       idle → preparation (T-5m) → countdown (T-1m) → flight → idle
+
+       A pad only ever leaves `idle` because a real launch for that pad's org is
+       due. If the API is unreachable and the cache is cold, every pad stays idle
+       and nothing launches — which is correct. Inventing a launch to fill the
+       silence is the bug this replaced. */
+    _initRocketPads() {
+        this.pads = {};
+        for (const b of Object.values(G.bldById)) {
+            if (b && b.type === 'launchpad' && b.org) {
+                this.pads[b.id] = {
+                    bld: b, org: b.org, state: 'idle',
+                    launch: null, firedFor: null, mesh: null, flightT: 0
+                };
             }
-            return;
         }
-        this.rocketT += dt;
-        const p = this.rocketT / 14;
-        if (p >= 1) {
-            G.scene.remove(this.rocket);
-            this.rocket = null;
-            return;
+        this._notified = {};
+    },
+
+    async _pollLaunches() {
+        const launches = await fetchLaunches();
+        this.launchesByOrg = matchLaunchesToOrgs(launches);
+    },
+
+    _notifyOnce(launch, label) {
+        const key = launch.id + '|' + label;
+        if (this._notified[key]) return;
+        this._notified[key] = true;
+        G.ui?.addToast?.(`🚀 T-${label} · ${launch.name} · head to the Space Zone`);
+    },
+
+    _beginFlight(p) {
+        const org = SPACE_ORGS[p.org] || { color: 0xffffff, name: 'Space' };
+        p.mesh = this._buildRocket(org.color);
+        p.mesh.position.set(p.bld.worldX, 90, p.bld.worldZ);
+        p.flightT = 0;
+        p.state = 'flight';
+        G.scene.add(p.mesh);
+        const name = p.launch ? p.launch.name : `${org.name} launch`;
+        G.ui?.addToast?.(`🚀 LAUNCH: ${name}`);
+        G.ui?.event('rocket_launch', { x: p.bld.worldX, z: p.bld.worldZ });
+        G.audio?.sfx('rocket');
+    },
+
+    _updateRockets(dt, t) {
+        if (!this.pads) this._initRocketPads();
+
+        // Refresh from the shared cache/API. fetchLaunches is itself cached for
+        // 15 min and shared with the 2D city, so this is cheap.
+        this._launchPoll -= dt;
+        if (this._launchPoll <= 0) {
+            this._launchPoll = 60;
+            this._pollLaunches();
         }
-        this.rocket.position.y = 90 + 2600 * p * p;
-        const fl = this.rocket.userData.flame;
-        fl.scale.set(1 + Math.sin(t * 40) * 0.15, 0.8 + Math.random() * 0.4, 1 + Math.cos(t * 37) * 0.15);
+
+        const now = Date.now();
+
+        for (const p of Object.values(this.pads)) {
+            // ── in flight: nothing reassigns a pad mid-ascent ──
+            if (p.state === 'flight') {
+                p.flightT += dt;
+                const prog = p.flightT / 14;
+                if (prog >= 1) {
+                    G.scene.remove(p.mesh);
+                    p.mesh = null;
+                    p.state = 'idle';
+                    continue;
+                }
+                p.mesh.position.y = 90 + 2600 * prog * prog;
+                const fl = p.mesh.userData.flame;
+                fl.scale.set(
+                    1 + Math.sin(t * 40) * 0.15,
+                    0.8 + Math.random() * 0.4,        // flame flicker only
+                    1 + Math.cos(t * 37) * 0.15
+                );
+                continue;
+            }
+
+            const launch = this.launchesByOrg[p.org] || null;
+            p.launch = launch;
+
+            if (!launch) { p.state = 'idle'; continue; }
+
+            const diff = Date.parse(launch.net) - now;
+
+            // NET has passed (within the grace window) and we haven't flown THIS
+            // launch id yet — go.
+            if (diff <= 0 && diff > -LAUNCH_GRACE_MS && p.firedFor !== launch.id) {
+                p.firedFor = launch.id;
+                this._beginFlight(p);
+                continue;
+            }
+            if (diff > 0 && diff <= 60000) {
+                if (p.state !== 'countdown') {
+                    p.state = 'countdown';
+                    this._notifyOnce(launch, '1 minute');
+                }
+                continue;
+            }
+            if (diff > 60000 && diff <= 300000) {
+                if (p.state !== 'preparation' && p.state !== 'countdown') {
+                    p.state = 'preparation';
+                    this._notifyOnce(launch, '5 minutes');
+                }
+                continue;
+            }
+            p.state = 'idle';
+        }
+    },
+
+    /** Next real launch bound to a pad, for HUD / terminal readouts. */
+    nextLaunchInfo() {
+        let best = null;
+        for (const p of Object.values(this.pads || {})) {
+            const l = this.launchesByOrg[p.org];
+            if (!l) continue;
+            if (!best || Date.parse(l.net) < Date.parse(best.launch.net)) {
+                best = { launch: l, pad: p.bld, countdown: getCountdown(l) };
+            }
+        }
+        return best;
     },
 
     // ── VIP / FOUNDER CARS ──────────────────────────────────────────────────

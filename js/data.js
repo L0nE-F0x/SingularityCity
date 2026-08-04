@@ -362,6 +362,55 @@ function getStage(rel, ret, ph) {
 function getAct(stg, dp, seed, model) {
     updateDailyEvents();
 
+    // The schedule lives in shared/schedule.js and is shared with First Person,
+    // so a model is in the same place at the same time in both views. The two
+    // apps used to keep their own copies and had drifted apart.
+    //
+    // If the module didn't load (CSP, offline), fall through to the local copy
+    // below so the city still runs — it just may disagree with First Person.
+    const shared = window.SC_SHARED && window.SC_SHARED.schedule;
+    if (shared) return shared.getAct(stg, dp, seed, model, SCHED_CTX());
+
+    return _getActLocal(stg, dp, seed, model);
+}
+
+/* The 2D city's view of the world, handed to the shared schedule. All of this
+   is global state the module deliberately does not reach for itself. */
+function SCHED_CTX() {
+    return {
+        labs: LABS,
+        labHQ: {},                       // 2D routes CEOs via G.ceoRefs, not here
+        defaultRegion: 'eu',
+        museumTrips: false,              // keep 2D's existing behaviour exactly
+        hasBld: (id) => !!(G.bldById && G.bldById[id]),
+        bid: (id) => id,                 // 2D's ids ARE the canonical vocabulary
+        isSummoned: (id) =>
+            typeof CourtData !== 'undefined' && CourtData.isModelSummoned
+                ? CourtData.isModelSummoned(id)
+                : false,
+        conferenceActive: () =>
+            typeof ConferenceData !== 'undefined' && ConferenceData.isActive
+                ? ConferenceData.isActive()
+                : false,
+        goalOverride: (m, dp, stg) =>
+            typeof Goals !== 'undefined' && Goals.getOverride ? Goals.getOverride(m, dp, stg) : null,
+        personalityBias: (m, kind, dp) =>
+            typeof Personality !== 'undefined' && Personality.getBuildingBias
+                ? Personality.getBuildingBias(m, kind, dp)
+                : null,
+        hackathonLab: _hackathonLab,
+        isWeekend: _isWeekend,
+        isUnderground: (m) => !!(m && m._underground)
+    };
+}
+
+/* ─── FALLBACK ONLY ──────────────────────────────────────────────────────────
+   Kept verbatim so a failed module load degrades instead of white-screening.
+   Do NOT edit this to change behaviour — shared/schedule.js is the source of
+   truth, and edits here would silently reintroduce the drift. */
+function _getActLocal(stg, dp, seed, model) {
+    updateDailyEvents();
+
     const region = LABS[model.lab] && LABS[model.lab].region ? LABS[model.lab].region : 'eu';
     const resId = 'res_' + region;
 

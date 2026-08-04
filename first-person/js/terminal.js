@@ -1474,8 +1474,10 @@ export const Terminal = {
         const bn = arr(s.bottlenecks), fo = arr(s.foundries), ac = arr(s.accelerators);
         // Live stockpile from the running simulation, if it is up.
         const live = G.supplyChain?.snapshot?.() || null;
+        // Prices land asynchronously (fallbacks first, then Supabase), so they
+        // must be part of the dirty key or the panel keeps the estimates up.
         const key = 's' + bn.length + fo.length + ac.length +
-            (live ? ':' + live.status + live.rows.map(r => r.pct).join(',') : '');
+            (live ? ':' + live.status + live.rows.map(r => r.pct + r.price).join(',') : '');
         if (!this._dirty('supply', key)) return;
         if (!bn.length && !fo.length && !ac.length) { host.innerHTML = '<div class="tm-empty">Supply chain data unavailable.</div>'; return; }
         const stat = live
@@ -1493,7 +1495,18 @@ export const Terminal = {
                 color: r.pct < 15 ? '#f87171' : r.pct < 35 ? '#fbbf24' : '#4ade80',
                 title: (r.commodity ? r.commodity.name + ' — ' + r.commodity.origin : r.label)
                     + ' · ' + r.v + '/' + r.cap
-            })))}` : ''}
+                    + (r.price && r.price !== '—' ? ' · ' + r.price + ' ' + r.change : '')
+            })))}
+            <div class="tm-spark-lbl" style="margin-top:6px">MARKET
+                <span style="color:#64748b">· ${esc(live.rows[0] && live.rows[0].priceUpdated || 'est.')}</span>
+            </div>
+            <table class="tm-table"><tbody>${live.rows.map(r => {
+                const up = /^\+/.test(r.change);
+                const col = r.change && r.change !== '0.0%' ? (up ? '#f87171' : '#4ade80') : '#64748b';
+                return `<tr title="${esc(r.supplyStatus || '')}"><td>${esc(r.label)}</td>` +
+                    `<td class="tm-num">${esc(r.price)}</td>` +
+                    `<td class="tm-num" style="color:${col}">${esc(r.change)}</td></tr>`;
+            }).join('')}</tbody></table>` : ''}
             <div class="tm-spark-lbl" style="margin-top:6px">BOTTLENECKS</div>
             ${bars(bn.map(b => ({ label: b.name, pct: num(b.load), value: num(b.load) + '%', color: b.color, title: b.name })))}
             <div class="tm-spark-lbl" style="margin-top:6px">FOUNDRIES</div>

@@ -3,6 +3,10 @@
    All game content, adapted from the production 2D app (ApexForge/SingularityCity)
    and its 3D port (SingularityCity3D). Pure data + pure helpers — no three.js here.
    ══════════════════════════════════════════════════════════════════════════════ */
+import {
+    getAct as sharedGetAct,
+    getFounderAct as sharedFounderAct
+} from '../../shared/schedule.js';
 
 // ─── AI LABS ─────────────────────────────────────────────────────────────────
 export const LABS = {
@@ -686,131 +690,60 @@ export function isUndergroundModel(model) {
     return UG_KEYWORDS.some(k => n.includes(k)) || UG_MODELS.some(k => n.includes(k));
 }
 
-// Daily schedule (ported from 2D js/data.js getAct). dp = day fraction 0..1,
-// seed = per-citizen hash. Street-level notes: work/sleep resolve to indoors in
-// citizens.js; commute bid:null means "to HQ" (evening sets resId). Thin outdoor
-// slices keep sidewalks alive at noon.
-//
-// The 2D version reaches into G.bldById to check a destination exists before
-// routing there. data.js stays pure, so instead every bid below is a building
-// this file itself declares in BLDS — citizens.js already no-ops on a missing id.
+/* ── Daily schedule ────────────────────────────────────────────────────────
+   The schedule itself lives in shared/schedule.js and is shared with the 2D
+   city, so a model is in the same place at the same time in both views. It
+   used to be a local copy here, and the two had drifted: different wake-up
+   thresholds, different lunch splits, different campus buildings, and a park
+   the two apps called by different ids.
+
+   This file stays pure (no G), so `hasBld` tests the BLDS roster it declares
+   itself, and the runtime-only inputs — court summons, conference, lifestyle
+   archetypes — arrive through `scheduleHooks`, which citizens.js populates.
+   ────────────────────────────────────────────────────────────────────────── */
+
+// Built on first use, not at module eval: LAB_HQ and friends are declared
+// further down this file, so touching them here hits the temporal dead zone.
+let _BLD_IDS = null;
+const _bldIds = () => (_BLD_IDS || (_BLD_IDS = new Set(BLDS.map(b => b.id))));
+
+/* The same building under two names. The shared schedule speaks the 2D city's
+   vocabulary; this maps it onto the ids First Person actually declares. */
+const _BID_ALIAS = { city_park: 'central_park' };
+const _bid = id => (id == null ? id : (_BID_ALIAS[id] || id));
+
+/** Populated by citizens.js at boot — anything needing live G state. */
+export const scheduleHooks = {
+    isSummoned: () => false,
+    conferenceActive: () => false,
+    goalOverride: () => null,
+    personalityBias: () => null
+};
+
+const SCHED_CTX = {
+    get labs() { return LABS; },
+    get labHQ() { return LAB_HQ; },
+    // 2D's fallback. First Person used 'us', which sent every region-less lab
+    // to a different residence than the 2D city sent it to.
+    defaultRegion: 'eu',
+    // Off, matching the 2D city. First Person used to send a slice of the
+    // campus cohort to the museum at midday and 2D did not, so they stood in
+    // different places. If you want the trips back, turn them on in BOTH ctxs.
+    museumTrips: false,
+    hasBld: id => _bldIds().has(_bid(id)),
+    bid: _bid,
+    isUnderground: isUndergroundModel,
+    get hackathonLab() { return _hackathonLab; },
+    get isWeekend() { return _isWeekend; },
+    isSummoned: id => scheduleHooks.isSummoned(id),
+    conferenceActive: () => scheduleHooks.conferenceActive(),
+    goalOverride: (m, dp, stg) => scheduleHooks.goalOverride(m, dp, stg),
+    personalityBias: (m, kind, dp) => scheduleHooks.personalityBias(m, kind, dp)
+};
+
 export function getAct(stg, dp, seed, model) {
     updateDailyEvents();
-
-    const region = (model.lab && LABS[model.lab] && LABS[model.lab].region) || 'us';
-    const resId = 'res_' + region;
-
-    if (stg === 'retired') return { act: 'sleep', bid: 'graveyard' };
-
-    // AI Detention Center: a government suspension outranks school, work and court
-    // alike — a ban does not keep office hours. Set model._jailed to trigger it.
-    if (model._jailed) return { act: 'jailed', bid: 'ai_jail' };
-
-    // ── Campus routing: pre-release models live at the University ──────────────
-    // Museum field trips send a slice of them to Legacy Systems (bld_1) at midday
-    // so the pre-release cohort isn't permanently pinned to one lecture hall.
-    const trip = (seed * 13) % 100;
-    if (stg === 'rumored') {
-        if (dp > .20 && dp < .80) {
-            if (dp > .40 && dp < .60 && trip < 12) return { act: 'socialize', bid: 'bld_1' };
-            return { act: 'work', bid: 'uni_lab' };
-        }
-        return { act: 'sleep', bid: 'uni_dorm' };
-    }
-    if (stg === 'baby') {
-        if (dp > .35 && dp < .80) {
-            if (dp > .45 && dp < .65 && trip < 12) return { act: 'socialize', bid: 'bld_1' };
-            // Split between the Pre-Training Silo and the Data Library — both are
-            // "ingest the corpus", and it keeps two buildings occupied instead of one.
-            return { act: 'work', bid: trip < 40 ? 'nursery' : 'uni_library' };
-        }
-        return { act: 'sleep', bid: 'nursery' };
-    }
-    if (stg === 'kid') {
-        if (dp > .35 && dp < .90) {
-            if (dp > .45 && dp < .60 && trip < 10) return { act: 'socialize', bid: 'bld_1' };
-            // The RLHF Gym keeps a share of the trainees; the Academy takes the rest.
-            return { act: 'train', bid: trip < 30 ? 'gym' : 'uni_main' };
-        }
-        return { act: 'sleep', bid: 'uni_dorm' };
-    }
-
-    const s = (seed * 17) % 100;
-
-    // ── Midnight hackathon: today's lab works the graveyard shift ──────────────
-    if (_hackathonLab && model.lab === _hackathonLab && (dp < 0.20 || dp >= 0.95)) {
-        if (s < 30) return { act: 'lunch', bid: 'cafe' };
-        return { act: 'work', bid: null };
-    }
-
-    // ── Underground models drift to the Black Market after dark ────────────────
-    // No early-morning branch: even jailbroken weights sleep in the deep-night
-    // window, and keeping them out until 03:00 spawned ghost commuters in the 2D app.
-    if (isUndergroundModel(model)) {
-        if (dp >= 0.72 && dp < 0.80 && s < 20) return { act: 'nightlife', bid: 'black_market' };
-        if (dp >= 0.80 && dp < 0.94 && s < 40) return { act: 'nightlife', bid: 'black_market' };
-    }
-
-    // ── Weekend: no commute, no HQ — the city goes outside ─────────────────────
-    if (_isWeekend) {
-        if (dp < 0.35 || dp > 0.90) return { act: 'sleep', bid: resId };
-        if (s < 14) return { act: 'play',      bid: resId };
-        if (s < 28) return { act: 'socialize', bid: 'park' };
-        if (s < 42) return { act: 'socialize', bid: 'central_park' };
-        if (s < 58) return { act: 'lunch',     bid: 'cafe' };
-        if (s < 72) return { act: 'arena',     bid: 'arena' };
-        if (s < 86) return model.os ? { act: 'share', bid: 'open_square' }
-                                    : { act: 'socialize', bid: 'neon_bar' };
-        return { act: 'train', bid: 'gym' };
-    }
-
-    // ═══ WEEKDAY (structured work day) ═══
-    if (dp < 0.25) return { act: 'sleep', bid: resId };
-    // Staggered morning leave — sidewalks fill, not a single teleport wave
-    if (dp < 0.35) {
-        const leaveTime = 0.26 + (s / 100) * 0.08;
-        return dp < leaveTime ? { act: 'sleep', bid: resId } : { act: 'commute', bid: null };
-    }
-    // Morning work + ~10% coffee/errand so streets aren't empty after rush
-    if (dp < 0.50) {
-        if (s >= 92) return { act: 'lunch', bid: 'cafe' };
-        if (s >= 86) return { act: 'socialize', bid: 'park' };
-        return { act: 'work', bid: null };
-    }
-    // Lunch window — majority leave the building
-    if (dp < 0.5625) {
-        if (s < 44) return { act: 'lunch', bid: 'cafe' };
-        if (s < 62) return { act: 'socialize', bid: 'park' };
-        if (s < 74) return { act: 'socialize', bid: 'central_park' };
-        return { act: 'work', bid: null };
-    }
-    // Afternoon block + light outdoor residual
-    if (dp < 0.65) {
-        if (s >= 90) return { act: 'socialize', bid: 'park' };
-        if (s >= 85) return { act: 'lunch', bid: 'cafe' };
-        return { act: 'work', bid: null };
-    }
-    if (dp < 0.72) {
-        if (model.os && s < 30) return { act: 'share', bid: 'open_square' };
-        if (s < 18) return { act: 'socialize', bid: s % 2 ? 'park' : 'central_park' };
-        return { act: 'work', bid: null };
-    }
-    if (dp < 0.80) {
-        if (s < 18) return { act: 'arena', bid: 'arena' };
-        if (s < 32) return { act: 'socialize', bid: 'park' };
-        if (s < 44) return { act: 'socialize', bid: 'central_park' };
-        if (s < 58) return { act: 'nightlife', bid: 'neon_bar' };
-        return { act: 'work', bid: null };
-    }
-    // Staggered evening commute home
-    if (dp < 0.95) {
-        const goHomeTime = 0.80 + (s / 100) * 0.09;
-        if (dp < goHomeTime) return { act: 'work', bid: null };
-        if (s < 22) return { act: 'nightlife', bid: 'neon_bar' };
-        return { act: 'commute', bid: resId };
-    }
-    if (s < 12) return { act: 'nightlife', bid: 'neon_bar' };
-    return { act: 'sleep', bid: resId };
+    return sharedGetAct(stg, dp, seed, model, SCHED_CTX);
 }
 
 /* Lab HQ ids for founder / model work destinations (mirrors citizens LAB_HQ). */
@@ -825,31 +758,8 @@ export const LAB_HQ = {
  * Extra lunch/park/bar beats so they migrate and aren't glued to one lobby.
  */
 export function getFounderAct(dp, seed, model) {
-    const region = (model.lab && LABS[model.lab] && LABS[model.lab].region) || 'us';
-    const resId = 'res_' + region;
-    const hq = LAB_HQ[model.lab] || 'open_square';
-    const s = (seed * 31) % 100;
-    if (dp < 0.22) return { act: 'sleep', bid: resId };
-    if (dp < 0.30) return { act: 'commute', bid: hq };
-    if (dp < 0.46) return { act: 'work', bid: hq };
-    if (dp < 0.56) {
-        if (s < 45) return { act: 'lunch', bid: 'cafe' };
-        if (s < 75) return { act: 'socialize', bid: 'park' };
-        return { act: 'work', bid: hq };
-    }
-    if (dp < 0.68) return { act: 'work', bid: hq };
-    if (dp < 0.78) {
-        if (s < 30) return { act: 'socialize', bid: 'open_square' };
-        if (s < 50) return { act: 'arena', bid: 'arena' };
-        return { act: 'work', bid: hq };
-    }
-    if (dp < 0.88) {
-        if (s < 40) return { act: 'socialize', bid: 'neon_bar' };
-        if (s < 60) return { act: 'socialize', bid: 'park' };
-        return { act: 'work', bid: hq };
-    }
-    if (dp < 0.94) return { act: 'commute', bid: resId };
-    return { act: 'sleep', bid: resId };
+    updateDailyEvents();
+    return sharedFounderAct(dp, seed, model, SCHED_CTX);
 }
 
 

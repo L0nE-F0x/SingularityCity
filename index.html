@@ -822,6 +822,14 @@ if (_isMobile) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
+<!-- ═══ SHARED MODULES ═══
+     ESM source-of-truth modules (schedule, launches, bans, docket, prices),
+     shared with First Person so the two views can never disagree. Deferred
+     classic scripts and module scripts run in DOCUMENT ORDER, and a module's
+     imports resolve before its body, so window.SC_SHARED is ready before
+     data.js below. MUST STAY ABOVE the js/*.js block. -->
+<script type="module" src="js/shared_boot.js?v=534"></script>
+
 <script defer src="js/personality.js?v=534"></script>
 <script defer src="js/data.js?v=534"></script>
 <script defer src="js/api.js?v=534"></script>
