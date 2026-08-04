@@ -203,8 +203,41 @@ trial court; metro: ticket hall / platform, with a train that arrives). Each
 reads the same live data the 2D city does — real detainees under real ban
 orders, the real docket — rather than inventing occupants.
 
-Six interiors remain in the 12–16% band: bar, alignment forest, press,
-underground, legacy museum, embassy. Same treatment, worst ratio first.
+### The real gap was not props — it was people
+
+Every FP interior was **staff-only**. `citizens.js` has always tracked who went
+where (`c.targetBid`); nothing read it. You walked into a lab HQ at 11am and
+found one receptionist while 80 models were logged as working in it, and the 2D
+module you were comparing against has always drawn its real visitors.
+
+`ctx.occupants(spots)` closes that for EVERY interior, not just the rebuilt
+ones: a room supplies the places a person can be (a bar stool, a reporter's
+desk, a gallery bench, a cell) and the citizens actually in the building fill
+them, founders first. Past the end of the spot list nothing is drawn — a room
+never invents a body it has nowhere to put. Rooms with no plan of their own get
+a collision-aware scatter.
+
+Occupancy is "arrived at this venue", **not** `c.indoors`. That flag is a street
+rendering optimisation, and `INDOOR_ACTS` deliberately excludes `socialize` —
+so filtering on it meant the Neon Bar could never show a patron.
+
+### …and a schedule bug that emptied the whole city
+
+Wiring the above up immediately showed 645 of 700 models in one bar and nobody
+anywhere else. `shared/schedule.js` buckets with `(seed * 17) % 100 < N`, which
+only spreads over 0–99 for an INTEGER seed — 2D passes `G.models.indexOf(m)`,
+the parity test passes 0,1,2,3. FP passed `c.seed`, a float in [0,1), so `s`
+never left [0,17) and every threshold above 17 fired for every model.
+
+It also silently defeated the shared module's whole purpose: the two views were
+placing the same model in different buildings. Fixed. The city now spreads —
+lunch: cafe 246 / central park 76 / park 66 / gym 37 / library 32; 15:36: open
+square 129; evening: arena 95 / park 81 / bar 79.
+
+Bar, newsroom, underground, museum, alignment cabins and embassy all place
+their occupants at spots that mean something. What remains for those six is
+prop density, not structure — and line count is a poor proxy for it, since most
+of the 2D bulk is Pixi drawing boilerplate with no 3D equivalent.
 
 ---
 
