@@ -37,8 +37,10 @@ This splits into three categories, and they need different responses.
 | A2 | Jail | **Fixed** — `shared/ai_bans.js`, commit `8307005` |
 | A3 | Court | **Fixed** — `shared/ai_docket.js`, commit `c45dca1` |
 | A4 | Port / supply chain | **Fixed** — `shared/port_prices.js`, commit `c45dca1` |
+| A5 | Schedule / entity placement | **Fixed** — `shared/schedule.js`, commits `6464b2d`, `72829ce` |
 | B | Stub interiors | Open — see below |
-| — | 2D still carries its own copies | Open |
+| — | 2D reads the shared **schedule** | **Done** — `72829ce` |
+| — | 2D reads the other four shared modules | Open — see below |
 
 **Category A is closed.** No First Person system now fabricates an event that
 claims to be real. The four `shared/` modules are the source of truth and FP
@@ -47,16 +49,28 @@ visitor opens first warms the other.
 
 ### The remaining structural debt
 
-`shared/` is the source of truth, but **only First Person reads it**. The 2D app
-still carries its own copy of all four systems. That is the same duplication
-that caused this audit, pointing the other way, and it will drift — the docket
-in particular moves whenever a case does. Switching the 2D app over is the next
-correctness task, ahead of any interior work.
+The **schedule** is now read by both views — that was the one with real parity
+impact, since it decides where every model and founder stands at every moment.
+`js/shared_boot.js` is the bridge, and the pattern is established.
 
-It is a small change per system: load the shared module from a
-`<script type="module">` shim that assigns to a global, and have the existing
-object delegate to it with its current code as the fallback. It touches the
-production 2D entry, so it wants its own commit and its own deploy preview.
+The other four modules (`space_live`, `ai_bans`, `ai_docket`, `port_prices`) are
+loaded into `window.SC_SHARED` and read by First Person, but the 2D app still
+runs its own copies of those systems. They will drift — the docket moves
+whenever a case does. Each is the same small change `getAct` took:
+
+```js
+const shared = window.SC_SHARED && window.SC_SHARED.aiDocket;
+if (shared) return shared.something(...);
+// existing body stays as the fallback
+```
+
+Lower urgency than the schedule was: those systems agree on data today, they
+just derive it twice.
+
+**When switching one over, prove it changed nothing** the way `72829ce` did —
+sweep the delegated function against the retained local copy across seeds and
+inputs and assert zero differences. Neutralise anything internally random first
+(`Personality.getBuildingBias` has a 22% gate) or the comparison is noise.
 
 ### On "total parity" for Category B
 
