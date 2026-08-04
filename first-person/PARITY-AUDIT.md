@@ -35,14 +35,36 @@ This splits into three categories, and they need different responses.
 |---|---|---|
 | A1 | Rockets | **Fixed** — `shared/space_live.js`, commit `b129cb7` |
 | A2 | Jail | **Fixed** — `shared/ai_bans.js`, commit `8307005` |
-| A3 | Court | Open |
-| A4 | Port / supply chain | Open |
-| B | Stub interiors | Open |
+| A3 | Court | **Fixed** — `shared/ai_docket.js`, commit `c45dca1` |
+| A4 | Port / supply chain | **Fixed** — `shared/port_prices.js`, commit `c45dca1` |
+| B | Stub interiors | Open — see below |
+| — | 2D still carries its own copies | Open |
 
-The pattern for A3/A4 is now established: put the real data behind a module in
-`shared/`, have FP import it, and delete the local `Math.random()` path. Keep
-cache keys identical to the 2D app's so whichever view loads first warms the
-other.
+**Category A is closed.** No First Person system now fabricates an event that
+claims to be real. The four `shared/` modules are the source of truth and FP
+reads them; cache keys are identical to the 2D app's, so whichever view a
+visitor opens first warms the other.
+
+### The remaining structural debt
+
+`shared/` is the source of truth, but **only First Person reads it**. The 2D app
+still carries its own copy of all four systems. That is the same duplication
+that caused this audit, pointing the other way, and it will drift — the docket
+in particular moves whenever a case does. Switching the 2D app over is the next
+correctness task, ahead of any interior work.
+
+It is a small change per system: load the shared module from a
+`<script type="module">` shim that assigns to a global, and have the existing
+object delegate to it with its current code as the fallback. It touches the
+production 2D entry, so it wants its own commit and its own deploy preview.
+
+### On "total parity" for Category B
+
+Category B is not a bug class, it is missing content: roughly 27,000 lines of
+2D interior work that has no First Person equivalent, and it cannot be resolved
+by pointing FP at shared data. Each interior is bespoke 3D modelling and
+scripting. Treat it as a content programme measured in sessions per interior,
+worst ratio first (jail 7%, court 8%, metro 10%, bar 12%), not as a fix.
 
 ---
 
