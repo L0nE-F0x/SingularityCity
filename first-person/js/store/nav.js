@@ -9,6 +9,13 @@ import { G } from '../state.js';
 
 const RESUME_KEY = INTEGRATION.resumeKey || 'sc_view_resume_v1';
 
+/* A resume token describes ONE navigation that is happening right now. It is
+   mirrored into localStorage only because a hard-swap between two origins-worth
+   of storage can lose the sessionStorage copy. Anything older than this is a
+   leftover from a previous visit and must never steer the current load — an
+   un-expired token is what made the 2D landing page auto-enter the city. */
+const RESUME_TTL_MS = 2 * 60 * 1000;
+
 export function readResumeToken() {
     let raw = null;
     try { raw = sessionStorage.getItem(RESUME_KEY); } catch (_) { /* ignore */ }
@@ -16,7 +23,14 @@ export function readResumeToken() {
         try { raw = localStorage.getItem(RESUME_KEY); } catch (_) { /* ignore */ }
     }
     if (!raw) return null;
-    try { return JSON.parse(raw); } catch (_) { return null; }
+    let tok = null;
+    try { tok = JSON.parse(raw); } catch (_) { return null; }
+    if (!tok) return null;
+    if (!tok.at || Date.now() - tok.at > RESUME_TTL_MS) {
+        clearResumeToken();
+        return null;
+    }
+    return tok;
 }
 
 export function writeResumeToken(token) {
@@ -28,7 +42,11 @@ export function writeResumeToken(token) {
 }
 
 export function clearResumeToken() {
+    // BOTH copies. writeResumeToken mirrors into localStorage, so clearing only
+    // the session copy leaves a token that survives the tab and replays on every
+    // later visit.
     try { sessionStorage.removeItem(RESUME_KEY); } catch (_) { /* ignore */ }
+    try { localStorage.removeItem(RESUME_KEY); } catch (_) { /* ignore */ }
 }
 
 /** Capture FP pose and navigate to vendored Pixi 2D. */

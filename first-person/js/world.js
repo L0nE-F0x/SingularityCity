@@ -17,6 +17,7 @@ import { G, CELL_W, CELL_D, CITY_W, CITY_D, SEA_X, FLOOR_H } from './state.js';
 import { LABS, SPACE_ORGS, BIOMES, DISTRICTS, NEWS } from './data.js';
 import * as TEX from './textures.js';
 import { City, CARRIAGE, KERB_H } from './city.js';
+import { Ships } from './ships.js';
 
 // How far up the sun sits from the shadow frustum centre. Short enough to keep
 // depth precision usable, tall enough to clear the tallest tower.
@@ -1672,14 +1673,23 @@ export const World = {
            under it — are added below for two extra draw calls and no lights. */
         const LAMP_H = 88;
         const lampSpots = [];
+        // A run down one road passes straight through every crossing road, and
+        // the pavement is cut away there — so a spot at a junction put the lamp
+        // (and its ground light pool) in the middle of the other carriageway.
+        const addLamp = (x, z, alongVertical) => {
+            if (!City.clearOfCrossRoads(x, z, alongVertical)) return;
+            lampSpots.push({ x, z });
+        };
         for (const ax of City.avenueXs) {
             for (let z = -CITY_D / 2 + 80; z < CITY_D / 2; z += 230) {
-                lampSpots.push({ x: ax + 79, z }, { x: ax - 79, z: z + 115 });
+                addLamp(ax + 79, z, true);
+                addLamp(ax - 79, z + 115, true);
             }
         }
         for (const sz of City.streetZs) {
             for (let x = -CITY_W / 2 + 80; x < CITY_W / 2; x += 230) {
-                lampSpots.push({ x, z: sz + 79 }, { x: x + 115, z: sz - 79 });
+                addLamp(x, sz + 79, false);
+                addLamp(x + 115, sz - 79, false);
             }
         }
         const poleGeo = mergeGeometries([
@@ -1694,7 +1704,8 @@ export const World = {
         this.lampHeadMat = new THREE.MeshBasicMaterial({ color: 0x2a2a2a, toneMapped: false });
         const heads = new THREE.InstancedMesh(headGeo, this.lampHeadMat, lampSpots.length);
         lampSpots.forEach((l, i) => {
-            dummy.position.set(l.x, 0, l.z);
+            // Stand on the pavement surface, not sunk KERB_H into it.
+            dummy.position.set(l.x, KERB_H, l.z);
             dummy.scale.setScalar(1); dummy.rotation.y = 0; dummy.updateMatrix();
             poles.setMatrixAt(i, dummy.matrix);
             heads.setMatrixAt(i, dummy.matrix);
@@ -1707,11 +1718,11 @@ export const World = {
         for (const d of City.districts) {
             if (!['park', 'academic', 'suburban'].includes(d.biome)) continue;
             for (let i = 0; i < 8; i++) {
-                benchSpots.push({
-                    x: d.cx + (rng() - 0.5) * (CELL_W * 0.55),
-                    z: d.cz + (rng() - 0.5) * (CELL_D * 0.55),
-                    r: rng() * Math.PI
-                });
+                const bx = d.cx + (rng() - 0.5) * (CELL_W * 0.55);
+                const bz = d.cz + (rng() - 0.5) * (CELL_D * 0.55);
+                // The scatter range straddles the district's inner cross road.
+                if (City.onCarriageway(bx, bz)) continue;
+                benchSpots.push({ x: bx, z: bz, r: rng() * Math.PI });
             }
         }
         const benchGeo = new THREE.BoxGeometry(16, 4, 6);
@@ -1729,8 +1740,12 @@ export const World = {
         // sidewalks, and sagging catenary wires between consecutive poles.
         const POLE_H = 74, ARM1 = 66, ARM2 = 54;   // heights of post top + two crossarms
         const GAP = 200;
-        const clear = (x, z) => !G.colliders.some(c =>
-            x > c.x0 - 12 && x < c.x1 + 12 && z > c.z0 - 12 && z < c.z1 + 12);
+        // Clear of buildings AND of the streets this avenue crosses — a pole at
+        // a junction stands on the cross-street's tarmac. Dropping one just
+        // makes the wire span the intersection, which is what wires do.
+        const clear = (x, z) => City.clearOfCrossRoads(x, z, true) &&
+            !G.colliders.some(c =>
+                x > c.x0 - 12 && x < c.x1 + 12 && z > c.z0 - 12 && z < c.z1 + 12);
 
         // one line of poles down the east sidewalk of each avenue
         const lines = [];
@@ -1803,34 +1818,46 @@ export const World = {
             scene.add(wires);
         }
 
-        // Power poles + sagging lines along the east ring road
-        const poleXs = City.ringX[1] - 0, step = 300;
+        // Power poles + sagging lines along the east ring road. On the OUTER
+        // pavement — City.ringX is the road's centreline, so planting them
+        // there put a line of utility poles straight down the middle of the
+        // carriageway for the whole length of the city.
+        const poleXs = City.sidewalkCentre(City.ringX[1], true, 1), step = 300;
         const linePts = [];
         const poleGeo2 = new THREE.CylinderGeometry(1.6, 2.2, 58, 5);
         poleGeo2.translate(0, 29, 0);
         const crossGeo = new THREE.BoxGeometry(26, 3, 3);
         crossGeo.translate(0, 52, 0);
-        const poleCount = Math.floor(CITY_D / step) + 1;
-        const poles2 = new THREE.InstancedMesh(poleGeo2, new THREE.MeshLambertMaterial({ color: 0x4a3a28 }), poleCount);
-        const crossarms = new THREE.InstancedMesh(crossGeo, new THREE.MeshLambertMaterial({ color: 0x4a3a28 }), poleCount);
-        for (let i = 0; i < poleCount; i++) {
+        const nSlots = Math.floor(CITY_D / step) + 1;
+        const poles2 = new THREE.InstancedMesh(poleGeo2, new THREE.MeshLambertMaterial({ color: 0x4a3a28 }), nSlots);
+        const crossarms = new THREE.InstancedMesh(crossGeo, new THREE.MeshLambertMaterial({ color: 0x4a3a28 }), nSlots);
+        let poleCount = 0;
+        let prevZ = null;
+        for (let i = 0; i < nSlots; i++) {
             const z = -CITY_D / 2 + i * step;
-            dummy.position.set(poleXs, 0, z); dummy.rotation.y = 0; dummy.scale.setScalar(1); dummy.updateMatrix();
-            poles2.setMatrixAt(i, dummy.matrix);
-            crossarms.setMatrixAt(i, dummy.matrix);
-            if (i > 0) {
-                const z0 = -CITY_D / 2 + (i - 1) * step;
+            // …and not in the mouth of a street joining the ring road
+            if (!City.clearOfCrossRoads(poleXs, z, true)) continue;
+            dummy.position.set(poleXs, KERB_H, z); dummy.rotation.y = 0; dummy.scale.setScalar(1); dummy.updateMatrix();
+            poles2.setMatrixAt(poleCount, dummy.matrix);
+            crossarms.setMatrixAt(poleCount, dummy.matrix);
+            poleCount++;
+            if (prevZ !== null) {
                 for (const ox of [-10, 10]) {
                     // 3-point sag per span
                     linePts.push(
-                        poleXs + ox, 52, z0,
-                        poleXs + ox, 47, (z0 + z) / 2,
-                        poleXs + ox, 47, (z0 + z) / 2,
+                        poleXs + ox, 52, prevZ,
+                        poleXs + ox, 47, (prevZ + z) / 2,
+                        poleXs + ox, 47, (prevZ + z) / 2,
                         poleXs + ox, 52, z
                     );
                 }
             }
+            prevZ = z;
         }
+        poles2.count = poleCount;
+        crossarms.count = poleCount;
+        poles2.instanceMatrix.needsUpdate = true;
+        crossarms.instanceMatrix.needsUpdate = true;
         scene.add(poles2, crossarms);
         const lineGeo = new THREE.BufferGeometry();
         lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePts, 3));
@@ -1858,35 +1885,18 @@ export const World = {
             scene.add(conts);
         }
 
-        // Ships (2) bobbing in the harbour
-        this.ships = [];
-        for (let i = 0; i < 2; i++) {
-            const ship = new THREE.Group();
-            const hull = new THREE.Mesh(paint(new THREE.BoxGeometry(220, 26, 52), i ? 0x8a2f28 : 0x2f4a6a), matVC());
-            hull.position.y = 10;
-            const bow = new THREE.Mesh(paint(new THREE.CylinderGeometry(0, 26, 60, 4), i ? 0x8a2f28 : 0x2f4a6a), matVC());
-            bow.rotation.z = -Math.PI / 2; bow.rotation.y = Math.PI / 4;
-            bow.position.set(-140, 10, 0);
-            const cabin = new THREE.Mesh(paint(new THREE.BoxGeometry(36, 34, 40), 0xe8e8e4), matVC());
-            cabin.position.set(80, 36, 0);
-            ship.add(hull, bow, cabin);
-            for (let c = 0; c < 6; c++) {
-                const cont = new THREE.Mesh(paint(new THREE.BoxGeometry(30, 12, 14),
-                    [0xc0392b, 0x2980b9, 0x27ae60, 0xd39c12][c % 4]), matVC());
-                cont.position.set(-60 + (c % 3) * 34, 28 + Math.floor(c / 3) * 13, (c % 2 ? 10 : -10));
-                ship.add(cont);
-            }
-            ship.position.set(SEA_X - 420 - i * 260, 0, -500 + i * 480);
-            ship.rotation.y = i ? 0.25 : -0.15;
-            scene.add(ship);
-            this.ships.push(ship);
-            this.animated.push({ obj: ship, kind: 'ship', phase: i * 2.1 });
-        }
+        // The harbour fleet lives in js/ships.js — real hulls that sail in,
+        // berth, discharge onto the quay through the gantry and sail out. It
+        // owns its own update, so nothing here goes in `animated`.
+        Ships.build(scene);
 
-        // Pier from the port into the water
+        // Timber pier, north of the container berth. It used to run out from
+        // the quay at portD.cz — straight through where a 300-unit ship now
+        // lies alongside, so the two intersected.
         if (portD) {
-            sBox(420, 6, 60, SEA_X - 180, 3, portD.cz, 0x7a6248);
-            for (let i = 0; i < 6; i++) sCyl(3, 3, 12, 6, SEA_X - 40 - i * 70, 2, portD.cz + 26, 0x5a4632);
+            const pierZ = portD.cz - 265;
+            sBox(420, 6, 60, SEA_X - 180, 3, pierZ, 0x7a6248);
+            for (let i = 0; i < 6; i++) sCyl(3, 3, 12, 6, SEA_X - 40 - i * 70, 2, pierZ + 26, 0x5a4632);
             // Lighthouse
             sCyl(10, 14, 90, 10, SEA_X - 60, 45, portD.cz - 330, 0xe8e0d0);
             sCyl(11, 11, 10, 10, SEA_X - 60, 28, portD.cz - 330, 0xc0392b);
@@ -2187,6 +2197,7 @@ export const World = {
 
     // ── per-frame ────────────────────────────────────────────────────────────
     update(dt, t) {
+        Ships.update(dt, t);
         for (const a of this.animated) {
             switch (a.kind) {
                 case 'turbine': a.obj.rotation.z += dt * a.speed * (1 + G.weatherIntensity * 2); break;
@@ -2194,7 +2205,6 @@ export const World = {
                 case 'dish': a.obj.rotation.z = Math.sin(t * 0.12 + a.phase) * 0.35; break;
                 case 'trolley': a.obj.position.z = a.cz - 30 + Math.sin(t * 0.25 + a.phase) * 30; break;
                 case 'fountain': a.obj.position.y = 6.5 + Math.sin(t * 2.2) * 0.35; break;
-                case 'ship': a.obj.rotation.z = Math.sin(t * 0.5 + a.phase) * 0.02; a.obj.position.y = Math.sin(t * 0.7 + a.phase) * 0.8; break;
                 case 'lighthouse': a.obj.material.color.setHSL(0.12, 0.8, 0.5 + Math.sin(t * 1.4) * 0.4); break;
             }
         }

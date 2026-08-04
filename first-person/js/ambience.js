@@ -171,7 +171,7 @@ export const Ambience = {
                     speed: 0.16 + rng() * 0.12,
                     ox: v.x, oz: v.z, oy: 1.5, rise: 46 + rng() * 30,
                     drift: (rng() - 0.5) * 14,
-                    hue: 0.58, sat: 0.04, lum: 0.9, size: 7 + rng() * 6
+                    hue: 0.58, sat: 0.04, lum: 0.78, size: 5 + rng() * 4
                 });
             }
         }
@@ -203,17 +203,32 @@ export const Ambience = {
         // one of each for the whole cloud, and a smoke plume and a welding
         // spark cannot share either.
         const mat = new THREE.ShaderMaterial({
-            uniforms: { map: { value: dotTexture() }, uOpacity: { value: 1 } },
+            uniforms: {
+                map: { value: dotTexture() }, uOpacity: { value: 1 },
+                // Ceiling on the projected sprite, in pixels. Kept as a uniform
+                // so it can track the drawing buffer height (see update()).
+                uMaxPx: { value: 180 }
+            },
             vertexShader: /* glsl */`
                 attribute float aSize;
                 attribute float aAlpha;
+                uniform float uMaxPx;
                 varying vec3 vCol;
                 varying float vA;
                 void main() {
                     vCol = color;
-                    vA = aAlpha;
                     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-                    gl_PointSize = aSize * (420.0 / max(40.0, -mv.z)) * 6.0;
+                    float dist = -mv.z;
+                    /* Two guards against walking into a billboard.
+
+                       The distance clamp below stops the projected size going
+                       to infinity, but 40.0 still puts a big steam puff at ~800
+                       pixels — one manhole vent whited out the entire frame,
+                       additively, and read as a glowing blob hanging over the
+                       road. Cap the sprite, and fade the last stretch out
+                       rather than letting the camera end up inside it. */
+                    gl_PointSize = min(aSize * (420.0 / max(40.0, dist)) * 6.0, uMaxPx);
+                    vA = aAlpha * smoothstep(25.0, 95.0, dist);
                     gl_Position = projectionMatrix * mv;
                 }`,
             fragmentShader: /* glsl */`
@@ -249,15 +264,22 @@ export const Ambience = {
             new THREE.SphereGeometry(3.2, 8, 6).translate(0, 11.5, 0),
             new THREE.CylinderGeometry(1.5, 1.5, 8, 6).rotateZ(Math.PI / 2).translate(0, 7.5, 0)
         ], false);
+        // Same trap as the street lamps: a run down one road passes through
+        // every crossing road, where the pavement is cut away — a hydrant there
+        // ends up standing on the other carriageway.
         const spots = [];
+        const add = (x, z, alongVertical) => {
+            if (City.clearOfCrossRoads?.(x, z, alongVertical) === false) return;
+            spots.push({ x, z });
+        };
         for (const ax of City.avenueXs) {
             for (let z = -CITY_D / 2 + 180; z < CITY_D / 2; z += 470) {
-                spots.push({ x: ax + CARRIAGE.main / 2 + 22, z });
+                add(ax + CARRIAGE.main / 2 + 22, z, true);
             }
         }
         for (const sz of City.streetZs) {
             for (let x = -CITY_W / 2 + 220; x < CITY_W / 2; x += 470) {
-                spots.push({ x, z: sz + CARRIAGE.main / 2 + 22 });
+                add(x, sz + CARRIAGE.main / 2 + 22, false);
             }
         }
         if (spots.length) {
@@ -302,6 +324,11 @@ export const Ambience = {
         const night = G.weatherSys?.night ?? 0;
         const pos = this._pos.array;
         const alpha = this._alpha;
+        // Keep the sprite ceiling proportional to the frame, so the same puff
+        // covers the same fraction of the screen at every resolution.
+        if (this._mat) {
+            this._mat.uniforms.uMaxPx.value = Math.max(60, G.renderer.domElement.height * 0.19);
+        }
 
         for (let i = 0; i < this.parts.length; i++) {
             const p = this.parts[i];
@@ -356,8 +383,10 @@ export const Ambience = {
                     x = p.ox + p.drift * k;
                     z = p.oz + p.drift * 0.5 * k;
                     y = p.oy + k * p.rise;
-                    // barely there by day, unmistakable at night under a lamp
-                    a = Math.sin(k * Math.PI) * (0.10 + night * 0.34);
+                    // Barely there by day, visible at night under a lamp. Kept
+                    // low: this blends additively, so anything higher stacks
+                    // into a solid white orb hanging over the road.
+                    a = Math.sin(k * Math.PI) * (0.06 + night * 0.17);
                     break;
                 }
             }

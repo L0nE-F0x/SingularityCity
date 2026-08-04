@@ -133,8 +133,16 @@ function mergeByMaterial(group) {
     const toLocal = new THREE.Matrix4().copy(group.matrixWorld).invert();
     const _m = new THREE.Matrix4();
     const buckets = new Map();
+    const keep = [];        // non-mesh children — sprites, lights, points
     group.traverse(o => {
-        if (!o.isMesh || o.isInstancedMesh) return;
+        if (o === group) return;
+        if (!o.isMesh || o.isInstancedMesh) {
+            // Anything that is not mergeable geometry has to be carried across
+            // by hand. Dropping it is what made every VIP limo lose its floating
+            // founder name plate.
+            if (o.isSprite || o.isLight || o.isPoints || o.isLine) keep.push(o);
+            return;
+        }
         const m = Array.isArray(o.material) ? o.material[0] : o.material;
         if (!buckets.has(m)) buckets.set(m, []);
         const g = o.geometry.clone();
@@ -153,7 +161,25 @@ function mergeByMaterial(group) {
         out.add(new THREE.Mesh(merged, mat));
     }
     // Nothing merged (shouldn't happen) — keep the original rather than a blank
-    return out.children.length ? out : group;
+    if (!out.children.length) return group;
+
+    // Re-attach the survivors at their position relative to the group.
+    for (const o of keep) {
+        _m.multiplyMatrices(toLocal, o.matrixWorld);
+        _m.decompose(o.position, o.quaternion, o.scale);
+        out.add(o);
+    }
+    // The geometry was baked with the group's OWN transform divided out, so the
+    // caller's placement has to travel with the result. Without this a builder
+    // that scales before merging (the limo's 1.55x stretch) silently came back
+    // unstretched.
+    out.position.copy(group.position);
+    out.quaternion.copy(group.quaternion);
+    out.scale.copy(group.scale);
+    // Builders hang animation handles and material refs here; the merge used to
+    // return a blank group and every one of those reads came back undefined.
+    Object.assign(out.userData, group.userData);
+    return out;
 }
 
 function buildSedan(bodyHex, opts = {}) {
@@ -249,17 +275,23 @@ function buildVipLimo(founder) {
     const labCol = new THREE.Color(founder.color || '#334155');
     const hex = labCol.getHex() === 0xffffff ? 0xd8dde6 : labCol.getHex();
     const g = buildSedan(hex, { glassOpacity: 0.14, driver: true, passenger: false });
-    // stretch into limo proportions
-    g.scale.set(1.55, 1.08, 1.1);
+    // Stretch into limo proportions by scaling the BODY GEOMETRY, not the group.
+    // A group scale would also stretch the passengers, the door plate and the
+    // billboarded name tag added below — and a non-uniform scale on a rotating
+    // parent makes a Sprite child wobble as the car turns.
+    for (const child of g.children) {
+        if (child.isMesh) child.geometry.scale(1.55, 1.08, 1.1);
+    }
 
-    // rear CEO (extra large for street readability after scale)
+    // rear CEO (extra large for street readability)
     const ceo = buildOccupant({
         suit: 0x0f172a,
         accent: hex,
         hair: founder.name && /elon/i.test(founder.name) ? 0xc4a882 : 0x2a2118
     });
     ceo.scale.set(0.95, 0.95, 0.95);
-    ceo.position.set(-12, 11.2, 0);
+    // ×1.55 / ×1.08 to sit where it did in the sedan's stretched body
+    ceo.position.set(-18.6, 12.1, 0);
     g.add(ceo);
 
     // gold door plate
@@ -267,7 +299,7 @@ function buildVipLimo(founder) {
         new THREE.BoxGeometry(8, 2.2, 0.4),
         new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.85, roughness: 0.25 })
     );
-    plate.position.set(-6, 12, 10.4);
+    plate.position.set(-9.3, 13, 11.4);
     g.add(plate);
 
     // floating name tag
@@ -488,13 +520,25 @@ function buildHelicopter(colHex, opts = {}) {
     const stab = new THREE.Mesh(new THREE.BoxGeometry(8, 1.5, 12), bodyM);
     stab.position.set(-38, 13, 0);
 
+    // Tail rotor spins about X (it faces sideways), so its blades live in the
+    // YZ plane. Built at the origin and positioned after the merge below —
+    // mergeByMaterial bakes child transforms, so anything that has to keep
+    // turning must stay out of the static bake.
     const tailRotor = new THREE.Group();
-    tailRotor.position.set(-41, 18, 3.5);
     for (let i = 0; i < 2; i++) {
         const b = new THREE.Mesh(new THREE.BoxGeometry(1, 12, 2.2), darkM);
-        b.rotation.z = i * Math.PI / 2;
+        b.rotation.x = i * Math.PI / 2;
         tailRotor.add(b);
     }
+    const tailDisc = new THREE.Mesh(
+        new THREE.CircleGeometry(6.2, 24),
+        new THREE.MeshBasicMaterial({
+            color: 0xcbd5e1, transparent: true, opacity: 0.14,
+            side: THREE.DoubleSide, depthWrite: false
+        })
+    );
+    tailDisc.rotation.y = Math.PI / 2;
+    tailRotor.add(tailDisc);
     for (const s of [-1, 1]) {
         const skid = new THREE.Mesh(new THREE.BoxGeometry(30, 1.2, 1.2), darkM);
         skid.position.set(2, 1.2, s * 7.5);
@@ -505,7 +549,6 @@ function buildHelicopter(colHex, opts = {}) {
     }
 
     const rotor = new THREE.Group();
-    rotor.position.set(0, 19, 0);
     rotor.add(new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.8, 4, 12), darkM));
     for (let i = 0; i < 4; i++) {
         const blade = new THREE.Mesh(
@@ -520,13 +563,16 @@ function buildHelicopter(colHex, opts = {}) {
     const disc = new THREE.Mesh(
         new THREE.CircleGeometry(29, 40),
         new THREE.MeshBasicMaterial({
-            color: 0xcbd5e1, transparent: true, opacity: 0.12,
+            color: 0xcbd5e1, transparent: true, opacity: 0.16,
             side: THREE.DoubleSide, depthWrite: false
         })
     );
     disc.rotation.x = -Math.PI / 2;
     disc.position.y = 2.1;
     rotor.add(disc);
+    // The disc is the thing that actually reads as "spinning" at distance; the
+    // blades alias into a stationary cross once they turn faster than the frame
+    // rate can sample. Both are kept: blades for the near view, disc for far.
 
     // landing lights
     const lampM = new THREE.MeshBasicMaterial({ color: 0xfff2cc });
@@ -536,10 +582,24 @@ function buildHelicopter(colHex, opts = {}) {
         g.add(L);
     }
 
-    g.add(body, belly, nose, rear, canopy, cabinFloor, seat, boom, fin, stab, tailRotor, rotor);
-    g.userData.rotor = rotor;
-    g.userData.tailRotor = tailRotor;
-    return mergeByMaterial(g);
+    g.add(body, belly, nose, rear, canopy, cabinFloor, seat, boom, fin, stab);
+
+    // Merge the airframe, then hang the two rotors off the result as live
+    // nodes. Merging them WITH the airframe is what made the blades static:
+    // mergeByMaterial bakes every child transform into one buffer and returns a
+    // brand-new group, so both the pivot and the userData handle were lost and
+    // `h.obj.userData.rotor` silently read undefined every frame.
+    const out = mergeByMaterial(g);
+
+    const rotorNode = mergeByMaterial(rotor);
+    rotorNode.position.set(0, 19, 0);
+    const tailNode = mergeByMaterial(tailRotor);
+    tailNode.position.set(-41, 18, 3.5);
+    out.add(rotorNode, tailNode);
+
+    out.userData.rotor = rotorNode;
+    out.userData.tailRotor = tailNode;
+    return out;
 }
 
 
@@ -580,27 +640,55 @@ export const Traffic = {
             || G.placements.find(p => p.district === 'tech')
             || G.placements[Math.min(5, G.placements.length - 1)];
         const stops = [port, fab, hq].filter(Boolean);
-        if (stops.length < 2) {
-            const xs = City.avenueXs?.length ? City.avenueXs : [0, 400];
-            const zs = City.streetZs?.length ? City.streetZs : [0, 400];
-            const path = [
+        const path = this._gridRoute(stops.length >= 2 ? stops : null);
+        if (path) this._registerTruck(scene, path);
+    },
+
+    /* Manhattan route over the road grid, closed into a loop.
+
+       The route used to join each stop's nearest intersection to the NEXT
+       stop's with a single straight segment. Two intersections almost never
+       share a row or a column, so that segment cut diagonally across whole
+       blocks and the Nvidia truck drove through buildings. Every leg produced
+       here runs along exactly one avenue (constant x) or one street (constant
+       z), and sits in a lane rather than on the centreline. */
+    _gridRoute(stops) {
+        const xs = City.avenueXs?.length ? City.avenueXs : [0, 400];
+        const zs = City.streetZs?.length ? City.streetZs : [0, 400];
+        // No usable stops — fall back to a lap of the outermost avenues/streets.
+        const nodes = stops
+            ? stops.map(s => City.nearestIntersection(s.x ?? s.worldX ?? 0, s.z ?? s.worldZ ?? 0))
+            : [
                 { x: xs[0], z: zs[0] }, { x: xs[xs.length - 1], z: zs[0] },
-                { x: xs[xs.length - 1], z: zs[zs.length - 1] }, { x: xs[0], z: zs[zs.length - 1] },
-                { x: xs[0], z: zs[0] }
+                { x: xs[xs.length - 1], z: zs[zs.length - 1] }, { x: xs[0], z: zs[zs.length - 1] }
             ];
-            this._registerTruck(scene, path);
-            return;
+        // Two facilities can snap to the same corner — a zero-length leg has no
+        // heading, and _stepPathVehicle would divide by it.
+        const uniq = nodes.filter((n, i) => i === 0 ||
+            Math.abs(n.x - nodes[i - 1].x) > 2 || Math.abs(n.z - nodes[i - 1].z) > 2);
+        if (uniq.length < 2) return null;
+        uniq.push({ ...uniq[0] });   // close the loop
+
+        const pts = [];
+        const push = (x, z) => {
+            const last = pts[pts.length - 1];
+            if (last && Math.abs(last.x - x) < 2 && Math.abs(last.z - z) < 2) return;
+            pts.push({ x, z });
+        };
+        for (let i = 0; i < uniq.length - 1; i++) {
+            const a = uniq[i], b = uniq[i + 1];
+            const zDir = Math.sign(b.z - a.z) || 1;      // heading of the avenue leg
+            const xDir = Math.sign(b.x - a.x) || 1;      // heading of the street leg
+            const avX = City.laneCentre(a.x, true, zDir, 0);
+            const stZ = City.laneCentre(b.z, false, -xDir, 0);
+            // Turn onto the avenue at whatever z the previous leg finished on.
+            const fromZ = pts.length ? pts[pts.length - 1].z : City.laneCentre(a.z, false, -xDir, 0);
+            push(avX, fromZ);       // corner
+            push(avX, stZ);         // …up/down the avenue
+            push(City.laneCentre(b.x, true, zDir, 0), stZ);   // …along the street
         }
-        const path = [];
-        for (const s of stops) {
-            const sx = s.x ?? s.worldX, sz = s.z ?? s.worldZ;
-            const i = City.nearestIntersection(sx, sz);
-            const lane = City.laneCentre(i.x, true, 1, 0);
-            path.push({ x: lane, z: i.z });
-            path.push({ x: lane, z: sz });
-        }
-        path.push({ ...path[0] });
-        this._registerTruck(scene, path);
+        push(pts[0].x, pts[0].z);
+        return pts;
     },
 
     _registerTruck(scene, path) {
@@ -638,7 +726,14 @@ export const Traffic = {
                 if (!a || !b) break;
                 v.obj.position.set(a.x + (b.x - a.x) * t, 0, a.z + (b.z - a.z) * t);
                 // Forward = +X on all builders → yaw so +X points along travel
-                v.obj.rotation.y = Math.atan2(b.x - a.x, b.z - a.z) - Math.PI / 2;
+                const want = Math.atan2(b.x - a.x, b.z - a.z) - Math.PI / 2;
+                if (v.yaw == null) v.yaw = want;
+                // Ease into the new heading instead of snapping 90° at a corner.
+                let d = want - v.yaw;
+                while (d > Math.PI) d -= Math.PI * 2;
+                while (d < -Math.PI) d += Math.PI * 2;
+                v.yaw += d * Math.min(1, dt * 6);
+                v.obj.rotation.y = v.yaw;
                 break;
             }
             rem -= v.segs[i];
@@ -850,7 +945,9 @@ export const Traffic = {
         const vx = -Math.sin(h.angle), vz = Math.cos(h.angle);
         h.obj.rotation.y = Math.atan2(vx, vz) - Math.PI / 2;
         h.obj.rotation.z = -0.1;
-        if (h.obj.userData.rotor) h.obj.userData.rotor.rotation.y += dt * 32;
+        // Not a round multiple of the 4-blade symmetry at 60fps — at dt*32 the
+        // blades land ~90° apart every 3 frames and read as a stationary cross.
+        if (h.obj.userData.rotor) h.obj.userData.rotor.rotation.y += dt * 21;
         if (h.obj.userData.tailRotor) h.obj.userData.tailRotor.rotation.x += dt * 48;
     },
 
@@ -1050,8 +1147,8 @@ export const Traffic = {
             v.obj.visible = on;
             if (!on) continue;
             this._stepPathVehicle(v, dt);
-            const spr = v.obj.userData.nameSprite;
-            if (spr && G.camera) spr.quaternion.copy(G.camera.quaternion);
+            // Sprites billboard themselves — nothing to orient here. The tag
+            // just hides when the car is parked out of the day window above.
         }
     },
 
@@ -1104,7 +1201,7 @@ export const Traffic = {
             h.obj.rotation.y = Math.atan2(vx, vz) - Math.PI / 2;
             h.obj.rotation.z = -0.12;
             h.obj.rotation.x = 0.04;
-            if (h.obj.userData.rotor) h.obj.userData.rotor.rotation.y += dt * 32;
+            if (h.obj.userData.rotor) h.obj.userData.rotor.rotation.y += dt * 21;
             if (h.obj.userData.tailRotor) h.obj.userData.tailRotor.rotation.x += dt * 48;
         }
     },

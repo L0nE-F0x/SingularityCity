@@ -377,6 +377,33 @@ export const City = {
         }
         return false;
     },
+    /* Can street furniture stand here, given it runs ALONGSIDE a road of the
+       given orientation?
+
+       Furniture is laid out by walking the length of one road — lamps down an
+       avenue, hydrants down a street — and such a run crosses every
+       perpendicular road on the way. The sidewalk itself is already broken
+       around those crossings (see sidewalkSegments), so anything placed at one
+       was left standing on the other road's tarmac: lamp posts and hydrants in
+       the middle of junctions, light pools spilling across the asphalt.
+
+       Only roads PERPENDICULAR to the run can cross it, so a lamp beside a
+       vertical avenue is tested against the horizontal streets and never
+       against the avenue it belongs to.
+
+       `pad` clears the zebra crossings too: they are painted at carriage/2 + 20
+       with a 26-deep stripe, so their outer edge is 33 beyond the kerb. */
+    clearOfCrossRoads(x, z, alongVertical, pad = 46) {
+        this._index();
+        // A run along a vertical avenue is crossed by horizontal streets, and
+        // its position on their length axis is z (and vice versa).
+        const [table, coord] = alongVertical ? [this._byZ, z] : [this._byX, x];
+        for (const [c, r] of table) {
+            if (Math.abs(coord - c) < r.carriage / 2 + pad) return false;
+        }
+        return true;
+    },
+
     // nudge a point off the tarmac onto the nearest pavement
     offRoad(x, z) {
         this._index();

@@ -19,6 +19,25 @@
     var CITY_SAVE = 'sc_city_save_v1';
     var FP_SAVE = 'sc_fp_save_v1';
     var PROD_SAVE = 'sc_data';
+    /* How long a view-handoff token stays actionable. The token is written
+       immediately before window.location.href is set, so the real gap is one
+       page load; two minutes is only slack for a slow network. */
+    var RESUME_TTL_MS = 2 * 60 * 1000;
+
+    /** Drop BOTH copies of the handoff token. captureResume writes to session
+        AND local storage, so clearing one leaves the other to replay later. */
+    function clearResume() {
+        try {
+            sessionStorage.removeItem(RESUME_KEY);
+        } catch (e) {
+            /* ignore */
+        }
+        try {
+            localStorage.removeItem(RESUME_KEY);
+        } catch (e2) {
+            /* ignore */
+        }
+    }
 
     function fpUrl(token) {
         // Root-absolute: embed.html redirects to index.html?embed=1, so the
@@ -255,9 +274,21 @@
         try {
             token = JSON.parse(raw);
         } catch (e3) {
+            clearResume();
             return;
         }
         if (!token || token.view !== 'pixi') return;
+        // A resume token describes the navigation happening right now. An older
+        // one is a leftover from a previous visit, and acting on it is what made
+        // the landing page skip straight into the city on every later load.
+        if (!token.at || Date.now() - token.at > RESUME_TTL_MS) {
+            clearResume();
+            return;
+        }
+        // Consume it up front. This runs before enterCity() finishes booting, so
+        // waiting until the end of the poll (as it used to) leaves the token live
+        // for anyone who navigates away mid-boot.
+        clearResume();
 
         var tries = 0;
         var entered = false;
@@ -306,12 +337,6 @@
                     UI.addToast('↩ Resumed 2D city from First Person');
                 }
             } catch (e6) {
-                /* ignore */
-            }
-            // consume one-shot resume
-            try {
-                sessionStorage.removeItem(RESUME_KEY);
-            } catch (e7) {
                 /* ignore */
             }
         }, 250);

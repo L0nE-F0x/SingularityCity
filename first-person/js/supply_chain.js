@@ -138,11 +138,16 @@ export const SupplyChain = {
         const e = this.stock.electricity;
         if (e) e.v = Math.min(e.cap, e.v + 1.05 * scale * dt);
 
-        // ── ships: a delivery every so often, sooner if things are tight ──
+        /* ── ships ──
+           Deliveries land when a ship you can actually watch finishes
+           discharging (js/ships.js calls deliver()). This timer is the
+           fallback for when the harbour never reports — otherwise a failure
+           out at the port would silently starve every datacentre in the city.
+           `dockedRecently` is bumped by the harbour on each discharge. */
         this._shipTimer -= dt * (1 + this.shortage);
         if (this._shipTimer <= 0) {
             this._shipTimer = 55 + Math.random() * 50;
-            this.deliver();
+            if (!this.harbourLive) this.deliver();
         }
 
         // ── trucks ──
