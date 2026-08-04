@@ -18,7 +18,7 @@ import { G, EYE_H } from './state.js';
 import { LABS } from './data.js';
 import * as TEX from './textures.js';
 import { resolveRoom, floorLabel } from './interiors/rooms.js';
-import { seeded, P as PROP } from './interiors/kit.js';
+import { seeded, P as PROP, nameTex } from './interiors/kit.js';
 
 export const FLOOR_Y = -4000;          // where interiors live
 
@@ -1011,12 +1011,19 @@ export const Interior = {
         return here;
     },
 
-    /* Draw them into the room's merge buckets at spots the room chose.
+    /* Draw them at the spots the room chose — as LIVE figures, not baked ones.
 
-       Deliberately NOT the instanced city citizen mesh: that runs at world
-       scale on a shader expecting a walk cycle, and interiors are a third the
-       size with everything baked. A seated model is a few boxes, and costs
-       nothing because it merges with the furniture around it.
+       They were merged into the room shell at first, which made them furniture:
+       standing dead still forever, which reads worse than an empty room because
+       the eye expects a person to move. The 2D city runs a per-avatar state
+       machine indoors (js/interior_avatar_states.js: drinking, mingling,
+       watching, lounging…), and a static crowd is not parity with that.
+
+       Each occupant is one merged mesh — its own boxes collapsed together — so
+       a busy floor costs one draw call per person rather than per box, and the
+       room's own furniture still merges into the shell as before. `ctx.animate`
+       then breathes them: a slow idle sway, and periodic strolls between the
+       room's spare spots so the crowd reshuffles while you watch.
 
        Anything past the end of `spots` is simply not drawn — a room never
        invents a body it has nowhere to put, and never pads the count. */
@@ -1027,19 +1034,100 @@ export const Interior = {
         // Multi-floor: share them out so a six-storey HQ isn't all in reception.
         if (this.maxFloor > 0 && opts.share !== false) here = this._floorShare(here);
         const n = Math.min(here.length, spots.length);
+        // Spots nobody was placed on become the places people wander TO.
+        const spare = spots.slice(n);
         for (let i = 0; i < n; i++) {
             const c = here[i];
             const s = spots[i];
             const m = c.model || {};
-            PROP.npc(ctx, s.x, s.z, {
+            const figure = this._buildOccupant(ctx, {
                 name: opts.silent ? null : (m.name || 'Visitor'),
                 role: opts.role || (m.founder ? 'Founder' : (LABS[m.lab]?.name || 'Model')),
                 color: c.color?.getHex ? c.color.getHex() : 0x94a3b8,
-                // three staggered rows, so a crowded floor's labels stay legible
                 plateY: 47 + (i % 3) * 13
             }, s.facing ?? 1);
+            /* Interior-LOCAL units, no scale of its own. These are children of
+               `this.group`, which already sits at FLOOR_Y and carries
+               ROOM_SCALE — applying either again puts the figure 4000 units
+               under the floor at a ninth of its size, i.e. invisible. */
+            figure.position.set(s.x, 0, s.z);
+            figure.rotation.y = (s.facing ?? 1) > 0 ? 0 : Math.PI;
+
+            // Deterministic per-person timing, so nobody moves in lockstep.
+            const st = {
+                home: { x: s.x, z: s.z }, to: null,
+                phase: ((c.idx || i) * 0.7) % (Math.PI * 2),
+                next: 6 + ((c.idx || i) * 3.1) % 14,
+                roam: opts.roam !== false && spare.length > 0
+            };
+            this._animateOccupant(figure, st, spare);
         }
         return n;
+    },
+
+    /** One occupant as a standalone merged mesh, in interior-local units. */
+    _buildOccupant(ctx, def, facing) {
+        const parts = [], glow = [];
+        const local = {
+            box: (w, h, d, x, y, z, hex) => parts.push(paint(
+                new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex)),
+            lit: (w, h, d, x, y, z, hex) => glow.push(paint(
+                new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex))
+            // no `plate` — the nameplate is added below as a live child so it
+            // travels with the figure instead of staying where they started
+        };
+        PROP.npc(local, 0, 0, { ...def, name: null }, facing);
+        const g = new THREE.Group();
+        if (parts.length) {
+            g.add(new THREE.Mesh(mergeGeometries(parts, false),
+                new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.05 })));
+        }
+        if (glow.length) {
+            g.add(new THREE.Mesh(mergeGeometries(glow, false),
+                new THREE.MeshBasicMaterial({ vertexColors: true })));
+        }
+        if (def.name) {
+            const tag = new THREE.Mesh(
+                new THREE.PlaneGeometry(46, 13),
+                new THREE.MeshBasicMaterial({ map: nameTex(def.name, def.role, '#' + (def.color >>> 0).toString(16).padStart(6, '0')), transparent: true }));
+            tag.position.set(0, def.plateY ?? 47, facing * 1.2);
+            if (facing < 0) tag.rotation.y = Math.PI;
+            g.add(tag);
+        }
+        return g;
+    },
+
+    /* Idle sway plus an occasional stroll to a free spot. Kept deliberately
+       cheap: a sine on Y and a lerp between two points, no pathing — an
+       interior is one open room and there is nothing to route around. */
+    _animateOccupant(obj, st, spare) {
+        this.group.add(obj);
+        this._animators.push({
+            obj,
+            fn: (o, dt, t) => {
+                st.next -= dt;
+                if (st.roam && st.next <= 0 && !st.to) {
+                    const pick = spare[Math.floor(Math.random() * spare.length)];
+                    if (pick) { st.to = { x: pick.x, z: pick.z }; st.walk = 0; }
+                    st.next = 10 + Math.random() * 22;
+                }
+                if (st.to) {
+                    st.walk = Math.min(1, st.walk + dt * 0.35);
+                    const k = st.walk * st.walk * (3 - 2 * st.walk);   // ease
+                    o.position.x = st.home.x + (st.to.x - st.home.x) * k;
+                    o.position.z = st.home.z + (st.to.z - st.home.z) * k;
+                    // face the way they're going
+                    const dx = st.to.x - st.home.x, dz = st.to.z - st.home.z;
+                    if (Math.abs(dx) + Math.abs(dz) > 1) o.rotation.y = Math.atan2(dx, dz);
+                    o.position.y = Math.abs(Math.sin(t * 7 + st.phase)) * 2.2;   // walk bob
+                    if (st.walk >= 1) { st.home = st.to; st.to = null; }
+                } else {
+                    // standing: weight shift, and a slow look around
+                    o.position.y = Math.sin(t * 1.4 + st.phase) * 0.7;
+                    o.rotation.y += Math.sin(t * 0.45 + st.phase) * dt * 0.25;
+                }
+            }
+        });
     },
 
     /* This floor's slice of the building's occupants. Deterministic — the same
