@@ -27,6 +27,17 @@ import esbuild from 'esbuild';
 
 const ROOT = process.cwd();
 
+/* This script minifies IN PLACE. That is safe on Netlify, which builds from a
+   fresh clone, and destructive anywhere else — running it locally overwrites
+   your sources with minified output, and `git checkout` only gets tracked files
+   back (anything untracked is simply gone).
+   Pass --force if you genuinely mean to minify a working tree. */
+if (!process.env.NETLIFY && !process.argv.includes('--force')) {
+    console.error('build.mjs minifies IN PLACE and would overwrite your sources.');
+    console.error('It is meant to run on Netlify (NETLIFY=1). Use --force to override.');
+    process.exit(1);
+}
+
 /**
  * Collect every file under `dir` whose name ends with `ext`.
  * Non-recursive when recursive=false (classic js/ and css/ layout).

@@ -726,6 +726,10 @@ const SCHED_CTX = {
     // 2D's fallback. First Person used 'us', which sent every region-less lab
     // to a different residence than the 2D city sent it to.
     defaultRegion: 'eu',
+    // Off, matching the 2D city. First Person used to send a slice of the
+    // campus cohort to the museum at midday and 2D did not, so they stood in
+    // different places. If you want the trips back, turn them on in BOTH ctxs.
+    museumTrips: false,
     hasBld: id => _bldIds().has(_bid(id)),
     bid: _bid,
     isUnderground: isUndergroundModel,

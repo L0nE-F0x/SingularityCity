@@ -47,7 +47,13 @@ const NO_CTX = {
     personalityBias: () => null,
     hackathonLab: null,
     isWeekend: false,
-    isUnderground: (m) => !!(m && m._underground)
+    isUnderground: (m) => !!(m && m._underground),
+    // Midday field trips to the Legacy Systems museum for the campus cohort.
+    // First Person had these and the 2D city did not, so they are off by
+    // default: switching 2D over must not change what it already does. Both
+    // views must set this the SAME way or they drift apart again — flip it in
+    // both ctxs together, never one.
+    museumTrips: false
 };
 
 function withDefaults(ctx) {
@@ -75,7 +81,7 @@ export function getAct(stg, dp, seed, model, ctx) {
     // A slice takes a midday field trip to the Legacy Systems museum so the
     // cohort isn't permanently pinned to one lecture hall.
     const hasUni = c.hasBld('uni_main');
-    const hasMuseum = c.hasBld('bld_1');
+    const hasMuseum = c.museumTrips && c.hasBld('bld_1');
     const trip = (seed * 13) % 100;
 
     if (stg === 'rumored') {

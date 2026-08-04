@@ -81,6 +81,15 @@ assert(getAct('kid', 0.5, 1, M(), CTX).act === 'train', 'kid activity is train')
 assert(getAct('rumored', 0.5, 1, M(), CTX).bid === 'uni_lab', 'pre-release models work in the lab');
 assert(getAct('retired', 0.5, 1, M(), CTX).bid === 'graveyard', 'retired models rest in the graveyard');
 
+/* Museum field trips are OFF by default so switching the 2D city onto this
+   module does not change what it already does. Both views must agree on the
+   flag — that is the whole point of it being a flag and not a hardcoded branch.
+   seed 1 → trip = 13, inside the <12? no. seed 0 → trip = 0, inside. */
+assert(getAct('kid', 0.5, 0, M(), CTX).bid === 'uni_main',
+    'museum trips off by default — campus cohort stays on campus');
+assert(getAct('kid', 0.5, 0, M(), { ...CTX, museumTrips: true }).bid === 'bld_1',
+    'museum trips route to the museum when both views enable them');
+
 /* Campus stages fall back to the regional residence when there is no campus. */
 const noUni = { ...CTX, hasBld: (id) => id !== 'uni_main' };
 assert(getAct('baby', 0.9, 1, M(), noUni).bid === 'res_us', 'no campus → baby sleeps at home');
