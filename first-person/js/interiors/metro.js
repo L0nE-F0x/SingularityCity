@@ -9,7 +9,147 @@
    Staff rotate on the day/night shift like the 2D station does — eight named
    workers total, never all present at once.
    ══════════════════════════════════════════════════════════════════════════ */
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { P, panelTex, vistaTex } from './kit.js';
+import { G } from '../state.js';
+
+/* ── The train that pulls into the platform ────────────────────────────────
+   Built at interior scale (the room is 560 × 460 × 96) and driven by
+   ctx.animate. Everything else on this floor is baked into the static merge,
+   so before this the "platform" was a track bed nothing ever ran on: you took
+   the lift down, and then a train teleported you underground with no arrival
+   to watch. The cycle is APPROACH → DOORS OPEN → DWELL → DOORS SHUT → LEAVE,
+   and Metro.trainAtStop is what decides whether E boards, so the doors being
+   open and a train being boardable stay the same fact. */
+/* Interiors are authored at ~3x human scale: the room is 560 x 460 x 96 local
+   units and a standing eye is at 51 of them. So the car is dimensioned against
+   that eye, not against the exterior rolling stock — y = 0 is the car floor,
+   level with the platform, and the window band straddles 51 so you look
+   straight into it from the platform and out of it from a seat. */
+const CAR_L = 440, CAR_H = 76, CAR_W = 80;
+const WIN_Y = 47, WIN_H = 24;
+const DOOR_W_T = 46;
+
+function tint(geo, hex) {
+    const c = new THREE.Color(hex);
+    const n = geo.attributes.position.count;
+    const a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+    geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    return geo;
+}
+
+function buildPlatformTrain(lineHex) {
+    const g = new THREE.Group();
+    const body = [], glow = [];
+    const box = (arr, w, h, d, x, y, z, hex) => {
+        arr.push(tint(new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex));
+    };
+
+    /* Underframe, roof, and side walls built as SEGMENTS between the door bays.
+       A single full-length box meant the doors slid across solid bodywork —
+       they moved, and nothing opened. The gaps left here are the doorways, and
+       the lit interior below is what shows through them. */
+    const DOOR_XS = [-150, -50, 50, 150];
+    const DOOR_H = 60;
+    box(body, CAR_L, 10, CAR_W - 8, 0, -5, 0, 0x1e293b);          // underframe
+    box(body, CAR_L, 8, CAR_W - 5, 0, CAR_H - 4, 0, 0x94a3b8);    // roof
+    box(body, CAR_L, CAR_H - 8 - DOOR_H, CAR_W, 0,
+        DOOR_H + (CAR_H - 8 - DOOR_H) / 2, 0, 0xc5ced8);          // header above the doors
+
+    // Wall panels between (and outboard of) the doorways
+    const edges = [-CAR_L / 2];
+    for (const dx of DOOR_XS) edges.push(dx - DOOR_W_T / 2, dx + DOOR_W_T / 2);
+    edges.push(CAR_L / 2);
+    for (let i = 0; i < edges.length; i += 2) {
+        const w = edges[i + 1] - edges[i];
+        if (w <= 0.5) continue;
+        const cx = (edges[i] + edges[i + 1]) / 2;
+        box(body, w, DOOR_H, CAR_W, cx, DOOR_H / 2, 0, 0xc5ced8);
+        box(body, w + 1, 10, CAR_W + 1.5, cx, 26, 0, lineHex);     // livery band
+    }
+
+    /* Interior seen through the open doors: a dark saloon with a lit ceiling
+       and a floor level with the platform. Inset so it never z-fights the
+       bodywork. */
+    box(body, CAR_L - 6, 1.5, CAR_W - 10, 0, 0.75, 0, 0x2b3646);
+    box(glow, CAR_L - 10, 1.6, 14, 0, CAR_H - 10, 0, 0xfde68a);
+    for (const s of [-1, 1]) {
+        box(body, CAR_L - 20, 5, 14, 0, 22, s * (CAR_W / 2 - 12), 0x1e3a5f);   // bench
+        box(body, CAR_L - 20, 22, 4, 0, 34, s * (CAR_W / 2 - 6), 0x1e3a5f);    // back
+    }
+    for (const px of [-190, -110, -10, 90, 190]) {
+        box(body, 3, CAR_H - 18, 3, px, (CAR_H - 18) / 2, 0, 0xa8b2bd);        // grab pole
+    }
+    // Cab ends, running on past the room walls
+    for (const s of [-1, 1]) {
+        box(body, 24, CAR_H - 20, CAR_W - 14, s * (CAR_L / 2 + 11), (CAR_H - 20) / 2 + 4, 0, 0xb0bac6);
+        box(glow, 4, 18, 46, s * (CAR_L / 2 + 22), 50, 0, 0x0c4a6e);   // cab window
+        for (const dz of [22, -22]) {
+            box(glow, 4, 7, 10, s * (CAR_L / 2 + 23), 14, dz, s > 0 ? 0xfff2cc : 0xff3344);
+        }
+    }
+    // Roof kit
+    box(body, 70, 10, 34, -70, CAR_H + 4, 0, 0x64748b);
+    box(body, 6, 16, 6, -70, CAR_H + 15, 0, 0x94a3b8);
+    // Bogies, dropped into the track bed
+    for (const bx of [-140, 140]) {
+        box(body, 70, 12, 46, bx, -14, 0, 0x0f172a);
+        for (const w of [-24, 24]) box(body, 18, 16, 52, bx + w, -12, 0, 0x1a1a1a);
+    }
+    // Lit window band both sides, one window centred in each wall panel
+    for (let i = 0; i < edges.length; i += 2) {
+        const w = edges[i + 1] - edges[i];
+        if (w < 30) continue;
+        const cx = (edges[i] + edges[i + 1]) / 2;
+        const ww = Math.min(w - 14, 70);
+        for (const s of [-1, 1]) {
+            box(body, ww + 6, WIN_H + 6, 2.5, cx, WIN_Y, s * (CAR_W / 2 - 0.4), 0x475569);
+            box(glow, ww, WIN_H, 3, cx, WIN_Y, s * (CAR_W / 2 + 0.2), 0x9fd8f0);
+        }
+    }
+    g.add(new THREE.Mesh(mergeGeometries(body, false),
+        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.35 })));
+    g.add(new THREE.Mesh(mergeGeometries(glow, false),
+        new THREE.MeshBasicMaterial({ vertexColors: true })));
+
+    /* Sliding doors — four pairs, and the ONLY moving parts. Each leaf slides
+       outward along x by DOOR_W_T/2, so `open` 0→1 is the whole animation. */
+    const leaves = [];
+    const doorMat = new THREE.MeshStandardMaterial({
+        color: 0x334155, roughness: 0.4, metalness: 0.4
+    });
+    const glassMat = new THREE.MeshStandardMaterial({
+        color: 0x7dd3fc, transparent: true, opacity: 0.3, roughness: 0.08,
+        metalness: 0.1, depthWrite: false
+    });
+    for (const dx of DOOR_XS) {
+        for (const half of [-1, 1]) {
+            const leaf = new THREE.Group();
+            const panel = new THREE.Mesh(
+                new THREE.BoxGeometry(DOOR_W_T / 2 - 1, DOOR_H, 3), doorMat);
+            panel.position.y = DOOR_H / 2;
+            const pane = new THREE.Mesh(
+                new THREE.PlaneGeometry(DOOR_W_T / 2 - 8, WIN_H), glassMat);
+            pane.position.set(0, WIN_Y, 2);
+            leaf.add(panel, pane);
+            leaf.position.set(dx + half * DOOR_W_T / 4, 0, CAR_W / 2 + 1);
+            leaf.userData.shut = leaf.position.x;
+            leaf.userData.slide = half * (DOOR_W_T / 2);
+            g.add(leaf);
+            leaves.push(leaf);
+        }
+    }
+    g.userData.leaves = leaves;
+    return g;
+}
+
+function setDoors(train, open) {
+    for (const l of train.userData.leaves) {
+        l.position.x = l.userData.shut + l.userData.slide * open;
+    }
+}
 
 const STAFF = {
     ticket: { name: 'Ticket Agent', role: 'Ticket Agent', color: 0x3b82f6 },
@@ -163,6 +303,42 @@ export const METRO = {
                 c.lit(28, 34, 1, 250, 36, 145, 0xf472b6);
 
                 glassShaft(c, 170, 130, false);
+
+                /* The train itself. Its cycle is slaved to the network sim, not
+                   run locally: Metro.trainAtStop(building) is what interact.js
+                   asks before letting E board, so if the doors were opened on a
+                   timer of their own you would get open doors and no train to
+                   board, or the reverse. `dwellT` counting down IS the dwell. */
+                const train = buildPlatformTrain(c.th?.lamp || 0xfbbf24);
+                // y = 0 IS the car floor, so it lands level with the platform
+                // and the bogies drop into the track bed on their own.
+                train.position.set(0, 0, trackZ);
+                c.animate(train, (obj, dt) => {
+                    const hit = c.b && G.metro?.trainAtStop?.(c.b.id);
+                    const st = obj.userData;
+                    st.open = st.open || 0;
+                    if (hit) {
+                        // Berthed: run in over the first moment of the dwell,
+                        // then hold at the platform with the doors open.
+                        const dwell = hit.train.dwellT;
+                        st.arriveK = Math.min(1, (st.arriveK ?? 0) + dt * 1.6);
+                        obj.position.x = (1 - st.arriveK) * -820;
+                        // Doors only once stopped, and shut again before it goes.
+                        const wantOpen = st.arriveK >= 1 && dwell > 1.2 ? 1 : 0;
+                        st.open += (wantOpen - st.open) * Math.min(1, dt * 3.2);
+                        obj.visible = true;
+                    } else {
+                        // Gone: accelerate out of the far end and wait offstage.
+                        st.open += (0 - st.open) * Math.min(1, dt * 4);
+                        if (st.arriveK != null) {
+                            st.leaveK = Math.min(1, (st.leaveK ?? 0) + dt * 0.9);
+                            obj.position.x = st.leaveK * 820;
+                            if (st.leaveK >= 1) { st.arriveK = null; st.leaveK = null; }
+                        }
+                        obj.visible = st.arriveK != null;
+                    }
+                    setDoors(obj, st.open);
+                });
 
                 if (night) {
                     c.npc(c, -60, 30, STAFF.maint, 1);

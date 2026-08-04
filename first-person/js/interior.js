@@ -73,6 +73,10 @@ export const Interior = {
     _savedColliders: null,
     _exit: { x: 0, z: ROOM_D / 2 - 40 },
     _liftZones: [],
+    // Props registered via ctx.animate() on the current floor — the only things
+    // in an interior that are not baked into the static merge.
+    _animators: [],
+    _t: 0,
     // doors: 1 = fully open, 0 = shut. phase drives the ride state machine.
     _lift: { phase: 'idle', t: 0, doors: 1, from: 0, to: 0, dur: 0 },
     _carParts: null,
@@ -198,10 +202,22 @@ export const Interior = {
         // clear the previous dressing (all maps here are per-build, not shared caches)
         for (const m of [...this.group.children]) {
             this.group.remove(m);
-            m.geometry?.dispose();
-            if (m.material?.map) m.material.map.dispose();
-            m.material?.dispose();
+            // Traverse: ctx.animate() adds Groups, whose meshes are one level
+            // down and would otherwise leak a buffer per floor change.
+            m.traverse?.(o => {
+                o.geometry?.dispose();
+                if (o.material?.map) o.material.map.dispose();
+                o.material?.dispose();
+            });
+            if (!m.traverse) {
+                m.geometry?.dispose();
+                if (m.material?.map) m.material.map.dispose();
+                m.material?.dispose();
+            }
         }
+        // Anything ctx.animate() registered belonged to the floor we just tore
+        // down; keeping it would tick a disposed mesh.
+        this._animators = [];
 
         this.floor = floorIdx;
         this.maxFloor = this._floorsFor(b);
@@ -916,6 +932,16 @@ export const Interior = {
             npc(c, x, z, def, facing = 1) { PROP.npc(c, x, z, def, facing); },
             /** Press-E point of interest (printing press, exhibits, terminals). */
             hotspot(x, z, r, label, action) { self._hotspots.push({ x, z, r, label, action }); },
+            /** Something that has to keep moving after the room is built — the
+             *  train pulling into the metro platform. Everything else in a room
+             *  is baked into the merge buckets, which is why nothing in an
+             *  interior could animate before. `fn(obj, dt, t)` runs each frame
+             *  while this floor is the one you're standing on. */
+            animate(obj, fn) {
+                self.group.add(obj);
+                self._animators.push({ obj, fn });
+                return obj;
+            },
             W: ROOM_W, D: ROOM_D, H: ROOM_H, WALL, DOOR_W,
             // staff rosters rotate on the city clock exactly like the 2D app's do
             night: (G.dayPhase == null) ? false : (G.dayPhase > 0.83 || G.dayPhase < 0.25),
@@ -1290,6 +1316,13 @@ export const Interior = {
 
     update(dt) {
         if (!this.building) return;
+        // Live props for the current floor (the arriving metro train).
+        if (this._animators?.length) {
+            this._t = (this._t || 0) + dt;
+            for (const a of this._animators) {
+                try { a.fn(a.obj, dt, this._t); } catch (e) { /* one bad prop must not stop the floor */ }
+            }
+        }
         const L = this._lift;
         if (L.phase === 'idle') return;
         L.t += dt;
@@ -1386,11 +1419,14 @@ export const Interior = {
         G.audio?.sfx?.('open');
     },
 
-    enter(b) {
+    /* `floorIdx` is for arrivals that are not through the street door — you
+       step off a train onto the platform, which is the top floor of a metro
+       station, not its ticket hall. Everyone else enters at 0. */
+    enter(b, floorIdx = 0) {
         if (this.building || !this.canEnter(b)) return;
         this.building = b;
         try {
-            this._build(b, 0);
+            this._build(b, floorIdx);
         } catch (err) {
             console.error('[Interior] build failed', b?.id, err);
             this.building = null;
@@ -1418,7 +1454,10 @@ export const Interior = {
         }));
         G.floorY = FLOOR_Y;
         G.inside = b;
-        G.player.teleport(0, S(ROOM_D / 2 - 70), 0);
+        // Arriving on an upper floor there is no street door to stand in — put
+        // the player mid-room facing the way the floor is laid out.
+        if (floorIdx > 0) G.player.teleport(0, S(60), Math.PI);
+        else G.player.teleport(0, S(ROOM_D / 2 - 70), 0);
         const multi = this.maxFloor > 0 ? ` · ELEVATOR: F / E at lift / 0–${this.maxFloor}` : '';
         G.ui?.banner?.(`${b.emoji || '🏢'} ${b.name}`, 'press E at the door to leave' + multi);
         G.audio?.sfx?.('open');

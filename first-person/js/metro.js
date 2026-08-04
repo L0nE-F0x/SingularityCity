@@ -11,7 +11,15 @@ import { TRAM_LINES } from './data.js';
 import { City } from './city.js';
 
 const TUNNEL_Y = -48;       // track height
-const CABIN_EYE = 12;       // eye height above track inside car
+/* Eye height inside the car, above the track.
+
+   This was 12, and the window band ran 12.5–23.5 — so you rode with your eyes
+   exactly on the sill, looking at wall. Combined with a 78×30×34 cabin (a 3 m
+   wide box you stood in the middle of) that is the whole of "it doesn't look
+   like I'm riding a train": you were sealed in a crate with the view above
+   your head. The cabin below is a full carriage and the eye is at window
+   centre. */
+const CABIN_EYE = 17;   // = EYE_H, so you are the same height in here as outside
 const DWELL_SHORT = 4.2;    // seconds at stop (enough to notice + board)
 const DWELL_LONG = 8.0;     // when player is riding / nearby
 const DWELL_NEAR = 5.5;     // hold while player stands at station
@@ -121,69 +129,108 @@ function buildCabin() {
         arr.push(paint(geo, hex));
     };
 
-    const L = 78, W = 30, H = 34;
-    push(shell, L, 2.2, W, 0, 0, 0, 0x1e293b);
-    push(shell, L, 2.2, W, 0, H, 0, 0x0f172a);
-    push(shell, L - 4, 0.4, 8, 0, 1.3, 0, 0x334155);
-    push(shell, 2.5, H, W, -L / 2, H / 2, 0, 0x1e293b);
-    push(shell, 2.5, H, W, L / 2, H / 2, 0, 0x1e293b);
-    push(glow, 0.5, 22, 10, L / 2 - 0.2, 12, 0, 0x22d3ee);
-    push(glow, 0.5, 22, 10, -L / 2 + 0.2, 12, 0, 0x22d3ee);
-
-    const winH = 11, winY = 18;
-    const sillH = winY - winH / 2;
-    const headH = H - (winY + winH / 2);
+    /* Carriage box. A real metro car is ~18 m × 2.8 m × 2.3 m internal; at
+       10 units per metre that is 180 × 28 × 23, but headroom matters more than
+       accuracy for how boxed-in it feels, so this runs 168 long, 44 wide and
+       40 high. Forward is +X. */
+    const L = 168, W = 44, H = 40;
     const wallZ = W / 2;
-    const winW = 10, gap = 3.5, nWin = 5;
-    const totalWinSpan = nWin * winW + (nWin - 1) * gap;
-    const startX = -totalWinSpan / 2;
+
+    push(shell, L, 2.4, W, 0, -1.2, 0, 0x1b2533);                  // floor pan
+    push(shell, L - 6, 0.5, W - 8, 0, 0.15, 0, 0x3a4557);          // floor covering
+    push(shell, L, 3.0, W, 0, H, 0, 0x66707f);                     // roof lining
+
+    // Windowed end bulkheads with a gangway light, so the car reads as one of
+    // several rather than a sealed crate.
+    for (const s of [-1, 1]) {
+        push(shell, 3, H, W, s * L / 2, H / 2, 0, 0x1e293b);
+        push(glow, 1.0, 16, 22, s * (L / 2 - 1.8), 22, 0, 0x0e3a52);
+    }
+
+    // ── side walls: sill, header, pillars, and real glazed openings ──
+    // Sill at 1.0 m, head at 2.6 m — a real metro window, straddling the eye.
+    const winH = 16, winY = 18;
+    const sillH = winY - winH / 2;             // 10
+    const headH = H - (winY + winH / 2);       // 14
+    const winW = 22, gap = 5, nWin = 5;
+    const span = nWin * winW + (nWin - 1) * gap;
+    const startX = -span / 2;
 
     for (const side of [-1, 1]) {
         const z = side * wallZ;
-        push(shell, L, sillH, 2.2, 0, sillH / 2, z, 0x334155);
-        push(shell, L, headH, 2.2, 0, winY + winH / 2 + headH / 2, z, 0x334155);
-        const edge = totalWinSpan / 2 + 2;
-        push(shell, L / 2 - edge, winH, 2.2, -(edge + (L / 2 - edge) / 2), winY, z, 0x334155);
-        push(shell, L / 2 - edge, winH, 2.2, edge + (L / 2 - edge) / 2, winY, z, 0x334155);
+        push(shell, L, sillH, 2.4, 0, sillH / 2, z, 0x5b697d);
+        push(shell, L, headH, 2.4, 0, winY + winH / 2 + headH / 2, z, 0x7d8798);
+        const edge = span / 2 + 2;
+        const capW = L / 2 - edge;
+        push(shell, capW, winH, 2.4, -(edge + capW / 2), winY, z, 0x5b697d);
+        push(shell, capW, winH, 2.4, edge + capW / 2, winY, z, 0x5b697d);
         for (let i = 0; i < nWin - 1; i++) {
             const mx = startX + (i + 1) * winW + i * gap + gap / 2;
-            push(shell, gap, winH, 2.2, mx, winY, z, 0x475569);
+            push(shell, gap, winH, 2.4, mx, winY, z, 0x8b95a6);
         }
-        push(glow, 12, 22, 0.5, 0, 12, z * 0.98, 0x0ea5e9);
+        // door pockets between the window bays
+        for (const dx of [-58, 58]) {
+            push(shell, 2.5, H - 6, 2.6, dx - 12, (H - 6) / 2, z, 0x475569);
+            push(shell, 2.5, H - 6, 2.6, dx + 12, (H - 6) / 2, z, 0x475569);
+        }
+        push(glow, L - 12, 1.0, 0.6, 0, 3.2, z * 0.96, 0x0ea5e9);   // skirting light
+        push(glow, 60, 2.6, 0.4, 0, H - 6, z * 0.94, 0x0ea5e9);     // route strip
     }
 
     const glassM = new THREE.MeshStandardMaterial({
-        color: 0x7dd3fc, metalness: 0.15, roughness: 0.05,
-        transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide
+        color: 0x9fd8f0, metalness: 0.1, roughness: 0.04,
+        transparent: true, opacity: 0.10, depthWrite: false, side: THREE.DoubleSide
     });
     for (const side of [-1, 1]) {
         for (let i = 0; i < nWin; i++) {
             const wx = startX + i * (winW + gap) + winW / 2;
-            const plane = new THREE.Mesh(new THREE.PlaneGeometry(winW - 0.6, winH - 0.6), glassM);
-            plane.position.set(wx, winY, side * (wallZ - 0.6));
+            const plane = new THREE.Mesh(new THREE.PlaneGeometry(winW - 1, winH - 1), glassM);
+            plane.position.set(wx, winY, side * (wallZ - 0.8));
             if (side < 0) plane.rotation.y = Math.PI;
             g.add(plane);
         }
     }
 
-    for (let i = 0; i < 5; i++) {
-        const sx = -28 + i * 14;
-        push(shell, 11, 7, 6.5, sx, 4.5, -9, 0x1e3a5f);
-        push(shell, 11, 7, 6.5, sx, 4.5, 9, 0x1e3a5f);
-        push(shell, 2, 10, 6.5, sx - 4, 10, -9, 0x1e3a5f);
-        push(shell, 2, 10, 6.5, sx - 4, 10, 9, 0x1e3a5f);
+    /* Longitudinal bench seats. Kept shallow and pushed hard against the wall:
+       at 15 deep the aisle came out 13 units (1.3 m) wide and a seat back
+       filled the frame whichever way you turned — the "too boxed in" of the
+       report was as much the furniture as the shell. */
+    for (const side of [-1, 1]) {
+        const sz = side * (wallZ - 6.5);
+        for (const [bx, bw] of [[-96, 52], [-22, 52], [52, 52], [118, 46]]) {
+            push(shell, bw, 2.6, 12, bx, 4.5, sz, 0x2d5480);             // cushion
+            push(shell, bw, 9, 2.4, bx, 9.5, side * (wallZ - 1.6), 0x2d5480);  // back
+            push(shell, bw, 4, 1.8, bx, 2, side * (wallZ - 1.8), 0x33445c);  // valance
+            // armrest / grab stanchion at each end of the bench
+            for (const e of [-1, 1]) {
+                push(shell, 1.8, 14, 1.8, bx + e * bw / 2, 7, sz - side * 4, 0xa8b2bd);
+            }
+        }
     }
-    for (const x of [-24, -8, 8, 24]) push(glow, 1.2, 28, 1.2, x, 16, 0, 0xcbd5e1);
-    push(glow, 60, 1.0, 3.5, 0, H - 2.5, 0, 0xfde68a);
-    push(glow, 60, 0.6, 1.5, 0, H - 2.2, -6, 0xfef3c7);
-    push(glow, 60, 0.6, 1.5, 0, H - 2.2, 6, 0xfef3c7);
-    push(glow, 50, 3.5, 0.4, 0, 28, -wallZ + 1.2, 0x0ea5e9);
-    push(glow, 50, 3.5, 0.4, 0, 28, wallZ - 1.2, 0x0ea5e9);
-    push(glow, L - 10, 0.3, 1.2, 0, 1.5, 0, 0x22d3ee);
 
-    for (const [px, pz] of [[-18, -5], [12, 5], [-6, 4]]) {
-        push(shell, 4, 12, 3.5, px, 8, pz, 0x334155);
-        push(shell, 3.2, 3.2, 3.2, px, 16, pz, 0xe8b98e);
+    // ── vertical grab poles and the ceiling rail with hanging straps ──
+    for (const px of [-118, -78, -38, 2, 42, 82, 122]) {
+        push(shell, 1.4, H - 4, 1.4, px, (H - 4) / 2, 0, 0xa8b2bd);
+    }
+    for (const side of [-1, 1]) {
+        const rz = side * 13;
+        push(shell, L - 20, 1.3, 1.3, 0, H - 8, rz, 0xa8b2bd);
+        for (let i = 0; i < 9; i++) {
+            const hx = -80 + i * 20;
+            push(shell, 0.8, 7, 0.8, hx, H - 12, rz, 0x64748b);          // strap
+            push(shell, 3.2, 1.2, 3.2, hx, H - 15.5, rz, 0x1e293b);      // handle
+        }
+    }
+
+    // ── ceiling lighting: two continuous coves + a centre panel ──
+    push(glow, L - 16, 1.2, 5, 0, H - 2.4, 0, 0xfde68a);
+    for (const side of [-1, 1]) push(glow, L - 16, 0.8, 2.2, 0, H - 2.2, side * 12, 0xfef3c7);
+
+    // ── standing passengers, so the car isn't yours alone ──
+    for (const [px, pz] of [[-92, -9], [-40, 8], [16, -7], [70, 9], [112, -8], [-16, 12]]) {
+        push(shell, 5.5, 13, 4.5, px, 6.5, pz, 0x334155);     // body
+        push(shell, 4.4, 4.0, 4.4, px, 15, pz, 0xe8b98e);    // head
+        push(shell, 4.6, 1.4, 4.6, px, 17.2, pz, 0x2a2118);  // hair
     }
 
     g.add(
@@ -196,6 +243,24 @@ function buildCabin() {
             new THREE.MeshBasicMaterial({ vertexColors: true })
         )
     );
+
+    /* Cabin lighting. The shell is MeshStandard, and the only lights underground
+       are two point lights parked on the train's centre — at 168 units long the
+       far half of the car fell to near-black, so the seats, poles and fellow
+       passengers were invisible and the ride read as a dark box again. Three
+       lights spaced down the ceiling, parented to the cabin so they travel with
+       it and cost nothing when it is hidden. */
+    /* Intensity looks absurd next to the 0.3–1.4 used elsewhere, and has to be:
+       the renderer runs with useLegacyLights = false, so a point light falls
+       off as intensity / distance², and at the ~25 units from ceiling to seat
+       an intensity of 1 delivers 0.0016. Everything underground is really lit
+       by the ambient + hemisphere pair; these are the first point lights in the
+       app doing actual work, so they are the first sized for the falloff. */
+    for (const lx of [-56, 0, 56]) {
+        const l = new THREE.PointLight(0xfff0cf, 170, 170, 2);
+        l.position.set(lx, H - 8, 0);
+        g.add(l);
+    }
     g.visible = false;
     return g;
 }
@@ -246,7 +311,11 @@ function buildUnderground(routes) {
             const dx = b.x - a.x, dz = b.z - a.z;
             const len = Math.hypot(dx, dz) || 1;
             const ang = Math.atan2(dx, dz);
-            const tw = 48, th = 40;
+            // The bore has to clear the carriage with room to see out of it.
+            // At 48 wide the old 30-wide cabin was already within 9 units of
+            // both walls, so the "view" out of the window was rock at arm's
+            // length — half of why the ride felt boxed in.
+            const tw = 78, th = 54;
 
             const floor = new THREE.BoxGeometry(tw, 4, len + 24);
             floor.rotateY(ang); floor.translate(mx, TUNNEL_Y - 2.5, mz);
@@ -260,7 +329,10 @@ function buildUnderground(routes) {
                 const px = mx + Math.cos(ang) * side * (tw / 2);
                 const pz = mz - Math.sin(ang) * side * (tw / 2);
                 wall.translate(px, TUNNEL_Y + th / 2, pz);
-                parts.push(paint(wall, 0x222833));
+                // Was 0x222833 — with the ride lights delivering almost nothing
+                // (see below) the bore was pure black, so the window was a
+                // black rectangle and there was nothing to look out AT.
+                parts.push(paint(wall, 0x424b59));
             }
             for (const side of [-1, 1]) {
                 const tray = new THREE.BoxGeometry(3, 2, len);
@@ -295,12 +367,37 @@ function buildUnderground(routes) {
                 third.translate(px, TUNNEL_Y + 0.8, pz);
                 parts.push(paint(third, 0xfbbf24));
             }
-            const nLights = Math.max(2, Math.floor(len / 90));
+            /* Lights every ~46 units rather than every 90. At 155 units/s that
+               is one every 0.3s streaming past the window — the only thing in
+               a tunnel that tells you you are moving at all. */
+            const nLights = Math.max(3, Math.floor(len / 46));
             for (let k = 0; k < nLights; k++) {
                 const t = (k + 0.5) / nLights;
                 const lx = a.x + dx * t, lz = a.z + dz * t;
-                box(10, 2.5, 6, lx, TUNNEL_Y + th - 5, lz, 0xfde68a, lights);
-                box(2, 4, 2, lx + Math.cos(ang) * 18, TUNNEL_Y + 16, lz - Math.sin(ang) * 18, 0x38bdf8, lights);
+                box(12, 2.5, 6, lx, TUNNEL_Y + th - 5, lz, 0xfde68a, lights);
+                for (const side of [-1, 1]) {
+                    // wall-mounted markers at eye height, both sides
+                    box(2, 5, 2, lx + Math.cos(ang) * side * (tw / 2 - 5), TUNNEL_Y + 20,
+                        lz - Math.sin(ang) * side * (tw / 2 - 5),
+                        side > 0 ? 0x38bdf8 : 0xf59e0b, lights);
+                }
+                /* Lining ribs. Pilasters up each wall plus a band across the
+                   crown — NOT a slab across the bore, which the train would
+                   drive straight through. */
+                if (k % 2 === 0) {
+                    for (const side of [-1, 1]) {
+                        const pil = new THREE.BoxGeometry(5, th - 6, 3);
+                        pil.rotateY(ang);
+                        pil.translate(lx + Math.cos(ang) * side * (tw / 2 - 2.5),
+                            TUNNEL_Y + th / 2 - 2,
+                            lz - Math.sin(ang) * side * (tw / 2 - 2.5));
+                        parts.push(paint(pil, 0x2c3340));
+                    }
+                    const crown = new THREE.BoxGeometry(tw - 4, 3, 3);
+                    crown.rotateY(ang);
+                    crown.translate(lx, TUNNEL_Y + th - 3, lz);
+                    parts.push(paint(crown, 0x2c3340));
+                }
             }
         }
     }
@@ -353,11 +450,15 @@ function buildUnderground(routes) {
             new THREE.MeshBasicMaterial({ vertexColors: true })
         ));
     }
-    const pl = new THREE.PointLight(0x99b8d8, 0.65, 420, 2);
+    /* Intensities are in the hundreds because the renderer runs physically-
+       correct (useLegacyLights = false) and these decay with distance². At the
+       old 0.65 the light reaching a tunnel wall 40 units away was 0.0004 — the
+       bore was lit entirely by ambient, which is to say not at all. */
+    const pl = new THREE.PointLight(0x99b8d8, 900, 460, 2);
     pl.position.set(0, TUNNEL_Y + 20, 0);
     group.userData.rideLight = pl;
     group.add(pl);
-    const pl2 = new THREE.PointLight(0xfde68a, 0.35, 180, 2);
+    const pl2 = new THREE.PointLight(0xfde68a, 450, 260, 2);
     pl2.position.set(0, TUNNEL_Y + 24, 0);
     group.userData.rideLight2 = pl2;
     group.add(pl2);
@@ -574,9 +675,11 @@ export const Metro = {
         if (this.pillars) this.pillars.visible = false;
 
         const rl = this.underground?.userData?.rideLight;
-        if (rl) { rl.intensity = 1.4; rl.distance = 260; }
+        // Boarding lifts the bore lighting; see buildUnderground for why these
+        // numbers are in the hundreds rather than around 1.
+        if (rl) { rl.intensity = 2400; rl.distance = 520; }
         const rl2 = this.underground?.userData?.rideLight2;
-        if (rl2) { rl2.intensity = 0.7; rl2.distance = 200; }
+        if (rl2) { rl2.intensity = 1100; rl2.distance = 320; }
 
         this._lockRideAtmosphere();
         this._attachCamera(t);
@@ -613,16 +716,35 @@ export const Metro = {
         this._fogSave = null;
         this._bgSave = null;
         const rl = this.underground?.userData?.rideLight;
-        if (rl) rl.intensity = 0.55;
+        if (rl) rl.intensity = 900;
         const rl2 = this.underground?.userData?.rideLight2;
-        if (rl2) rl2.intensity = 0.35;
+        if (rl2) rl2.intensity = 450;
 
         if (stop) {
+            /* Step out onto the PLATFORM of the station you arrived at, not
+               into the street outside it. You reached the train by taking the
+               lift down; being spat out at street level on the way back made
+               the two halves of the journey feel like different systems, and
+               skipped the arrival entirely. Take the lift up to leave. */
+            // Put the player on the street outside FIRST. Interior.enter()
+            // snapshots the current camera as the spot to restore on exit, and
+            // at this instant that is still a moving train in a tunnel — walk
+            // out of the station and you would land back underground.
             const side = City.offRoad
                 ? City.offRoad(stop.worldX + 70, stop.worldZ + 70)
                 : { x: stop.worldX + 70, z: stop.worldZ + 70 };
             G.player.teleport(side.x, side.z, Math.atan2(stop.worldX - side.x, stop.worldZ - side.z));
-            G.ui?.banner?.((stop.emoji || '🚇') + ' ' + stop.name, 'you have arrived');
+
+            let onPlatform = false;
+            const bld = G.bldById[stopId];
+            if (bld && G.interior?.enter) {
+                try {
+                    G.interior.enter(bld, 1);
+                    onPlatform = !!G.inside;
+                } catch (e) { onPlatform = false; }
+            }
+            G.ui?.banner?.((stop.emoji || '🚇') + ' ' + stop.name,
+                onPlatform ? 'alight here · lift up to the street' : 'you have arrived');
         } else if (this._rideSaved) {
             G.player.teleport(this._rideSaved.pos.x, this._rideSaved.pos.z, this._rideSaved.yaw);
         }
@@ -633,8 +755,20 @@ export const Metro = {
     },
 
     _attachCamera(t) {
-        const eye = t.y + CABIN_EYE;
-        G.camera.position.set(t.x, eye, t.z);
+        /* Sway. A camera glued rigidly to a point moving down a straight tube
+           past evenly spaced lights reads as a slideshow, not a ride — the
+           motion has to be on the body as well as the scenery. Amplitude
+           follows whether the train is actually moving, so a car standing at a
+           platform is dead still and the difference is felt. */
+        const moving = t.dwellT <= 0 ? 1 : 0;
+        this._sway = (this._sway ?? 0) + ((moving ? 1 : 0) - (this._sway ?? 0)) * 0.06;
+        const s = this._sway;
+        const now = G.time || 0;
+        const bob = Math.sin(now * 6.1) * 0.5 * s;
+        const lat = Math.sin(now * 3.7) * 0.45 * s;
+        const eye = t.y + CABIN_EYE + bob;
+        // Lateral sway is across the direction of travel.
+        G.camera.position.set(t.x - t.dirZ * lat, eye, t.z + t.dirX * lat);
         if (this._justBoarded) {
             G.player.yaw = Math.atan2(t.dirX, t.dirZ);
             G.player.pitch = 0;
