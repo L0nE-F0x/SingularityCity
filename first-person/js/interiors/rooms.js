@@ -21,12 +21,15 @@ import { ALIGNMENT } from './alignment.js';
 import { PRESS } from './press.js';
 import { LEGACY } from './legacy.js';
 import { BACKBONE } from './backbone.js';
+import { JAIL } from './jail.js';
+import { COURT } from './court.js';
 import { AGENT_ROOMS, agentRoom } from './agents.js';
 import { ROBOTICS_ROOMS, roboticsRoom } from './robotics.js';
 import { LONGEVITY_ROOMS, longevityRoom } from './longevity.js';
 import { WORKER_HOUSING, workerRoom } from './workers.js';
 
-export const ROOM_SPECS = [BAR, UNDERGROUND, METRO, EMBASSY, VILLA, ALIGNMENT, PRESS, LEGACY, BACKBONE, WORKER_HOUSING,
+export const ROOM_SPECS = [BAR, UNDERGROUND, METRO, EMBASSY, VILLA, ALIGNMENT, PRESS, LEGACY, BACKBONE,
+    JAIL, COURT, WORKER_HOUSING,
     ...Object.values(AGENT_ROOMS), ...Object.values(ROBOTICS_ROOMS), ...Object.values(LONGEVITY_ROOMS)];
 
 /** Which bespoke layout (if any) this building should use. */
@@ -42,6 +45,10 @@ export function resolveRoom(b) {
     if (t === 'newspaper' || id === 'times_hq') return PRESS;
     if (id === 'bld_1') return LEGACY;                       // Legacy Systems museum
     if (id.startsWith('backbone_') || t === 'backbone') return BACKBONE;
+    if (t === 'jail' || id.includes('jail')) return JAIL;
+    // Both court buildings share one spec; it branches on the id, because the
+    // Senate hearing room and the trial court are genuinely different rooms.
+    if (t === 'court' || id.startsWith('court_')) return COURT;
     // Agent District: one spec per building, since their storey lists differ.
     if (id.startsWith('agents_') || t === 'agents') return agentRoom(b);
     // Robotics Quarter: likewise — assembly is six storeys, testing is four.
