@@ -29,6 +29,23 @@ This splits into three categories, and they need different responses.
 
 ---
 
+## Status
+
+| | System | State |
+|---|---|---|
+| A1 | Rockets | **Fixed** — `shared/space_live.js`, commit `b129cb7` |
+| A2 | Jail | **Fixed** — `shared/ai_bans.js`, commit `8307005` |
+| A3 | Court | Open |
+| A4 | Port / supply chain | Open |
+| B | Stub interiors | Open |
+
+The pattern for A3/A4 is now established: put the real data behind a module in
+`shared/`, have FP import it, and delete the local `Math.random()` path. Keep
+cache keys identical to the 2D app's so whichever view loads first warms the
+other.
+
+---
+
 ## Category A — Fabricated events (actively wrong, fix first)
 
 These don't just lag the 2D city; they assert things that are **false**, with UI
