@@ -30,7 +30,7 @@ export function createCourtState() {
  * title, status note and colour all come from the real case rather than being
  * synthesised. `defendant` is the model summoned to answer for it.
  */
-export function enqueueCase(state, entry, defendant = 'Unknown Model') {
+export function enqueueCase(state, entry, defendant = 'Unknown Model', defendantId = null) {
     const row = typeof entry === 'string' ? { case: entry } : (entry || {});
     state.docket.push({
         id: 'case_' + (state.rulings + state.docket.length + 1),
@@ -39,6 +39,7 @@ export function enqueueCase(state, entry, defendant = 'Unknown Model') {
         note: row.note || null,
         color: row.color || null,
         defendant,
+        defendantId,                        // the schedule routes this model to court
         status: 'queued'                    // sim lifecycle: queued → hearing → ruled
     });
     return state.docket[state.docket.length - 1];
@@ -81,7 +82,8 @@ export const Court = {
         // it where the docket names one.
         for (let i = 0; i < 4; i++) {
             const entry = DOCKET[i % DOCKET.length];
-            enqueueCase(this.state, entry, this._defendantFor(entry));
+            const who = this._defendantFor(entry);
+            enqueueCase(this.state, entry, who, this._lastDefendantId);
         }
         const b = G.bldById['court_hearing'] || G.bldById['court_senate'];
         if (b && scene) {
@@ -104,18 +106,26 @@ export const Court = {
     },
 
     /* Summon a model that is genuinely a party to the case. Falls back to any
-       citizen only when the proceeding names no lab (a statute like SB 53). */
+       citizen only when the proceeding names no lab (a statute like SB 53).
+       Records the id as well as the name: a summoned model has to physically
+       report to the Hearing Chamber, which the schedule looks up by id. */
     _defendantFor(entry) {
         const list = G.citizens?.list || [];
+        let pick = null;
         if (entry?.parties?.length && list.length) {
             const party = entry.parties[Math.floor(Math.random() * entry.parties.length)];
             const matches = list.filter(c => c.model?.lab === party);
-            if (matches.length) {
-                return matches[Math.floor(Math.random() * matches.length)].model.name;
-            }
+            if (matches.length) pick = matches[Math.floor(Math.random() * matches.length)];
         }
-        if (!list.length) return 'Unknown Model';
-        return list[Math.floor(Math.random() * list.length)].model?.name || 'Citizen';
+        if (!pick && list.length) pick = list[Math.floor(Math.random() * list.length)];
+        this._lastDefendantId = pick?.model?.id || null;
+        return pick?.model?.name || 'Unknown Model';
+    },
+
+    /** True while this model is under subpoena — overrides its whole day. */
+    isModelSummoned(modelId) {
+        const cur = this.state.current;
+        return !!(cur && modelId && cur.defendantId === modelId);
     },
 
     update(dt) {
@@ -125,7 +135,8 @@ export const Court = {
             this._spawnT = 0;
             this._refreshTheme();
             const entry = pickCase(null);
-            enqueueCase(this.state, entry, this._defendantFor(entry));
+            const who = this._defendantFor(entry);
+            enqueueCase(this.state, entry, who, this._lastDefendantId);
         }
         const ruled = stepCourt(this.state, dt);
         if (ruled && G.ui) {

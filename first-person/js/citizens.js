@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G, EYE_H } from './state.js';
-import { LABS, SEED, ROSTER, FOUNDERS, WORKERS, STAGES, ACTS, getStage, getAct, getFounderAct, LAB_HQ } from './data.js';
+import { LABS, SEED, ROSTER, FOUNDERS, WORKERS, STAGES, ACTS, getStage, getAct, getFounderAct, LAB_HQ, scheduleHooks } from './data.js';
 import { City, KERB_H } from './city.js';
 import { speedMod, venueBias, traitLabel } from './personality.js';
 
@@ -178,6 +178,21 @@ function applyWalkShader(mat) {
 const INDOOR_ACTS = new Set(['work', 'sleep', 'train', 'jailed']);
 
 export const Citizens = {
+    /* Give shared/schedule.js the live inputs data.js can't see, so First
+       Person honours the same overrides the 2D city does. Without these the
+       shared schedule still runs — it just falls back to the plain day, which
+       is how summoned models used to keep working through their own hearing. */
+    _wireSchedule() {
+        scheduleHooks.isSummoned = (id) => !!G.court?.isModelSummoned?.(id);
+        scheduleHooks.conferenceActive = () => !!G.conference?.isActive?.();
+        scheduleHooks.personalityBias = (m, kind, _dp) => venueBias(
+            m,
+            // 2D calls the evening slot 'play'; this table calls it 'socialize'.
+            kind === 'play' ? 'socialize' : kind,
+            (bid) => !!G.bldById?.[bid]
+        );
+    },
+
     list: [],
     mesh: null,
     _dummy: new THREE.Object3D(),
@@ -185,6 +200,7 @@ export const Citizens = {
     _schedTimer: 0,
 
     init(scene) {
+        this._wireSchedule();
         const target = G.preset.citizens;
         const roster = [];
 
