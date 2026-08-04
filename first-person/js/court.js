@@ -1,15 +1,20 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   COURT SYSTEM — docket of alignment hearings at court_hearing / court_senate.
-   Cases cycle through queued → hearing → ruled.
+   COURT SYSTEM — the real 2026 AI legal docket, argued at court_hearing /
+   court_senate. Cases cycle through queued → hearing → ruled.
+
+   Cases come from shared/ai_docket.js and are real proceedings. This used to
+   invent them ('alignment audit', 'compute export license') and try them
+   against a random citizen, which meant the court reported litigation that
+   does not exist. Which model is summoned is still chosen at random — that
+   matches the 2D app — but it is now summoned to a case it is actually a
+   party to, wherever the docket names one.
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import { G } from './state.js';
+import { DOCKET, pickCase, pickHearingTheme } from '../../shared/ai_docket.js';
+import { CityStore } from './store/city_store.js';
 
 export const COURT_BIDS = ['court_hearing', 'court_senate'];
-const CASE_TYPES = [
-    'alignment audit', 'safety review', 'compute export license',
-    'open-weights hearing', 'data provenance case', 'agent liability'
-];
 
 export function createCourtState() {
     return {
@@ -20,12 +25,21 @@ export function createCourtState() {
     };
 }
 
-export function enqueueCase(state, title, defendant = 'Unknown Model') {
+/**
+ * Queue a real proceeding. `entry` is a shared/ai_docket.js DOCKET row, so the
+ * title, status note and colour all come from the real case rather than being
+ * synthesised. `defendant` is the model summoned to answer for it.
+ */
+export function enqueueCase(state, entry, defendant = 'Unknown Model') {
+    const row = typeof entry === 'string' ? { case: entry } : (entry || {});
     state.docket.push({
         id: 'case_' + (state.rulings + state.docket.length + 1),
-        title,
+        title: row.case || 'Hearing',
+        caseStatus: row.status || null,     // the REAL status, e.g. "in discovery"
+        note: row.note || null,
+        color: row.color || null,
         defendant,
-        status: 'queued'
+        status: 'queued'                    // sim lifecycle: queued → hearing → ruled
     });
     return state.docket[state.docket.length - 1];
 }
@@ -62,9 +76,12 @@ export const Court = {
 
     init(scene) {
         this.state = createCourtState();
-        // seed docket
+        this._refreshTheme();
+        // Seed with real proceedings, each answered by a party actually named in
+        // it where the docket names one.
         for (let i = 0; i < 4; i++) {
-            enqueueCase(this.state, CASE_TYPES[i % CASE_TYPES.length], 'Model-' + (10 + i));
+            const entry = DOCKET[i % DOCKET.length];
+            enqueueCase(this.state, entry, this._defendantFor(entry));
         }
         const b = G.bldById['court_hearing'] || G.bldById['court_senate'];
         if (b && scene) {
@@ -76,14 +93,39 @@ export const Court = {
         }
     },
 
+    /* Prefer a live regulation headline as the subject under argument, exactly
+       as the 2D chamber does; fall back to a real regulatory theme. */
+    _refreshTheme() {
+        const snap = CityStore.snapshot?.() || {};
+        const picked = pickHearingTheme(snap.news);
+        this.hearingTheme = picked.theme;
+        this.hearingUrl = picked.url;
+        this.hearingLive = picked.live;
+    },
+
+    /* Summon a model that is genuinely a party to the case. Falls back to any
+       citizen only when the proceeding names no lab (a statute like SB 53). */
+    _defendantFor(entry) {
+        const list = G.citizens?.list || [];
+        if (entry?.parties?.length && list.length) {
+            const party = entry.parties[Math.floor(Math.random() * entry.parties.length)];
+            const matches = list.filter(c => c.model?.lab === party);
+            if (matches.length) {
+                return matches[Math.floor(Math.random() * matches.length)].model.name;
+            }
+        }
+        if (!list.length) return 'Unknown Model';
+        return list[Math.floor(Math.random() * list.length)].model?.name || 'Citizen';
+    },
+
     update(dt) {
         if (!this.active) return;
         this._spawnT += dt;
         if (this._spawnT > 14) {
             this._spawnT = 0;
-            const t = CASE_TYPES[Math.floor(Math.random() * CASE_TYPES.length)];
-            const def = G.citizens?.list?.[Math.floor(Math.random() * (G.citizens.list.length || 1))];
-            enqueueCase(this.state, t, def?.model?.name || 'Citizen');
+            this._refreshTheme();
+            const entry = pickCase(null);
+            enqueueCase(this.state, entry, this._defendantFor(entry));
         }
         const ruled = stepCourt(this.state, dt);
         if (ruled && G.ui) {
@@ -99,10 +141,19 @@ export const Court = {
     },
 
     snapshot() {
+        const cur = this.state.current;
         return {
             docket: this.state.docket.length,
             rulings: this.state.rulings,
-            current: this.state.current ? this.state.current.title : null,
+            current: cur ? cur.title : null,
+            // The real status and sourced note, so the panel can show what is
+            // actually happening in the case rather than just its name.
+            currentStatus: cur ? cur.caseStatus : null,
+            currentNote: cur ? cur.note : null,
+            defendant: cur ? cur.defendant : null,
+            hearingTheme: this.hearingTheme || null,
+            hearingUrl: this.hearingUrl || null,
+            hearingLive: !!this.hearingLive,
             venues: COURT_BIDS.filter(id => G.bldById?.[id])
         };
     }

@@ -21,6 +21,8 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { COMMODITIES } from './data.js';
+import { fallbackPrices, fetchPrices, formatPrice, formatChange } from '../../shared/port_prices.js';
+import { INTEGRATION } from './store/config.js';
 
 /* Six tracked stocks, mapped onto the commodity ids the Port already lists.
    consume is units per in-game second at a nominal 10 operating datacentres;
@@ -54,6 +56,12 @@ export const SupplyChain = {
     init(scene) {
         this.scene = scene;
         for (const [k, s] of Object.entries(STOCKS)) this.stock[k] = { ...s, v: s.start };
+
+        // Prices: fallbacks immediately so no commodity is ever priceless, then
+        // live Supabase rows overwrite whatever the table actually tracks.
+        this.prices = fallbackPrices();
+        fetchPrices({ url: INTEGRATION.supabaseUrl, key: INTEGRATION.supabaseKey })
+            .then(p => { this.prices = p; });
 
         // Every datacentre and fab draws from the stock and shows the shortage.
         this.consumers = G.placements
@@ -222,15 +230,24 @@ export const SupplyChain = {
 
     /** Live state for the terminal's Supply Chain panel. */
     snapshot() {
-        const rows = Object.entries(this.stock).map(([k, s]) => ({
-            id: k,
-            label: s.label,
-            pct: Math.round((s.v / s.cap) * 100),
-            v: Math.round(s.v),
-            cap: s.cap,
-            critical: !!s.critical,
-            commodity: COMMODITIES?.find(c => c.id === k) || null
-        }));
+        const px = this.prices || {};
+        const rows = Object.entries(this.stock).map(([k, s]) => {
+            const entry = px[k] || null;
+            return {
+                id: k,
+                label: s.label,
+                pct: Math.round((s.v / s.cap) * 100),
+                v: Math.round(s.v),
+                cap: s.cap,
+                critical: !!s.critical,
+                commodity: COMMODITIES?.find(c => c.id === k) || null,
+                // Market side, so the panel can show what a shortage costs.
+                price: formatPrice(entry),
+                change: formatChange(entry),
+                supplyStatus: entry ? entry.supply_status : null,
+                priceUpdated: entry ? entry.updated : null
+            };
+        });
         rows.sort((a, b) => a.pct - b.pct);
         return {
             shortage: +this.shortage.toFixed(2),
@@ -238,6 +255,9 @@ export const SupplyChain = {
             deliveries: this.delivered,
             trucksRolling: this.trucks.length,
             consumers: this.consumers ? this.consumers.length : 0,
+            // Full price map for the market panel, including commodities the
+            // city doesn't hold stock of (EUV scanners, wafers, copper…).
+            prices: px,
             rows
         };
     }

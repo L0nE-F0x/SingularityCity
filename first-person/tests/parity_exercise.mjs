@@ -13,6 +13,7 @@ import { STAGE_CODE } from '../js/citizens.js';
 import { buildMetroRoutes, stepTrain } from '../js/metro.js';
 import { createJailState, detain, reconcileJail, JAIL_BID } from '../js/jail.js';
 import { selectDetained, ruleAppliesToViewer } from '../../shared/ai_bans.js';
+import { DOCKET, REGULATION_THEMES, pickHearingTheme } from '../../shared/ai_docket.js';
 import { BLDS, SEED as SEED_MODELS } from '../js/data.js';
 import { createCourtState, enqueueCase, stepCourt } from '../js/court.js';
 import { createOrbitState, enterOrbit, exitOrbit, updateOrbitCamera } from '../js/orbit_mode.js';
@@ -155,13 +156,31 @@ assert(selectDetained(grok, [expired], 'US').size === 0, 'expired ban detains no
 assert(JAIL_BID === 'ai_jail', 'jail venue is the AI Detention Center');
 assert(BLDS.some(b => b.id === JAIL_BID), 'detention centre exists in BLDS');
 
-// 6. Court
+// 6. Court — hears the REAL docket, not invented case types.
 const cs = createCourtState();
-enqueueCase(cs, 'alignment audit', 'Claude');
+const realCase = DOCKET[0];
+const queued = enqueueCase(cs, realCase, 'Claude');
+assert(queued.title === realCase.case, 'court queues the real case name');
+assert(queued.caseStatus === realCase.status, 'court carries the real case status');
+assert(queued.note === realCase.note, 'court carries the sourced note');
 let ruled = null;
 for (let i = 0; i < 200; i++) ruled = stepCourt(cs, 0.1) || ruled;
 assert(ruled && ruled.status === 'ruled', 'court reaches ruling');
 assert(cs.rulings >= 1, 'court rulings counted');
+
+// Every seeded proceeding must be a real one — this is the regression guard
+// against reintroducing synthesised case types.
+const realTitles = new Set(DOCKET.map(d => d.case));
+assert(DOCKET.length >= 6, 'docket carries the landmark 2026 cases');
+assert(realTitles.has('NYT v. OpenAI & Microsoft'), 'docket includes the NYT case');
+// A summoned party is chosen from the case's actual parties where named.
+const nyt = DOCKET.find(d => d.case === 'NYT v. OpenAI & Microsoft');
+assert(nyt.parties.includes('openai'), 'NYT case names OpenAI as a party');
+// Hearing subjects come from real headlines or real themes, never invented.
+const themed = pickHearingTheme([], () => 0);
+assert(REGULATION_THEMES.includes(themed.theme), 'hearing theme is a real regulatory subject');
+const liveThemed = pickHearingTheme([{ headline: 'Senate opens AI antitrust probe' }], () => 0);
+assert(liveThemed.live && /antitrust/.test(liveThemed.theme), 'live regulation headline preferred');
 
 // 7. Orbit mode
 const cam = new THREE.PerspectiveCamera(70, 1, 0.5, 12000);
