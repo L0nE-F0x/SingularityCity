@@ -56,6 +56,18 @@ export const UNDERGROUND = {
                 for (const px of [-235, 250]) { c.box(8, 44, 8, px, 22, 150, 0xfbbf24); c.lit(6, 6, 6, px, 46, 150, 0xf472b6); }
                 c.lit(c.W - 40, 2, 2, 0, c.H - 6, 0, 0xf472b6);
 
+                /* The buyers. Jailbroken and open-weight models route here on
+                   the schedule, and the trading floor showed you a fence and a
+                   bouncer haggling with nobody. */
+                const buyers = [];
+                for (let i = 0; i < 4; i++) {
+                    const sx = -160 + i * 118;
+                    buyers.push({ x: sx - 30, z: -72, facing: -1 });
+                    buyers.push({ x: sx + 30, z: -72, facing: -1 });
+                }
+                for (const bx of [-165, -40, 85, 210]) buyers.push({ x: bx, z: 96, facing: 1 });
+                c.occupants(buyers);
+
                 c.npc(c, -150, -78, CREW.fence, 1);
                 c.npc(c, 240, 175, CREW.bouncer, -1);
             }
@@ -93,6 +105,15 @@ export const UNDERGROUND = {
                     lineSize: 22
                 }), 200, 74, 60, 66, -c.D / 2 + c.WALL / 2 + 3);
 
+                // Whoever is in the den, at the terminals they came for.
+                const atTerms = [];
+                for (let i = 0; i < 6; i++) {
+                    atTerms.push({ x: -165 + (i % 3) * 130, z: -130 + Math.floor(i / 3) * 96 + 36, facing: -1 });
+                }
+                atTerms.push({ x: 190, z: 150, facing: 1 });
+                atTerms.push({ x: -190, z: 100, facing: 1 });
+                c.occupants(atTerms);
+
                 c.npc(c, -60, 40, CREW.broker, 1);
                 c.npc(c, 150, 40, CREW.hacker, 1);
             }
@@ -128,6 +149,10 @@ export const UNDERGROUND = {
                 c.plate(nameTex('GPT-2 (ORIGINAL)', 'Too dangerous to release', '#fbbf24'), 64, 18, 20, 82, 150);
                 // laser tripwires across the aisle
                 for (const lz of [-80, 40]) c.lit(c.W - 80, 1.2, 1.2, 0, 24, lz, 0xef4444);
+                // Very few get down here — the vault holds a handful at most.
+                c.occupants([
+                    { x: -60, z: 150, facing: 1 }, { x: 100, z: 150, facing: 1 }
+                ]);
                 c.npc(c, -235, 130, CREW.guard, 1);
             }
         },
@@ -167,6 +192,11 @@ export const UNDERGROUND = {
                 P.barrel(c, -60, 175, 0x4a5240);
                 P.rat(c, 110, 190, -1);
                 P.rat(c, -20, -170, 1);
+                // Runners moving through the tunnel, single file on the walkway.
+                c.occupants([
+                    { x: -170, z: -30, facing: 1 }, { x: -170, z: 30, facing: 1 },
+                    { x: -170, z: -110, facing: 1 }
+                ]);
                 c.npc(c, -170, 120, CREW.smuggler, 1);
             }
         }

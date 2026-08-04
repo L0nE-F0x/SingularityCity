@@ -124,6 +124,13 @@ export const ALIGNMENT = {
                 }), 130, 66, wx - 3, 56, 160, -Math.PI / 2);
 
                 c.npc(c, -30, 40, { name: k.tag + ' Researcher', role: k.lead, color: k.accent }, 1);
+                /* Alignment researchers actually in residence. The cabins are
+                   a retreat — the point is who is here this week. */
+                c.occupants([
+                    { x: -170, z: 120, facing: 1 }, { x: -60, z: 120, facing: 1 },
+                    { x: 50, z: 120, facing: 1 }, { x: 160, z: 120, facing: 1 },
+                    { x: -110, z: 185, facing: 1 }, { x: 90, z: 185, facing: 1 }
+                ]);
                 c.npc(c, 170, 60, { name: 'Visiting Fellow', role: 'On Sabbatical', color: 0x94a3b8 }, -1);
                 P.plant(c, 245, 180, 46);
             }
@@ -178,6 +185,11 @@ export const ALIGNMENT = {
                 for (let i = 0; i < 5; i++) c.box(24, 6, 18, -120 + (i % 2) * 10, 3 + i * 6, 120, [0x9a3a3a, 0x3a5a9a, 0x3a7a4a][i % 3]);
                 c.box(120, 4, 84, -230, 44, 90, 0xe8e6dc);
                 c.lit(9, 40, 9, 230, 24, 150, 0xffe0a0);
+                c.occupants([
+                    { x: 60, z: -30, facing: 1 }, { x: 150, z: -30, facing: 1 },
+                    { x: -140, z: 60, facing: 1 }, { x: 40, z: 90, facing: -1 },
+                    { x: 170, z: 120, facing: -1 }
+                ]);
                 c.npc(c, -60, -60, { name: k.tag + ' Lead', role: 'At the Whiteboard', color: k.accent }, 1);
             }
         }

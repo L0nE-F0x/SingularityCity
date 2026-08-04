@@ -426,10 +426,24 @@ export const Citizens = {
             const onDuty = c.model.worker.shift === 'night' ? !dayOn : dayOn;
             act = onDuty ? 'work' : (dp > 0.92 || dp < 0.26 ? 'sleep' : 'socialize');
             bid = onDuty ? this._workerVenue(c) : this._workerHome(c);
+        /* `c.idx`, NOT `c.seed`.
+
+           shared/schedule.js buckets behaviour with `(seed * 17) % 100 < N`,
+           which only spreads across 0–99 if the seed is an INTEGER. That is the
+           contract: the 2D city passes `G.models.indexOf(m)` and the parity test
+           passes 0,1,2,3… (giving s = 0,17,34,51…).
+
+           FP was passing `c.seed`, a float in [0,1). So s was always in [0,17)
+           and every threshold above 17 fired for EVERY model: at 19:12 the
+           `s < 20` nightlife branch caught the entire city, 645 of 700 models
+           went to the Neon Bar, and the park, cafe, arena, open square and
+           every other named venue got nobody. It also silently broke the shared
+           schedule's whole reason for existing — the two views were placing the
+           same model in different buildings. */
         } else if (c.model.founder) {
-            ({ act, bid } = getFounderAct(G.dayPhase, c.seed, c.model));
+            ({ act, bid } = getFounderAct(G.dayPhase, c.idx, c.model));
         } else {
-            ({ act, bid } = getAct(c.stage, G.dayPhase, c.seed, c.model));
+            ({ act, bid } = getAct(c.stage, G.dayPhase, c.idx, c.model));
         }
         // resolve target building
         let targetBid = bid;

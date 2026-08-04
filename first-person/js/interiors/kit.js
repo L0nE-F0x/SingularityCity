@@ -446,8 +446,12 @@ export const P = {
         // lanyard/collar glow keeps staff legible in the dim rooms (bar, sewer)
         c.lit(17, 2.5, 3, x, 28, z, col);
         if (c.plate && def.name) {
+            /* `plateY` staggers the label height. A room with a dozen occupants
+               in one sightline had every plate at the same y, so they overlapped
+               into an unreadable band — the caller alternates a few rows. */
             c.plate(nameTex(def.name, def.role, hex(col)), 46, 13,
-                x, 47, z + facing * 1.2, facing > 0 ? 0 : Math.PI);
+                x, def.plateY != null ? def.plateY : 47, z + facing * 1.2,
+                facing > 0 ? 0 : Math.PI);
         }
     },
 

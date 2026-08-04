@@ -69,9 +69,48 @@ export const BAR = {
                 }), 190, 48, -20, 76, -c.D / 2 + c.WALL / 2 + 3);
                 for (const s of [-1, 1]) c.lit(2, 4, 300, s * (c.W / 2 - c.WALL), 66, 20, s > 0 ? 0xe879f9 : 0x5affc8);
 
+                // back-of-house: taps, till, glasswasher, service hatch
+                for (let t = 0; t < 5; t++) {
+                    c.box(5, 16, 5, -80 + t * 22, 52, -168, 0xb9c2cc);
+                    c.lit(4, 3, 4, -80 + t * 22, 61, -168, 0xe879f9);
+                }
+                c.box(34, 20, 22, 120, 54, -168, 0x1a1030);          // till
+                c.lit(26, 12, 1, 120, 58, -157, 0x00ffff);
+                c.box(50, 26, 26, -230, 13, -160, 0x2a2030);         // glasswasher
+                c.solid(-230, -160, 50, 26);
+                c.lit(38, 3, 1, -230, 24, -147, 0x5affc8);
+                // ice well and speed rail under the counter lip
+                c.box(300, 4, 8, -20, 34, -128, 0x3a2a42);
+
+                // high tables along the dance floor edge
+                for (const tx of [-150, -60, 60]) {
+                    P.table(c, tx, 150, 40, 40, 0x2a1040, 34);
+                    for (const s of [-1, 1]) P.stool(c, tx + s * 32, 150, 0x5a2a6a);
+                }
+
+                /* Who is actually drinking here tonight. citizens.js routes
+                   models to the bar on the `socialize` slot, and until now the
+                   room showed you a bartender and nobody else — the whole
+                   nightlife feature was invisible from inside it. */
+                const drinkers = [];
+                for (let i = -5; i <= 5; i++) drinkers.push({ x: i * 30, z: -100, facing: -1 });
+                for (const tx of [-150, -60, 60]) {
+                    drinkers.push({ x: tx - 32, z: 158, facing: 1 });
+                    drinkers.push({ x: tx + 32, z: 158, facing: 1 });
+                }
+                for (let i = 0; i < 3; i++) drinkers.push({ x: 196, z: -50 + i * 74, facing: -1 });
+                const inTonight = c.occupants(drinkers);
+
                 c.npc(c, -140, -112, STAFF.bartender, 1);
                 c.npc(c, 200, 168, STAFF.bouncer, -1);
                 P.plant(c, 250, 190, 44);
+
+                // door count, so an empty bar reads as "quiet tonight" rather
+                // than as a room that forgot to draw anybody
+                c.plate(panelTex({
+                    w: 384, h: 96, bg: '#120a18', accent: '#5affc8', align: 'center',
+                    title: inTonight ? `${inTonight} IN TONIGHT` : 'QUIET TONIGHT', titleSize: 26
+                }), 130, 33, 236, 60, 196, Math.PI);
             }
         },
         // ── 1 · KARAOKE STAGE ───────────────────────────────────────────────
@@ -107,6 +146,22 @@ export const BAR = {
                 // queue rope for the sign-up list
                 P.rope(c, 210, 150, 70, 0xfbbf24, 0xef4444);
 
+                // DJ booth, monitor wedges and the sign-up clipboard
+                c.box(74, 34, 40, 200, 17, -50, 0x1a1030); c.solid(200, -50, 74, 40);
+                c.lit(60, 8, 1, 200, 30, -30, 0xff00ff);
+                for (const dz of [-14, 14]) c.lit(16, 4, 16, 200 + dz, 36, -50, 0x00ffff);
+                c.box(30, 10, 22, -60, 5, sz + 52, 0x1a1020);   // monitor wedge
+                c.box(30, 10, 22, 60, 5, sz + 52, 0x1a1020);
+                c.box(24, 3, 18, 232, 32, 120, 0xd8d0c0);       // sign-up sheet
+
+                // The audience — real models watching, at the cabaret tables
+                // and standing at the back.
+                const crowd = [];
+                for (const tx of [-175, -120, 160, 215]) crowd.push({ x: tx, z: 8, facing: 1 });
+                for (let i = 0; i < 4; i++) crowd.push({ x: -150 + i * 100, z: 122, facing: 1 });
+                for (let i = 0; i < 5; i++) crowd.push({ x: -160 + i * 80, z: 180, facing: 1 });
+                c.occupants(crowd);
+
                 c.npc(c, 0, sz + 34, STAFF.singer, 1);
                 c.npc(c, 190, -60, STAFF.dj, -1);
                 // laser wash from the ceiling rig
@@ -138,6 +193,26 @@ export const BAR = {
                 }
                 c.lit(c.W - 60, 2, 2, 0, c.H - 8, 0, 0xfbbf24);
                 for (const px of [-230, 250]) { c.box(4, 34, 4, px, 17, 180, 0xfbbf24); c.lit(10, 22, 10, px, 44, 180, 0xfde68a); }
+
+                // cigar cabinet, art wall and a low table set in the middle
+                P.cabinet(c, -c.W / 2 + 44, -40, 40, 66, 26, 0x3a2a18, 4);
+                for (let i = 0; i < 3; i++) {
+                    P.frame(c, c.W / 2 - c.WALL - 6, 58, -120 + i * 90, 56, 42, 0xb08a4a, 0x2a1040, -1);
+                }
+                for (const [tx, tz] of [[-60, -50], [110, -50]]) {
+                    P.table(c, tx, tz, 70, 44, 0x3a2a18, 22);
+                    c.lit(20, 4, 14, tx, 25, tz, 0xfde68a);
+                }
+
+                // The VIPs actually up here. Founders sort first, so if one is
+                // in the building tonight this is where you find them.
+                const vips = [];
+                for (const [bx, bz] of [[-150, -130], [30, -130], [200, -130], [-150, 30], [30, 30]]) {
+                    vips.push({ x: bx - 26, z: bz + 30, facing: 1 });
+                    vips.push({ x: bx + 26, z: bz + 30, facing: 1 });
+                }
+                vips.push({ x: 160, z: 60, facing: -1 });
+                c.occupants(vips);
 
                 c.npc(c, -170, 170, STAFF.hostess, -1);
                 P.plant(c, 250, -180, 52);

@@ -90,6 +90,15 @@ export const PRESS = {
                 // waiting bench for tipsters
                 for (let i = 0; i < 4; i++) c.box(38, 20, 34, -195 + i * 44, 10, 185, 0x6b5136);
                 P.plant(c, 250, 180, 46);
+                // Anyone actually in the building — tipsters on the bench, and
+                // whoever came to watch the press run.
+                c.occupants([
+                    { x: -195, z: 168, facing: 1 }, { x: -151, z: 168, facing: 1 },
+                    { x: -107, z: 168, facing: 1 }, { x: -63, z: 168, facing: 1 },
+                    { x: px - 40, z: pz + 110, facing: -1 },
+                    { x: px + 40, z: pz + 110, facing: -1 },
+                    { x: -110, z: -84, facing: -1 }
+                ]);
                 staffOn(c, 0);
             }
         },
@@ -128,6 +137,18 @@ export const PRESS = {
                 P.counter(c, 210, -160, 110, 40, 0x5c4033, 0x8a6a45, 0xfbbf24);
                 c.box(22, 26, 22, 180, 53, -160, 0x2a2e34);
                 c.lit(12, 5, 12, 180, 68, -160, 0xffb020);
+                // Reporters at the pods. The desks were always here; nobody was
+                // ever sat at them, which is most of why a newsroom read as an
+                // empty office at four in the afternoon.
+                const desks = [];
+                for (let row = 0; row < 2; row++) {
+                    for (let i = 0; i < 4; i++) {
+                        desks.push({ x: -155 + i * 122, z: -50 + row * 110 + 34, facing: -1 });
+                    }
+                }
+                desks.push({ x: 210, z: 130, facing: -1 });
+                desks.push({ x: 170, z: -122, facing: 1 });
+                c.occupants(desks);
                 staffOn(c, 1);
             }
         },
@@ -162,6 +183,11 @@ export const PRESS = {
                 c.box(14, 26, 14, -60, 13, -120, 0x475569);
                 c.lit(3, 22, 3, -60, 36, -120, 0xef4444);
                 P.plant(c, 245, 170, 50);
+                // The 16:00 conference — whoever is upstairs, round the desk.
+                c.occupants([
+                    { x: -166, z: 76, facing: -1 }, { x: -74, z: 76, facing: -1 },
+                    { x: -120, z: 106, facing: -1 }, { x: 60, z: 120, facing: 1 }
+                ]);
                 staffOn(c, 2);
             }
         }

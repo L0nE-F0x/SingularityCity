@@ -71,6 +71,15 @@ export const LEGACY = {
                         '+16:00 Hall of Fame unveiling'], lineSize: 21
                 }), 140, 62, c.W / 2 - c.WALL / 2 - 5, 54, 120, -Math.PI / 2);
                 P.plant(c, 245, 175, 52); P.plant(c, -245, 175, 52);
+                /* Museum visitors. Retired and legacy models come here on the
+                   schedule; the halls were showing you a curator and a docent
+                   addressing an empty room. */
+                c.occupants([
+                    { x: -180, z: 40, facing: -1 }, { x: -60, z: 40, facing: -1 },
+                    { x: 60, z: 40, facing: -1 }, { x: 180, z: 40, facing: -1 },
+                    { x: -120, z: 130, facing: -1 }, { x: 40, z: 130, facing: -1 },
+                    { x: 160, z: 130, facing: -1 }
+                ]);
                 c.npc(c, -100, -96, { name: 'Curator', role: 'Collections', color: 0xc8a04a }, 1);
                 c.npc(c, 190, 150, { name: 'Tour Guide', role: 'Docent', color: 0x60a5fa }, -1);
             }
@@ -109,6 +118,11 @@ export const LEGACY = {
                     lines: ['~now playing', 'archive footage', '+captions available'], lineSize: 20, padTop: 40
                 }), 150, 84, 10, 58, c.D / 2 - c.WALL / 2 - 6, Math.PI);
                 for (const px of [-240, 250]) P.rope(c, px, 60, 90, 0xc8a04a, 0x7c2d12);
+                c.occupants([
+                    { x: -190, z: 90, facing: -1 }, { x: -80, z: 90, facing: -1 },
+                    { x: 30, z: 90, facing: -1 }, { x: 140, z: 90, facing: -1 },
+                    { x: -130, z: 170, facing: -1 }, { x: 60, z: 170, facing: -1 }
+                ]);
                 c.npc(c, 220, -60, { name: 'Docent', role: 'Timeline Gallery', color: 0x60a5fa }, -1);
             }
         },
@@ -137,6 +151,11 @@ export const LEGACY = {
                 c.box(120, 1.8, c.D - 60, 10, 1, 0, 0x7c2d12);
                 for (const s of [-1, 1]) for (let i = 0; i < 3; i++) P.rope(c, 10 + s * 70, -110 + i * 110, 96, 0xc8a04a, 0x7c2d12);
                 for (const px of [-230, 250]) { c.box(6, 64, 6, px, 32, -60, 0x8a7048); c.lit(16, 12, 16, px, 68, -60, 0xffe0a0); }
+                c.occupants([
+                    { x: -140, z: 110, facing: -1 }, { x: -20, z: 110, facing: -1 },
+                    { x: 100, z: 110, facing: -1 }, { x: 200, z: 110, facing: -1 },
+                    { x: -70, z: 180, facing: -1 }, { x: 60, z: 180, facing: -1 }
+                ]);
                 c.npc(c, -230, 160, { name: 'Curator', role: 'Hall of Fame', color: 0xc8a04a }, -1);
             }
         },
@@ -167,6 +186,8 @@ export const LEGACY = {
                     lines: ['+TPU v2 pod — catalogued', '~GPU cluster (2016) — cleaning',
                         '!tape reels — degrading', 'Perceptron replica — on loan'], lineSize: 21
                 }), 200, 88, 20, 62, -c.D / 2 + c.WALL / 2 + 3);
+                // The archive is staff-only in practice; a researcher or two.
+                c.occupants([{ x: -60, z: 160, facing: 1 }, { x: 90, z: 160, facing: 1 }]);
                 c.npc(c, -240, 60, { name: 'Archivist', role: 'Cold Store', color: 0x64748b }, 1);
             }
         }

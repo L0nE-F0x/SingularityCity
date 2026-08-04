@@ -141,6 +141,14 @@ export const EMBASSY = {
                 P.table(c, -165, 60, 60, 40, 0x8a7048, 22);
                 P.plant(c, 245, -160, 56); P.plant(c, -245, 190, 56);
                 c.npc(c, -40, -96, { name: 'Receptionist', role: 'Front of House', color: 0x94a3b8 }, 1);
+                /* The delegation actually visiting. Models route to their own
+                   nation's mission on the schedule; the hall used to greet
+                   nobody but its own receptionist. */
+                c.occupants([
+                    { x: -180, z: 60, facing: -1 }, { x: -70, z: 60, facing: -1 },
+                    { x: 40, z: 60, facing: -1 }, { x: 150, z: 60, facing: -1 },
+                    { x: -120, z: 140, facing: -1 }, { x: 60, z: 140, facing: -1 }
+                ]);
                 c.npc(c, 130, 160, { name: 'Marine Guard', role: 'Mission Security', color: k.warm }, -1);
             }
         },
@@ -183,6 +191,13 @@ export const EMBASSY = {
                 }), 150, 74, 240, 54, 150, -Math.PI / 2);
                 c.npc(c, -180, -110, { name: 'Visa Officer', role: 'Consular Section', color: 0x4ade80 }, 1);
                 c.npc(c, 60, -110, { name: 'Consul', role: 'Head of Section', color: k.accent }, 1);
+                // The queue. Consular waiting rooms are never empty.
+                c.occupants([
+                    { x: -180, z: 60, facing: 1 }, { x: -110, z: 60, facing: 1 },
+                    { x: -40, z: 60, facing: 1 }, { x: 30, z: 60, facing: 1 },
+                    { x: 100, z: 60, facing: 1 }, { x: -145, z: 130, facing: 1 },
+                    { x: -5, z: 130, facing: 1 }
+                ]);
                 c.npc(c, -20, 30, { name: 'Applicant', role: 'Waiting Since 07:00', color: 0xa855f7 }, -1);
             }
         },
@@ -213,6 +228,11 @@ export const EMBASSY = {
                 P.cabinet(c, -240, 190, 44, 62, 28, 0x5a6472, 4);
                 P.plant(c, 240, -170, 48);
                 c.npc(c, 90, 130, { name: 'AI Policy Attaché', role: k.framework.slice(0, 22), color: 0xfbbf24 }, -1);
+                // Briefing attendees, facing the attaché.
+                c.occupants([
+                    { x: -150, z: 40, facing: -1 }, { x: -50, z: 40, facing: -1 },
+                    { x: 50, z: 40, facing: -1 }, { x: 150, z: 40, facing: -1 }
+                ]);
                 c.npc(c, -60, 130, { name: 'Tech Analyst', role: 'Evals Liaison', color: 0x22d3ee }, -1);
             }
         },
@@ -243,6 +263,8 @@ export const EMBASSY = {
                 P.bookshelf(c, c.W / 2 - 34, -40, 150, 84, 28, 1);
                 P.plant(c, 240, 160, 56);
                 c.npc(c, -50, -96, { name: 'Ambassador', role: k.title, color: k.accent }, 1);
+                // Whoever got the meeting.
+                c.occupants([{ x: -110, z: 30, facing: -1 }, { x: 10, z: 30, facing: -1 }]);
                 c.npc(c, -200, 150, { name: 'Chief of Staff', role: 'Mission Chief of Staff', color: 0x94a3b8 }, -1);
             }
         },

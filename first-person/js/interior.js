@@ -317,12 +317,20 @@ export const Interior = {
         this._propColliders = [];
         this._liftZones = [];
         this._hotspots = [];
+        this._occupantsDrawn = false;
         if (spec) {
             this._buildRoom(spec, b, box, lit, th, accent, floorIdx);
         } else {
             this._dress(b, box, lit, th, accent, floorIdx);
             if (typeof this._enrichRoom === 'function') this._enrichRoom(box, lit, th, accent, floorIdx);
         }
+        /* Anyone actually in the building, for rooms that didn't place them
+           itself. Bespoke rooms call ctx.occupants() with spots that mean
+           something (a bar stool, a gallery bench); everything else gets a
+           default scatter, which is still far better than the empty rooms this
+           replaces. Split across floors so a six-storey HQ isn't all on the
+           ground floor. */
+        if (!this._occupantsDrawn) this._placeDefaultOccupants(b, box, lit, floorIdx);
         // The car is live geometry (its doors slide), so it is built after the
         // merged shell rather than into it.
         this._buildCar(th, accent);
@@ -930,6 +938,24 @@ export const Interior = {
             },
             /** A named staffer — geometry merges, nameplate is a plate. */
             npc(c, x, z, def, facing = 1) { PROP.npc(c, x, z, def, facing); },
+            /* The citizens who are ACTUALLY inside this building right now.
+
+               Every interior used to be staff-only: you walked into a lab HQ at
+               11am and found one receptionist, while 40 models were logged as
+               working in it. The 2D app has always drawn its real visitors
+               (`G.charRefs[m].bld === bld.id`); this is the same list on the FP
+               side, and it is the single biggest reason the rooms read as empty.
+
+               `spots` is a list of {x, z, facing?} the room supplies — bar
+               stools, gallery benches, desks. Occupants fill them in order and
+               anything past the end of the list is simply not drawn, so a room
+               never invents a body it has nowhere to put. Returns how many were
+               placed, so a room can caption "12 in tonight". */
+            occupants(spots, opts = {}) {
+                return self._placeOccupants(this, spots, opts);
+            },
+            /** How many citizens are inside, without drawing any. */
+            occupantCount() { return self._occupantsFor(b).length; },
             /** Press-E point of interest (printing press, exhibits, terminals). */
             hotspot(x, z, r, label, action) { self._hotspots.push({ x, z, r, label, action }); },
             /** Something that has to keep moving after the room is built — the
@@ -951,6 +977,113 @@ export const Interior = {
         };
         const f = spec.floors[Math.max(0, Math.min(spec.floors.length - 1, floorIdx))];
         f.build(ctx);
+    },
+
+    /* ── real occupants ──────────────────────────────────────────────────────
+       Which citizens are inside this building right now.
+
+       citizens.js already tracks this: `c.indoors` goes true on arrival and
+       `c.targetBid` is where they went. Nothing was reading it, so every
+       interior was staff-only while the schedule had dozens of models working
+       in it — the single biggest reason the rooms read as empty next to their
+       2D counterparts, which have always drawn their real visitors.
+
+       Founders sort first: you want to see who is actually in the room, and a
+       founder is the answer people are looking for. */
+    _occupantsFor(b) {
+        if (!b?.id) return [];
+        const list = G.citizens?.list;
+        if (!Array.isArray(list)) return [];
+        /* "At this venue", not "flagged indoors".
+
+           `c.indoors` is a street-rendering optimisation — it parks the
+           instanced mesh off-world so hidden citizens cost nothing. It is NOT a
+           statement about being at the building, and INDOOR_ACTS deliberately
+           excludes `socialize` and `lunch` so the evening streets stay busy.
+           Filtering on it meant the Neon Bar could never show a single patron:
+           everyone drinking there is, by design, flagged outdoors.
+
+           Arrived-at-destination is the honest test. The interior hides the
+           city anyway, so there is no double-drawing. */
+        const here = list.filter(c => c.targetBid === b.id &&
+            (c.indoors || !(c.path.length && c.wp < c.path.length)));
+        here.sort((a, z) => (z.model?.founder ? 1 : 0) - (a.model?.founder ? 1 : 0));
+        return here;
+    },
+
+    /* Draw them into the room's merge buckets at spots the room chose.
+
+       Deliberately NOT the instanced city citizen mesh: that runs at world
+       scale on a shader expecting a walk cycle, and interiors are a third the
+       size with everything baked. A seated model is a few boxes, and costs
+       nothing because it merges with the furniture around it.
+
+       Anything past the end of `spots` is simply not drawn — a room never
+       invents a body it has nowhere to put, and never pads the count. */
+    _placeOccupants(ctx, spots, opts = {}) {
+        this._occupantsDrawn = true;
+        if (!Array.isArray(spots) || !spots.length) return 0;
+        let here = this._occupantsFor(ctx.b);
+        // Multi-floor: share them out so a six-storey HQ isn't all in reception.
+        if (this.maxFloor > 0 && opts.share !== false) here = this._floorShare(here);
+        const n = Math.min(here.length, spots.length);
+        for (let i = 0; i < n; i++) {
+            const c = here[i];
+            const s = spots[i];
+            const m = c.model || {};
+            PROP.npc(ctx, s.x, s.z, {
+                name: opts.silent ? null : (m.name || 'Visitor'),
+                role: opts.role || (m.founder ? 'Founder' : (LABS[m.lab]?.name || 'Model')),
+                color: c.color?.getHex ? c.color.getHex() : 0x94a3b8,
+                // three staggered rows, so a crowded floor's labels stay legible
+                plateY: 47 + (i % 3) * 13
+            }, s.facing ?? 1);
+        }
+        return n;
+    },
+
+    /* This floor's slice of the building's occupants. Deterministic — the same
+       model is on the same floor every time you ride the lift, otherwise people
+       teleport between storeys behind your back. */
+    _floorShare(here) {
+        const nf = this.maxFloor + 1;
+        return here.filter((c, i) => (i + (c.idx || 0)) % nf === this.floor);
+    },
+
+    /* Fallback scatter for rooms with no occupant plan of their own: a loose
+       grid in the open middle of the floor, clear of the lift bank on the left
+       wall and the doorway at the front. */
+    _placeDefaultOccupants(b, box, lit, floorIdx) {
+        const ctx = {
+            box, lit, b,
+            plate: (tex, w, h, x, y, z, rotY = 0) => {
+                const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+                    new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+                m.position.set(x, y, z);
+                if (rotY) m.rotation.y = rotY;
+                this.group.add(m);
+                return m;
+            }
+        };
+        /* Candidate spots, filtered against the colliders the room registered
+           for its own furniture. Without this the scatter stands people inside
+           desks and sofas — the room already told us where its solids are, so
+           use that rather than guessing at clear floor. */
+        const clear = (x, z) => !(this._propColliders || []).some(p =>
+            x > p.x0 - 10 && x < p.x1 + 10 && z > p.z0 - 10 && z < p.z1 + 10);
+        const spots = [];
+        for (let r = 0; r < 4; r++) {
+            for (let i = 0; i < 5; i++) {
+                const x = -160 + i * 80;
+                const z = -60 + r * 62;
+                // keep clear of the lift bank on the left wall and the doorway
+                if (x < -ROOM_W / 2 + 130) continue;
+                if (!clear(x, z)) continue;
+                spots.push({ x, z, facing: r < 2 ? 1 : -1 });
+            }
+        }
+        this._placeOccupants(ctx, spots);
+        this._occupantsDrawn = true;
     },
 
     /** Monumental lift bank on the left wall — only when multi-floor, so the
