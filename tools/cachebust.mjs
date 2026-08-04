@@ -48,12 +48,18 @@ if (!version) {
 const path = 'index.html';
 let html = readFileSync(path, 'utf8');
 
-// Replace only local js/* script tags. CDN tags are left alone.
-// Handles both <script src="..."> and <script defer src="...">
-html = html.replace(
-    /<script(\s+defer)?\s+src="(js\/[^"?]+)(\?v=[^"]*)?"><\/script>/g,
-    `<script$1 src="$2?v=${version}"></script>`
-);
+/* Replace only local js/* script tags. CDN tags are left alone.
+
+   The attribute pattern is deliberately loose — `defer`, `type="module"`,
+   `async`, in any order, before or after src. The old pattern only allowed an
+   optional `defer` immediately before src, so it silently skipped
+   `<script type="module" src="js/shared_boot.js">`: that tag sat frozen at
+   ?v=534 for five releases while everything else moved, and because it is the
+   FIRST versioned js/ tag in document order it is also the one the loading
+   screen reads its version badge from. The badge reported a version nobody
+   was running. */
+const SCRIPT_TAG = /<script([^>]*?)\ssrc="(js\/[^"?]+)(?:\?v=[^"]*)?"([^>]*)><\/script>/g;
+html = html.replace(SCRIPT_TAG, `<script$1 src="$2?v=${version}"$3></script>`);
 
 // Also bump local css/* stylesheet tags
 html = html.replace(
@@ -76,7 +82,10 @@ sw = sw.replace(
 // Regenerate CORE_ASSETS from index.html so the precache list can never drift
 // from the script tags again (robot_models.js/space_rockets.js were once added
 // to index.html but not here — offline PWA then threw in those zones).
-const jsAssets = [...html.matchAll(/<script(?:\s+defer)?\s+src="(js\/[^"?]+)(?:\?v=[^"]*)?"><\/script>/g)].map(m => '/' + m[1]);
+// Same loose attribute pattern as above — with the old one, shared_boot.js was
+// missing from the precache entirely, so an offline PWA had no SC_SHARED and
+// every consumer silently fell back to its local copy.
+const jsAssets = [...html.matchAll(new RegExp(SCRIPT_TAG.source, 'g'))].map(m => '/' + m[2]);
 const cssAssets = [...html.matchAll(/<link\s+rel="stylesheet"\s+href="(css\/[^"?]+)(?:\?v=[^"]*)?"\s*>/g)].map(m => '/' + m[1]);
 const STATIC_ASSETS = [
     '/', '/index.html', '/manifest.json', '/og-image.png',
