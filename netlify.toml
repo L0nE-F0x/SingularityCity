@@ -101,6 +101,14 @@
   [headers.values]
     Cache-Control = "public, max-age=3600"
 
+# Shared source-of-truth modules (shared/space_live.js and friends). Same
+# reasoning as /first-person/js/* — imported by bare relative path with no ?v=,
+# so the site-wide immutable rule would freeze them for a year.
+[[headers]]
+  for = "/shared/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
 [[headers]]
   for = "/first-person/css/*"
   [headers.values]

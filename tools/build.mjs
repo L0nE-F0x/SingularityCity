@@ -107,7 +107,13 @@ console.log(`  Minified ${fpJs.count} First Person JS files  (saved ${fmtKB(fpJs
 const fpCss = await minifyDir('first-person/css', 'css', { recursive: true });
 console.log(`  Minified ${fpCss.count} First Person CSS files (saved ${fmtKB(fpCss.saved)})`);
 
-const totalSaved = js.saved + css.saved + fpJs.saved + fpCss.saved;
+// Shared source-of-truth modules imported by First Person (and, in time, the 2D
+// app). Minified with the same per-file transform — esbuild preserves ESM
+// import/export, so the specifiers First Person resolves stay intact.
+const sharedJs = await minifyDir('shared', 'js', { recursive: true });
+console.log(`  Minified ${sharedJs.count} shared JS files  (saved ${fmtKB(sharedJs.saved)})`);
+
+const totalSaved = js.saved + css.saved + fpJs.saved + fpCss.saved + sharedJs.saved;
 console.log('-'.repeat(50));
 console.log(`  Total savings: ${fmtKB(totalSaved)}`);
 console.log('  Build complete — ready for deploy');
