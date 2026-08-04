@@ -173,9 +173,9 @@ accounted for separately so this isn't a helper artifact:
 
 | Interior | 2D | FP | FP as % of 2D |
 |---|---:|---:|---:|
-| jail | 1523 | 110 | **7%** |
-| court | 1329 | 109 | **8%** |
-| metro station | 1701 | 177 | **10%** |
+| jail | 1523 | ~~110~~ 279 | ~~7%~~ **18%** — rebuilt |
+| court | 1329 | ~~109~~ 301 | ~~8%~~ **23%** — rebuilt |
+| metro station | 1701 | ~~177~~ 353 | ~~10%~~ **21%** — rebuilt |
 | neon bar | 1471 | 181 | **12%** |
 | alignment forest | 1480 | 185 | **12%** |
 | press / newspaper | 1265 | 169 | **13%** |
@@ -189,12 +189,22 @@ accounted for separately so this isn't a helper artifact:
 | agents | 1048 | 687 | 66% |
 | supply chain | 315 | 244 | 77% |
 
-**Totals: FP 7,532 lines vs 2D 34,786 — about 22%.**
+**Totals: FP 8,069 lines vs 2D 34,786 — about 23%.**
 
 Line count is a rough proxy (3D and 2D rendering aren't comparable line-for-line)
-but a 7–16% band across nine interiors is too wide to be explained by that. The
-metro station in particular — 177 lines against 1,701 — is worth noting given the
-train complaints below.
+but a 7–16% band across nine interiors is too wide to be explained by that.
+
+**Jail, court and the metro station are done.** All three were falling through
+to the generic themed room; all three are now bespoke multi-floor specs under
+`js/interiors/`, matching the level structure of the 2D module they came from
+(jail: intake / block A / block B / control / solitary; court: rotunda /
+chamber / gallery / chambers, branching between the Senate hearing room and the
+trial court; metro: ticket hall / platform, with a train that arrives). Each
+reads the same live data the 2D city does — real detainees under real ban
+orders, the real docket — rather than inventing occupants.
+
+Six interiors remain in the 12–16% band: bar, alignment forest, press,
+underground, legacy museum, embassy. Same treatment, worst ratio first.
 
 ---
 
@@ -226,10 +236,14 @@ Zero entries in `window.onerror` / `unhandledrejection` across all of it.
 
 What I *did* find:
 
-1. **The metro cabin renders wrong.** Riding shows flat blue slabs and a dark
-   void rather than a car interior. Camera placement is correct (eye 12 above
-   track, inside the cabin) — so this is the cabin geometry/material, not the
-   ride logic. Consistent with the station interior being a 10% port.
+1. ~~**The metro cabin renders wrong.**~~ **FIXED.** Three causes, all closed:
+   the cabin was a 78×30×34 crate with its window band ABOVE the eye (windows
+   12.5–23.5, eye 12) so you rode looking at wall; nothing lit it or the tunnel,
+   because the renderer runs `useLegacyLights = false` and every point light in
+   the app is sized for the old model (a light of intensity 0.65 delivers 0.0004
+   at 40 units); and the platform had a track bed no train ever ran on. The
+   cabin is now a full carriage with seats, poles and straps, the bore is lit
+   and 78 wide, and a train pulls in, opens its doors and leaves.
 2. **`rideElevator` fails silently when you're not at the lift bank** — it
    toasts "Walk to the lift bank to ride" and returns. From a keypress that
    reads as "the lift is broken".
@@ -250,11 +264,13 @@ driving may simply not hit the same path as real keyboard/pointer-lock input.
 2. **A2 jail** — delete random arrests; port the sourced ban rules, jurisdiction
    scoping and `until` expiry.
 3. **A3 court**, **A4 port/supply chain** — same treatment.
-4. **Metro cabin visuals** + the two lift UX papercuts above.
-5. **Category B interiors**, worst ratio first (jail, court, metro, bar).
+4. ~~**Metro cabin visuals**~~ — done. The two lift UX papercuts above stand.
+5. **Category B interiors**, worst ratio first — jail, court and metro are
+   done; bar, alignment, press, underground, legacy and embassy remain.
 
 Steps 1–3 share a shape: FP needs to read the same live data 2D already fetches,
 rather than re-deriving it. Worth building that bridge once — a shared data
 module both apps read — instead of three times.
 
-**Not started.** This document is the audit only; no fixes applied.
+**Category A closed.** Category B: jail, court and the metro station are
+rebuilt; six interiors remain in the 12–16% band.

@@ -687,7 +687,15 @@ export const Traffic = {
             push(avX, stZ);         // …up/down the avenue
             push(City.laneCentre(b.x, true, zDir, 0), stZ);   // …along the street
         }
-        push(pts[0].x, pts[0].z);
+        // Close the loop with a corner, not a straight line back to the start.
+        // The lane offsets mean the last point and the first rarely share an
+        // axis, and joining them directly re-introduces exactly the diagonal
+        // this routine exists to avoid — a short one, but a diagonal.
+        const last = pts[pts.length - 1], first = pts[0];
+        if (Math.abs(last.x - first.x) > 2 && Math.abs(last.z - first.z) > 2) {
+            push(last.x, first.z);
+        }
+        push(first.x, first.z);
         return pts;
     },
 
