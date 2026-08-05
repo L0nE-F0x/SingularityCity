@@ -10,7 +10,16 @@ import { G } from './state.js';
 import { TRAM_LINES } from './data.js';
 import { City } from './city.js';
 
-const TUNNEL_Y = -48;       // track height
+/* Track height. MUST leave the whole bore below y=0.
+
+   The tunnel is `th` tall measured up from here, so the ceiling sits at
+   TUNNEL_Y + th and the wall tops a little above that. At -48 with the old
+   40-tall bore that was -8, safely buried. Widening the bore to 54 for the
+   taller carriage pushed the ceiling to +6 — and the tunnels surfaced, drawing
+   black bands across the city between every pair of stations, visible from the
+   air. Deepened to keep ~8 units of cover. tests/metro_depth_check.mjs asserts
+   it. */
+const TUNNEL_Y = -62;
 /* Eye height inside the car, above the track.
 
    This was 12, and the window band ran 12.5–23.5 — so you rode with your eyes

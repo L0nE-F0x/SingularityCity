@@ -214,7 +214,20 @@ export const Citizens = {
             for (const m of live) {
                 roster.push({
                     model: {
-                        id: m.id, name: m.name, lab: m.lab, os: !!m.os,
+                        id: m.id, name: m.name, os: !!m.os,
+                        /* Normalise the long tail onto `other`.
+
+                           ~446 rows carry a HuggingFace org handle as their lab
+                           (`sao10k`, `thedrummer`, `anthracite_org`). Left as-is
+                           they miss every LABS and LAB_HQ lookup by key, so they
+                           got no colour of their own and — because the miss fell
+                           through to a literal 'open_square' rather than to
+                           LAB_HQ.other — none of them ever reached the Hub
+                           Commons built for exactly this cohort.
+
+                           `trueLab` keeps the original handle for display. */
+                        lab: LABS[m.lab] ? m.lab : 'other',
+                        trueLab: m.lab,
                         phase: m.phase, rel: m.rel, ret: m.ret
                     },
                     // "named" drives the chat-bubble / label treatment; a real

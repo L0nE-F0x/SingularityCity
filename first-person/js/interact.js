@@ -8,12 +8,28 @@ import { G } from './state.js';
 import { ACTS } from './data.js';
 import { Interior } from './interior.js';
 
+/* How far above the walking surface you can still touch anything.
+
+   Every reach test in this file measures Math.hypot(dx, dz) — horizontal
+   distance only, with no notion of altitude. Fly a few hundred units straight
+   up and you are still "0 units" from the building below you, so the crosshair
+   kept finding targets and E kept opening doors from the sky.
+
+   EYE_H is 17, a jump adds a few, and standing on a raised kerb adds KERB_H.
+   45 clears all of that and nothing else. */
+const REACH_Y = 45;
+
 export const Interact = {
     target: null,        // { kind: 'building'|'citizen', ref }
     _timer: 0,
     _raycaster: new THREE.Raycaster(),
     _mouse: new THREE.Vector2(),
     _lastDistrict: null,
+
+    /** Are you standing on the ground you'd have to be standing on to reach it? */
+    grounded() {
+        return (G.camera.position.y - G.floorY) < REACH_Y;
+    },
 
     init() {
         document.addEventListener('keydown', e => {
@@ -45,6 +61,14 @@ export const Interact = {
                 return;
             }
 
+            /* Everything below this point is a street interaction, and every
+               one of them measures horizontal distance only. Gate them all on
+               actually being on the ground rather than repeating the check. */
+            if (!this.grounded()) {
+                G.ui?.addToast?.('Too high up to reach anything — land first', 'info');
+                return;
+            }
+
             // Street: board if a train is dwelling at the nearest station
             if (G.metro) {
                 const cam = G.camera.position;
@@ -57,7 +81,9 @@ export const Interact = {
             // close enough to the door to walk in, otherwise just read the plaque
             const p = this.target.ref;
             const cam = G.camera.position;
-            const near = Math.hypot(p.x - cam.x, p.z - cam.z) < Math.max(p.w, p.d) / 2 + 60;
+            // 38 rather than 60: close enough to be at the door, not merely
+            // in the same block as it.
+            const near = Math.hypot(p.x - cam.x, p.z - cam.z) < Math.max(p.w, p.d) / 2 + 38;
             if (near && Interior.canEnter(p.b)) Interior.enter(p.b);
             else { G.ui.showBuilding(p.b); G.audio?.sfx('open'); }
         });
@@ -161,15 +187,18 @@ export const Interact = {
             }
         }
 // ── look target ──
+        // Airborne: no crosshair target, so no prompt promising an E that the
+        // keypress handler would refuse anyway.
+        if (!this.grounded()) { this.target = null; G.ui.prompt(null); G.ui.lookLabel(null); return; }
         const fwd = { x: -Math.sin(G.player.yaw), z: -Math.cos(G.player.yaw) };
         let best = null, bestScore = 0.75;   // min dot product ~ facing
 
         for (const p of G.placements) {
             const dx = p.x - px, dz = p.z - pz;
             const dist = Math.hypot(dx, dz);
-            if (dist > 260) continue;
+            if (dist > 190) continue;
             const reach = Math.max(p.w, p.d) / 2 + 26;
-            if (dist > reach + 160) continue;
+            if (dist > reach + 90) continue;
             const dot = (dx * fwd.x + dz * fwd.z) / (dist || 1);
             if (dot < 0.55) continue;
             // nearer & more centred wins
@@ -193,7 +222,9 @@ export const Interact = {
         if (best.kind === 'building') {
             const b = best.ref.b;
             const p = best.ref;
-            const near = Math.hypot(p.x - px, p.z - pz) < Math.max(p.w, p.d) / 2 + 60;
+            // same 38 the keypress uses — a prompt that says "enter" and then
+            // doesn't is worse than no prompt
+            const near = Math.hypot(p.x - px, p.z - pz) < Math.max(p.w, p.d) / 2 + 38;
             const verb = (near && Interior.canEnter(b)) ? 'enter' : '';
             G.ui.prompt(`<b>E</b> — ${verb ? verb + ' ' : ''}${b.emoji || '🏢'} ${b.name}`);
             G.ui.lookLabel(null);

@@ -223,6 +223,19 @@ export const BLDS = [
     { id: 'hq_tii', name: 'TII Falcon', w: 170, fl: 6, emoji: '◆', lab: 'tii', type: 'hq', desc: 'Falcon, out of Abu Dhabi. Sovereign AI with the budget to mean it.' },
     { id: 'hq_bigcode', name: 'BigCode', w: 130, fl: 4, emoji: '⌘', lab: 'bigcode', type: 'hq', desc: 'StarCoder, and the open governance experiment behind it. Every training-set licence documented in public.' },
     { id: 'openweights_yard', name: 'The Commons', w: 160, fl: 1, emoji: '🔓', type: 'park', desc: 'Open courtyard at the centre of the quarter. Weights released here are released to everyone.' },
+    /* ── Hub Commons (col 5, row 3) ──
+       Home for the long tail: ~446 models whose "lab" is a HuggingFace org
+       handle or a single fine-tune author — sao10k, thedrummer, anthracite_org,
+       TheBloke's descendants. They are real models by real people, but they are
+       not companies, so they get a shared quarter rather than 75 invented
+       headquarters. Everything here is communal by design: hot desks, a merge
+       yard, a leaderboard nobody officially runs. */
+    { id: 'hub_commons', name: 'The Hub Commons', w: 240, fl: 5, emoji: '🤗', type: 'hq', lab: 'other', desc: 'Shared house for the independents. No press office, no valuation, no HQ — just whoever uploaded weights this week. More models pass through here than through any single lab in the city.' },
+    { id: 'hub_desks', name: 'Hot Desks', w: 180, fl: 4, emoji: '💻', type: 'generic', desc: 'Rented by the hour, paid in compute credits. Half the seats are taken by people fine-tuning somebody else\'s base model at 3am.' },
+    { id: 'hub_merge', name: 'The Merge Yard', w: 200, fl: 2, emoji: '🔀', type: 'warehouse', desc: 'Where checkpoints get spliced. Model soup, SLERP merges and frankenmodels — most of it undocumented, some of it better than what it was made from.' },
+    { id: 'hub_leaderboard', name: 'Open Leaderboard', w: 140, fl: 3, emoji: '🏆', type: 'billboard', desc: 'Community-run rankings. No lab controls it, everybody games it, and it is still the first thing an independent checks in the morning.' },
+    { id: 'hub_green', name: 'Commons Green', w: 180, fl: 1, emoji: '🌱', type: 'park', desc: 'Open lawn at the centre of the Commons. Weights land here first and get argued about immediately.' },
+
     // Supporting buildings for the new eastern column
     { id: 'metro_east_ex', name: 'Exchange Station', w: 160, fl: 2, emoji: '🚇', type: 'metro', desc: 'Eastern terminus. Serves the Exchange, Hyperscaler Row and the Open Weights Quarter.' },
     { id: 'east_gardens', name: 'East Gardens', w: 240, fl: 1, emoji: '🌿', type: 'park', desc: 'Terraced water garden on the city\'s eastern edge. The quiet side of town — no fabs, no traders, no press.' },
@@ -547,7 +560,10 @@ export const DISTRICTS = [
     // BIOMES does not, and a district whose biome has no BIOMES row takes the
     // whole boot down on `biomeDef.ground`.
     { id: 'openweights', col: 5, row: 2, biome: 'academic', label: '🔓 Open Weights Quarter', bldIds: ['hq_stability','hq_cohere','hq_ai21','hq_tii','hq_bigcode','openweights_yard'] },
-    { id: 'east_green',  col: 5, row: 3, biome: 'park',     label: '🌿 East Gardens',         bldIds: ['east_gardens'] },
+    /* The long tail gets a quarter, not 75 headquarters. `other` points its
+       LAB_HQ here instead of the public square, so ~446 independents finally
+       commute somewhere that is about them. */
+    { id: 'hub',         col: 5, row: 3, biome: 'academic', label: '🤗 Hub Commons',          bldIds: ['hub_commons','hub_desks','hub_merge','hub_leaderboard','hub_green','east_gardens'] },
     { id: 'east_res',    col: 5, row: 4, biome: 'suburban', label: '🏘️ East Residences',      bldIds: ['res_apac'] }
 ];
 
@@ -843,9 +859,12 @@ export const LAB_HQ = {
     // Open Weights Quarter
     stability: 'hq_stability', cohere: 'hq_cohere', ai21: 'hq_ai21',
     tii: 'hq_tii', bigcode: 'hq_bigcode',
-    // The HuggingFace-handle long tail has no company to build; the public
-    // square is where an unaffiliated model spends its working day.
-    other: 'open_square'
+    /* The HuggingFace-handle long tail — ~446 models, more than any single
+       lab. They have no company to build a tower for, so they share one:
+       the Hub Commons. Before this they all defaulted to the public square,
+       which made the square the busiest building in the city by a factor of
+       four and left the independents with nowhere of their own. */
+    other: 'hub_commons'
 };
 
 /**
