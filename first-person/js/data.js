@@ -9,6 +9,17 @@ import {
 } from '../../shared/schedule.js';
 
 // ─── AI LABS ─────────────────────────────────────────────────────────────────
+/* The curated lab set — the same 20 the `labs` table holds and the 2D city
+   hydrates from it, plus `other` for the long tail.
+
+   First Person modelled only the first seven. That left 733 of the 1198 real
+   models (61%) with no lab: no colour of their own, no HQ to walk to, and a
+   working day that resolved to the public square. Alibaba alone is 109 models.
+
+   The remaining ~75 lab ids in the models table are HuggingFace org handles and
+   one-off fine-tune authors (`sao10k`, `thedrummer`, `anthracite_org`). Those
+   correctly fall through to `other` / Independent — the same treatment 2D gives
+   them. Adding a district per HF handle would be inventing a company. */
 export const LABS = {
     openai:    { name: 'OpenAI',          color: '#10a37f', icon: '❂', ticker: 'MSFT',  region: 'us' },
     anthropic: { name: 'Anthropic',       color: '#d97757', icon: '✺', ticker: 'AMZN',  region: 'us' },
@@ -17,6 +28,22 @@ export const LABS = {
     mistral:   { name: 'Mistral AI',      color: '#f97316', icon: '🌪️', ticker: null,   region: 'eu' },
     xai:       { name: 'xAI',             color: '#ffffff', icon: '𝕏', ticker: 'TSLA',  region: 'us' },
     deepseek:  { name: 'DeepSeek',        color: '#0ea5e9', icon: '🐋', ticker: null,   region: 'cn' },
+    // ── Hyperscaler Row ──
+    microsoft: { name: 'Microsoft',       color: '#0ea5e9', icon: '⊞', ticker: 'MSFT',  region: 'us' },
+    nvidia:    { name: 'Nvidia',          color: '#84cc16', icon: '◈', ticker: 'NVDA',  region: 'us' },
+    amazon:    { name: 'Amazon',          color: '#f59e0b', icon: '◮', ticker: 'AMZN',  region: 'us' },
+    ibm:       { name: 'IBM',             color: '#1d4ed8', icon: '▤', ticker: 'IBM',   region: 'us' },
+    apple:     { name: 'Apple',           color: '#a1a1aa', icon: '', ticker: 'AAPL',  region: 'us' },
+    // ── Eastern Exchange ──
+    alibaba:   { name: 'Alibaba Cloud',   color: '#f97316', icon: '☁', ticker: 'BABA',  region: 'cn' },
+    baidu:     { name: 'Baidu',           color: '#2563eb', icon: '熊', ticker: 'BIDU',  region: 'cn' },
+    zhipu_ai:  { name: 'Zhipu AI',        color: '#0284c7', icon: '智', ticker: null,    region: 'cn' },
+    // ── Open Weights Quarter ──
+    stability: { name: 'Stability AI',    color: '#8b5cf6', icon: '◐', ticker: null,    region: 'eu' },
+    cohere:    { name: 'Cohere',          color: '#a855f7', icon: '◎', ticker: null,    region: 'us' },
+    ai21:      { name: 'AI21 Labs',       color: '#ec4899', icon: '◇', ticker: null,    region: 'eu' },
+    tii:       { name: 'TII',             color: '#6366f1', icon: '◆', ticker: null,    region: 'eu' },
+    bigcode:   { name: 'BigCode',         color: '#14b8a6', icon: '⌘', ticker: null,    region: 'eu' },
     other:     { name: 'Independent',     color: '#94a3b8', icon: '⚡', ticker: null,   region: 'us' }
 };
 
@@ -168,6 +195,38 @@ export const BLDS = [
     { id: 'bld_mi', name: 'Mistral AI', w: 140, fl: 5, emoji: '🌪️', lab: 'mistral', type: 'hq', desc: 'European open-weight leaders. Le vent souffle.' },
     { id: 'bld_ds', name: 'DeepSeek', w: 160, fl: 6, emoji: '🐋', lab: 'deepseek', type: 'hq', desc: 'Masters of efficient MoE architectures.' },
     { id: 'bld_x', name: 'xAI', w: 150, fl: 5, emoji: '𝕏', lab: 'xai', type: 'hq', desc: 'Building Grok for maximum truth-seeking. Powered by Colossus.' },
+
+    /* ── Hyperscaler Row (col 5, row 0) ──
+       The companies that own the compute rather than only the models. Every
+       one of these ships frontier weights of its own AND rents the substrate
+       the rest of the city trains on, which is why they sit together and why
+       the district faces the Compute District across the ring road. */
+    { id: 'hq_microsoft', name: 'Microsoft AI', w: 210, fl: 9, emoji: '⊞', lab: 'microsoft', type: 'hq', desc: 'Phi runs here, Copilot ships from here, and half the frontier trains on Azure. The largest single investor in OpenAI.' },
+    { id: 'hq_nvidia', name: 'NVIDIA', w: 200, fl: 8, emoji: '◈', lab: 'nvidia', type: 'hq', desc: 'Nemotron and the GPUs everyone else trains on. The one company every lab in this city has to phone.' },
+    { id: 'hq_amazon', name: 'Amazon AGI', w: 190, fl: 7, emoji: '◮', lab: 'amazon', type: 'hq', desc: 'Nova, Titan and Bedrock — plus Trainium silicon and the Anthropic stake. The everything-store approach to AI.' },
+    { id: 'hq_ibm', name: 'IBM Research', w: 170, fl: 7, emoji: '▤', lab: 'ibm', type: 'hq', desc: 'Granite, open-licensed and enterprise-first. Has been doing AI research since before it was called that.' },
+    { id: 'hq_apple', name: 'Apple Intelligence', w: 180, fl: 6, emoji: '', lab: 'apple', type: 'hq', desc: 'On-device by conviction. The only frontier lab whose headline feature is what it refuses to send to a server.' },
+
+    /* ── Eastern Exchange (col 5, row 1) ──
+       Alibaba alone is 109 models — the single largest lab in the roster, and
+       until now it had no building anywhere in the city. */
+    { id: 'hq_alibaba', name: 'Alibaba Cloud', w: 220, fl: 9, emoji: '☁', lab: 'alibaba', type: 'hq', desc: 'The Qwen family — the most prolific open-weight line in the world, and the largest single lab on the city roster.' },
+    { id: 'hq_baidu', name: 'Baidu', w: 180, fl: 7, emoji: '熊', lab: 'baidu', type: 'hq', desc: 'ERNIE, and the search index that trained it. China\'s earliest large-scale bet on foundation models.' },
+    { id: 'hq_zhipu', name: 'Zhipu AI', w: 160, fl: 6, emoji: '智', lab: 'zhipu_ai', type: 'hq', desc: 'GLM, out of Tsinghua. Open weights at frontier scale, on export-controlled silicon.' },
+
+    /* ── Open Weights Quarter (col 5, row 2) ──
+       Labs whose output is the weights themselves. Lower, wider, and built
+       around a public courtyard rather than a lobby. */
+    { id: 'hq_stability', name: 'Stability AI', w: 160, fl: 5, emoji: '◐', lab: 'stability', type: 'hq', desc: 'Stable Diffusion. Put image generation in everyone\'s hands and spent the next three years in court about it.' },
+    { id: 'hq_cohere', name: 'Cohere', w: 150, fl: 5, emoji: '◎', lab: 'cohere', type: 'hq', desc: 'Command and Aya. Enterprise RAG, and one of the largest multilingual open-weight releases anywhere.' },
+    { id: 'hq_ai21', name: 'AI21 Labs', w: 140, fl: 5, emoji: '◇', lab: 'ai21', type: 'hq', desc: 'Jurassic and Jamba. Bet on hybrid SSM-transformer blocks before the rest of the street did.' },
+    { id: 'hq_tii', name: 'TII Falcon', w: 170, fl: 6, emoji: '◆', lab: 'tii', type: 'hq', desc: 'Falcon, out of Abu Dhabi. Sovereign AI with the budget to mean it.' },
+    { id: 'hq_bigcode', name: 'BigCode', w: 130, fl: 4, emoji: '⌘', lab: 'bigcode', type: 'hq', desc: 'StarCoder, and the open governance experiment behind it. Every training-set licence documented in public.' },
+    { id: 'openweights_yard', name: 'The Commons', w: 160, fl: 1, emoji: '🔓', type: 'park', desc: 'Open courtyard at the centre of the quarter. Weights released here are released to everyone.' },
+    // Supporting buildings for the new eastern column
+    { id: 'metro_east_ex', name: 'Exchange Station', w: 160, fl: 2, emoji: '🚇', type: 'metro', desc: 'Eastern terminus. Serves the Exchange, Hyperscaler Row and the Open Weights Quarter.' },
+    { id: 'east_gardens', name: 'East Gardens', w: 240, fl: 1, emoji: '🌿', type: 'park', desc: 'Terraced water garden on the city\'s eastern edge. The quiet side of town — no fabs, no traders, no press.' },
+    { id: 'res_apac', name: 'Meridian Courts', w: 200, fl: 7, emoji: '🏘️', type: 'housing', desc: 'Residential blocks for the eastern labs. Balcony gardens, and a courtyard that empties at 09:00 sharp.' },
 
     // ── Public Square ──
     { id: 'cafe', name: 'API Cafe', w: 100, fl: 2, emoji: '☕', type: 'generic', desc: 'Models gather here to exchange handshakes. The latte art is immaculate — it was generated.' },
@@ -469,7 +528,27 @@ export const DISTRICTS = [
     { id: 'workers',     col: 1, row: 4, biome: 'urban',     label: '🏬 Worker Housing',  bldIds: ['npc_apt_1','npc_apt_2','npc_apt_3','npc_apt_4','npc_apt_5','npc_apt_6'] },
     { id: 'suburbia',    col: 2, row: 4, biome: 'suburban',  label: '🏡 Suburbia',        bldIds: ['suburb_1','suburb_2','suburb_3','suburb_4','suburb_5'] },
     { id: 'silicon_woods', col: 3, row: 4, biome: 'forest',  label: '🌲 Silicon Woods',   bldIds: ['forest_1'] },
-    { id: 'frontier_pines', col: 4, row: 4, biome: 'forest', label: '🌲 Frontier Pines',  bldIds: ['forest_space'] }
+    { id: 'frontier_pines', col: 4, row: 4, biome: 'forest', label: '🌲 Frontier Pines',  bldIds: ['forest_space'] },
+
+    /* ── Column 5 (east): the labs the city had no room for ──────────────────
+       FP modelled 7 of the 20 curated labs, so 733 of 1198 real models had no
+       HQ and defaulted to the public square. These three districts house the
+       13 that were missing. The column is new — GRID_COLS went 5 → 6, which
+       widens the city by one cell; everything downstream derives from CITY_W,
+       and GRID_COLS itself is only read when laying out the roads, so the
+       whole grid (and the sea, which is CITY_W-relative) shifts coherently.
+
+       Row themes carry across from the rest of the grid: infra at the top,
+       commerce below it, then public life, then the parks and the sleeping
+       city at the bottom. */
+    { id: 'hyperscaler', col: 5, row: 0, biome: 'urban',    label: '☁️ Hyperscaler Row',      bldIds: ['hq_microsoft','hq_nvidia','hq_amazon','hq_ibm','hq_apple'] },
+    { id: 'eastern',     col: 5, row: 1, biome: 'urban',    label: '🏮 Eastern Exchange',     bldIds: ['hq_alibaba','hq_baidu','hq_zhipu','metro_east_ex'] },
+    // `academic`, not `plaza`: city.js's INFILL table has a plaza entry but
+    // BIOMES does not, and a district whose biome has no BIOMES row takes the
+    // whole boot down on `biomeDef.ground`.
+    { id: 'openweights', col: 5, row: 2, biome: 'academic', label: '🔓 Open Weights Quarter', bldIds: ['hq_stability','hq_cohere','hq_ai21','hq_tii','hq_bigcode','openweights_yard'] },
+    { id: 'east_green',  col: 5, row: 3, biome: 'park',     label: '🌿 East Gardens',         bldIds: ['east_gardens'] },
+    { id: 'east_res',    col: 5, row: 4, biome: 'suburban', label: '🏘️ East Residences',      bldIds: ['res_apac'] }
 ];
 
 // ─── METRO / TRAM LINES ──────────────────────────────────────────────────────
@@ -481,7 +560,13 @@ export const TRAM_LINES = [
     { id: 'east_line',  stops: ['metro_central', 'metro_east'],       color: 0xa78bfa },
     { id: 'innovation', stops: ['metro_central', 'metro_innovation'], color: 0xfbbf24 },
     { id: 'compute_line', stops: ['metro_central', 'metro_dc'],       color: 0x4ade80 },
-    { id: 'south_line',   stops: ['metro_central', 'metro_res'],      color: 0xf472b6 }
+    { id: 'south_line',   stops: ['metro_central', 'metro_res'],      color: 0xf472b6 },
+    /* Serves the new eastern column. Runs from the existing East Terminal
+       rather than from Central, so the line reads as an extension of the
+       network instead of another spoke off the same hub — and so the station
+       has actual trains: Metro builds its routes from this table, and a stop
+       nobody lists is a platform nothing ever stops at. */
+    { id: 'exchange_line', stops: ['metro_east', 'metro_east_ex'],    color: 0xf97316 }
 ];
 
 // ─── NEWS (offline fallback headlines — the blimps & newspaper) ──────────────
@@ -749,7 +834,18 @@ export function getAct(stg, dp, seed, model) {
 /* Lab HQ ids for founder / model work destinations (mirrors citizens LAB_HQ). */
 export const LAB_HQ = {
     openai: 'bld_o', anthropic: 'bld_a', google: 'bld_g', meta: 'bld_m',
-    mistral: 'bld_mi', xai: 'bld_x', deepseek: 'bld_ds', other: 'open_square'
+    mistral: 'bld_mi', xai: 'bld_x', deepseek: 'bld_ds',
+    // Hyperscaler Row
+    microsoft: 'hq_microsoft', nvidia: 'hq_nvidia', amazon: 'hq_amazon',
+    ibm: 'hq_ibm', apple: 'hq_apple',
+    // Eastern Exchange
+    alibaba: 'hq_alibaba', baidu: 'hq_baidu', zhipu_ai: 'hq_zhipu',
+    // Open Weights Quarter
+    stability: 'hq_stability', cohere: 'hq_cohere', ai21: 'hq_ai21',
+    tii: 'hq_tii', bigcode: 'hq_bigcode',
+    // The HuggingFace-handle long tail has no company to build; the public
+    // square is where an unaffiliated model spends its working day.
+    other: 'open_square'
 };
 
 /**

@@ -15,7 +15,11 @@ export const JUMP_VEL = 320;
 export const CELL_W = 800;
 export const CELL_D = 800;
 export const GAP = 200;
-export const GRID_COLS = 5;
+/* Six columns since the eastern lab districts landed (Hyperscaler Row, Eastern
+   Exchange, Open Weights Quarter). Only city.js reads this, to lay out the
+   avenues; every other dimension derives from CITY_W below, so widening the
+   grid moves the roads, the ring, the sea and every district together. */
+export const GRID_COLS = 6;
 // Row 4 carries the districts the 2D city has and FP was missing entirely:
 // CEO estates, worker housing, suburbia, Silicon Woods, Frontier Pines.
 export const GRID_ROWS = 5;

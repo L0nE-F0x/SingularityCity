@@ -105,7 +105,18 @@ export const City = {
 
         this.districts = DISTRICTS.map(def => {
             const c = this.cellCenter(def.col, def.row);
-            const d = { ...def, cx: c.x, cz: c.z, biomeDef: BIOMES[def.biome] };
+            /* A district naming a biome BIOMES has no row for used to throw on
+               the first `biomeDef.ground` read and take the entire boot with it
+               — a one-word typo in a data table, and no city. Fall back loudly
+               instead: the district still renders, and the console says which
+               one to fix. (city.js's INFILL table carries a few keys BIOMES
+               does not, which is exactly how that typo happens.) */
+            let biomeDef = BIOMES[def.biome];
+            if (!biomeDef) {
+                console.warn(`[City] district '${def.id}' has unknown biome '${def.biome}' — using urban`);
+                biomeDef = BIOMES.urban;
+            }
+            const d = { ...def, cx: c.x, cz: c.z, biomeDef };
             const blds = def.bldIds.map(id => BLDS.find(b => b.id === id)).filter(Boolean);
 
             // Round-robin into 4 quadrant clusters

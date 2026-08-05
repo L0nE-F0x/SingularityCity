@@ -147,6 +147,21 @@ export const Roster = {
         special.sort(byId);
         adults.sort(byId);
         const room = Math.max(0, limit - special.length);
-        return special.concat(adults.slice(0, room));
+        if (room >= adults.length) return special.concat(adults);
+
+        /* Stride, don't slice. Ids sort alphabetically and lab prefixes cluster
+           inside that order, so `adults.slice(0, room)` takes an alphabetical
+           prefix and silently drops whole labs off the end — Alibaba's 109 Qwen
+           models sort under `q` and all but one of them vanished, leaving the
+           largest lab in the roster with an empty headquarters.
+
+           Walking the sorted list at a fixed stride keeps the same models on
+           every reload and samples every lab in proportion to its size. */
+        const kept = [];
+        const step = adults.length / room;
+        for (let i = 0; kept.length < room && i < adults.length; i++) {
+            if (Math.floor(kept.length * step) === i) kept.push(adults[i]);
+        }
+        return special.concat(kept);
     }
 };
