@@ -305,5 +305,16 @@ Steps 1–3 share a shape: FP needs to read the same live data 2D already fetche
 rather than re-deriving it. Worth building that bridge once — a shared data
 module both apps read — instead of three times.
 
-**Category A closed.** Category B: jail, court and the metro station are
-rebuilt; six interiors remain in the 12–16% band.
+**Category A closed. Category B partly closed** — jail, court and the metro
+station are rebuilt; bar, alignment, press, underground, legacy and embassy
+remain thin on props.
+
+**The bigger parity gaps found since this audit was written were not about
+props at all**, and are now closed:
+
+- FP invented ~600 of its 700 citizens; it now reads the real 1,198-model
+  roster and all 20 founders from the same Supabase the 2D city uses.
+- FP passed a float where `shared/schedule.js` wanted an integer seed, so
+  every percentage bucket misfired and the whole city went to one venue.
+- FP modelled 7 of the 20 curated labs; the other 13 now have districts.
+- Interiors showed only staff; they now show the real occupants, moving.

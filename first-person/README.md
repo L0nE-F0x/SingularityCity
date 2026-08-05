@@ -111,6 +111,34 @@ Renaming it to match the URL breaks the round trip in both directions.
 
 ## Traps that have already caught someone
 
+- **`js/traffic.js` — `mergeByMaterial()` returns a NEW group.** It bakes child
+  transforms into one buffer per material, and in doing so drops `userData`,
+  non-mesh children (Sprites, lights) and the group's own transform. Anything a
+  builder hangs off the group is yours to carry across.
+- **Point lights are physically correct.** The renderer runs
+  `useLegacyLights = false`, so contribution is `intensity / distance²`. Nearly
+  every point light in this app is written at 0.3–1.4, which delivers ~0.0004 at
+  40 units — i.e. nothing. New lights need intensities in the **hundreds**.
+- **`shared/schedule.js` takes an INTEGER seed.** `(seed * 17) % 100` only
+  spreads over 0–99 for integers. Pass `c.idx`, never `c.seed` (a 0–1 float).
+- **PostgREST caps responses at 1000 rows.** `store/roster.js` pages with
+  `Range`; a plain GET silently truncates and looks successful.
+- **A building type missing from `world.js`'s specialty switch renders as a
+  generic box, silently.** `villa` had no case for months, which is why the
+  founder mansions looked like offices.
+- **A district `biome` with no `BIOMES` row used to kill the boot** on
+  `biomeDef.ground`. `city.js`'s `INFILL` table has keys `BIOMES` lacks.
+- **Free-fly owns the camera** and `Player.update` returns early while
+  `G.flyMode` is set. Entering an interior or boarding a train mid-flight leaves
+  the two fighting; `Metro.board` and `Interior.enter` land you first.
+- **`Interior.group` already carries `FLOOR_Y` and `ROOM_SCALE`.** Props added
+  to it use interior-LOCAL coordinates and no scale of their own.
+- **`_setFloor` short-circuits when you are already on that floor**, so
+  `setFloorInstant(n)` will not rebuild a room. Bounce via another floor.
+- **The loading-screen version badge is derived** from the first versioned
+  `js/` script tag (`shared_boot.js`). A stale badge means `tools/cachebust.mjs`
+  missed a tag, not that the deploy failed.
+
 - **`G.player.eyeY` is ABSOLUTE** (`G.floorY + EYE_H`), not an offset.
 - **`THREE.Raycaster` ignores `object.visible`.** Filter up the parent chain.
 - **`PointsMaterial.size` is WORLD-space** and ignores ancestor scale.
