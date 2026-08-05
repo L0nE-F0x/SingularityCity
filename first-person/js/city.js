@@ -300,7 +300,15 @@ export const City = {
                 if (Math.abs((r.vertical ? r.x : r.z) - perpPos) > perpHalf) continue;
                 const at = r.vertical ? p.z : p.x;                  // p's position along r's length axis
                 if (at < start - 1 || at > end + 1) continue;
-                gaps.push([at - p.carriage / 2, at + p.carriage / 2]);
+                /* Break around the crossing road's WHOLE strip — its own
+                   pavement as well as its tarmac. Using the carriageway alone
+                   left a 44-wide gap where a district inner cross-road is 76
+                   wide overall, so a main road's kerb still ran across the
+                   little road's footway and read as pavement laid over a road.
+                   Clamped so the gap can never eat more than a full main-road
+                   strip either side. */
+                const half = Math.min(p.carriage / 2 + p.sidewalk, p.carriage / 2 + SIDEWALK.main);
+                gaps.push([at - half, at + half]);
             }
             gaps.sort((a, b) => a[0] - b[0]);
             let cur = start;

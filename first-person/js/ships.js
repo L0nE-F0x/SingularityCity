@@ -161,6 +161,27 @@ export const Ships = {
 
     build(scene) {
         const berth = this._berth();
+        /* Put the yard on ground nothing else has claimed.
+
+           `_berth` picks the yard from fixed offsets, and moving it clear of
+           the coastal ring road put it straight inside the GPU Warehouse's
+           footprint — every discharged container spawned inside the building
+           and z-fought its way out through the walls. Search along the quay for
+           a clear rectangle instead of trusting a hardcoded offset. */
+        const YW = 200, YD = 110;
+        const clear = (x, z) => !(G.colliders || []).some(c =>
+            x + YW / 2 > c.x0 - 12 && x - YW / 2 < c.x1 + 12 &&
+            z + YD / 2 > c.z0 - 12 && z - YD / 2 < c.z1 + 12);
+        let placed = false;
+        for (const dz of [0, 190, -190, 320, -320, 450, -450]) {
+            for (const dx of [0, 90, 180, 270]) {
+                if (clear(berth.yardX + dx, berth.yardZ + dz)) {
+                    berth.yardX += dx; berth.yardZ += dz; placed = true; break;
+                }
+            }
+            if (placed) break;
+        }
+        if (!placed) console.warn('[Ships] no clear ground for the container yard');
         this.berth = berth;
 
         // One geometry shared by every container everywhere.

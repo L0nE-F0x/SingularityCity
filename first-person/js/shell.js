@@ -175,7 +175,7 @@ function resizeMapCanvas() {
     _mapCanvas.width = Math.floor(w * dpr);
     _mapCanvas.height = Math.floor(h * dpr);
     _mapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    _mapStatic = null;   // the baked plan is sized to the old canvas
+    _shellCache.canvas = null;   // the baked plan is sized to the old canvas
 }
 
 /* ── CITY MAP ────────────────────────────────────────────────────────────────
@@ -193,8 +193,11 @@ function resizeMapCanvas() {
    citizens, you, the hover highlight — are redrawn. Without that split this is
    ~5,000 fills every frame at 60fps for a screen nobody is even walking in. */
 
-let _mapStatic = null;      // offscreen canvas, the baked plan
-let _mapStaticKey = '';     // invalidation key: size + district count
+/* The baked plan is cached PER CALLER. There are two maps on screen in this
+   product — the full-screen City Map view and the in-game M panel — and they
+   are different sizes, so a single module-level cache would rebake on every
+   frame as they take turns. */
+const _shellCache = { canvas: null, key: '' };
 let _mapHover = null;       // district under the cursor
 const _mapProj = { ox: 0, oy: 0, s: 1 };
 
@@ -375,21 +378,21 @@ function buildMapStatic(W, H) {
     return c;
 }
 
-function drawMap() {
-    if (!_mapCtx || CityStore.getView() !== 'map') return;
-    const ctx = _mapCtx;
-    const W = _mapCanvas.clientWidth || 1200;
-    const H = _mapCanvas.clientHeight || 900;
+/* Draw the whole city map into any 2D context. Exported so the in-game M
+   panel renders the SAME map as the full-screen view — it used to carry its own
+   older copy, which is why the two looked nothing like each other. */
+export function paintCityMap(ctx, W, H, cache, opts = {}) {
     mapProject(W, H);
 
     // Rebake only when the canvas or the city changed.
     const key = `${W}x${H}:${City.districts?.length || 0}:${(G.placements || []).length}`;
-    if (!_mapStatic || _mapStaticKey !== key) {
-        _mapStatic = buildMapStatic(W, H);
-        _mapStaticKey = key;
+    if (!cache.canvas || cache.key !== key) {
+        cache.canvas = buildMapStatic(W, H);
+        cache.key = key;
     }
     ctx.clearRect(0, 0, W, H);
-    ctx.drawImage(_mapStatic, 0, 0);
+    ctx.drawImage(cache.canvas, 0, 0);
+    const _mapHoverLocal = opts.hover !== undefined ? opts.hover : _mapHover;
 
     /* ── live layer ──
        Citizen density. The city has ~720 of them and where they are at 09:00 is
@@ -415,8 +418,8 @@ function drawMap() {
     }
 
     // hovered district
-    if (_mapHover) {
-        const d = _mapHover;
+    if (_mapHoverLocal) {
+        const d = _mapHoverLocal;
         ctx.strokeStyle = 'rgba(103,232,249,.9)';
         ctx.lineWidth = 2;
         ctx.strokeRect(mx2(d.cx - CELL_W / 2) + 1, mz2(d.cz - CELL_D / 2) + 1,
@@ -459,7 +462,24 @@ function drawMap() {
         ctx.fillStyle = 'rgba(244,114,182,.12)';
         ctx.fill();
     }
+}
 
+/** Which district is at this world point (null outside every cell). */
+export function cityMapDistrictAt(wx, wz) { return districtAtWorld(wx, wz); }
+
+/** World point under a mouse event on a canvas the map was painted into. */
+export function cityMapWorldAt(canvas, ev) {
+    const rect = canvas.getBoundingClientRect();
+    mapProject(rect.width, rect.height);
+    return {
+        x: (ev.clientX - rect.left - _mapProj.ox) / _mapProj.s,
+        z: (ev.clientY - rect.top - _mapProj.oy) / _mapProj.s
+    };
+}
+
+function drawMap() {
+    if (!_mapCtx || CityStore.getView() !== 'map') return;
+    paintCityMap(_mapCtx, _mapCanvas.clientWidth || 1200, _mapCanvas.clientHeight || 900, _shellCache);
     _raf = requestAnimationFrame(drawMap);
 }
 

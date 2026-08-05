@@ -12,6 +12,7 @@ import {
     ACTS, STAGES, DC_FACILITIES, SPACE_ORGS, LONGEVITY_COMPANIES, ROBOTICS_COMPANIES, DISTRICTS
 } from './data.js';
 import { City } from './city.js';
+import { paintCityMap, cityMapDistrictAt, cityMapWorldAt } from './shell.js';
 import { Tutorial } from './tutorial.js';
 import { DailyBriefing } from './daily_briefing.js';
 
@@ -686,68 +687,59 @@ export const UI = {
     // row of districts fell outside the panel and you had to scroll for it
     _pMap() { return `<div class="ov-title">🗺️ CITY MAP</div><canvas id="bigMap" width="780" height="640" style="max-width:100%;max-height:58vh;display:block;margin:0 auto;border:1px solid var(--bd);border-radius:4px"></canvas>
         <div class="d" style="color:var(--t3);font-size:11px;margin-top:8px">Cyan arrow = you. Roads grey. Lab HQs coloured. Green outline = visited. Sea west · Space NW · Underground SW.</div>`; },
+    /* The in-game map panel draws the SAME map as the full-screen City Map
+       view — shell.js owns the renderer and both call into it. This used to be
+       a second, older implementation (flat district squares, dot-per-building,
+       no metro, no citizens), which is why the panel looked nothing like the
+       City Map and why fixing one never fixed the other. */
+    _bigMapCache: { canvas: null, key: '' },
+
     _drawBigMap() {
         const cv = $('bigMap');
         if (!cv) return;
-        const c = cv.getContext('2d'), W = cv.width, H = cv.height;
-        const sx = W / (CITY_W + 2200), sz = H / (CITY_D + 1600);
-        const mx = x => (x + CITY_W / 2 + 1100) * sx;
-        const mz = z => (z + CITY_D / 2 + 800) * sz;
-        c.fillStyle = '#070b14'; c.fillRect(0, 0, W, H);
-        // sea
-        c.fillStyle = '#0c1f33';
-        c.fillRect(0, 0, mx(-CITY_W / 2 - 100), H);
-        for (const d of City.districts) {
-            c.fillStyle = '#' + d.biomeDef.ground.toString(16).padStart(6, '0');
-            c.fillRect(mx(d.cx - CELL_W / 2), mz(d.cz - CELL_D / 2), CELL_W * sx, CELL_D * sz);
-            if (G.visitedDistricts[d.id]) {
-                c.strokeStyle = 'rgba(74,222,128,0.55)';
-                c.lineWidth = 2;
-                c.strokeRect(mx(d.cx - CELL_W / 2) + 1, mz(d.cz - CELL_D / 2) + 1, CELL_W * sx - 2, CELL_D * sz - 2);
-            }
-            c.fillStyle = G.visitedDistricts[d.id] ? '#e2e8f0' : '#8b95a8';
-            c.textAlign = 'center';
-            this._mapLabel(c, d.label, mx(d.cx), mz(d.cz), CELL_W * sx - 8);
+        // Match the backing store to the laid-out element so the plan is not
+        // drawn into a sub-rect and stretched (the same bug the City Map had).
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const r = cv.getBoundingClientRect();
+        const W = Math.max(320, Math.round(r.width));
+        const H = Math.max(240, Math.round(r.height));
+        if (cv.width !== Math.floor(W * dpr) || cv.height !== Math.floor(H * dpr)) {
+            cv.width = Math.floor(W * dpr);
+            cv.height = Math.floor(H * dpr);
+            this._bigMapCache.canvas = null;
         }
-        // roads
-        c.strokeStyle = 'rgba(148,163,184,0.4)';
-        c.lineWidth = 1.4;
-        c.beginPath();
-        for (const r of City.roads || []) {
-            if (r.vertical) {
-                c.moveTo(mx(r.x), mz(r.z - r.d / 2));
-                c.lineTo(mx(r.x), mz(r.z + r.d / 2));
-            } else {
-                c.moveTo(mx(r.x - r.w / 2), mz(r.z));
-                c.lineTo(mx(r.x + r.w / 2), mz(r.z));
-            }
+        const c = cv.getContext('2d');
+        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        paintCityMap(c, W, H, this._bigMapCache, { hover: this._bigMapHover || null });
+
+        if (!cv._scWired) {
+            cv._scWired = true;
+            cv.style.cursor = 'crosshair';
+            cv.addEventListener('mousemove', (ev) => {
+                const w = cityMapWorldAt(cv, ev);
+                this._bigMapHover = cityMapDistrictAt(w.x, w.z);
+                cv.style.cursor = this._bigMapHover ? 'pointer' : 'crosshair';
+                this._drawBigMap();
+            });
+            cv.addEventListener('mouseleave', () => { this._bigMapHover = null; });
+            /* Click to travel. The panel has always shown you the city and
+               never let you go anywhere in it; the full-screen view could, so
+               the two disagreed about what a map is for. */
+            cv.addEventListener('click', (ev) => {
+                const w = cityMapWorldAt(cv, ev);
+                const d = cityMapDistrictAt(w.x, w.z);
+                if (!d) return;
+                // Land on the spot you clicked, nudged off the tarmac, rather
+                // than always at the district centre.
+                const spot = City.offRoad ? City.offRoad(w.x, w.z) : { x: w.x, z: w.z };
+                this.closePanel?.();
+                G.panelOpen = false;
+                G.player?.teleport?.(spot.x, spot.z, Math.atan2(d.cx - spot.x, d.cz - spot.z));
+                G.progress?.visitDistrict?.(d.id);
+                this.banner?.(d.label || d.id, 'travelled from the city map');
+                G.audio?.sfx?.('open');
+            });
         }
-        c.stroke();
-        // building footprints
-        c.fillStyle = 'rgba(226,232,240,0.4)';
-        for (const p of G.placements || []) {
-            if (p.x == null) continue;
-            const s = Math.max(1.5, Math.min(p.w, p.d) * sx * 0.1);
-            c.fillRect(mx(p.x) - s / 2, mz(p.z) - s / 2, s, s);
-        }
-        for (const p of G.placements || []) {
-            if (!p.b?.lab) continue;
-            c.fillStyle = LABS[p.b.lab]?.color || '#22d3ee';
-            c.beginPath(); c.arc(mx(p.x), mz(p.z), 3.5, 0, Math.PI * 2); c.fill();
-        }
-        // player
-        const p = G.camera.position;
-        const yaw = G.player?.yaw ?? 0;
-        const px = mx(p.x), pz = mz(p.z);
-        c.save();
-        c.translate(px, pz);
-        c.rotate(-yaw);
-        c.fillStyle = '#22d3ee';
-        c.beginPath();
-        c.moveTo(0, -10); c.lineTo(7, 8); c.lineTo(0, 3); c.lineTo(-7, 8);
-        c.closePath(); c.fill();
-        c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke();
-        c.restore();
     },
 
     // word-wrap a district label into its cell, shrinking a step if a single

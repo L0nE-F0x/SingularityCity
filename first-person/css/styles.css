@@ -95,10 +95,19 @@ button { font-family: inherit; cursor: pointer; }
     box-shadow: 0 8px 28px rgba(0,0,0,.55);
     image-rendering: auto;
 }
+/* Bottom-left, not top-left.
+
+   #hudLeft (clock, weather, district) also lives at left:18px and grows
+   downward as the district name changes length, so a quest card pinned at
+   top:110px sat on top of it — the weather line and the district banner both
+   ended up reading through the card. Down here it shares an edge with nothing:
+   toasts and the hint bar are centred, the minimap is on the right. */
 #questTracker {
-    position: absolute; left: 18px; top: 110px; max-width: 250px;
+    position: absolute; left: 18px; bottom: 46px; max-width: 250px;
     font-family: var(--sx); font-size: 11px; color: var(--tx);
-    background: rgba(10,14,26,.7); border-left: 2px solid var(--gold); padding: 8px 12px;
+    background: rgba(10,14,26,.82); border-left: 2px solid var(--gold);
+    border-radius: 0 5px 5px 0; padding: 8px 12px;
+    backdrop-filter: blur(3px);
 }
 #questTracker .qt-t { color: var(--gold); margin-bottom: 3px; }
 #questTracker .qt-d { color: var(--t3); font-size: 10px; line-height: 1.5; }

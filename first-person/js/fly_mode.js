@@ -109,6 +109,13 @@ export const FlyMode = {
 
     update(dt) {
         if (!this.active) return;
+        /* Safety net. enter() refuses to start a flight from inside a building
+           or a train, but nothing used to stop the reverse — boarding or
+           entering WHILE already flying. FlyMode owns the camera and
+           Player.update returns early whenever G.flyMode is set, so that state
+           left you inside a room with walking dead and WASD flying you out
+           through the walls. Land rather than fight over the camera. */
+        if (G.inside || G.ridingMetro) { this.exit(); return; }
         if (dt > 0.05) dt = 0.05;
         const cam = G.camera;
         const p = G.player;

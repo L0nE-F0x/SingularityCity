@@ -641,6 +641,11 @@ export const Metro = {
     board(index) {
         const t = this.trains[index];
         if (!t || this.riding != null) return false;
+        /* Land first. FlyMode owns the camera and Player.update bails while
+           G.flyMode is set, so boarding mid-flight leaves the two fighting over
+           where you are — and you step off the train into a room you can only
+           fly out of. */
+        try { if (G.flyMode) G.flyModeSys?.exit?.(); } catch (_) { /* ignore */ }
         this.riding = index;
         t._longDwell = true;
         if (t.dwellT < 3.5) t.dwellT = 3.5;

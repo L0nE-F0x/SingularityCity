@@ -2027,14 +2027,31 @@ export const World = {
             const contGeo = new THREE.BoxGeometry(34, 14, 14);
             contGeo.translate(0, 7, 0);
             const contCols = [0xc0392b, 0x2980b9, 0x27ae60, 0xd39c12, 0x7f8c8d, 0x8e44ad];
-            const conts = new THREE.InstancedMesh(contGeo, new THREE.MeshLambertMaterial(), 40);
-            for (let i = 0; i < 40; i++) {
-                const stack = Math.floor(i / 10);
-                dummy.position.set(
-                    portD.cx - 320 + (i % 10) * 42 + rng() * 6,
-                    stack * 14,
-                    portD.cz + 220 + stack * 22 + rng() * 4);
-                dummy.rotation.y = (rng() - 0.5) * 0.12;
+            /* A proper stack: columns across, rows back, tiers straight up.
+
+               This used to raise each tier by 14 AND shove it 22 further back,
+               which is a diagonal cascade rather than a stack — the upper boxes
+               floated clear of anything holding them up and the tail of the run
+               walked out through the neighbouring building. Tiers now sit
+               square on the box below, and the whole yard is nudged off any
+               footprint it would otherwise land in. */
+            const COLS = 10, ROWS = 2, TIERS = 2;
+            const N = COLS * ROWS * TIERS;
+            let yx = portD.cx - 320, yz = portD.cz + 220;
+            const spanX = COLS * 42, spanZ = ROWS * 20;
+            const blocked = (x, z) => G.colliders.some(c =>
+                x + spanX / 2 > c.x0 - 10 && x - spanX / 2 < c.x1 + 10 &&
+                z + spanZ / 2 > c.z0 - 10 && z - spanZ / 2 < c.z1 + 10);
+            for (const dz of [0, 90, -90, 170, -170]) {
+                if (!blocked(yx + spanX / 2, yz + dz)) { yz += dz; break; }
+            }
+            const conts = new THREE.InstancedMesh(contGeo, new THREE.MeshLambertMaterial(), N);
+            for (let i = 0; i < N; i++) {
+                const col = i % COLS;
+                const row = Math.floor(i / COLS) % ROWS;
+                const tier = Math.floor(i / (COLS * ROWS));
+                dummy.position.set(yx + col * 42, tier * 14, yz + row * 20);
+                dummy.rotation.y = (rng() - 0.5) * 0.06;
                 dummy.scale.setScalar(1);
                 dummy.updateMatrix();
                 conts.setMatrixAt(i, dummy.matrix);

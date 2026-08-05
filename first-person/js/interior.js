@@ -1645,6 +1645,9 @@ export const Interior = {
        station, not its ticket hall. Everyone else enters at 0. */
     enter(b, floorIdx = 0) {
         if (this.building || !this.canEnter(b)) return;
+        // Same reason as Metro.board: free-fly owns the camera, and a room you
+        // can fly out of through the walls is not a room.
+        try { if (G.flyMode) G.flyModeSys?.exit?.(); } catch (_) { /* ignore */ }
         this.building = b;
         try {
             this._build(b, floorIdx);
