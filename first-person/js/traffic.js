@@ -1105,11 +1105,20 @@ export const Traffic = {
     },
 
     // ── VIP / FOUNDER CARS ──────────────────────────────────────────────────
+    /* The live founder list when Citizens has one (20 real people from the
+       `founders` table), the hardcoded six otherwise. Both the limos and the
+       helicopters read this, so a founder who exists as a citizen also has a
+       car and an aircraft — they used to disagree. */
+    _founders() {
+        const live = G.citizens?.founders;
+        return (live && live.length) ? live : (FOUNDERS || []);
+    },
+
     _initVipCars(scene) {
         this.vipCars = [];
         this.vipGroup = new THREE.Group();
         scene.add(this.vipGroup);
-        const founders = FOUNDERS || [];
+        const founders = this._founders();
         founders.forEach((f, i) => {
             const hq = G.bldById[LAB_HQ[f.lab]];
             const home = G.bldById['res_' + ((LABS[f.lab] && LABS[f.lab].region) || 'us')] || G.bldById['res_us'];
@@ -1163,7 +1172,7 @@ export const Traffic = {
     // ── FOUNDER HELICOPTERS ─────────────────────────────────────────────────
     _initFounderHelis(scene) {
         this.founderHelis = [];
-        const founders = FOUNDERS || [];
+        const founders = this._founders();
         founders.forEach((f, i) => {
             const hq = G.bldById[LAB_HQ[f.lab]];
             if (!hq) return;

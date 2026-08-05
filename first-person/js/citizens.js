@@ -204,12 +204,54 @@ export const Citizens = {
         const target = G.preset.citizens;
         const roster = [];
 
-        // Named famous models
-        for (const m of SEED) roster.push({ model: m, named: true });
-        // Real-roster models
-        for (const r of ROSTER) roster.push({ model: { id: 'r_' + r.name, name: r.name, lab: r.lab, os: r.os, phase: 'released', rel: '2024-01-01' }, named: false });
-        // Founders
-        for (const f of FOUNDERS) roster.push({ model: { id: 'f_' + f.name, name: f.name, lab: f.lab, os: false, phase: 'released', rel: '2020-01-01', founder: f }, named: true });
+        /* The real models, if store/roster.js got them. `pick` keeps every
+           non-adult (the retired ghosts, the rumoured, the babies) and fills
+           the rest with adults, because those cohorts are small enough that a
+           naive slice drops all of them — which is how FP ended up with 2
+           retired models against the 2D city's 39, and an empty graveyard. */
+        const live = G.roster?.pick?.(target - WORKERS.length, getStage) || null;
+        if (live && live.length) {
+            for (const m of live) {
+                roster.push({
+                    model: {
+                        id: m.id, name: m.name, lab: m.lab, os: !!m.os,
+                        phase: m.phase, rel: m.rel, ret: m.ret
+                    },
+                    // "named" drives the chat-bubble / label treatment; a real
+                    // roster row is a real model, so all of them qualify.
+                    named: true
+                });
+            }
+        } else {
+            // Named famous models
+            for (const m of SEED) roster.push({ model: m, named: true });
+            // Real-roster models
+            for (const r of ROSTER) roster.push({ model: { id: 'r_' + r.name, name: r.name, lab: r.lab, os: r.os, phase: 'released', rel: '2024-01-01' }, named: false });
+        }
+
+        /* Founders: the live `founders` table when we have it (20 people, full
+           names), the hardcoded six otherwise. `lab_id` is the table's column
+           for what the sim calls `lab`. */
+        const liveFounders = G.roster?.founders;
+        const founders = (liveFounders && liveFounders.length)
+            ? liveFounders.map(f => ({
+                name: f.name, role: f.role, lab: f.lab_id,
+                fact: f.fact, color: f.color
+            }))
+            : FOUNDERS;
+        /* ALL of them, including the 13 whose lab First Person has no HQ for.
+
+           FP models 8 labs; the founders table names 20. Skipping the mismatch
+           dropped Jensen Huang, Satya Nadella, Tim Cook, Aidan Gomez and nine
+           others out of the city entirely. Without an HQ their working day
+           resolves to the public square, which is a fair answer for a founder
+           whose company FP has not built yet — and far better than not existing.
+           The limos and helicopters already bail out cleanly when there is no
+           HQ to circle, so nothing downstream needs to care. */
+        for (const f of founders) {
+            roster.push({ model: { id: 'f_' + f.name, name: f.name, lab: f.lab, os: false, phase: 'released', rel: '2020-01-01', founder: f }, named: true });
+        }
+        this.founders = founders;
         /* Worker NPCs — the people who actually run the infrastructure. The 2D
            city has a named NOC Lead, SRE, Litho Tech, Power Eng and so on
            commuting between the worker blocks and their facility on day/night
@@ -225,19 +267,28 @@ export const Citizens = {
                 named: true
             });
         }
-        // Generated fillers
-        const labKeys = Object.keys(LABS);
-        let gi = 0;
-        while (roster.length < target) {
-            const lab = labKeys[gi % labKeys.length];
-            roster.push({
-                model: {
-                    id: 'gen_' + gi, lab, os: Math.random() < 0.35, phase: 'released', rel: '2024-06-01',
-                    name: `${LABS[lab].name.split(' ')[0]}-${['nano', 'mini', 'base', 'plus', 'pro', 'max'][gi % 6]}-${(gi * 7 % 90) + 10}`
-                },
-                named: false
-            });
-            gi++;
+        /* Generated fillers — ONLY when the real roster is unavailable.
+
+           These are invented models (`Anthropic-plus-91`) and they used to make
+           up ~600 of the 700 citizens, which put fabricated names on nameplates
+           all over the city and in every interior. With a live roster the
+           population is simply however many real models there are: on `high`
+           the target (1100) exceeds the roster, and the honest answer to that
+           is a slightly smaller crowd, not a padded one. */
+        if (!live || !live.length) {
+            const labKeys = Object.keys(LABS);
+            let gi = 0;
+            while (roster.length < target) {
+                const lab = labKeys[gi % labKeys.length];
+                roster.push({
+                    model: {
+                        id: 'gen_' + gi, lab, os: Math.random() < 0.35, phase: 'released', rel: '2024-06-01',
+                        name: `${LABS[lab].name.split(' ')[0]}-${['nano', 'mini', 'base', 'plus', 'pro', 'max'][gi % 6]}-${(gi * 7 % 90) + 10}`
+                    },
+                    named: false
+                });
+                gi++;
+            }
         }
 
         this.list = roster.map((r, i) => {

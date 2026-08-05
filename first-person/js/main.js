@@ -47,6 +47,7 @@ import { DailyBriefing } from './daily_briefing.js';
 import { Terminal } from './terminal.js';
 import { CityStore } from './store/city_store.js';
 import { Live } from './store/live.js';
+import { Roster } from './store/roster.js';
 import { Shell } from './shell.js';
 import { readResumeToken, clearResumeToken } from './store/nav.js';
 
@@ -128,6 +129,22 @@ async function boot() {
     City.layout();
     World.build();
     Weather.init(G.scene);
+    /* The real AI models, BEFORE the citizens are built.
+
+       Citizens.init sizes an InstancedMesh and its per-instance attribute
+       buffers from the roster length, so the roster has to be final by the time
+       it runs — fetching afterwards would mean tearing all of that down and
+       rebuilding it mid-frame. Awaiting here costs one round trip on a cold
+       boot (cached for six hours after that) and keeps the whole rebuild
+       problem from existing. If it fails, Citizens falls back to the generated
+       roster and the city boots exactly as it did before. */
+    /* Hard ceiling on how long boot can wait. getAllRows pages sequentially and
+       each page has its own 9s abort, so a bad network could otherwise stack up
+       to ~18s of blank screen before the city appears. Whatever has arrived by
+       then is used; the background refresh still writes the full list to cache
+       for the next boot. */
+    await Promise.race([Roster.load(), new Promise(r => setTimeout(r, 10000))]);
+    G.roster = Roster;
     Citizens.init(G.scene);
     Traffic.init(G.scene);
     Signals.init(G.scene);
