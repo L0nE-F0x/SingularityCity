@@ -73,9 +73,12 @@ function sCyl(rt, rb, h, seg, x, y, z, color) {
     g.translate(x, y, z);
     STATIC.push(paint(g, color));
 }
-function sCone(r, h, seg, x, y, z, color) {
+function sCone(r, h, seg, x, y, z, color, ry = 0) {
     const g = new THREE.ConeGeometry(r, h, seg);
     scaleUV(g, (2 * Math.PI * r) / TILE, h / TILE);
+    // ry matters at low segment counts: a 4-sided cone is a pyramid whose faces
+    // sit at 45° to the axes, so a hip roof needs turning onto its house.
+    if (ry) g.rotateY(ry);
     g.translate(x, y, z);
     STATIC.push(paint(g, color));
 }
@@ -684,7 +687,7 @@ export const World = {
     _buildBuildings(scene) {
         const tiers = this._facadeTiers();
         const buckets = [[], [], []];
-        const OPEN = new Set(['park', 'launchpad', 'solar', 'wind', 'dam', 'crane', 'graveyard', 'billboard', 'monument', 'arena', 'black_market', 'nuclear', 'coal', 'dish', 'fusion', 'jail']);
+        const OPEN = new Set(['park', 'launchpad', 'solar', 'wind', 'dam', 'crane', 'graveyard', 'billboard', 'monument', 'arena', 'black_market', 'nuclear', 'coal', 'dish', 'fusion', 'jail', 'villa']);
 
         // setbacks: upper tower mass on mid/high buildings (reads as a real skyline)
         const setbacks = [];
@@ -1322,6 +1325,118 @@ export const World = {
                     sBox(16, 5, 8, x + ox * 74, 70, z - 40, 0x22262c);
                 }
                 G.colliders.push({ x0: x - 84, z0: z - 84, x1: x + 84, z1: z + 84, id: b.id });
+                break;
+            }
+            /* ── VILLA — the founder estates on Billionaire's Row ─────────────
+               There was no `villa` case at all. The six estates existed as data
+               and as placements, fell through to the generic building box, and
+               rendered as flat-roofed two-storey office blocks indistinguishable
+               from the anonymous infill around them — the only clue you were
+               looking at Mark's house was the name plate. Hence "I was unable to
+               find Billionaire's Row".
+
+               Seven styles, picked from the building id so a given founder's
+               house is the same every visit. The one thing every style has that
+               an office block does not is a PITCHED ROOF; that alone is most of
+               what makes these read as houses from the street. */
+            case 'villa': {
+                const acc = new THREE.Color(LABS[b.lab]?.color || '#c9a227').getHex();
+                const style = ((b.id || '').split('').reduce((h, c) => h + c.charCodeAt(0), 0)) % 7;
+                const HW = w / 2, HD = d / 2;
+                const wall = 0xe8e2d4, roof = 0x6b4436, stone = 0xb9b2a4;
+                const lawn = 0x4f7a3a, water = 0x3a7ab8;
+
+                // ── grounds: lawn pad, boundary wall, gate, drive ──
+                sBox(w * 1.06, 1.5, d * 1.06, x, 0.7, z, lawn);
+                for (const s of [-1, 1]) {
+                    sBox(w * 1.06, 9, 4, x, 4.5, z + s * HD * 1.03, stone);       // front/back wall
+                    sBox(4, 9, d * 1.06, x + s * HW * 1.03, 4.5, z, stone);       // side walls
+                }
+                // gate: two piers and a gap in the front wall, on the +z side
+                for (const s of [-1, 1]) {
+                    sBox(9, 20, 9, x + s * 22, 10, z + HD * 1.03, stone);
+                    sBox(5, 6, 5, x + s * 22, 22, z + HD * 1.03, acc);            // pier lamp
+                }
+                sBox(38, 1.2, HD * 0.9, x, 1.6, z + HD * 0.5, 0x585048);          // drive
+
+                // ── main house: two storeys under a hip roof ──
+                const bw = w * 0.44, bd = d * 0.34, bh = 30;
+                sBox(bw, bh, bd, x, bh / 2 + 1.5, z - HD * 0.12, wall);
+                sCone(bw * 0.78, 18, 4, x, bh + 10, z - HD * 0.12, roof, Math.PI / 4);
+                /* Window band. Warm rather than the navy the office blocks use:
+                   the specialty bucket is plain vertex-coloured Lambert with no
+                   emissive path, so these can't actually light up after dark the
+                   way a facade-textured tower does. A warm tone at least keeps
+                   the house from reading as abandoned at night. */
+                sBox(bw + 1, 4, bd + 1, x, 20, z - HD * 0.12, 0xc9a35e);
+                sBox(bw + 1.5, 2, bd + 1.5, x, bh + 0.5, z - HD * 0.12, acc);
+
+                // ── portico: columns and a canopy over the front door ──
+                for (let i = -2; i <= 2; i++) {
+                    sCyl(3, 3.4, 24, 8, x + i * 13, 13.5, z - HD * 0.12 + bd / 2 + 9, stone);
+                }
+                sBox(bw * 0.86, 4, 20, x, 26, z - HD * 0.12 + bd / 2 + 9, wall);
+                sBox(10, 16, 2, x, 9.5, z - HD * 0.12 + bd / 2 + 1, 0x4a3628);    // door
+
+                // ── wings, lower than the main block ──
+                for (const s of [-1, 1]) {
+                    const wx = x + s * (bw / 2 + w * 0.13);
+                    sBox(w * 0.22, 20, bd * 0.82, wx, 11.5, z - HD * 0.12, wall);
+                    sCone(w * 0.15, 12, 4, wx, 26, z - HD * 0.12, roof, Math.PI / 4);
+                }
+
+                // ── garage block by the gate ──
+                sBox(w * 0.2, 16, d * 0.16, x - HW * 0.66, 9.5, z + HD * 0.42, wall);
+                sCone(w * 0.14, 9, 4, x - HW * 0.66, 21, z + HD * 0.42, roof, Math.PI / 4);
+                sBox(w * 0.15, 11, 2, x - HW * 0.66, 7, z + HD * 0.42 + d * 0.08, 0x3a3a3a);
+
+                // ── pool, out the back ──
+                sBox(w * 0.3, 1, d * 0.16, x + HW * 0.4, 2.2, z - HD * 0.6, stone);
+                sBox(w * 0.26, 1.4, d * 0.12, x + HW * 0.4, 2.6, z - HD * 0.6, water);
+
+                /* ── the bit that makes it theirs ────────────────────────────
+                   Same seven the 2D city runs, so a founder's house has the
+                   same character in both views. */
+                if (style === 0) {                  // helipad + windsock
+                    sCyl(20, 20, 1.6, 16, x - HW * 0.55, 2.6, z - HD * 0.55, 0x4a4f56);
+                    sCyl(15, 15, 0.6, 16, x - HW * 0.55, 3.5, z - HD * 0.55, acc);
+                    sBox(2, 22, 2, x - HW * 0.8, 11, z - HD * 0.55, 0xb0b6be);
+                } else if (style === 1) {           // observatory dome
+                    sCyl(13, 15, 12, 12, x + HW * 0.62, 7, z + HD * 0.08, stone);
+                    sSphere(13, x + HW * 0.62, 15, z + HD * 0.08, 0xd8dce2, 12, 8);
+                } else if (style === 2) {           // tall hedges — a policy position
+                    for (let i = 0; i < 7; i++) {
+                        sBox(w * 0.12, 26, 12, x - HW * 0.8 + i * (w * 0.26), 14, z + HD * 0.78, 0x2f5f2a);
+                    }
+                } else if (style === 3) {           // tennis court
+                    sBox(w * 0.34, 1, d * 0.24, x + HW * 0.45, 2.2, z + HD * 0.3, 0x2f6b4a);
+                    sBox(w * 0.3, 0.6, 1.5, x + HW * 0.45, 3, z + HD * 0.3, 0xe8e8e8);
+                    for (const s of [-1, 1]) sBox(1.5, 10, 1.5, x + HW * 0.45, 6, z + HD * 0.3 + s * d * 0.12, 0x9aa0a8);
+                } else if (style === 4) {           // chateau turrets
+                    for (const s of [-1, 1]) {
+                        const tx = x + s * (bw / 2 + 6);
+                        sCyl(9, 9, 40, 10, tx, 21, z - HD * 0.12 - bd / 2, stone);
+                        sCone(10, 20, 10, tx, 51, z - HD * 0.12 - bd / 2, roof);
+                    }
+                } else if (style === 5) {           // formal parterre + fountain
+                    sCyl(14, 16, 4, 14, x, 3, z + HD * 0.62, stone);
+                    sCyl(3, 4, 14, 8, x, 9, z + HD * 0.62, stone);
+                    for (let i = 0; i < 4; i++) {
+                        const a = i * Math.PI / 2 + Math.PI / 4;
+                        sBox(20, 2.5, 20, x + Math.cos(a) * 42, 2.4, z + HD * 0.62 + Math.sin(a) * 30, 0x2f5f2a);
+                    }
+                } else {                            // guest house + long pergola
+                    sBox(w * 0.2, 16, d * 0.16, x + HW * 0.6, 9.5, z + HD * 0.5, wall);
+                    sCone(w * 0.14, 9, 4, x + HW * 0.6, 21, z + HD * 0.5, roof, Math.PI / 4);
+                    for (let i = 0; i < 6; i++) sBox(3, 18, 3, x - HW * 0.1 + i * 16, 10, z + HD * 0.66, 0x8a6a4a);
+                    sBox(90, 3, 12, x + HW * 0.1, 19.5, z + HD * 0.66, 0x8a6a4a);
+                }
+
+                // A house is a solid you walk round, not through.
+                G.colliders.push({
+                    x0: x - bw / 2 - 4, z0: z - HD * 0.12 - bd / 2 - 4,
+                    x1: x + bw / 2 + 4, z1: z - HD * 0.12 + bd / 2 + 4, id: b.id
+                });
                 break;
             }
             case 'graveyard': {

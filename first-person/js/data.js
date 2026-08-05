@@ -404,6 +404,26 @@ export const BLDS = [
     { id: 'house_mistral', name: 'Arthur\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'mistral', type: 'villa', desc: 'Private residence of Arthur, CEO of Mistral. The only house on the Row with a European wine cellar under it.' },
     { id: 'house_xai', name: 'Elon\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'xai', type: 'villa', desc: 'Private residence of Elon, founder of xAI. Helipad out back, telescope on the roof, rarely occupied.' },
 
+    /* The other fourteen. shared/schedule.js already looks for `house_<lab>`
+       and falls back to the regional housing block when there isn't one — so
+       these needed no schedule change, only to exist. Before this, fourteen of
+       the twenty founders slept in the generic residential towers with everyone
+       else. Ids must stay exactly `house_` + the lab id or the lookup misses. */
+    { id: 'house_microsoft', name: 'Satya\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'microsoft', type: 'villa', desc: 'Private residence of Satya, CEO of Microsoft. Cricket nets behind the hedge and more poetry on the shelves than business books.' },
+    { id: 'house_nvidia', name: 'Jensen\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'nvidia', type: 'villa', desc: 'Private residence of Jensen, CEO of NVIDIA. The kitchen is the biggest room; the leather jacket has its own hook by the door.' },
+    { id: 'house_apple', name: 'Tim\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'apple', type: 'villa', desc: 'Private residence of Tim, CEO of Apple. Lights on before four in the morning, every morning, without exception.' },
+    { id: 'house_amazon', name: 'Andy\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'amazon', type: 'villa', desc: 'Private residence of Andy, CEO of Amazon. Sports memorabilia in the hall and a six-page memo waiting on the desk.' },
+    { id: 'house_ibm', name: 'Arvind\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'ibm', type: 'villa', desc: 'Private residence of Arvind, CEO of IBM. A physicist\'s study: whiteboard in the library, quantum papers stacked beside it.' },
+    { id: 'house_deepseek', name: 'Liang\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'deepseek', type: 'villa', desc: 'Private residence of Liang, founder of DeepSeek. Startlingly modest for a man whose lab reset the price of frontier training.' },
+    { id: 'house_alibaba', name: 'Eddie\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'alibaba', type: 'villa', desc: 'Private residence of Eddie, CEO of Alibaba. Courtyard garden, and a home office that keeps Hangzhou hours from anywhere.' },
+    { id: 'house_baidu', name: 'Robin\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'baidu', type: 'villa', desc: 'Private residence of Robin, CEO of Baidu. Bet on deep learning years before the rest of the street; the search index paid for the view.' },
+    { id: 'house_zhipu_ai', name: 'Tang Jie\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'zhipu_ai', type: 'villa', desc: 'Private residence of Tang Jie of Zhipu AI. Still an academic first — the Tsinghua office gets more use than this house does.' },
+    { id: 'house_tii', name: 'Najwa\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'tii', type: 'villa', desc: 'Private residence of Najwa, CEO of TII. Cryptographer by training, which shows in how little of the house faces the road.' },
+    { id: 'house_stability', name: 'Emad\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'stability', type: 'villa', desc: 'Private residence of Emad, founder of Stability AI. The walls are covered in images no human drew, which was rather the point.' },
+    { id: 'house_cohere', name: 'Aidan\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'cohere', type: 'villa', desc: 'Private residence of Aidan, CEO of Cohere. Co-wrote the attention paper as an intern and has been living off that sentence ever since.' },
+    { id: 'house_ai21', name: 'Ori\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'ai21', type: 'villa', desc: 'Private residence of Ori, co-founder of AI21 Labs. Tel Aviv modernism, and a bookshelf heavy on linguistics.' },
+    { id: 'house_bigcode', name: 'Julien\'s Estate', w: 200, fl: 2, emoji: '🏡', lab: 'bigcode', type: 'villa', desc: 'Private residence of Julien of HuggingFace and BigCode. The most open-source house on the Row — the floor plan is probably on a repo somewhere.' },
+
     // ── Worker Housing (2D js/npc_housing.js buildings) ──
     { id: 'npc_apt_1', name: 'Worker Block A', w: 200, fl: 5, emoji: '🏬', type: 'housing', desc: 'Affordable housing for city facility workers. Bike racks full, lift permanently out of order.' },
     { id: 'npc_apt_2', name: 'Worker Block B', w: 180, fl: 4, emoji: '🏬', type: 'housing', desc: 'Compact apartments for night-shift staff. Blackout curtains on every window, quiet at noon.' },
@@ -537,7 +557,7 @@ export const DISTRICTS = [
     // ── Row 4 (far south): where the city actually sleeps ──
     // Sourced from 2D js/engine.js (estates + Silicon Woods), npc_housing.js
     // (worker blocks), vc_row.js (suburbia) and space_data.js (Frontier Pines).
-    { id: 'estates',     col: 0, row: 4, biome: 'suburban',  label: '🏛️ Billionaire\'s Row', bldIds: ['house_openai','house_anthropic','house_google','house_meta','house_mistral','house_xai'] },
+    { id: 'estates',     col: 0, row: 4, biome: 'suburban',  label: '🏛️ Billionaire\'s Row', bldIds: ['house_openai','house_anthropic','house_google','house_meta','house_mistral','house_xai','house_microsoft','house_nvidia','house_apple','house_amazon'] },
     { id: 'workers',     col: 1, row: 4, biome: 'urban',     label: '🏬 Worker Housing',  bldIds: ['npc_apt_1','npc_apt_2','npc_apt_3','npc_apt_4','npc_apt_5','npc_apt_6'] },
     { id: 'suburbia',    col: 2, row: 4, biome: 'suburban',  label: '🏡 Suburbia',        bldIds: ['suburb_1','suburb_2','suburb_3','suburb_4','suburb_5'] },
     { id: 'silicon_woods', col: 3, row: 4, biome: 'forest',  label: '🌲 Silicon Woods',   bldIds: ['forest_1'] },
@@ -564,7 +584,10 @@ export const DISTRICTS = [
        LAB_HQ here instead of the public square, so ~446 independents finally
        commute somewhere that is about them. */
     { id: 'hub',         col: 5, row: 3, biome: 'academic', label: '🤗 Hub Commons',          bldIds: ['hub_commons','hub_desks','hub_merge','hub_leaderboard','hub_green','east_gardens'] },
-    { id: 'east_res',    col: 5, row: 4, biome: 'suburban', label: '🏘️ East Residences',      bldIds: ['res_apac'] }
+    /* Ten estates per district, deliberately: the quadrant layout sizes slots
+       as quadAvail/cols, so all twenty on one cell would halve every mansion's
+       footprint. It also puts the eastern founders beside the labs they run. */
+    { id: 'heights',     col: 5, row: 4, biome: 'suburban', label: '🏔️ Founders\' Heights',   bldIds: ['house_deepseek','house_alibaba','house_baidu','house_zhipu_ai','house_tii','house_stability','house_cohere','house_ibm','house_ai21','house_bigcode','res_apac'] }
 ];
 
 // ─── METRO / TRAM LINES ──────────────────────────────────────────────────────
