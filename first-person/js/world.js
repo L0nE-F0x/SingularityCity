@@ -41,6 +41,25 @@ const rng = mulberry32(1337);
 
 // ── merged-geometry helpers ──────────────────────────────────────────────────
 const STATIC = []; // vertex-colored lambert bucket (merged into 1 mesh)
+
+/* Emissive companion to STATIC, merged into ONE extra mesh and ramped by the
+   night value in World.update.
+
+   The specialty renderer had no way to make anything glow. Every structure it
+   draws — the founder mansions, the power stacks, the crane, the graveyard —
+   was plain vertex-coloured Lambert, so after dark they went black while the
+   facade-textured towers around them lit every window from an emissive map.
+   The mansions in particular read as abandoned on a street full of lit blocks.
+
+   sGlow() puts geometry here instead. One draw call for the whole city's worth
+   of specialty window light. */
+const GLOW = [];
+function sGlow(w, h, d, x, y, z, color, ry = 0) {
+    const g = new THREE.BoxGeometry(w, h, d);
+    if (ry) g.rotateY(ry);
+    g.translate(x, y, z);
+    GLOW.push(paint(g, color));
+}
 function paint(geo, hex) {
     const c = new THREE.Color(hex);
     const n = geo.attributes.position.count;
@@ -315,6 +334,21 @@ export const World = {
             mesh.matrixAutoUpdate = false;
             scene.add(mesh);
             STATIC.length = 0;
+        }
+
+        /* The emissive companion. MeshBasic so it ignores the sun entirely and
+           is driven purely by opacity — World.update ramps that with the night
+           value, exactly the way the facade emissive maps are ramped. */
+        if (GLOW.length) {
+            this.specGlowMat = new THREE.MeshBasicMaterial({
+                vertexColors: true, transparent: true, opacity: 0,
+                toneMapped: false, depthWrite: false
+            });
+            const gm = new THREE.Mesh(mergeGeometries(GLOW, false), this.specGlowMat);
+            gm.matrixAutoUpdate = false;
+            gm.renderOrder = 2;
+            scene.add(gm);
+            GLOW.length = 0;
         }
     },
 
@@ -1355,7 +1389,7 @@ export const World = {
                 // gate: two piers and a gap in the front wall, on the +z side
                 for (const s of [-1, 1]) {
                     sBox(9, 20, 9, x + s * 22, 10, z + HD * 1.03, stone);
-                    sBox(5, 6, 5, x + s * 22, 22, z + HD * 1.03, acc);            // pier lamp
+                    sGlow(5, 6, 5, x + s * 22, 22, z + HD * 1.03, acc);           // pier lamp
                 }
                 sBox(38, 1.2, HD * 0.9, x, 1.6, z + HD * 0.5, 0x585048);          // drive
 
@@ -1363,13 +1397,22 @@ export const World = {
                 const bw = w * 0.44, bd = d * 0.34, bh = 30;
                 sBox(bw, bh, bd, x, bh / 2 + 1.5, z - HD * 0.12, wall);
                 sCone(bw * 0.78, 18, 4, x, bh + 10, z - HD * 0.12, roof, Math.PI / 4);
-                /* Window band. Warm rather than the navy the office blocks use:
-                   the specialty bucket is plain vertex-coloured Lambert with no
-                   emissive path, so these can't actually light up after dark the
-                   way a facade-textured tower does. A warm tone at least keeps
-                   the house from reading as abandoned at night. */
-                sBox(bw + 1, 4, bd + 1, x, 20, z - HD * 0.12, 0xc9a35e);
-                sBox(bw + 1.5, 2, bd + 1.5, x, bh + 0.5, z - HD * 0.12, acc);
+                // Window band, and the light behind it. sGlow goes in the
+                // emissive bucket, so these come on after dark.
+                sBox(bw + 1, 4, bd + 1, x, 20, z - HD * 0.12, 0x2a3038);
+                for (let i = -2; i <= 2; i++) {
+                    if (!i) continue;                        // gap over the door
+                    for (const fy of [11, 24]) {             // ground + first floor
+                        sGlow(9, 6, bd + 2.2, x + i * 13, fy, z - HD * 0.12, 0xffdca8);
+                    }
+                }
+                // side elevations, fewer and dimmer
+                for (const s of [-1, 1]) {
+                    for (const fz of [-9, 9]) {
+                        sGlow(bw + 2.2, 6, 8, x, 17, z - HD * 0.12 + fz * 1.6 + s * 0.01, 0xf2cf9a);
+                    }
+                }
+                sGlow(bw + 1.5, 2, bd + 1.5, x, bh + 0.5, z - HD * 0.12, acc);
 
                 // ── portico: columns and a canopy over the front door ──
                 for (let i = -2; i <= 2; i++) {
@@ -2313,6 +2356,12 @@ export const World = {
     // ── per-frame ────────────────────────────────────────────────────────────
     update(dt, t) {
         Ships.update(dt, t);
+        /* Specialty window light follows the same night curve the facade
+           emissive maps do, so a mansion lights up on the same schedule as the
+           tower across the road rather than on one of its own. */
+        if (this.specGlowMat) {
+            this.specGlowMat.opacity = (G.weatherSys?.night ?? 0) * 0.92;
+        }
         for (const a of this.animated) {
             switch (a.kind) {
                 case 'turbine': a.obj.rotation.z += dt * a.speed * (1 + G.weatherIntensity * 2); break;
