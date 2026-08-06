@@ -516,3 +516,28 @@ button.pause-pixi {
 }
 #pauseGoPixi:hover,
 button.pause-pixi:hover { filter: brightness(1.08); }
+
+/* ─── APEXFORGE CREDIT ───────────────────────────────────────────────────────
+   Discreet maker credit, pinned bottom-right. One element covers the start
+   screen (z 100) and the walking HUD; it fades out whenever a panel, the
+   pause menu or the city map takes over the screen. */
+.af-credit {
+    position: fixed;
+    right: calc(14px + env(safe-area-inset-right));
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    z-index: 101;
+    padding: 3px 8px;
+    font-family: var(--sx); font-size: 10px; letter-spacing: 1px;
+    color: #4a5878;
+    background: rgba(10, 14, 26, .6);
+    border: 1px solid rgba(74, 88, 120, .35);
+    border-radius: 4px;
+    text-decoration: none; white-space: nowrap;
+    transition: opacity .3s ease, color .2s ease, border-color .2s ease;
+}
+.af-credit b { color: #8391ad; font-weight: 700; }
+.af-credit:hover { color: var(--ac); border-color: rgba(34, 211, 238, .45); }
+.af-credit:hover b { color: var(--ac); }
+#panelOverlay:not(.hidden) ~ .af-credit,
+#pauseMenu:not(.hidden) ~ .af-credit,
+body.sc-view-map .af-credit { opacity: 0; pointer-events: none; }
