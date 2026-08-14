@@ -62,6 +62,44 @@ function paint(geo, hex) {
     return geo;
 }
 
+function _canvasTex(w, h, draw) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const x = c.getContext('2d');
+    if (x) draw(x, w, h);
+    const t = new THREE.CanvasTexture(c);
+    t.needsUpdate = true;
+    return t;
+}
+
+function btnTex(label, lit) {
+    return _canvasTex(64, 64, (x, w, h) => {
+        x.fillStyle = lit ? '#0d3d2a' : '#14181e';
+        x.fillRect(0, 0, w, h);
+        x.fillStyle = lit ? '#4ade80' : '#3f4a58';
+        x.fillRect(3, 3, w - 6, h - 6);
+        x.fillStyle = lit ? '#0a1f14' : '#0c1016';
+        x.fillRect(7, 7, w - 14, h - 14);
+        x.fillStyle = lit ? '#bbf7d0' : '#e5e7eb';
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.font = 'bold 32px Silkscreen, monospace';
+        x.fillText(String(label), w / 2, h / 2 + 1);
+    });
+}
+
+function readoutTex(n) {
+    return _canvasTex(128, 48, (x, w, h) => {
+        x.fillStyle = '#05080c';
+        x.fillRect(0, 0, w, h);
+        x.fillStyle = '#4ade80';
+        x.font = 'bold 36px Silkscreen, monospace';
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.fillText(String(n), w / 2, h / 2 + 2);
+    });
+}
+
 export const Interior = {
     group: null,
     building: null,          // the building you are inside, or null
@@ -112,7 +150,7 @@ export const Interior = {
                 if (hs) { this.useHotspot(hs); return; }
             }
             const dig = e.code.match(/^Digit(\d)$/);
-            if (dig && this.maxFloor > 0 && this.atLift()) {
+            if (dig && this.maxFloor > 0 && (this.atLift() || this.inCar())) {
                 const n = parseInt(dig[1], 10);
                 if (n <= this.maxFloor) this.rideElevator(n);
             }
@@ -418,6 +456,11 @@ export const Interior = {
         if (this.maxFloor > 0) {
             wall(-ROOM_W / 2 - 20, -ROOM_D / 2 - 20, LIFT_WX, CAR_LZ - CAR_HALF);
             wall(-ROOM_W / 2 - 20, CAR_LZ + CAR_HALF, LIFT_WX, ROOM_D / 2 + 20);
+            // Car shaft — without these you walk out the back of the lift
+            // into the same white void the street door used to dump you in.
+            wall(CAR_BACK - 14, CAR_LZ - CAR_HALF - 10, CAR_BACK + 4, CAR_LZ + CAR_HALF + 10);
+            wall(CAR_BACK, CAR_LZ - CAR_HALF - 14, LIFT_WX + 4, CAR_LZ - CAR_HALF + 2);
+            wall(CAR_BACK, CAR_LZ + CAR_HALF - 2, LIFT_WX + 4, CAR_LZ + CAR_HALF + 14);
         } else {
             wall(-ROOM_W / 2 - 20, -ROOM_D / 2 - 20, LIFT_WX, ROOM_D / 2 + 20);
         }
@@ -1425,59 +1468,95 @@ export const Interior = {
         if (this.maxFloor <= 0) return;
 
         const grp = new THREE.Group();
+        const steel = (hex, rough = 0.38, metal = 0.72) =>
+            new THREE.MeshStandardMaterial({ color: hex, roughness: rough, metalness: metal });
         const mk = (w, h, d, x, y, z, hex, glow) => {
             const m = new THREE.Mesh(
                 new THREE.BoxGeometry(w, h, d),
-                glow ? new THREE.MeshBasicMaterial({ color: hex })
-                     : new THREE.MeshStandardMaterial({ color: hex, roughness: 0.42, metalness: 0.45 })
+                glow ? new THREE.MeshBasicMaterial({ color: hex }) : steel(hex)
             );
             m.position.set(x, y, z);
             grp.add(m);
             return m;
         };
 
-        // shaft-side shell: back, sides, floor, ceiling
+        // Shell
         mk(10, CAR_H, CAR_HALF * 2 + 20, CAR_BACK, CAR_H / 2, CAR_LZ, 0x2b3038);
         mk(CAR_DEPTH, CAR_H, 10, CAR_CX, CAR_H / 2, CAR_LZ - CAR_HALF - 5, 0x353b45);
         mk(CAR_DEPTH, CAR_H, 10, CAR_CX, CAR_H / 2, CAR_LZ + CAR_HALF + 5, 0x353b45);
-        mk(CAR_DEPTH, 3, CAR_HALF * 2, CAR_CX, 1.5, CAR_LZ, 0x1d2128);
+        mk(CAR_DEPTH, 3, CAR_HALF * 2, CAR_CX, 1.5, CAR_LZ, 0x1a1e24);
         mk(CAR_DEPTH, 4, CAR_HALF * 2, CAR_CX, CAR_H, CAR_LZ, 0x22262d);
-        // ceiling panel — the only light source inside a shut car
-        mk(CAR_DEPTH - 24, 2, CAR_HALF, CAR_CX, CAR_H - 3, CAR_LZ, 0xfff4d6, true);
-        // rear mirror + handrails: both land at ~1.1 m and are strong scale cues
-        mk(2, 30, CAR_HALF * 1.5, CAR_BACK + 6, 40, CAR_LZ, 0x7f8b9c);
-        mk(CAR_DEPTH - 20, 3, 3, CAR_CX, 33, CAR_LZ - CAR_HALF - 1, 0x9ca3af);
-        mk(CAR_DEPTH - 20, 3, 3, CAR_CX, 33, CAR_LZ + CAR_HALF + 1, 0x9ca3af);
+        // Diamond-ish floor strips + kick plates so the box reads as a cab
+        for (let i = -2; i <= 2; i++) {
+            mk(CAR_DEPTH - 8, 0.4, 2.2, CAR_CX, 3.1, CAR_LZ + i * 10, 0x3a424c);
+        }
+        mk(CAR_DEPTH - 4, 8, 1.4, CAR_CX, 5, CAR_LZ - CAR_HALF + 1, 0x1a1e24);
+        mk(CAR_DEPTH - 4, 8, 1.4, CAR_CX, 5, CAR_LZ + CAR_HALF - 1, 0x1a1e24);
+        // Recessed ceiling lights + vent
+        mk(CAR_DEPTH - 18, 1.6, CAR_HALF - 4, CAR_CX, CAR_H - 2.4, CAR_LZ, 0xfff1c8, true);
+        mk(14, 1.2, 10, CAR_CX - 22, CAR_H - 2.2, CAR_LZ, 0xfde68a, true);
+        mk(14, 1.2, 10, CAR_CX + 18, CAR_H - 2.2, CAR_LZ, 0xfde68a, true);
+        mk(16, 1.4, 8, CAR_CX, CAR_H - 2, CAR_LZ + 16, 0x4b5563);
+        // Rear mirror, handrails, speaker, capacity plate
+        mk(2, 32, CAR_HALF * 1.4, CAR_BACK + 6, 42, CAR_LZ, 0x9aa7b5);
+        mk(CAR_DEPTH - 20, 3, 3, CAR_CX, 33, CAR_LZ - CAR_HALF - 1, 0xb0b8c2);
+        mk(CAR_DEPTH - 20, 3, 3, CAR_CX, 33, CAR_LZ + CAR_HALF + 1, 0xb0b8c2);
+        mk(8, 5, 10, CAR_BACK + 7, 68, CAR_LZ - 16, 0x111827);
+        mk(6, 3, 8, CAR_BACK + 8, 68, CAR_LZ - 16, 0x374151);
 
-        /* Floor indicator above the DOORS, which is where you actually look
-           while riding — on the back wall it sat behind the rider's head. */
-        const ind = mk(3, 9, 40, LIFT_WX - 4, CAR_H - 11, CAR_LZ, accent.getHex(), true);
-        mk(5, 15, 50, LIFT_WX - 2, CAR_H - 11, CAR_LZ, 0x11151b);   // bezel behind it
+        /* Floor readout above the DOORS — a real number, not a colour pip. */
+        mk(5, 16, 52, LIFT_WX - 2, CAR_H - 12, CAR_LZ, 0x11151b);
+        const readout = new THREE.Mesh(
+            new THREE.PlaneGeometry(28, 11),
+            new THREE.MeshBasicMaterial({ map: readoutTex(this.floor) })
+        );
+        readout.position.set(LIFT_WX + 1.6, CAR_H - 12, CAR_LZ);
+        readout.rotation.y = Math.PI / 2;
+        grp.add(readout);
 
-        /* Two leaves that part in z. Brushed steel, not the pale blue-grey the
-           first pass used — at interior light levels that rendered as a flat
-           slab almost exactly the colour of the sky background, so the shut
-           doors read as a hole rather than as doors. Each leaf gets an inset
-           panel and the pair gets a dark centre seam, which is what makes the
-           parting read at all. */
+        /* Button panel on the RIGHT wall when facing the doors (+X). Facing
+           +X, right is −Z. A real column of numbered pads you look at and
+           press, not a keyboard shortcut taped to the HUD. */
+        const panelZ = CAR_LZ - CAR_HALF + 4;
+        const panelX = CAR_CX + 8;
+        mk(36, 52, 3, panelX, 40, panelZ - 1.2, 0x1f2937);
+        mk(32, 48, 1.4, panelX, 40, panelZ, 0x111827);
+        const nFloors = this.maxFloor + 1;
+        const cols = nFloors > 6 ? 2 : 1;
+        const buttons = [];
+        for (let i = 0; i < nFloors; i++) {
+            const col = cols === 1 ? 0 : (i % 2);
+            const row = cols === 1 ? i : Math.floor(i / 2);
+            const bx = panelX + (cols === 1 ? 0 : (col - 0.5) * 12);
+            const by = 22 + row * 10;
+            const on = i === this.floor;
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(8, 8, 2.4),
+                new THREE.MeshBasicMaterial({ map: btnTex(i, on) })
+            );
+            mesh.position.set(bx, by, panelZ + 1.6);
+            mesh.userData.liftBtn = i;
+            grp.add(mesh);
+            buttons.push({ mesh, floor: i });
+        }
+
         const leafW = CAR_HALF + 2;
         const leaf = (sign) => {
             const g = new THREE.Group();
             const face = new THREE.Mesh(
                 new THREE.BoxGeometry(6, CAR_H - 6, leafW),
-                new THREE.MeshStandardMaterial({ color: 0x5b6472, roughness: 0.34, metalness: 0.72 })
+                steel(0x5b6472, 0.34, 0.72)
             );
             g.add(face);
             const inset = new THREE.Mesh(
                 new THREE.BoxGeometry(1.5, CAR_H - 26, leafW - 10),
-                new THREE.MeshStandardMaterial({ color: 0x6f7a8a, roughness: 0.28, metalness: 0.8 })
+                steel(0x6f7a8a, 0.28, 0.8)
             );
             inset.position.set(3.4, 0, 0);
             g.add(inset);
-            // seam edge: a dark lip on the closing face
             const lip = new THREE.Mesh(
                 new THREE.BoxGeometry(6.4, CAR_H - 6, 2),
-                new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.6, metalness: 0.3 })
+                steel(0x14181e, 0.6, 0.3)
             );
             lip.position.set(0, 0, sign * (leafW / 2 - 1));
             g.add(lip);
@@ -1489,8 +1568,14 @@ export const Interior = {
         const right = leaf(-1);
 
         this.group.add(grp);
-        this._carParts = { grp, left, right, ind, leafW, accent: accent.getHex() };
+        this._carParts = {
+            grp, left, right, readout, buttons, leafW,
+            accent: accent.getHex(), aimed: null
+        };
+        this._ray = this._ray || new THREE.Raycaster();
+        this._ndc = this._ndc || new THREE.Vector2(0, 0);
         this._applyDoors(this._lift.doors);
+        this._paintButtons();
     },
 
     /** Slide the leaves. 1 = retracted into the jambs, 0 = shut. */
@@ -1535,6 +1620,44 @@ export const Interior = {
         return Math.hypot(p.x - spot.x, p.z - spot.z) < S(CAR_DEPTH * 0.75);
     },
 
+    riding() {
+        return !!(this.building && this._lift && this._lift.phase !== 'idle');
+    },
+
+    /** Floor number the crosshair is on, or null. */
+    aimedButton() {
+        const c = this._carParts;
+        if (!c?.buttons?.length || !G.camera) return null;
+        this._ray = this._ray || new THREE.Raycaster();
+        this._ndc = this._ndc || new THREE.Vector2(0, 0);
+        this._ray.setFromCamera(this._ndc, G.camera);
+        const hits = this._ray.intersectObjects(c.buttons.map(b => b.mesh), false);
+        if (!hits.length || hits[0].distance > S(70)) return null;
+        const n = hits[0].object.userData.liftBtn;
+        return Number.isInteger(n) ? n : null;
+    },
+
+    _paintButtons() {
+        const c = this._carParts;
+        if (!c?.buttons) return;
+        const aimed = this.aimedButton();
+        if (aimed === c.aimed && c.litFloor === this.floor) return;
+        c.aimed = aimed;
+        c.litFloor = this.floor;
+        for (const b of c.buttons) {
+            const lit = b.floor === this.floor || b.floor === aimed;
+            const map = b.mesh.material.map;
+            if (map) map.dispose();
+            b.mesh.material.map = btnTex(b.floor, lit);
+            b.mesh.material.needsUpdate = true;
+        }
+        if (c.readout) {
+            if (c.readout.material.map) c.readout.material.map.dispose();
+            c.readout.material.map = readoutTex(this._lift._shown ?? this.floor);
+            c.readout.material.needsUpdate = true;
+        }
+    },
+
     /* Ride to a floor. Unlike the old setFloor this is a journey: the doors
        shut, the car moves with you inside it, and it opens somewhere else. */
     rideElevator(n, fromAnywhere = false) {
@@ -1550,7 +1673,10 @@ export const Interior = {
             return;
         }
         const spot = this.carSpot();
-        G.player.teleport(spot.x, spot.z, Math.PI / 2);   // step in, face the doors
+        // Face the doors (+X). π/2 looked at the back wall. Keep yaw if the
+        // rider is already in the car picking a button.
+        const yaw = this.inCar() ? undefined : -Math.PI / 2;
+        G.player.teleport(spot.x, spot.z, yaw);
         G.player.enabled = false;
         this._lift.from = this.floor;
         this._lift.to = to;
@@ -1566,7 +1692,7 @@ export const Interior = {
         if (!this.building) return;
         // If the player somehow walked through the door hole, snap them back
         // into the room instead of leaving them in the hidden-city void.
-        if (this._lift.phase === 'idle' && G.player && G.camera) {
+        if (this._lift.phase === 'idle' && G.player && G.camera && !this.inCar()) {
             const hw = S(ROOM_W / 2 - 18), hd = S(ROOM_D / 2 - 18);
             const p = G.camera.position;
             if (Math.abs(p.x) > hw || Math.abs(p.z) > hd) {
@@ -1584,6 +1710,7 @@ export const Interior = {
                 try { a.fn(a.obj, dt, this._t); } catch (e) { /* one bad prop must not stop the floor */ }
             }
         }
+        this._paintButtons();
         const L = this._lift;
         if (L.phase === 'idle') return;
         L.t += dt;
@@ -1612,10 +1739,7 @@ export const Interior = {
             const at = Math.round(L.from + (L.to - L.from) * k);
             if (at !== L._shown) {
                 L._shown = at;
-                if (this._carParts) {
-                    this._carParts.ind.material.color.setHex(
-                        at === L.to ? 0x4ade80 : this._carParts.accent);
-                }
+                this._paintButtons();
                 G.ui?.banner?.('🛗 ' + at, L.from + ' → ' + L.to);
             }
             if (k >= 1) {
@@ -1717,6 +1841,7 @@ export const Interior = {
             x0: S(c.x0), x1: S(c.x1), z0: S(c.z0), z1: S(c.z1)
         }));
         G.floorY = FLOOR_Y;
+        G.ceilY = FLOOR_Y + S(ROOM_H) - 4;
         G.inside = b;
         // Arriving on an upper floor there is no street door to stand in — put
         // the player mid-room facing the way the floor is laid out.
@@ -1746,6 +1871,7 @@ export const Interior = {
         this._cityHidden = [];
         G.colliders = this._savedColliders;
         G.floorY = 0;
+        G.ceilY = null;
         G.inside = null;
         this.building = null;
         this.floor = 0;

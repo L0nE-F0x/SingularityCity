@@ -45,9 +45,16 @@ export const Interact = {
 
             // Inside a building
             if (G.inside) {
-                // Elevator call when standing at lift
-                if (Interior.atLift() && Interior.maxFloor > 0) {
-                    Interior.setFloor((Interior.floor + 1) % (Interior.maxFloor + 1));
+                const aimed = Interior.aimedButton();
+                if (aimed != null && Interior.maxFloor > 0) {
+                    Interior.rideElevator(aimed);
+                    return;
+                }
+                // Standing at the bank: step into the car to use the panel
+                if (Interior.atLift() && Interior.maxFloor > 0 && !Interior.inCar()) {
+                    const spot = Interior.carSpot();
+                    G.player.teleport(spot.x, spot.z, -Math.PI / 2);
+                    G.ui?.addToast?.('Look at a floor button · or 0–' + Interior.maxFloor, 'info');
                     return;
                 }
                 // Platform boarding (metro upper floor)
@@ -90,6 +97,10 @@ export const Interact = {
         // clicks — moon (caturday) & blimps
         document.addEventListener('mousedown', e => {
             if (!G.started || G.panelOpen || !G.player.locked) return;
+            if (G.inside && Interior.maxFloor > 0) {
+                const aimed = Interior.aimedButton();
+                if (aimed != null) { Interior.rideElevator(aimed); return; }
+            }
             this._mouse.set(0, 0);
             this._raycaster.setFromCamera(this._mouse, G.camera);
             // blimps
@@ -146,8 +157,13 @@ export const Interact = {
             this.target = null;
             const flLabel = Interior.maxFloor > 0 ? ` · Floor ${Interior.floor}/${Interior.maxFloor}` : '';
             G.ui.lookLabel(G.inside.name + flLabel);
-            if (Interior.maxFloor > 0 && Interior.atLift()) {
-                G.ui.prompt(`<b>E</b> ride lift · <b>F</b> next · <b>0–${Interior.maxFloor}</b> jump  (now F${Interior.floor})`);
+            const aimed = Interior.maxFloor > 0 ? Interior.aimedButton() : null;
+            if (aimed != null) {
+                G.ui.prompt(`<b>E</b> / click — floor ${aimed}` + (aimed === Interior.floor ? ' (here)' : ''));
+            } else if (Interior.inCar() && Interior.maxFloor > 0) {
+                G.ui.prompt(`Look at a <b>floor button</b> · 0–${Interior.maxFloor} · F next`);
+            } else if (Interior.maxFloor > 0 && Interior.atLift()) {
+                G.ui.prompt(`<b>E</b> step in · <b>F</b> next · 0–${Interior.maxFloor}`);
             } else if (Interior.maxFloor > 0) {
                 G.ui.prompt(`<b>F</b> ride lift · or walk to the left wall · F${Interior.floor}/${Interior.maxFloor}`);
             } else if (G.inside.type === 'metro' && Interior.floor === Interior.maxFloor && G.metro) {

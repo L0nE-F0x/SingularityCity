@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import { G, EYE_H, WALK_SPEED, SPRINT_SPEED, PLAYER_RADIUS, GRAVITY, JUMP_VEL, SEA_X, CITY_W, CITY_D } from './state.js';
+import { Interior } from './interior.js';
 
 // Feel constants (units/s and 1/s rates). Tuned for ~150 walk / ~320 sprint.
 const ACCEL_GROUND = 18;       // approach wish-speed
@@ -50,8 +51,9 @@ export const Player = {
         window.addEventListener('blur', () => { this.keys = {}; });
 
         document.addEventListener('mousemove', e => {
-            // Allow look while free-flying even if enabled is toggled elsewhere
-            if (!this.locked || (!this.enabled && !G.flyMode)) return;
+            // Look stays live in the lift / metro even though walk is locked
+            if (!this.locked) return;
+            if (!this.enabled && !G.flyMode && !G.ridingMetro && !Interior.riding()) return;
             const s = 0.0021 * (G.settings.sensitivity || 1);
             this.yaw -= e.movementX * s;
             this.pitch -= e.movementY * s * (G.settings.invertY ? -1 : 1);
@@ -128,7 +130,7 @@ export const Player = {
     placeAtSpawn() { this.teleport(this.spawn.x, this.spawn.z, Math.PI * 0.75); },
 
     update(dt) {
-        if (!this.enabled || G.tourMode || G.orbitMode || G.terminalOpen) return;
+        if (G.tourMode || G.orbitMode || G.terminalOpen) return;
         // Free-fly owns position; still apply mouse-look rotation each frame
         if (G.flyMode) {
             G.camera.rotation.order = 'YXZ';
@@ -137,13 +139,15 @@ export const Player = {
             G.camera.rotation.z = 0;
             return;
         }
-        // Metro ride: look only — Metro attaches position each frame
-        if (G.ridingMetro) {
+        // Metro / lift ride: look only — the ride owns position each frame
+        if (G.ridingMetro || Interior.riding()) {
             G.camera.rotation.order = 'YXZ';
             G.camera.rotation.y = this.yaw;
             G.camera.rotation.x = this.pitch;
+            G.camera.rotation.z = 0;
             return;
         }
+        if (!this.enabled) return;
         const cam = G.camera;
         // Cap huge hitches so accel integrators don't fling the player
         if (dt > 0.05) dt = 0.05;
@@ -195,7 +199,9 @@ export const Player = {
 
         const wantJump = this._jumpBuf > 0 || this.keys['Space'];
         if (wantJump && this._coyote > 0 && this.locked) {
-            this.vel.y = JUMP_VEL;
+            // Indoor rooms are 3.2 m; the outdoor jump is 5.7 m and went
+            // through the ceiling into the hidden-city void.
+            this.vel.y = G.inside ? 120 : JUMP_VEL;
             this.grounded = false;
             this._coyote = 0;
             this._jumpBuf = 0;
@@ -210,6 +216,11 @@ export const Player = {
 
         nx = this._collideAxis(nx, cam.position.z, true) ? cam.position.x : nx;
         nz = this._collideAxis(nx, nz, false) ? cam.position.z : nz;
+
+        if (G.inside && G.ceilY != null && ny > G.ceilY) {
+            ny = G.ceilY;
+            if (this.vel.y > 0) this.vel.y = 0;
+        }
 
         let justLanded = false;
         if (ny <= floor) {
