@@ -800,71 +800,36 @@ export function lobbySign(name, emoji, accent, sub) {
 }
 
 // ─── Water ───────────────────────────────────────────────────────────────────
-// Richer coastal ocean: depth bands, soft swell stripes, specular flecks and
-// faint foam so it reads from altitude instead of a flat blue slab.
+// Seamless, periodic ripples. A canvas-wide gradient tiled into the "blue
+// bathroom squares" the last two passes were fighting; sines that close on
+// 2π at both edges do not.
 export function water() {
-    const [c, x] = canvas(512, 512);
-    // deep → mid gradient base
-    const g = x.createLinearGradient(0, 0, 512, 512);
-    g.addColorStop(0, '#0c3a5c');
-    g.addColorStop(0.35, '#15608a');
-    g.addColorStop(0.7, '#1a7aa0');
-    g.addColorStop(1, '#0e4a6e');
-    x.fillStyle = g; x.fillRect(0, 0, 512, 512);
-
-    // large-scale swell undulations
-    for (let i = 0; i < 28; i++) {
-        const y = (i / 28) * 512 + Math.sin(i * 1.7) * 8;
-        const band = x.createLinearGradient(0, y - 18, 0, y + 18);
-        band.addColorStop(0, 'rgba(40,120,160,0)');
-        band.addColorStop(0.5, `rgba(120,200,230,${0.04 + (i % 3) * 0.015})`);
-        band.addColorStop(1, 'rgba(40,120,160,0)');
-        x.fillStyle = band;
-        x.fillRect(0, y - 18, 512, 36);
+    const N = 512;
+    const [c, ctx] = canvas(N, N);
+    const img = ctx.createImageData(N, N);
+    const d = img.data;
+    for (let j = 0; j < N; j++) {
+        for (let i = 0; i < N; i++) {
+            const u = (i / N) * Math.PI * 2;
+            const v = (j / N) * Math.PI * 2;
+            const n =
+                Math.sin(u * 2 + v * 1.1) * 0.34 +
+                Math.sin(u * 5 - v * 3) * 0.22 +
+                Math.sin(u * 9 + v * 8) * 0.12 +
+                Math.sin(u * 17 - v * 13) * 0.07;
+            const t = n * 0.5 + 0.5;
+            // Navy → steel blue. No green channel lift — that read as meadow.
+            const o = (j * N + i) * 4;
+            d[o]     = 10 + t * 36;
+            d[o + 1] = 38 + t * 48;
+            d[o + 2] = 72 + t * 78;
+            d[o + 3] = 255;
+        }
     }
-
-    // shorter wave strokes
-    for (let i = 0; i < 160; i++) {
-        const y = Math.random() * 512;
-        const wx = Math.random() * 512;
-        const w = 30 + Math.random() * 140;
-        x.strokeStyle = `rgba(170,220,255,${0.04 + Math.random() * 0.1})`;
-        x.lineWidth = 0.8 + Math.random() * 2.2;
-        x.beginPath();
-        x.moveTo(wx, y);
-        x.bezierCurveTo(wx + w * 0.35, y + (Math.random() - 0.5) * 10,
-            wx + w * 0.65, y + (Math.random() - 0.5) * 10,
-            wx + w, y + (Math.random() - 0.5) * 4);
-        x.stroke();
-    }
-
-    // bright specular flecks (sun glints)
-    for (let i = 0; i < 90; i++) {
-        x.fillStyle = `rgba(230,245,255,${0.08 + Math.random() * 0.18})`;
-        x.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 3, 1);
-    }
-
-    // soft foam patches near "shore" noise
-    for (let i = 0; i < 24; i++) {
-        x.fillStyle = `rgba(210,235,245,${0.05 + Math.random() * 0.08})`;
-        x.beginPath();
-        x.ellipse(Math.random() * 512, Math.random() * 512,
-            18 + Math.random() * 50, 6 + Math.random() * 14, Math.random() * Math.PI, 0, Math.PI * 2);
-        x.fill();
-    }
-
-    // subtle depth mottling
-    for (let i = 0; i < 40; i++) {
-        x.fillStyle = `rgba(8,40,70,${0.04 + Math.random() * 0.07})`;
-        x.beginPath();
-        x.ellipse(Math.random() * 512, Math.random() * 512,
-            20 + Math.random() * 60, 14 + Math.random() * 40, Math.random(), 0, Math.PI * 2);
-        x.fill();
-    }
-
+    ctx.putImageData(img, 0, 0);
     const t = tex(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(18, 18);
+    t.repeat.set(14, 14);
     return t;
 }
 

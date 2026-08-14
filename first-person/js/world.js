@@ -2124,50 +2124,22 @@ export const World = {
     // ── WATER + BEACH ────────────────────────────────────────────────────────
     _buildWater(scene) {
         this.waterTex = TEX.water();
-        this.waterTex.repeat.set(64, 48);
-        /* Segmented plane + a cheap wave shader. A 1×1 quad with 18 repeats
-           read as a grid of flat blue squares from any altitude; the waves
-           break the tile and give the harbour something to sit in. */
-        const wGeo = new THREE.PlaneGeometry(10000, CITY_D + 9000, 96, 72);
-        this.waterMat = new THREE.ShaderMaterial({
-            uniforms: {
-                uTime: { value: 0 },
-                uMap: { value: this.waterTex },
-                uRepeat: { value: new THREE.Vector2(64, 48) }
-            },
-            vertexShader: `
-                uniform float uTime;
-                varying vec2 vUv;
-                varying float vFoam;
-                void main() {
-                    vUv = uv;
-                    vec3 p = position;
-                    float w1 = sin(p.x * 0.008 + p.y * 0.003 + uTime * 0.7) * 2.4;
-                    float w2 = sin(p.x * 0.019 - p.y * 0.011 + uTime * 1.15) * 1.15;
-                    float w3 = sin(p.x * 0.041 + p.y * 0.028 + uTime * 1.8) * 0.45;
-                    p.z += w1 + w2 + w3;
-                    vFoam = smoothstep(1.6, 3.2, w1 + w2);
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform sampler2D uMap;
-                uniform vec2 uRepeat;
-                uniform float uTime;
-                varying vec2 vUv;
-                varying float vFoam;
-                void main() {
-                    vec2 uv = vUv * uRepeat;
-                    vec3 a = texture2D(uMap, uv + vec2(uTime * 0.004, uTime * 0.002)).rgb;
-                    vec3 b = texture2D(uMap, uv * 1.7 + vec2(-uTime * 0.003, uTime * 0.005)).rgb;
-                    vec3 col = mix(a, b, 0.45);
-                    col = mix(col, vec3(0.04, 0.16, 0.28), 0.28);
-                    col = mix(col, vec3(0.78, 0.90, 0.96), vFoam * 0.35);
-                    gl_FragColor = vec4(col, 1.0);
-                }
-            `
+        this.waterTex.repeat.set(14, 14);
+        /* Flat. The displaced 96×72 mesh read as a quilt from altitude and
+           punched troughs through the countryside plane (y = -2), so green
+           meadow showed in the harbour and on the beach. A seamless ripple
+           map + Phong sheen is enough; do not lift vertices. */
+        this.waterMat = new THREE.MeshPhongMaterial({
+            map: this.waterTex,
+            color: 0x6a9bb8,
+            shininess: 90,
+            specular: 0x8eb4c8,
+            fog: true
         });
-        const w = new THREE.Mesh(wGeo, this.waterMat);
+        const w = new THREE.Mesh(
+            new THREE.PlaneGeometry(10000, CITY_D + 9000),
+            this.waterMat
+        );
         w.rotation.x = -Math.PI / 2;
         w.position.set(SEA_X - 4800, -0.6, 0);
         w.name = 'water';
@@ -2427,7 +2399,10 @@ export const World = {
                 case 'lighthouse': a.obj.material.color.setHSL(0.12, 0.8, 0.5 + Math.sin(t * 1.4) * 0.4); break;
             }
         }
-        if (this.waterMat) this.waterMat.uniforms.uTime.value = t;
+        if (this.waterTex) {
+            this.waterTex.offset.x = t * 0.007;
+            this.waterTex.offset.y = t * 0.0035;
+        }
     }
 };
 
