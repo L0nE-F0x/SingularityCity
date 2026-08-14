@@ -1297,21 +1297,10 @@ export const World = {
                 break;
             }
             case 'crane': {
-                const H = 90;
-                for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
-                    sBox(6, H, 6, x + ox * w * 0.3, H / 2, z + oz * d * 0.25, 0xd8a02c);
-                sBox(w * 0.72, 8, 10, x, H, z, 0xd8a02c);                        // beam
-                sBox(10, 8, 90, x, H, z - 30, 0xd8a02c);                         // jib over water side
-                sBox(16, 12, 14, x, H, z + 28, 0x8a6a20);                        // counterweight
-                const trolley = new THREE.Mesh(paint(new THREE.BoxGeometry(12, 6, 10), 0x444444), matVC());
-                trolley.position.set(x, H - 4, z);
-                const cable = new THREE.Mesh(paint(new THREE.BoxGeometry(1.2, 40, 1.2), 0x222222), matVC());
-                cable.position.y = -22;
-                const hook = new THREE.Mesh(paint(new THREE.BoxGeometry(14, 8, 12), 0xcc5533), matVC());
-                hook.position.y = -44;
-                trolley.add(cable, hook);
-                G.scene.add(trolley);
-                A.push({ obj: trolley, kind: 'trolley', cx: x, cz: z, phase: rng() * 6 });
+                // The working ship-to-shore gantry is built and animated by
+                // ships.js. A second decorative crane here was the yellow
+                // frame you could see while a container floated off to the
+                // side on a trolley that had left the boom.
                 break;
             }
             case 'monument': {
@@ -2135,17 +2124,50 @@ export const World = {
     // ── WATER + BEACH ────────────────────────────────────────────────────────
     _buildWater(scene) {
         this.waterTex = TEX.water();
-        // Larger ocean so birds-eye / free-fly still sees water to the horizon
-        const w = new THREE.Mesh(
-            new THREE.PlaneGeometry(10000, CITY_D + 9000, 1, 1),
-            new THREE.MeshPhongMaterial({
-                map: this.waterTex,
-                color: 0xb8dcf0,
-                shininess: 160,
-                specular: 0xaad4f0,
-                reflectivity: 0.35
-            })
-        );
+        this.waterTex.repeat.set(64, 48);
+        /* Segmented plane + a cheap wave shader. A 1×1 quad with 18 repeats
+           read as a grid of flat blue squares from any altitude; the waves
+           break the tile and give the harbour something to sit in. */
+        const wGeo = new THREE.PlaneGeometry(10000, CITY_D + 9000, 96, 72);
+        this.waterMat = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uMap: { value: this.waterTex },
+                uRepeat: { value: new THREE.Vector2(64, 48) }
+            },
+            vertexShader: `
+                uniform float uTime;
+                varying vec2 vUv;
+                varying float vFoam;
+                void main() {
+                    vUv = uv;
+                    vec3 p = position;
+                    float w1 = sin(p.x * 0.008 + p.y * 0.003 + uTime * 0.7) * 2.4;
+                    float w2 = sin(p.x * 0.019 - p.y * 0.011 + uTime * 1.15) * 1.15;
+                    float w3 = sin(p.x * 0.041 + p.y * 0.028 + uTime * 1.8) * 0.45;
+                    p.z += w1 + w2 + w3;
+                    vFoam = smoothstep(1.6, 3.2, w1 + w2);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D uMap;
+                uniform vec2 uRepeat;
+                uniform float uTime;
+                varying vec2 vUv;
+                varying float vFoam;
+                void main() {
+                    vec2 uv = vUv * uRepeat;
+                    vec3 a = texture2D(uMap, uv + vec2(uTime * 0.004, uTime * 0.002)).rgb;
+                    vec3 b = texture2D(uMap, uv * 1.7 + vec2(-uTime * 0.003, uTime * 0.005)).rgb;
+                    vec3 col = mix(a, b, 0.45);
+                    col = mix(col, vec3(0.04, 0.16, 0.28), 0.28);
+                    col = mix(col, vec3(0.78, 0.90, 0.96), vFoam * 0.35);
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `
+        });
+        const w = new THREE.Mesh(wGeo, this.waterMat);
         w.rotation.x = -Math.PI / 2;
         w.position.set(SEA_X - 4800, -0.6, 0);
         w.name = 'water';
@@ -2228,30 +2250,45 @@ export const World = {
         const peakGeo = new THREE.ConeGeometry(1, 1, 8);
         peakGeo.translate(0, 0.5, 0);
 
+        /* City keep-out. A cone of radius 800 sitting at r=4600 with a +1100
+           x-bias used to land on the Space Zone pads — cars drove through the
+           hillside. Reject any mountain whose base circle touches the walkable
+           city (plus a margin), including the western sea wall. */
+        const cityX0 = SEA_X - 80, cityX1 = CITY_W / 2 + 700;
+        const cityZ0 = -CITY_D / 2 - 700, cityZ1 = CITY_D / 2 + 700;
+        const hitsCity = (x, z, rad) => {
+            const cx = Math.max(cityX0, Math.min(cityX1, x));
+            const cz = Math.max(cityZ0, Math.min(cityZ1, z));
+            const dx = x - cx, dz = z - cz;
+            return dx * dx + dz * dz < rad * rad;
+        };
+
         const foothills = [];
         const peaks = [];
-        // Ring around the city — denser than before so the horizon feels full
+        // Ring around the city — further out than before so a fat cone
+        // cannot lean into the pads / ring road.
         for (let i = 0; i < 64; i++) {
             const a = (i / 64) * Math.PI * 2 + rng() * 0.1;
-            const r = 4600 + rng() * 1800;
-            const hx = Math.cos(a) * r + 1100;
+            const r = 6200 + rng() * 2000;
+            const hx = Math.cos(a) * r + 400;
             const hz = Math.sin(a) * r;
-            if (hx < SEA_X + 250) continue;   // keep the range out of the ocean
+            if (hx < SEA_X + 900) continue;   // keep the range out of the ocean
+            const sx = 420 + rng() * 620;
+            const sz = 420 + rng() * 620;
+            if (hitsCity(hx, hz, Math.max(sx, sz) + 80)) continue;
             foothills.push({
                 x: hx, z: hz,
-                sx: 480 + rng() * 820,
-                sy: 160 + rng() * 280,
-                sz: 480 + rng() * 820,
+                sx, sy: 180 + rng() * 300, sz,
                 ry: rng() * Math.PI
             });
-            // Every other foothill gets a taller rocky peak on top of the ring
             if (i % 2 === 0) {
+                const px = hx + (rng() - 0.5) * 160;
+                const pz = hz + (rng() - 0.5) * 160;
+                const ps = 240 + rng() * 340;
+                if (hitsCity(px, pz, ps + 80)) continue;
                 peaks.push({
-                    x: hx + (rng() - 0.5) * 200,
-                    z: hz + (rng() - 0.5) * 200,
-                    sx: 280 + rng() * 420,
-                    sy: 280 + rng() * 420,
-                    sz: 280 + rng() * 420,
+                    x: px, z: pz,
+                    sx: ps, sy: 300 + rng() * 400, sz: ps,
                     ry: rng() * Math.PI
                 });
             }
@@ -2259,14 +2296,15 @@ export const World = {
         // A few far outer "snow ridge" mountains for depth from altitude
         for (let i = 0; i < 14; i++) {
             const a = (i / 14) * Math.PI * 2 + 0.4;
-            const r = 6200 + rng() * 900;
-            const hx = Math.cos(a) * r + 900;
-            if (hx < SEA_X + 400) continue;
+            const r = 8200 + rng() * 1100;
+            const hx = Math.cos(a) * r + 600;
+            const hz = Math.sin(a) * r;
+            if (hx < SEA_X + 1200) continue;
+            const ps = 560 + rng() * 440;
+            if (hitsCity(hx, hz, ps + 80)) continue;
             peaks.push({
-                x: hx, z: Math.sin(a) * r,
-                sx: 600 + rng() * 500,
-                sy: 420 + rng() * 380,
-                sz: 600 + rng() * 500,
+                x: hx, z: hz,
+                sx: ps, sy: 460 + rng() * 380, sz: ps,
                 ry: rng() * Math.PI
             });
         }
@@ -2389,11 +2427,7 @@ export const World = {
                 case 'lighthouse': a.obj.material.color.setHSL(0.12, 0.8, 0.5 + Math.sin(t * 1.4) * 0.4); break;
             }
         }
-        if (this.waterTex) {
-            // Gentle dual-axis drift so the ocean shimmers from altitude
-            this.waterTex.offset.x = t * 0.006;
-            this.waterTex.offset.y = t * 0.0035 + Math.sin(t * 0.12) * 0.02;
-        }
+        if (this.waterMat) this.waterMat.uniforms.uTime.value = t;
     }
 };
 

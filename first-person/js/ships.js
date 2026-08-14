@@ -63,12 +63,20 @@ function hullGeometries(line) {
     const g = [];
     const boot = 0x8a2020;          // boot-topping below the waterline
     const deck = 0x4a5560;
+    const rust = 0x6a3a28;
+    const weld = 0x243038;
 
     // Parallel midbody, split at the waterline so the boot-top shows.
     g.push(paint(new THREE.BoxGeometry(300, 16, 62).translate(0, -2, 0), boot));
     g.push(paint(new THREE.BoxGeometry(300, 26, 66).translate(0, 19, 0), line.hull));
     // Sheer strake — a lighter band along the top edge breaks the slab.
     g.push(paint(new THREE.BoxGeometry(300, 4, 68).translate(0, 33, 0), deck));
+    // Plating seams + rust streak so the side is not one flat colour.
+    for (let i = -4; i <= 4; i++) {
+        g.push(paint(new THREE.BoxGeometry(2.2, 22, 67).translate(i * 32, 18, 0), weld));
+    }
+    g.push(paint(new THREE.BoxGeometry(280, 2.4, 67.2).translate(0, 10, 0), rust));
+    g.push(paint(new THREE.BoxGeometry(280, 1.6, 67.2).translate(0, 26, 0), weld));
 
     // Bow: three shrinking blocks, so the waterline tapers to a stem.
     for (let i = 0; i < 3; i++) {
@@ -100,19 +108,27 @@ function houseGeometries(line) {
     const g = [];
     const white = 0xdfe3e6;
     const HX = -118;                       // house sits on the quarter
+    // Plinth so the block sits on the deck instead of hovering a gap above it.
+    g.push(paint(new THREE.BoxGeometry(52, 8, 58).translate(HX, 38, 0), 0x4a5560));
     for (let f = 0; f < 4; f++) {
         g.push(paint(new THREE.BoxGeometry(46 - f * 2, 15, 54 - f * 3).translate(HX, 46 + f * 15, 0), white));
+        // Window band on each storey — breaks the white fridge.
+        g.push(paint(new THREE.BoxGeometry(8, 6, 48 - f * 3).translate(HX + 16 - f, 48 + f * 15, 0), 0x7ec8e0));
     }
     // Bridge wings — the overhang that makes a ship read as a ship
     g.push(paint(new THREE.BoxGeometry(14, 4, 78).translate(HX, 99, 0), white));
-    // Funnel with the line's house band
-    g.push(paint(new THREE.BoxGeometry(24, 30, 30).translate(HX - 26, 118, 0), line.house));
-    g.push(paint(new THREE.BoxGeometry(26, 8, 32).translate(HX - 26, 126, 0), line.stack));
-    // Radar mast + yard
-    g.push(paint(new THREE.CylinderGeometry(1.6, 2.2, 34, 6).translate(HX, 123, 0), white));
-    g.push(paint(new THREE.BoxGeometry(3, 3, 26).translate(HX, 132, 0), white));
+    /* Funnel sits ON the roof (top of f=3 is y≈98.5). It used to be parked
+       at y=118 and 6u aft of the house, which is the floating dark boxes
+       in the harbour shot. */
+    const roofY = 106;
+    g.push(paint(new THREE.BoxGeometry(22, 28, 26).translate(HX - 6, roofY, 0), line.house));
+    g.push(paint(new THREE.BoxGeometry(24, 6, 28).translate(HX - 6, roofY + 11, 0), line.stack));
+    g.push(paint(new THREE.BoxGeometry(10, 8, 10).translate(HX - 6, roofY + 18, 0), 0x1a1a1a));
+    // Radar mast grows out of the roof, not out of empty air
+    g.push(paint(new THREE.CylinderGeometry(1.6, 2.2, 22, 6).translate(HX + 10, roofY + 4, 0), white));
+    g.push(paint(new THREE.BoxGeometry(3, 3, 22).translate(HX + 10, roofY + 14, 0), white));
     // Foremast on the forecastle
-    g.push(paint(new THREE.CylinderGeometry(1.4, 2, 40, 6).translate(126, 57, 0), white));
+    g.push(paint(new THREE.CylinderGeometry(1.4, 2, 28, 6).translate(126, 51, 0), white));
     // Deck rails down both sides (a thin line, but it reads at distance)
     for (const s of [-1, 1]) {
         g.push(paint(new THREE.BoxGeometry(300, 1.6, 1.6).translate(0, 44, s * 33), 0x9aa3ac));
@@ -173,8 +189,10 @@ export const Ships = {
             x + YW / 2 > c.x0 - 12 && x - YW / 2 < c.x1 + 12 &&
             z + YD / 2 > c.z0 - 12 && z - YD / 2 < c.z1 + 12);
         let placed = false;
-        for (const dz of [0, 190, -190, 320, -320, 450, -450]) {
-            for (const dx of [0, 90, 180, 270]) {
+        // Prefer staying on the crane's Z so the trolley never has to leave
+        // the boom. Only step along the quay if the pad is blocked.
+        for (const dx of [0, 90, 180, 270]) {
+            for (const dz of [0, 80, -80, 160, -160]) {
                 if (clear(berth.yardX + dx, berth.yardZ + dz)) {
                     berth.yardX += dx; berth.yardZ += dz; placed = true; break;
                 }
@@ -244,8 +262,8 @@ export const Ships = {
         };
         lamp(0xff3b30, -118, 99, 39);
         lamp(0x30d158, -118, 99, -39);
-        lamp(0xffffff, 126, 79, 0);
-        lamp(0xffffff, -118, 158, 0);
+        lamp(0xffffff, 126, 66, 0);
+        lamp(0xffffff, -112, 128, 0);
 
         // Deck cargo, one instance per slot so boxes can be removed one by one.
         const deck = new THREE.InstancedMesh(this.boxGeo, new THREE.MeshLambertMaterial(),
@@ -298,60 +316,51 @@ export const Ships = {
         if (ship.deck.instanceColor) ship.deck.instanceColor.needsUpdate = true;
     },
 
-    /* Ship-to-shore gantry: legs either side of the berth, a boom out over the
-       water and a trolley that runs along it with a spreader on wires. */
+    /* Ship-to-shore gantry: legs on the bank, a boom out over the water, and a
+       trolley that runs along THAT boom. The whole frame travels along the quay
+       (z); the trolley only travels along the boom (x). The container is a
+       child of the spreader, so it cannot float off on its own. */
     _buildGantry(scene, berth) {
-        /* Ship-to-shore gantry. The legs stand on the bank at berth.railX; the
-           boom runs WEST out over the berthed ship and EAST back over the yard,
-           so one trolley travel covers the whole discharge. Two leg pairs
-           spaced along the quay (z), the way a real STS crane straddles its
-           rail beams. */
         const H = 150;
         const g = [];
         const steel = 0xd8a02c, dark = 0x6a5218;
         const RX = berth.railX;
+        const gantry = new THREE.Group();
+        gantry.position.set(0, 0, berth.z);
+
         for (const oz of [-58, 58]) {
             for (const ox of [-34, 34]) {
-                g.push(paint(new THREE.BoxGeometry(10, H, 10).translate(RX + ox, H / 2, berth.z + oz), steel));
+                g.push(paint(new THREE.BoxGeometry(10, H, 10).translate(RX + ox, H / 2, oz), steel));
             }
-            // portal beam tying each leg pair together
-            g.push(paint(new THREE.BoxGeometry(88, 12, 12).translate(RX, H, berth.z + oz), steel));
+            g.push(paint(new THREE.BoxGeometry(88, 12, 12).translate(RX, H, oz), steel));
         }
-        // Boom: spans from clear of the ship's outboard side (west) to past the
-        // far end of the yard (east), so one trolley travel covers a whole lift.
         const boomMin = berth.x - 90, boomMax = berth.yardX + 130;
         const boomLen = boomMax - boomMin, boomCx = (boomMin + boomMax) / 2;
         for (const oz of [-14, 14]) {
             g.push(paint(new THREE.BoxGeometry(boomLen, 12, 12)
-                .translate(boomCx, H + 12, berth.z + oz), steel));
+                .translate(boomCx, H + 12, oz), steel));
         }
-        // Diagonal-ish bracing, faked with a shallow box so the boom isn't bare
         g.push(paint(new THREE.BoxGeometry(boomLen * 0.7, 5, 30)
-            .translate(boomCx, H + 26, berth.z), steel));
-        // Counterweight + machinery house on the landward end
-        g.push(paint(new THREE.BoxGeometry(34, 26, 76).translate(boomMax - 30, H + 24, berth.z), dark));
-        g.push(paint(new THREE.BoxGeometry(44, 26, 64).translate(RX + 60, H - 18, berth.z), dark));
-        // Operator cab, hung under the boom over the water side
-        g.push(paint(new THREE.BoxGeometry(16, 14, 16).translate(RX - 60, H - 4, berth.z + 22), 0x30363d));
-        const mesh = new THREE.Mesh(mergeGeometries(g, false), matVC());
-        scene.add(mesh);
+            .translate(boomCx, H + 26, 0), steel));
+        g.push(paint(new THREE.BoxGeometry(34, 26, 76).translate(boomMax - 30, H + 24, 0), dark));
+        g.push(paint(new THREE.BoxGeometry(44, 26, 64).translate(RX + 60, H - 18, 0), dark));
+        g.push(paint(new THREE.BoxGeometry(16, 14, 16).translate(RX - 60, H - 4, 22), 0x30363d));
+        gantry.add(new THREE.Mesh(mergeGeometries(g, false), matVC()));
 
-        // Trolley + spreader — the moving half.
         const trolley = new THREE.Group();
-        const tBody = new THREE.Mesh(paint(new THREE.BoxGeometry(30, 12, 34), 0x4a4a4a), matVC());
-        trolley.add(tBody);
+        trolley.add(new THREE.Mesh(paint(new THREE.BoxGeometry(30, 12, 34), 0x4a4a4a), matVC()));
         const wires = new THREE.Mesh(paint(new THREE.BoxGeometry(1.8, 1, 1.8), 0x1a1a1a), matVC());
         const spreader = new THREE.Mesh(paint(new THREE.BoxGeometry(40, 5, 20), 0xcc5533), matVC());
         trolley.add(wires, spreader);
-        trolley.position.set(RX, H + 4, berth.z);
-        scene.add(trolley);
+        trolley.position.set(RX, H + 4, 0);
+        gantry.add(trolley);
 
-        // The box currently in the spreader's grip.
         const carried = new THREE.Mesh(this.boxGeo, new THREE.MeshLambertMaterial({ color: 0xc0392b }));
         carried.visible = false;
-        scene.add(carried);
+        trolley.add(carried);
 
-        this._crane = { mesh, trolley, wires, spreader, carried, H, berth, hoist: 0, atX: RX };
+        scene.add(gantry);
+        this._crane = { mesh: gantry, trolley, wires, spreader, carried, H, berth, hoist: 16, atX: RX };
     },
 
     /** Drop a discharged container onto the quay stack. */
@@ -494,29 +503,26 @@ export const Ships = {
         const clamp01 = v => Math.max(0, Math.min(1, v));
 
         if (L.phase === 'reach') {
-            // Trolley runs out over the box and the spreader comes down.
+            // Frame rolls along the quay; trolley runs out over the box.
             const k = clamp01(L.p);
             cr.trolley.position.x = this._lerp(cr.atX, L.fromX, k);
-            cr.trolley.position.z = this._lerp(cr.berth.z, L.fromZ, k);
-            cr.hoist = this._lerp(20, cr.H - L.fromY, k);
+            cr.mesh.position.z = this._lerp(cr.berth.z, L.fromZ, k);
+            cr.hoist = this._lerp(20, Math.max(24, cr.H - L.fromY), k);
             cr.carried.visible = false;
             if (k >= 1) { L.phase = 'hoist'; L.p = 0; }
         } else if (L.phase === 'hoist') {
             const k = clamp01(L.p);
-            cr.hoist = this._lerp(cr.H - L.fromY, 20, k);
+            cr.hoist = this._lerp(Math.max(24, cr.H - L.fromY), 20, k);
             cr.carried.visible = true;
-            cr.carried.position.set(cr.trolley.position.x, cr.H + 2 - cr.hoist - BOX.h, cr.trolley.position.z);
             if (k >= 1) { L.phase = 'track'; L.p = 0; }
         } else if (L.phase === 'track') {
             const k = clamp01(L.p);
             cr.trolley.position.x = this._lerp(L.fromX, L.to.x, k);
-            cr.trolley.position.z = this._lerp(L.fromZ, L.to.z, k);
-            cr.carried.position.set(cr.trolley.position.x, cr.H + 2 - cr.hoist - BOX.h, cr.trolley.position.z);
+            cr.mesh.position.z = this._lerp(L.fromZ, L.to.z, k);
             if (k >= 1) { L.phase = 'land'; L.p = 0; }
         } else {
             const k = clamp01(L.p);
-            cr.hoist = this._lerp(20, cr.H - L.to.y - BOX.h, k);
-            cr.carried.position.set(cr.trolley.position.x, cr.H + 2 - cr.hoist - BOX.h, cr.trolley.position.z);
+            cr.hoist = this._lerp(20, Math.max(24, cr.H - L.to.y - BOX.h), k);
             if (k >= 1) {
                 this._landBox(L.to.x, L.to.y, L.to.z, L.hex);
                 cr.carried.visible = false;
@@ -541,17 +547,19 @@ export const Ships = {
     _updateCrane(dt) {
         const cr = this._crane;
         if (!cr) return;
-        // Idle: park the trolley over the yard with the spreader up.
+        // Idle: park the trolley over the rails with the spreader up.
         const anyLifting = this.fleet.some(s => s.state === 'UNLOADING' && s.lift);
         if (!anyLifting) {
             cr.trolley.position.x += (cr.atX - cr.trolley.position.x) * Math.min(1, dt);
-            cr.trolley.position.z += (cr.berth.z - cr.trolley.position.z) * Math.min(1, dt);
+            cr.mesh.position.z += (cr.berth.z - cr.mesh.position.z) * Math.min(1, dt);
             cr.hoist += (16 - cr.hoist) * Math.min(1, dt);
         }
-        // Wires stretch to the spreader; the spreader hangs at the hoist depth.
-        cr.wires.scale.y = Math.max(1, cr.hoist);
-        cr.wires.position.y = -cr.hoist / 2;
-        cr.spreader.position.y = -cr.hoist;
+        // Wires stretch to the spreader; the box hangs under it as a child.
+        const hoist = Math.max(8, cr.hoist);
+        cr.wires.scale.y = hoist;
+        cr.wires.position.y = -hoist / 2;
+        cr.spreader.position.y = -hoist;
+        cr.carried.position.set(0, -hoist - BOX.h / 2 - 2, 0);
     },
 
     _lerp(a, b, k) { return a + (b - a) * k; },

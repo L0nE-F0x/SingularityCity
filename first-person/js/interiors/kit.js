@@ -449,8 +449,8 @@ export const P = {
             /* `plateY` staggers the label height. A room with a dozen occupants
                in one sightline had every plate at the same y, so they overlapped
                into an unreadable band — the caller alternates a few rows. */
-            c.plate(nameTex(def.name, def.role, hex(col)), 46, 13,
-                x, def.plateY != null ? def.plateY : 47, z + facing * 1.2,
+            c.plate(nameTex(def.name, def.role, hex(col)), 22, 6.5,
+                x, def.plateY != null ? def.plateY : 40, z + facing * 8,
                 facing > 0 ? 0 : Math.PI);
         }
     },

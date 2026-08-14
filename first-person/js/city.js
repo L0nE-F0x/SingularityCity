@@ -190,11 +190,17 @@ export const City = {
         this.ringX = [-CITY_W / 2 - GAP / 2 + 30, CITY_W / 2 + GAP / 2 - 30];
         this.ringZ = [-CITY_D / 2 - GAP / 2 + 30, CITY_D / 2 + GAP / 2 - 30];
 
-        // Inner cross roads, one per district (previously built straight into
-        // the ground mesh, so nothing else knew they existed)
+        // Inner cross roads, one per district. They have to REACH the avenues,
+        // streets and ring that bound the cell — CELL_D / CELL_W stops them
+        // ~100u short of the next carriageway, so the surrounding sidewalk
+        // ran straight across the T-junction (the "sidewalk through the road"
+        // shot). Stretch past the neighbouring carriage so the two tarmacs
+        // meet and sidewalkSegments can cut the kerb.
+        const INNER_SPAN_Z = CELL_D + GAP + CARRIAGE.main;
+        const INNER_SPAN_X = CELL_W + GAP + CARRIAGE.main;
         for (const d of this.districts) {
-            this.roads.push({ x: d.cx, z: d.cz, w: INNER_STRIP, d: CELL_D, vertical: true, carriage: CARRIAGE.inner, sidewalk: SIDEWALK.inner, inner: true });
-            this.roads.push({ x: d.cx, z: d.cz, w: CELL_W, d: INNER_STRIP, vertical: false, carriage: CARRIAGE.inner, sidewalk: SIDEWALK.inner, inner: true });
+            this.roads.push({ x: d.cx, z: d.cz, w: INNER_STRIP, d: INNER_SPAN_Z, vertical: true, carriage: CARRIAGE.inner, sidewalk: SIDEWALK.inner, inner: true });
+            this.roads.push({ x: d.cx, z: d.cz, w: INNER_SPAN_X, d: INNER_STRIP, vertical: false, carriage: CARRIAGE.inner, sidewalk: SIDEWALK.inner, inner: true });
         }
 
         this.buildInfill();
@@ -283,49 +289,69 @@ export const City = {
     // asserts none overlaps a carriageway.
     sidewalkSegments() {
         const out = [];
-        const verticals = this.roads.filter(r => r.vertical);
-        const horizontals = this.roads.filter(r => !r.vertical);
+        // Every carriageway as an AABB. A sidewalk is cut wherever one of
+        // these overlaps the strip — no "does this perp's span contain my
+        // centreline" test, which missed inner roads that stopped short of
+        // the junction and left a kerb painted across the tarmac.
+        const PAD = 2;
+        const carriages = this.roads.map(rd => rd.vertical
+            ? { x0: rd.x - rd.carriage / 2 - PAD, x1: rd.x + rd.carriage / 2 + PAD,
+                z0: rd.z - rd.d / 2, z1: rd.z + rd.d / 2, road: rd }
+            : { x0: rd.x - rd.w / 2, x1: rd.x + rd.w / 2,
+                z0: rd.z - rd.carriage / 2 - PAD, z1: rd.z + rd.carriage / 2 + PAD, road: rd });
+
+        const mergeGaps = (gaps) => {
+            if (!gaps.length) return [];
+            gaps.sort((a, b) => a[0] - b[0]);
+            const m = [[gaps[0][0], gaps[0][1]]];
+            for (let i = 1; i < gaps.length; i++) {
+                const g = gaps[i], last = m[m.length - 1];
+                if (g[0] <= last[1] + 0.5) last[1] = Math.max(last[1], g[1]);
+                else m.push([g[0], g[1]]);
+            }
+            return m;
+        };
+
         for (const r of this.roads) {
             if (r.sidewalk <= 0) continue;
             const off = r.carriage / 2 + r.sidewalk / 2;
-            const len = r.vertical ? r.d : r.w;          // extent along r's length axis
-            const c0 = r.vertical ? r.z : r.x;
-            const start = c0 - len / 2, end = c0 + len / 2;
-            const perps = r.vertical ? horizontals : verticals;
-            const gaps = [];
-            for (const p of perps) {
-                if (p === r) continue;
-                const perpPos = r.vertical ? p.x : p.z;             // p's centre on r's cross axis
-                const perpHalf = (r.vertical ? p.w : p.d) / 2;      // …and half-span there
-                if (Math.abs((r.vertical ? r.x : r.z) - perpPos) > perpHalf) continue;
-                const at = r.vertical ? p.z : p.x;                  // p's position along r's length axis
-                if (at < start - 1 || at > end + 1) continue;
-                /* Break around the crossing road's WHOLE strip — its own
-                   pavement as well as its tarmac. Using the carriageway alone
-                   left a 44-wide gap where a district inner cross-road is 76
-                   wide overall, so a main road's kerb still ran across the
-                   little road's footway and read as pavement laid over a road.
-                   Clamped so the gap can never eat more than a full main-road
-                   strip either side. */
-                const half = Math.min(p.carriage / 2 + p.sidewalk, p.carriage / 2 + SIDEWALK.main);
-                gaps.push([at - half, at + half]);
-            }
-            gaps.sort((a, b) => a[0] - b[0]);
-            let cur = start;
-            const segs = [];
-            for (const [g0, g1] of gaps) {
-                if (g0 > cur) segs.push([cur, Math.min(g0, end)]);
-                cur = Math.max(cur, g1);
-            }
-            if (cur < end) segs.push([cur, end]);
+            const len = r.vertical ? r.d : r.w;
+            const along0 = r.vertical ? r.z : r.x;
+            const start = along0 - len / 2, end = along0 + len / 2;
             for (const side of [-1, 1]) {
-                for (const [s0, s1] of segs) {
-                    const segLen = s1 - s0;
-                    if (segLen < 2) continue;
-                    const mid = (s0 + s1) / 2;
+                const cross = (r.vertical ? r.x : r.z) + side * off;
+                const half = r.sidewalk / 2;
+                const gaps = [];
+                for (const c of carriages) {
+                    if (c.road === r) continue; // own tarmac is beside the kerb, not on it
+                    if (r.vertical) {
+                        if (c.x1 < cross - half || c.x0 > cross + half) continue;
+                        if (c.z1 < start || c.z0 > end) continue;
+                        gaps.push([c.z0, c.z1]);
+                    } else {
+                        if (c.z1 < cross - half || c.z0 > cross + half) continue;
+                        if (c.x1 < start || c.x0 > end) continue;
+                        gaps.push([c.x0, c.x1]);
+                    }
+                }
+                let cur = start;
+                for (const [g0, g1] of mergeGaps(gaps)) {
+                    if (g0 > cur + 2) {
+                        const s0 = cur, s1 = Math.min(g0, end);
+                        const segLen = s1 - s0, mid = (s0 + s1) / 2;
+                        if (segLen >= 2) {
+                            out.push(r.vertical
+                                ? { x: cross, z: mid, w: r.sidewalk, d: segLen }
+                                : { x: mid, z: cross, w: segLen, d: r.sidewalk });
+                        }
+                    }
+                    cur = Math.max(cur, g1);
+                }
+                if (cur < end - 2) {
+                    const segLen = end - cur, mid = (cur + end) / 2;
                     out.push(r.vertical
-                        ? { x: r.x + side * off, z: mid, w: r.sidewalk, d: segLen }
-                        : { x: mid, z: r.z + side * off, w: segLen, d: r.sidewalk });
+                        ? { x: cross, z: mid, w: r.sidewalk, d: segLen }
+                        : { x: mid, z: cross, w: segLen, d: r.sidewalk });
                 }
             }
         }

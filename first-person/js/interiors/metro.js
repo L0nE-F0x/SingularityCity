@@ -162,26 +162,6 @@ const STAFF = {
     signal: { name: 'Signal Operator', role: 'Signal Ops', color: 0x06b6d4 }
 };
 
-/** The glass lift that connects hall to platform. Drawn on both floors at the
- *  same x/z so riding the lift feels like the same shaft, not two rooms. */
-function glassShaft(c, x, z, top) {
-    const w = 62, d = 52;
-    for (const sx of [-1, 1]) c.box(5, c.H, 5, x + sx * w / 2, c.H / 2, z - d / 2, 0x475569);
-    for (const sx of [-1, 1]) c.box(5, c.H, 5, x + sx * w / 2, c.H / 2, z + d / 2, 0x475569);
-    c.box(w, 4, d, x, c.H - 4, z, 0x334155);
-    // glazing: thin lit panes so you can see the car through it
-    for (const sz of [-1, 1]) c.lit(w - 8, c.H - 16, 1, x, c.H / 2, z + sz * d / 2, 0x0e3a52);
-    c.lit(1, c.H - 16, d - 8, x - w / 2, c.H / 2, z, 0x0e3a52);
-    // the car itself parks at whichever end of the shaft this floor is
-    const cy = top ? 30 : c.H - 46;
-    c.box(w - 14, 42, d - 14, x, cy, z, 0x94a3b8);
-    c.lit(w - 22, 3, d - 22, x, cy + 20, z, 0xe0f2fe);
-    c.lit(2, 38, 2, x - (w - 14) / 2, cy, z + (d - 14) / 2, 0x22d3ee);
-    c.lit(2, 38, 2, x + (w - 14) / 2, cy, z + (d - 14) / 2, 0x22d3ee);
-    c.solid(x, z, w, d);
-    c.lit(30, 10, 2, x, c.H - 14, z + d / 2 + 1, 0xfbbf24);   // floor indicator
-}
-
 export const METRO = {
     id: 'metro',
     theme(b, f, th) {
@@ -201,54 +181,52 @@ export const METRO = {
             key: 'hall', label: 'TICKET HALL',
             build(c) {
                 const night = c.night;
-                // fare gates across the middle of the hall
-                for (const gx of [-84, -28, 28, 84]) P.turnstile(c, gx, 20, gx < 0 ? 0x4ade80 : 0xef4444);
-                c.lit(240, 1.2, 6, 0, 1.2, 62, 0x22d3ee);          // wayfinding stripe
-                c.lit(6, 1.2, 150, 0, 1.2, 120, 0x22d3ee);
+                // Fare gates in one line, with a walkable aisle on the right
+                // toward the real lift bank (left wall is owned by Interior).
+                for (const gx of [-90, -30, 30]) P.turnstile(c, gx, -10, gx < 0 ? 0x4ade80 : 0xef4444);
+                c.lit(220, 1.2, 6, -30, 1.2, 40, 0x22d3ee);
 
-                // ticket vending machines against the back wall
-                for (let i = 0; i < 4; i++) {
-                    const mx = -165 + i * 62;
-                    c.box(46, 60, 28, mx, 30, -160, 0x1e293b); c.solid(mx, -160, 46, 28);
-                    c.lit(34, 24, 1, mx, 42, -145, 0x22d3ee);
-                    c.lit(20, 5, 1, mx, 22, -145, 0x4ade80);
+                // Ticket machines — back wall, left
+                for (let i = 0; i < 3; i++) {
+                    const mx = -180 + i * 58;
+                    c.box(44, 52, 24, mx, 26, -180, 0x1e293b); c.solid(mx, -180, 44, 24);
+                    c.lit(32, 20, 1, mx, 36, -167, 0x22d3ee);
+                    c.lit(16, 4, 1, mx, 18, -167, 0x4ade80);
                 }
-                // staffed ticket office window
-                P.counter(c, 150, -160, 120, 40, 0x243447, 0x3d5570, 0x22d3ee);
-                c.box(126, 34, 6, 150, 58, -178, 0x0f172a);
-                c.lit(110, 24, 1, 150, 58, -174, 0x0e3a52);
+                // Staffed window — back wall, right
+                P.counter(c, 140, -180, 110, 36, 0x243447, 0x3d5570, 0x22d3ee);
+                c.box(110, 28, 5, 140, 52, -196, 0x0f172a);
+                c.lit(90, 18, 1, 140, 52, -192, 0x0e3a52);
 
-                // departure board — the reason anybody looks up in a station
+                // One departure board, on the back wall, not floating in the room
                 c.plate(panelTex({
-                    w: 512, h: 224, bg: '#050a14', accent: '#22d3ee',
-                    title: 'DEPARTURES', titleSize: 32, grid: true,
-                    lines: ['+WEST LINE      2 min', '+EAST LINE      4 min',
-                        '~INNOVATION     7 min', '!ALL LINES  ' + (night ? 'REDUCED SVC' : 'GOOD SERVICE')],
-                    lineSize: 22
-                }), 230, 100, -40, 62, -c.D / 2 + c.WALL / 2 + 3);
+                    w: 512, h: 200, bg: '#050a14', accent: '#22d3ee',
+                    title: 'DEPARTURES', titleSize: 30, grid: true,
+                    lines: ['+WEST LINE         2 min', '+EAST LINE         4 min',
+                        '~INNOVATION        7 min', (night ? '!REDUCED SERVICE' : '+GOOD SERVICE')],
+                    lineSize: 20
+                }), 200, 72, 0, 68, -c.D / 2 + c.WALL / 2 + 3);
 
-                // network map kiosk
-                P.pylon(c, 235, 40, 78, 0x38bdf8, 34);
+                // Escalator well that goes DOWN (the old stairs climbed into
+                // the ceiling). Visual only — the working lift is on the left.
+                c.box(88, 6, 110, 130, 3, 70, 0x0f172a); c.solid(130, 70, 88, 110);
+                for (let i = 0; i < 8; i++) {
+                    c.box(64, 3, 12, 130, -1 - i * 5, 110 - i * 12, 0x475569);
+                }
+                for (const sx of [-1, 1]) c.box(4, 28, 4, 130 + sx * 38, 14, 30, 0xfbbf24);
                 c.plate(panelTex({
-                    w: 256, h: 256, bg: '#071018', accent: '#38bdf8', align: 'center',
-                    title: 'NETWORK', titleSize: 24,
-                    lines: ['~west · central', '~central · east', '~central · innovation', '+you are here'], lineSize: 18
-                }), 30, 30, 235, 46, 47);
+                    w: 256, h: 64, bg: '#071018', accent: '#fbbf24', align: 'center',
+                    title: 'PLATFORM  →  LIFT', titleSize: 22, lines: ['~left wall'], lineSize: 16
+                }), 70, 16, 130, 36, 12);
 
-                glassShaft(c, 170, 130, true);
-                // stair well down to the platform, beside the lift
-                P.stairs(c, 60, 60, 9, 5, 12, 76, 0x475569, 1);
-                for (const rx of [22, 98]) c.box(4, 40, 4, rx, 20, 100, 0x94a3b8);
-
-                P.plant(c, -250, 170, 36);
-                c.box(20, 24, 20, -140, 12, 170, 0x475569);        // litter bin
+                P.plant(c, -240, 170, 32);
+                c.box(18, 20, 18, -180, 10, 170, 0x475569);
 
                 if (night) {
-                    c.npc(c, 210, 130, STAFF.nightGuard, -1);
+                    c.npc(c, 200, 130, STAFF.nightGuard, -1);
                 } else {
-                    c.npc(c, 150, -128, STAFF.ticket, 1);
-                    c.npc(c, 215, 170, STAFF.guard, -1);
-                    c.npc(c, -80, 150, STAFF.info, -1);
+                    c.npc(c, 140, -150, STAFF.ticket, 1);
+                    c.npc(c, 80, 150, STAFF.guard, -1);
                 }
             }
         },
@@ -301,8 +279,6 @@ export const METRO = {
                 }
                 c.box(40, 58, 28, 250, 29, 130, 0x1e293b); c.solid(250, 130, 40, 28);
                 c.lit(28, 34, 1, 250, 36, 145, 0xf472b6);
-
-                glassShaft(c, 170, 130, false);
 
                 /* The train itself. Its cycle is slaved to the network sim, not
                    run locally: Metro.trainAtStop(building) is what interact.js

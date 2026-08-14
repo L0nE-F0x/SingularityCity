@@ -149,7 +149,7 @@ export const Interact = {
             if (Interior.maxFloor > 0 && Interior.atLift()) {
                 G.ui.prompt(`<b>E</b> ride lift · <b>F</b> next · <b>0–${Interior.maxFloor}</b> jump  (now F${Interior.floor})`);
             } else if (Interior.maxFloor > 0) {
-                G.ui.prompt(`Walk to the <b>lift bank</b> (left wall) · F${Interior.floor}/${Interior.maxFloor} · or press <b>F</b>`);
+                G.ui.prompt(`<b>F</b> ride lift · or walk to the left wall · F${Interior.floor}/${Interior.maxFloor}`);
             } else if (G.inside.type === 'metro' && Interior.floor === Interior.maxFloor && G.metro) {
                 const hit = G.metro.trainAtStop(G.inside.id);
                 G.ui.prompt(hit ? '<b>E</b> — board the train' : 'Platform — waiting for a train…');

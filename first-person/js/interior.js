@@ -101,7 +101,7 @@ export const Interior = {
             if (!this.building || G.panelOpen || G.ridingMetro) return;
             // F cycles floors from anywhere indoors; digits work at the lift
             if (e.code === 'KeyF' && this.maxFloor > 0) {
-                this.setFloor((this.floor + 1) % (this.maxFloor + 1));
+                this.rideElevator((this.floor + 1) % (this.maxFloor + 1), true);
                 return;
             }
             // Interactive props (the Times printing press, exhibit terminals).
@@ -318,6 +318,7 @@ export const Interior = {
         this._liftZones = [];
         this._hotspots = [];
         this._occupantsDrawn = false;
+        this._seatSpots = null;
         if (spec) {
             this._buildRoom(spec, b, box, lit, th, accent, floorIdx);
         } else {
@@ -426,6 +427,9 @@ export const Interior = {
             const cx = s * (DOOR_W / 2 + sideW / 2);
             wall(cx - sideW / 2, ROOM_D / 2 - WALL / 2, cx + sideW / 2, ROOM_D / 2 + 20);
         }
+        // Seal the doorway. Walking through the opening used to dump you into
+        // the hidden-city void (empty white). Leave is E at the door.
+        wall(-DOOR_W / 2 - 4, ROOM_D / 2 - WALL / 2, DOOR_W / 2 + 4, ROOM_D / 2 + 28);
         for (const c of this._propColliders || []) this._colliders.push(c);
     },
 
@@ -885,34 +889,39 @@ export const Interior = {
             box(50, 40, 70, 0, 20, 140, 0xfbbf24); solid(0, 140, 50, 70);
             box(20, 50, 20, 0, 45, 160, 0xf59e0b);
         } else {
-            // office lobby: reception, lounge, coffee, art, turnstiles, planters
-            box(160, 34, 48, -110, 17, -120, 0x8b6f4e);
-            box(168, 5, 54, -110, 36, -120, 0xa9885f);
-            lit(44, 18, 1, -110, 42, -145, 0x1a2a3a);
-            solid(-110, -120, 168, 54);
-            for (const [sx, sz] of [[130, -90], [190, -90], [130, -30], [190, -30], [130, 40], [190, 40], [130, 100], [190, 100]]) {
-                box(38, 12, 38, sx, 16, sz, 0x3f4a5c);
-                box(38, 26, 10, sx, 29, sz - 14, 0x36404f);
-                solid(sx, sz, 38, 38);
+            // office lobby: one reception against the BACK wall, lounge on the
+            // right, a clear aisle to the lift on the left. The old layout
+            // stacked a desk, eight cubes, turnstiles and a coffee bar in the
+            // middle and then stood people inside them.
+            box(200, 32, 44, 0, 16, -170, 0x8b6f4e);
+            box(208, 4, 48, 0, 34, -170, 0xa9885f);
+            lit(50, 16, 1, 0, 40, -192, 0x1a2a3a);
+            solid(0, -170, 208, 48);
+            const seats = [];
+            for (const [sx, sz] of [[150, -40], [210, -40], [150, 30], [210, 30]]) {
+                box(36, 12, 36, sx, 6, sz, 0x3f4a5c);
+                box(36, 22, 8, sx, 22, sz - 14, 0x36404f);
+                solid(sx, sz, 36, 36);
+                seats.push({ x: sx, z: sz + 18, facing: -1 });
             }
-            box(100, 36, 42, -200, 18, 40, 0x5c4033); solid(-200, 40, 100, 42);
-            lit(22, 8, 22, -200, 42, 40, 0xffe4ac);
-            for (let i = 0; i < 4; i++) lit(36, 28, 1.5, -100 + i * 50, 55, -ROOM_D / 2 + 14, [0x4aa0ff, 0xe879f9, 0x22d3cc, 0xfbbf24][i]);
-            box(180, 1.5, 110, 40, 1, 70, 0x4a5568);
-            box(70, 14, 44, 40, 8, 70, 0x6d5238);
-            for (const px of [-240, 240]) {
-                box(34, 26, 34, px, 13, 150, 0x6b7280);
-                box(30, 46, 30, px, 48, 150, 0x2f6b3a);
-                solid(px, 150, 34, 34);
+            box(70, 32, 36, -190, 16, 20, 0x5c4033); solid(-190, 20, 70, 36);
+            lit(16, 6, 16, -190, 36, 20, 0xffe4ac);
+            for (let i = 0; i < 3; i++) {
+                lit(40, 26, 1.5, -80 + i * 80, 56, -ROOM_D / 2 + 14,
+                    [0x4aa0ff, 0x22d3cc, 0xfbbf24][i]);
             }
-            for (const gx of [-40, 40]) {
-                box(16, 34, 60, gx, 17, -30, 0x767f8c);
-                solid(gx, -30, 16, 60);
+            box(140, 1.4, 90, 40, 0.8, 70, 0x4a5568);
+            for (const px of [-230, 230]) {
+                box(28, 20, 28, px, 10, 170, 0x6b7280);
+                box(24, 36, 24, px, 40, 170, 0x2f6b3a);
+                solid(px, 170, 28, 28);
             }
-            box(18, 70, 18, 230, 35, -40, 0x2a3340); solid(230, -40, 18, 18);
-            lit(14, 40, 1, 230, 40, -30, 0x38bdf8);
-            // waiting chairs row
-            for (let i = 0; i < 5; i++) box(28, 18, 28, -180 + i * 36, 9, 140, 0x475569);
+            for (let i = 0; i < 4; i++) {
+                const cx = -160 + i * 40;
+                box(26, 16, 26, cx, 8, 150, 0x475569);
+                seats.push({ x: cx, z: 150, facing: 1 });
+            }
+            this._seatSpots = seats;
         }
 
     },
@@ -1044,7 +1053,7 @@ export const Interior = {
                 name: opts.silent ? null : (m.name || 'Visitor'),
                 role: opts.role || (m.founder ? 'Founder' : (LABS[m.lab]?.name || 'Model')),
                 color: c.color?.getHex ? c.color.getHex() : 0x94a3b8,
-                plateY: 47 + (i % 3) * 13
+                plateY: 40
             }, s.facing ?? 1);
             /* Interior-LOCAL units, no scale of its own. These are children of
                `this.group`, which already sits at FLOOR_Y and carries
@@ -1088,9 +1097,9 @@ export const Interior = {
         }
         if (def.name) {
             const tag = new THREE.Mesh(
-                new THREE.PlaneGeometry(46, 13),
+                new THREE.PlaneGeometry(22, 6.5),
                 new THREE.MeshBasicMaterial({ map: nameTex(def.name, def.role, '#' + (def.color >>> 0).toString(16).padStart(6, '0')), transparent: true }));
-            tag.position.set(0, def.plateY ?? 47, facing * 1.2);
+            tag.position.set(0, def.plateY ?? 40, facing * 8);
             if (facing < 0) tag.rotation.y = Math.PI;
             g.add(tag);
         }
@@ -1160,17 +1169,22 @@ export const Interior = {
         const clear = (x, z) => !(this._propColliders || []).some(p =>
             x > p.x0 - 10 && x < p.x1 + 10 && z > p.z0 - 10 && z < p.z1 + 10);
         const spots = [];
-        for (let r = 0; r < 4; r++) {
-            for (let i = 0; i < 5; i++) {
-                const x = -160 + i * 80;
-                const z = -60 + r * 62;
-                // keep clear of the lift bank on the left wall and the doorway
-                if (x < -ROOM_W / 2 + 130) continue;
-                if (!clear(x, z)) continue;
-                spots.push({ x, z, facing: r < 2 ? 1 : -1 });
+        if (this._seatSpots && this._seatSpots.length) {
+            for (const s of this._seatSpots) {
+                if (clear(s.x, s.z)) spots.push(s);
+            }
+        } else {
+            for (let r = 0; r < 3; r++) {
+                for (let i = 0; i < 4; i++) {
+                    const x = -80 + i * 90;
+                    const z = -20 + r * 80;
+                    if (x < -ROOM_W / 2 + 140) continue;
+                    if (!clear(x, z)) continue;
+                    spots.push({ x, z, facing: r < 2 ? 1 : -1 });
+                }
             }
         }
-        this._placeOccupants(ctx, spots);
+        this._placeOccupants(ctx, spots, { roam: false });
         this._occupantsDrawn = true;
     },
 
@@ -1222,12 +1236,17 @@ export const Interior = {
         }
     },
 
-    /** Street doorway surround + the daylight slab that marks the way out. */
+    /** Street doorway surround + closed glass leaves. The opening used to be a
+     *  hole into the hidden city (empty white). Leave is E, not walk-through. */
     _doorway(box, lit, accent) {
         box(DOOR_W + 16, 6, 6, 0, 62, ROOM_D / 2 - WALL / 2, accent.getHex());
         box(6, 62, 6, -DOOR_W / 2 - 4, 31, ROOM_D / 2 - WALL / 2, accent.getHex());
         box(6, 62, 6, DOOR_W / 2 + 4, 31, ROOM_D / 2 - WALL / 2, accent.getHex());
-        lit(DOOR_W + 2, 60, 2, 0, 30, ROOM_D / 2 + WALL / 2 + 1, 0xcfe0f2);
+        // Closed glass doors — you can see "daylight" but you cannot walk out.
+        box(DOOR_W / 2 - 4, 56, 3, -DOOR_W / 4, 28, ROOM_D / 2 - 2, 0x8fb4d0);
+        box(DOOR_W / 2 - 4, 56, 3, DOOR_W / 4, 28, ROOM_D / 2 - 2, 0x8fb4d0);
+        lit(4, 52, 2, 0, 28, ROOM_D / 2 - 1, 0x1e293b);
+        lit(18, 6, 2, 0, 50, ROOM_D / 2 - 4, accent.getHex());
     },
 
     // ── enter / exit ─────────────────────────────────────────────────────────
@@ -1239,6 +1258,10 @@ export const Interior = {
             { x0: x - w / 2, z0: z - d / 2, x1: x + w / 2, z1: z + d / 2 });
         const acc = (accent && accent.getHex) ? accent.getHex() : 0x4a6fa5;
         const cat = th?.cat || 'office';
+        // Office / metro already dress themselves. Extra columns, a second
+        // console and more planters were what made those rooms feel like a
+        // storage unit.
+        if (cat === 'office' || cat === 'metro' || cat === 'platform' || cat === 'openplan') return;
         const industrial = ['robotics', 'datacenter', 'platform', 'warehouse', 'arena', 'gym', 'power', 'backbone'].includes(cat);
         const nightlife = ['bar', 'underground'].includes(cat);
 
@@ -1510,7 +1533,7 @@ export const Interior = {
 
     /* Ride to a floor. Unlike the old setFloor this is a journey: the doors
        shut, the car moves with you inside it, and it opens somewhere else. */
-    rideElevator(n) {
+    rideElevator(n, fromAnywhere = false) {
         if (!this.building || this.maxFloor <= 0) return;
         if (this._lift.phase !== 'idle') return;          // already travelling
         const to = Math.max(0, Math.min(this.maxFloor, n | 0));
@@ -1518,8 +1541,8 @@ export const Interior = {
             G.ui?.addToast?.('Already on floor ' + to, 'info');
             return;
         }
-        if (!this.atLift() && !this.inCar()) {
-            G.ui?.addToast?.('Walk to the lift bank to ride', 'info');
+        if (!fromAnywhere && !this.atLift() && !this.inCar()) {
+            G.ui?.addToast?.('Walk to the lift bank, or press F', 'info');
             return;
         }
         const spot = this.carSpot();
@@ -1537,6 +1560,19 @@ export const Interior = {
 
     update(dt) {
         if (!this.building) return;
+        // If the player somehow walked through the door hole, snap them back
+        // into the room instead of leaving them in the hidden-city void.
+        if (this._lift.phase === 'idle' && G.player && G.camera) {
+            const hw = S(ROOM_W / 2 - 18), hd = S(ROOM_D / 2 - 18);
+            const p = G.camera.position;
+            if (Math.abs(p.x) > hw || Math.abs(p.z) > hd) {
+                G.player.teleport(
+                    Math.max(-hw, Math.min(hw, p.x)),
+                    Math.max(-hd, Math.min(hd, p.z)),
+                    G.player.yaw
+                );
+            }
+        }
         // Live props for the current floor (the arriving metro train).
         if (this._animators?.length) {
             this._t = (this._t || 0) + dt;

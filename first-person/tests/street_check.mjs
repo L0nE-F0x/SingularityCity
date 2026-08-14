@@ -67,4 +67,25 @@ console.log(`ok: ${j.length} signalled junctions on real centrelines`);
 // sanity: the cross-section constants the signals rely on exist
 assert.ok(CARRIAGE.main > 0 && SIDEWALK.main > 0);
 
+// (4) inner roads actually meet the surrounding grid, so a T-junction
+// cannot die at a sidewalk.
+let innerHits = 0, innerMiss = 0;
+for (const r of City.roads.filter(rd => rd.inner)) {
+    const rect = r.vertical
+        ? { x0: r.x - r.carriage / 2, x1: r.x + r.carriage / 2, z0: r.z - r.d / 2, z1: r.z + r.d / 2 }
+        : { x0: r.x - r.w / 2, x1: r.x + r.w / 2, z0: r.z - r.carriage / 2, z1: r.z + r.carriage / 2 };
+    let hits = 0;
+    for (const o of City.roads) {
+        if (o === r || o.vertical === r.vertical) continue;
+        const other = o.vertical
+            ? { x0: o.x - o.carriage / 2, x1: o.x + o.carriage / 2, z0: o.z - o.d / 2, z1: o.z + o.d / 2 }
+            : { x0: o.x - o.w / 2, x1: o.x + o.w / 2, z0: o.z - o.carriage / 2, z1: o.z + o.carriage / 2 };
+        if (overlapArea(rect, other, 0.5) > 0) hits++;
+    }
+    if (hits >= 2) innerHits++;
+    else innerMiss++;
+}
+assert.equal(innerMiss, 0, `${innerMiss} inner roads do not cross the surrounding grid`);
+console.log(`ok: ${innerHits} inner roads meet the grid`);
+
 console.log('street_check: OK');

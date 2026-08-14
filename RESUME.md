@@ -1,7 +1,38 @@
 # Resume here
 
-**Updated:** 2026-08-05 · **Live:** `main` @ `84b4bca`, cache **v547**
-**Status:** owner is playtesting this build and will report back.
+**Updated:** 2026-08-14 · **Live `main`:** shipping the playtest fixes below
+**Status:** Gauntlet Loop was rolled back (never committed). Owner playtest bugs from production are in this commit.
+
+---
+
+## This session (2026-08-14) — Gauntlet reverted, then production playtest
+
+Matt Shumer’s Gauntlet Loop on `/first-person/` was tried and **rejected** (performance, citizens, vehicles). Rolled back; none of that landed.
+
+Then owner sent production screenshots. Shipped:
+
+1. Mountains stay off the Space Zone (cars were driving through the hillside).
+2. Inner roads meet the avenues; sidewalks cut at every carriageway.
+3. One harbour gantry: frame rolls the quay, trolley stays on the boom, box is parented to the spreader.
+4. Ship funnels sit on the house; hull plating; waved ocean instead of tiled blue squares.
+5. Interior door is sealed (E to leave, not walk-into-white-void). HQ lobby opened up. **F** rides the lift from anywhere.
+6. Metro ticket hall: no stairs-into-ceiling, no second fake lift, one departure board.
+
+Left alone (not gauntlet): untracked `landing_preview2.html`, `landing_preview3.html`. `.shots/` still has the w0–w3 frames and critic notes (gitignored). Poseidon clone at `Desktop/ApexForge/poseidon` was never wired in.
+
+Do not restart the gauntlet unless asked.
+
+Open-source Three.js (Owen / TokenGremlin) — decided, not built, still stands if we ever do trees/water:
+- **Dryad** + **Gaia**: bake and instance. WebGL.
+- **Poseidon**: WebGPU-only. Do not drop into FP.
+- **Tiamat / Demiurge**: no.
+
+---
+
+## Previous (2026-08-05)
+
+**Live then:** `main` @ `84b4bca`, cache **v547**
+Owner playtested that build. The through-line of those fourteen commits: First Person had been a parallel simulation with invented data.
 
 ---
 
