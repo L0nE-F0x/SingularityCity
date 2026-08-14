@@ -318,7 +318,7 @@ export const Interior = {
         this._liftZones = [];
         this._hotspots = [];
         this._occupantsDrawn = false;
-        this._seatSpots = null;
+        this._occSpots = null;
         if (spec) {
             this._buildRoom(spec, b, box, lit, th, accent, floorIdx);
         } else {
@@ -445,11 +445,12 @@ export const Interior = {
 
         // ── small helpers (all merge into parts/glow) ───────────────────────
         const desk = (x, z, rot = 0) => {
-            // simple axis-aligned desk + chair (rot ignored for merge simplicity)
             box(70, 28, 36, x, 14, z, 0x5c4033); solid(x, z, 70, 36);
             lit(24, 14, 1, x - 10, 30, z - 16, 0x1e293b);
-            lit(10, 6, 8, x + 18, 30, z - 8, 0x94a3b8); // keyboard glow-ish
-            box(22, 22, 22, x, 11, z + 28, 0x374151); // chair
+            lit(10, 6, 8, x + 18, 30, z - 8, 0x94a3b8);
+            // Low seat + slim back — a 22³ cube under a person read as a pedestal.
+            box(22, 7, 20, x, 3.5, z + 30, 0x374151);
+            box(22, 16, 5, x, 14, z + 38, 0x2d3540);
         };
         const booth = (x, z, col = 0x3b1f3a) => {
             box(70, 36, 50, x, 18, z, col); solid(x, z, 70, 50);
@@ -550,22 +551,25 @@ export const Interior = {
             box(50, 40, 30, 200, 20, 100, 0x0f172a); solid(200, 100, 50, 30); // sideboard
             lit(12, 20, 12, -200, 28, 80, 0xfde68a);
         } else if (cat === 'openplan') {
-            // mid-floor cubicle farm — dense intentional office
+            // Mid-floor desks. Keep the left strip (x < -170) empty — that is
+            // the lift aisle. People work AT the desks, they do not stand on cubes.
+            const work = [];
             for (let row = 0; row < 3; row++) {
-                for (let col = 0; col < 4; col++) {
-                    const x = -160 + col * 90, z = -100 + row * 80;
-                    box(70, 40, 4, x, 20, z - 18, 0xcbd5e1); // partition
+                for (let col = 0; col < 3; col++) {
+                    const x = -80 + col * 110, z = -100 + row * 80;
+                    box(70, 40, 4, x, 20, z - 18, 0xcbd5e1);
                     box(4, 40, 50, x - 32, 20, z, 0xcbd5e1);
                     desk(x, z);
+                    work.push({ x, z: z + 24, facing: -1, pose: 'work' });
                 }
             }
-            // printer / pantry
             box(50, 40, 40, 220, 20, -140, 0x64748b); solid(220, -140, 50, 40);
             lit(30, 10, 1, 220, 36, -118, 0x38bdf8);
-            box(80, 36, 40, -220, 18, 120, 0x5c4033); solid(-220, 120, 80, 40);
-            lit(20, 8, 20, -220, 40, 120, 0xffe4ac);
+            box(80, 36, 40, 210, 18, 120, 0x5c4033); solid(210, 120, 80, 40);
+            lit(20, 8, 20, 210, 40, 120, 0xffe4ac);
             screenWall(0, 55, -ROOM_D / 2 + 14, 140, 40, 0x4aa0ff);
-            plant(240, 140); plant(-240, 140);
+            plant(240, 140);
+            this._occSpots = work;
         } else if (cat === 'datacenter') {
             // NOC + cold-aisle racks
             box(180, 34, 48, -150, 17, -160, 0x1c2128); solid(-150, -160, 180, 48);
@@ -889,39 +893,30 @@ export const Interior = {
             box(50, 40, 70, 0, 20, 140, 0xfbbf24); solid(0, 140, 50, 70);
             box(20, 50, 20, 0, 45, 160, 0xf59e0b);
         } else {
-            // office lobby: one reception against the BACK wall, lounge on the
-            // right, a clear aisle to the lift on the left. The old layout
-            // stacked a desk, eight cubes, turnstiles and a coffee bar in the
-            // middle and then stood people inside them.
-            box(200, 32, 44, 0, 16, -170, 0x8b6f4e);
-            box(208, 4, 48, 0, 34, -170, 0xa9885f);
-            lit(50, 16, 1, 0, 40, -192, 0x1a2a3a);
-            solid(0, -170, 208, 48);
-            const seats = [];
-            for (const [sx, sz] of [[150, -40], [210, -40], [150, 30], [210, 30]]) {
-                box(36, 12, 36, sx, 6, sz, 0x3f4a5c);
-                box(36, 22, 8, sx, 22, sz - 14, 0x36404f);
-                solid(sx, sz, 36, 36);
-                seats.push({ x: sx, z: sz + 18, facing: -1 });
-            }
-            box(70, 32, 36, -190, 16, 20, 0x5c4033); solid(-190, 20, 70, 36);
-            lit(16, 6, 16, -190, 36, 20, 0xffe4ac);
+            // Office lobby. Left third is the lift aisle — no desks, no chairs,
+            // no planters. People stand behind the reception desk or walk the
+            // open floor; they are never parented onto a furniture cube.
+            box(220, 32, 44, 20, 16, -170, 0x8b6f4e);
+            box(228, 4, 48, 20, 34, -170, 0xa9885f);
+            lit(50, 16, 1, 20, 40, -192, 0x1a2a3a);
+            solid(20, -170, 228, 48);
+            // One sofa on the RIGHT, not a grid of cubes.
+            box(90, 10, 32, 190, 5, 10, 0x3f4a5c); solid(190, 10, 90, 32);
+            box(90, 18, 8, 190, 18, -4, 0x36404f);
             for (let i = 0; i < 3; i++) {
-                lit(40, 26, 1.5, -80 + i * 80, 56, -ROOM_D / 2 + 14,
+                lit(40, 26, 1.5, -60 + i * 80, 56, -ROOM_D / 2 + 14,
                     [0x4aa0ff, 0x22d3cc, 0xfbbf24][i]);
             }
-            box(140, 1.4, 90, 40, 0.8, 70, 0x4a5568);
-            for (const px of [-230, 230]) {
-                box(28, 20, 28, px, 10, 170, 0x6b7280);
-                box(24, 36, 24, px, 40, 170, 0x2f6b3a);
-                solid(px, 170, 28, 28);
-            }
-            for (let i = 0; i < 4; i++) {
-                const cx = -160 + i * 40;
-                box(26, 16, 26, cx, 8, 150, 0x475569);
-                seats.push({ x: cx, z: 150, facing: 1 });
-            }
-            this._seatSpots = seats;
+            box(160, 1.4, 100, 40, 0.8, 50, 0x4a5568);
+            plant(230, 170, 40);
+            plant(200, 170, 34);
+            this._occSpots = [
+                { x: -40, z: -198, facing: 1, pose: 'work', stay: true },
+                { x: 70, z: -198, facing: 1, pose: 'work', stay: true },
+                { x: 20, z: 40, facing: 1, pose: 'stand', roam: true },
+                { x: 110, z: 90, facing: -1, pose: 'stand', roam: true },
+                { x: 80, z: -40, facing: 1, pose: 'stand', roam: true }
+            ];
         }
 
     },
@@ -1043,8 +1038,9 @@ export const Interior = {
         // Multi-floor: share them out so a six-storey HQ isn't all in reception.
         if (this.maxFloor > 0 && opts.share !== false) here = this._floorShare(here);
         const n = Math.min(here.length, spots.length);
-        // Spots nobody was placed on become the places people wander TO.
-        const spare = spots.slice(n);
+        // Other authored spots (empty desks, the open floor) are where people
+        // walk to. Using only the unused tail meant a full lobby never moved.
+        const spareOf = (s) => spots.filter(p => p !== s);
         for (let i = 0; i < n; i++) {
             const c = here[i];
             const s = spots[i];
@@ -1059,17 +1055,21 @@ export const Interior = {
                `this.group`, which already sits at FLOOR_Y and carries
                ROOM_SCALE — applying either again puts the figure 4000 units
                under the floor at a ninth of its size, i.e. invisible. */
-            figure.position.set(s.x, 0, s.z);
+            figure.position.set(s.x, s.pose === 'work' || s.pose === 'sit' ? -2 : 0, s.z);
             figure.rotation.y = (s.facing ?? 1) > 0 ? 0 : Math.PI;
 
-            // Deterministic per-person timing, so nobody moves in lockstep.
+            const others = spareOf(s);
+            const roam = s.roam === true || (s.pose === 'work');
             const st = {
                 home: { x: s.x, z: s.z }, to: null,
                 phase: ((c.idx || i) * 0.7) % (Math.PI * 2),
-                next: 6 + ((c.idx || i) * 3.1) % 14,
-                roam: opts.roam !== false && spare.length > 0
+                next: roam ? 2 + ((c.idx || i) * 1.7) % 6 : 8 + ((c.idx || i) * 3.1) % 14,
+                roam: s.roam === true,
+                pose: s.pose || 'stand',
+                facing: s.facing ?? 1,
+                stay: !!s.stay
             };
-            this._animateOccupant(figure, st, spare);
+            this._animateOccupant(figure, st, others);
         }
         return n;
     },
@@ -1106,32 +1106,38 @@ export const Interior = {
         return g;
     },
 
-    /* Idle sway plus an occasional stroll to a free spot. Kept deliberately
-       cheap: a sine on Y and a lerp between two points, no pathing — an
-       interior is one open room and there is nothing to route around. */
+    /* Work bob at a desk, or a stroll across the open floor. Receptionists
+       stay put (2D static-role). Walkers actually cross the room instead of
+       swaying on a cube. */
     _animateOccupant(obj, st, spare) {
         this.group.add(obj);
         this._animators.push({
             obj,
             fn: (o, dt, t) => {
                 st.next -= dt;
-                if (st.roam && st.next <= 0 && !st.to) {
+                if (st.roam && st.next <= 0 && !st.to && spare.length) {
                     const pick = spare[Math.floor(Math.random() * spare.length)];
                     if (pick) { st.to = { x: pick.x, z: pick.z }; st.walk = 0; }
-                    st.next = 10 + Math.random() * 22;
+                    st.next = 4 + Math.random() * 8;
+                } else if (st.pose === 'work' && !st.stay && st.next <= 0 && !st.to && spare.length) {
+                    // Get up and walk to another desk — the 2D work loop.
+                    const pick = spare[Math.floor(Math.random() * spare.length)];
+                    if (pick) { st.to = { x: pick.x, z: pick.z }; st.walk = 0; }
+                    st.next = 10 + Math.random() * 16;
                 }
                 if (st.to) {
-                    st.walk = Math.min(1, st.walk + dt * 0.35);
-                    const k = st.walk * st.walk * (3 - 2 * st.walk);   // ease
+                    st.walk = Math.min(1, st.walk + dt * 0.55);
+                    const k = st.walk * st.walk * (3 - 2 * st.walk);
                     o.position.x = st.home.x + (st.to.x - st.home.x) * k;
                     o.position.z = st.home.z + (st.to.z - st.home.z) * k;
-                    // face the way they're going
                     const dx = st.to.x - st.home.x, dz = st.to.z - st.home.z;
                     if (Math.abs(dx) + Math.abs(dz) > 1) o.rotation.y = Math.atan2(dx, dz);
-                    o.position.y = Math.abs(Math.sin(t * 7 + st.phase)) * 2.2;   // walk bob
+                    o.position.y = Math.abs(Math.sin(t * 8 + st.phase)) * 2.4;
                     if (st.walk >= 1) { st.home = st.to; st.to = null; }
+                } else if (st.pose === 'work' || st.pose === 'sit') {
+                    o.position.y = -2 + Math.sin(t * 3.2 + st.phase) * 0.45;
+                    o.rotation.y = (st.facing > 0 ? 0 : Math.PI) + Math.sin(t * 0.35 + st.phase) * 0.08;
                 } else {
-                    // standing: weight shift, and a slow look around
                     o.position.y = Math.sin(t * 1.4 + st.phase) * 0.7;
                     o.rotation.y += Math.sin(t * 0.45 + st.phase) * dt * 0.25;
                 }
@@ -1169,22 +1175,20 @@ export const Interior = {
         const clear = (x, z) => !(this._propColliders || []).some(p =>
             x > p.x0 - 10 && x < p.x1 + 10 && z > p.z0 - 10 && z < p.z1 + 10);
         const spots = [];
-        if (this._seatSpots && this._seatSpots.length) {
-            for (const s of this._seatSpots) {
-                if (clear(s.x, s.z)) spots.push(s);
-            }
+        if (this._occSpots && this._occSpots.length) {
+            for (const s of this._occSpots) spots.push(s);
         } else {
             for (let r = 0; r < 3; r++) {
                 for (let i = 0; i < 4; i++) {
                     const x = -80 + i * 90;
                     const z = -20 + r * 80;
-                    if (x < -ROOM_W / 2 + 140) continue;
+                    if (x < -ROOM_W / 2 + 150) continue;
                     if (!clear(x, z)) continue;
-                    spots.push({ x, z, facing: r < 2 ? 1 : -1 });
+                    spots.push({ x, z, facing: r < 2 ? 1 : -1, pose: 'stand', roam: true });
                 }
             }
         }
-        this._placeOccupants(ctx, spots, { roam: false });
+        this._placeOccupants(ctx, spots);
         this._occupantsDrawn = true;
     },
 
