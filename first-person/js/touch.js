@@ -406,6 +406,21 @@ export const Touch = {
        (rather than the player reaching in here) keeps this module free of any
        knowledge of walk speed, sprint or collision. */
     apply(p) {
+        /* Drop the stick when something takes the screen. Desktop gets this
+           for free: opening a panel releases pointer lock, which is the same
+           flag movement is gated on. Touch has no lock to lose, so a stick
+           still held when a building card opened kept walking the player
+           through the city behind it. */
+        if (G.panelOpen || G.paused || G.terminalOpen) {
+            if (this._stick.id != null) {
+                this._stick.id = null;
+                this._els.ring.classList.remove('on');
+            }
+            this._stick.x = 0; this._stick.y = 0; this._stick.mag = 0;
+            this._look.id = null;
+            this.held.jump = false;
+            this.held.interact = false;
+        }
         p.moveX = this._stick.x;
         p.moveZ = -this._stick.y;      // screen-down is backwards
         p.touchSprint = this._sprintLatch || this._stick.mag > SPRINT_AT;

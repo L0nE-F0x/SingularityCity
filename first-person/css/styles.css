@@ -221,7 +221,14 @@ button { font-family: inherit; cursor: pointer; }
 
 
 /* ── Citizen of the Day ── */
+/* `pointer-events: auto` because this button is injected into #hudRight, and
+   #hud sets `pointer-events: none` so the walking HUD never eats a click.
+   pointer-events INHERITS, so the crown inherited it too: elementFromPoint at
+   its centre returned the canvas and the button had never once been pressable,
+   on any device. */
 #cotdBtn {
+    pointer-events: auto;
+    touch-action: manipulation;
     display: block;
     margin-top: 8px;
     margin-left: auto;
