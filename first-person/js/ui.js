@@ -778,6 +778,8 @@ export const UI = {
             // reload unless an unrelated achievement happened to save first.
             if (v) v.oninput = () => { G.audio.setVolume(parseFloat(v.value)); G.progress.save(); };
             if (s) s.oninput = () => { G.settings.sensitivity = parseFloat(s.value); G.progress.save(); };
+            const tsens = $('setTouchSens');
+            if (tsens) tsens.oninput = () => { G.settings.touchSensitivity = parseFloat(tsens.value); G.progress.save(); };
             if (iy) iy.onchange = () => { G.settings.invertY = iy.checked; G.progress.save(); };
             if (f) f.oninput = () => { G.settings.fov = parseInt(f.value); G.camera.fov = G.settings.fov; G.camera.updateProjectionMatrix(); G.progress.save(); };
             if (mu) mu.onchange = () => { G.audio.toggleMusic(mu.checked); G.progress.save(); };
@@ -802,7 +804,8 @@ export const UI = {
                     </select></td></tr>
                 <tr><td>Master volume</td><td><input id="setVol" type="range" min="0" max="1" step="0.05" value="${G.settings.volume}"></td></tr>
                 <tr><td>Music</td><td><input id="setMusic" type="checkbox" ${G.settings.music ? 'checked' : ''}></td></tr>
-                <tr><td>Mouse sensitivity</td><td><input id="setSens" type="range" min="0.3" max="2.5" step="0.1" value="${G.settings.sensitivity}"></td></tr>
+                <tr><td>${G.touchMode ? 'Look sensitivity' : 'Mouse sensitivity'}</td><td><input id="setSens" type="range" min="0.3" max="2.5" step="0.1" value="${G.settings.sensitivity}"></td></tr>
+                ${G.touchMode ? `<tr><td>Touch drag gain</td><td><input id="setTouchSens" type="range" min="0.4" max="2.5" step="0.1" value="${G.settings.touchSensitivity ?? 1}"></td></tr>` : ''}
                 <tr><td>Invert Y</td><td><input id="setInvert" type="checkbox" ${G.settings.invertY ? 'checked' : ''}></td></tr>
                 <tr><td>Field of view</td><td><input id="setFov" type="range" min="55" max="100" step="1" value="${G.settings.fov}"></td></tr>
                 <tr><td>Time flow</td><td><select id="setTS" class="btn">
@@ -817,7 +820,9 @@ export const UI = {
                 <tr><td>Progress</td><td><button id="setReset" class="btn">🗑 Reset save</button></td></tr>
             </table>
             <div class="lbl">Controls</div>
-            <div class="d" style="font-size:12px;color:var(--t3)">WASD move · Shift sprint · Space jump · E interact · <b>C</b> free-fly · TAB panels · M minimap · T tour · O orbit · <b>P</b> 2D city · ESC pause/release mouse</div>`;
+            <div class="d" style="font-size:12px;color:var(--t3)">${G.touchMode
+                ? 'Left thumb walks · push it far to sprint · drag anywhere else to look · <b>E</b> enter / talk · <b>&#9650;</b> jump · <b>&raquo;</b> sprint lock · <b>&#9776;</b> menu · <b>&#128506;</b> minimap · <b>&#9974;</b> fullscreen · tap what you are looking at'
+                : 'WASD move · Shift sprint · Space jump · E interact · <b>C</b> free-fly · TAB panels · M minimap · T tour · O orbit · <b>P</b> 2D city · ESC pause/release mouse'}</div>`;
     }
 };
 

@@ -5,6 +5,7 @@
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import { G, EYE_H, CITY_W, CITY_D, SEA_X } from './state.js';
+import { Touch } from './touch.js';
 
 const FLY_SPEED = 520;       // base cruise (u/s)
 const FLY_BOOST = 1600;      // Shift
@@ -70,7 +71,12 @@ export const FlyMode = {
         // only if lock is lost mid-flight (handled via G.flyMode in player.js).
         if (!p.locked) p.lock();
 
-        G.ui?.banner('🦅 FREE FLY', 'WASD · Space/Q up · Ctrl/E down · Shift boost · C to land');
+        if (G.touchMode) {
+            Touch.setFlyLabels(true);
+            G.ui?.banner('🦅 FREE FLY', 'stick to fly · ▲ up · ▼ down · » boost');
+        } else {
+            G.ui?.banner('🦅 FREE FLY', 'WASD · Space/Q up · Ctrl/E down · Shift boost · C to land');
+        }
         G.ui?.addToast?.('Free-fly — bird\'s-eye tour of the city', 'info');
     },
 
@@ -78,6 +84,7 @@ export const FlyMode = {
         if (!this.active) return;
         this.active = false;
         G.flyMode = false;
+        if (G.touchMode) Touch.setFlyLabels(false);
         const cam = G.camera;
         const p = G.player;
         if (this._saved) {
@@ -127,7 +134,12 @@ export const FlyMode = {
         cam.rotation.x = p.pitch;
         cam.rotation.z = 0;
 
-        const sprint = keys['ShiftLeft'] || keys['ShiftRight'];
+        /* Touch flies from the same stick that walks, with the pad's two big
+           buttons rebound to climb / descend (Touch.setFlyLabels). Player.update
+           returns early while G.flyMode is set, so nothing else reads the stick
+           here — this module has to ask for it. */
+        const tc = G.touchMode ? Touch.axes() : null;
+        const sprint = keys['ShiftLeft'] || keys['ShiftRight'] || (tc && tc.sprint);
         const slow = keys['AltLeft'] || keys['AltRight'];
         const speed = sprint ? FLY_BOOST : (slow ? FLY_SLOW : FLY_SPEED);
 
@@ -138,13 +150,19 @@ export const FlyMode = {
         if (keys['KeyD'] || keys['ArrowRight']) mx += 1;
         if (keys['Space'] || keys['KeyQ']) my += 1;
         if (keys['ControlLeft'] || keys['ControlRight'] || keys['KeyE']) my -= 1;
+        if (tc) {
+            mx += tc.x; mz += tc.z;
+            if (Touch.held.jump) my += 1;
+            if (Touch.held.interact) my -= 1;
+        }
 
-        if (mx === 0 && my === 0 && mz === 0) return;
+        if (Math.abs(mx) < 0.001 && Math.abs(my) < 0.001 && Math.abs(mz) < 0.001) return;
 
         // Full 6DOF relative to look direction (pitch affects forward climb).
         _fwd.set(0, 0, -1).applyEuler(cam.rotation);
         _right.set(1, 0, 0).applyEuler(cam.rotation);
-        const len = Math.hypot(mx, my, mz) || 1;
+        // Clamp, don't normalise: a half-pushed stick must be a slow cruise.
+        const len = Math.max(1, Math.hypot(mx, my, mz));
         mx /= len; my /= len; mz /= len;
 
         cam.position.addScaledVector(_right, mx * speed * dt);

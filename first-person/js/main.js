@@ -49,6 +49,7 @@ import { CityStore } from './store/city_store.js';
 import { Live } from './store/live.js';
 import { Roster } from './store/roster.js';
 import { Shell } from './shell.js';
+import { Touch, detectTouch } from './touch.js';
 import { readResumeToken, clearResumeToken } from './store/nav.js';
 
 // expose for inline panel handlers (newspaper button) + debugging
@@ -61,9 +62,43 @@ async function boot() {
     // ── state / quality ──
     G.progress = Progress;
     Progress.init();
-    const qOverride = localStorage.getItem('sc_fp_quality');
-    if (qOverride) G.quality = qOverride;
+
+    /* Decided FIRST: the quality default, the renderer flags, the controller's
+       input gate and the tutorial's wording all branch on it. */
+    G.touchMode = detectTouch();
+
+    /* A phone GPU running the `medium` preset — 700 citizens, a 2048 shadow
+       map, DPR 1.35 on a 3x screen — is a slideshow, and a slideshow reads as
+       "broken" long before anyone blames the preset. Default to `low` on
+       touch.
+
+       Only when nothing has been chosen, though. Progress.init() has already
+       applied any quality saved in the store, and the settings panel writes
+       its own localStorage key; imposing the touch default over either would
+       reset a tablet the player had deliberately put on `high` every single
+       boot. */
+    const chosenQuality = localStorage.getItem('sc_fp_quality') || CityStore.getSnapshot().quality;
+    if (chosenQuality) G.quality = chosenQuality;
+    else if (G.touchMode) G.quality = 'low';
     G.preset = qualityPreset(G.quality);
+    /* What this page ACTUALLY booted with. The ENTER handler compares against
+       it to decide whether a reload is needed; comparing against a hardcoded
+       'medium' meant the mobile default of `low` always looked like a change
+       and every phone bounced through a reload before it could enter. */
+    const bootQuality = G.quality;
+
+    /* The start screen is in index.html, so ENTER is on screen and looks live
+       from the first paint — but its click handler is not attached until the
+       very end of boot, after the world is built and the roster has been
+       fetched. On a desktop that gap is a few hundred milliseconds. On a phone
+       on mobile data it is several seconds of tapping a button that does
+       nothing, which is indistinguishable from a broken page. Say so. */
+    const enterBtn = document.getElementById('enterBtn');
+    const enterLabel = enterBtn ? enterBtn.textContent : '';
+    if (enterBtn) {
+        enterBtn.disabled = true;
+        enterBtn.textContent = '⏳  BUILDING THE CITY…';
+    }
 
     // sync start-screen controls with saved state
     const qSel = document.getElementById('qualitySel');
@@ -72,7 +107,13 @@ async function boot() {
     if (mChk) mChk.checked = !!G.settings.music;
 
     // ── renderer ──
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    /* MSAA is close to free on a desktop GPU and expensive on a tile-based
+       mobile one, where it multiplies the bandwidth of every tile resolve.
+       At DPR 1 on a small screen it also buys the least. */
+    const renderer = new THREE.WebGLRenderer({
+        antialias: !G.touchMode,
+        powerPreference: 'high-performance'
+    });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, G.preset.dpr));
     renderer.setSize(innerWidth, innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -97,6 +138,10 @@ async function boot() {
     G.renderer = renderer;
     G.canvas = renderer.domElement;
 
+    /* Before Player.init and Tutorial.init: the controller binds its gesture
+       handlers to this canvas, and the walkthrough picks touch wording. */
+    if (G.touchMode) Touch.init();
+
     G.scene = new THREE.Scene();
     /* near/far drive depth precision, and this scene stacks five near-coplanar
        ground surfaces inside 0.6 units (base −2, tiles 0.02, pavement 0.25,
@@ -108,11 +153,30 @@ async function boot() {
        two numbers. */
     G.camera = new THREE.PerspectiveCamera(G.settings.fov, innerWidth / innerHeight, 4, 8000);
 
-    window.addEventListener('resize', () => {
-        G.camera.aspect = innerWidth / innerHeight;
+    /* ── viewport ──────────────────────────────────────────────────────────
+       One place that resizes. Mobile browsers fire `resize` for the URL bar
+       sliding away, fire `orientationchange` BEFORE innerWidth/innerHeight
+       have updated, and (iOS) report a stale innerHeight for a frame or two
+       after either. Coalescing into a rAF and re-running after a short delay
+       on orientation change is what stops the canvas from sitting there
+       letterboxed at the previous aspect ratio. */
+    let dynScale = 1;                 // adaptive-resolution multiplier, ≤1
+    const applySize = () => {
+        const w = Math.max(1, innerWidth), h = Math.max(1, innerHeight);
+        G.camera.aspect = w / h;
         G.camera.updateProjectionMatrix();
-        renderer.setSize(innerWidth, innerHeight);
-    });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, G.preset.dpr) * dynScale);
+        renderer.setSize(w, h);
+    };
+    let sizeQueued = false;
+    const queueSize = () => {
+        if (sizeQueued) return;
+        sizeQueued = true;
+        requestAnimationFrame(() => { sizeQueued = false; applySize(); });
+    };
+    window.addEventListener('resize', queueSize);
+    window.addEventListener('orientationchange', () => { queueSize(); setTimeout(applySize, 350); });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', queueSize);
 
     // ── wire modules into G (order matters: layout before world) ──
     G.ui = UI;
@@ -239,16 +303,30 @@ async function boot() {
         UI.setWeather(Weather._label());
         // Idle screensaver clock starts when you actually enter the city
         if (Tour._lastInputAt != null) Tour._lastInputAt = performance.now();
-        // Pointer lock needs a user gesture (autostart / from=pixi has none)
-        if (startGame._gesture) Player.lock();
-        else setTimeout(() => UI.addToast?.('Click the city to look around', 'info'), 500);
+        if (G.touchMode) {
+            Touch.show();
+            // The ENTER tap is the one user gesture fullscreen will accept
+            // without a second prompt; take it.
+            if (startGame._gesture) Touch.toggleFullscreen();
+        } else if (startGame._gesture) {
+            // Pointer lock needs a user gesture (autostart / from=pixi has none)
+            Player.lock();
+        } else {
+            setTimeout(() => UI.addToast?.('Click the city to look around', 'info'), 500);
+        }
         Progress.unlock('first_steps');
-        setTimeout(() => UI.addToast('Tip: press <b>ESC</b> to free the mouse, <b>C</b> free-fly, or <b>P</b> for 2D City', 'info'), 2500);
+        setTimeout(() => UI.addToast(G.touchMode
+            ? 'Tip: <b>☰</b> opens the menu · <b>⛶</b> goes fullscreen · <b>P</b>anels there too'
+            : 'Tip: press <b>ESC</b> to free the mouse, <b>C</b> free-fly, or <b>P</b> for 2D City', 'info'), 2500);
         UI.banner('🏙️ SINGULARITY CITY', 'the entire AI industry, alive around you');
     };
+    if (enterBtn) {
+        enterBtn.disabled = false;
+        enterBtn.textContent = enterLabel;
+    }
     document.getElementById('enterBtn').addEventListener('click', () => {
         G.quality = qSel ? qSel.value : G.quality;
-        if (G.quality !== (qOverride || 'medium')) {
+        if (G.quality !== bootQuality) {
             localStorage.setItem('sc_fp_quality', G.quality);
             location.reload();
             return;
@@ -308,6 +386,8 @@ async function boot() {
     // ── main loop ──
     const clock = new THREE.Clock();
     let fpsAcc = 0, fpsN = 0, fpsT = 0;
+    const MIN_SCALE = 0.62;   // adaptive-resolution floor
+    let scaleCool = 6;        // seconds of grace before the governor may act
 
     renderer.setAnimationLoop(() => {
         const dt = Math.min(clock.getDelta(), 0.1);
@@ -370,9 +450,33 @@ async function boot() {
 
         renderer.render(G.scene, G.camera);
 
-        // perf tracking (also drives nothing — purely informational for now)
+        // perf tracking + adaptive resolution
         fpsAcc += dt; fpsN++; fpsT += dt;
-        if (fpsT >= 2) { G.fps = Math.round(fpsN / fpsAcc); G.frameMs = (fpsAcc / fpsN) * 1000; fpsAcc = 0; fpsN = 0; fpsT = 0; }
+        if (fpsT >= 2) {
+            G.fps = Math.round(fpsN / fpsAcc);
+            G.frameMs = (fpsAcc / fpsN) * 1000;
+            fpsAcc = 0; fpsN = 0; fpsT = 0;
+            /* A device that cannot hold 30 fps here is almost always
+               pixel-bound rather than geometry-bound — the city is one
+               InstancedMesh per crowd and a handful of merged material groups,
+               but it fills every pixel with a shadowed, fogged, tone-mapped
+               fragment. Trading resolution is therefore the cheapest recovery,
+               and far less visible than the stutter it fixes. Never above the
+               preset, three steps down at most, with a long cooldown so one
+               hitch (entering a building, a weather change) cannot start an
+               oscillation. */
+            scaleCool -= 2;
+            if (scaleCool <= 0 && G.fps > 0) {
+                if (G.fps < 26 && dynScale > MIN_SCALE) {
+                    dynScale = Math.max(MIN_SCALE, dynScale - 0.16);
+                    applySize(); scaleCool = 8;
+                } else if (G.fps > 55 && dynScale < 1) {
+                    dynScale = Math.min(1, dynScale + 0.16);
+                    applySize(); scaleCool = 20;
+                }
+                G.renderScale = dynScale;
+            }
+        }
     });
 }
 

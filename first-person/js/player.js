@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { G, EYE_H, WALK_SPEED, SPRINT_SPEED, PLAYER_RADIUS, GRAVITY, JUMP_VEL, SEA_X, CITY_W, CITY_D } from './state.js';
 import { Interior } from './interior.js';
+import { Touch } from './touch.js';
 
 // Feel constants (units/s and 1/s rates). Tuned for ~150 walk / ~320 sprint.
 const ACCEL_GROUND = 18;       // approach wish-speed
@@ -31,9 +32,19 @@ export const Player = {
     spawn: { x: 200, z: 300 },   // Public Square, near the Visitor Monument side
     // Logical eye position (no bob / land cosmetics) — physics source of truth
     eyeY: EYE_H,
+    // Analog move axes, -1..1. The touch stick writes these; the keyboard adds
+    // into them each frame. Keeping one axis pair means walk speed, sprint and
+    // collision never have to ask which device is driving.
+    moveX: 0, moveZ: 0,
+    touchSprint: false,
     _coyote: 0,
     _jumpBuf: 0,
     _landDip: 0,
+
+    /* Is the controller live? Desktop answers "is the pointer locked"; touch
+       has no pointer lock at all, and gating on it is exactly why the city
+       stood still on a phone. */
+    get inputActive() { return this.locked || G.touchMode === true; },
 
     init() {
         const p = G.bldById['visitor_monument'];
@@ -42,7 +53,7 @@ export const Player = {
         document.addEventListener('keydown', e => {
             if (G.panelOpen) return;
             this.keys[e.code] = true;
-            if (e.code === 'Space' && this.locked) {
+            if (e.code === 'Space' && this.inputActive) {
                 e.preventDefault();
                 this._jumpBuf = JUMP_BUFFER_T;
             }
@@ -54,24 +65,21 @@ export const Player = {
             // Look stays live in the lift / metro even though walk is locked
             if (!this.locked) return;
             if (!this.enabled && !G.flyMode && !G.ridingMetro && !Interior.riding()) return;
-            const s = 0.0021 * (G.settings.sensitivity || 1);
-            this.yaw -= e.movementX * s;
-            this.pitch -= e.movementY * s * (G.settings.invertY ? -1 : 1);
-            // freecam can look almost straight down/up for aerial framing
-            const maxPitch = G.flyMode ? 1.55 : 1.45;
-            this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
+            this.look(e.movementX, e.movementY);
         });
 
         // Click the world to recapture the mouse — the convention every FPS
         // has. Without it the only way back from a lost lock was the pause
         // menu, and a stray click on the canvas did nothing at all.
         G.canvas.addEventListener('mousedown', () => {
+            if (G.touchMode) return;   // a tap must never try to grab a cursor
             // Free-fly keeps pointer lock for mouse look; allow re-capture after ESC
             if (G.started && !G.panelOpen && !G.paused && !G.tourMode && !this.locked) this.lock();
         });
 
         document.addEventListener('pointerlockchange', () => {
             this.locked = document.pointerLockElement === G.canvas;
+            if (G.touchMode) return;   // never had a lock to lose
             if (!this.locked && G.started && !G.panelOpen && !G.tourMode && !G.flyMode) {
                 if (G._suppressPauseOnUnlock) {
                     G._suppressPauseOnUnlock = false;
@@ -83,8 +91,31 @@ export const Player = {
         });
     },
 
+    /* One place that turns a look delta into yaw/pitch, whatever produced it:
+       mouse movementX/Y, a touch drag, or a gamepad stick later. Callers scale
+       their own device gain before calling in. */
+    look(dx, dy) {
+        const s = 0.0021 * (G.settings.sensitivity || 1);
+        this.yaw -= dx * s;
+        this.pitch -= dy * s * (G.settings.invertY ? -1 : 1);
+        // freecam can look almost straight down/up for aerial framing
+        const maxPitch = G.flyMode ? 1.55 : 1.45;
+        this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
+    },
+
+    /* Buffered jump request — the touch button and the Space key both land
+       here rather than poking `_jumpBuf`, so the coyote/buffer window stays
+       one implementation. */
+    jump() {
+        if (!this.inputActive) return;
+        this._jumpBuf = JUMP_BUFFER_T;
+    },
+
     lock() {
         try { G.audio?.resume?.(); } catch (_) {}
+        // Touch devices have no pointer lock. Calling it anyway logs a
+        // NotAllowedError on every panel close.
+        if (G.touchMode) return;
         if (!G.canvas || document.pointerLockElement === G.canvas) return;
         // Autostart / no-gesture paths must never throw NotAllowedError into the console.
         const tryLock = (opts) => {
@@ -152,19 +183,30 @@ export const Player = {
         // Cap huge hitches so accel integrators don't fling the player
         if (dt > 0.05) dt = 0.05;
 
-        const sprint = this.keys['ShiftLeft'] || this.keys['ShiftRight'];
+        // Touch stick writes moveX/moveZ; on desktop they stay zero.
+        if (G.touchMode) Touch.apply(this);
+        else { this.moveX = 0; this.moveZ = 0; }
+
+        const sprint = this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.touchSprint;
         const maxSpeed = sprint ? SPRINT_SPEED : WALK_SPEED;
 
-        let fx = 0, fz = 0;
+        let fx = this.moveX, fz = this.moveZ;
         if (this.keys['KeyW'] || this.keys['ArrowUp']) fz += 1;
         if (this.keys['KeyS'] || this.keys['ArrowDown']) fz -= 1;
         if (this.keys['KeyA'] || this.keys['ArrowLeft']) fx -= 1;
         if (this.keys['KeyD'] || this.keys['ArrowRight']) fx += 1;
 
-        const hasInput = (fx !== 0 || fz !== 0) && this.locked;
+        /* Clamp rather than normalise. Normalising forced every input to full
+           speed, which is right for a key (diagonals must not be faster) and
+           wrong for a stick (a half push must be a half walk). Clamping does
+           both: keyboard diagonals come in at √2 and get scaled back to 1,
+           a stick at 0.4 stays at 0.4. */
+        let mag = Math.hypot(fx, fz);
+        if (mag > 1) { fx /= mag; fz /= mag; mag = 1; }
+
+        const hasInput = mag > 0.001 && this.inputActive;
         let wishX = 0, wishZ = 0;
         if (hasInput) {
-            const len = Math.hypot(fx, fz); fx /= len; fz /= len;
             const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
             wishX = (fx * cos - fz * sin) * maxSpeed;
             wishZ = (-fz * cos - fx * sin) * maxSpeed;
@@ -198,7 +240,7 @@ export const Player = {
         this._jumpBuf = Math.max(0, this._jumpBuf - dt);
 
         const wantJump = this._jumpBuf > 0 || this.keys['Space'];
-        if (wantJump && this._coyote > 0 && this.locked) {
+        if (wantJump && this._coyote > 0 && this.inputActive) {
             // Indoor rooms are 3.2 m; the outdoor jump is 5.7 m and went
             // through the ceiling into the hidden-city void.
             this.vel.y = G.inside ? 120 : JUMP_VEL;
@@ -247,7 +289,7 @@ export const Player = {
 
         // head bob + land settle (pure cosmetics on top of eyeY)
         const hSpeed = Math.hypot(this.vel.x, this.vel.z);
-        if (this.grounded && hSpeed > 18 && this.locked) {
+        if (this.grounded && hSpeed > 18 && this.inputActive) {
             const pace = hSpeed / WALK_SPEED;
             this.bobPhase += dt * pace * BOB_WALK * (sprint ? 1.22 : 1);
             this.bobAmp = Math.min(1, this.bobAmp + dt * 7);

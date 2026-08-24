@@ -30,12 +30,17 @@ import { G } from './state.js';
 
 const DONE_KEY = 'sc_fp_tutorial_done';
 
-const IS_TOUCH = (() => {
+/* Read at render time, not module load: main.js decides G.touchMode during
+   boot (and `?touch=1` can force it), which happens after this module is
+   imported. The UA sniff stays as the fallback for the case where the
+   walkthrough somehow runs before boot has set the flag. */
+const isTouch = () => {
+    if (typeof G.touchMode === 'boolean') return G.touchMode;
     try {
         return matchMedia('(pointer: coarse)').matches ||
             /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     } catch (e) { return false; }
-})();
+};
 
 const $ = id => document.getElementById(id);
 
@@ -525,7 +530,7 @@ export const Tutorial = {
 
         $('tutChapter').textContent = step.chapter || '';
         $('tutTitle').textContent = step.title || '';
-        $('tutBody').innerHTML = (IS_TOUCH && step.bodyTouch) ? step.bodyTouch
+        $('tutBody').innerHTML = (isTouch() && step.bodyTouch) ? step.bodyTouch
             : (step.bodyDesktop || step.body || step.bodyTouch || '');
 
         const n = STEPS.length;

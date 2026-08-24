@@ -768,7 +768,7 @@ export const Terminal = {
             if (tag === 'INPUT' || tag === 'TEXTAREA') return;
             // KeyD alone is WASD strafe — open terminal with Ctrl/Meta+D, backtick,
             // or plain D when pointer is unlocked (pause / menu). Closes with D too.
-            const dTerm = e.code === 'KeyD' && (e.ctrlKey || e.metaKey || !G.player?.locked || this.open);
+            const dTerm = e.code === 'KeyD' && (e.ctrlKey || e.metaKey || !G.player?.inputActive || this.open);
             const tick = e.code === 'Backquote';
             if ((dTerm || tick) && !e.repeat && (!G.panelOpen || this.open)) {
                 e.preventDefault();

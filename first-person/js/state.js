@@ -52,6 +52,10 @@ export const G = {
     flags: { konami: false, caturday: false, auroraSeen: false },
     settings: {
         music: true, sfx: true, volume: 0.8, fov: 70, invertY: false, sensitivity: 1.0,
+        // Touch look gain, multiplied on top of `sensitivity`. A thumb drag
+        // covers far less screen than a mouse sweep, so the two want
+        // separate sliders rather than one shared number.
+        touchSensitivity: 1.0,
         // Idle screensaver (mirrors 2D auto-tour prefs)
         autoTour: true,       // start cinematic tour after idle
         idleTourMin: 5        // minutes of inactivity before auto-tour
