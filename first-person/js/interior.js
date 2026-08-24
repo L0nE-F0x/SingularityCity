@@ -15,12 +15,29 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G, EYE_H } from './state.js';
-import { LABS } from './data.js';
+import { LABS, DISTRICTS } from './data.js';
 import * as TEX from './textures.js';
 import { resolveRoom, floorLabel } from './interiors/rooms.js';
 import { seeded, P as PROP, nameTex } from './interiors/kit.js';
 
 export const FLOOR_Y = -4000;          // where interiors live
+
+/* Subtitle under the building name on the lobby board.
+
+   It used to be `lab.name` or, failing that, the raw `b.type` uppercased.
+   That reads fine for 'launchpad' or 'datacenter' — and not at all for
+   'generic', which is the most common type in data.js by a distance (41
+   buildings). Every cafe, gym, VC tower, robotics hall, longevity lab and
+   backbone node had the word GENERIC painted on its lobby wall. */
+function signSubtitle(b, lab) {
+    if (lab) return lab.name;
+    if (b.firm) return b.firm;
+    if (b.type && b.type !== 'generic') return b.type.toUpperCase();
+    if (b.org) return String(b.org).toUpperCase();
+    const d = DISTRICTS.find(x => x.id === b.district);
+    // District labels carry a leading emoji for the HUD; a wall sign does not.
+    return d ? d.label.replace(/^[^A-Za-z]+/, '').trim().toUpperCase() : '';
+}
 
 /* Interiors were authored roughly 3x human scale and it showed: a 9.6 m
    ceiling, a 9 m wide doorway and a 6.2 m door opening around a 1.7 m player,
@@ -420,18 +437,30 @@ export const Interior = {
         this.group.add(floor);
 
         // name board on the back wall
-        const signTex = TEX.lobbySign(b.name, (b.emoji || '🏢'), accentHex,
-            lab ? lab.name : (b.type || '').toUpperCase());
-        // Bespoke rooms dress their own back wall, so their name board goes over
-        // the street door instead — you read it on the way out, not on the way in.
+        const signTex = TEX.lobbySign(b.name, (b.emoji || '🏢'), accentHex, signSubtitle(b, lab));
+        /* Bespoke rooms dress their own back wall, so their name board goes
+           over the street door instead — you read it on the way out, not on
+           the way in.
+
+           SIGN_H/SIGN_TOP exist because both boards used to hang through the
+           ceiling: 320x80 centred at y 74 tops out at 114, and 250x62 at
+           ROOM_H-18 tops out at 109, against a ceiling whose underside is 94.
+           A fifth of every lobby name board was buried in the soffit. The
+           texture is 4:1, so height drives width; SIGN_TOP is the one number
+           that has to stay under the ceiling. */
+        /* SIGN_H 54, not 62: the texture puts the subtitle 73% of the way
+           down, and the reception desk's lit back panel tops out at y 48. At
+           62 the subtitle landed at 46.7 and every lab HQ read "OPENAI HQ"
+           with its lab name half behind a glowing slab. 54 puts it at 52.6. */
+        const SIGN_TOP = 92, SIGN_H = 54;
         const sign = new THREE.Mesh(
-            new THREE.PlaneGeometry(spec ? 250 : 320, spec ? 62 : 80),
+            new THREE.PlaneGeometry(SIGN_H * 4, SIGN_H),
             new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
         if (spec) {
-            sign.position.set(0, ROOM_H - 18, ROOM_D / 2 - WALL / 2 - 3);
+            sign.position.set(0, SIGN_TOP - SIGN_H / 2, ROOM_D / 2 - WALL / 2 - 3);
             sign.rotation.y = Math.PI;
         } else {
-            sign.position.set(0, 74, -ROOM_D / 2 + WALL / 2 + 3);
+            sign.position.set(0, SIGN_TOP - SIGN_H / 2, -ROOM_D / 2 + WALL / 2 + 3);
         }
         this.group.add(sign);
         this._signMesh = sign;
@@ -946,8 +975,13 @@ export const Interior = {
             // One sofa on the RIGHT, not a grid of cubes.
             box(90, 10, 32, 190, 5, 10, 0x3f4a5c); solid(190, 10, 90, 32);
             box(90, 18, 8, 190, 18, -4, 0x36404f);
+            /* Three lit panels. They used to hang on the BACK wall at y 56,
+               five units proud of the name board — which put them straight
+               across the board's subtitle line, so every lab HQ lobby read
+               "OPENAI HQ" with its lab name behind three coloured rectangles.
+               The right-hand wall is bare and they read better there anyway. */
             for (let i = 0; i < 3; i++) {
-                lit(40, 26, 1.5, -60 + i * 80, 56, -ROOM_D / 2 + 14,
+                lit(1.5, 26, 40, ROOM_W / 2 - 14, 56, -60 + i * 80,
                     [0x4aa0ff, 0x22d3cc, 0xfbbf24][i]);
             }
             box(160, 1.4, 100, 40, 0.8, 50, 0x4a5568);

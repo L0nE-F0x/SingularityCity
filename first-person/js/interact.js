@@ -152,7 +152,17 @@ export const Interact = {
             return;
         }
 
-        // indoors: exit, elevator, or board from platform
+        /* indoors: exit, elevator, or board from platform
+
+           ORDER MATTERS, and it was wrong. `maxFloor > 0` is a property of the
+           BUILDING, not of where you are standing in it, so as a branch it
+           matches everywhere — and it used to sit above both of the checks
+           that depend on where you actually are. Every multi-floor building
+           (which is nearly all of them) therefore answered "F ride lift" while
+           you stood at the door, and the metro platform never once offered to
+           board the train that was sitting in front of you. The two
+           position-dependent prompts now win; the lift hint is the fallback
+           for when you are standing nowhere in particular. */
         if (G.inside) {
             this.target = null;
             const flLabel = Interior.maxFloor > 0 ? ` · Floor ${Interior.floor}/${Interior.maxFloor}` : '';
@@ -164,13 +174,20 @@ export const Interact = {
                 G.ui.prompt(`Look at a <b>floor button</b> · 0–${Interior.maxFloor} · F next`);
             } else if (Interior.maxFloor > 0 && Interior.atLift()) {
                 G.ui.prompt(`<b>E</b> step in · <b>F</b> next · 0–${Interior.maxFloor}`);
-            } else if (Interior.maxFloor > 0) {
-                G.ui.prompt(`<b>F</b> ride lift · or walk to the left wall · F${Interior.floor}/${Interior.maxFloor}`);
             } else if (G.inside.type === 'metro' && Interior.floor === Interior.maxFloor && G.metro) {
                 const hit = G.metro.trainAtStop(G.inside.id);
                 G.ui.prompt(hit ? '<b>E</b> — board the train' : 'Platform — waiting for a train…');
             } else if (Interior.atExit()) {
                 G.ui.prompt('<b>E</b> — step outside');
+            } else if (Interior.atHotspot()) {
+                /* Interior props register a hotspot with a label (the Times
+                   printing press is the first). The label existed and was
+                   never rendered, so the one interactive prop in the city was
+                   invisible unless you happened to press E while standing on
+                   it. Same gate interior.js uses to claim the key. */
+                G.ui.prompt(`<b>E</b> — ${Interior.atHotspot().label}`);
+            } else if (Interior.maxFloor > 0) {
+                G.ui.prompt(`<b>F</b> ride lift · or walk to the left wall · F${Interior.floor}/${Interior.maxFloor}`);
             } else {
                 G.ui.prompt(null);
             }

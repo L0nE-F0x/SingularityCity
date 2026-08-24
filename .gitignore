@@ -36,3 +36,8 @@ __pycache__/
 # Environment / secrets
 .env
 .env.local
+
+# Throwaway Chrome user-data-dir written by first-person/tests/find_nan_geo.mjs.
+# It is a full browser profile — ~600 files of caches, cookies and LevelDB —
+# and `git add -A first-person` swallows the lot.
+first-person/tests/chrome-nan-profile/
