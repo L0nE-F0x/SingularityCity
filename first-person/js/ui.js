@@ -821,7 +821,7 @@ export const UI = {
             </table>
             <div class="lbl">Controls</div>
             <div class="d" style="font-size:12px;color:var(--t3)">${G.touchMode
-                ? 'Left thumb walks · push it far to sprint · drag anywhere else to look · <b>E</b> enter / talk · <b>&#9650;</b> jump · <b>&raquo;</b> sprint lock · <b>&#9776;</b> menu · <b>&#128506;</b> minimap · <b>&#9974;</b> fullscreen · tap what you are looking at'
+                ? 'Left thumb walks · push it far to sprint · drag anywhere else to look · <b>E</b> enter / talk · <b>&#9650;</b> jump · <b>&raquo;</b> sprint lock · <b>&#9776;</b> menu · <b>&#128506;</b> minimap · <b>&#129413;</b> free-fly · fullscreen · tap what you are looking at'
                 : 'WASD move · Shift sprint · Space jump · E interact · <b>C</b> free-fly · TAB panels · M minimap · T tour · O orbit · <b>P</b> 2D city · ESC pause/release mouse'}</div>`;
     }
 };

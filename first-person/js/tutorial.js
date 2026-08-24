@@ -259,7 +259,8 @@ const STEPS = [
     {
         chapter: 'Chapter 4 · Tools',
         title: 'Free-fly',
-        body: "<b>C</b> unlocks the camera from the street so you can soar over the city — WASD, Space/Q up, Ctrl/E down, Shift to boost. Perfect for a bird's-eye look at the skyline, sea and hills. Press <b>C</b> again to land.",
+        bodyDesktop: "<b>C</b> unlocks the camera from the street so you can soar over the city — WASD, Space/Q up, Ctrl/E down, Shift to boost. Perfect for a bird's-eye look at the skyline, sea and hills. Press <b>C</b> again to land.",
+        bodyTouch: "The <b>🦅</b> button (top right) unlocks the camera from the street so you can soar over the city. Stick to fly, <b>▲</b> climb, <b>▼</b> descend, <b>»</b> boost. Tap <b>🦅</b> again to land.",
         target: null
     },
     {

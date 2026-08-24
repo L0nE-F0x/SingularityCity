@@ -11,7 +11,7 @@
    This module supplies the missing half:
      · a dynamic-origin thumb stick on the left (analog — a light push walks)
      · drag-anywhere-else look, geared separately from mouse sensitivity
-     · on-screen E / jump / sprint, plus menu · map · fullscreen
+     · on-screen E / jump / sprint, plus menu · map · free-fly · fullscreen
      · tap-to-interact when the crosshair already has something under it
 
    Everything routes through the SAME paths the keyboard uses: the buttons
@@ -90,6 +90,7 @@ export const Touch = {
             '<div id="tcTop">',
             '<button class="tc-mini" type="button" data-act="menu" aria-label="Menu">&#9776;</button>',
             '<button class="tc-mini" type="button" data-act="map" aria-label="Minimap">&#128506;</button>',
+            '<button class="tc-mini tc-fly" type="button" data-act="fly" aria-label="Free-fly" title="Free-fly">&#129413;</button>',
             '<button class="tc-mini tc-full" type="button" data-act="full" aria-label="Fullscreen"></button>',
             '</div>'
         ].join('');
@@ -182,13 +183,14 @@ export const Touch = {
             ctl.innerHTML = [
                 ['STICK', 'walk'], ['DRAG', 'look'], ['PUSH FAR', 'sprint'],
                 ['E', 'enter / talk'], ['&#9650;', 'jump'], ['&#9776;', 'menu + panels'],
-                ['&#128506;', 'minimap'], ['<i class="tc-ico-full"></i>', 'fullscreen'], ['TAP', 'what you see']
+                ['&#128506;', 'minimap'], ['&#129413;', 'free-fly'],
+                ['<i class="tc-ico-full"></i>', 'fullscreen'], ['TAP', 'what you see']
             ].map(kv => '<div><b>' + kv[0] + '</b> ' + kv[1] + '</div>').join('');
         }
         const foot = document.querySelector('.start-foot');
         if (foot) foot.textContent = 'Headphones recommended · turn your phone sideways · the top-right button goes fullscreen';
         const hint = document.getElementById('hintBar');
-        if (hint) hint.innerHTML = 'Left thumb walks · drag to look · <b>E</b> interacts · <b>☰</b> menu';
+        if (hint) hint.innerHTML = 'Left thumb walks · drag to look · <b>E</b> interacts · <b>☰</b> menu · <b>🦅</b> free-fly';
     },
 
     // Shown once the start screen is gone (it would otherwise sit over ENTER).
@@ -327,6 +329,13 @@ export const Touch = {
                 if (mm) mm.classList.toggle('hidden');
                 break;
             }
+            case 'fly':
+                // Call the mode directly. Synthesising KeyC is how the pause
+                // grid used to do this, and on some mobile WebKits the
+                // KeyboardEvent's `code` never sticks, so the handler no-ops.
+                if (G.flyModeSys) G.flyModeSys.toggle();
+                else key('KeyC');
+                break;
             case 'full': this.toggleFullscreen(); break;
         }
     },
@@ -353,14 +362,18 @@ export const Touch = {
 
     /* Every keyboard-only mode, as buttons. Without this the whole second half
        of the feature list — free-fly, orbit, x-ray, holomap, the tour, the
-       terminal — is unreachable on a device with no keys. They dispatch the
-       same key events the desktop binding uses, so there is one code path per
-       mode and none of them learn about touch. */
+       terminal — is unreachable on a device with no keys. Free-fly also has
+       its own HUD button (data-act=fly); the pause entry is the same toggle
+       for people who look here first.
+
+       Call the mode APIs directly rather than synthesising KeyboardEvents:
+       on several mobile WebKits `new KeyboardEvent({ code: 'KeyC' })` leaves
+       `event.code` empty, so the desktop keydown handler never fires. */
     _injectPauseModes() {
         const grid = document.querySelector('#pauseMenu .pause-grid');
         if (!grid || document.getElementById('tcModeFly')) return;
         const before = document.getElementById('pauseGoPixi') || null;
-        const add = (id, label, code) => {
+        const add = (id, label, run) => {
             const b = document.createElement('button');
             b.type = 'button';
             b.id = id;
@@ -369,16 +382,16 @@ export const Touch = {
                 if (G.ui) G.ui.hidePause();
                 // one frame later, so the menu is gone before the mode grabs
                 // the camera and re-reads G.paused
-                setTimeout(() => key(code), 30);
+                setTimeout(run, 30);
             };
             grid.insertBefore(b, before);
         };
-        add('tcModeFly', '🦅 Free-fly', 'KeyC');
-        add('tcModeOrbit', '🛰 Orbit', 'KeyO');
-        add('tcModeTour', '🎬 Auto-tour', 'KeyT');
-        add('tcModeXray', '🔭 X-ray', 'KeyX');
-        add('tcModeHolo', '🌐 Holomap', 'KeyH');
-        add('tcModeTerm', '💻 Terminal', 'Backquote');
+        add('tcModeFly', '🦅 Free-fly', () => G.flyModeSys?.toggle?.());
+        add('tcModeOrbit', '🛰 Orbit', () => G.orbitModeSys?.toggle?.());
+        add('tcModeTour', '🎬 Auto-tour', () => G.tour?.toggle?.());
+        add('tcModeXray', '🔭 X-ray', () => G.xrayModeSys?.toggle?.());
+        add('tcModeHolo', '🌐 Holomap', () => G.holomap?.toggle?.());
+        add('tcModeTerm', '💻 Terminal', () => G.terminal?.toggle?.());
     },
 
     /* Free-fly rebinds the pad: E becomes descend, ▲ becomes climb. Relabel
@@ -387,8 +400,14 @@ export const Touch = {
         if (!this.root) return;
         const e = this.root.querySelector('.tc-e');
         const j = this.root.querySelector('.tc-jump');
+        const f = this.root.querySelector('.tc-fly');
         if (e) e.innerHTML = on ? '&#9660;' : 'E';
         if (j) j.innerHTML = '&#9650;';
+        if (f) {
+            f.classList.toggle('latched', !!on);
+            f.setAttribute('aria-label', on ? 'Land' : 'Free-fly');
+            f.title = on ? 'Land' : 'Free-fly';
+        }
         this.root.classList.toggle('flying', !!on);
     },
 

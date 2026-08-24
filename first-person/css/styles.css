@@ -656,6 +656,8 @@ body.sc-touch, body.sc-touch #app, body.sc-touch #app canvas {
     backdrop-filter: blur(4px);
 }
 .tc-mini.down { background: rgba(34, 211, 238, .30); border-color: var(--ac); }
+.tc-mini.latched { background: rgba(251, 191, 36, .30); border-color: var(--gold); color: var(--gold); }
+.tc-fly { font-size: 18px; }
 /* Fullscreen mark drawn rather than typed: U+26F6 is missing from most phone
    fonts and lands as a tofu box, which is worse than no icon at all. */
 .tc-mini.tc-full { position: relative; }
@@ -705,7 +707,8 @@ body.sc-touch .ov-grid { grid-template-columns: 1fr; }
    Four widgets all wanted the same corners as the new controls:
 
      · #tcTop sat straight on top of #hudRight (AI index, population, and the
-       citizen-of-the-day crown that hangs off it)
+       citizen-of-the-day crown that hangs off it). Four mini buttons
+       (menu · map · free-fly · fullscreen) need ~218 px of right gutter.
      · #questTracker sat on the thumb stick's resting ring
      · .af-credit sat under the E button
      · #toasts and #prompt are centred, and on a wide-but-short screen that
@@ -714,7 +717,7 @@ body.sc-touch .ov-grid { grid-template-columns: 1fr; }
    So: the top-right corner goes to the buttons, the readouts shuffle left,
    the quest card moves up under the clock, and anything centred shifts to
    46% — the midpoint of what is left between the stick and the pad. */
-body.sc-touch #hudRight { right: 166px !important; }
+body.sc-touch #hudRight { right: 218px !important; }
 body.sc-touch #minimap { top: 96px; right: 8px; width: 140px; height: 118px; }
 body.sc-touch #questTracker {
     top: calc(112px + env(safe-area-inset-top)); bottom: auto;

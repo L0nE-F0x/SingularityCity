@@ -316,7 +316,7 @@ async function boot() {
         }
         Progress.unlock('first_steps');
         setTimeout(() => UI.addToast(G.touchMode
-            ? 'Tip: <b>☰</b> opens the menu · <b>⛶</b> goes fullscreen · <b>P</b>anels there too'
+            ? 'Tip: <b>☰</b> opens the menu · <b>🦅</b> free-fly · fullscreen from the top-right'
             : 'Tip: press <b>ESC</b> to free the mouse, <b>C</b> free-fly, or <b>P</b> for 2D City', 'info'), 2500);
         UI.banner('🏙️ SINGULARITY CITY', 'the entire AI industry, alive around you');
     };

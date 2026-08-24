@@ -73,7 +73,7 @@ export const FlyMode = {
 
         if (G.touchMode) {
             Touch.setFlyLabels(true);
-            G.ui?.banner('🦅 FREE FLY', 'stick to fly · ▲ up · ▼ down · » boost');
+            G.ui?.banner('🦅 FREE FLY', 'stick to fly · ▲ up · ▼ down · » boost · 🦅 to land');
         } else {
             G.ui?.banner('🦅 FREE FLY', 'WASD · Space/Q up · Ctrl/E down · Shift boost · C to land');
         }
