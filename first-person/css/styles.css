@@ -695,7 +695,6 @@ body.sc-touch #crosshair { width: 4px; height: 4px; opacity: .75; }
 body.sc-touch #hintBar { bottom: calc(6px + env(safe-area-inset-bottom)); font-size: 9px; }
 body.sc-touch .af-credit { bottom: calc(4px + env(safe-area-inset-bottom)); font-size: 8px; padding: 2px 5px; }
 body.sc-touch #toasts { bottom: 122px; }
-body.sc-touch #questTracker { bottom: 60px; max-width: 190px; font-size: 10px; }
 body.sc-touch #prompt { bottom: 32%; }
 /* Panels get read one-handed: give them the screen and a thumb-sized close. */
 body.sc-touch #panelBox { width: 96vw; max-height: 88vh; padding: 20px 16px; }
@@ -709,7 +708,8 @@ body.sc-touch .ov-grid { grid-template-columns: 1fr; }
      · #tcTop sat straight on top of #hudRight (AI index, population, and the
        citizen-of-the-day crown that hangs off it). Four mini buttons
        (menu · map · free-fly · fullscreen) need ~218 px of right gutter.
-     · #questTracker sat on the thumb stick's resting ring
+     · #questTracker sat on the thumb stick's resting ring (now a chip
+       under the clock, not a card in the sky)
      · .af-credit sat under the E button
      · #toasts and #prompt are centred, and on a wide-but-short screen that
        centre line runs through the action pad
@@ -719,9 +719,40 @@ body.sc-touch .ov-grid { grid-template-columns: 1fr; }
    46% — the midpoint of what is left between the stick and the pad. */
 body.sc-touch #hudRight { right: 218px !important; }
 body.sc-touch #minimap { top: 96px; right: 8px; width: 140px; height: 118px; }
+/* Quest is parented into #hudLeft on touch (ui.js). A static chip under the
+   district, not a floating card: hide the header and the body until tapped. */
 body.sc-touch #questTracker {
-    top: calc(112px + env(safe-area-inset-top)); bottom: auto;
-    left: calc(14px + env(safe-area-inset-left)); max-width: 175px;
+    position: static;
+    left: auto; right: auto; top: auto; bottom: auto;
+    margin-top: 6px;
+    max-width: 168px;
+    padding: 3px 8px;
+    font-size: 9px;
+    line-height: 1.25;
+    background: rgba(10, 14, 26, .42);
+    border-left: 2px solid var(--gold);
+    border-radius: 0 4px 4px 0;
+    pointer-events: auto;
+    backdrop-filter: blur(2px);
+}
+body.sc-touch #questTracker .qt-t { display: none; }
+body.sc-touch #questTracker .qt-d { display: none; }
+body.sc-touch #questTracker b {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--tx);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+body.sc-touch #questTracker.qt-open { max-width: 200px; }
+body.sc-touch #questTracker.qt-open .qt-d {
+    display: block;
+    font-size: 8px;
+    margin-top: 3px;
+    line-height: 1.35;
+    white-space: normal;
 }
 body.sc-touch .af-credit {
     left: 50%; right: auto; transform: translateX(-50%);
@@ -785,6 +816,7 @@ body.sc-touch #prompt { left: 46%; max-width: 58vw; }
     .start-controls { margin-top: 12px; }
     .start-opts { margin-top: 12px; }
     #hudLeft, #hudRight { top: 46px !important; }
+    body.sc-touch #questTracker { max-width: 148px; margin-top: 4px; padding: 2px 6px; }
     #minimap { top: 88px; }
     #tcTop { top: calc(44px + env(safe-area-inset-top)); }
     #tcPad { width: 176px; height: 140px; }

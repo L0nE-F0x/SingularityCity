@@ -37,10 +37,16 @@ export const UI = {
     _cmp: [null, null],
 
     init() {
-        ['hud', 'crosshair', 'banner', 'prompt', 'lookLabel', 'hudClock', 'hudWeather', 'hudDistrict',
+        ['hud', 'crosshair', 'banner', 'prompt', 'lookLabel', 'hudLeft', 'hudClock', 'hudWeather', 'hudDistrict',
             'hudIndex', 'hudPop', 'minimap', 'questTracker', 'toasts', 'tourCaption', 'hintBar',
             'panelOverlay', 'panelContent', 'pauseMenu'].forEach(id => this.els[id] = $(id));
         this.mm = this.els.minimap.getContext('2d');
+        this.els.questTracker.addEventListener('click', e => {
+            if (!G.touchMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            this.els.questTracker.classList.toggle('qt-open');
+        });
 
         $('panelClose').onclick = () => this.closePanel();
         this.els.panelOverlay.addEventListener('mousedown', e => {
@@ -206,6 +212,12 @@ export const UI = {
         const el = this.els.questTracker;
         if (!next) { el.classList.add('hidden'); return; }
         const [, q] = next;
+        /* On a phone the card used to float under the clock as a second HUD
+           panel. Park it in #hudLeft so it stacks under the district as a chip. */
+        if (G.touchMode && this.els.hudLeft && el.parentElement !== this.els.hudLeft) {
+            this.els.hudLeft.appendChild(el);
+        }
+        el.title = q.desc;
         el.innerHTML = `<div class="qt-t">◈ CURRENT QUEST</div><b>${q.icon} ${q.title}</b><div class="qt-d">${q.desc}</div>`;
         el.classList.remove('hidden');
     },
