@@ -1,11 +1,85 @@
 # Resume here
 
-**Updated:** 2026-08-14 · **Live `main`:** shipping the playtest fixes below
-**Status:** Gauntlet Loop was rolled back (never committed). Owner playtest bugs from production are in this commit.
+**Updated:** 2026-08-24 · **Live `main`:** First Person now works on a phone
+**Status:** touch controls shipped; five bugs you could see from a lobby fixed.
 
 ---
 
-## This session (2026-08-14) — Gauntlet reverted, then production playtest
+## This session (2026-08-24) — First Person on mobile, plus a polish pass
+
+### The mobile fix
+
+FP had never worked on a phone, and it was **one cause**: the whole controller
+was gated on **pointer lock**. `Player.locked` guarded movement, jump, head-bob
+and mouse-look, and losing the lock opened the pause menu. No mobile browser
+implements pointer lock — so a phone booted the city, rendered it beautifully,
+and then stood perfectly still behind a pause menu. Nothing was wrong with the
+renderer.
+
+New `js/touch.js`:
+
+- dynamic-origin analog thumb stick (left), drag-anywhere-else look (geared
+  separately from mouse sensitivity), E / jump / sprint pad, and a
+  menu · minimap · fullscreen row
+- tap-to-interact, but only when the crosshair already has a target — otherwise
+  every look-adjust opened a building card
+- the keyboard-only modes (free-fly, orbit, tour, x-ray, holomap, terminal) are
+  injected into the pause grid, which is the only way a device with no keys can
+  reach them
+- free-fly flies from the same stick, with E/▲ rebound to descend/climb
+
+Everything routes through the paths the keyboard already used — buttons
+dispatch real `KeyboardEvent`s, the stick writes `Player.moveX/moveZ` — so no
+other module learned about touch.
+
+Around it: `Player.inputActive` replaced `locked` at every gate; movement input
+is now clamped rather than normalised so a half-pushed stick is a half walk;
+`low` preset and no MSAA on touch (but never over a quality the player chose);
+resize coalesces into a rAF and re-runs after an orientation change; adaptive
+resolution drops the pixel ratio if the frame rate can't hold 26; ENTER boots
+disabled until its handler exists; and a CSS layer for safe areas, a HUD that
+keeps clear of the controls, a pause grid that fits 21 buttons on a landscape
+phone, and a City Map that fits at 380 px tall.
+
+### The polish pass — five real bugs
+
+1. **The indoor prompt chain tested the wrong thing first.** `maxFloor > 0` is
+   a property of the *building*, so it matched everywhere, and it sat above the
+   two checks that depend on where you are *standing*. Every multi-floor
+   building — nearly all of them — answered "F ride lift" while you stood at
+   the door, so **"E — step outside" was unreachable**, and a **metro platform
+   never once offered to board the train in front of you**.
+2. **`GENERIC` was painted on 41 lobby walls.** The name board's subtitle was
+   `b.type` uppercased, and `generic` is the most common type in `data.js` by a
+   distance.
+3. **Both lobby name boards hung through the ceiling** — 320x80 at y 74 tops
+   out at 114 against a soffit at 94. And the office lobby's three coloured
+   panels sat five units in front of the board, straight across its subtitle.
+4. **The Citizen of the Day crown had never been pressable, on any device.**
+   It is injected into `#hudRight`, and `#hud` is `pointer-events: none` so the
+   HUD never eats a click — and `pointer-events` inherits.
+5. **Interior hotspots carry a label that was never rendered**, so the one
+   interactive prop in the city (the Times printing press) only worked if you
+   happened to press E while standing on it.
+
+Also: gitignored the throwaway Chrome profile `find_nan_geo.mjs` leaves behind
+(587 files, and `git add -A first-person` swallows the lot).
+
+### Checked and found NOT broken
+
+- All 170 enterable buildings enter, change floor and exit with no errors.
+- No NaN geometry anywhere in the scene; 683 draw calls / ~500k tris at `low`.
+- Metro board → ride → alight, and the lift ride, are clean.
+- The schedule spreads 400 citizens over 48 destinations and they arrive.
+- The near-black lab HQ façades are **not** a bug: forcing the instance colour
+  to white leaves the windows dark, so it is the façade texture's glazing, as
+  authored. Verified by reading back pixels, not by eye.
+
+Left alone: untracked `landing_preview2.html`, `landing_preview3.html`.
+
+---
+
+## Previous (2026-08-14) — Gauntlet reverted, then production playtest
 
 Matt Shumer’s Gauntlet Loop on `/first-person/` was tried and **rejected** (performance, citizens, vehicles). Rolled back; none of that landed.
 
@@ -131,6 +205,15 @@ Every one of these cost real debugging **this session**.
 - Keep the `<script type="module">` `shared_boot.js` tag ABOVE the `js/*.js`
   block in index.html — that ordering is the only reason `SC_SHARED` exists
   before `data.js` runs.
+- **`pointer-events` INHERITS, and `#hud` sets it to `none`.** Anything
+  interactive parented into the HUD needs `pointer-events: auto` of its own —
+  the Citizen of the Day crown didn't, and had never been pressable.
+- **`Player.locked` is now only about the mouse.** The gate on movement, jump
+  and head-bob is `Player.inputActive`, which is also true on touch. Anything
+  new that asks "can the player move?" must ask that.
+- **`git add -A first-person` swallows a Chrome profile.** `find_nan_geo.mjs`
+  leaves a 587-file user-data-dir behind; it is gitignored now, but check
+  `git show --stat` before pushing a broad add.
 - **`G.player.eyeY` is ABSOLUTE** (`G.floorY + EYE_H`), not an offset.
 - **Interior props are children of `Interior.group`**, which already carries
   `FLOOR_Y` and `ROOM_SCALE`. Applying either again buries them 4000 units down
@@ -153,8 +236,7 @@ npm run serve
 npm run test:fp
 ```
 
-**Seven** suites now — `metro_depth_check` was added this session to stop the
-tunnels resurfacing. All must stay green. `format:check` is **pre-existing red**
+**Seven** suites. `metro_depth_check` stops the tunnels resurfacing. All must stay green. `format:check` is **pre-existing red**
 across ~101 files and predates this work.
 
 `serve.py` has a dev-only `POST /__shot?name=foo` that writes `.shots/foo.jpg`.

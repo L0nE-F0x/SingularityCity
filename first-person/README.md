@@ -55,7 +55,7 @@ blank or all-black frame is almost always this, not a render bug.
 
 ---
 
-## Tests — all five must stay green
+## Tests — all seven must stay green
 
 ```bash
 npm run test:fp
@@ -68,6 +68,64 @@ add `--import ./first-person/tests/hooks/three_resolver.mjs` to map it the same
 way. Without the hook both die with `ERR_MODULE_NOT_FOUND` — that is the harness
 missing, not a real regression. Keep the hook's table in sync with the importmap
 in [`index.html`](index.html) if a third specifier is ever added.
+
+---
+
+---
+
+## Touch / mobile
+
+FP was unplayable on a phone until 2026-08-24, for one reason: the controller
+was gated on **pointer lock**, which no mobile browser implements. The city
+booted, rendered, and then stood still behind a pause menu.
+
+`js/touch.js` supplies the other half. The contract:
+
+- **`G.touchMode`** is decided once, at the top of `boot()`, from
+  `detectTouch()` — coarse pointer *and* a real touchscreen. `?touch=1` /
+  `?touch=0` force it, which is the only way to exercise the layer from a
+  desktop browser (device emulation fakes touch events but not always the
+  media queries).
+- **`Player.inputActive`, not `Player.locked`,** is the gate on movement,
+  jump and head-bob. `locked` is now only about the mouse.
+- **The stick writes `Player.moveX/moveZ`** and the buttons dispatch real
+  `KeyboardEvent`s. No other module knows it is being driven by a thumb —
+  which is why free-fly, the metro, interiors and the terminal all work
+  without touch-specific branches.
+- **Movement input is clamped, not normalised.** Normalising forced every
+  input to full speed, which is right for a key and wrong for a stick: a half
+  push must be a half walk. Keyboard diagonals still cap at 1.
+- **The keyboard-only modes** (free-fly, orbit, tour, x-ray, holomap,
+  terminal) are injected into the pause grid by `Touch._injectPauseModes` —
+  that is the only way a device with no keys can reach them.
+- **`body.sc-touch`** turns on the whole CSS layer at the bottom of
+  `css/styles.css`. The width/height media queries below it are NOT gated on
+  it: a 700 px desktop window wants the same compact HUD a tablet does.
+
+### Traps
+
+- **`pointer-events` inherits.** `#hud` is `pointer-events: none` so the
+  walking HUD never eats a click, and every child inherits that — including
+  `#cotdBtn`, which was injected into `#hudRight` and had therefore never once
+  been pressable, on any device. Anything interactive parented into `#hud`
+  needs `pointer-events: auto` of its own.
+- **`touch-action: none` is scoped to the body and the canvas, not to
+  everything.** Panels, the pause menu, the terminal and the City Map all
+  scroll, and they only scroll because they keep `touch-action: auto`.
+- **Touch gestures bind to the CANVAS, not the window.** Every overlay in this
+  app sits above it, so "the target is the canvas" is already the test for
+  "not on a control". `touchmove`/`touchend` go on the window so a drag that
+  slides over a button still tracks.
+- **A panel opening mid-stride must release the stick.** Desktop gets this for
+  free — opening a panel drops pointer lock — but touch has no lock to lose,
+  so the player kept walking behind the card. `Touch.apply` clears it.
+- **The ENTER button is in `index.html` and its handler is attached at the end
+  of `boot()`.** On a phone on mobile data that is several seconds of tapping
+  a dead button, so it now boots disabled and says so.
+- **Default quality is `low` on touch** — but only when the player has never
+  chosen one. `Progress.init()` restores a saved quality before the default is
+  applied, and imposing `low` over it would reset a tablet deliberately set to
+  `high` on every boot.
 
 ---
 

@@ -793,4 +793,14 @@ body.sc-touch #prompt { left: 46%; max-width: 58vw; }
         bottom: calc(72px + env(safe-area-inset-bottom));
         width: 96px; height: 96px; margin: 0 0 -48px -48px;
     }
+    /* City Map view. Its header, subtitle, news strip and hint add up to more
+       than half of a 380 px-tall phone, which left the district grid cut off
+       below the fold with no sign there was more of it. Trim the chrome and
+       give the plan the room — the map IS the view. */
+    .sc-map-view { inset: 36px 0 0 0; padding: 6px 12px 8px; gap: 6px; }
+    .sc-map-h1 { font-size: 11px; }
+    .sc-map-sub, .sc-map-hint { display: none; }
+    .sc-map-side { font-size: 9px; line-height: 1.45; }
+    #scMapCanvas { min-height: 200px; }
+    .sc-map-news { max-height: 44px; font-size: 10px; }
 }
