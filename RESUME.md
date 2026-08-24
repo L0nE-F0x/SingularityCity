@@ -1,11 +1,38 @@
 # Resume here
 
-**Updated:** 2026-08-24 · **Live `main`:** First Person now works on a phone
-**Status:** touch controls shipped; five bugs you could see from a lobby fixed.
+**Updated:** 2026-08-24 · **Live `main`:** `3dceab9` — FP mobile Free-fly HUD button
+**Status:** touch controls shipped; Free-fly is a top-right 🦅 button on phones; Netlify should have `3dceab9`.
 
 ---
 
-## This session (2026-08-24) — First Person on mobile, plus a polish pass
+## This session (2026-08-24, evening) — mobile Free-fly HUD
+
+The morning mobile pass injected Free-fly into the **pause grid**, but there
+was no on-screen way to enter it while walking. Pause is easy to miss on a
+landscape phone, and the pause buttons synthesised `KeyboardEvent`s — on some
+mobile WebKits `event.code` never sticks, so `C` would no-op.
+
+Shipped on `main` as `3dceab9` (Netlify auto-deploy):
+
+- 🦅 button in `#tcTop` (menu · map · **free-fly** · fullscreen). Tap to take
+  off, tap again to land. Gold/latched while flying; aria-label flips to Land.
+- Pad still rebinds: E → descend, ▲ → climb, » → boost.
+- Pause-grid mode buttons now call `G.flyModeSys.toggle()` (and the other
+  mode APIs) instead of faking a key.
+- Start screen, hint bar, settings copy, tip toast, tutorial `bodyTouch`
+  all mention the button. `#hudRight` gutter is 218 px for the fourth mini.
+
+Verified headless Chrome at 845×390 with `?touch=1&autostart=1`: button
+present, enter/exit toggles `G.flyMode`, pad labels swap, pause path works.
+
+Left alone: untracked `landing_preview2.html`, `landing_preview3.html`.
+
+**Tomorrow:** owner playtest on a real phone (landscape, Free-fly takeoff and
+land). After that, pick up from the list below.
+
+---
+
+## Earlier today (2026-08-24) — First Person on mobile, plus a polish pass
 
 ### The mobile fix
 
@@ -155,7 +182,8 @@ different buildings.
 
 ## Pick up here
 
-1. **Owner playtest feedback.** Everything below is lower priority.
+1. **Owner playtest of mobile Free-fly** (🦅 top-right, then land). Then any
+   other phone feedback. Everything below is lower priority.
 2. **Category B interiors — six left.** Bar, alignment, press, underground,
    legacy, embassy are still thin on props. Jail, court and metro are done.
    Copy `js/interiors/jail.js` for the pattern.
@@ -211,6 +239,10 @@ Every one of these cost real debugging **this session**.
 - **`Player.locked` is now only about the mouse.** The gate on movement, jump
   and head-bob is `Player.inputActive`, which is also true on touch. Anything
   new that asks "can the player move?" must ask that.
+- **Do not synthesise `KeyboardEvent`s to drive modes on touch.** On several
+  mobile WebKits `new KeyboardEvent({ code: 'KeyC' })` leaves `event.code`
+  empty, so the desktop keydown handler never fires. Call the mode API
+  (`G.flyModeSys.toggle()`, etc.). Free-fly also has its own HUD button.
 - **`git add -A first-person` swallows a Chrome profile.** `find_nan_geo.mjs`
   leaves a 587-file user-data-dir behind; it is gitignored now, but check
   `git show --stat` before pushing a broad add.
