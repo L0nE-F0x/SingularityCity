@@ -53,7 +53,7 @@ const CourtData = {
         },
         {
             case: 'EU AI Act — Digital Omnibus',
-            status: 'transparency rules in force Aug 2, 2026',
+            status: 'transparency rules live',
             color: '#3b82f6',
             note: 'Aug 2, 2026: Article 50 transparency duties (AI-generated content, chatbots, deepfakes) became enforceable EU-wide — fines up to €15M or 3% of global turnover — even as the Jun 29 Digital Omnibus pushed high-risk deadlines to Dec 2027/Aug 2028.',
         },

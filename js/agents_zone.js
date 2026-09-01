@@ -50,7 +50,7 @@ const AGENT_FRAMEWORKS = {
         founded: '2023',
         product: 'Devin + Devin Desktop',
         milestone:
-            'Aug 2026: in talks to raise a new round reported near a $40–46B valuation — nearly double May\'s $26B mark — as Devin\'s revenue run rate approached $1B, up from $492M three months earlier.',
+            "Aug 2026: in talks to raise a new round reported near a $40–46B valuation — nearly double May's $26B mark — as Devin's revenue run rate approached $1B, up from $492M three months earlier.",
         facts: [
             'Devin is the autonomous software engineer — plans, codes, tests, ships PRs',
             "Devin Desktop's Agent Command Center runs local + cloud agents from one Kanban",

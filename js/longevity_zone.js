@@ -19,7 +19,7 @@ const LONGEVITY_COMPANIES = {
             "May 2026: raised $2.1B Series B — one of the sector's largest ever — with first human trials of AI-designed drugs due by end of 2026.",
         facts: [
             'A DeepMind spin-off; AlphaFold 3 predicts protein–DNA–ligand interactions at atomic precision',
-            'Jan 28, 2026: FDA cleared its oncology candidate ISM8969 for human trials — an AI-identified target humans weren\'t prioritizing',
+            "Jan 28, 2026: FDA cleared its oncology candidate ISM8969 for human trials — an AI-identified target humans weren't prioritizing",
             'J&J signed a deep-integration deal to design protein–protein inhibitors with AF3',
         ],
         desc: "DeepMind's drug-design spin-off. AlphaFold 3 turned protein structure into a multi-billion-dollar pipeline — first AI-designed drugs hit trials in 2026.",

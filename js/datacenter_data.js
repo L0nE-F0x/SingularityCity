@@ -162,10 +162,10 @@ const DC_FACILITIES = [
         status: 'operational',
         process: 'N4 / N3 (N2 + CoWoS coming)',
         products: 'Apple M-series, NVIDIA Blackwell, AMD MI300',
-        desc: "TSMC's US fab mega-complex — a further $100B expansion (announced Jul 2026) will grow the campus to 12 total fabrication, advanced-packaging and R&D facilities; Fab 2 targets 2027, Fab 3 2030.",
+        desc: "TSMC's $165B US fab mega-complex — the largest foreign direct investment in US history. 2026 output up ~1.8× YoY; Fab 2 targets 2027 and Fab 3 2030, while a new Phoenix packaging plant brings CoWoS to US soil for the first time.",
         w: 170,
         color: '#e31937',
-        investment: '$165B + $100B expansion (Jul 2026)',
+        investment: '$165B',
     },
     {
         id: 'fab_tsmc_taiwan',

@@ -128,7 +128,7 @@ const ROBOTICS_COMPANIES = {
         founded: '2016',
         program: 'Mass-market agile humanoids (G1/H2) + IPO run',
         milestone:
-            'Aug 19, 2026: Unitree debuted on the STAR Market (ticker 688836) after pricing at ¥150.80 — shares surged as much as 629% intraday and closed up ~487%, valuing China\'s first listed humanoid-robot maker at roughly $53B.',
+            "Aug 19, 2026: Unitree debuted on the STAR Market (ticker 688836) after pricing at ¥150.80 — shares surged as much as 629% intraday and closed up ~487%, valuing China's first listed humanoid-robot maker at roughly $53B.",
         facts: [
             'Filed Mar 20, 2026 and cleared the CSRC in 104 days — a record-fast STAR Market review',
             'Feb 2026: a fleet of G1s performed a fully autonomous kung-fu routine on Chinese national TV',
