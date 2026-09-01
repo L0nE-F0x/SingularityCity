@@ -17,11 +17,12 @@ const ROBOTICS_COMPANIES = {
         founded: '2021 (program)',
         program: 'Mass-market humanoid on repurposed Model S/X line',
         milestone:
-            'Jul 1, 2026: Musk showed Optimus walking the converted Fremont line, but V3 production had still not started by mid-July — guidance slipped to late Jul/Aug, with true mass production waiting on a dedicated Texas plant in 2027.',
+            "Jul 22, 2026: Tesla's Q2 earnings call quietly swapped the late-Jul/Aug production target for a vaguer 'later this year' — as of Q2, Fremont was still just installing first-generation Optimus lines, with early units earmarked for training data, not customers.",
         facts: [
             '10,000 unique parts on an all-new production line',
             'Fremont targets a 1M/yr run-rate; the Giga Texas line aims at 10M/yr',
             'Musk: initial output "quite slow… literally impossible to predict"',
+            'Consumer availability has slipped to roughly end of 2027',
         ],
         desc: "The volume play. Optimus V3 enters production on Fremont's old Model S/X line, chasing a million units a year.",
     },
@@ -127,7 +128,7 @@ const ROBOTICS_COMPANIES = {
         founded: '2016',
         program: 'Mass-market agile humanoids (G1/H2) + IPO run',
         milestone:
-            "Jul 30, 2026: Unitree filed its STAR Market prospectus — a ¥4.2B (~$620M) raise at a ¥42B implied valuation, with pricing Aug 5 and subscriptions opening Aug 10, on track to be the first humanoid-robot stock on China's A-share market.",
+            'Aug 19, 2026: Unitree debuted on the STAR Market (ticker 688836) after pricing at ¥150.80 — shares surged as much as 629% intraday and closed up ~487%, valuing China\'s first listed humanoid-robot maker at roughly $53B.',
         facts: [
             'Filed Mar 20, 2026 and cleared the CSRC in 104 days — a record-fast STAR Market review',
             'Feb 2026: a fleet of G1s performed a fully autonomous kung-fu routine on Chinese national TV',

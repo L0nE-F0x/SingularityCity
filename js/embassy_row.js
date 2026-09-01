@@ -24,7 +24,7 @@ const EmbassyRow = {
             framework: "America's AI Action Plan (2025) · NIST AI RMF · pro-innovation EO",
             stance: 'Deregulatory pivot: EO 14110 rescinded (2025), replaced by an AI-dominance agenda. H200 sales to China moved to case-by-case review with a 25% tariff. Federal push to preempt state AI laws.',
             milestone:
-                'Jun 2026: Commerce closed a loophole letting Chinese firms buy Nvidia Blackwell-class chips via overseas subsidiaries — even as the Jan 2026 H200 case-by-case approval stays stalled, with zero chips actually shipped.',
+                "Aug 19, 2026: the Jan 2026 case-by-case H200 policy finally shipped chips — BIS cleared exports and Chinese buyers including ByteDance and Tencent reportedly received ~10,000 H200s each, subject to a 25% tariff and a cap at half of comparable domestic sales volume.",
             labs: ['OpenAI', 'Anthropic', 'Google DeepMind', 'Meta AI', 'xAI / SpaceX', 'Microsoft'],
             desc: 'United States of America. The dominant hub of frontier AI. The 2025 administration tore up the prior executive order for a deregulatory, "win the AI race" agenda — voluntary commitments over a comprehensive AI act, backed by chip export controls.',
         },
@@ -42,7 +42,7 @@ const EmbassyRow = {
             framework: 'Interim Measures for Generative AI · AI content-labeling rules (2025)',
             stance: 'Strict pre-market registration and security assessments; content aligned with core socialist values. Now countering US chip curbs with its own gallium & rare-earth export licenses and a domestic-silicon push.',
             milestone:
-                'Jul 2026: MOFCOM and the NDRC consulted Alibaba, ByteDance and Zhipu on export controls for AI model weights and training data — a tiered regime is only under discussion, not law — while DeepSeek graduated V4 to official release with a 1M-token context window.',
+                'Aug 12, 2026: DeepSeek shipped V4-Pro-0813 to general availability — a 1M-token context window, 384K-token max output and agent-focused benchmarks (87.9 on Terminal-Bench 2.1) — while MOFCOM and the NDRC continue consulting Alibaba, ByteDance and Zhipu on a still-unfinalized export-control regime for model weights and training data.',
             labs: ['DeepSeek', 'Alibaba Qwen', 'Moonshot (Kimi)', 'Baidu Ernie', 'Tencent Hunyuan', 'Zhipu'],
             desc: "People's Republic of China. The world's second AI superpower. Rapid open-weight releases (DeepSeek, Qwen, Kimi) despite US export controls — and an increasingly muscular counter using its grip on critical minerals.",
         },
@@ -60,7 +60,7 @@ const EmbassyRow = {
             framework: 'EU AI Act · GPAI Code of Practice · Digital Omnibus (2026)',
             stance: 'World-first comprehensive AI law. GPAI obligations for >10^25-FLOP models went live Aug 2025; a Digital Omnibus formally adopted Jun 29, 2026 pushed high-risk compliance deadlines to Dec 2027 (standalone) / Aug 2028 (embedded) to ease competitiveness worries.',
             milestone:
-                "Aug 2, 2026: the AI Act's next big tranche becomes applicable — transparency duties for synthetic content and AI-assisted interactions — following the Jun 29 Digital Omnibus that pushed the high-risk deadlines back.",
+                "Aug 2, 2026: Article 50 transparency duties for synthetic content and AI-assisted interactions became enforceable — fines up to €15M or 3% of global turnover — following Jul 20 Commission guidelines and the Jun 29 Digital Omnibus that pushed high-risk deadlines back.",
             labs: ['Mistral', 'Black Forest Labs', 'Kyutai', 'Aleph Alpha', 'Helsing'],
             desc: "European Union. The world's first jurisdiction with a comprehensive horizontal AI law. The AI Act bans social scoring and untargeted biometric scraping and imposes transparency duties on foundation models — now balancing enforcement against a competitiveness push.",
         },

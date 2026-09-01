@@ -31,7 +31,7 @@ const CourtData = {
             case: 'NYT v. OpenAI & Microsoft',
             status: 'in discovery',
             color: '#ef4444',
-            note: 'Jun 25, 2026: NYT moved for a 3rd amended complaint, narrowing claims against OpenAI but escalating against Microsoft — alleges MS built a custom supercomputer to enable the infringing training.',
+            note: "Early Aug 2026: Judge Stein rejected NYT's bid to add a claim that Microsoft actively encouraged OpenAI's infringement, ruling the amendment came too late — the underlying 2023 case grinds on in discovery.",
         },
         {
             case: 'Bartz v. Anthropic',
@@ -53,9 +53,9 @@ const CourtData = {
         },
         {
             case: 'EU AI Act — Digital Omnibus',
-            status: 'adopted Jun 29, 2026',
+            status: 'transparency rules in force Aug 2, 2026',
             color: '#3b82f6',
-            note: 'Council formally adopted the Digital Omnibus easing AI Act burdens — high-risk deadlines pushed to Dec 2027/Aug 2028; a new EU-wide ban on AI "nudification"/CSAM tools takes effect Dec 2026.',
+            note: 'Aug 2, 2026: Article 50 transparency duties (AI-generated content, chatbots, deepfakes) became enforceable EU-wide — fines up to €15M or 3% of global turnover — even as the Jun 29 Digital Omnibus pushed high-risk deadlines to Dec 2027/Aug 2028.',
         },
         {
             case: 'Concord/UMG v. Suno & Udio',

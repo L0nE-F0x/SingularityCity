@@ -19,7 +19,7 @@ const LONGEVITY_COMPANIES = {
             "May 2026: raised $2.1B Series B — one of the sector's largest ever — with first human trials of AI-designed drugs due by end of 2026.",
         facts: [
             'A DeepMind spin-off; AlphaFold 3 predicts protein–DNA–ligand interactions at atomic precision',
-            'First trials prioritize oncology; AlphaFold 3 open-sourced Nov 2024',
+            'Jan 28, 2026: FDA cleared its oncology candidate ISM8969 for human trials — an AI-identified target humans weren\'t prioritizing',
             'J&J signed a deep-integration deal to design protein–protein inhibitors with AF3',
         ],
         desc: "DeepMind's drug-design spin-off. AlphaFold 3 turned protein structure into a multi-billion-dollar pipeline — first AI-designed drugs hit trials in 2026.",
@@ -71,11 +71,11 @@ const LONGEVITY_COMPANIES = {
         drug: 'REC-1245',
         program: 'Industrialized "techbio" drug discovery',
         milestone:
-            'Absorbed Exscientia in a $688M all-stock deal — a full-stack AI discovery platform with 10 clinical programs; REC-1245 has Phase I data due H1 2026.',
+            'Mid-2026: early Phase 1/2 DAHLIA data for REC-1245 (RBM39 degrader) showed no dose-limiting toxicities and clear target engagement across the first solid-tumor cohorts, with dose escalation continuing toward a Phase 2 dose.',
         facts: [
             'Runs millions of automated cell-image experiments a week',
-            'REC-1245 is its first fully end-to-end AI-discovered program',
-            'The Recursion + Exscientia merger created a trans-Atlantic AI-pharma leader',
+            'REC-1245 is its first fully end-to-end AI-discovered program — a first-in-class RBM39 degrader',
+            'The Recursion + Exscientia $688M all-stock merger created a trans-Atlantic AI-pharma leader',
         ],
         desc: 'Drug discovery at industrial scale — computer vision on millions of cell images. Now merged with Exscientia into a full-stack AI-pharma machine.',
     },

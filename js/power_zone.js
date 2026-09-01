@@ -91,7 +91,7 @@ const PowerZone = {
             offtaker: 'Colossus-class AI campus',
             online: 'Operational (backup pledged)',
             milestone:
-                'Jul 2, 2026: Shelby County Health Dept. permitted 15 backup-only gas turbines with "state-of-the-art emissions controls" for xAI\'s Memphis site — NAACP immediately appealed; DOJ separately intervened in a parallel Mississippi Clean Air Act suit citing national security.',
+                "Aug 2026: the DOJ's motion to intervene and dismiss the NAACP's Clean Air Act suit over 59 unpermitted Mississippi turbines — arguing Grok is critical to US military operations — heads to a federal judge for a preliminary-injunction ruling, on top of Shelby County's Jul 2 backup-only permit for 15 Memphis-side turbines.",
             facts: [
                 'Gas turbines = instant power while grid interconnects take years',
                 'The Memphis fleet became the emblem of the AI power crunch',
@@ -158,7 +158,7 @@ const PowerZone = {
             offtaker: "Microsoft (world's 1st fusion PPA)",
             online: 'Polaris pulsing · grid power 2028',
             milestone:
-                'Jun 4, 2026: Helion raised a $465M Series G (led by Thrive Capital) at a $15.5B valuation — nearly triple its prior round — to fund Orion, the plant that owes Microsoft 50 MW by ~2028.',
+                'Aug 26, 2026: Helion broke ground — initial earthwork and construction started at the Orion plant site in Malaga, WA — funded by a Jun 4 $465M Series G (led by Thrive Capital) at a $15.5B valuation, on track to owe Microsoft 50 MW by ~2028.',
             facts: [
                 "World's first fusion power purchase agreement (Microsoft, 2023)",
                 'Feb 2026: Polaris test reactor hit 150-million-°C plasma',

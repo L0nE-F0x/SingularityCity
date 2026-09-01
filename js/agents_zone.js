@@ -50,11 +50,11 @@ const AGENT_FRAMEWORKS = {
         founded: '2023',
         product: 'Devin + Devin Desktop',
         milestone:
-            'Apr 2026: valued at $25B (up from $10.2B in 7 months) after absorbing Windsurf; June 2026 rebranded Windsurf to Devin Desktop.',
+            'Aug 2026: in talks to raise a new round reported near a $40–46B valuation — nearly double May\'s $26B mark — as Devin\'s revenue run rate approached $1B, up from $492M three months earlier.',
         facts: [
             'Devin is the autonomous software engineer — plans, codes, tests, ships PRs',
             "Devin Desktop's Agent Command Center runs local + cloud agents from one Kanban",
-            'ARR doubled to a ~$492M run rate; backs the open Agent Client Protocol (ACP)',
+            'Valuation has roughly quadrupled since Sep 2025 ($10.2B) on ~50%-MoM enterprise usage growth',
             'Jul 1, 2026: launched Devin Security Swarm — agents that find, verify and patch vulnerabilities across codebases',
         ],
         desc: 'The autonomous-coding giant. Devin writes and ships software on its own; Devin Desktop (ex-Windsurf) commands whole fleets of agents.',
@@ -68,9 +68,9 @@ const AGENT_FRAMEWORKS = {
         founded: '2025',
         product: 'Manus general agent',
         milestone:
-            "Jun 19, 2026: original investors moved to buy Manus back from Meta for $2B after Beijing forced the deal's unwind — reported ARR has grown from $100M to $400–500M since.",
+            "Aug 11, 2026: Manus completed its unwind from Meta — a Tencent-led consortium (with early backers HSG and ZhenFund) bought back Meta's stake at the original $2B price after Beijing's national-security order, restoring Manus to independent operation.",
         facts: [
-            "Apr 2026: China blocked Meta's $2–3B acquisition on national-security grounds; Meta cut ties Jun 15, 2026",
+            "Apr 2026: China's NDRC ordered the parties to unwind Meta's $2B acquisition on national-security grounds",
             'A general-purpose agent: its "My Computer" runs terminal commands + local files',
             'Orchestrates multiple LLMs under the hood, tracking forward to the Opus 4.x line',
             'The breakout Chinese autonomous agent of 2025–26',
