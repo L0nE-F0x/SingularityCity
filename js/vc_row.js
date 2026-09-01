@@ -121,13 +121,13 @@ const VCRow = {
             founded: '1972',
             aum: '~$85B AUM',
             milestone:
-                "May 2026: led Anthropic's $65B Series H at a $965B post-money valuation — the largest private round ever.",
+                "Aug 2026: Anthropic's revenue run rate surpassed $65B (up 7x since end-2025), with investors now targeting a ~$2T valuation for an October Nasdaq listing — up from the $965B mark Sequoia's May Series H set.",
             portfolio: ['Anthropic', 'Google', 'NVIDIA', 'Stripe', 'OpenAI'],
             recentDeal: 'Anthropic Series H, $65B (with Altimeter, Dragoneer, Greenoaks)',
             facts: [
                 'Seeded Apple, Google, NVIDIA, YouTube, Stripe — the canonical VC track record',
-                'Anthropic filed confidentially for an IPO on Jun 1, 2026 at $965B',
-                '50+ years old and still writing the biggest checks in AI',
+                'Anthropic filed confidentially for an IPO on Jun 1, 2026; a public S-1 was expected as early as late Aug 2026',
+                'A $2T IPO would be the largest ever, surpassing SpaceX\'s $1.77T June 2026 debut',
             ],
         },
         vcrow_thrive: {
