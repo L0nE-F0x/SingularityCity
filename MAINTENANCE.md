@@ -78,6 +78,7 @@ A single real event ripples across zones — make sure it's reflected everywhere
 
 ### C5. Known traps (do NOT reintroduce)
 - [ ] **No frozen version ceilings** for gpt/claude/gemini/grok — never re-add a "do not exceed vX" cap. New flagships must be able to appear. (See `memory/project_model_version_ceilings.md`.)
+  - This includes ceilings **disguised as regexes** in `_knownFakePatterns` / `KNOWN_FAKE_PATTERNS`. A `/gpt[\s-]*[6-9]/` "extra safety" rule blocked the real GPT-6 Astra for its whole launch week (2026-09) — and since "Known fake pattern" is high-confidence, `db-maintenance` re-deleted it from Supabase every 6h. Those lists are for **combinations that don't exist** ("Gemini Ultra 2"), never for version numbers; the auto-raising caps own that job.
 - [ ] **Seed bans need an `until`** in the jail or they never auto-release.
 - [ ] After edits: run `node tools/cachebust.mjs` (bumps `?v=` + `sw.js` cache) or the deploy serves stale assets.
 

@@ -2376,7 +2376,13 @@ Respond with ONLY minified JSON, no markdown:
         // GPT codename hallucinations (allow dash between gpt and version)
         /gpt[\s-]*[5-9][\s-]*\(orion\s*[2-9]/i,
         /gpt[\s-]*[5-9][\s-]*\(strawberry\s*[2-9]/i, // Strawberry was o1 codename
-        /gpt[\s-]*[6-9](?!\.\d)/i, // Bare GPT-6/7/8/9 without decimal (extra safety)
+        // NOTE: a /gpt[\s-]*[6-9](?!\.\d)/ rule used to live here as "extra safety".
+        // It was a frozen version ceiling in regex clothing — and because 2.6 runs
+        // BEFORE both the trusted-name fast path and the trustedSrc bypass, it
+        // rejected the genuinely-released GPT-6 Astra family outright, from every
+        // source including OpenRouter. Do NOT re-add it: step 3's auto-raising
+        // _maxKnownVersions + forward tolerance already rejects GPT-7/8/9 while
+        // letting a real next-integer flagship through. See MAINTENANCE.md C5.
     ],
 
     _verifyModel(m) {
@@ -2577,6 +2583,13 @@ Respond with ONLY minified JSON, no markdown:
             'gpt-5.4',
             'gpt-5.4 mini',
             'gpt-5.4 nano',
+            'gpt-5.5',
+            'gpt-5.5 pro',
+            'gpt-5.6 sol',
+            'gpt-5.6 terra',
+            'gpt-5.6 luna',
+            'gpt-6 astra',
+            'gpt-6 astra pro',
             'o1',
             'o1-mini',
             'o1-pro',

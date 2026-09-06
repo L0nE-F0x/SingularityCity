@@ -102,7 +102,12 @@ const KNOWN_FAKE_PATTERNS = [
     /claude\s+\d+\s+haiku\s+[2-9]/i,
     /gpt[\s-]*[5-9][\s-]*\(orion\s*[2-9]/i,
     /gpt[\s-]*[5-9][\s-]*\(strawberry\s*[2-9]/i,
-    /gpt[\s-]*[6-9](?!\.\d)/i,
+    // NOTE: a /gpt[\s-]*[6-9](?!\.\d)/ rule used to live here. It was a frozen
+    // version ceiling in regex clothing, and it fires before the trusted-name fast
+    // path — so the real GPT-6 Astra family was rejected AND, because "Known fake
+    // pattern" is high-confidence, actively deleted from the shared DB on every
+    // db-maintenance run. Do NOT re-add it: the auto-raised MAX_KNOWN_VERSIONS +
+    // forward tolerance already stops GPT-7/8/9. See MAINTENANCE.md C5.
 ];
 
 // Flagships we know are real — protects naming quirks like "Aya 23" (name suffix,
@@ -117,6 +122,8 @@ const KNOWN_REAL = [
     'gpt-5', 'gpt-5 mini', 'gpt-5 nano', 'gpt-5.1', 'gpt-5.2', 'gpt-5.2 codex',
     'gpt-5.3 codex', 'gpt-5.3 codex spark', 'gpt-5.3 chat',
     'gpt-5.4', 'gpt-5.4 mini', 'gpt-5.4 nano',
+    'gpt-5.5', 'gpt-5.5 pro', 'gpt-5.6 sol', 'gpt-5.6 terra', 'gpt-5.6 luna',
+    'gpt-6 astra', 'gpt-6 astra pro',
     'o1', 'o1-mini', 'o1-pro', 'o1-preview', 'o3', 'o3-mini', 'o3-pro', 'o4-mini',
     'gemini 2.5 pro', 'gemini 2.5 flash', 'gemini 2.5 flash lite',
     'gemini 2.0 flash', 'gemini 2.0 pro', 'gemini 2.0 flash lite',

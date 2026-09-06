@@ -26,7 +26,10 @@ export const LABS = {
     google:    { name: 'Google DeepMind', color: '#4285f4', icon: '❖', ticker: 'GOOGL', region: 'us' },
     meta:      { name: 'Meta AI',         color: '#0668E1', icon: '∞', ticker: 'META',  region: 'us' },
     mistral:   { name: 'Mistral AI',      color: '#f97316', icon: '🌪️', ticker: null,   region: 'eu' },
-    xai:       { name: 'xAI',             color: '#ffffff', icon: '𝕏', ticker: 'TSLA',  region: 'us' },
+    // xAI is a wholly-owned SpaceX subsidiary since the Feb-2026 all-stock merger;
+    // SpaceX listed on Nasdaq as SPCX on 2026-06-12, so that IPO — not TSLA — is
+    // now the public proxy for xAI/Grok exposure.
+    xai:       { name: 'xAI',             color: '#ffffff', icon: '𝕏', ticker: 'SPCX',  region: 'us' },
     deepseek:  { name: 'DeepSeek',        color: '#0ea5e9', icon: '🐋', ticker: null,   region: 'cn' },
     // ── Hyperscaler Row ──
     microsoft: { name: 'Microsoft',       color: '#0ea5e9', icon: '⊞', ticker: 'MSFT',  region: 'us' },

@@ -43,6 +43,14 @@ const OFFLINE_RE = /\b(order(?:s|ed)?|pull(?:s|ed)?|take[sn]?|took|forc(?:e|es|e
 const RELEASE_RE = /\b(not banned|won'?t ban|no ban|despite|reject|rejects|rejected|unban|unbanned|lift|lifts|lifted|lifting|overturn|overturned|restore|restored|reinstate|reinstated|allow|allowed|approve|approved|avoid|avoids|avoided|reverse|reversed|appeal|appeals)\b/i;
 // Statistical / ranking pieces ("the most frequently restricted chatbot worldwide") are not ban events.
 const STATS_RE = /\b(most|least)\s+(frequently|commonly|widely|often|heavily)\b/i;
+// Roundup / listicle explainers ("DeepSeek Banned Countries 2026 [Worldwide List]") enumerate
+// existing bans — they are NOT a new ban event, and because they habitually carry the word
+// "worldwide" they used to be classified as a GLOBAL ban and jail a model for every visitor on
+// Earth. STATS_RE only caught the superlative phrasing ("most frequently restricted"), so this
+// covers the list-shaped headlines: "<model> banned countries", "which countries banned…",
+// "full list of…", and a bracketed "[… List]" tag.
+const LISTICLE_RE =
+    /\b(?:banned|blocked|restricted|banning|blocking)\s+countries\b|\bcountries\s+(?:that|which|where)\b|\bwhich\s+countries\b|\bhow\s+many\s+countries\b|\b(?:full|complete|updated|worldwide|global|the)\s+list\s+of\b|\blist\s+of\s+(?:countries|bans|restrictions)\b|\[[^\]]{0,40}\blist\b[^\]]{0,40}\]/i;
 
 // ─── RELEASE CLASSIFIER ──────────────────────────────────────────────────────
 // Strong, past-tense lift verbs only — "releases Grok 5" (a product launch) must NOT count.
@@ -100,6 +108,7 @@ function classify(title) {
     if (!BAN_RE.test(low) && !OFFLINE_RE.test(low)) return null;
     if (RELEASE_RE.test(low)) return null;          // a lift / appeal / negation, not a new ban
     if (STATS_RE.test(low)) return null;            // ranking/statistics piece, not a ban event
+    if (LISTICLE_RE.test(low)) return null;         // roundup/listicle of existing bans, not an event
     const matcher = MODEL_MATCHERS.find(m => m.re.test(low));
     if (!matcher) return null;
     // lab-as-actor guard: skip "<model> bans/blocks/… <something>" (the LAB is doing the banning).
@@ -520,6 +529,13 @@ if (process.argv.includes('--selftest')) {
         ["Senate debates AI safety rules for ChatGPT and Claude", false, null],         // no jurisdiction-scoped ban verb? has 'rules' not ban
         ["US states move to ban DeepSeek on government devices", true, 'news:deepseek:US'],
         ["DeepSeek is the most frequently restricted chatbot worldwide", false, null],  // stats piece, not a ban
+        // Listicle roundups — these carry "worldwide" and used to produce a GLOBAL ban row that
+        // jailed DeepSeek for every visitor on Earth (the news:deepseek:GLOBAL incident, 2026-09).
+        ["DeepSeek Banned Countries 2026 [Worldwide List]", false, null],
+        ["Which countries have banned DeepSeek? Full list of restrictions", false, null],
+        ["Countries that banned Grok — the complete list", false, null],
+        // …while a genuine worldwide ban must still register as global.
+        ["US export directive forces Claude Fable offline worldwide", true, 'news:fable:GLOBAL'],
     ];
     let pass = 0, total = 0;
     for (const [title, shouldHit, expectKey] of samples) {

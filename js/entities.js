@@ -233,6 +233,19 @@ const Entities = {
         });
     },
 
+    // Give up on a metro trip and continue overland. Used when no train serves the
+    // current leg, when a rider has held a platform past the grace period, or when a
+    // station id in the route no longer resolves. The cool-off stops the model from
+    // immediately re-planning the same broken route every frame.
+    _abandonMetro(refs, tick) {
+        refs._metroState = 'none';
+        refs._metroLegs = null;
+        refs._currentLeg = 0;
+        refs._ridingTrain = null;
+        refs._waitTicks = 0;
+        refs._noMetroUntil = (tick || 0) + 3600;
+    },
+
     createChar(m) {
         EntitiesGfx.createChar(m, this.charLayer);
     },
@@ -992,6 +1005,32 @@ const Entities = {
         const mMidX = _mMid ? _mMid.x + _mMid.w / 2 : null;
         const mLongX = _mLong ? _mLong.x + _mLong.w / 2 : null;
 
+        // BUG FIX (v553): routes are stored as station IDs, never coordinates.
+        // _metroLegs used to hold raw x values snapshotted at planning time, and the
+        // train lookup below compared them to the live station x with `===`. Any
+        // recalculateZoning() (a scan discovering a new lab HQ or founder estate
+        // re-lays out the whole strip) shifted the stations, so every rider already
+        // en route failed the equality test, got activeTrain=null, and waited on the
+        // platform forever — nothing re-plans while _metroLegs is set. IDs resolve
+        // to live coordinates every frame, so a re-layout just moves the platform.
+        const stationX = {
+            metro_dc: mDcX,
+            metro_res: mResX,
+            metro_hq: mHqX,
+            metro_mid: mMidX,
+            metro_east: mEastX,
+            metro_longevity: mLongX,
+        };
+        // Mirrors the createTrainObj() pairs in EntitiesGfx.initMetro — keyed on the
+        // two station ids a train shuttles between, order-independent.
+        const _pairKey = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+        const trainForPair = {};
+        trainForPair[_pairKey('metro_res', 'metro_hq')] = this.trainWest;
+        trainForPair[_pairKey('metro_hq', mMidX ? 'metro_mid' : 'metro_east')] = this.trainEast;
+        if (mMidX) trainForPair[_pairKey('metro_mid', 'metro_east')] = this.trainMid;
+        if (mDcX) trainForPair[_pairKey('metro_dc', 'metro_res')] = this.trainDC;
+        if (mLongX) trainForPair[_pairKey('metro_east', 'metro_longevity')] = this.trainLongevity;
+
         // 5 regions: 0=DC/Space (left of res), 1=Residential, 2=Tech, 3=East, 4=Longevity terminus
         const getRegion = (x) => {
             if (mDcX && x < (mDcX + mResX) / 2) return 0;
@@ -1209,7 +1248,12 @@ const Entities = {
                     let finalTargetY = groundY - 20;
                     let freezeX = false;
 
-                    if (refs._metroState === 'none' && !refs._metroLegs && !isR) {
+                    if (
+                        refs._metroState === 'none' &&
+                        !refs._metroLegs &&
+                        !isR &&
+                        tick >= (refs._noMetroUntil || 0)
+                    ) {
                         let myReg = getRegion(refs.c.x);
                         let dstReg = getRegion(buildingTargetX);
 
@@ -1217,12 +1261,12 @@ const Entities = {
                             // Build route through stations
                             // Station order: metro_dc (0) → metro_res (1) → metro_hq (2) → metro_mid → metro_east (3) → metro_longevity (4)
                             const stations = [];
-                            if (mDcX) stations.push({ reg: 0, x: mDcX });
-                            stations.push({ reg: 1, x: mResX });
-                            stations.push({ reg: 2, x: mHqX });
-                            if (mMidX) stations.push({ reg: 2.5, x: mMidX }); // mid-tech
-                            stations.push({ reg: 3, x: mEastX });
-                            if (mLongX) stations.push({ reg: 4, x: mLongX });
+                            if (mDcX) stations.push({ reg: 0, x: mDcX, id: 'metro_dc' });
+                            stations.push({ reg: 1, x: mResX, id: 'metro_res' });
+                            stations.push({ reg: 2, x: mHqX, id: 'metro_hq' });
+                            if (mMidX) stations.push({ reg: 2.5, x: mMidX, id: 'metro_mid' }); // mid-tech
+                            stations.push({ reg: 3, x: mEastX, id: 'metro_east' });
+                            if (mLongX) stations.push({ reg: 4, x: mLongX, id: 'metro_longevity' });
 
                             // Find nearest station to current position and destination
                             const nearestStation = (x) =>
@@ -1237,14 +1281,15 @@ const Entities = {
                                 const endIdx = stations.indexOf(endSt);
                                 const legs = [];
                                 if (startIdx < endIdx) {
-                                    for (let si = startIdx; si <= endIdx; si++) legs.push(stations[si].x);
+                                    for (let si = startIdx; si <= endIdx; si++) legs.push(stations[si].id);
                                 } else {
-                                    for (let si = startIdx; si >= endIdx; si--) legs.push(stations[si].x);
+                                    for (let si = startIdx; si >= endIdx; si--) legs.push(stations[si].id);
                                 }
                                 if (legs.length >= 2) {
                                     refs._metroLegs = legs;
                                     refs._currentLeg = 0;
                                     refs._metroState = 'entering';
+                                    refs._waitTicks = 0;
                                 }
                             }
                         }
@@ -1258,28 +1303,21 @@ const Entities = {
                     const platformY = groundY + 112;
 
                     if (refs._metroLegs && refs._metroLegs.length > 0) {
-                        let s1 = refs._metroLegs[refs._currentLeg];
-                        let s2 = refs._metroLegs[refs._currentLeg + 1];
+                        const id1 = refs._metroLegs[refs._currentLeg];
+                        const id2 = refs._metroLegs[refs._currentLeg + 1];
+                        // Resolve station ids to their CURRENT centres every frame.
+                        let s1 = stationX[id1];
+                        let s2 = stationX[id2];
 
-                        let activeTrain = null;
-                        if ((s1 === mResX && s2 === mHqX) || (s1 === mHqX && s2 === mResX))
-                            activeTrain = this.trainWest;
-                        else if (mMidX && ((s1 === mHqX && s2 === mMidX) || (s1 === mMidX && s2 === mHqX)))
-                            activeTrain = this.trainEast;
-                        else if (
-                            mMidX &&
-                            ((s1 === mMidX && s2 === mEastX) || (s1 === mEastX && s2 === mMidX))
-                        )
-                            activeTrain = this.trainMid;
-                        else if ((s1 === mHqX && s2 === mEastX) || (s1 === mEastX && s2 === mHqX))
-                            activeTrain = this.trainEast;
-                        else if (mDcX && ((s1 === mDcX && s2 === mResX) || (s1 === mResX && s2 === mDcX)))
-                            activeTrain = this.trainDC;
-                        else if (
-                            mLongX &&
-                            ((s1 === mEastX && s2 === mLongX) || (s1 === mLongX && s2 === mEastX))
-                        )
-                            activeTrain = this.trainLongevity;
+                        const activeTrain = id2 != null ? trainForPair[_pairKey(id1, id2)] || null : null;
+
+                        // A station that no longer exists (zone removed) leaves a route
+                        // pointing at nothing — abandon it and walk rather than freeze on
+                        // a ghost platform. State 'none' means no leg branch runs below.
+                        if (s1 == null || (id2 != null && s2 == null)) {
+                            this._abandonMetro(refs, tick);
+                            s1 = refs.c.x;
+                        }
 
                         if (refs._metroState === 'entering') {
                             finalTargetX = s1;
@@ -1295,6 +1333,19 @@ const Entities = {
                             finalTargetX = s1 + stationSpread;
                             finalTargetY = platformY;
 
+                            // WATCHDOG: nobody should hold a platform forever. A missing
+                            // train (no service on this pair) is an instant fault; a train
+                            // that simply never arrives gets a grace period of ~1 round
+                            // trip. Either way the rider gives up and walks overland, and
+                            // won't re-plan a metro trip for a while. Without this, one
+                            // desync stranded a whole cohort underground indefinitely.
+                            if (!activeTrain) {
+                                this._abandonMetro(refs, tick);
+                            } else {
+                                refs._waitTicks = (refs._waitTicks || 0) + 1;
+                                if (refs._waitTicks > 2700) this._abandonMetro(refs, tick);
+                            }
+
                             // If train is here, push non-boarding characters to back of platform
                             // so they don't overlap the train body visually
                             if (
@@ -1307,6 +1358,7 @@ const Entities = {
                                     activeTrain.passengers++;
                                     refs._metroState = 'riding';
                                     refs._ridingTrain = activeTrain;
+                                    refs._waitTicks = 0; // fresh budget for the next leg
                                 } else {
                                     // Train is full — stand at back of platform (above train body)
                                     finalTargetY = platformY - 35;
@@ -1335,7 +1387,9 @@ const Entities = {
                                 refs._metroLegs = null;
                             }
                         } else if (refs._metroState === 'exiting') {
-                            let currentStationX = refs._metroLegs[refs._currentLeg];
+                            // s1 is the live centre of the leg's station (id-resolved above) —
+                            // never read the raw leg value here, it's a station ID, not an x.
+                            const currentStationX = s1;
                             finalTargetX = currentStationX;
                             finalTargetY = groundY - 20;
                             refs.c.x = currentStationX;

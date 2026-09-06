@@ -242,6 +242,14 @@ const JailData = {
 
     _NEWS_BAN_RE:
         /\b(ban|bans|banned|banning|block|blocks|blocked|blocking|suspend|suspends|suspended|suspension|restrict|restricts|restricted|outlaw|outlawed|prohibit|prohibited|barred|pulled offline|ordered offline|taken offline|removed from)\b/,
+    // Roundup / listicle explainers ("DeepSeek Banned Countries 2026 [Worldwide List]") enumerate
+    // bans that already exist — they are not a ban event, and they habitually carry the word
+    // "worldwide", so without this they read as a GLOBAL ban. Mirrors LISTICLE_RE in
+    // netlify/functions/update-ai-bans.mjs, which is the authoritative classifier.
+    _NEWS_LISTICLE_RE:
+        /\b(?:banned|blocked|restricted|banning|blocking)\s+countries\b|\bcountries\s+(?:that|which|where)\b|\bwhich\s+countries\b|\bhow\s+many\s+countries\b|\b(?:full|complete|updated|worldwide|global|the)\s+list\s+of\b|\blist\s+of\s+(?:countries|bans|restrictions)\b|\[[^\]]{0,40}\blist\b[^\]]{0,40}\]/,
+    // Statistical / ranking pieces ("the most frequently restricted chatbot worldwide").
+    _NEWS_STATS_RE: /\b(most|least)\s+(frequently|commonly|widely|often|heavily)\b/,
     // Negation / release signals — if present, do NOT manufacture a ban from this headline.
     _NEWS_RELEASE_RE:
         /\b(not banned|won'?t ban|no ban|despite|reject|rejects|rejected|unban|unbanned|lift|lifts|lifted|lifting|overturn|overturned|restore|restored|reinstate|reinstated|allow|allowed|approve|approved|avoid|avoids|avoided|reverse|reversed|appeal)\b/,
@@ -310,6 +318,8 @@ const JailData = {
             const low = headline.toLowerCase();
             if (!this._NEWS_BAN_RE.test(low)) continue; // needs a ban/block/suspension verb
             if (this._NEWS_RELEASE_RE.test(low)) continue; // skip negations / lifts / appeals
+            if (this._NEWS_LISTICLE_RE.test(low)) continue; // roundup of existing bans, not an event
+            if (this._NEWS_STATS_RE.test(low)) continue; // ranking/statistics piece, not a ban
             const matcher = this._NEWS_MATCHERS.find((mm) => mm.re.test(low));
             if (!matcher) continue; // not about a model line we track
             // Jurisdiction
