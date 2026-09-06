@@ -1,7 +1,165 @@
 # Resume here
 
-**Updated:** 2026-08-24 · **Live `main`:** `3dceab9` — FP mobile Free-fly HUD button
-**Status:** touch controls shipped; Free-fly is a top-right 🦅 button on phones; Netlify should have `3dceab9`.
+**Updated:** 2026-09-06 · **Local `main`:** `25d6317` — four accuracy/behaviour fixes, **committed but NOT pushed**
+**Status:** nothing is live yet. Netlify still has `3dceab9`. Read "Ship it tomorrow" below before pushing.
+
+---
+
+## ⚠️ Ship it tomorrow — do these in order
+
+1. **Push.** `git push origin main` → Netlify auto-deploys `25d6317` (cachebust v553).
+2. **Run one line of SQL in the Supabase SQL Editor.** This is the only fix that
+   is *not* in the commit — the 2D city reads `LABS.ticker` from the database and
+   the anon key is read-only:
+   ```sql
+   update public.labs set ticker = 'SPCX' where id = 'xai';
+   ```
+   Then reload the city: the xAI HQ (`bld_x`) grows a ticker sign. It reads
+   `SPCX AWAITING TELEMETRY` until a player enters their own Finnhub key —
+   that's normal, every lab behaves that way.
+3. **Confirm the bad DeepSeek ban cleared.** `update-ai-bans.mjs` runs every 6h;
+   its `purgeMisclassified()` re-runs `classify()` over each row's stored headline
+   and deletes rows the current classifier would no longer produce. Row
+   `news:deepseek:GLOBAL` should vanish on the first run after deploy. Verify:
+   ```
+   curl "$SUPABASE_URL/rest/v1/ai_bans?select=ban_key,active&ban_key=eq.news:deepseek:GLOBAL" \
+        -H "apikey: <publishable key from js/engine.js>"
+   ```
+   Expect `[]`. If it's still there after ~6h, the function didn't run — check the
+   Netlify logs before deleting the row by hand.
+4. **Spot-check the city.** DeepSeek citizens should be asleep at home at night,
+   not detained. Trigger a scan and watch that nobody accumulates on a metro
+   platform. GPT-6 Astra and GPT-6 Astra Pro should arrive as OpenAI citizens.
+
+### Questions I had to answer for you (no action needed, just so you know)
+
+- **"xAI IPO'd"** — they didn't, quite. xAI was absorbed into SpaceX in the
+  Feb-2026 all-stock merger as a wholly-owned subsidiary; SpaceX is what listed,
+  on Nasdaq as **SPCX**, on 2026-06-12. So the xAI HQ ticker is the parent's
+  listing. There is no standalone xAI symbol to use. First Person's old `TSLA`
+  proxy is now obsolete and was changed to `SPCX`.
+- **"GPT Astra"** — the model is called **GPT-6 Astra** (plus a Pro variant),
+  both created on OpenRouter 2026-09-04. The `-6` is what was getting it killed.
+- **"Indonesia hasn't banned DeepSeek"** — correct, it hasn't. You were seeing a
+  bogus *worldwide* ban row, so it applied to every visitor regardless of country.
+  The geo scoping itself was working fine.
+
+### One thing I found but did NOT fix (your call)
+
+`ai_bans` row `news:chatgpt:CA` is active, from the headline *"Canadian lawyer
+faces 6-month suspension for citing ChatGPT cases in court hearing"*. That's a
+**lawyer** being suspended, not ChatGPT being banned in Canada — so GPT models
+are wrongly detained for Canadian visitors. It's the same family of bug as the
+listicle (the classifier can't tell who the ban verb applies to), but fixing it
+properly means teaching `classify()` actor disambiguation, which is a bigger
+change than tonight's. Either delete the row (`delete from public.ai_bans where
+ban_key = 'news:chatgpt:CA';` — it will not come back for 21 days) or leave it
+for a dedicated pass.
+
+---
+
+## This session (2026-09-06) — four defects, found from live data
+
+Started from two reports (missing xAI ticker, missing GPT Astra) and picked up
+two more from a screenshot mid-session.
+
+### 1. GPT-6 Astra couldn't exist
+
+`_knownFakePatterns` / `KNOWN_FAKE_PATTERNS` carried
+`/gpt[\s-]*[6-9](?!\.\d)/` labelled "extra safety". It was a **frozen version
+ceiling in regex clothing** — exactly the trap MAINTENANCE.md C5 warns about,
+which is presumably how it survived review: it doesn't look like a numeric cap.
+
+It fires at step 2.6, *before* the trusted-name fast path and before the
+`trustedSrc` bypass, so `"gpt-6 astra"` was rejected from every source including
+OpenRouter. And `isHighConfidence()` counts "Known fake pattern" as
+delete-worthy, so `db-maintenance` was re-deleting it from the shared table
+every 6h — it could never have stuck even if one scan had written it.
+
+The version machinery was working perfectly the whole time: building the registry
+off the live feed auto-raises `caps.gpt` to 6 on its own. The regex just fired
+first. Running the real server verifier against the live 343-model OpenRouter
+feed, before and after:
+
+```
+before:  Rejected 2 of 343 — GPT-6 Astra, GPT-6 Astra Pro   (both flagged DELETE)
+after:   Rejected 0 of 343
+```
+
+Guard still holds: with no feed (floor 5.4) GPT-6.5/7/8/9 all reject; with the
+feed (cap 6) GPT-8/9 reject and GPT-7 sits in the deliberate one-step forward
+tolerance — the same posture GPT-6 had before this launch. `knownReal` also
+picked up 5.5, the 5.6 Luna/Terra/Sol trio and the two Astras; those were only
+getting through on tolerance.
+
+### 2. xAI HQ ticker — half in code, half in the database
+
+The sign in `js/environment.js` is gated on `LABS[lab].ticker`, and the 2D
+`LABS` has **no code-level source at all** (`js/data.js` is `var LABS = {}`,
+filled only from Supabase). The `labs` row for `xai` has `ticker: null`. Anon is
+SELECT-only per `rls_all.sql`, and `submit-data.mjs` doesn't accept that table —
+hence the SQL step above.
+
+First Person *does* hardcode its own LABS map, and had xAI on `TSLA`. Fixed to
+`SPCX`. Worth remembering that the two halves of the site can silently disagree
+like this, and a grep for a lab field only finds the FP copy.
+
+### 3. DeepSeek jailed for the entire planet
+
+Row `news:deepseek:GLOBAL`, written by the news bot from:
+
+> *DeepSeek Banned Countries 2026 [Worldwide List]*
+
+A **listicle** — a roundup of who bans DeepSeek — has a ban verb, a model name
+and the word "worldwide", so it classified as a global ban and detained every
+DeepSeek citizen for every visitor on Earth. `STATS_RE` was meant to catch this
+class but only matches superlative phrasing ("most frequently restricted").
+
+`LISTICLE_RE` now catches list-shaped headlines ("<model> banned countries",
+"which countries…", "full list of…", a bracketed "[… List]"). Checked against
+every active row in the live table: it purges exactly the bad one and keeps all
+six legitimate bans. Four self-test cases lock it (`--selftest`, 31/31),
+including one asserting a genuine worldwide ban *still* registers. The
+client-side `_deriveNewsRules` parser got the same guard plus the missing stats
+guard, for parity.
+
+No manual delete needed — `purgeMisclassified()` self-heals it on the next run.
+
+### 4. Metro riders could be stranded forever
+
+The screenshot's real puzzle: models marked Detained, standing on a platform for
+ten minutes, while the Detention Center read empty.
+
+`_metroLegs` held **x coordinates snapshotted at planning time**, and the train
+lookup compared them against the live station x with `===`:
+
+```js
+if ((s1 === mResX && s2 === mHqX) || …) activeTrain = this.trainWest;
+```
+
+Any `recalculateZoning()` — which runs whenever a scan discovers a new lab HQ or
+founder estate, re-laying out the whole strip — moves the stations. A shift of
+*one pixel* breaks the equality, `activeTrain` goes null, and the rider waits on
+the platform forever, because route planning is gated on `!refs._metroLegs` and
+`waiting_train` had no timeout. Simulated it: a +12.5px station shift strands the
+old code and boards fine on the new.
+
+Now: routes are station **IDs** resolved to live coordinates every frame; trains
+are matched on the ID pair (mirroring the `createTrainObj` pairs); and
+`_abandonMetro()` gives up for an overland walk if no train serves the leg, if
+one never arrives within ~1 round trip, or if a station ID stops resolving. The
+`exiting` branch was reading the raw leg value too — it now uses the resolved x.
+
+("Detained · Released" in the tooltip was a red herring, by the way — that's the
+activity followed by the lifecycle stage from `STAGES.adult.label`, not two ban
+states. Being outdoors at 23:33 was also by design: detention outranks sleep in
+`getAct`. Both stop happening once the bogus ban is gone.)
+
+### Checks run
+
+`npm run test:fp` (all green), `eslint js/**` clean, prettier clean on changed
+2D files, `update-ai-bans.mjs --selftest` 31/31, server verifier against the live
+OpenRouter feed. Cachebust → **v553**.
 
 ---
 
