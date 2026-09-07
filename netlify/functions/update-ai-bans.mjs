@@ -51,6 +51,29 @@ const STATS_RE = /\b(most|least)\s+(frequently|commonly|widely|often|heavily)\b/
 // "full list of…", and a bracketed "[… List]" tag.
 const LISTICLE_RE =
     /\b(?:banned|blocked|restricted|banning|blocking)\s+countries\b|\bcountries\s+(?:that|which|where)\b|\bwhich\s+countries\b|\bhow\s+many\s+countries\b|\b(?:full|complete|updated|worldwide|global|the)\s+list\s+of\b|\blist\s+of\s+(?:countries|bans|restrictions)\b|\[[^\]]{0,40}\blist\b[^\]]{0,40}\]/i;
+// ─── ACTOR DISAMBIGUATION ────────────────────────────────────────────────────
+// classify() matches a ban verb + a model + a country anywhere in the headline, which
+// cannot tell WHO the verb applies to. "Canadian lawyer faces 6-month suspension for
+// citing ChatGPT cases in court hearing" is a lawyer being disciplined for misusing the
+// tool — but it produced news:chatgpt:CA and detained every OpenAI model for Canadian
+// visitors. The model there is the *instrument*, not the target.
+//
+// Only the shapes where a HUMAN is unambiguously the one punished are rejected. Note
+// what is deliberately NOT in the verb lists: bare "bans"/"banned"/"barred"/"blocked".
+// Officials do the banning ("Minister banned DeepSeek on government devices"), so
+// matching those after a person noun would suppress real bans.
+const PERSON_SUBJECT =
+    '(?:lawyer|attorney|solicitor|barrister|judge|prosecutor|paralegal|student|pupil|teacher|professor|lecturer|academic|researcher|scientist|doctor|physician|nurse|therapist|journalist|reporter|editor|columnist|author|writer|novelist|artist|developer|programmer|engineer|employee|worker|staffer|contractor|consultant|accountant|banker|trader|broker|realtor|agent|coach|driver|pilot|athlete|player|influencer|streamer|youtuber|creator|candidate|applicant|graduate|intern|couple|man|woman|teen|teenager|boy|girl)s?';
+// "<person> … faces / is handed / receives … a suspension|ban|fine|sanction"
+const PERSON_PUNISHED_RE = new RegExp(
+    `\\b${PERSON_SUBJECT}\\b[^.]{0,60}?\\b(?:faces?|faced|facing|receives?|received|gets?|got|given|handed|hit with|slapped with|earns?|earned)\\b[^.]{0,30}?\\b(?:suspension|suspensions|ban|bans|fine|fines|sanction|sanctions|penalty|penalties|censure|reprimand|discipline|disbarment|jail|prison)\\b`,
+    'i'
+);
+// Verbs only ever done TO a person — a regulator never "disbars" or "expels" a model.
+const PERSON_DISCIPLINED_RE = new RegExp(
+    `\\b${PERSON_SUBJECT}\\b[^.]{0,60}?\\b(?:disbarred|struck off|sentenced|reprimanded|censured|fired|sacked|dismissed|expelled|convicted|charged|suspended from(?: the)? (?:practice|practising|practicing|bar|school|college|university|duty|work))\\b`,
+    'i'
+);
 
 // ─── RELEASE CLASSIFIER ──────────────────────────────────────────────────────
 // Strong, past-tense lift verbs only — "releases Grok 5" (a product launch) must NOT count.
@@ -109,6 +132,8 @@ function classify(title) {
     if (RELEASE_RE.test(low)) return null;          // a lift / appeal / negation, not a new ban
     if (STATS_RE.test(low)) return null;            // ranking/statistics piece, not a ban event
     if (LISTICLE_RE.test(low)) return null;         // roundup/listicle of existing bans, not an event
+    // A human is the one being punished — the model is the instrument, not the target.
+    if (PERSON_PUNISHED_RE.test(low) || PERSON_DISCIPLINED_RE.test(low)) return null;
     const matcher = MODEL_MATCHERS.find(m => m.re.test(low));
     if (!matcher) return null;
     // lab-as-actor guard: skip "<model> bans/blocks/… <something>" (the LAB is doing the banning).
@@ -536,6 +561,18 @@ if (process.argv.includes('--selftest')) {
         ["Countries that banned Grok — the complete list", false, null],
         // …while a genuine worldwide ban must still register as global.
         ["US export directive forces Claude Fable offline worldwide", true, 'news:fable:GLOBAL'],
+        // Actor disambiguation: a HUMAN punished for misusing a model is not a ban on the
+        // model (the news:chatgpt:CA incident — this row detained GPT for Canadian visitors).
+        ["Canadian lawyer faces 6-month suspension for citing ChatGPT cases in court hearing", false, null],
+        ["German student expelled for submitting Claude-written thesis", false, null],
+        ["Italian journalist handed a fine over Gemini-generated images", false, null],
+        ["Australian doctor disbarred after relying on DeepSeek diagnoses", false, null],
+        // …but an OFFICIAL doing the banning must still register — the person nouns above
+        // must never swallow "minister/official/court bans <model>".
+        ["German minister bans DeepSeek on government devices", true, 'news:deepseek:DE'],
+        ["Canadian privacy officer blocks ChatGPT for federal staff", true, 'news:chatgpt:CA'],
+        ["Turkish judge orders ban on Grok over offensive content", true, 'news:grok:TR'],
+        ["Indian regulator suspends Qwen downloads nationwide", true, 'news:qwen:IN'],
     ];
     let pass = 0, total = 0;
     for (const [title, shouldHit, expectKey] of samples) {
