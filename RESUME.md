@@ -1,16 +1,19 @@
 # Resume here
 
-**Updated:** 2026-09-07 · **Local `main`:** `28b0add` — five accuracy/behaviour fixes, **committed but NOT pushed**
+**Updated:** 2026-09-07 · **Local `main`:** five accuracy/behaviour fixes, **committed but NOT pushed**
 **Status:** nothing is live yet. Netlify still has `3dceab9`. Read "Ship it" below before pushing.
 
 ---
 
 ## ⚠️ Ship it — do these in order
 
-1. **Push.** `git push origin main` → Netlify auto-deploys `28b0add` (cachebust v553).
-2. **Run one line of SQL in the Supabase SQL Editor.** This is the only fix that
-   is *not* in the commit — the 2D city reads `LABS.ticker` from the database and
-   the anon key is read-only:
+1. **Push.** `git push origin main` → Netlify auto-deploys the tip of `main`.
+   `git log --oneline origin/main..main` lists what's going out; `grep CACHE_NAME
+   sw.js` is the cachebust version going with it.
+2. **Run `netlify/functions/set_xai_ticker.sql` in the Supabase SQL Editor.**
+   This is the only fix that is *not* in the commit — the 2D city reads
+   `LABS.ticker` from the database and the anon key is read-only. The file has
+   the reasoning and a verify query; the operative line is just:
    ```sql
    update public.labs set ticker = 'SPCX' where id = 'xai';
    ```
