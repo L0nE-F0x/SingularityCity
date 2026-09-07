@@ -38,6 +38,20 @@ const optDateish = (v) => v == null || isDateish(v);
 const isHttpUrl = (v) => { try { return ['http:', 'https:'].includes(new URL(v).protocol); } catch { return false; } };
 const optHttpUrl = (v, max = 500) => v == null || (typeof v === 'string' && v.length <= max && isHttpUrl(v));
 
+// `arch` is a JSONB column holding a small {params,type,tokens,compute} map, and every
+// client discovery path (HuggingFace / ZeroEval / OpenRouter) has always sent it as an
+// object. Validating it with optStr() — a string check — rejected every one of those rows
+// with "string field too long", and _cloudSubmit swallows the failure, so model discovery
+// went silently dead. Mirror numericBenchmarks: a small map of short strings. A plain
+// string stays acceptable so older senders keep working.
+const archMap = (a) => {
+    if (a == null || typeof a === 'string') return a == null || a.length <= 60;
+    if (typeof a !== 'object' || Array.isArray(a)) return false;
+    const entries = Object.entries(a);
+    if (entries.length > 8) return false;
+    return entries.every(([k, v]) => isStr(k, 40) && typeof v === 'string' && v.length <= 60);
+};
+
 const numericBenchmarks = (b) => {
     if (b == null) return true;
     if (typeof b !== 'object' || Array.isArray(b)) return false;
@@ -58,7 +72,8 @@ const TABLES = {
             if (!isStr(r.id, 120) || !isStr(r.name, 120) || !isStr(r.lab, 60)) return 'id/name/lab required (≤120 chars)';
             if (!optDateish(r.rel) || !optDateish(r.ret)) return 'rel/ret must be YYYY-MM-DD';
             if (!optStr(r.phase, 24) || !optStr(r.desc, 600) || !optStr(r.per, 60) || !optStr(r.tal, 60) || !optStr(r.fav, 60)) return 'string field too long';
-            if (!optStr(r.arch, 60) || !optStr(r.region, 12) || !optStr(r.params, 40)) return 'string field too long';
+            if (!optStr(r.region, 12) || !optStr(r.params, 40)) return 'string field too long';
+            if (!archMap(r.arch)) return 'arch must be a small string map';
             if (!optBool(r.os)) return 'os must be boolean';
             if (!optNum(r.ctx, 0, 1e9) || !optNum(r.cost_input, 0, 100000) || !optNum(r.cost_out, 0, 100000)) return 'numeric field out of range';
             if (!numericBenchmarks(r.benchmarks)) return 'benchmarks must be a small numeric map';
