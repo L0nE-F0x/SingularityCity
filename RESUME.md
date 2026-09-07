@@ -1,43 +1,78 @@
 # Resume here
 
-**Updated:** 2026-09-07 · **Live `main`:** `cbf969b` — five accuracy/behaviour fixes, **shipped**
-**Status:** deployed (cachebust v552) and verified live. One item still pending — see below.
+**Updated:** 2026-09-07 (afternoon) · **Live `main`:** `f38b1f2` — **shipped**
+**Status:** deployed (cachebust v554) and verified live. Both previously-pending
+items are closed. Neither failed for the reason the last handoff predicted.
 
 ---
 
 ## Where this stands
 
-**Done and verified live:**
+Tested the two items the morning session left pending. Both were still broken,
+and each hid a bigger defect behind it.
 
-- **Pushed & deployed.** `cbf969b` is on `main` and Netlify is serving v552.
-  Checked against the *minified* bundles, not the source: the frozen `[6-9]`
-  GPT ceiling is gone from `api.js` (Orion/Strawberry patterns retained),
-  `"gpt-6 astra"` / `"gpt-6 astra pro"` are in the live `knownReal`,
-  `entities.js` carries `_abandonMetro` / `_noMetroUntil` / `_waitTicks`, and FP
-  has `xai:{…ticker:"SPCX"…}`. ⚠️ Netlify minifies via `tools/build.mjs`, so
-  grepping a deployed asset for source-style formatting gives false negatives —
-  match on object properties and string literals, which survive mangling.
-- **xAI ticker.** `set_xai_ticker.sql` was run; `labs.xai.ticker = 'SPCX'` and the
-  HQ sign is pulling live Finnhub quotes.
+**1. The ban rows — one purged, one came back.**
+`news:deepseek:GLOBAL` is gone; the listicle guard worked. `news:chatgpt:CA`
+survived, and the bot was not at fault — `last_seen` was `12:00:42Z`, so it ran
+and *re-affirmed* the row. Google News had re-worded the headline:
 
-**Still pending:**
+| | |
+|---|---|
+| guard written against | "Canadian lawyer **faces** 6-month **suspension** for citing ChatGPT cases…" |
+| served that afternoon | "Canadian lawyer who misled judge about ChatGPT use **is suspended**" |
 
-- **The two bad ban rows.** `news:deepseek:GLOBAL` and `news:chatgpt:CA` were
-  still active as of 03:15 UTC on 2026-09-07. `update-ai-bans.mjs` runs
-  `0 */6 * * *`, so the first post-deploy run is 06:00 UTC and
-  `purgeMisclassified()` should drop both. Verify:
-  ```
-  curl "$SUPABASE_URL/rest/v1/ai_bans?select=ban_key,active&ban_key=in.(news:deepseek:GLOBAL,news:chatgpt:CA)" \
-       -H "apikey: <publishable key from js/engine.js>"
-  ```
-  Expect `[]`. If either survives, the function didn't run — check the Netlify
-  logs before deleting by hand. (Running the new classifier over all eight live
-  active rows purges exactly those two and keeps all six real bans.)
-- **GPT-6 Astra landing.** Not in the shared table yet, but it needs no manual
-  scan: `fetchOpenRouter()` fires 11s after page load and every 25 min with no
-  API key, and writes go through `submit-data.mjs`, whose server-side verifier
-  was fixed in the same commit. Load the city, wait ~15s, and GPT-6 Astra +
-  GPT-6 Astra Pro should walk in as OpenAI citizens.
+Both guards need an active verb plus a punishment noun; passive "is suspended"
+matches neither. `PERSON_PUNISHED_PASSIVE_RE` covers it, with bans/barred/blocked
+still deliberately excluded. **Take the lesson wider than the regex: a headline
+is not a stable key.** The bot re-reads the live feed every 6h, so a guard
+written against one wording is only as good as that wording's shelf life.
+
+The client had no actor guard at all — `jail.js:_deriveNewsRules` derives bans
+browser-side from the same feed and had only the listicle and stats guards, so
+it could re-derive `news:chatgpt:CA` however cleanly the bot purged it. Ported
+as one literal, verified headline-by-headline against the server's three regexes
+(identical verdicts on 18 cases). Selftest 43/43.
+
+**2. GPT-6 Astra — the regex was never what stopped it.**
+The v552 fix was fine: cap auto-raises to 6, both Astras pass the verifier,
+GPT-8 still rejected. The row died one layer earlier, in `submit-data`:
+
+```
+{"ok":true,"written":0,"rejected":[{"index":0,"reason":"string field too long"}]}
+```
+
+`optStr(r.arch, 60)` validated `arch` as a **string**. It is a **jsonb** column,
+every row holds an object, and all three discovery paths send
+`{params,type,tokens,compute}`. A type mismatch reported itself as a length
+error, and `_cloudSubmit` swallows a failed POST, so it surfaced nowhere.
+
+**This was never an Astra bug.** The check landed in `692c03c` (v511 security
+overhaul) on 2026-07-10; the newest row in `models` was 2026-07-08. **Client-side
+model discovery had written nothing for two months.** `archMap` now mirrors the
+`numericBenchmarks` validator beside it. GPT-6 Astra and GPT-6 Astra Pro are in
+the table as OpenAI citizens (15:18 / 15:19 UTC), `arch` object intact.
+
+**3. What fixing #2 exposed.** Re-enabling the write path made a dormant bug
+live: the variant skip list (`:beta`, `:free`, `:nitro`, `:extended`,
+`:thinking`) was missing **`:batch`**, and the feed carries **69** of them. The
+duplicates had never appeared only because nothing could be written at all. Left
+alone, "GPT-6 Astra (batch)" would have walked in beside "GPT-6 Astra", eight per
+fetch every 25 min. Fixed in both filters (`api.js` and `fetchTrustedNames`):
+430 → 343 kept, zero `:batch` survivors, both real Astras still pass.
+
+**Verified live:** v554 serving; `_NEWS_PERSON_PUNISHED_RE` present in the
+deployed `jail.js`; `_cloudSubmit` returns `true` against production.
+
+**One thing still on a timer:** `news:chatgpt:CA` was still active at the time of
+writing. The bot runs `0 */6 * * *`, so the first run with the passive guard is
+**18:00 UTC**, and `purgeMisclassified()` should drop it. Confirm with:
+```
+curl "$SUPABASE_URL/rest/v1/ai_bans?select=ban_key,active&ban_key=eq.news:chatgpt:CA" \
+     -H "apikey: <publishable key from js/engine.js>"
+```
+Expect `[]`. Running the new classifier over the 7 live active rows purges
+exactly that one and keeps all 6 real bans, so if it survives the function did
+not run — check the Netlify logs before deleting by hand.
 
 ### A note for next time — this branch had diverged
 
@@ -433,6 +468,26 @@ Every one of these cost real debugging **this session**.
 - **The version badge is derived**, not written — it reads the first versioned
   `js/` tag, which is `shared_boot.js`. A stale badge means `cachebust` missed a
   tag, not that the deploy failed.
+- **`_cloudSubmit` swallows every failure.** The POST to
+  `/.netlify/functions/submit-data` is wrapped in `catch (e) { /* silent */ }`,
+  and the endpoint answers `200` with `{"ok":true,"written":0,"rejected":[…]}`
+  when it drops a row. A write can fail forever and look exactly like a write
+  that had nothing to do — that is how two months of dead model discovery went
+  unnoticed. **To test a discovery path, POST the row by hand and read
+  `rejected`.** Do not infer success from a model appearing in `G.models`; that
+  happens before the submit.
+- **The rejection reason can lie about the cause.** `optStr()` doubles as a type
+  check, so a wrong *type* is reported as `'string field too long'`. Read the
+  check that produced the message, not the message.
+- **`G` and `API` are `const`, so they are NOT on `window`.** `window.G` and
+  `window.API` are `undefined` while `G` and `API` resolve fine — top-level
+  `const`/`let` create script-scope bindings, unlike `var LABS`. Probing a live
+  page with `window.G` gives a false negative and makes a booting city look
+  dead. Use the bare identifier.
+- **Escaping regexes through a generator script is its own bug class.** A
+  `\\b` that should have been `\b` shipped a guard that silently matched
+  nothing — it parsed, linted and looked right in the diff. Any ported regex
+  needs a test that asserts it *fires*, not just that the file loads.
 - **`tools/build.mjs` minifies IN PLACE.** Commit before running any build.
 - **`git checkout -- <dir>` to undo a build also reverts uncommitted edits.**
 - **Netlify's `/*.js` header glob does NOT match `.mjs`.** Shared modules are
