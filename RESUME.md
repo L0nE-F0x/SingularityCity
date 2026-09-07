@@ -1,13 +1,13 @@
 # Resume here
 
-**Updated:** 2026-09-06 · **Local `main`:** `25d6317` — four accuracy/behaviour fixes, **committed but NOT pushed**
-**Status:** nothing is live yet. Netlify still has `3dceab9`. Read "Ship it tomorrow" below before pushing.
+**Updated:** 2026-09-07 · **Local `main`:** `28b0add` — five accuracy/behaviour fixes, **committed but NOT pushed**
+**Status:** nothing is live yet. Netlify still has `3dceab9`. Read "Ship it" below before pushing.
 
 ---
 
-## ⚠️ Ship it tomorrow — do these in order
+## ⚠️ Ship it — do these in order
 
-1. **Push.** `git push origin main` → Netlify auto-deploys `25d6317` (cachebust v553).
+1. **Push.** `git push origin main` → Netlify auto-deploys `28b0add` (cachebust v553).
 2. **Run one line of SQL in the Supabase SQL Editor.** This is the only fix that
    is *not* in the commit — the 2D city reads `LABS.ticker` from the database and
    the anon key is read-only:
@@ -17,19 +17,22 @@
    Then reload the city: the xAI HQ (`bld_x`) grows a ticker sign. It reads
    `SPCX AWAITING TELEMETRY` until a player enters their own Finnhub key —
    that's normal, every lab behaves that way.
-3. **Confirm the bad DeepSeek ban cleared.** `update-ai-bans.mjs` runs every 6h;
+3. **Confirm the two bad ban rows cleared.** `update-ai-bans.mjs` runs every 6h;
    its `purgeMisclassified()` re-runs `classify()` over each row's stored headline
-   and deletes rows the current classifier would no longer produce. Row
-   `news:deepseek:GLOBAL` should vanish on the first run after deploy. Verify:
+   and deletes rows the current classifier would no longer produce. Both
+   `news:deepseek:GLOBAL` (bogus worldwide ban) and `news:chatgpt:CA` (the
+   disciplined lawyer) should vanish on the first run after deploy. Verify:
    ```
-   curl "$SUPABASE_URL/rest/v1/ai_bans?select=ban_key,active&ban_key=eq.news:deepseek:GLOBAL" \
+   curl "$SUPABASE_URL/rest/v1/ai_bans?select=ban_key,active&ban_key=in.(news:deepseek:GLOBAL,news:chatgpt:CA)" \
         -H "apikey: <publishable key from js/engine.js>"
    ```
-   Expect `[]`. If it's still there after ~6h, the function didn't run — check the
-   Netlify logs before deleting the row by hand.
+   Expect `[]`. If either is still there after ~6h, the function didn't run — check
+   the Netlify logs before deleting by hand. Confirmed by running the new classifier
+   over all eight live active rows: exactly those two purge, all six real bans stay.
 4. **Spot-check the city.** DeepSeek citizens should be asleep at home at night,
-   not detained. Trigger a scan and watch that nobody accumulates on a metro
-   platform. GPT-6 Astra and GPT-6 Astra Pro should arrive as OpenAI citizens.
+   not detained, and GPT models should be free for Canadian visitors. Trigger a
+   scan and watch that nobody accumulates on a metro platform. GPT-6 Astra and
+   GPT-6 Astra Pro should arrive as OpenAI citizens.
 
 ### Questions I had to answer for you (no action needed, just so you know)
 
@@ -44,21 +47,44 @@
   bogus *worldwide* ban row, so it applied to every visitor regardless of country.
   The geo scoping itself was working fine.
 
-### One thing I found but did NOT fix (your call)
+### Nothing deferred
 
-`ai_bans` row `news:chatgpt:CA` is active, from the headline *"Canadian lawyer
-faces 6-month suspension for citing ChatGPT cases in court hearing"*. That's a
-**lawyer** being suspended, not ChatGPT being banned in Canada — so GPT models
-are wrongly detained for Canadian visitors. It's the same family of bug as the
-listicle (the classifier can't tell who the ban verb applies to), but fixing it
-properly means teaching `classify()` actor disambiguation, which is a bigger
-change than tonight's. Either delete the row (`delete from public.ai_bans where
-ban_key = 'news:chatgpt:CA';` — it will not come back for 21 days) or leave it
-for a dedicated pass.
+The `news:chatgpt:CA` row flagged here overnight was fixed on 2026-09-07 — see
+"Follow-up" below. There is no outstanding known-bad data.
 
 ---
 
-## This session (2026-09-06) — four defects, found from live data
+## Follow-up (2026-09-07) — actor disambiguation in the ban classifier
+
+`news:chatgpt:CA` was active off:
+
+> *Canadian lawyer faces 6-month suspension for citing ChatGPT cases in court hearing*
+
+A lawyer disciplined for misusing the tool, read as Canada banning ChatGPT — so
+every OpenAI model was detained for Canadian visitors. Same family as the
+listicle bug: `classify()` matches a ban verb, a model and a country anywhere in
+the headline and cannot tell **who the verb applies to**.
+
+Two narrow guards now reject only the shapes where a human is unambiguously the
+one punished: `PERSON_PUNISHED_RE` (`<person> … faces/handed/receives … a
+suspension|ban|fine|sanction`) and `PERSON_DISCIPLINED_RE` (person-only verbs —
+disbarred, struck off, expelled, convicted, sentenced).
+
+The important part is what's **deliberately absent** from both verb lists: bare
+"bans", "banned", "barred", "blocked". Officials do the banning, so matching
+those after a person noun would suppress real bans — "German minister bans
+DeepSeek on government devices" must still register. Four self-test cases cover
+the misuse shape, four more assert that minister/officer/judge/regulator
+headlines still produce rows (39/39).
+
+Verified against production before committing: ran the new classifier over all
+eight live active bot rows — it purges exactly `news:chatgpt:CA` and
+`news:deepseek:GLOBAL`, keeps all six legitimate bans. Server-side only, so no
+cachebust bump.
+
+---
+
+## Previous session (2026-09-06) — four defects, found from live data
 
 Started from two reports (missing xAI ticker, missing GPT Astra) and picked up
 two more from a screenshot mid-session.
