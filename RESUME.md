@@ -1,41 +1,58 @@
 # Resume here
 
-**Updated:** 2026-09-07 · **Local `main`:** five accuracy/behaviour fixes, **committed but NOT pushed**
-**Status:** nothing is live yet. Netlify still has `3dceab9`. Read "Ship it" below before pushing.
+**Updated:** 2026-09-07 · **Live `main`:** `cbf969b` — five accuracy/behaviour fixes, **shipped**
+**Status:** deployed (cachebust v552) and verified live. One item still pending — see below.
 
 ---
 
-## ⚠️ Ship it — do these in order
+## Where this stands
 
-1. **Push.** `git push origin main` → Netlify auto-deploys the tip of `main`.
-   `git log --oneline origin/main..main` lists what's going out; `grep CACHE_NAME
-   sw.js` is the cachebust version going with it.
-2. **Run `netlify/functions/set_xai_ticker.sql` in the Supabase SQL Editor.**
-   This is the only fix that is *not* in the commit — the 2D city reads
-   `LABS.ticker` from the database and the anon key is read-only. The file has
-   the reasoning and a verify query; the operative line is just:
-   ```sql
-   update public.labs set ticker = 'SPCX' where id = 'xai';
-   ```
-   Then reload the city: the xAI HQ (`bld_x`) grows a ticker sign. It reads
-   `SPCX AWAITING TELEMETRY` until a player enters their own Finnhub key —
-   that's normal, every lab behaves that way.
-3. **Confirm the two bad ban rows cleared.** `update-ai-bans.mjs` runs every 6h;
-   its `purgeMisclassified()` re-runs `classify()` over each row's stored headline
-   and deletes rows the current classifier would no longer produce. Both
-   `news:deepseek:GLOBAL` (bogus worldwide ban) and `news:chatgpt:CA` (the
-   disciplined lawyer) should vanish on the first run after deploy. Verify:
-   ```
-   curl "$SUPABASE_URL/rest/v1/ai_bans?select=ban_key,active&ban_key=in.(news:deepseek:GLOBAL,news:chatgpt:CA)" \
-        -H "apikey: <publishable key from js/engine.js>"
-   ```
-   Expect `[]`. If either is still there after ~6h, the function didn't run — check
-   the Netlify logs before deleting by hand. Confirmed by running the new classifier
-   over all eight live active rows: exactly those two purge, all six real bans stay.
-4. **Spot-check the city.** DeepSeek citizens should be asleep at home at night,
-   not detained, and GPT models should be free for Canadian visitors. Trigger a
-   scan and watch that nobody accumulates on a metro platform. GPT-6 Astra and
-   GPT-6 Astra Pro should arrive as OpenAI citizens.
+**Done and verified live:**
+
+- **Pushed & deployed.** `cbf969b` is on `main` and Netlify is serving v552.
+  Checked against the *minified* bundles, not the source: the frozen `[6-9]`
+  GPT ceiling is gone from `api.js` (Orion/Strawberry patterns retained),
+  `"gpt-6 astra"` / `"gpt-6 astra pro"` are in the live `knownReal`,
+  `entities.js` carries `_abandonMetro` / `_noMetroUntil` / `_waitTicks`, and FP
+  has `xai:{…ticker:"SPCX"…}`. ⚠️ Netlify minifies via `tools/build.mjs`, so
+  grepping a deployed asset for source-style formatting gives false negatives —
+  match on object properties and string literals, which survive mangling.
+- **xAI ticker.** `set_xai_ticker.sql` was run; `labs.xai.ticker = 'SPCX'` and the
+  HQ sign is pulling live Finnhub quotes.
+
+**Still pending:**
+
+- **The two bad ban rows.** `news:deepseek:GLOBAL` and `news:chatgpt:CA` were
+  still active as of 03:15 UTC on 2026-09-07. `update-ai-bans.mjs` runs
+  `0 */6 * * *`, so the first post-deploy run is 06:00 UTC and
+  `purgeMisclassified()` should drop both. Verify:
+  ```
+  curl "$SUPABASE_URL/rest/v1/ai_bans?select=ban_key,active&ban_key=in.(news:deepseek:GLOBAL,news:chatgpt:CA)" \
+       -H "apikey: <publishable key from js/engine.js>"
+  ```
+  Expect `[]`. If either survives, the function didn't run — check the Netlify
+  logs before deleting by hand. (Running the new classifier over all eight live
+  active rows purges exactly those two and keeps all six real bans.)
+- **GPT-6 Astra landing.** Not in the shared table yet, but it needs no manual
+  scan: `fetchOpenRouter()` fires 11s after page load and every 25 min with no
+  API key, and writes go through `submit-data.mjs`, whose server-side verifier
+  was fixed in the same commit. Load the city, wait ~15s, and GPT-6 Astra +
+  GPT-6 Astra Pro should walk in as OpenAI citizens.
+
+### A note for next time — this branch had diverged
+
+The push was rejected first time: the **2026-09 monthly zone refresh** (PR #6,
+`bae13e3` / `d862338` / `36c27a2`) had been merged to `main` while this work was
+local. Rebased onto it. Zero source overlap — the refresh only touched
+`js/*_zone.js`, `court.js`, `datacenter_data.js`, `embassy_row.js`, `vc_row.js`;
+the only conflicts were `index.html` / `sw.js`, which are cachebust artifacts, so
+they were resolved by taking upstream and re-running `tools/cachebust.mjs`. That
+is also why the version is **v552** and not the v553 an earlier draft mentioned:
+v553 was computed against a pre-refresh tree that never shipped.
+
+**If `cachebust.mjs` reports a remote version ahead of local, that is the signal
+to `git fetch` before doing anything else.** It said so twice this session before
+the push failed.
 
 ### Questions I had to answer for you (no action needed, just so you know)
 
@@ -187,8 +204,11 @@ states. Being outdoors at 23:33 was also by design: detention outranks sleep in
 ### Checks run
 
 `npm run test:fp` (all green), `eslint js/**` clean, prettier clean on changed
-2D files, `update-ai-bans.mjs --selftest` 31/31, server verifier against the live
-OpenRouter feed. Cachebust → **v553**.
+2D files, `update-ai-bans.mjs --selftest` (31/31 at the time, 39/39 after the
+follow-up), server verifier against the live OpenRouter feed. All re-run after
+the rebase onto the zone refresh. Cachebust → **v552** (see the divergence note
+at the top — an earlier draft said v553, computed against a tree that never
+shipped).
 
 ---
 
