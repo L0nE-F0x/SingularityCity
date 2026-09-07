@@ -74,6 +74,17 @@ const PERSON_DISCIPLINED_RE = new RegExp(
     `\\b${PERSON_SUBJECT}\\b[^.]{0,60}?\\b(?:disbarred|struck off|sentenced|reprimanded|censured|fired|sacked|dismissed|expelled|convicted|charged|suspended from(?: the)? (?:practice|practising|practicing|bar|school|college|university|duty|work))\\b`,
     'i'
 );
+// Same misuse story, passive voice. Google News re-words a story's headline over its life:
+// the row that prompted the guards above arrived as "Canadian lawyer faces 6-month
+// suspension for citing ChatGPT cases" (caught by PERSON_PUNISHED_RE) and is now served as
+// "Canadian lawyer who misled judge about ChatGPT use is suspended" — which neither guard
+// matched, so the row came back on the next bot run. Verbs here stay person-directed only;
+// "banned"/"barred"/"blocked" are still deliberately absent, because officials do the
+// banning and a passive "X is banned" is how a real ban reads.
+const PERSON_PUNISHED_PASSIVE_RE = new RegExp(
+    `\\b${PERSON_SUBJECT}\\b[^.]{0,60}?\\b(?:is|was|were|are|has been|have been|had been|been)\\s+(?:\\w+ly\\s+)?(?:suspended|disbarred|struck off|fired|sacked|dismissed|expelled|reprimanded|censured|disciplined|sanctioned|fined|convicted|sentenced|jailed)\\b`,
+    'i'
+);
 
 // ─── RELEASE CLASSIFIER ──────────────────────────────────────────────────────
 // Strong, past-tense lift verbs only — "releases Grok 5" (a product launch) must NOT count.
@@ -133,7 +144,7 @@ function classify(title) {
     if (STATS_RE.test(low)) return null;            // ranking/statistics piece, not a ban event
     if (LISTICLE_RE.test(low)) return null;         // roundup/listicle of existing bans, not an event
     // A human is the one being punished — the model is the instrument, not the target.
-    if (PERSON_PUNISHED_RE.test(low) || PERSON_DISCIPLINED_RE.test(low)) return null;
+    if (PERSON_PUNISHED_RE.test(low) || PERSON_DISCIPLINED_RE.test(low) || PERSON_PUNISHED_PASSIVE_RE.test(low)) return null;
     const matcher = MODEL_MATCHERS.find(m => m.re.test(low));
     if (!matcher) return null;
     // lab-as-actor guard: skip "<model> bans/blocks/… <something>" (the LAB is doing the banning).
@@ -567,6 +578,12 @@ if (process.argv.includes('--selftest')) {
         ["German student expelled for submitting Claude-written thesis", false, null],
         ["Italian journalist handed a fine over Gemini-generated images", false, null],
         ["Australian doctor disbarred after relying on DeepSeek diagnoses", false, null],
+        // Passive voice — the same CA story as re-worded by Google News weeks later. The
+        // active-voice guards above miss this shape, so the purged row came back (2026-09-07).
+        ["Canadian lawyer who misled judge about ChatGPT use is suspended", false, null],
+        ["UK teacher was fired over Gemini-marked exam papers", false, null],
+        ["US attorney has been sanctioned for filing Claude-invented citations", false, null],
+        ["Spanish researcher is indefinitely suspended for faking Qwen results", false, null],
         // …but an OFFICIAL doing the banning must still register — the person nouns above
         // must never swallow "minister/official/court bans <model>".
         ["German minister bans DeepSeek on government devices", true, 'news:deepseek:DE'],

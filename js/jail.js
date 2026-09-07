@@ -250,6 +250,16 @@ const JailData = {
         /\b(?:banned|blocked|restricted|banning|blocking)\s+countries\b|\bcountries\s+(?:that|which|where)\b|\bwhich\s+countries\b|\bhow\s+many\s+countries\b|\b(?:full|complete|updated|worldwide|global|the)\s+list\s+of\b|\blist\s+of\s+(?:countries|bans|restrictions)\b|\[[^\]]{0,40}\blist\b[^\]]{0,40}\]/,
     // Statistical / ranking pieces ("the most frequently restricted chatbot worldwide").
     _NEWS_STATS_RE: /\b(most|least)\s+(frequently|commonly|widely|often|heavily)\b/,
+    // A HUMAN is the one being punished — the model is the instrument, not the target.
+    // "Canadian lawyer who misled judge about ChatGPT use is suspended" carries a ban verb, a
+    // model and a country, so without this it derives news:chatgpt:CA and detains every OpenAI
+    // model for Canadian visitors. Mirrors PERSON_PUNISHED_RE / PERSON_DISCIPLINED_RE /
+    // PERSON_PUNISHED_PASSIVE_RE in netlify/functions/update-ai-bans.mjs (the authoritative
+    // classifier), unioned into one literal so the person nouns are listed once. As there,
+    // bare "bans"/"banned"/"barred"/"blocked" are deliberately absent from the verb lists:
+    // officials do the banning, so matching those after a person noun would suppress real bans.
+    _NEWS_PERSON_PUNISHED_RE:
+        /\b(?:lawyer|attorney|solicitor|barrister|judge|prosecutor|paralegal|student|pupil|teacher|professor|lecturer|academic|researcher|scientist|doctor|physician|nurse|therapist|journalist|reporter|editor|columnist|author|writer|novelist|artist|developer|programmer|engineer|employee|worker|staffer|contractor|consultant|accountant|banker|trader|broker|realtor|agent|coach|driver|pilot|athlete|player|influencer|streamer|youtuber|creator|candidate|applicant|graduate|intern|couple|man|woman|teen|teenager|boy|girl)s?\b[^.]{0,60}?(?:\b(?:faces?|faced|facing|receives?|received|gets?|got|given|handed|hit with|slapped with|earns?|earned)\b[^.]{0,30}?\b(?:suspension|suspensions|ban|bans|fine|fines|sanction|sanctions|penalty|penalties|censure|reprimand|discipline|disbarment|jail|prison)\b|\b(?:disbarred|struck off|sentenced|reprimanded|censured|fired|sacked|dismissed|expelled|convicted|charged|suspended from(?: the)? (?:practice|practising|practicing|bar|school|college|university|duty|work))\b|\b(?:is|was|were|are|has been|have been|had been|been)\s+(?:\w+ly\s+)?(?:suspended|disbarred|struck off|fired|sacked|dismissed|expelled|reprimanded|censured|disciplined|sanctioned|fined|convicted|sentenced|jailed)\b)/,
     // Negation / release signals — if present, do NOT manufacture a ban from this headline.
     _NEWS_RELEASE_RE:
         /\b(not banned|won'?t ban|no ban|despite|reject|rejects|rejected|unban|unbanned|lift|lifts|lifted|lifting|overturn|overturned|restore|restored|reinstate|reinstated|allow|allowed|approve|approved|avoid|avoids|avoided|reverse|reversed|appeal)\b/,
@@ -320,6 +330,7 @@ const JailData = {
             if (this._NEWS_RELEASE_RE.test(low)) continue; // skip negations / lifts / appeals
             if (this._NEWS_LISTICLE_RE.test(low)) continue; // roundup of existing bans, not an event
             if (this._NEWS_STATS_RE.test(low)) continue; // ranking/statistics piece, not a ban
+            if (this._NEWS_PERSON_PUNISHED_RE.test(low)) continue; // a person is punished, not the model
             const matcher = this._NEWS_MATCHERS.find((mm) => mm.re.test(low));
             if (!matcher) continue; // not about a model line we track
             // Jurisdiction
