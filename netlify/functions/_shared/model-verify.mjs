@@ -416,7 +416,7 @@ async function fetchTrustedNames() {
     if (orList) {
         sources++;
         for (const m of orList) {
-            if (!m.name || /:beta$|:free$|:nitro$|:extended$|:thinking$/i.test(m.id || '')) continue;
+            if (!m.name || /:beta$|:free$|:nitro$|:extended$|:thinking$|:batch$/i.test(m.id || '')) continue;
             // Strip "Lab: " prefix, same as the client.
             let dn = m.name;
             const ci = dn.indexOf(': ');

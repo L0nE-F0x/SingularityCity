@@ -950,7 +950,11 @@ const API = {
 
                 // id format: "lab/model-name". Skip variant suffixes like :beta/:free/:nitro —
                 // those are the same base model through a different OpenRouter routing tier.
-                if (/:beta$|:free$|:nitro$|:extended$|:thinking$/i.test(or.id)) continue;
+                // :batch belongs in that list and was missing: the feed carries 69 of them, so
+                // "GPT-6 Astra (batch)" would walk in as a second citizen beside "GPT-6 Astra".
+                // It never showed because submit-data rejected every discovered row on `arch`
+                // for two months; with that fixed, the duplicates would have started landing.
+                if (/:beta$|:free$|:nitro$|:extended$|:thinking$|:batch$/i.test(or.id)) continue;
 
                 const slashIdx = or.id.indexOf('/');
                 if (slashIdx <= 0) continue;
