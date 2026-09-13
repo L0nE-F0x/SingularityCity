@@ -1,17 +1,113 @@
 # Resume here
 
-**Updated:** 2026-09-13 · FP kit GLBs shipping to production
-**Status:** First Person kits, scale, harbour, trees, and blimps pushed for Netlify.
+**Updated:** 2026-09-13 (session wrap) · **Live `main`:** `aa93abc`
+**Status:** First Person kit-GLB work is **on `main`**. Netlify should have
+auto-deployed. Hard-refresh production (`singularitycity.net` → toolbar **FP**)
+if the live city still looks like boxes.
+
+Repo: https://github.com/L0nE-F0x/SingularityCity.git
+Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/first-person/
 
 ---
 
-## This session (2026-09-13) — ship FP kits
+## This session (2026-09-12 → 13) — modular kits into First Person
 
-Owner playtested locally. Commit includes only the GLBs `assets.js` loads
-(~11 MB), Draco/GLTF loaders, and the FP wiring. The TJA key is gitignored.
-Unused pack dumps (farm barns, cozy cottages, bedroom, etc.) stay untracked.
+**Shipped in `aa93abc`.** Owner playtested locally, then pushed.
+
+Goal: wire threejsassets kits into FP **without** baking a city mesh.
+`City.layout()`, colliders, canvas signs, metros, helis, robots, box-people stay.
+
+### What a new agent must not re-break
+
+These failed in playtest and were fixed. Do not "improve" them back:
+
+1. **Scale.** Files are 1 u = 1 m; world is **10 u = 1 m**. Never stretch each
+   axis independently (toys). Never `max(sy, min(sx,sz))` on a short-wide kit
+   (NVIDIA's 8.6 m convention hall became a 105 m slab, bigger than a cell).
+   Current rule in `kitScale()`: fill the lot in **plan**, cap height, then
+   **shrink the collider to the mesh** (`World._fitCollider`). Invisible walls
+   were the lot box around a tiny hut.
+2. **Metros and warehouses stay procedural.** The metro headhouse kit is a 4 m
+   kiosk (giant T-sign + floating roof). The dock-warehouse kit has a pit under
+   y=0 (Merge Yard floor trap).
+3. **Harbour.** Beach plane is 320 wide centred at `SEA_X+20`, so sand covers
+   **out to `SEA_X-140`**. Boats must sit west of that. Do not stack canal
+   tiles / dock modules / palms on the timber pier. Ships berth at
+   `SEA_X - 220`, not `-100` (hull was on the sand).
+4. **Ocean shader.** Three r160 uses `vMapUv`, not `vUv`. A custom Phong
+   compile-fail made the water vanish and fly-mode showed the **meadow**.
+   Water is stock Phong now. Countryside west edge is clipped at `SEA_X`.
+5. **Do not dump kits.** Mall-block stairs fused infill. Interior GLBs at
+   true-metre scale sat as toys on 3×-authored furniture. `_dressKitProps`
+   scatter was removed. Bespoke interiors (bar, embassy, jail) must not get
+   extra DJ booths / consoles.
+6. **Draw calls.** One `InstancedMesh` per kit. Unique GLBs for VC Row + HQs;
+   infill reuses those kits. No bloom / SSAO / transmission.
+
+### Architecture (where to look)
+
+| Piece | File |
+|---|---|
+| Registry, `kitScale`, landmark map, trees | `first-person/js/assets.js` |
+| Place kits, colliders, harbour, rail siding, ocean, villas | `first-person/js/world.js` |
+| Load kits before `World.build()` | `first-person/js/main.js` |
+| Cars, VIP SUVs, **procedural blimps** | `first-person/js/traffic.js` |
+| Home living-room layout | `first-person/js/interior.js` |
+| AI Index monument | `first-person/js/kardashev.js` |
+| Ship berth X | `first-person/js/ships.js` `_berth()` |
+| Importmap | `first-person/index.html` + `tests/hooks/three_resolver.mjs` |
+| Draco decoder | `first-person/lib/draco/` (worker-src includes `blob:` in `netlify.toml`) |
+
+Kits load from `_packs/<pack>/glb/individual/*.glb`. 10 world units = 1 metre.
+
+### What shipped visually
+
+- Landmarks (VC Row, lab HQs) + medium/high infill as kit towers
+- Suburbia / Founders' Heights: house kits; villas scaled up (~2-storey, not 3 m dolls)
+- Kit cars + founder SUVs; procedural **airship** blimps (lathe, fins, gondola, props)
+- Sidewalk + park trees (metro street / columnar / park / oak / pine / palms by biome)
+- Yacht / speedboat / floatplane in water; diesel + two flats on **land** at the port
+- Ocean: deep blue Phong + normals + foam; not a green field
+
+### Tests
+
+`npm run test:fp` (includes new `test:fp:assets`). Keep it green.
+
+### Local leftovers (do NOT `git add -A first-person/assets`)
+
+On disk but **untracked**: full pack dumps (bedroom, bunker, city catalog, farm
+barns, cozy cottages, railway extras, vice-beach extras, `components/*.tsx`,
+duplicate `buildings/` `street/` `vehicles/` copies). Production only has the
+~11 MB of GLBs `assets.js` lists. Zips are gitignored.
+
+**TJA key:** `first-person/assets/models/.tja_key` is gitignored. Never print it,
+never commit it. Next download:
+
+```bash
+python3 -c "print('key file', __import__('pathlib').Path('first-person/assets/models/.tja_key').exists())"
+```
+
+Then POST `https://threejsassets.com/api/download` with `licenseKey` + `packSlug`
+or `assetSlug`. 307 → GET the Location (do not POST to the CDN).
+
+### Reasonable next work (not started)
+
+1. Confirm live Netlify actually serves kits (hard-refresh; landmarks at night;
+   colliders; metro enter; fly). If boxes, cachebust `index.html`.
+2. Interior audit beyond generic homes (embassy villas, labs, worker housing).
+   Scale kit furniture to **interior-local** widths, not metres.
+3. Optional kits still on disk: hedges, plaza planters, more Vice Beach neon,
+   railway station (do **not** replace procedural metros).
+4. Character Studio humans still `not_entitled` — keep box-people / robots / helis.
+5. Delete `.tja_key` if downloads are done.
+
+### A note for next time — this branch had diverged
+
+The kits push rebased over `586b7ff` (news bans / Astra). `RESUME.md` conflicted;
+keep both stories. Do not force-push `main`.
 
 ---
+
 
 ## Previous (2026-09-07) — ban rows / Astra
 
@@ -258,72 +354,6 @@ follow-up), server verifier against the live OpenRouter feed. All re-run after
 the rebase onto the zone refresh. Cachebust → **v552** (see the divergence note
 at the top — an earlier draft said v553, computed against a tree that never
 shipped).
-
----
-
-## This session (2026-09-12) — modular Draco GLBs into FP
-
-Goal: wire threejsassets kits into First Person **without** baking a city mesh.
-`City.layout()`, colliders, canvas signs, metros, helis, robots, box-people stay.
-
-### What landed (uncommitted)
-
-Vendored Three r160 `GLTFLoader` + `DRACOLoader` + local Draco decoder.
-Importmap + Node test resolver stay in sync.
-
-`first-person/js/assets.js` — registry, load-before-`World.build()`, landmark
-map, infill reuse, vehicles, harbour props, interior props.
-
-`world.js` places kits as **one InstancedMesh per kit**. First scale pass
-stretched each axis independently and the skyline read as toys. **Fixed:**
-uniform `kitScale()` matches the old procedural box (height or footprint,
-whichever is larger). OpenAI HQ comes out ~20.5× (old ~69 m tower), not 10×
-true metres.
-
-Also: Vice Beach neon/deco/port dressing, bigger launchpad stacks (catalog has
-**no rockets**), lobby/bar/lab GLB furniture, police/bus/van in traffic,
-Netlify cache for `/first-person/assets/*` + `worker-src blob:`.
-
-`npm run test:fp` green (includes new `test:fp:assets`).
-
-### How to look at it in the morning
-
-```bash
-npm run serve
-```
-
-Then hard-refresh **Ctrl+Shift+R**:
-
-- http://127.0.0.1:8931/first-person/?autostart=1
-- night: `?autostart=1&dp=0.85`
-- 2D toolbar **FP** still goes to `/first-person/`
-
-Walk VC Row + OpenAI, port quay, space pads, enter Neon Bar and an HQ lobby.
-
-A playtest server may still be on **:8931** from tonight; if it is dead, the
-command above is enough.
-
-### Not pushed / do not commit blindly
-
-- **Code:** `first-person/js/assets.js`, `world.js`, `main.js`, `traffic.js`,
-  `interior.js`, `index.html`, `lib/GLTFLoader.js`, `lib/DRACOLoader.js`,
-  `lib/draco/`, tests, `netlify.toml`, `package.json`, this file.
-- **Assets:** `first-person/assets/` is untracked. Zips are gitignored. Prefer
-  individual GLBs under `_packs/*/glb/individual/` (and bunker
-  `interiors/bunker-facility/glb/`). Do **not** add `components/*.tsx`, pack
-  zips, or the 58 MB City catalog if you can avoid it.
-- Leave `landing_preview2.html` / `landing_preview3.html` alone.
-
-### Morning leftover (in order)
-
-1. **Owner eyeball** — scale, night windows, colliders, metro, fly, enter.
-2. **Railway pack** — only city-adjacent pack not on disk. Download API needs
-   the `TJA_` key (Chrome cookies are encrypted here). Drop the pack at
-   `first-person/assets/models/_packs/railway/` then map station / diesel /
-   gantry / container wagon.
-3. Optional: Metropolis skybridges between VC Row; Character Studio humans
-   (export still `not_entitled`); keep procedural helis/robots/box-people.
-4. Then commit + push if the playtest is good.
 
 ---
 
