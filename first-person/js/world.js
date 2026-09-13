@@ -2,10 +2,12 @@
    WORLD RENDERER — builds the entire city with performance as the priority.
 
    Lessons applied from the laggy SingularityCity3D autopsy:
-     • NO per-building meshes — all generic towers live in 3 InstancedMeshes
+     • NO per-building meshes — generic towers live in 3 InstancedMeshes
        (bucketed by height tier) with a shared procedural facade texture.
+     • Landmarks (VC Row + lab HQs) and medium/high infill reuse 3–8 kit GLBs
+       via InstancedMesh (one draw call per kit). Missing kits fall back to boxes.
      • NO per-sign textures — one 2048² canvas atlas, merged quads, 1 draw call.
-     • NO shadow maps, NO bloom, NO logarithmic depth, NO transmission.
+     • NO bloom, NO logarithmic depth, NO transmission. One sun shadow map.
      • All specialty structures merged into ONE vertex-colored static mesh.
      • Everything repeated (trees, lamps, benches, tombstones, containers,
        poles) is instanced.
@@ -18,6 +20,7 @@ import { LABS, SPACE_ORGS, BIOMES, DISTRICTS, NEWS } from './data.js';
 import * as TEX from './textures.js';
 import { City, CARRIAGE, KERB_H } from './city.js';
 import { Ships } from './ships.js';
+import { Assets, kitScale, WORLD_PER_M } from './assets.js';
 
 // How far up the sun sits from the shadow frustum centre. Short enough to keep
 // depth precision usable, tall enough to clear the tallest tower.
@@ -313,8 +316,11 @@ export const World = {
 
         this._buildGround(scene);
         this._buildGrass(scene);
+        this.kitIds = new Set();
+        this._kitBuckets = new Map();
         this._buildBuildings(scene);
         this._buildInfill(scene);
+        this._placeKits(scene);
         this._buildStreetGlass(scene);
         this._buildSigns(scene);
         this._buildProps(scene);
@@ -358,11 +364,15 @@ export const World = {
         // beyond the city edge read as fields and meadows, not a flat green void.
         const countryTex = TEX.countryside();
         countryTex.repeat.set(48, 48);
+        // West edge sits on the shoreline so a missing ocean never shows
+        // meadows out to sea (that was the green "ocean" in fly-mode).
+        const landW = 20000;
         const base = new THREE.Mesh(
-            new THREE.PlaneGeometry(28000, 28000),
+            new THREE.PlaneGeometry(landW, 28000),
             new THREE.MeshLambertMaterial({ map: countryTex, color: 0xa8c890 })
         );
-        base.rotation.x = -Math.PI / 2; base.position.y = -2;
+        base.rotation.x = -Math.PI / 2;
+        base.position.set(SEA_X + landW / 2, -2, 0);
         base.name = 'ground';
         base.userData.shadowReceiveOnly = true;
         scene.add(base);
@@ -728,6 +738,11 @@ export const World = {
 
         for (const p of G.placements) {
             const b = p.b;
+            const kitId = Assets.kitIdForPlacement(p);
+            if (kitId && Assets.has(kitId)) {
+                this._collectKit(kitId, p, true);
+                continue;
+            }
             if (b.type === 'metro') { this._buildMetroStation(p); continue; }
             if (OPEN.has(b.type)) { this._buildSpecialty(p); continue; }
             // Effective storeys from City.layout (authored fl x type multiplier).
@@ -858,13 +873,142 @@ export const World = {
         ]);
     },
 
-    /* Background city blocks (City.infill). Three instanced meshes bucketed by
-       height tier plus one instanced roof cap — the whole built fabric of the
-       city for four draw calls. Colour comes from a per-district palette so
-       walking from the Agent District into Residential actually looks like
-       crossing into a different part of town. */
+    _collectKit(kitId, p, named) {
+        if (!this._kitBuckets.has(kitId)) this._kitBuckets.set(kitId, []);
+        this._kitBuckets.get(kitId).push({ p, named: !!named });
+        const id = p.id || p.b?.id;
+        if (id) this.kitIds.add(id);
+    },
+
+    /* One InstancedMesh per kit. Landmarks and infill share the mesh so a
+       glass_supertall used for OpenAI AND a downtown block is still one draw. */
+    _placeKits(scene) {
+        const dummy = new THREE.Object3D();
+        const col = new THREE.Color();
+        for (const [kitId, list] of this._kitBuckets) {
+            const kit = Assets.get(kitId);
+            if (!kit || !list.length) continue;
+            const im = new THREE.InstancedMesh(kit.geometry, kit.material, list.length);
+            im.frustumCulled = false;
+            im.name = 'kit:' + kitId;
+            list.forEach((item, i) => {
+                const p = item.p;
+                const s = kitScale(kit, p);
+                if (!Number.isFinite(s) || s <= 0) {
+                    dummy.position.set(0, -9999, 0);
+                    dummy.scale.set(0, 0, 0);
+                } else {
+                    dummy.position.set(p.x, 0, p.z);
+                    dummy.scale.set(s, s, s);
+                }
+                dummy.rotation.y = p.rot || 0;
+                dummy.updateMatrix();
+                im.setMatrixAt(i, dummy.matrix);
+                const meshW = kit.size.x * s, meshD = kit.size.z * s, meshH = kit.size.y * s;
+                p.kitW = meshW; p.kitD = meshD; p.kitH = meshH;
+                this._fitCollider(p, meshW, meshD);
+                let tint;
+                if (item.named && p.b) {
+                    tint = facadeTint(buildingColor(p.b));
+                    p.b._inst = { mesh: im, i, base: tint.clone() };
+                } else {
+                    const base = DISTRICT_TINT[p.district] || INFILL_TINT[p.biome] || '#5a6472';
+                    const seed = p.seed ?? 0.5;
+                    col.set(base).offsetHSL((seed - 0.5) * 0.10, (seed - 0.5) * 0.22, (seed - 0.5) * 0.26);
+                    tint = facadeTint('#' + col.getHexString(THREE.SRGBColorSpace));
+                }
+                im.setColorAt(i, tint);
+            });
+            im.instanceMatrix.needsUpdate = true;
+            if (im.instanceColor) im.instanceColor.needsUpdate = true;
+            scene.add(im);
+            this.bldMeshes = this.bldMeshes || [];
+            this.bldMeshes.push(im);
+        }
+        for (const m of Assets.windowMaterials) {
+            if (!this.windowMats.includes(m)) this.windowMats.push(m);
+        }
+        this._kitBuckets.clear();
+    },
+
+    _placeKitTrees(scene, dummy, treeSpots) {
+        const buckets = new Map();
+        for (const t of treeSpots) {
+            const id = Assets.treeIdForBiome(t.biome, t.spin / Math.PI);
+            if (!id || !Assets.has(id)) continue;
+            if (!buckets.has(id)) buckets.set(id, []);
+            buckets.get(id).push(t);
+        }
+        if (!buckets.size) {
+            const trunkGeo = new THREE.CylinderGeometry(1.6, 3.4, 26, 7);
+            trunkGeo.translate(0, 13, 0);
+            const lobeA = new THREE.SphereGeometry(14, 8, 6); lobeA.translate(0, 34, 0);
+            const lobeB = new THREE.SphereGeometry(11, 7, 6); lobeB.translate(5, 42, -3);
+            const cans = new THREE.InstancedMesh(
+                mergeGeometries([lobeA, lobeB], false),
+                new THREE.MeshLambertMaterial({ flatShading: true, color: 0x2f6b2a }),
+                Math.max(1, treeSpots.length)
+            );
+            treeSpots.forEach((t, i) => {
+                dummy.position.set(t.x, 0, t.z);
+                dummy.scale.setScalar(t.s); dummy.rotation.y = t.spin; dummy.updateMatrix();
+                cans.setMatrixAt(i, dummy.matrix);
+            });
+            scene.add(cans);
+            return;
+        }
+        for (const [id, list] of buckets) {
+            const kit = Assets.get(id);
+            const im = new THREE.InstancedMesh(kit.geometry, kit.material, list.length);
+            im.frustumCulled = false;
+            im.name = 'kit:' + id;
+            list.forEach((t, i) => {
+                dummy.position.set(t.x, 0, t.z);
+                dummy.scale.setScalar(WORLD_PER_M * t.s);
+                dummy.rotation.y = t.spin;
+                dummy.updateMatrix();
+                im.setMatrixAt(i, dummy.matrix);
+            });
+            im.instanceMatrix.needsUpdate = true;
+            scene.add(im);
+        }
+    },
+
+    /* Kit meshes no longer fill the authored lot. Keep the walk-box on the
+       mesh, or a 4 m diner in a 16 m warehouse lot is an invisible wall. */
+    _fitCollider(p, meshW, meshD) {
+        if (!Number.isFinite(meshW) || meshW < 4) return;
+        const box = {
+            x0: p.x - meshW / 2 - 2,
+            z0: p.z - meshD / 2 - 2,
+            x1: p.x + meshW / 2 + 2,
+            z1: p.z + meshD / 2 + 2,
+            id: p.id || p.b?.id || 'infill'
+        };
+        const cx = p.x, cz = p.z;
+        const hit = G.colliders.find(c =>
+            Math.abs((c.x0 + c.x1) / 2 - cx) < 2 && Math.abs((c.z0 + c.z1) / 2 - cz) < 2);
+        if (hit) {
+            hit.x0 = box.x0; hit.z0 = box.z0; hit.x1 = box.x1; hit.z1 = box.z1;
+        } else {
+            G.colliders.push(box);
+        }
+    },
+
+    /* Background city blocks (City.infill). Kit lots join the landmark
+       InstancedMeshes; leftovers stay on the three height-tier box meshes plus
+       one roof cap. Colour comes from a per-district palette so walking from
+       the Agent District into Residential actually looks like crossing into a
+       different part of town. */
     _buildInfill(scene) {
-        const lots = City.infill || [];
+        const allLots = City.infill || [];
+        if (!allLots.length) return;
+        const lots = [];
+        for (const l of allLots) {
+            const kitId = Assets.kitIdForInfill(l);
+            if (kitId && Assets.has(kitId)) this._collectKit(kitId, l, false);
+            else lots.push(l);
+        }
         if (!lots.length) return;
         const tiers = this._facadeTiers();
         const buckets = [];
@@ -1171,14 +1315,17 @@ export const World = {
         switch (b.type) {
             case 'launchpad': {
                 const org = SPACE_ORGS[b.org] || { color: 0x999999 };
-                sBox(w * 0.9, 6, w * 0.9, x, 3, z, 0x8a8a86);                    // pad
-                sBox(w * 0.3, 4, w * 0.7, x, 1.5, z, 0x3a3a3a);                  // flame trench
-                sCyl(3, 4, 130, 6, x - w * 0.42, 65, z - w * 0.42, 0xb8483a);    // lightning mast
-                sCyl(3, 4, 130, 6, x + w * 0.42, 65, z + w * 0.42, 0xb8483a);
-                // rocket standing on pad
-                sCyl(7, 7, 70, 10, x, 41, z, 0xf2f2f0);
-                sCone(7, 18, 10, x, 85, z, org.color);
-                sCyl(7.4, 7.4, 9, 10, x, 10, z, org.color);
+                sBox(w * 0.9, 8, w * 0.9, x, 4, z, 0x8a8a86);                    // pad
+                sBox(w * 0.32, 5, w * 0.7, x, 2, z, 0x3a3a3a);                   // flame trench
+                sCyl(8, 10, 280, 8, x - w * 0.42, 140, z - w * 0.42, 0xb8483a);  // catch / lightning mast
+                sCyl(8, 10, 280, 8, x + w * 0.42, 140, z + w * 0.42, 0xb8483a);
+                // Stylised stack — threejsassets has no rockets; keep procedural
+                // but at skyline scale (old 7 m toy next to 70 m HQs looked lost).
+                sCyl(16, 18, 220, 12, x, 118, z, 0xf2f2f0);
+                sCone(16, 48, 12, x, 252, z, org.color);
+                sCyl(18, 18, 16, 12, x, 16, z, org.color);
+                sCyl(6, 10, 36, 8, x - 22, 22, z, 0xc8c8c4);  // booster
+                sCyl(6, 10, 36, 8, x + 22, 22, z, 0xc8c8c4);
                 break;
             }
             case 'dish': {
@@ -1372,49 +1519,49 @@ export const World = {
                 // ── grounds: lawn pad, boundary wall, gate, drive ──
                 sBox(w * 1.06, 1.5, d * 1.06, x, 0.7, z, lawn);
                 for (const s of [-1, 1]) {
-                    sBox(w * 1.06, 9, 4, x, 4.5, z + s * HD * 1.03, stone);       // front/back wall
-                    sBox(4, 9, d * 1.06, x + s * HW * 1.03, 4.5, z, stone);       // side walls
+                    sBox(w * 1.06, 16, 4, x, 8, z + s * HD * 1.03, stone);        // front/back wall
+                    sBox(4, 16, d * 1.06, x + s * HW * 1.03, 8, z, stone);        // side walls
                 }
                 // gate: two piers and a gap in the front wall, on the +z side
                 for (const s of [-1, 1]) {
-                    sBox(9, 20, 9, x + s * 22, 10, z + HD * 1.03, stone);
-                    sGlow(5, 6, 5, x + s * 22, 22, z + HD * 1.03, acc);           // pier lamp
+                    sBox(10, 28, 10, x + s * 26, 14, z + HD * 1.03, stone);
+                    sGlow(6, 7, 6, x + s * 26, 30, z + HD * 1.03, acc);           // pier lamp
                 }
                 sBox(38, 1.2, HD * 0.9, x, 1.6, z + HD * 0.5, 0x585048);          // drive
 
                 // ── main house: two storeys under a hip roof ──
-                const bw = w * 0.44, bd = d * 0.34, bh = 30;
+                const bw = w * 0.62, bd = d * 0.48, bh = 56;
                 sBox(bw, bh, bd, x, bh / 2 + 1.5, z - HD * 0.12, wall);
-                sCone(bw * 0.78, 18, 4, x, bh + 10, z - HD * 0.12, roof, Math.PI / 4);
+                sCone(bw * 0.78, 26, 4, x, bh + 14, z - HD * 0.12, roof, Math.PI / 4);
                 // Window band, and the light behind it. sGlow goes in the
                 // emissive bucket, so these come on after dark.
-                sBox(bw + 1, 4, bd + 1, x, 20, z - HD * 0.12, 0x2a3038);
+                sBox(bw + 1, 5, bd + 1, x, 28, z - HD * 0.12, 0x2a3038);
                 for (let i = -2; i <= 2; i++) {
                     if (!i) continue;                        // gap over the door
-                    for (const fy of [11, 24]) {             // ground + first floor
-                        sGlow(9, 6, bd + 2.2, x + i * 13, fy, z - HD * 0.12, 0xffdca8);
+                    for (const fy of [16, 40]) {             // ground + first floor
+                        sGlow(12, 8, bd + 2.2, x + i * 16, fy, z - HD * 0.12, 0xffdca8);
                     }
                 }
                 // side elevations, fewer and dimmer
                 for (const s of [-1, 1]) {
-                    for (const fz of [-9, 9]) {
-                        sGlow(bw + 2.2, 6, 8, x, 17, z - HD * 0.12 + fz * 1.6 + s * 0.01, 0xf2cf9a);
+                    for (const fz of [-12, 12]) {
+                        sGlow(bw + 2.2, 8, 10, x, 28, z - HD * 0.12 + fz * 1.6 + s * 0.01, 0xf2cf9a);
                     }
                 }
                 sGlow(bw + 1.5, 2, bd + 1.5, x, bh + 0.5, z - HD * 0.12, acc);
 
                 // ── portico: columns and a canopy over the front door ──
                 for (let i = -2; i <= 2; i++) {
-                    sCyl(3, 3.4, 24, 8, x + i * 13, 13.5, z - HD * 0.12 + bd / 2 + 9, stone);
+                    sCyl(3.4, 3.8, 36, 8, x + i * 16, 19, z - HD * 0.12 + bd / 2 + 12, stone);
                 }
-                sBox(bw * 0.86, 4, 20, x, 26, z - HD * 0.12 + bd / 2 + 9, wall);
-                sBox(10, 16, 2, x, 9.5, z - HD * 0.12 + bd / 2 + 1, 0x4a3628);    // door
+                sBox(bw * 0.86, 5, 24, x, 40, z - HD * 0.12 + bd / 2 + 12, wall);
+                sBox(12, 22, 2, x, 13, z - HD * 0.12 + bd / 2 + 1, 0x4a3628);    // door
 
                 // ── wings, lower than the main block ──
                 for (const s of [-1, 1]) {
-                    const wx = x + s * (bw / 2 + w * 0.13);
-                    sBox(w * 0.22, 20, bd * 0.82, wx, 11.5, z - HD * 0.12, wall);
-                    sCone(w * 0.15, 12, 4, wx, 26, z - HD * 0.12, roof, Math.PI / 4);
+                    const wx = x + s * (bw / 2 + w * 0.16);
+                    sBox(w * 0.26, 32, bd * 0.82, wx, 17, z - HD * 0.12, wall);
+                    sCone(w * 0.18, 16, 4, wx, 38, z - HD * 0.12, roof, Math.PI / 4);
                 }
 
                 // ── garage block by the gate ──
@@ -1521,9 +1668,10 @@ export const World = {
                 break;
             }
             case 'billboard': {
-                sBox(8, 90, 8, x - 34, 45, z, 0x6a7078);
-                sBox(8, 90, 8, x + 34, 45, z, 0x6a7078);
-                break; // panel added in _buildBillboard
+                // Plinth only — posts + screen are Kardashev's monument.
+                // Duplicate steel posts here z-fought with that mesh (flicker).
+                sBox(36, 4, 16, x, 2, z, 0x6a7078);
+                break;
             }
             default:
                 // metro + unknown specialty → small canopy
@@ -1556,6 +1704,7 @@ export const World = {
         });
         for (const p of G.placements) {
             if (OPEN.has(p.b.type)) continue;
+            if (this.kitIds && this.kitIds.has(p.b?.id)) continue;
             if ((p.h || 0) < FLOOR_H * 1.5) continue;
             const faces = [
                 { nx: 1, nz: 0, ang: Math.PI / 2, half: p.w / 2, span: p.d },
@@ -1669,8 +1818,9 @@ export const World = {
             const b = p.b;
             if (!b || NO_SIGN.has(b.type)) continue;
             const { nx, nz, ang } = faceFor(p);
-            const faceW = nx !== 0 ? p.d : p.w;
-            const halfOut = nx !== 0 ? p.w / 2 : p.d / 2;
+            const useW = p.kitW || p.w, useD = p.kitD || p.d;
+            const faceW = nx !== 0 ? useD : useW;
+            const halfOut = nx !== 0 ? useW / 2 : useD / 2;
             // Hung on the wall, not a highway gantry
             const sw = Math.min(Math.max(faceW * 0.42, 40), Math.min(faceW * 0.75, 88));
             const sh = Math.max(14, Math.min(sw / 3.8, 24));
@@ -1766,49 +1916,38 @@ export const World = {
         const dummy = new THREE.Object3D();
         const color = new THREE.Color();
 
-        // Trees - tapered trunk + multi-lobe canopy (organic, still 2 draw calls)
         const treeSpots = [];
+        const plant = (x, z, biome, s, spin) => {
+            if (City.onCarriageway?.(x, z)) return;
+            for (const c of G.colliders) {
+                if (x > c.x0 - 10 && x < c.x1 + 10 && z > c.z0 - 10 && z < c.z1 + 10) return;
+            }
+            treeSpots.push({ x, z, biome, s, spin });
+        };
         for (const d of City.districts) {
             const count = { park: 70, forest: 120, plaza: 26, academic: 16, urban: 6, industry: 3, coastal: 10, wasteland: 5, desert: 2 }[d.biome] ?? 6;
             for (let i = 0; i < count; i++) {
                 const tx = d.cx + (rng() - 0.5) * (CELL_W - 70);
                 const tz = d.cz + (rng() - 0.5) * (CELL_D - 70);
                 if (Math.abs(tx - d.cx) < 44 || Math.abs(tz - d.cz) < 44) continue;
-                let blocked = false;
-                for (const c of G.colliders) if (tx > c.x0 - 8 && tx < c.x1 + 8 && tz > c.z0 - 8 && tz < c.z1 + 8) { blocked = true; break; }
-                if (blocked) continue;
-                treeSpots.push({ x: tx, z: tz, biome: d.biome, s: 0.75 + rng() * 0.85, spin: rng() * Math.PI });
+                const park = d.biome === 'park' || d.biome === 'forest';
+                plant(tx, tz, d.biome, (park ? 1.15 : 0.95) + rng() * 0.45, rng() * Math.PI);
             }
         }
-        const trunkGeo = new THREE.CylinderGeometry(1.6, 3.4, 26, 7);
-        trunkGeo.translate(0, 13, 0);
-        const lobeA = new THREE.SphereGeometry(14, 8, 6); lobeA.translate(0, 34, 0);
-        const lobeB = new THREE.SphereGeometry(11, 7, 6); lobeB.translate(5, 42, -3);
-        const lobeC = new THREE.SphereGeometry(10, 7, 6); lobeC.translate(-6, 30, 4);
-        const lobeD = new THREE.SphereGeometry(8, 6, 5); lobeD.translate(3, 38, 6);
-        const canGeo = mergeGeometries([lobeA, lobeB, lobeC, lobeD], false);
-        const nTrees = Math.max(1, treeSpots.length);
-        const trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshLambertMaterial({ color: 0x4a3528 }), nTrees);
-        const cans = new THREE.InstancedMesh(canGeo, new THREE.MeshLambertMaterial({ flatShading: true }), nTrees);
-        treeSpots.forEach((t, i) => {
-            dummy.position.set(t.x, 0, t.z);
-            dummy.scale.setScalar(t.s);
-            dummy.rotation.y = t.spin;
-            dummy.updateMatrix();
-            trunks.setMatrixAt(i, dummy.matrix);
-            cans.setMatrixAt(i, dummy.matrix);
-            const cc = t.biome === 'wasteland' ? color.set(0x6a5a48)
-                : t.biome === 'coastal' ? color.set(0x3f8a3f)
-                : t.biome === 'desert' ? color.set(0x5a7a3a)
-                : color.set(0x2f6b2a).offsetHSL((rng() - 0.5) * 0.06, 0.05, (rng() - 0.5) * 0.12);
-            cans.setColorAt(i, cc);
-        });
-        trunks.count = treeSpots.length;
-        cans.count = treeSpots.length;
-        trunks.instanceMatrix.needsUpdate = true;
-        cans.instanceMatrix.needsUpdate = true;
-        if (cans.instanceColor) cans.instanceColor.needsUpdate = true;
-        scene.add(trunks, cans);
+        // Sidewalk trees on both pavements, staggered from the lamp run.
+        for (const ax of City.avenueXs) {
+            for (let z = -CITY_D / 2 + 160; z < CITY_D / 2; z += 230) {
+                if (City.clearOfCrossRoads(ax + 79, z + 55, true)) plant(ax + 79, z + 55, 'urban', 0.95 + rng() * 0.2, rng() * Math.PI);
+                if (City.clearOfCrossRoads(ax - 79, z + 170, true)) plant(ax - 79, z + 170, 'urban', 0.95 + rng() * 0.2, rng() * Math.PI);
+            }
+        }
+        for (const sz of City.streetZs) {
+            for (let x = -CITY_W / 2 + 160; x < CITY_W / 2; x += 230) {
+                if (City.clearOfCrossRoads(x + 55, sz + 79, false)) plant(x + 55, sz + 79, 'urban', 0.95 + rng() * 0.2, rng() * Math.PI);
+                if (City.clearOfCrossRoads(x + 170, sz - 79, false)) plant(x + 170, sz - 79, 'urban', 0.95 + rng() * 0.2, rng() * Math.PI);
+            }
+        }
+        this._placeKitTrees(scene, dummy, treeSpots);
 
         /* Street lamps down BOTH pavements of every avenue and street.
            They used to be 34 units — 3.4 m — tall, with a single unlit sphere on
@@ -2053,6 +2192,8 @@ export const World = {
         // berth, discharge onto the quay through the gantry and sail out. It
         // owns its own update, so nothing here goes in `animated`.
         Ships.build(scene);
+        this._dressHarbour(scene);
+        this._dressRailSiding(scene);
 
         // Timber pier, north of the container berth. It used to run out from
         // the quay at portD.cz — straight through where a 300-unit ship now
@@ -2072,6 +2213,68 @@ export const World = {
             scene.add(lamp);
             this.animated.push({ obj: lamp, kind: 'lighthouse', phase: 0 });
         }
+    },
+
+    /* Leisure craft in the WATER, north of the timber pier. The sand plane
+       is 320 wide centred at SEA_X+20, so it covers out to SEA_X-140 — anything
+       east of that sits on the beach. Slip centres are west of that edge. */
+    _dressHarbour(scene) {
+        const portD = City.districts.find(d => d.id === 'port');
+        if (!portD) return;
+        const add = (id, x, y, z, metres, yaw = 0) => {
+            const m = Assets.instantiateWorld(id, metres);
+            if (!m) return;
+            m.position.set(x, y, z);
+            m.rotation.y = yaw;
+            scene.add(m);
+            return m;
+        };
+        const waterX = SEA_X - 250;          // past the sand (ends ~SEA_X-140)
+        const z0 = portD.cz - 400;           // north of timber pier (cz-265)
+        add('yacht', waterX, -0.8, z0, 2.0, 0);
+        add('speedboat', waterX + 20, -0.6, z0 - 150, 1.6, 0);
+        add('floatplane', waterX - 30, -0.2, z0 - 300, 1.7, 0);
+        const palmX = SEA_X + 165;
+        for (let i = 0; i < 4; i++) {
+            add('royal_palm', palmX + (i % 2) * 18, 0, z0 + 40 + i * 95, 1.15, i * 0.5);
+        }
+    },
+
+    /* One freight consist on LAND in the port — not on the beach, not stacked
+       on the marina. Diesel + two flats, real-metre scale. */
+    _dressRailSiding(scene) {
+        if (!Assets.has('diesel')) return;
+        const portD = City.districts.find(d => d.id === 'port');
+        if (!portD) return;
+        const clear = (x, z, w, d) => {
+            if (City.onCarriageway(x, z)) return false;
+            for (const c of G.colliders) {
+                if (x + w / 2 > c.x0 - 8 && x - w / 2 < c.x1 + 8 &&
+                    z + d / 2 > c.z0 - 8 && z - d / 2 < c.z1 + 8) return false;
+            }
+            return true;
+        };
+        let x = SEA_X + 280, z = portD.cz + 240;
+        let placed = false;
+        for (const dx of [0, 80, 160, 240, -80]) {
+            for (const dz of [0, 100, -100, 180, -180]) {
+                if (clear(x + dx, z + dz, 20, 180)) {
+                    x += dx; z += dz; placed = true; break;
+                }
+            }
+            if (placed) break;
+        }
+        if (!placed) return;
+        const add = (id, px, pz) => {
+            const m = Assets.instantiateWorld(id, 1);
+            if (!m) return;
+            m.position.set(px, 0, pz);
+            m.rotation.y = 0;
+            scene.add(m);
+        };
+        add('diesel', x, z);
+        add('container_wagon', x, z + 55);
+        add('container_wagon', x, z + 95);
     },
 
     /* The two halves of a lit street lamp, both free of actual lights:
@@ -2124,16 +2327,18 @@ export const World = {
     // ── WATER + BEACH ────────────────────────────────────────────────────────
     _buildWater(scene) {
         this.waterTex = TEX.water();
-        this.waterTex.repeat.set(14, 14);
-        /* Flat. The displaced 96×72 mesh read as a quilt from altitude and
-           punched troughs through the countryside plane (y = -2), so green
-           meadow showed in the harbour and on the beach. A seamless ripple
-           map + Phong sheen is enough; do not lift vertices. */
+        this.waterTex.repeat.set(22, 14);
+        this.waterNrm = TEX.waterNormal();
+        this.waterNrm.repeat.set(22, 14);
+        // Stock Phong — a custom shader used `vUv` (r160 renamed it `vMapUv`)
+        // and the material never drew, so fly-mode showed the meadow underneath.
         this.waterMat = new THREE.MeshPhongMaterial({
             map: this.waterTex,
-            color: 0x6a9bb8,
-            shininess: 90,
-            specular: 0x8eb4c8,
+            normalMap: this.waterNrm,
+            normalScale: new THREE.Vector2(1.6, 1.6),
+            color: 0x4a8fb0,
+            shininess: 160,
+            specular: 0xc5e4f0,
             fog: true
         });
         const w = new THREE.Mesh(
@@ -2145,18 +2350,23 @@ export const World = {
         w.name = 'water';
         scene.add(w);
 
-        // Foam strip where water meets the beach
+        const foamTex = TEX.foam();
+        foamTex.repeat.set(2, 28);
+        this.foamTex = foamTex;
+        this.foamMat = new THREE.MeshBasicMaterial({
+            map: foamTex,
+            color: 0xe8f4fc,
+            transparent: true,
+            opacity: 0.42,
+            depthWrite: false,
+            fog: true
+        });
         const foam = new THREE.Mesh(
-            new THREE.PlaneGeometry(90, CITY_D + 800),
-            new THREE.MeshLambertMaterial({
-                color: 0xdceef8,
-                transparent: true,
-                opacity: 0.55,
-                depthWrite: false
-            })
+            new THREE.PlaneGeometry(110, CITY_D + 800),
+            this.foamMat
         );
         foam.rotation.x = -Math.PI / 2;
-        foam.position.set(SEA_X - 35, -0.35, 0);
+        foam.position.set(SEA_X - 40, -0.28, 0);
         foam.name = 'water';
         foam.userData.noShadow = true;
         scene.add(foam);
@@ -2192,23 +2402,11 @@ export const World = {
 
     // ── AI INDEX BILLBOARD PANEL ─────────────────────────────────────────────
     _buildBillboard(scene) {
-        // Posts only — the live display is Kardashev's grounded monument (js/kardashev.js).
-        // Previously this also spawned a free-floating plane that doubled the board
-        // and read as a second mid-air panel next to the visitor monument.
+        // Live display is Kardashev's monument. Don't spawn a second pair of
+        // posts — they sat on the same coordinates and flickered.
         const p = G.bldById['ai_index'];
         if (!p) return;
-        this.aiBoard = TEX.aiIndexBoard(); // keep API for UI redraw hooks if any
-        // steel posts (specialty case also adds posts; harmless if both run)
-        const steel = new THREE.MeshStandardMaterial({ color: 0x6a7280, metalness: 0.5, roughness: 0.4 });
-        for (const ox of [-34, 34]) {
-            const post = new THREE.Mesh(new THREE.BoxGeometry(8, 90, 8), steel);
-            post.position.set(p.worldX + ox, 45, p.worldZ);
-            scene.add(post);
-        }
-        G.colliders.push({
-            x0: p.worldX - 40, z0: p.worldZ - 10,
-            x1: p.worldX + 40, z1: p.worldZ + 10, id: 'ai_index'
-        });
+        this.aiBoard = TEX.aiIndexBoard();
     },
 
     // ── DISTANT HILLS / MOUNTAINS ────────────────────────────────────────────
@@ -2400,8 +2598,19 @@ export const World = {
             }
         }
         if (this.waterTex) {
-            this.waterTex.offset.x = t * 0.007;
-            this.waterTex.offset.y = t * 0.0035;
+            this.waterTex.offset.x = t * 0.012;
+            this.waterTex.offset.y = t * 0.007;
+        }
+        if (this.waterNrm) {
+            this.waterNrm.offset.x = t * 0.018;
+            this.waterNrm.offset.y = t * 0.01;
+        }
+        if (this.foamTex) {
+            this.foamTex.offset.x = t * 0.04;
+            this.foamTex.offset.y = Math.sin(t * 0.7) * 0.08;
+        }
+        if (this.foamMat) {
+            this.foamMat.opacity = 0.28 + Math.sin(t * 1.1) * 0.12;
         }
     }
 };

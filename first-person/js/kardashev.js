@@ -4,6 +4,7 @@
    ────────────────────────────────────────────────────────────────────────── */
 import * as THREE from 'three';
 import { G } from './state.js';
+import { City } from './city.js';
 
 export function kardashevScale(aiIndex) {
     const n = Math.max(0, Number(aiIndex) || 0);
@@ -89,13 +90,22 @@ export const Kardashev = {
             || G.bldById['open_square'];
         const x = site ? site.worldX : 200;
         const z = site ? site.worldZ : 300;
-        // Face the open plaza / visitor approach when possible
-        const face = G.bldById['visitor_monument']
-            ? Math.atan2(
-                (G.bldById['visitor_monument'].worldX - x),
-                (G.bldById['visitor_monument'].worldZ - z)
-            )
-            : 0;
+        // Face the nearest road so the screen is readable from the sidewalk,
+        // not edge-on to the street (atan2-to-monument did that).
+        const axs = (City.avenueXs || []).concat(City.ringX || []);
+        const zss = (City.streetZs || []).concat(City.ringZ || []);
+        let bestAx = axs[0] ?? x, bestAd = Infinity;
+        for (const ax of axs) { const d = Math.abs(x - ax); if (d < bestAd) { bestAd = d; bestAx = ax; } }
+        let bestSz = zss[0] ?? z, bestZd = Infinity;
+        for (const sz of zss) { const d = Math.abs(z - sz); if (d < bestZd) { bestZd = d; bestSz = sz; } }
+        let face = 0;
+        if (bestAd <= bestZd) {
+            const nx = Math.sign(bestAx - x) || 1;
+            face = nx > 0 ? Math.PI / 2 : -Math.PI / 2;
+        } else {
+            const nz = Math.sign(bestSz - z) || 1;
+            face = nz > 0 ? 0 : Math.PI;
+        }
 
         this.root = new THREE.Group();
         this.root.name = 'kardashevBillboard';
@@ -117,39 +127,36 @@ export const Kardashev = {
         const plinth = new THREE.Mesh(new THREE.BoxGeometry(70, 6, 28), steel);
         plinth.position.set(0, 3, 0);
         this.root.add(plinth);
-        // Two main posts
-        for (const sx of [-28, 28]) {
-            const post = new THREE.Mesh(new THREE.BoxGeometry(6, 88, 6), steel);
-            post.position.set(sx, 44, 0);
+        // Two main posts — well behind the screen so they never z-fight it
+        for (const sx of [-26, 26]) {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(5, 70, 5), steel);
+            post.position.set(sx, 38, -4);
             this.root.add(post);
-            // base flange
-            const flange = new THREE.Mesh(new THREE.BoxGeometry(12, 4, 12), dark);
-            flange.position.set(sx, 6, 0);
-            this.root.add(flange);
         }
-        // Crossbeam
-        const beam = new THREE.Mesh(new THREE.BoxGeometry(64, 5, 5), steel);
-        beam.position.set(0, 86, 0);
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(58, 4, 4), steel);
+        beam.position.set(0, 72, -4);
         this.root.add(beam);
 
-        // Cabinet / housing (solid box — panel sits on front face only)
-        const cabinet = new THREE.Mesh(new THREE.BoxGeometry(100, 52, 8), dark);
-        cabinet.position.set(0, 58, 2);
+        // Housing sits BEHIND the screen. A previous cyan rim box occupied the
+        // same plane as the display and read as a blank glowing slab.
+        const cabinet = new THREE.Mesh(new THREE.BoxGeometry(100, 52, 6), dark);
+        cabinet.position.set(0, 48, -1);
         this.root.add(cabinet);
-        // Accent rim around cabinet
-        const rim = new THREE.Mesh(new THREE.BoxGeometry(104, 56, 1.5), accent);
-        rim.position.set(0, 58, 6.2);
-        this.root.add(rim);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(102, 54, 1.2), accent);
+        frame.position.set(0, 48, 2.2);
+        this.root.add(frame);
 
-        // Single front screen (NOT a free-floating double plane)
         const tex = billboardTexture(this.scale);
         const screenMat = new THREE.MeshBasicMaterial({
             map: tex,
             toneMapped: false,
-            side: THREE.FrontSide
+            side: THREE.FrontSide,
+            polygonOffset: true,
+            polygonOffsetFactor: -2,
+            polygonOffsetUnits: -2
         });
         this.screen = new THREE.Mesh(new THREE.PlaneGeometry(96, 48), screenMat);
-        this.screen.position.set(0, 58, 6.8);
+        this.screen.position.set(0, 48, 3.2);
         this.root.add(this.screen);
 
         // Small rear ID plate (fixed text, not a second full billboard)

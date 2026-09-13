@@ -19,6 +19,7 @@ import { LABS, DISTRICTS } from './data.js';
 import * as TEX from './textures.js';
 import { resolveRoom, floorLabel } from './interiors/rooms.js';
 import { seeded, P as PROP, nameTex } from './interiors/kit.js';
+import { Assets } from './assets.js';
 
 export const FLOOR_Y = -4000;          // where interiors live
 
@@ -464,6 +465,7 @@ export const Interior = {
         }
         this.group.add(sign);
         this._signMesh = sign;
+        if (!spec && th.cat === 'home') this._placeLivingRoom();
 
         // theme-tinted fill lights
         if (this._fillLight) {
@@ -503,6 +505,27 @@ export const Interior = {
         // the hidden-city void (empty white). Leave is E at the door.
         wall(-DOOR_W / 2 - 4, ROOM_D / 2 - WALL / 2, DOOR_W / 2 + 4, ROOM_D / 2 + 28);
         for (const c of this._propColliders || []) this._colliders.push(c);
+    },
+
+    /* One conversation group, scaled to the room (not to metres). Lift aisle
+       is x < -200 — keep it clear. Sofa faces the TV wall; chairs face the sofa. */
+    _placeLivingRoom() {
+        const put = (id, x, z, yaw, width) => {
+            const m = Assets.instantiateInterior(id, width);
+            if (!m) return null;
+            m.position.set(x, 0, z);
+            m.rotation.y = yaw;
+            this.group.add(m);
+            const d = m.userData.kitD || width * 0.5;
+            this._propColliders.push({
+                x0: x - width / 2, z0: z - d / 2,
+                x1: x + width / 2, z1: z + d / 2
+            });
+            return m;
+        };
+        if (!put('sofa', 90, 55, Math.PI, 96)) return;
+        put('armchair', 28, -8, 0.45, 42);
+        put('armchair', 152, -8, -0.45, 42);
     },
 
     // Signature contents per theme. Everything merges into the shell (lit) or
@@ -691,22 +714,38 @@ export const Interior = {
             box(60, 30, 40, 0, 15, 140, 0x1a1020); solid(0, 140, 60, 40);
             lit(40, 16, 1, 0, 34, 120, 0xf472b6);
         } else if (cat === 'home') {
-            box(190, 26, 78, 96, 13, -140, 0x8a6a4a);
-            box(190, 30, 18, 96, 30, -170, 0x9a785a);
-            solid(96, -140, 190, 78);
-            box(120, 6, 68, 96, 22, -46, 0x6d5238);
-            box(150, 84, 8, -150, 42, -172, 0x5a4634);
-            lit(96, 54, 2, -150, 46, -167, 0x1a2a3a);
-            for (let sh = 0; sh < 4; sh++) box(90, 4, 24, -150, 14 + sh * 22, -150, 0x7a5c40);
-            // kitchen island
-            box(100, 36, 50, -180, 18, 40, 0xd4c4a8); solid(-180, 40, 100, 50);
-            lit(16, 10, 16, -180, 40, 40, 0xffe4ac);
-            plant(250, 150, 50);
-            lit(10, 44, 10, -250, 46, 150, 0xffe0a0);
-            box(230, 2, 150, 60, 1.5, 40, 0x9a4a4a);
-            // dining
-            box(90, 28, 50, 160, 14, 100, 0x6d5238); solid(160, 100, 90, 50);
-            for (const s of [-1, 1]) box(18, 22, 18, 160 + s * 40, 11, 100, 0x5a4634);
+            // Lift lives at x < -200. Living / dining / kitchen occupy the
+            // rest as three zones, not a pile in the middle of the rug.
+            // Rug under the conversation group (GLB sofa+chairs land on this).
+            box(150, 1.4, 130, 90, 0.8, 20, 0x7a3a3a);
+            box(56, 16, 36, 90, 9, 12, 0x6d5238); solid(90, 12, 56, 36);
+            if (!Assets.has('sofa')) {
+                box(96, 26, 40, 90, 13, 55, 0x6b5136); solid(90, 55, 96, 40);
+                box(96, 22, 10, 90, 28, 72, 0x7a5c40);
+                box(40, 22, 40, 28, 11, -8, 0x5a4634); solid(28, -8, 40, 40);
+                box(40, 22, 40, 152, 11, -8, 0x5a4634); solid(152, -8, 40, 40);
+            }
+            // TV / media wall — back wall, opposite the sofa
+            box(110, 62, 8, 90, 36, -ROOM_D / 2 + 22, 0x2a3038);
+            lit(88, 48, 2, 90, 38, -ROOM_D / 2 + 27, 0x1a2a3a);
+            box(24, 40, 18, 160, 21, -ROOM_D / 2 + 28, 0x3a3228); solid(160, -ROOM_D / 2 + 28, 24, 18);
+            // Kitchen along the right wall, island parallel to it
+            box(8, 72, 160, ROOM_W / 2 - 28, 36, -40, 0xd4c4a8);
+            box(70, 34, 42, 170, 17, -40, 0xc4b49a); solid(170, -40, 70, 42);
+            lit(14, 8, 14, 170, 38, -40, 0xffe4ac);
+            for (let i = 0; i < 3; i++) box(14, 18, 10, 200, 44, -90 + i * 28, 0x8a9aaa);
+            // Dining: table + four chairs, between kitchen and living
+            box(72, 28, 72, 90, 14, -130, 0x6d5238); solid(90, -130, 72, 72);
+            for (const [cx, cz] of [[90, -88], [90, -172], [52, -130], [128, -130]]) {
+                box(16, 20, 16, cx, 10, cz, 0x5a4634);
+            }
+            plant(230, 150, 44);
+            lit(8, 36, 8, 230, 50, 150, 0xffe0a0);
+            this._occSpots = [
+                { x: 90, z: 40, facing: 1, pose: 'stand', roam: true },
+                { x: 170, z: -40, facing: -1, pose: 'stand', stay: true },
+                { x: 90, z: -100, facing: 1, pose: 'stand', roam: true }
+            ];
         } else if (cat === 'robotics') {
             box(360, 22, 60, -20, 11, -140, 0x3a3f46);
             box(360, 3, 56, -20, 24, -140, 0x1a1c20);

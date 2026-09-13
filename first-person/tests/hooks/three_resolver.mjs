@@ -24,7 +24,11 @@ const LIB = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'lib');
 const MAP = {
     'three': pathToFileURL(join(LIB, 'three.module.js')).href,
     'three/addons/utils/BufferGeometryUtils.js':
-        pathToFileURL(join(LIB, 'BufferGeometryUtils.js')).href
+        pathToFileURL(join(LIB, 'BufferGeometryUtils.js')).href,
+    'three/addons/loaders/GLTFLoader.js':
+        pathToFileURL(join(LIB, 'GLTFLoader.js')).href,
+    'three/addons/loaders/DRACOLoader.js':
+        pathToFileURL(join(LIB, 'DRACOLoader.js')).href
 };
 
 if (typeof registerHooks !== 'function') {

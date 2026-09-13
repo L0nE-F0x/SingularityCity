@@ -164,7 +164,7 @@ export const Ships = {
         const port = City.districts.find(d => d.id === 'port');
         const cz = port ? port.cz : -800;
         return {
-            x: SEA_X - 100,           // ship centreline: ~67u of water off the bank
+            x: SEA_X - 220,           // centreline in the water: hull beam ~68u, beach sand covers to SEA_X-140
             z: cz + 40,
             /* The coastal ring road runs at City.ringX[0], only 30 units inland
                of the waterline — so "just ashore" is ON the carriageway. Both

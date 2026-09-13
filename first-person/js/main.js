@@ -11,6 +11,7 @@ import * as TEX from './textures.js';
 import { G, qualityPreset, computeDayPhase } from './state.js';
 import { City } from './city.js';
 import { World } from './world.js';
+import { Assets } from './assets.js';
 import { Citizens } from './citizens.js';
 import { Traffic } from './traffic.js';
 import { Signals } from './signals.js';
@@ -81,6 +82,19 @@ async function boot() {
     if (chosenQuality) G.quality = chosenQuality;
     else if (G.touchMode) G.quality = 'low';
     G.preset = qualityPreset(G.quality);
+    /* Kit GLBs start fetching now so they overlap renderer setup. World.build
+       waits for this (with a ceiling) and falls back to procedural boxes for
+       anything that didn't arrive. Low preset skips infill kits to keep the
+       triangle count on the cheap box path. */
+    const kitsPromise = Assets.load({
+        infill: G.quality !== 'low',
+        vehicles: true,
+        harbour: true,
+        interiors: true
+    }).catch((e) => {
+        console.warn('[assets] kit load failed', e);
+        return { loaded: 0, failed: -1 };
+    });
     /* What this page ACTUALLY booted with. The ENTER handler compares against
        it to decide whether a reload is needed; comparing against a hardcoded
        'medium' meant the mobile default of `low` always looked like a change
@@ -191,6 +205,15 @@ async function boot() {
     G.interior = Interior;
 
     City.layout();
+    try {
+        await Promise.race([
+            kitsPromise,
+            new Promise((r) => setTimeout(r, 12000))
+        ]);
+    } catch (e) {
+        console.warn('[assets] kit wait failed', e);
+    }
+    G.assets = Assets;
     World.build();
     Weather.init(G.scene);
     /* The real AI models, BEFORE the citizens are built.
@@ -379,7 +402,8 @@ async function boot() {
     if (params.get('debug') === '1') {
         setTimeout(() => {
             const i = renderer.info.render;
-            console.log(`[SC-FP DEBUG] drawCalls=${i.calls} triangles=${i.triangles} geometries=${renderer.info.memory.geometries} textures=${renderer.info.memory.textures}`);
+            const kitN = G.world?.kitIds?.size || 0;
+            console.log(`[SC-FP DEBUG] drawCalls=${i.calls} triangles=${i.triangles} geometries=${renderer.info.memory.geometries} textures=${renderer.info.memory.textures} kitBlds=${kitN}`);
         }, 3500);
     }
 

@@ -12,6 +12,7 @@ import {
 } from '../../shared/space_live.js';
 import * as TEX from './textures.js';
 import { City, LANE_W } from './city.js';
+import { Assets } from './assets.js';
 
 function paint(geo, hex) {
     const c = new THREE.Color(hex);
@@ -323,6 +324,36 @@ function buildVipLimo(founder) {
     return mergeByMaterial(g);
 }
 
+/** Founder street car — kit SUV/sedan when loaded, stretched sedan otherwise.
+    Name plate is a sprite so it isn't baked into the kit mesh. */
+function buildVipCar(founder) {
+    const kitId = (founder.name && /elon|cook|jensen|huang|zuck/i.test(founder.name))
+        ? 'suv' : 'sedan';
+    const body = Assets.instantiateVehicle(kitId) || Assets.instantiateVehicle('sedan');
+    if (!body) return buildVipLimo(founder);
+    const g = new THREE.Group();
+    g.add(body);
+    g.userData.fwd = 'z';
+    g.userData.founder = founder;
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(15,23,42,0.92)';
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(8, 8, 240, 48, 8); ctx.fill(); } else { ctx.fillRect(8, 8, 240, 48); }
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 28px system-ui,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(founder.name || 'CEO', 128, 42);
+    const tex = new THREE.CanvasTexture(canvas);
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true }));
+    spr.scale.set(36, 9, 1);
+    spr.position.set(0, 22, 0);
+    g.add(spr);
+    g.userData.nameSprite = spr;
+    return g;
+}
+
 /** Delivery van — tall cargo box, open cab glass, visible driver. */
 function buildDeliveryVan(bodyHex) {
     const g = new THREE.Group();
@@ -602,6 +633,144 @@ function buildHelicopter(colHex, opts = {}) {
     return out;
 }
 
+/** Classic pressure airship: lathed envelope, gore fabric, empennage, gondola
+    with windows, twin engines, ad panels on the flanks. Nose is +X. */
+function airshipEnvelopeGeo() {
+    const pts = [];
+    const N = 28;
+    for (let i = 0; i <= N; i++) {
+        const t = i / N;
+        const nose = Math.pow(Math.min(1, t / 0.20), 0.62);
+        const tail = Math.pow(Math.min(1, (1 - t) / 0.30), 0.82);
+        const r = 32 * nose * tail * (0.78 + 0.22 * Math.sin(t * Math.PI));
+        pts.push(new THREE.Vector2(Math.max(0.6, r), (0.5 - t) * 156));
+    }
+    const g = new THREE.LatheGeometry(pts, 28);
+    g.rotateZ(-Math.PI / 2);
+    g.computeVertexNormals();
+    return g;
+}
+
+function buildBlimp(hullHex, headline) {
+    const g = new THREE.Group();
+    const hullM = new THREE.MeshStandardMaterial({
+        map: TEX.blimpHull(hullHex),
+        roughness: 0.36,
+        metalness: 0.16,
+        envMapIntensity: 0.95
+    });
+    const accentM = new THREE.MeshStandardMaterial({
+        color: hullHex, roughness: 0.4, metalness: 0.18, envMapIntensity: 0.8
+    });
+    const darkM = new THREE.MeshStandardMaterial({
+        color: 0x1a2030, roughness: 0.42, metalness: 0.38
+    });
+    const chromeM = new THREE.MeshStandardMaterial({
+        color: 0x9aa4b2, roughness: 0.22, metalness: 0.72
+    });
+
+    g.add(new THREE.Mesh(airshipEnvelopeGeo(), hullM));
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(7.5, 12, 10), chromeM);
+    nose.position.set(74, 0, 0);
+    nose.scale.set(1.15, 0.72, 0.72);
+    g.add(nose);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(18, 0.7, 6, 20), chromeM);
+    ring.rotation.y = Math.PI / 2;
+    ring.position.set(52, 0, 0);
+    g.add(ring);
+
+    const vfin = new THREE.Mesh(new THREE.BoxGeometry(26, 32, 1.8), accentM);
+    vfin.position.set(-58, 10, 0);
+    vfin.rotation.z = 0.18;
+    g.add(vfin);
+    const rudder = new THREE.Mesh(new THREE.BoxGeometry(8, 18, 1.2), darkM);
+    rudder.position.set(-72, 12, 0);
+    g.add(rudder);
+    for (const s of [-1, 1]) {
+        const hfin = new THREE.Mesh(new THREE.BoxGeometry(22, 1.6, 26), accentM);
+        hfin.position.set(-56, -4, s * 18);
+        hfin.rotation.y = s * 0.08;
+        g.add(hfin);
+        const stab = new THREE.Mesh(new THREE.BoxGeometry(8, 1.2, 10), darkM);
+        stab.position.set(-68, -4, s * 24);
+        g.add(stab);
+    }
+
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(38, 13, 15), darkM);
+    cabin.position.set(6, -38, 0);
+    g.add(cabin);
+    const cabinNose = new THREE.Mesh(new THREE.SphereGeometry(7.5, 10, 8), darkM);
+    cabinNose.position.set(24, -37, 0);
+    cabinNose.scale.set(1.15, 0.72, 0.95);
+    g.add(cabinNose);
+    const cabinRoof = new THREE.Mesh(new THREE.BoxGeometry(28, 2, 13), chromeM);
+    cabinRoof.position.set(4, -30.5, 0);
+    g.add(cabinRoof);
+    const winM = new THREE.MeshBasicMaterial({ color: 0xffe0a8, toneMapped: false });
+    for (let i = -2; i <= 2; i++) {
+        for (const sz of [-7.7, 7.7]) {
+            const w = new THREE.Mesh(new THREE.BoxGeometry(5, 4.2, 0.5), winM);
+            w.position.set(6 + i * 6.2, -36.5, sz);
+            g.add(w);
+        }
+    }
+    for (const [gx, hx] of [[-10, -28], [20, 30]]) {
+        for (const sz of [-5.5, 5.5]) {
+            const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 26, 5), chromeM);
+            const mx = (gx + hx) / 2, my = -20;
+            cable.position.set(mx, my, sz);
+            cable.rotation.z = Math.atan2(gx - hx, 26);
+            g.add(cable);
+        }
+    }
+
+    const props = [];
+    for (const s of [-1, 1]) {
+        const pod = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.6, 14, 8), darkM);
+        pod.rotation.z = Math.PI / 2;
+        pod.position.set(-4, -40, s * 12);
+        g.add(pod);
+        const hub = new THREE.Mesh(new THREE.SphereGeometry(2.2, 8, 6), chromeM);
+        hub.position.set(-12, -40, s * 12);
+        g.add(hub);
+        const prop = new THREE.Group();
+        for (let i = 0; i < 3; i++) {
+            const blade = new THREE.Mesh(new THREE.BoxGeometry(1.2, 16, 2.4), darkM);
+            blade.rotation.x = i * (Math.PI * 2 / 3);
+            prop.add(blade);
+        }
+        const disc = new THREE.Mesh(
+            new THREE.CircleGeometry(8.5, 20),
+            new THREE.MeshBasicMaterial({
+                color: 0xcbd5e1, transparent: true, opacity: 0.12,
+                side: THREE.DoubleSide, depthWrite: false
+            })
+        );
+        disc.rotation.y = Math.PI / 2;
+        prop.add(disc);
+        prop.position.set(-13.5, -40, s * 12);
+        g.add(prop);
+        props.push(prop);
+    }
+
+    const panelTex = TEX.blimpPanel(headline);
+    const panelM = new THREE.MeshBasicMaterial({
+        map: panelTex, toneMapped: false, side: THREE.FrontSide
+    });
+    for (const s of [-1, 1]) {
+        const p = new THREE.Mesh(new THREE.PlaneGeometry(64, 16), panelM);
+        p.position.set(4, -6, s * 30.5);
+        p.rotation.y = s > 0 ? 0 : Math.PI;
+        g.add(p);
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(66, 18, 0.8), darkM);
+        frame.position.set(4, -6, s * 29.6);
+        g.add(frame);
+    }
+
+    g.userData.props = props;
+    return g;
+}
+
 
 const CAR_GAP = 62;          // bumper-to-bumper minimum in a queue
 const STOP_LINE = 26;        // how far back from the junction a red light holds you
@@ -733,8 +902,8 @@ export const Traffic = {
                 const a = v.path[i], b = v.path[i + 1];
                 if (!a || !b) break;
                 v.obj.position.set(a.x + (b.x - a.x) * t, 0, a.z + (b.z - a.z) * t);
-                // Forward = +X on all builders → yaw so +X points along travel
-                const want = Math.atan2(b.x - a.x, b.z - a.z) - Math.PI / 2;
+                const yawOff = v.obj.userData.fwd === 'z' ? 0 : -Math.PI / 2;
+                const want = Math.atan2(b.x - a.x, b.z - a.z) + yawOff;
                 if (v.yaw == null) v.yaw = want;
                 // Ease into the new heading instead of snapping 90° at a corner.
                 let d = want - v.yaw;
@@ -791,11 +960,18 @@ export const Traffic = {
                 return s + Math.hypot(q.x - p.x, q.z - p.z);
             }, 0);
 
-            const mesh = buildSedan(cols[i % cols.length], {
-                glassOpacity: 0.15,
-                driver: true,
-                passenger: Math.random() < 0.45
-            });
+            let mesh = null;
+            if (i % 2 === 0) {
+                const vk = Assets.VEHICLE_CYCLE[i % Assets.VEHICLE_CYCLE.length];
+                mesh = Assets.instantiateVehicle(vk);
+            }
+            if (!mesh) {
+                mesh = buildSedan(cols[i % cols.length], {
+                    glassOpacity: 0.15,
+                    driver: true,
+                    passenger: Math.random() < 0.45
+                });
+            }
             this.carGroup.add(mesh);
 
             this.carData.push({
@@ -878,7 +1054,9 @@ export const Traffic = {
             c.dist = (c.dist + advance) % c.perimeter;
             const np = this._carPose(c) || p;
             c.obj.position.set(np.x, 0, np.z);
-            c.obj.rotation.y = Math.atan2(np.dx, np.dz) - Math.PI / 2;
+            // Procedural cars face +X; kit GLBs face +Z (rear-axle pivot).
+            const yawOff = c.obj.userData.fwd === 'z' ? 0 : -Math.PI / 2;
+            c.obj.rotation.y = Math.atan2(np.dx, np.dz) + yawOff;
             // headlight glow
             const lm = c.obj.userData.headLampMat;
             if (lm) lm.color.setHex(lampOn ? 0xfff6d5 : 0xb0a890);
@@ -897,27 +1075,9 @@ export const Traffic = {
     // ── BLIMPS with news panels ──────────────────────────────────────────────
     _initBlimps(scene) {
         const headlines = NEWS.slice(0, 3);
+        const cols = [0xd8b23a, 0x8b5cf6, 0x38bdf8];
         headlines.forEach((h, i) => {
-            const blimp = new THREE.Group();
-            const envelope = new THREE.Mesh(
-                new THREE.SphereGeometry(40, 14, 10),
-                new THREE.MeshLambertMaterial({ color: [0xd8b23a, 0x9a4ae0, 0x3aa0d8][i] })
-            );
-            envelope.scale.set(1.9, 0.62, 0.62);
-            blimp.add(envelope);
-            const gondola = new THREE.Mesh(
-                new THREE.BoxGeometry(30, 10, 10),
-                new THREE.MeshLambertMaterial({ color: 0x2a2e36 })
-            );
-            gondola.position.y = -30;
-            blimp.add(gondola);
-            const panelTex = TEX.blimpPanel(h.headline);
-            const panel = new THREE.Mesh(
-                new THREE.PlaneGeometry(90, 22),
-                new THREE.MeshBasicMaterial({ map: panelTex, side: THREE.DoubleSide })
-            );
-            panel.position.y = -2;
-            blimp.add(panel);
+            const blimp = buildBlimp(cols[i], h.headline);
             blimp.userData.headline = h;
             blimp.position.set((i - 1) * 1500, 420 + i * 60, -800 + i * 700);
             scene.add(blimp);
@@ -929,7 +1089,11 @@ export const Traffic = {
         for (const b of this.blimps) {
             b.obj.position.x += b.speed * dt;
             b.obj.position.y += Math.sin(t * 0.4 + b.phase) * dt * 6;
+            b.obj.rotation.z = Math.sin(t * 0.35 + b.phase) * 0.04;
+            b.obj.rotation.x = Math.sin(t * 0.28 + b.phase) * 0.03;
             if (b.obj.position.x > CITY_W / 2 + 800) b.obj.position.x = -CITY_W / 2 - 800;
+            const props = b.obj.userData.props;
+            if (props) for (const p of props) p.rotation.x += dt * 28;
         }
     },
 
@@ -1123,7 +1287,7 @@ export const Traffic = {
             const hq = G.bldById[LAB_HQ[f.lab]];
             const home = G.bldById['res_' + ((LABS[f.lab] && LABS[f.lab].region) || 'us')] || G.bldById['res_us'];
             if (!hq || !home) return;
-            const limo = buildVipLimo(f);
+            const limo = buildVipCar(f);
             this.vipGroup.add(limo);
 
             const hx = hq.worldX, hz = hq.worldZ;

@@ -55,7 +55,7 @@ blank or all-black frame is almost always this, not a render bug.
 
 ---
 
-## Tests — all seven must stay green
+## Tests — all eight must stay green
 
 ```bash
 npm run test:fp
@@ -67,7 +67,8 @@ specifier `'three'`, which only the browser importmap resolves; the npm scripts
 add `--import ./first-person/tests/hooks/three_resolver.mjs` to map it the same
 way. Without the hook both die with `ERR_MODULE_NOT_FOUND` — that is the harness
 missing, not a real regression. Keep the hook's table in sync with the importmap
-in [`index.html`](index.html) if a third specifier is ever added.
+in [`index.html`](index.html) if another specifier is ever added (`GLTFLoader`
+and `DRACOLoader` live there alongside `three` and `BufferGeometryUtils`).
 
 ---
 
@@ -146,6 +147,14 @@ via `S()` / `Interior.liftZoneWorld(i)`. Prefer helpers over raw `_liftZones`.
 **`js/world.js` — per-building instance handles.**
 `b._inst` / `b._capInst` recolour ONE building; changing a shared material
 recolours the whole city.
+
+**`js/assets.js` — kit GLBs, not a baked city mesh.**
+VC Row, lab HQs, metros, named housing and (on medium/high) infill instance a
+handful of threejsassets kits. `City.layout()`, colliders, canvas signs, day/night
+and metros stay procedural. Helicopters, robots and box-people are unchanged.
+Scale is still 10 world units = 1 metre; files are 1 unit = 1 m and get fitted
+to the placement box. Night windows are a vertex-color emissive mask on the
+shared kit material (no bloom / SSAO / transmission).
 
 **`js/textures.js` — `signAtlas()` is the live path.**
 One atlas + merged quads. Do not revive per-building `makeSignPlate` for street signs.

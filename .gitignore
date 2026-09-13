@@ -41,3 +41,7 @@ __pycache__/
 # It is a full browser profile — ~600 files of caches, cookies and LevelDB —
 # and `git add -A first-person` swallows the lot.
 first-person/tests/chrome-nan-profile/
+
+# threejsassets download key — never commit
+.tja_key
+**/.tja_key

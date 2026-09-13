@@ -789,8 +789,10 @@ export function lobbySign(name, emoji, accent, sub) {
     x.textAlign = 'center';
     x.textBaseline = 'middle';
     x.fillStyle = '#f2f5f9';
-    x.font = 'bold 88px Silkscreen, monospace';
-    x.fillText(`${emoji} ${name}`.slice(0, 30), 512, 108);
+    const label = String(name || '').slice(0, 22);
+    const px = label.length > 16 ? 52 : label.length > 12 ? 64 : 78;
+    x.font = `bold ${px}px Silkscreen, monospace`;
+    x.fillText(label, 512, 108);
     if (sub) {
         x.fillStyle = accent;
         x.font = '44px Silkscreen, monospace';
@@ -803,6 +805,13 @@ export function lobbySign(name, emoji, accent, sub) {
 // Seamless, periodic ripples. A canvas-wide gradient tiled into the "blue
 // bathroom squares" the last two passes were fighting; sines that close on
 // 2π at both edges do not.
+function _waterHeight(u, v) {
+    return Math.sin(u * 2 + v * 1.1) * 0.34 +
+        Math.sin(u * 5 - v * 3) * 0.22 +
+        Math.sin(u * 9 + v * 8) * 0.12 +
+        Math.sin(u * 17 - v * 13) * 0.07;
+}
+
 export function water() {
     const N = 512;
     const [c, ctx] = canvas(N, N);
@@ -812,24 +821,69 @@ export function water() {
         for (let i = 0; i < N; i++) {
             const u = (i / N) * Math.PI * 2;
             const v = (j / N) * Math.PI * 2;
-            const n =
-                Math.sin(u * 2 + v * 1.1) * 0.34 +
-                Math.sin(u * 5 - v * 3) * 0.22 +
-                Math.sin(u * 9 + v * 8) * 0.12 +
-                Math.sin(u * 17 - v * 13) * 0.07;
-            const t = n * 0.5 + 0.5;
-            // Navy → steel blue. No green channel lift — that read as meadow.
+            const t = _waterHeight(u, v) * 0.5 + 0.5;
             const o = (j * N + i) * 4;
-            d[o]     = 10 + t * 36;
-            d[o + 1] = 38 + t * 48;
-            d[o + 2] = 72 + t * 78;
+            d[o]     = 6 + t * 28;
+            d[o + 1] = 28 + t * 52;
+            d[o + 2] = 58 + t * 90;
             d[o + 3] = 255;
         }
     }
     ctx.putImageData(img, 0, 0);
     const t = tex(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(14, 14);
+    return t;
+}
+
+/** Tangent-space normal map matching `water()` so Phong can actually sparkle. */
+export function waterNormal() {
+    const N = 512;
+    const [c, ctx] = canvas(N, N);
+    const img = ctx.createImageData(N, N);
+    const d = img.data;
+    const h = (i, j) => {
+        const u = ((i + N) % N) / N * Math.PI * 2;
+        const v = ((j + N) % N) / N * Math.PI * 2;
+        return _waterHeight(u, v);
+    };
+    const str = 3.2;
+    for (let j = 0; j < N; j++) {
+        for (let i = 0; i < N; i++) {
+            const dx = (h(i + 1, j) - h(i - 1, j)) * str;
+            const dy = (h(i, j + 1) - h(i, j - 1)) * str;
+            let nx = -dx, ny = -dy, nz = 1;
+            const len = Math.hypot(nx, ny, nz) || 1;
+            nx /= len; ny /= len; nz /= len;
+            const o = (j * N + i) * 4;
+            d[o]     = (nx * 0.5 + 0.5) * 255;
+            d[o + 1] = (ny * 0.5 + 0.5) * 255;
+            d[o + 2] = (nz * 0.5 + 0.5) * 255;
+            d[o + 3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    const t = tex(c, false);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+}
+
+export function foam() {
+    const N = 256;
+    const [c, x] = canvas(N, N);
+    x.fillStyle = '#000000'; x.fillRect(0, 0, N, N);
+    for (let i = 0; i < 90; i++) {
+        const y = (i * 37) % N;
+        const w = 40 + (i * 13) % 80;
+        x.fillStyle = `rgba(255,255,255,${0.08 + (i % 5) * 0.05})`;
+        x.fillRect(0, y, N, 3 + (i % 4));
+        x.fillRect((i * 53) % N, y + 4, w, 2);
+    }
+    for (let i = 0; i < 400; i++) {
+        x.fillStyle = `rgba(255,255,255,${0.15 + (i % 4) * 0.1})`;
+        x.fillRect((i * 47) % N, (i * 29) % N, 2, 1);
+    }
+    const t = tex(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
     return t;
 }
 
@@ -984,21 +1038,56 @@ export function mountain() {
 }
 
 // ─── Blimp side panel ────────────────────────────────────────────────────────
+export function blimpHull(hex) {
+    const [c, x] = canvas(1024, 256);
+    const col = new THREE.Color(hex);
+    x.fillStyle = '#' + col.getHexString();
+    x.fillRect(0, 0, 1024, 256);
+    for (let i = 0; i < 18; i++) {
+        x.fillStyle = i % 2 ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.07)';
+        x.fillRect(i * (1024 / 18), 0, 1024 / 18, 256);
+        x.strokeStyle = 'rgba(20,24,32,0.28)';
+        x.lineWidth = 2;
+        x.beginPath();
+        x.moveTo(i * (1024 / 18), 0);
+        x.lineTo(i * (1024 / 18), 256);
+        x.stroke();
+    }
+    const g = x.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, 'rgba(0,0,0,0.28)');
+    g.addColorStop(0.12, 'rgba(0,0,0,0)');
+    g.addColorStop(0.38, 'rgba(255,255,255,0.14)');
+    g.addColorStop(0.48, 'rgba(255,255,255,0.04)');
+    g.addColorStop(0.88, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.22)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, 1024, 256);
+    x.fillStyle = 'rgba(15,20,28,0.55)';
+    x.font = 'bold 22px Silkscreen, monospace';
+    x.textAlign = 'center';
+    x.fillText('SC-FP', 512, 228);
+    return tex(c);
+}
+
 export function blimpPanel(headline) {
-    const [c, x] = canvas(512, 128);
-    x.fillStyle = '#0d1526'; x.fillRect(0, 0, 512, 128);
-    x.strokeStyle = '#f59e0b'; x.lineWidth = 6; x.strokeRect(4, 4, 504, 120);
-    x.fillStyle = '#fbbf24'; x.font = 'bold 26px Silkscreen, monospace';
+    const [c, x] = canvas(1024, 256);
+    x.fillStyle = '#070b14'; x.fillRect(0, 0, 1024, 256);
+    x.strokeStyle = '#f59e0b'; x.lineWidth = 8; x.strokeRect(8, 8, 1008, 240);
+    x.fillStyle = '#7c8db0'; x.font = 'bold 22px Silkscreen, monospace';
     x.textAlign = 'center'; x.textBaseline = 'middle';
-    const words = headline.split(' ');
+    x.fillText('LIVE  ·  SINGULARITY CITY', 512, 36);
+    x.fillStyle = '#fbbf24';
+    const words = String(headline || 'NEWS').split(' ');
     let line = '', lines = [];
     for (const w of words) {
-        if ((line + ' ' + w).trim().length > 30) { lines.push(line.trim()); line = w; }
+        if ((line + ' ' + w).trim().length > 28) { lines.push(line.trim()); line = w; }
         else line += ' ' + w;
     }
     lines.push(line.trim());
-    lines = lines.slice(0, 3);
-    lines.forEach((l, i) => x.fillText(l, 256, 64 + (i - (lines.length - 1) / 2) * 32));
+    lines = lines.filter(Boolean).slice(0, 3);
+    const px = lines.some(l => l.length > 22) ? 36 : 44;
+    x.font = `bold ${px}px Silkscreen, monospace`;
+    lines.forEach((l, i) => x.fillText(l, 512, 128 + (i - (lines.length - 1) / 2) * (px + 8)));
     return tex(c);
 }
 

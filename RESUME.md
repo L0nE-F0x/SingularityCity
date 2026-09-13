@@ -1,10 +1,24 @@
 # Resume here
 
-**Updated:** 2026-09-07 (afternoon) · **Live `main`:** `f38b1f2` — **shipped**
-**Status:** deployed (cachebust v554) and verified live. Both previously-pending
-items are closed. Neither failed for the reason the last handoff predicted.
+**Updated:** 2026-09-13 · FP kit GLBs shipping to production
+**Status:** First Person kits, scale, harbour, trees, and blimps pushed for Netlify.
 
 ---
+
+## This session (2026-09-13) — ship FP kits
+
+Owner playtested locally. Commit includes only the GLBs `assets.js` loads
+(~11 MB), Draco/GLTF loaders, and the FP wiring. The TJA key is gitignored.
+Unused pack dumps (farm barns, cozy cottages, bedroom, etc.) stay untracked.
+
+---
+
+## Previous (2026-09-07) — ban rows / Astra
+
+**Live `main` then:** `f38b1f2` — shipped (cachebust v554).
+
+Tested the two items the morning session left pending. Both were still broken,
+and each hid a bigger defect behind it.
 
 ## Where this stands
 
@@ -247,7 +261,76 @@ shipped).
 
 ---
 
-## This session (2026-08-24, evening) — mobile Free-fly HUD
+## This session (2026-09-12) — modular Draco GLBs into FP
+
+Goal: wire threejsassets kits into First Person **without** baking a city mesh.
+`City.layout()`, colliders, canvas signs, metros, helis, robots, box-people stay.
+
+### What landed (uncommitted)
+
+Vendored Three r160 `GLTFLoader` + `DRACOLoader` + local Draco decoder.
+Importmap + Node test resolver stay in sync.
+
+`first-person/js/assets.js` — registry, load-before-`World.build()`, landmark
+map, infill reuse, vehicles, harbour props, interior props.
+
+`world.js` places kits as **one InstancedMesh per kit**. First scale pass
+stretched each axis independently and the skyline read as toys. **Fixed:**
+uniform `kitScale()` matches the old procedural box (height or footprint,
+whichever is larger). OpenAI HQ comes out ~20.5× (old ~69 m tower), not 10×
+true metres.
+
+Also: Vice Beach neon/deco/port dressing, bigger launchpad stacks (catalog has
+**no rockets**), lobby/bar/lab GLB furniture, police/bus/van in traffic,
+Netlify cache for `/first-person/assets/*` + `worker-src blob:`.
+
+`npm run test:fp` green (includes new `test:fp:assets`).
+
+### How to look at it in the morning
+
+```bash
+npm run serve
+```
+
+Then hard-refresh **Ctrl+Shift+R**:
+
+- http://127.0.0.1:8931/first-person/?autostart=1
+- night: `?autostart=1&dp=0.85`
+- 2D toolbar **FP** still goes to `/first-person/`
+
+Walk VC Row + OpenAI, port quay, space pads, enter Neon Bar and an HQ lobby.
+
+A playtest server may still be on **:8931** from tonight; if it is dead, the
+command above is enough.
+
+### Not pushed / do not commit blindly
+
+- **Code:** `first-person/js/assets.js`, `world.js`, `main.js`, `traffic.js`,
+  `interior.js`, `index.html`, `lib/GLTFLoader.js`, `lib/DRACOLoader.js`,
+  `lib/draco/`, tests, `netlify.toml`, `package.json`, this file.
+- **Assets:** `first-person/assets/` is untracked. Zips are gitignored. Prefer
+  individual GLBs under `_packs/*/glb/individual/` (and bunker
+  `interiors/bunker-facility/glb/`). Do **not** add `components/*.tsx`, pack
+  zips, or the 58 MB City catalog if you can avoid it.
+- Leave `landing_preview2.html` / `landing_preview3.html` alone.
+
+### Morning leftover (in order)
+
+1. **Owner eyeball** — scale, night windows, colliders, metro, fly, enter.
+2. **Railway pack** — only city-adjacent pack not on disk. Download API needs
+   the `TJA_` key (Chrome cookies are encrypted here). Drop the pack at
+   `first-person/assets/models/_packs/railway/` then map station / diesel /
+   gantry / container wagon.
+3. Optional: Metropolis skybridges between VC Row; Character Studio humans
+   (export still `not_entitled`); keep procedural helis/robots/box-people.
+4. Then commit + push if the playtest is good.
+
+---
+
+## Previous (2026-08-24, evening) — mobile Free-fly HUD
+
+**Live `main` then:** `3dceab9`. Touch controls shipped; Free-fly is a top-right
+🦅 button on phones.
 
 The morning mobile pass injected Free-fly into the **pause grid**, but there
 was no on-screen way to enter it while walking. Pause is easy to miss on a
