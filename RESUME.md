@@ -1,16 +1,98 @@
 # Resume here
 
-**Updated:** 2026-09-13 (session wrap) · **Live `main`:** `aa93abc`
-**Status:** First Person kit-GLB work is **on `main`**. Netlify should have
-auto-deployed. Hard-refresh production (`singularitycity.net` → toolbar **FP**)
-if the live city still looks like boxes.
+**Updated:** 2026-09-23 (session wrap) · **Live `main`:** `a473c3a` (this wrap sits on top)
+**Status:** Phone minimap fix is **on `main`**. Netlify should auto-deploy.
+Hard-refresh `singularitycity.net` on a phone (the city plays in landscape).
+Cache is **v555** — a stale service worker will keep the old 7px map until it updates.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
-Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/first-person/
+Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
 
 ---
 
-## This session (2026-09-12 → 13) — modular kits into First Person
+## This session (2026-09-23) — phone minimap
+
+**Shipped in `a473c3a`.** Owner sent a landscape screenshot: the MAP panel's zone
+list was a cramped two-column mush. Pushed for the Netlify deploy.
+
+The city on a phone is landscape (portrait is the rotate overlay). A landscape
+phone is often **wider than 768px**, so the old `@media (max-width: 768px) { #minimap { display: none } }`
+never applied, and `.is-mobile` only added a max-height. Players got the desktop
+map: **290px wide, 7px labels, `white-space: nowrap`**. iOS text inflation plus
+grid `min-width: auto` made the columns collide and clip. That is the screenshot.
+
+### What a new agent must not re-break
+
+1. **Who gets the phone map.** `body.map-phone` comes from `_syncMapLayout()` in
+   `index.html` (runs before the minimap is parsed, and again on resize /
+   orientation). It is on for a real phone (`_isMobile`), a viewport **≤768px**,
+   or a **short landscape** window (`width ≤ 1200` and `height ≤ 560`). Do not
+   go back to hiding `#minimap` under 768px. Do not key this only off
+   `max-width: 768px` — that misses the phones that were broken.
+2. **The list only scrolls if the panel has a definite height.** `max-height`
+   alone does not shrink a flex child. Expanded phone map sets
+   `height: calc(100dvh - 112px)` (vh first, dvh second so dvh wins when
+   supported). Portrait (`orientation: portrait`) uses `top: 116px; height: auto`
+   with the existing `bottom`, so the stretched box is still definite and the
+   panel clears the wrapped toolbar. `body.map-phone .mm-zones` is
+   `overflow-y: auto; min-height: 0; flex: 1 1 auto`.
+3. **`touch-action`.** `html, body` is `manipulation`, not `none`. Effective
+   touch-action is the **intersection up to the root**, so `none` on `body`
+   disables `pan-y` on the zone list no matter what the list says. `.vp` stays
+   `touch-action: none` (city pan/pinch). `.ctrls-scroll` is `pan-x`.
+   `.mm-zones` is `pan-y`.
+4. **Labels.** Phone zones are 12px (11px under `max-height: 390px`),
+   `white-space: normal`, `min-height` 38px / 32px, color `#d5d7e4`. Grid is
+   `repeat(2, minmax(0, 1fr))` and `.mm-zone` has `min-width: 0` on desktop too,
+   so nowrap text cannot blow the columns out. Desktop type stays **7px / 290px**.
+   Do not put the phone font size on the base `.mm-zone` rule.
+5. **Canvas buffer is 640×96**, CSS height 40px desktop / 56px phone (40px on
+   short landscape). Floor height is `floors * (cH / 20)`, band pad is 20% of
+   `cH`, ground margin is 10%. At `cH = 40` that matches the old 2px-per-floor /
+   8px pad / 4px ground. Do not hardcode those pixel constants again.
+6. **Zoom pill** (`js/camera.js`) measures the minimap rect. It used to assume
+   80px collapsed / 290px open, which overlaps a 440px phone map. It hides when
+   `rect.left < 72` so a wide map cannot shove it off the left edge. The pill
+   is still only created when `innerWidth >= 769`.
+
+### Where to look
+
+| Piece | File |
+|---|---|
+| `map-phone` class | `index.html` `_syncMapLayout()` |
+| Phone panel, zones, touch-action | `css/styles.css` (`body.map-phone #minimap` and `html, body`) |
+| Strip drawing | `js/macro_view.js` `updateMinimap()` |
+| Zoom pill position | `js/camera.js` `_updateZoomPill()` |
+| Canvas element size | `index.html` `#mmCanvas` (640×96) |
+| Cache | `sw.js` `CACHE_NAME` `singularity-city-v555` |
+
+### Verified locally (not against production)
+
+Playwright + system Chrome, iPhone UA, city booted, orientation overlay hidden,
+map forced open:
+
+| Viewport | Result |
+|---|---|
+| 844×390 and 667×375 landscape | `map-phone`, no clipped labels, panel between toolbar and ticker, touch-drag scrolled the list |
+| 390×844 portrait | Map starts at y=116, below the wrapped toolbar. In real play the rotate overlay covers this. |
+| 1440×900 desktop | `map-phone` off, map stays 290px / 7px |
+
+Clicking Embassy Row moved `Camera.targetX` from `0` to about `-35000`.
+
+### Not done
+
+- Live Netlify was **not** checked after the push. Confirm v555 and a readable
+  map on a phone. Hard-refresh; the service worker matches with `ignoreSearch`,
+  so an old `singularity-city-v554` cache serves stale CSS until the new worker
+  activates.
+- First Person's own `#minimap` (`first-person/`) was not part of this. The
+  screenshot was the 2D city MAP panel.
+- Untracked kit dumps are still on disk. Do **not** `git add -A`. See the
+  kits section below.
+
+---
+
+## Previous (2026-09-12 → 13) — modular kits into First Person
 
 **Shipped in `aa93abc`.** Owner playtested locally, then pushed.
 
