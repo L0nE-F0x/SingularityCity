@@ -487,10 +487,13 @@ const Camera = {
             (typeof XRayMode !== 'undefined' && XRayMode.active);
         this._zoomPill.style.display = hide ? 'none' : 'flex';
         if (!hide) {
-            // Stick to the left edge of the minimap (gap 6px)
+            // Stick to the left edge of the minimap (gap 6px). Width is measured
+            // because the phone map is wider than the desktop 290px panel.
             const mm = document.getElementById('minimap');
-            const mmW = mm && mm.classList.contains('collapsed') ? 80 : 290;
-            this._zoomPill.style.right = 12 + mmW + 6 + 'px';
+            if (!mm) return;
+            const rect = mm.getBoundingClientRect();
+            this._zoomPill.style.right = Math.round(window.innerWidth - rect.left + 6) + 'px';
+            this._zoomPill.style.visibility = rect.left < 72 ? 'hidden' : '';
         }
     },
 };

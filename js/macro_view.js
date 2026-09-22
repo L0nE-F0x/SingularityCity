@@ -219,16 +219,18 @@ const MacroView = {
             });
             if (minX < Infinity) {
                 ctx.fillStyle = zoneColors[z.id] || '#222';
-                ctx.fillRect(minX * scale, 8, Math.max((maxX - minX) * scale, 3), cH - 16);
+                const bandPad = Math.max(2, Math.round(cH * 0.2));
+                ctx.fillRect(minX * scale, bandPad, Math.max((maxX - minX) * scale, 2), cH - bandPad * 2);
             }
         });
 
-        // Draw buildings as thin lines
+        // Draw buildings as thin lines. Floor height tracks the buffer so a
+        // higher-res canvas (phones) keeps the same silhouette proportions.
         BLDS.forEach((b) => {
             const bx = b.x * scale;
             const bw = Math.max(b.w * scale, 1);
             const floors = b.dynamicFl || b.fl || 1;
-            const bh = Math.min(floors * 2, cH - 10);
+            const bh = Math.min(floors * (cH / 20), cH - 10);
 
             if (b.lab) {
                 const lab = LABS[b.lab];
@@ -238,14 +240,15 @@ const MacroView = {
             } else {
                 ctx.fillStyle = '#445';
             }
-            ctx.fillRect(bx, cH - 4 - bh, bw, bh);
+            const ground = Math.max(2, Math.round(cH * 0.1));
+            ctx.fillRect(bx, cH - ground - bh, bw, bh);
         });
 
         // Draw viewport indicator
         const vpLeft = -Camera.x * scale;
         const vpWidth = (this.vpW / Camera.zoom) * scale;
         ctx.strokeStyle = 'rgba(34,211,238,0.7)';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = Math.max(1.5, cH / 28);
         ctx.strokeRect(vpLeft, 1, vpWidth, cH - 2);
         ctx.fillStyle = 'rgba(34,211,238,0.06)';
         ctx.fillRect(vpLeft, 1, vpWidth, cH - 2);

@@ -24,7 +24,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  touch-action: none;
+  touch-action: manipulation;
   overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
@@ -209,7 +209,7 @@ h1, h2, h3, p { margin: 0; }
 
 /* ─── CONTROLS ─── */
 .ctrls { width: 100%; overflow: hidden; }
-.ctrls-scroll { display: flex; gap: 6px; padding: 4px 10px 10px 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.ctrls-scroll { display: flex; gap: 6px; padding: 4px 10px 10px 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; touch-action: pan-x; }
 .btn { background: var(--cd); color: var(--t1); border: 1px solid var(--bd); padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; transition: all 0.2s; position: relative; flex-shrink: 0; }
 .btn:hover { background: var(--sf); border-color: var(--t2); transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
 .btn.on { background: var(--sf); border-color: var(--ac); color: var(--ac); }
@@ -219,7 +219,7 @@ h1, h2, h3, p { margin: 0; }
 #gameWrap.xray-mode { background-color: #030808 !important; }
 
 /* ─── PIXI VIEWPORT ─── */
-.vp { flex: 1; width: 100%; position: relative; z-index: 1; cursor: grab; }
+.vp { flex: 1; width: 100%; position: relative; z-index: 1; cursor: grab; touch-action: none; }
 .vp.dragging { cursor: grabbing !important; }
 
 /* ─── BOTTOM NEWS TICKER ─── */
@@ -554,8 +554,8 @@ h1, h2, h3, p { margin: 0; }
 .mm-toggle { background: none; border: none; color: var(--t3); font-size: 12px; cursor: pointer; padding: 0 4px; line-height: 1; }
 .mm-toggle:hover { color: #fff; }
 #mmCanvas { display: block; width: 100%; height: 40px; cursor: crosshair; }
-.mm-zones { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 4px 6px 6px; }
-.mm-zone { font-family: 'JetBrains Mono', monospace; font-size: 7px; padding: 4px 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--bd); border-radius: 3px; cursor: pointer; color: var(--t3); transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.mm-zones { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; padding: 4px 6px 6px; }
+.mm-zone { font-family: 'JetBrains Mono', monospace; font-size: 7px; padding: 4px 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--bd); border-radius: 3px; cursor: pointer; color: var(--t3); transition: background 0.15s, color 0.15s, border-color 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; min-width: 0; }
 .mm-zone.wide { grid-column: 1 / -1; }
 .mm-zone:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: var(--t2); }
 .mm-zone.active { border-color: var(--cy); color: var(--cy); background: rgba(34,211,238,0.08); }
@@ -656,11 +656,88 @@ h1, h2, h3, p { margin: 0; }
 .is-mobile #trackingHud { bottom: max(30px, calc(24px + env(safe-area-inset-bottom))) !important; }
 .is-mobile #debugOverlay { top: max(8px, env(safe-area-inset-top)) !important; left: max(8px, env(safe-area-inset-left)) !important; }
 .is-mobile .install-banner { padding-top: env(safe-area-inset-top); }
-.is-mobile #minimap { max-height: calc(100vh - 80px); max-height: calc(100dvh - 80px); display: flex; flex-direction: column; overflow: hidden; }
-.is-mobile #minimap.collapsed { max-height: none; }
-.is-mobile .mm-header { min-height: 32px; flex-shrink: 0; }
-.is-mobile #mmCanvas { flex-shrink: 0; }
-.is-mobile .mm-zones { overflow-y: auto; flex: 1; min-height: 0; }
+/* Phone / short-landscape map. Body class is set in index.html (real phones,
+   viewports <=768px, and short landscape windows). The 7px two-column desktop
+   panel clips labels and overflows a landscape phone. */
+body.map-phone #minimap {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: min(440px, calc(100vw - 12px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  right: max(8px, env(safe-area-inset-right));
+  bottom: calc(32px + env(safe-area-inset-bottom));
+  max-height: calc(100vh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  z-index: 140;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  transition: none;
+}
+body.map-phone #minimap:not(.collapsed) {
+  height: calc(100vh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  height: calc(100dvh - 112px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+@media (orientation: portrait) {
+  body.map-phone #minimap:not(.collapsed) {
+    top: 116px;
+    height: auto;
+  }
+}
+body.map-phone #minimap.collapsed {
+  width: auto;
+  min-width: 96px;
+  max-height: none;
+}
+body.map-phone .mm-header {
+  min-height: 40px;
+  padding: 8px 10px;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+body.map-phone #minimap.collapsed .mm-title { font-size: 12px; }
+body.map-phone .mm-title { font-size: 12px; letter-spacing: 0.6px; }
+body.map-phone .mm-toggle {
+  font-size: 18px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 6px;
+}
+body.map-phone #mmCanvas { height: 56px; flex-shrink: 0; touch-action: manipulation; }
+body.map-phone .mm-zones {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+}
+body.map-phone .mm-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: #d5d7e4;
+  padding: 8px 8px;
+  min-height: 38px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  touch-action: manipulation;
+}
+body.map-phone .mm-zone:active { background: rgba(255,255,255,0.12); color: #fff; }
+@media (max-height: 390px) {
+  body.map-phone #mmCanvas { height: 40px; }
+  body.map-phone .mm-header { min-height: 34px; padding: 4px 8px; }
+  body.map-phone .mm-zone { font-size: 11px; min-height: 32px; padding: 5px 6px; }
+  body.map-phone .mm-zones { gap: 4px; padding: 6px; }
+}
 
 /* ─── MOBILE RESPONSIVENESS & BOTTOM SHEETS ─── */
 @media (max-width: 768px) {
@@ -714,7 +791,6 @@ h1, h2, h3, p { margin: 0; }
   .slog { display: none; }
 
   #trackingHud { font-size: 9px !important; padding: 5px 12px !important; bottom: 30px !important; max-width: calc(100vw - 24px); }
-  #minimap { display: none; }
 
   #btnExitInterior { font-size: 10px !important; padding: 8px 16px !important; top: 8px !important; right: 8px !important; }
 
