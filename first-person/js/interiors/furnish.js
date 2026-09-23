@@ -133,7 +133,12 @@ export const NEEDS = {
     home: ['in_sofa', 'in_armchair', 'in_coffee_table', 'in_media_unit', 'in_tv', 'in_base_cab', 'in_fridge', 'in_island', 'in_bar_stool'],
     academic: ['in_reading_table', 'in_library_chair', 'in_banker_lamp', 'in_issue_desk'],
     cafe: ['in_cafe_set', 'in_coffee_machine', 'in_bar_stool', 'in_base_cab'],
-    vc: ['in_chesterfield', 'in_reading_arm', 'in_bar_cart', 'in_exec_chair']
+    vc: ['in_chesterfield', 'in_reading_arm', 'in_bar_cart', 'in_exec_chair'],
+    mission: ['in_console', 'in_task_chair', 'in_status_board', 'in_radar'],
+    power: ['in_generator', 'in_transformer', 'in_breaker', 'in_console'],
+    nursery: ['in_crib', 'in_play_rug', 'in_teepee', 'in_toy_box'],
+    warehouse: ['in_shelf_rack', 'in_pallets', 'in_crate'],
+    conference: ['in_accent_chair', 'in_speakers']
 };
 
 const LIFT_X = -190;             // keep x below this clear when there's a lift
@@ -508,4 +513,135 @@ export function vc(F, ctx) {
     return spots;
 }
 
-export const LAYOUTS = { office, openplan, boardroom, home, academic, cafe, vc };
+/* ── mission control (launch pads, tracking, assembly) ────────────────── */
+export function mission(F, ctx) {
+    const { H, lift } = ctx;
+    const spots = [];
+    // three tiers of consoles facing the status wall
+    const rows = [-120, -40, 40];
+    const xs = lift ? [-100, -30, 40, 110, 180] : [-170, -100, -30, 40, 110, 180];
+    rows.forEach((z, r) => {
+        for (const x of xs) {
+            F.put('in_console', x, z, 0, { s: 0.62, solid: true, pad: 1 });
+            F.put('in_task_chair', x, z + 22, Math.PI);
+            spots.push({ x, z: z + 22, facing: -1, pose: 'work' });
+        }
+        void r;
+    });
+    // status wall under the name board, radar scopes either side
+    for (const x of [-80, 0, 80]) F.put('in_status_board', x, -222, 0, { y: 28, s: 1.2 });
+    F.put('in_radar', 200, -200, 0, { solid: true });
+    F.put('in_radar', 240, -150, -0.5, { solid: true });
+    F.put('in_map_table', 70, 150, 0, { s: 0.9, solid: true });
+    spots.push({ x: 70, z: 180, facing: -1, pose: 'stand', roam: true });
+    spots.push({ x: 30, z: 120, facing: 1, pose: 'stand', roam: true });
+    for (let i = 0; i < 4; i++) F.put('in_radio_rack', 262, -60 + i * 28, -Math.PI / 2, { s: 0.9, solid: true });
+    F.put('in_switchboard', 262, 110, -Math.PI / 2, { solid: true });
+    F.put('in_clock_b', 272, 40, -Math.PI / 2, { y: 64, s: 1.6 });
+    F.put('in_beacon', 262, 180, 0, { y: 70 });
+    return spots;
+}
+
+/* ── the power stations ───────────────────────────────────────────────── */
+export function power(F, ctx) {
+    const { lift } = ctx;
+    const spots = [];
+    // the generators flank the name board (centre-back, |x| < 108), never in front of it
+    F.put('in_generator', lift ? -150 : -180, -172, 0, { s: 1.15, solid: true });
+    F.put('in_generator', 172, -172, 0, { s: 1.15, solid: true });
+    for (let i = 0; i < 5; i++) F.put('in_transformer', 262, -170 + i * 36, -Math.PI / 2, { solid: true });
+    for (let i = 0; i < 4; i++) F.put('in_breaker', -130 + i * 50, -224, 0, { y: 30, s: 1.1 });
+    F.put('in_console', 60, 20, 0, { s: 0.7, solid: true });
+    F.put('in_console', 140, 20, 0, { s: 0.7, solid: true });
+    F.put('in_task_chair', 60, 44, Math.PI);
+    F.put('in_task_chair', 140, 44, Math.PI);
+    spots.push({ x: 60, z: 44, facing: -1, pose: 'work' });
+    spots.push({ x: 140, z: 44, facing: -1, pose: 'work' });
+    F.put('in_switchboard', 200, 120, Math.PI, { solid: true });
+    for (let i = 0; i < 3; i++) F.put('in_locker', 262, 90 + i * 32, -Math.PI / 2, { solid: true });
+    F.put('in_barrels', 230, 200, 0, { solid: true });
+    F.put('in_hazard_panel', -100, 190, 0, { s: 0.7 });
+    for (const x of [-40, 60, 160]) F.put('in_cage_lamp', x, 0, 0, { y: 88 });
+    spots.push({ x: 0, z: 100, facing: 1, pose: 'stand', roam: true });
+    spots.push({ x: 120, z: -90, facing: -1, pose: 'stand', roam: true });
+    return spots;
+}
+
+/* ── the nursery ──────────────────────────────────────────────────────── */
+export function nursery(F, ctx) {
+    const { H } = ctx;
+    const spots = [];
+    F.put('in_play_rug', 60, 60, 0, { y: 0.4, s: 1.4 });
+    for (let i = 0; i < 4; i++) {
+        const x = -60 + i * 60;
+        F.put('in_crib', x, -190, 0, { solid: true });
+        F.put('in_mobile', x, -190, 0, { y: 48 });
+    }
+    F.put('in_bassinet', 210, -190, 0, { solid: true });
+    F.put('in_changing', 262, -110, -Math.PI / 2, { solid: true });
+    F.put('in_glider', 230, -40, -Math.PI / 2 - 0.4, { solid: true });
+    spots.push({ x: 226, z: -40, facing: -1, ry: -Math.PI / 2 - 0.4, pose: 'sit', stay: true });
+    F.put('in_teepee', 200, 130, 0.5, { solid: true });
+    F.put('in_rocking_horse', 20, 120, 0.8, { solid: true });
+    F.put('in_kids_table', 100, 40, 0, { solid: true });
+    F.put('in_toy_box', -60, 180, 0, { solid: true });
+    F.put('in_plush', 60, 90, 0.3, { y: 0.5 });
+    for (let i = 0; i < 3; i++) F.put('in_cubby', 262, 20 + i * 30, -Math.PI / 2, { solid: true });
+    F.put('in_floor_plant', 250, 200, 0, { s: 1.1, solid: true });
+    pendants(F, 'in_pendant', [0, 120], 0, H);
+    spots.push({ x: 60, z: 30, facing: 1, pose: 'stand', roam: true });
+    spots.push({ x: 140, z: 90, facing: -1, pose: 'stand', roam: true });
+    spots.push({ x: -20, z: -150, facing: -1, pose: 'stand', roam: true });
+    return spots;
+}
+
+/* ── port warehouse ───────────────────────────────────────────────────── */
+export function warehouse(F, ctx) {
+    const { lift } = ctx;
+    const spots = [];
+    // rack aisles down both sides; the middle stays open for the forklift and
+    // for the name board, which a 2.6 m rack would hide
+    const rows = lift ? [-145, 135, 212] : [-220, -145, 135, 212];
+    const x0 = rows[0];
+    for (const x of rows) {
+        for (let i = 0; i < 5; i++) F.put('in_shelf_rack', x, -170 + i * 50, Math.PI / 2, { s: 1.25, solid: true, pad: 0 });
+    }
+    for (let i = 0; i < 6; i++) {
+        F.put(i % 2 ? 'in_pallets' : 'in_crate', -50 + (i % 3) * 50, -150 + Math.floor(i / 3) * 60, i * 0.4, { s: i % 2 ? 1 : 1.3, solid: true });
+    }
+    F.put('in_barrels', 180, 180, 0, { solid: true });
+    F.put('in_field_desk', 60, 190, Math.PI, { solid: true });
+    F.put('in_crt', 60, 190, Math.PI, { y: 30, s: 0.8 });
+    spots.push({ x: 60, z: 206, facing: -1, pose: 'work', stay: true });
+    spots.push({ x: 0, z: 20, facing: 1, pose: 'stand', roam: true });
+    spots.push({ x: x0 + 40, z: 80, facing: -1, pose: 'stand', roam: true });
+    return spots;
+}
+
+/* ── the convention centre ────────────────────────────────────────────── */
+export function conference(F, ctx) {
+    const { box, lit, solid, accent, H } = ctx;
+    const spots = [];
+    // stage and screen at the back, under the name board
+    box(300, 10, 70, 30, 5, -185, 0x1e1b4b); solid(30, -185, 300, 70);
+    lit(304, 1.5, 2, 30, 10, -150, accent);
+    lit(220, 30, 1.5, 30, 42, -223, 0x1e293b);
+    F.put('in_speakers', -110, -196, 0.3, { y: 10, s: 2 });
+    F.put('in_speakers', 170, -196, -0.3, { y: 10, s: 2 });
+    F.put('in_side_table_o', 30, -178, 0, { y: 10 });
+    // audience: five rows of chairs facing the stage
+    for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 8; c++) {
+            const x = -90 + c * 34, z = -80 + r * 42;
+            F.put('in_accent_chair', x, z, Math.PI);
+            spots.push({ x, z, facing: -1, pose: 'sit' });
+        }
+    }
+    spots.unshift({ x: 30, z: -180, facing: 1, pose: 'stand', stay: true });
+    pendants(F, 'in_pendant', [-60, 30, 120], 0, H);
+    F.put('in_office_plant', 250, 196, 0, { s: 1.7, solid: true });
+    F.put('in_office_plant', -140, 196, 0, { s: 1.7, solid: true });
+    return spots;
+}
+
+export const LAYOUTS = { office, openplan, boardroom, home, academic, cafe, vc, mission, power, nursery, warehouse, conference };
