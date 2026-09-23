@@ -57,6 +57,9 @@ blank or all-black frame is almost always this, not a render bug.
 
 ## Tests — all eight must stay green
 
+`test:fp:assets` also checks that every registered kit has a shipped file and
+that every furnish layout only asks for registered kits.
+
 ```bash
 npm run test:fp
 ```
@@ -149,12 +152,76 @@ via `S()` / `Interior.liftZoneWorld(i)`. Prefer helpers over raw `_liftZones`.
 recolours the whole city.
 
 **`js/assets.js` — kit GLBs, not a baked city mesh.**
-VC Row, lab HQs, metros, named housing and (on medium/high) infill instance a
+VC Row, lab HQs, named housing and (on medium/high) infill instance a
 handful of threejsassets kits. `City.layout()`, colliders, canvas signs, day/night
-and metros stay procedural. Helicopters, robots and box-people are unchanged.
+and metros stay procedural. Helicopters and robots are unchanged.
 Scale is still 10 world units = 1 metre; files are 1 unit = 1 m and get fitted
-to the placement box. Night windows are a vertex-color emissive mask on the
-shared kit material (no bloom / SSAO / transmission).
+to the placement box.
+
+**The kit pipeline — `js/kit_registry.js` + `tools/fp_kits.mjs`.**
+Every GLB FP ships is one line in `kit_registry.js` (`src: '<pack>/<file>.glb'`,
+a `kind`, and a `group`). `node tools/fp_kits.mjs` Draco-compresses each one
+from the local pack dumps (`assets/models/_packs/<pack>/glb/individual/`,
+untracked and licence-restricted) into `assets/kits/<KIT_VERSION>/<pack>/`,
+which is tracked and deployed: 68 MB of pack GLBs ship as 5 MB. To add a kit:
+download the pack (see RESUME for the API), add the registry line, run the
+tool, commit the new file under `assets/kits/`. `test:fp:assets` fails if a
+registered kit has no shipped file. Groups: none (boot), `street` (boot),
+`interior` (streamed after boot), `seasonal` (fetched only while a festival
+uses it). `origin: 'authored'` keeps the file's pivot (a lamp's pole) instead
+of recentring; `heavy` kits are skipped on `low`.
+
+**Night glazing comes from the packs' own palettes.** Each pack bakes its
+day palette into vertex colours; its night palette says which windows glow.
+`assets.js` reproduces the day values (`GLAZE_PALETTES`), matches every vertex
+once at load and stores a code in `aGlaze`: 1–3 lit glass (warm / amber / cool),
+4 dark glass, 5 curtain wall, 6 neon. Glazed codes are smooth and
+semi-metallic by day (sky reflections); 1–3 and 6 glow at night, with a
+per-building hash switching off about a quarter of the bays. Any vertex colour
+brighter than 1.0 is a baked flame or bulb and also gets code 6. Houses
+(`KIT_HOUSE`) light some of their `glassOff` panes, or suburbia is black.
+
+**`js/streetscape.js` — street furniture, parked cars, plazas, district dressing.**
+Deterministic placement from the kits (benches, bins, hydrants, bus shelters,
+planters, kiosks, parked cars in the kerb lane, pocket plazas in the paving,
+rooftop billboards, suburban yards, the wasteland Underground, the desert
+Space Zone, the beach). One `InstancedMesh` per kit whose instances live on the
+CPU and are uploaded only within `range` of the camera (`ProxSet.refresh`,
+every ~50 units of movement). Solid items push small colliders into
+`G.colliders` *before* Vendors and the rest place themselves. Street lamps are
+the Metropolis LED kit at the kerb, arm over the road; `World.lampSpots` holds
+the pole (`x, z`) and the lamp head (`hx, hz`).
+
+**Real lamp light — `World._buildLampLights`.** A fixed pool of SpotLights
+(0 on low, 5 medium, 8 high) is re-seated on the nearest lamp heads four times
+a second; a light moved to a new lamp fades in. The pool never changes size,
+because changing the number of lights recompiles every lit material.
+
+**`js/interiors/furnish.js` — kit furniture for the generic rooms.**
+HQ lobbies, open-plan floors, boardrooms, apartments, the library, the café,
+VC Row, mission control, power plants, the nursery, the warehouse and the
+convention centre. The interior group runs at 30 local units per metre, so a
+true-metre kit drops in at x30. One InstancedMesh per kit per room, sharing
+the loaded geometry and material (flagged `kitShared`, which the room teardown
+skips). A layout returns occupant spots; `pose: 'sit' | 'work'` seats the
+citizen, `ry` turns them to face a table. A room built before the `interior`
+group lands uses its box furniture and is rebuilt in place when it arrives.
+
+**`js/people.js` — one body plan for the street crowd and everyone indoors.**
+Street figures keep citizens.js's attribute contract (`aLimb`, `aTint`,
+`aPart`; hips pivot at y 7.2, shoulders at 14.0). Indoor figures are the same
+parts with colours baked in, three times larger, standing or seated; an
+occupant who gets up swaps to the standing mesh while they walk.
+
+**Rendering posture.** Medium and low: no post-processing, as before. High (or
+`?bloom=1`): EffectComposer + half-res UnrealBloom + OutputPass; tone mapping
+and sRGB move into OutputPass. Kit towers and trees are one InstancedMesh per
+~1 km chunk so the camera and the sun can cull them. The sun's shadow map is
+redrawn every other frame (every frame when the camera moves fast).
+
+**Attract mode.** Once ENTER is live (and without `?autostart=1`) the start
+panel turns to glass and `G.attract` flies the camera round the skyline;
+`startGame` hands it back via `Player.placeAtSpawn()`.
 
 **`js/textures.js` — `signAtlas()` is the live path.**
 One atlas + merged quads. Do not revive per-building `makeSignPlate` for street signs.
@@ -213,6 +280,24 @@ Renaming it to match the URL breaks the round trip in both directions.
 - **Merged-shell meshes report `material.color` as `#ffffff`** (vertexColors).
 - Opening a hole in a wall = collider **and** geometry.
 - `netlify.toml` must stay **UTF-8 without BOM**.
+- **Kits are cached as immutable for a year** (`/first-person/assets/*`). Never
+  re-encode a kit in place; bump `KIT_VERSION` in `kit_registry.js` and re-run
+  `tools/fp_kits.mjs`, or returning visitors keep the old bytes.
+- **`npm install` prunes `puppeteer-core`**, which lives in `node_modules`
+  without a `package.json` entry. Restore it with
+  `npm install --no-save puppeteer-core@25.7.0`.
+- **Don't add `screen` to the glazing table.** Its day colour (#4a5560) is the
+  mullion charcoal, about 30% of a tower; matching it lit every frame as a white
+  wireframe at night.
+- **The sky shader ends in `tonemapping_fragment` + `colorspace_fragment`.**
+  Without them it drew darker and more saturated than the fog it meets, which
+  was the pale band along the horizon.
+- **`renderer.shadowMap.autoUpdate` is false.** The main loop sets
+  `needsUpdate`. Anything new that renders the main scene outside that loop
+  has to ask for a shadow update itself.
+- **Nothing tall at centre-back in a generic room.** The name board hangs at
+  |x| < 108, y 65–92 on the back wall; a kitchen run, a bookcase or a generator
+  there hides it.
 
 ---
 

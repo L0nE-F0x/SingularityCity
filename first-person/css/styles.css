@@ -141,6 +141,21 @@ button { font-family: inherit; cursor: pointer; }
 .toast.quest { border-left-color: var(--ac2); }
 @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .toast.out { opacity: 0; transition: opacity .5s; }
+/* Desktop: toasts stack under the clock, top-left, instead of piling up in
+   the middle of the screen — on arrival the tip, the "click to look" hint,
+   the news reaction and an achievement all fired at once, four bars deep
+   right under the crosshair. The touch layout keeps its own placement. */
+@media (min-width: 900px) and (min-height: 560px) {
+    body:not(.sc-touch) #toasts {
+        left: 18px; top: 150px; bottom: auto; transform: none;
+        align-items: flex-start; gap: 6px;
+    }
+    body:not(.sc-touch) .toast {
+        font-size: 11px; padding: 7px 14px; white-space: normal; max-width: 380px;
+        background: rgba(12, 16, 32, .86);
+    }
+    body:not(.sc-touch) .toast.achieve, body:not(.sc-touch) .toast.quest { font-size: 12px; }
+}
 #tourCaption {
     position: absolute; bottom: 46px; left: 50%; transform: translateX(-50%);
     font-family: var(--px); font-size: 12px; color: #fff; text-shadow: 0 0 10px var(--ac);
