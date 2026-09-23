@@ -33,7 +33,13 @@ const InteriorRes = {
     build(bld, layer) {
         this.bld = bld;
         this.layer = layer;
-        this.layer.removeChildren();
+        // Following a model rebuilds the interior in place when its activity
+        // changes (engine _transitionEnter), which skips the exit path's
+        // destroy. Only detaching the old tower leaked all of it every time.
+        this.layer.removeChildren().forEach((c) => {
+            if (c.destroy) c.destroy({ children: true, texture: false, baseTexture: false });
+        });
+        this._bands = [];
         this.avatars = [];
         this.bubbles = [];
         this.floors = {};
@@ -223,6 +229,18 @@ const InteriorRes = {
             floorLine.endFill();
             this.scene.addChild(floorLine);
 
+            // Everything drawn for this floor, so cull() can hide it while it
+            // is scrolled out of view.
+            const band = {
+                top: fy,
+                bottom: fy + floorH,
+                items: [roomGfx, floorLine],
+                cont: null,
+                on: true,
+                need: false,
+            };
+            this._bands.push(band);
+
             if (isBasement) {
                 const door = new PIXI.Graphics();
                 door.beginFill(0x33334a);
@@ -239,11 +257,14 @@ const InteriorRes = {
                 }
                 door.endFill();
                 this.scene.addChild(door);
+                band.items.push(door);
             }
 
             const floorCont = new PIXI.Container();
             floorCont.sortableChildren = true;
             this.scene.addChild(floorCont);
+            band.cont = floorCont;
+            floorCont._band = band;
 
             if (f >= 0) {
                 const winFrame = new PIXI.Graphics();
@@ -694,7 +715,12 @@ const InteriorRes = {
         const elevatorContainer = new PIXI.Container();
         elevatorContainer.y = roofH + (numFloors - 1) * floorH + floorH;
         this.scene.addChild(elevatorContainer);
-        this.initLift(elevatorContainer, bld.id, numFloors, floorH, shaftX + 15, minFloor);
+        const lift = this.initLift(elevatorContainer, bld.id, numFloors, floorH, shaftX + 15, minFloor);
+        // Each lift door and its floor-indicator strip belong to that floor's band.
+        for (const d of lift.doors) {
+            const band = this._bands[d.floorNum - minFloor];
+            if (band) band.items.push(d.left, d.right, d.panel);
+        }
 
         const bottomPadding = 56;
         const initY = G.vpH - bottomPadding - this.totalH + floorH;
@@ -702,6 +728,7 @@ const InteriorRes = {
         // Allow scrolling down to see silo, up to see roof — generous range
         this.minY = Math.min(initY - floorH * 4, G.vpH - bottomPadding - this.totalH - floorH);
         this.maxY = Math.max(initY + floorH * 4, G.vpH - bottomPadding);
+        this.cull();
 
         this.layer.eventMode = 'static';
         this.layer.cursor = 'grab';
@@ -738,6 +765,42 @@ const InteriorRes = {
     onUp: () => {
         InteriorRes.isDragging = false;
         if (InteriorRes.layer) InteriorRes.layer.cursor = 'grab';
+    },
+
+    // The slice of the scene (in scene coordinates) within `pad` px of the viewport.
+    _viewSpan(pad) {
+        const s = this.scene;
+        if (!s || s.destroyed) return { top: -Infinity, bottom: Infinity };
+        const sc = s.scale.y || 1;
+        return { top: -s.y / sc - pad, bottom: (G.vpH - s.y) / sc + pad };
+    },
+
+    // ─── Floor culling ───
+    // A tower gets one floor per four residents (the US block is 100+ floors),
+    // but only ~10 fit on screen. Floors outside the viewport are hidden so PIXI
+    // skips their transforms, draw calls and hover hit-tests. A floor stays up
+    // while one of its residents is on screen elsewhere, e.g. crossing the
+    // lobby, because the avatar is still parented to its own floor.
+    // Interior.update calls this after the tracking camera has moved the scene.
+    cull() {
+        if (!this.scene || this.scene.destroyed || !this._bands) return;
+        const { top, bottom } = this._viewSpan(80);
+
+        for (const av of this.avatars) {
+            const c = av.cont;
+            if (!c || c.destroyed || !c.visible || c.y < top || c.y > bottom) continue;
+            if (c.parent && c.parent._band) c.parent._band.need = true;
+        }
+        for (const b of this._bands) {
+            const on = b.bottom >= top && b.top <= bottom;
+            if (b.on !== on) {
+                b.on = on;
+                for (const o of b.items) if (o && !o.destroyed) o.visible = on;
+            }
+            const contOn = on || b.need;
+            b.need = false;
+            if (b.cont.visible !== contOn) b.cont.visible = contOn;
+        }
     },
 
     update() {
@@ -825,6 +888,9 @@ const InteriorRes = {
         if (this.ceoCarGfx && G.ceoRefs && G.ceoRefs[this.bld.lab]) {
             this.ceoCarGfx.visible = G.ceoRefs[this.bld.lab].bld === this.bld.id;
         }
+
+        // Residents inside this span get animated; see the 'working' state.
+        const near = this._viewSpan(480);
 
         this.avatars.forEach((av, i) => {
             // Tracking highlight pulse
@@ -1068,43 +1134,14 @@ const InteriorRes = {
                             sc.on('pointerout', () => {
                                 if (typeof UI !== 'undefined') UI.hideTooltip();
                             });
-                            const zc = new PIXI.Container();
-                            zc.x = -6;
-                            zc.y = bt - 14;
-                            const z1 = new PIXI.Text('z', {
-                                fontFamily: 'JetBrains Mono',
-                                fontSize: 7,
-                                fill: col,
-                                fontWeight: 'bold',
-                            });
-                            z1.anchor.set(0.5);
-                            z1.alpha = 0.7;
-                            const z2 = new PIXI.Text('z', {
-                                fontFamily: 'JetBrains Mono',
-                                fontSize: 9,
-                                fill: col,
-                                fontWeight: 'bold',
-                            });
-                            z2.anchor.set(0.5);
-                            z2.x = 5;
-                            z2.y = -8;
-                            z2.alpha = 0.5;
-                            const z3 = new PIXI.Text('Z', {
-                                fontFamily: 'JetBrains Mono',
-                                fontSize: 11,
-                                fill: col,
-                                fontWeight: 'bold',
-                            });
-                            z3.anchor.set(0.5);
-                            z3.x = 10;
-                            z3.y = -18;
-                            z3.alpha = 0.3;
-                            zc.addChild(z1, z2, z3);
-                            sc.addChild(zc);
+                            const zs = this._sleepZs(col);
+                            zs.zc.x = -6;
+                            zs.zc.y = bt - 14;
+                            sc.addChild(zs.zc);
                             av._sleepGfx = sc;
-                            av._z1 = z1;
-                            av._z2 = z2;
-                            av._z3 = z3;
+                            av._z1 = zs.z1;
+                            av._z2 = zs.z2;
+                            av._z3 = zs.z3;
                             av._zPhase = Math.random() * Math.PI * 2;
                             av.cont.addChild(sc);
                         }
@@ -1266,28 +1303,37 @@ const InteriorRes = {
                 case 'working': {
                     if (av.m.isCeo) break;
 
-                    const actData = getAct(
-                        getStage(av.m.rel, av.m.ret, av.m.phase),
-                        dp,
-                        G.models.indexOf(av.m),
-                        av.m
-                    );
-                    if (actData.act === 'sleep' && av.bedX !== undefined) {
-                        av.cont.x = av.bedX;
-                        av.cont.y = av.floorY;
+                    // The schedule only moves when the clock ticks over a minute, so
+                    // ask it twice a second (staggered) rather than every frame for
+                    // every resident: getAct allocates, and indexOf scanned the whole
+                    // model list for each of them.
+                    if (av._sleeping === undefined || (G.tick + i) % 30 === 0) {
+                        if (G.models[av._mIdx] !== av.m) av._mIdx = G.models.indexOf(av.m);
+                        const actData = getAct(getStage(av.m.rel, av.m.ret, av.m.phase), dp, av._mIdx, av.m);
+                        av._sleeping = actData.act === 'sleep' && av.bedX !== undefined;
+                    }
+
+                    // Getting into or out of bed is applied on every floor, in view or
+                    // not, so a floor scrolled back into view never shows a stale pose.
+                    if (av._posed !== av._sleeping) {
+                        av._posed = av._sleeping;
+                        const awake = !av._sleeping;
+                        if (av.head) av.head.visible = awake;
+                        if (av.body) av.body.visible = awake;
+                        if (av.legL) av.legL.visible = awake;
+                        if (av.legR) av.legR.visible = awake;
+                        if (av.dot) av.dot.visible = awake;
+                        if (av.shadow) av.shadow.visible = awake;
+                        if (av.ghostL) av.ghostL.visible = awake;
+                        if (av.ghostR) av.ghostR.visible = awake;
                         av.cont.rotation = 0;
-                        av.cont.scale.x = 1;
-                        // Hide avatar parts
-                        if (av.head) av.head.visible = false;
-                        if (av.body) av.body.visible = false;
-                        if (av.legL) av.legL.visible = false;
-                        if (av.legR) av.legR.visible = false;
-                        if (av.dot) av.dot.visible = false;
-                        if (av.shadow) av.shadow.visible = false;
-                        if (av.ghostL) av.ghostL.visible = false;
-                        if (av.ghostR) av.ghostR.visible = false;
+                        if (!awake) {
+                            av.cont.x = av.bedX;
+                            av.cont.y = av.floorY;
+                            av.cont.scale.x = 1;
+                        }
                         // Lazy-init sleeping graphics
-                        if (!av._sleepGfx) {
+                        if (!awake && !av._sleepGfx) {
                             const labData = (typeof LABS !== 'undefined' && LABS[av.m.lab]) || {
                                 color: '#3b82f6',
                             };
@@ -1343,47 +1389,26 @@ const InteriorRes = {
                             sc.on('pointerout', () => {
                                 if (typeof UI !== 'undefined') UI.hideTooltip();
                             });
-                            const zc = new PIXI.Container();
-                            zc.x = -2;
-                            zc.y = bt - 12;
-                            const z1 = new PIXI.Text('z', {
-                                fontFamily: 'JetBrains Mono',
-                                fontSize: 7,
-                                fill: col,
-                                fontWeight: 'bold',
-                            });
-                            z1.anchor.set(0.5);
-                            z1.alpha = 0.7;
-                            const z2 = new PIXI.Text('z', {
-                                fontFamily: 'JetBrains Mono',
-                                fontSize: 9,
-                                fill: col,
-                                fontWeight: 'bold',
-                            });
-                            z2.anchor.set(0.5);
-                            z2.x = 5;
-                            z2.y = -8;
-                            z2.alpha = 0.5;
-                            const z3 = new PIXI.Text('Z', {
-                                fontFamily: 'JetBrains Mono',
-                                fontSize: 11,
-                                fill: col,
-                                fontWeight: 'bold',
-                            });
-                            z3.anchor.set(0.5);
-                            z3.x = 10;
-                            z3.y = -18;
-                            z3.alpha = 0.3;
-                            zc.addChild(z1, z2, z3);
-                            sc.addChild(zc);
+                            const zs = this._sleepZs(col);
+                            zs.zc.x = -2;
+                            zs.zc.y = bt - 12;
+                            sc.addChild(zs.zc);
                             av._sleepGfx = sc;
-                            av._z1 = z1;
-                            av._z2 = z2;
-                            av._z3 = z3;
+                            av._z1 = zs.z1;
+                            av._z2 = zs.z2;
+                            av._z3 = zs.z3;
                             av._zPhase = Math.random() * Math.PI * 2;
                             av.cont.addChild(sc);
                         }
-                        av._sleepGfx.visible = true;
+                        if (av._sleepGfx) av._sleepGfx.visible = !awake;
+                    }
+
+                    // Residents well off screen are culled, so skip their animation.
+                    // This margin is wider than cull()'s, so a floor is animated
+                    // before it comes into view.
+                    if (av.cont.y < near.top || av.cont.y > near.bottom) break;
+
+                    if (av._sleeping) {
                         const zt = G.tick * 0.04 + av._zPhase;
                         av._z1.y = Math.sin(zt) * 3;
                         av._z1.alpha = 0.5 + Math.sin(zt) * 0.3;
@@ -1392,17 +1417,6 @@ const InteriorRes = {
                         av._z3.y = -18 + Math.sin(zt + 2) * 3;
                         av._z3.alpha = 0.15 + Math.sin(zt + 2) * 0.2;
                     } else {
-                        // Awake — restore avatar, hide sleep graphics
-                        if (av._sleepGfx) av._sleepGfx.visible = false;
-                        if (av.head) av.head.visible = true;
-                        if (av.body) av.body.visible = true;
-                        if (av.legL) av.legL.visible = true;
-                        if (av.legR) av.legR.visible = true;
-                        if (av.dot) av.dot.visible = true;
-                        if (av.shadow) av.shadow.visible = true;
-                        if (av.ghostL) av.ghostL.visible = true;
-                        if (av.ghostR) av.ghostR.visible = true;
-                        av.cont.rotation = 0;
                         av.cont.x = av.deskX - 30 + Math.sin(G.tick * 0.02 + i) * 20;
                         av.cont.y = av.floorY;
                         av.cont.scale.x = Math.sign(Math.cos(G.tick * 0.02 + i)) || 1;

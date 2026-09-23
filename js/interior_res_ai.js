@@ -229,6 +229,47 @@ const InteriorResAI = {
         return agent;
     },
 
+    // ─── The "z z Z" over a sleeper ───
+    // Three glyph textures rendered once in white and tinted per lab. They used
+    // to be three PIXI.Text per sleeper, each with its own canvas and GPU
+    // texture: 1,083 in the US tower at night, all rasterised on the first
+    // frame. The exit path destroys with texture:false, so those textures also
+    // outlived the interior.
+    _zTex: null,
+
+    _sleepZs(col) {
+        if (!this._zTex) {
+            const res = (G.app && G.app.renderer && G.app.renderer.resolution) || 1;
+            this._zTex = [
+                ['z', 7],
+                ['z', 9],
+                ['Z', 11],
+            ].map(([ch, size]) => {
+                const t = new PIXI.Text(ch, {
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: size,
+                    fill: 0xffffff,
+                    fontWeight: 'bold',
+                });
+                t.resolution = res;
+                t.updateText(false);
+                return t.texture;
+            });
+        }
+        const zc = new PIXI.Container();
+        const z = (i, x, y, alpha) => {
+            const s = new PIXI.Sprite(this._zTex[i]);
+            s.anchor.set(0.5);
+            s.tint = col;
+            s.x = x;
+            s.y = y;
+            s.alpha = alpha;
+            zc.addChild(s);
+            return s;
+        };
+        return { zc, z1: z(0, 0, 0, 0.7), z2: z(1, 5, -8, 0.5), z3: z(2, 10, -18, 0.3) };
+    },
+
     spawnBubble(av, msgOverride = null) {
         if (!this.layer || !this.layer.visible) return;
 

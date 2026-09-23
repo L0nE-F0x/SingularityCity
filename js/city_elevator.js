@@ -1,4 +1,80 @@
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════
+   LIFT FLOOR INDICATORS — shared by CityElevator and ResElevator (interior_res_props.js)
+
+   Above every lift door is a strip with one dim dot per floor, plus a green dot for the floor the car
+   is passing. Every door shows the same strip, so the dots are drawn once and every door shares that
+   geometry. After that only the green dot moves, and only when the car reaches another floor.
+
+   It used to be one Graphics per floor on every door (floors² objects), all cleared and redrawn every
+   frame. A 102-floor residential tower rebuilt 10,404 of them 60 times a second, for dots a third of a
+   pixel apart.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════ */
+
+class LiftIndicators {
+    // One strip per floor from minFloor to numFloors - 1, in the lift layer's coordinates.
+    constructor(layer, x, floorHeight, minFloor, numFloors) {
+        this.minFloor = minFloor;
+        this.totalFloors = numFloors - minFloor;
+        this.spacing = Math.min(6, 36 / this.totalFloors);
+        this.litFloor = null;
+        this.panels = [];
+
+        const r = Math.min(1.5, this.spacing / 3);
+        let dimGeom = null;
+        let litGeom = null;
+        for (let i = minFloor; i < numFloors; i++) {
+            const panel = new PIXI.Container();
+            panel.x = x;
+            panel.y = -i * floorHeight - floorHeight + 12;
+
+            const dim = new PIXI.Graphics(dimGeom);
+            if (!dimGeom) {
+                dim.beginFill(0x222222);
+                for (let j = 0; j < this.totalFloors; j++) dim.drawCircle(this._dotX(j), 0, r);
+                dim.endFill();
+                dimGeom = dim.geometry;
+            }
+            const lit = new PIXI.Graphics(litGeom);
+            if (!litGeom) {
+                lit.beginFill(0x4ade80);
+                lit.drawCircle(0, 0, r);
+                lit.endFill();
+                litGeom = lit.geometry;
+            }
+            lit.visible = false;
+
+            panel.addChild(dim, lit);
+            panel._lit = lit;
+            layer.addChild(panel);
+            this.panels.push(panel);
+        }
+    }
+
+    _dotX(idx) {
+        return (idx - this.totalFloors / 2) * this.spacing + this.spacing / 2;
+    }
+
+    // Light `floor` on every strip. Does nothing until the car reaches a different floor.
+    setFloor(floor) {
+        if (floor === this.litFloor) return;
+        this.litFloor = floor;
+        const idx = floor - this.minFloor;
+        const on = idx >= 0 && idx < this.totalFloors;
+        const x = this._dotX(idx);
+        for (const p of this.panels) {
+            if (p.destroyed) continue;
+            p._lit.visible = on;
+            p._lit.x = x;
+        }
+    }
+
+    destroy() {
+        for (const p of this.panels) if (!p.destroyed) p.destroy({ children: true });
+        this.panels = [];
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════
    CITY ELEVATOR (v16.5.0 - Extracted from interior_city_props.js)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
@@ -39,8 +115,6 @@ class CityElevator {
         this.car.y = 0;
         this.layer.addChild(this.car);
 
-        const totalFloors = numFloors + 1;
-
         for (let i = -1; i < numFloors; i++) {
             let fy = -i * this.floorHeight;
 
@@ -55,36 +129,15 @@ class CityElevator {
 
             this.layer.addChild(leftDoor, rightDoor);
 
-            let lightContainer = new PIXI.Container();
-            lightContainer.x = this.x;
-            lightContainer.y = fy - this.floorHeight + 12;
-
-            let floorLights = [];
-            for (let j = -1; j < numFloors; j++) {
-                let l = new PIXI.Graphics();
-                l.beginFill(0x222222);
-                const maxW = 36;
-                const spacing = Math.min(6, maxW / totalFloors);
-                const lightIdx = j + 1;
-                l.drawCircle(
-                    (lightIdx - totalFloors / 2) * spacing + spacing / 2,
-                    0,
-                    Math.min(1.5, spacing / 3)
-                );
-                l.endFill();
-                floorLights.push(l);
-                lightContainer.addChild(l);
-            }
-            this.layer.addChild(lightContainer);
-
             this.doors.push({
                 left: leftDoor,
                 right: rightDoor,
                 openAmt: 0,
-                lights: floorLights,
                 floorNum: i,
             });
         }
+
+        this.indicators = new LiftIndicators(this.layer, this.x, this.floorHeight, -1, numFloors);
     }
 
     drawDoor(gfx, isLeft) {
@@ -110,28 +163,7 @@ class CityElevator {
             this.destroyed = true;
             return;
         }
-        let currentPassingFloor = -Math.round(this.car.y / this.floorHeight);
-        const totalFloors = this.numFloors + 1;
-        const maxW = 36;
-        const spacing = Math.min(6, maxW / totalFloors);
-
-        this.doors.forEach((doorObj) => {
-            doorObj.lights.forEach((light, lightIdx) => {
-                const representedFloor = lightIdx - 1;
-                light.clear();
-                if (representedFloor === currentPassingFloor) {
-                    light.beginFill(0x4ade80);
-                } else {
-                    light.beginFill(0x222222);
-                }
-                light.drawCircle(
-                    (lightIdx - totalFloors / 2) * spacing + spacing / 2,
-                    0,
-                    Math.min(1.5, spacing / 3)
-                );
-                light.endFill();
-            });
-        });
+        this.indicators.setFloor(-Math.round(this.car.y / this.floorHeight));
 
         if (this.state === 'idle') {
             if (this.callQueue.length > 0) {
@@ -193,12 +225,9 @@ class CityElevator {
             this.doors.forEach((d) => {
                 if (d.left && !d.left.destroyed) d.left.destroy();
                 if (d.right && !d.right.destroyed) d.right.destroy();
-                if (d.lights)
-                    d.lights.forEach((l) => {
-                        if (l && !l.destroyed) l.destroy();
-                    });
             });
             this.doors = [];
         }
+        if (this.indicators) this.indicators.destroy();
     }
 }

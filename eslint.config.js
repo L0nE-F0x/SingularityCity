@@ -220,6 +220,7 @@ export default [
                 SEED: 'writable',
                 InteriorCityCore: 'writable',
                 CityElevator: 'writable',
+                LiftIndicators: 'writable',
 
                 // Free helper functions declared at top level
                 getStage: 'writable',

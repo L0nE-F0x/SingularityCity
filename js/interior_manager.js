@@ -106,6 +106,8 @@ const Interior = {
         // to keep the tracked avatar centered. Runs once per frame so elevator
         // / walking motion is followed smoothly.
         this._updateInteriorCamera();
+        // Viewport culling goes last, once the camera has moved the scene.
+        if (this.activeModule && this.activeModule.cull) this.activeModule.cull();
     },
 
     // ─────────────────────────────────────────────────────────────

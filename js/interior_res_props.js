@@ -1509,7 +1509,6 @@ class ResElevator {
         this.callQueue = [];
         this.doors = [];
 
-        const totalFloors = numFloors - this.minFloor;
         const shaftHeight = (numFloors - 1 - this.minFloor) * this.floorHeight;
 
         this.shaft = new PIXI.Graphics();
@@ -1545,36 +1544,20 @@ class ResElevator {
 
             this.layer.addChild(leftDoor, rightDoor);
 
-            let lightContainer = new PIXI.Container();
-            lightContainer.x = this.x;
-            lightContainer.y = fy - this.floorHeight + 12;
-
-            let floorLights = [];
-            for (let j = this.minFloor; j < numFloors; j++) {
-                let l = new PIXI.Graphics();
-                l.beginFill(0x222222);
-                const maxW = 36;
-                const spacing = Math.min(6, maxW / totalFloors);
-                const lightIdx = j - this.minFloor;
-                l.drawCircle(
-                    (lightIdx - totalFloors / 2) * spacing + spacing / 2,
-                    0,
-                    Math.min(1.5, spacing / 3)
-                );
-                l.endFill();
-                floorLights.push(l);
-                lightContainer.addChild(l);
-            }
-            this.layer.addChild(lightContainer);
-
             this.doors.push({
                 left: leftDoor,
                 right: rightDoor,
                 openAmt: 0,
-                lights: floorLights,
                 floorNum: i,
             });
         }
+
+        // Floor-indicator strips (see LiftIndicators in city_elevator.js). Same
+        // order as this.doors, so each door knows its strip for floor culling.
+        this.indicators = new LiftIndicators(layer, this.x, this.floorHeight, this.minFloor, numFloors);
+        this.doors.forEach((d, k) => {
+            d.panel = this.indicators.panels[k];
+        });
     }
 
     drawDoor(gfx, isLeft) {
@@ -1600,28 +1583,7 @@ class ResElevator {
             this.destroyed = true;
             return;
         }
-        let currentPassingFloor = -Math.round(this.car.y / this.floorHeight);
-        const totalFloors = this.numFloors - this.minFloor;
-        const maxW = 36;
-        const spacing = Math.min(6, maxW / totalFloors);
-
-        this.doors.forEach((doorObj) => {
-            doorObj.lights.forEach((light, lightIdx) => {
-                const representedFloor = lightIdx + this.minFloor;
-                light.clear();
-                if (representedFloor === currentPassingFloor) {
-                    light.beginFill(0x4ade80);
-                } else {
-                    light.beginFill(0x222222);
-                }
-                light.drawCircle(
-                    (lightIdx - totalFloors / 2) * spacing + spacing / 2,
-                    0,
-                    Math.min(1.5, spacing / 3)
-                );
-                light.endFill();
-            });
-        });
+        this.indicators.setFloor(-Math.round(this.car.y / this.floorHeight));
 
         if (this.state === 'idle') {
             if (this.callQueue.length > 0) {
@@ -1687,9 +1649,7 @@ class ResElevator {
         this.doors.forEach((d) => {
             if (d.left && !d.left.destroyed) d.left.destroy();
             if (d.right && !d.right.destroyed) d.right.destroy();
-            d.lights.forEach((l) => {
-                if (l && !l.destroyed) l.destroy();
-            });
         });
+        if (this.indicators) this.indicators.destroy();
     }
 }
