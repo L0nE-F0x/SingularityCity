@@ -16,6 +16,7 @@
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import { bakedPerson } from '../people.js';
+import { Assets } from '../assets.js';
 
 // ── canvas plumbing (local copy of the textures.js house style; textures.js is
 //    owned by another module, so interiors keep their own panel factory) ──────
@@ -277,9 +278,29 @@ export const CORE_NPCS = {
 // props are free at draw time. Coordinates are interior-local: +Z is the street
 // door, -Z the back wall, -X the lift bank wall.
 
+/* When a room's context can place kit furniture (`c.kit`, see interior.js
+   _buildRoom) and the interior group has landed, the everyday props below are
+   the real thing — a desk with a monitor, an upholstered chair tinted into the
+   room's palette, a potted plant — instead of boxes. Anything not covered, or
+   any room without `c.kit`, keeps the box version. */
+const lighten = (hex, k) => {
+    const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255;
+    const f = (v) => Math.round(v + (255 - v) * k);
+    return (f(r) << 16) | (f(g) << 8) | f(b);
+};
+const canKit = (c, id) => !!c.kit && Assets.has(id);
+
 export const P = {
     /** Work desk with monitor, keyboard glow and a chair. */
     desk(c, x, z, col = 0x5c4033, screen = 0x1e293b) {
+        if (canKit(c, 'in_l_desk') && canKit(c, 'in_task_chair')) {
+            c.kit('in_l_desk', x, z, 0, { s: 1.25, solid: true });
+            c.kit(canKit(c, 'in_ultrawide') ? 'in_ultrawide' : 'in_monitor', x, z - 8, 0, { y: 27.5 });
+            if (canKit(c, 'in_keyboard')) c.kit('in_keyboard', x, z + 6, 0, { y: 27.5, s: 1.1 });
+            c.kit('in_task_chair', x, z + 30, Math.PI);
+            void col; void screen;
+            return;
+        }
         c.box(70, 28, 36, x, 14, z, col); c.solid(x, z, 70, 36);
         c.box(26, 16, 3, x - 10, 38, z - 14, 0x111827);
         c.lit(22, 12, 1, x - 10, 38, z - 12, screen);
@@ -296,6 +317,15 @@ export const P = {
         c.solid(x, z, w, d);
     },
     chair(c, x, z, col = 0x374151, back = 1) {
+        // back = +1: backrest toward +z, so the seat faces -z (and vice versa)
+        if (back && canKit(c, 'in_accent_chair')) {
+            c.kit('in_accent_chair', x, z, back > 0 ? Math.PI : 0, { tint: lighten(col, 0.45) });
+            return;
+        }
+        if (!back && canKit(c, 'in_bar_stool')) {
+            c.kit('in_bar_stool', x, z, 0, { tint: lighten(col, 0.5) });
+            return;
+        }
         c.box(20, 4, 20, x, 18, z, col);
         for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
             c.box(3, 18, 3, x + sx * 7, 9, z + sz * 7, col);
@@ -312,11 +342,21 @@ export const P = {
         c.lit(4, 5, 4, x, 30, z + 4, 0xfbbf24);   // candle
     },
     stool(c, x, z, seat = 0x8a2a6a) {
+        if (canKit(c, 'in_bar_stool')) {
+            c.kit('in_bar_stool', x, z, 0, { s: 1.2, tint: lighten(seat, 0.4), solid: true, pad: -3 });
+            return;
+        }
         c.box(6, 22, 6, x, 11, z, 0x241a20);
         c.box(18, 4, 18, x, 24, z, seat);
         c.solid(x, z, 14, 14);
     },
     plant(c, x, z, h = 40, pot = 0x4b5563) {
+        if (canKit(c, 'in_office_plant')) {
+            c.kit((Math.abs(x + z) | 0) % 2 && canKit(c, 'in_floor_plant') ? 'in_floor_plant' : 'in_office_plant',
+                x, z, (x * 0.37) % 6.28, { s: Math.max(0.9, h / 30), solid: true, pad: 0 });
+            void pot;
+            return;
+        }
         c.box(18, 12, 18, x, 6, z, pot); c.solid(x, z, 18, 18);
         c.box(12, h * 0.5, 12, x, 12 + h * 0.25, z, 0x166534);
         c.box(22, h * 0.4, 22, x, 12 + h * 0.55, z, 0x15803d);

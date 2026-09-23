@@ -99,7 +99,9 @@ export class Furnisher {
         _d.scale.set(s * (o.sx ?? 1), s * (o.sy ?? 1), s * (o.sz ?? 1));
         _d.updateMatrix();
         if (!this.batches.has(id)) this.batches.set(id, []);
-        this.batches.get(id).push(_d.matrix.clone());
+        const m = _d.matrix.clone();
+        m.tint = o.tint ?? null;
+        this.batches.get(id).push(m);
         const w = kit.size.x * s * (o.sx ?? 1), d = kit.size.z * s * (o.sz ?? 1);
         if (o.solid) {
             const q = Math.abs(Math.sin(ry)) > 0.7;
@@ -115,6 +117,12 @@ export class Furnisher {
             const kit = Assets.get(id);
             const im = new THREE.InstancedMesh(kit.geometry, kit.material, mats.length);
             mats.forEach((m, i) => im.setMatrixAt(i, m));
+            // per-instance tint (a bespoke room's chairs in its own palette)
+            if (mats.some(m => m.tint != null)) {
+                const c = new THREE.Color();
+                mats.forEach((m, i) => im.setColorAt(i, m.tint != null ? c.set(m.tint) : c.set(0xffffff)));
+                im.instanceColor.needsUpdate = true;
+            }
             im.instanceMatrix.needsUpdate = true;
             im.name = 'furnish:' + id;
             im.userData.kitShared = true;

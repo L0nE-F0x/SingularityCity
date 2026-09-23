@@ -142,10 +142,8 @@ export const Interior = {
        landed was built from boxes; rebuild it in place once, and if the
        player now stands inside a new sofa, walk them back to the door. */
     _onFurniture() {
-        if (!this.building || this._spec) return;
+        if (!this.building || G.ridingMetro) return;
         if (this._lift?.phase && this._lift.phase !== 'idle') return;
-        const cat = this._theme(this.building).cat;
-        if (!LAYOUTS[cat] && !['openplan', 'boardroom'].includes(cat) && cat !== 'office') return;
         const f = this.floor;
         this.floor = -1;                       // defeat _setFloor's same-floor shortcut
         this._build(this.building, f);
@@ -1146,8 +1144,12 @@ export const Interior = {
             accent: accent.getHex(), accentCss: '#' + accent.getHexString(),
             rnd: seeded(`${b.id || 'x'}:${floorIdx}`)
         };
+        // real furniture for the shared prop helpers, once the kits are in
+        const F = Furnisher.ready(['in_accent_chair', 'in_office_plant']) ? new Furnisher(this.group, this._propColliders) : null;
+        if (F) ctx.kit = (id, x, z, ry = 0, o = {}) => F.put(id, x, z, ry, o);
         const f = spec.floors[Math.max(0, Math.min(spec.floors.length - 1, floorIdx))];
         f.build(ctx);
+        F?.finish();
     },
 
     /* ── real occupants ──────────────────────────────────────────────────────
