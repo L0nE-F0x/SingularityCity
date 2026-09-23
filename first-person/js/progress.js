@@ -98,14 +98,12 @@ export const Progress = {
         G.flags.caturday = true;
         // every citizen turns ginger for a while
         const orange = new THREE.Color('#e8933a');
-        G.citizens.list.forEach((c, i) => G.citizens.mesh.setColorAt(i, orange));
-        G.citizens.mesh.instanceColor.needsUpdate = true;
+        G.citizens.setAllColor(orange);
         G.ui.addToast('🐱 CATURDAY! Every citizen is a cat now. Meow.');
         G.audio?.sfx('meow');
         setTimeout(() => {
             G.flags.caturday = false;
-            G.citizens.list.forEach((c, i) => G.citizens.mesh.setColorAt(i, c.color));
-            G.citizens.mesh.instanceColor.needsUpdate = true;
+            G.citizens.setAllColor(null);
         }, 30000);
     },
 

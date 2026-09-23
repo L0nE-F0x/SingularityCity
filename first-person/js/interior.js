@@ -339,8 +339,9 @@ export const Interior = {
             arr.push(paint(g, hex));
         };
         const lit = (w, h, d, x, y, z, hex) => box(w, h, d, x, y, z, hex, glow);
-        // any pre-coloured indexed geometry (the people.js figures)
-        const mesh = (geo, arr = parts) => arr.push(geo);
+        // any pre-coloured indexed geometry (the people.js figures); `lit`
+        // puts it in the unlit glow bucket (a robot's visor and core)
+        const mesh = (geo, lit = false) => (lit ? glow : parts).push(geo);
         this._meshBucket = mesh;
 
         const lab = b.lab && LABS[b.lab];
@@ -1222,6 +1223,10 @@ export const Interior = {
                 color: c.color?.getHex ? c.color.getHex() : 0x94a3b8,
                 key: m.id || m.name,
                 pose: s.pose,
+                // models are robots, founders and crews are people (citizens.js bodyOf)
+                robot: !!G.citizens?.isRobot?.(c),
+                variant: G.citizens?.bodyOf?.(c) || 1,
+                stage: c.stage,
                 plateY: 40
             }, s.facing ?? 1);
             /* Interior-LOCAL units, no scale of its own. These are children of
@@ -1264,7 +1269,7 @@ export const Interior = {
                     new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex)),
                 lit: (w, h, d, x, y, z, hex) => glow.push(paint(
                     new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex)),
-                mesh: (g) => parts.push(g)
+                mesh: (g, lit) => (lit ? glow : parts).push(g)
                 // no `plate` — the nameplate is added below as a live child so it
                 // travels with the figure instead of staying where they started
             };

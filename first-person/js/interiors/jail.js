@@ -88,8 +88,10 @@ function cellBlock(c, from, count, z, facing) {
                 // back down the landing, so its cards have to turn with them.
             }), 42, 21, cx + 44, 52, z + facing * 6, facing > 0 ? Math.PI : 0);
             // occupant, sat on the bunk behind the bars
+            // the detainee is a banned MODEL — a robot behind the bars
             c.npc(c, cx - 12, z + facing * 74, {
-                name: who.name || 'Detainee', role: who.label || 'Detained', color: 0xf87171
+                name: who.name || 'Detainee', role: who.label || 'Detained', color: 0xf87171,
+                robot: true, variant: 1 + ((String(who.name || '').length) % 3), glow: 0xff5a5a
             }, -facing);
         } else {
             c.lit(30, 8, 1.5, cx, 52, z + facing * 6, 0x1f3a2a);   // green = vacant

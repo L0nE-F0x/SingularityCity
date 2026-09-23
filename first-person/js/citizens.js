@@ -9,7 +9,7 @@ import { G, EYE_H } from './state.js';
 import { LABS, SEED, ROSTER, FOUNDERS, WORKERS, STAGES, ACTS, getStage, getAct, getFounderAct, LAB_HQ, scheduleHooks } from './data.js';
 import { City, KERB_H } from './city.js';
 import { speedMod, venueBias, traitLabel } from './personality.js';
-import { streetGeometry, SKIN, HAIR } from './people.js';
+import { streetGeometry, streetRobotGeometry, robotVariant, robotGlow, robotChassis, SKIN, HAIR } from './people.js';
 
 /* Goal-driven archetypes (ported from the 2D app): ~20% of citizens have a
    lifestyle that pulls them to a favourite venue during their free time — a
@@ -64,7 +64,14 @@ function applyWalkShader(mat) {
             attribute vec3 aAnim;
             attribute vec3 aSkin;
             attribute vec3 aHair;
+            varying float vGlow;
         ` + shader.vertexShader;
+        // glow parts (tint 4: a robot's visor, eyes, core, halo) are emissive
+        shader.uniforms.uGlow = glowUniform;
+        shader.fragmentShader = 'varying float vGlow;\nuniform float uGlow;\n' + shader.fragmentShader.replace(
+            '#include <emissivemap_fragment>',
+            '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += vColor * vGlow * uGlow;'
+        );
 
         shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
             vec3 transformed = vec3( position );
@@ -117,8 +124,10 @@ function applyWalkShader(mat) {
         // route each vertex to the right colour source
         shader.vertexShader = shader.vertexShader.replace('#include <color_vertex>', `
             vColor = color;
+            vGlow = 0.0;
             float aStageC = aAnim.z;
-            if ( aTint > 2.5 )      vColor = aHair;
+            if ( aTint > 3.5 )      { vColor = aHair; vGlow = 1.0; }
+            else if ( aTint > 2.5 ) vColor = aHair;
             else if ( aTint > 1.5 ) vColor = aSkin;
             #ifdef USE_INSTANCING_COLOR
                 else if ( aTint > 0.5 ) vColor *= instanceColor.xyz;
@@ -134,9 +143,24 @@ function applyWalkShader(mat) {
             if ( aLimb > 10.5 && aLimb < 11.5 ) vColor = vec3(0.15, 0.39, 0.92);
         `);
     };
-    mat.customProgramCacheKey = () => 'citizen-walk-stage-v5-silhouette';
+    mat.customProgramCacheKey = () => 'citizen-walk-stage-v6-glow' + (mat.userData.robot ? '-robot' : '');
     return mat;
 }
+
+// shared by every body group; Citizens.update ramps it with the night
+const glowUniform = { value: 0.8 };
+
+/* Who looks like what. The founders and the facility workers are people; every
+   model is a robot, and which head it wears follows its lab and licence
+   (people.js robotVariant). 0 = human, 1–3 = robot head styles. */
+function bodyOf(c) {
+    const m = c.model;
+    if (m.founder || m.worker) return 0;
+    return robotVariant(m);
+}
+
+// hi-vis and overalls for the shift workers, so they read as crew, not execs
+const WORKWEAR = ['#f97316', '#1e3a8a', '#eab308', '#0f766e', '#475569'];
 
 // 'jailed' belongs here too — a detainee standing on the pavement outside the
 // detention centre rather than inside it is the whole tell.
@@ -294,32 +318,66 @@ export const Citizens = {
             return c;
         });
 
-        const geo = personGeometry();
-        const N = this.list.length;
-        // per-instance: aAnim.xyz = phase, walk, stageCode; plus skin + hair
-        this.anim = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3);
-        const skin = new Float32Array(N * 3), hair = new Float32Array(N * 3);
+        /* One InstancedMesh per body: the humans, and one per robot head
+           style, so nobody's vertex shader runs over heads they aren't
+           wearing. Each group has its own per-instance buffers; a citizen
+           carries its group and its index in it (`c.grp`, `c.mi`). */
         const tmp = new THREE.Color();
+        this.groups = [];
+        const byBody = new Map();
         this.list.forEach((c, i) => {
-            tmp.set(SKIN[Math.floor(c.seed * 100) % SKIN.length]);
-            skin[i * 3] = tmp.r; skin[i * 3 + 1] = tmp.g; skin[i * 3 + 2] = tmp.b;
-            tmp.set(HAIR[Math.floor(c.seed * 37) % HAIR.length]);
-            hair[i * 3] = tmp.r; hair[i * 3 + 1] = tmp.g; hair[i * 3 + 2] = tmp.b;
-            this.anim.array[i * 3 + 2] = STAGE_CODE[c.stage] ?? 0;
+            if (c.model.worker) c.color = new THREE.Color(WORKWEAR[i % WORKWEAR.length]);
+            const body = bodyOf(c);
+            if (!byBody.has(body)) byBody.set(body, []);
+            byBody.get(body).push(c);
         });
-        geo.setAttribute('aAnim', this.anim);
-        geo.setAttribute('aSkin', new THREE.InstancedBufferAttribute(skin, 3));
-        geo.setAttribute('aHair', new THREE.InstancedBufferAttribute(hair, 3));
-
-        const mat = applyWalkShader(new THREE.MeshLambertMaterial({ vertexColors: true }));
-        this.mesh = new THREE.InstancedMesh(geo, mat, N);
-        this.mesh.frustumCulled = false; // spread over the whole city; skip per-frame bounds cost
-        this.list.forEach((c, i) => {
-            this._writeMatrix(c);
-            this.mesh.setColorAt(i, c.color);
-        });
-        this.mesh.instanceMatrix.needsUpdate = true;
-        scene.add(this.mesh);
+        for (const [body, members] of [...byBody.entries()].sort((a, b) => a[0] - b[0])) {
+            const N = members.length;
+            const geo = body === 0 ? personGeometry() : streetRobotGeometry(body);
+            const anim = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3);
+            const skin = new Float32Array(N * 3), hair = new Float32Array(N * 3);
+            members.forEach((c, i) => {
+                c.mi = i;
+                if (body === 0) {
+                    tmp.set(SKIN[Math.floor(c.seed * 100) % SKIN.length]);
+                } else {
+                    tmp.set(robotChassis(c.model.id || c.model.name, c.stage));
+                }
+                skin[i * 3] = tmp.r; skin[i * 3 + 1] = tmp.g; skin[i * 3 + 2] = tmp.b;
+                if (body === 0) {
+                    tmp.set(HAIR[Math.floor(c.seed * 37) % HAIR.length]);
+                } else {
+                    tmp.set(robotGlow(LABS[c.model.lab]?.color || '#94a3b8', c.stage));
+                }
+                hair[i * 3] = tmp.r; hair[i * 3 + 1] = tmp.g; hair[i * 3 + 2] = tmp.b;
+                anim.array[i * 3 + 2] = STAGE_CODE[c.stage] ?? 0;
+            });
+            geo.setAttribute('aAnim', anim);
+            geo.setAttribute('aSkin', new THREE.InstancedBufferAttribute(skin, 3));
+            geo.setAttribute('aHair', new THREE.InstancedBufferAttribute(hair, 3));
+            // robots get a metal finish that picks up the sky
+            const base = body === 0
+                ? new THREE.MeshLambertMaterial({ vertexColors: true })
+                : new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.45, roughness: 0.38, envMapIntensity: 1.0 });
+            base.userData.robot = body !== 0;
+            const mat = applyWalkShader(base);
+            const mesh = new THREE.InstancedMesh(geo, mat, N);
+            mesh.name = body === 0 ? 'citizens:human' : 'citizens:robot' + body;
+            mesh.frustumCulled = false; // spread over the whole city; skip per-frame bounds cost
+            const g = { body, mesh, anim, members };
+            for (const c of members) c.grp = g;
+            this.groups.push(g);
+        }
+        // the robots are most of the city; keep `mesh` pointing at a real group
+        this.mesh = (this.groups.find(g => g.body !== 0) || this.groups[0]).mesh;
+        for (const g of this.groups) {
+            for (const c of g.members) {
+                this._writeMatrix(c);
+                g.mesh.setColorAt(c.mi, c.color);
+            }
+            g.mesh.instanceMatrix.needsUpdate = true;
+            scene.add(g.mesh);
+        }
         this._assignAll();
     },
 
@@ -340,14 +398,15 @@ export const Citizens = {
     _writeMatrix(c) {
         const d = this._dummy;
         // "Inside" buildings during work/sleep — hide so streets show real commuters
+        const g = c.grp, mi = c.mi;
         if (c.indoors) {
             d.position.set(0, -5000, 0);
             d.scale.setScalar(0.001);
             d.updateMatrix();
-            this.mesh.setMatrixAt(c.idx, d.matrix);
-            this.anim.array[c.idx * 3] = 0;
-            this.anim.array[c.idx * 3 + 1] = 0;
-            this.anim.array[c.idx * 3 + 2] = STAGE_CODE[c.stage] ?? 0;
+            g.mesh.setMatrixAt(mi, d.matrix);
+            g.anim.array[mi * 3] = 0;
+            g.anim.array[mi * 3 + 1] = 0;
+            g.anim.array[mi * 3 + 2] = STAGE_CODE[c.stage] ?? 0;
             return;
         }
         let s = STAGES[c.stage]?.size || 1;
@@ -358,11 +417,24 @@ export const Citizens = {
         d.rotation.y = Math.atan2(c.dirX, c.dirZ);
         d.scale.setScalar(s);
         d.updateMatrix();
-        this.mesh.setMatrixAt(c.idx, d.matrix);
-        this.anim.array[c.idx * 3] = c.bob;
-        this.anim.array[c.idx * 3 + 1] = c.walkAmt;
-        this.anim.array[c.idx * 3 + 2] = STAGE_CODE[c.stage] ?? 0;
+        g.mesh.setMatrixAt(mi, d.matrix);
+        g.anim.array[mi * 3] = c.bob;
+        g.anim.array[mi * 3 + 1] = c.walkAmt;
+        g.anim.array[mi * 3 + 2] = STAGE_CODE[c.stage] ?? 0;
     },
+
+    /** Recolour every citizen's clothing / shell (the Konami easter egg);
+        `null` restores their own colours. */
+    setAllColor(color) {
+        for (const g of this.groups || []) {
+            for (const c of g.members) g.mesh.setColorAt(c.mi, color || c.color);
+            if (g.mesh.instanceColor) g.mesh.instanceColor.needsUpdate = true;
+        }
+    },
+
+    /** Robot or person? For the interiors and anyone else drawing a citizen. */
+    isRobot(c) { return bodyOf(c) !== 0; },
+    bodyOf(c) { return bodyOf(c); },
 
     _assignAll() {
         this._bidCount = new Map();
@@ -685,8 +757,12 @@ export const Citizens = {
             }
             this._writeMatrix(c);
         }
-        this.mesh.instanceMatrix.needsUpdate = true;
-        this.anim.needsUpdate = true;
+        for (const g of this.groups) {
+            g.mesh.instanceMatrix.needsUpdate = true;
+            g.anim.needsUpdate = true;
+        }
+        // visors and cores glint by day and glow after dark
+        glowUniform.value = 0.55 + (G.weatherSys?.night ?? 0) * 1.4;
     },
 
     // nearest *visible* citizen within maxDist (skip people inside buildings)

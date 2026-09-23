@@ -15,7 +15,7 @@
    this file may reach for arc(), fill(), save/restore or measureText.
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
-import { bakedPerson } from '../people.js';
+import { bakedPerson, bakedRobot, robotGlow } from '../people.js';
 import { Assets } from '../assets.js';
 
 // ── canvas plumbing (local copy of the textures.js house style; textures.js is
@@ -482,7 +482,21 @@ export const P = {
     npc(c, x, z, def = {}, facing = 1) {
         const col = def.color != null ? def.color : 0x64748b;
         const sit = def.pose === 'sit';
-        if (c.mesh) {
+        /* An AI model (a citizen who is a model, a detainee in the jail) is a
+           robot: lab-coloured shell, metal chassis, glowing visor and core in
+           the unlit bucket. People — staff, founders, crews — stay people. */
+        if (c.mesh && def.robot) {
+            const r = bakedRobot({
+                shell: col, chassis: def.chassis, glow: def.glow ?? robotGlow(col, def.stage),
+                variant: def.variant || 1, pose: sit ? 'sit' : 'stand',
+                key: def.key || def.name || `${x | 0}:${z | 0}`
+            });
+            for (const [g, lit] of [[r.solid, false], [r.glow, true]]) {
+                if (facing < 0) g.rotateY(Math.PI);
+                g.translate(x, 0, z);
+                c.mesh(g, lit);
+            }
+        } else if (c.mesh) {
             const g = bakedPerson({
                 clothing: col, skin: def.skin, hair: def.hair, pose: sit ? 'sit' : 'stand',
                 key: def.key || def.name || `${x | 0}:${z | 0}`

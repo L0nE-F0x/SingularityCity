@@ -236,11 +236,15 @@ function buildCabin() {
     for (const side of [-1, 1]) push(glow, L - 16, 0.8, 2.2, 0, H - 2.2, side * 12, 0xfef3c7);
 
     // ── standing passengers, so the car isn't yours alone ──
-    for (const [px, pz] of [[-92, -9], [-40, 8], [16, -7], [70, 9], [112, -8], [-16, 12]]) {
-        push(shell, 5.5, 13, 4.5, px, 6.5, pz, 0x334155);     // body
-        push(shell, 4.4, 4.0, 4.4, px, 15, pz, 0xe8b98e);    // head
-        push(shell, 4.6, 1.4, 4.6, px, 17.2, pz, 0x2a2118);  // hair
-    }
+    // (half of them are models — robots with a lit visor band)
+    const riders = [[-92, -9], [-40, 8], [16, -7], [70, 9], [112, -8], [-16, 12]];
+    riders.forEach(([px, pz], i) => {
+        const bot = i % 2 === 1;
+        push(shell, 5.5, 13, 4.5, px, 6.5, pz, bot ? [0x6366f1, 0x0ea5e9, 0xf97316][i % 3] : 0x334155);
+        push(shell, 4.4, 4.0, 4.4, px, 15, pz, bot ? 0xaeb6c2 : 0xe8b98e);
+        if (bot) push(glow, 4.7, 0.9, 4.7, px, 15.3, pz, 0x67e8f9);
+        else push(shell, 4.6, 1.4, 4.6, px, 17.2, pz, 0x2a2118);  // hair
+    });
 
     g.add(
         new THREE.Mesh(

@@ -207,11 +207,19 @@ skips). A layout returns occupant spots; `pose: 'sit' | 'work'` seats the
 citizen, `ry` turns them to face a table. A room built before the `interior`
 group lands uses its box furniture and is rebuilt in place when it arrives.
 
-**`js/people.js` — one body plan for the street crowd and everyone indoors.**
-Street figures keep citizens.js's attribute contract (`aLimb`, `aTint`,
-`aPart`; hips pivot at y 7.2, shoulders at 14.0). Indoor figures are the same
-parts with colours baked in, three times larger, standing or seated; an
-occupant who gets up swaps to the standing mesh while they walk.
+**`js/people.js` — people and robots.** The humans in the city (founders,
+facility workers, building staff) share one body plan; every AI model is a
+robot: jointed chassis in a metal finish, torso shell and shoulder armour in
+its lab's colour, a glowing chest core, and one of three heads (visor helmet,
+halo orb for open-weights models, slit-visor dome) chosen per lab and licence
+(`robotVariant`). Street figures keep citizens.js's attribute contract
+(`aLimb`, `aTint`, `aPart`; hips pivot at y 7.2, shoulders at 14.0) plus tint
+4, the emissive glow parts. The crowd is one InstancedMesh per body (human +
+three robot heads); a citizen carries `c.grp` / `c.mi`, and anything that
+recolours citizens goes through `Citizens.setAllColor`. Indoor figures are the
+same parts with colours baked in, three times larger, standing or seated; an
+occupant who gets up swaps to the standing mesh while they walk. Robots'
+visor/core geometry goes in the room's unlit bucket (`c.mesh(geo, true)`).
 
 **Rendering posture.** Medium and low: no post-processing, as before. High (or
 `?bloom=1`): EffectComposer + half-res UnrealBloom + OutputPass; tone mapping
