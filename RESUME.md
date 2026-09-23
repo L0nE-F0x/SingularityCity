@@ -1,13 +1,111 @@
 # Resume here
 
-**Updated:** 2026-09-23 (night session wrap) · **Live `main`:** `598fa17` (this wrap sits on top)
-**Status:** Housing-tower performance fix is **live**. Netlify served cache **v556**
-about 20 s after the push, and production was measured at night (see Verified).
-**Next:** the owner plans a fresh **First Person Mode** session later today. See
-"Next session" at the end of the first section.
+**Updated:** 2026-09-23 (First Person overhaul wrap) · **Live `main`:** `0dfd8cf` (this wrap sits on top)
+**Status:** The First Person overhaul is **live**. Netlify served it about 30 s
+after the push, and a headless check of production passed (see Verified). The 2D
+app is untouched; its cache is still **v556** (FP files aren't in the service
+worker's precache, so FP-only ships don't bump it — same as every past FP ship).
+**Next:** the owner is walking the city and will report findings. Start from
+their report; the "Not done" list below is the backlog.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
 Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
+
+---
+
+## This session (2026-09-23, evening) — First Person overhaul
+
+Owner brief: overhaul FP with as many threejsassets packs as fit, "blow me away,
+fix everything". Follow-up: make the AI models look robotic, keep founders /
+workers / staff human, then push. Nine commits, `5b424e3` → `0dfd8cf`, pushed
+together. Before/after page (private to the owner):
+https://claude.ai/artifact/KLLC52JRX1z9rshYLpzbUx
+
+### What shipped
+
+| Area | What changed | Where |
+|---|---|---|
+| Asset pipeline | Kit registry as plain data; `tools/fp_kits.mjs` Draco-compresses every registered kit from the local pack dumps into `first-person/assets/kits/k1/`. 254 kits, 68 MB raw → 5 MB shipped. The raw pack GLBs left the git index (still on disk). | `js/kit_registry.js`, `tools/fp_kits.mjs` |
+| New packs | Downloaded Home Office, Library, Wasteland, Bathroom, Halloween, Dungeon, Swamp & Bayou, Haunted Parlour, Viking Fjord into `_packs/` (untracked). City and Metropolis were already current. Characters are **not** available through the API. | `assets/models/_packs/` |
+| Night | Kit towers light their windows from the packs' own palettes (`aGlaze` codes) instead of going pitch black; glazing reflects the sky by day; houses light some panes; anything with an over-bright vertex colour (baked flames, bulbs) glows. Moonlit fill. A pool of real SpotLights follows the player onto the nearest lamp heads. | `js/assets.js` (glazing shader), `js/world.js` (`_buildLampLights`), `js/weather.js` |
+| Sky | Sky shader now ends in tonemapping + colorspace chunks: no pale horizon band, no navy noon, deep-navy night with a thin light-pollution band. | `js/weather.js` |
+| Streets | `streetscape.js`: kerb furniture per district character, bus stops, parked cars in the kerb lane, pocket plazas, rooftop billboards, suburban yards, the Underground as a wasteland, desert Space Zone, the beach. LED street-light kit at the kerb. | `js/streetscape.js`, `js/world.js` |
+| Interiors | `furnish.js` kit layouts for lobby / open plan / boardroom / home / academic / café / VC / mission / power / nursery / warehouse / conference; bespoke rooms get kit desks, chairs, stools, plants via the shared `P` helpers. Exposure eases down indoors. | `js/interiors/furnish.js`, `js/interiors/kit.js`, `js/interior.js` |
+| People | `people.js`: one human body plan (founders, workers in hi-vis, staff) and **robots for every AI model** — lab-coloured shell and shoulders, metal chassis, glowing core/visor, three heads (visor helmet, halo orb = open weights, slit-visor dome). Indoor figures are adult height and sit at desks and tables. | `js/people.js`, `js/citizens.js` |
+| Seasons | Galungan penjor rebuilt (they drew as dashed lines into the sky); Halloween fetches the Halloween pack on demand (graveyard, jack-o'-lanterns, suburbia). | `js/seasonal.js` |
+| Presentation | Attract mode: start panel turns to glass over a live skyline flyover. Bloom on High (or `?bloom=1`) via vendored r160 postprocessing. Desktop toasts stack under the clock. | `js/main.js`, `lib/postprocessing/`, `css/styles.css` |
+| Fixes | Rain/storm "white orbs" (splash + precip points now clamp their pixel size). VC Row coin glows faint by day. | `js/wetness.js`, `js/weather.js`, `js/ambience.js` |
+| Performance | Kit towers and trees are one InstancedMesh per ~1 km chunk (culled by camera and sun); sun shadow map redraws every other frame. Steady frame on the test iGPU went 22–23 ms → the 16.7 ms vsync cap. | `js/world.js`, `js/main.js` |
+
+### What a new agent must not re-break
+
+1. **Kits are immutable-cached for a year** (`/first-person/assets/*`). Never
+   re-encode a kit in place: bump `KIT_VERSION` in `kit_registry.js` and re-run
+   `node tools/fp_kits.mjs`. Adding a kit = registry line + run the tool +
+   commit the new file; `test:fp:assets` fails on a missing shipped file.
+2. **Never add `screen` to the glazing table.** Its day colour is the mullion
+   charcoal (~30% of a tower); it lit every frame as a white wireframe.
+3. **The sky shader must keep `tonemapping_fragment` + `colorspace_fragment`**
+   or the horizon band and navy noon come back.
+4. **`renderer.shadowMap.autoUpdate` is false.** The main loop sets
+   `needsUpdate`; anything new that renders the scene outside it must too.
+5. **The lamp light pool never changes size** (changing the light count
+   recompiles every material). `World.lampSpots` has the pole (`x,z`) and the
+   head (`hx,hz`); halos, pools and spot lights hang from the head.
+6. **Furniture shares the kit geometry/material** (`userData.kitShared`); the
+   room teardown skips those. Don't dispose them.
+7. **Nothing tall at centre-back in a generic room**: the name board is at
+   |x| < 108, y 65–92 on the back wall.
+8. **The crowd is four InstancedMeshes** (human + three robot heads). A citizen
+   carries `c.grp` / `c.mi`; recolour through `Citizens.setAllColor` (the
+   Caturday egg does). Robots' glow is tint 4 in the walk shader.
+9. **Who is a robot**: `bodyOf(c)` in citizens.js — founders and workers are
+   human, every model is a robot. Indoors, `PROP.npc(..., { robot: true })`
+   draws a robot; staff defs without it stay human.
+10. **`npm install` prunes `puppeteer-core`** (it lives in node_modules without a
+    package.json entry). Restore: `npm install --no-save puppeteer-core@25.7.0`.
+
+### Verified
+
+- `npm run test:fp` green (asset check now also asserts every kit is shipped and
+  every furnish layout's kits are registered).
+- Headless Chrome (`--use-angle=gl`, Intel iGPU, 1440×900) screenshots of day,
+  dusk, night, rain, storm, snow; every furnished room type; free-fly, orbit,
+  x-ray, holomap, tour, metro and terminal smoke-tested with no page errors;
+  touch layout at 844×390.
+- **Production**, after the push: `people.js` served with the robot code, kits
+  returned 200, and `?autostart=1&bloom=1&inside=cafe` booted with 264 kits,
+  a furnished café, bloom on, 58 street prop sets and all four body groups; no
+  page errors besides the usual dev-only `/api/geo` 404.
+
+### Not done / worth a look
+
+- **Real-device performance** is unmeasured (headless iGPU only). Citizens cost
+  ~446 (human) / ~700 (robot) triangles each; streetscape and furniture are
+  proximity-uploaded. If a phone struggles, look at citizen counts on `low`
+  first.
+- **Remaining box-built rooms**: gym, arena, datacenter racks, embassy and
+  other bespoke floors only get the shared-helper upgrades.
+- **Occupants appear only once citizens arrive**, so a building entered at boot
+  can look empty for a minute (pre-existing).
+- **Packs downloaded but unused**: Bathroom, Dungeon, Swamp & Bayou, Haunted
+  Parlour, Viking Fjord (and most of Wasteland / Library).
+- The yellow VC deal-flow "packets" were never investigated beyond the coins.
+- Returning FP visitors hold `/first-person/js/*` for up to an hour
+  (`max-age=3600`), so a mixed old/new module set is possible for that window
+  right after a deploy. Pre-existing posture.
+
+### Working on FP headless (the tooling isn't in the repo)
+
+- Screenshots/benchmarks were puppeteer-core scripts with `executablePath:
+  '/usr/bin/google-chrome-stable'` and `--use-angle=gl --enable-gpu`. Boot with
+  `?autostart=1&dp=<phase>&sim=<s>&inside=<id>&festival=<id>&wx=<state>&bloom=1`.
+- `.shots/kitview.html` (gitignored) renders a grid of pack GLBs:
+  `/.shots/kitview.html?pack=<pack>&cols=6&n=<file,file,...>`.
+- GPU vs CPU: time per-module `update()` and `renderer.render` inside the real
+  rAF loop; `gl.finish()` timing was unreliable under ANGLE.
+- The owner's clock is Asia/Makassar, so FP shows **Indonesian festivals**
+  (Galungan today, Nyepi, etc.). Force others with `?festival=`.
 
 ---
 
