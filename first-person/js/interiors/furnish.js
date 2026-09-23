@@ -190,10 +190,22 @@ export function office(F, ctx) {
     const { H, lift } = ctx;
     const spots = [];
     // reception: the desk's front (+z) faces the door, staff stand behind it
-    F.put('in_reception', 20, -186, 0, { s: 0.72, solid: true });
-    pendants(F, 'in_office_pendant', [-30, 20, 70], -170, H);
-    spots.push({ x: -10, z: -212, facing: 1, pose: 'work', stay: true });
-    spots.push({ x: 50, z: -212, facing: 1, pose: 'work', stay: true });
+    // (s 0.72 keeps its back panel under the name board's subtitle line)
+    F.put('in_reception', 20, -176, 0, { s: 0.72, solid: true });
+    pendants(F, 'in_office_pendant', [-40, 20, 80], -150, H);
+    spots.push({ x: -16, z: -200, facing: 1, pose: 'work', stay: true });
+    spots.push({ x: 56, z: -200, facing: 1, pose: 'work', stay: true });
+    /* The lobby's centre: an island between the door and reception — a rug,
+       a display case of the lab's work flanked by planters, and a ring of
+       seats — so walking in you cross a room, not an empty tiled field. */
+    F.put('in_office_rug', 20, -40, 0, { y: 0.4, s: 2.4 });
+    if (Assets.has('in_display_case')) F.put('in_display_case', 20, -44, 0, { s: 1.05, solid: true });
+    for (const dx of [-46, 86]) {
+        F.put('in_office_plant', dx, -44, dx * 0.1, { s: 2.1, solid: true, pad: 0 });
+    }
+    F.put('in_loveseat', 20, 8, Math.PI, { s: 0.9, solid: true });
+    spots.push({ x: 14, z: 6, facing: -1, pose: 'sit' });
+    F.put('in_pendant', 20, -44, 0, { y: H - 26, s: 1.4 });
     // lounge, right of the entrance axis: rug, sofa facing the chairs
     F.put('in_area_rug', 180, 20, 0, { y: 0.4, s: 1.05 });
     F.put('in_sofa', 180, 64, Math.PI, { solid: true });
