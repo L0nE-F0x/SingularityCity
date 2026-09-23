@@ -190,6 +190,18 @@ export const Wetness = {
                 depthWrite: false, sizeAttenuation: true, alphaTest: 0.05
             })
         );
+        /* A splash is a few pixels of spray at the kerb. Sized in world units
+           with attenuation, the ones spawning at the player's feet were drawn
+           60+ px across — a screen of soft white orbs in every storm. */
+        this._splashMax = { value: 6 };
+        this.splash.material.onBeforeCompile = (shader) => {
+            shader.uniforms.uMaxPx = this._splashMax;
+            shader.vertexShader = 'uniform float uMaxPx;\n' + shader.vertexShader.replace(
+                '#include <fog_vertex>',
+                '#include <fog_vertex>\n\tgl_PointSize = min( gl_PointSize, uMaxPx );'
+            );
+        };
+        this.splash.material.customProgramCacheKey = () => 'sc-splash-clamped';
         this.splash.visible = false;
         this.splash.frustumCulled = false;
         scene.add(this.splash);
@@ -264,6 +276,7 @@ export const Wetness = {
         }
         this.splash.material.opacity = 0.45 + this.neonBoost * 0.4;
         this.splash.material.size = 3.5 + intensity * 2.5;
+        this._splashMax.value = 6 * (G.renderer?.getPixelRatio?.() || 1);
         this.splashGeo.attributes.position.needsUpdate = true;
     },
 

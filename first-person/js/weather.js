@@ -353,6 +353,21 @@ export const Weather = {
             transparent: true, opacity: 0.7, sizeAttenuation: true,
             depthWrite: false, alphaTest: 0.02
         });
+        /* Cap the on-screen size. The size is in world units with
+           attenuation, so a drop falling a few units in front of the camera was
+           hundreds of pixels across: rain and storms read as a screen full of
+           out-of-focus white orbs (worse under bloom). A streak or a flake
+           has a size in PIXELS; past that it should just be close, not huge. */
+        this.pMaxPx = { value: 14 };
+        this.pMat.onBeforeCompile = (shader) => {
+            shader.uniforms.uMaxPx = this.pMaxPx;
+            // after points_vert's size attenuation, which runs before fog_vertex
+            shader.vertexShader = 'uniform float uMaxPx;\n' + shader.vertexShader.replace(
+                '#include <fog_vertex>',
+                '#include <fog_vertex>\n\tgl_PointSize = min( gl_PointSize, uMaxPx );'
+            );
+        };
+        this.pMat.customProgramCacheKey = () => 'sc-precip-clamped';
         this.points = new THREE.Points(this.pGeo, this.pMat);
         this.points.visible = false;
         this.points.frustumCulled = false;
@@ -714,6 +729,8 @@ export const Weather = {
             this.pMat.size = kind === 'rain' ? (this.state === 'drizzle' ? 5.5 : 7.5)
                 : kind === 'snow' ? 5.2
                 : 5.5;
+            // in device pixels: a rain streak may run long, a flake stays small
+            this.pMaxPx.value = (kind === 'rain' ? 22 : kind === 'snow' ? 12 : 16) * (G.renderer?.getPixelRatio?.() || 1);
             this.pMat.opacity = (kind === 'rain' ? 0.48 : 0.82) * this.intensity
                 * (this.state === 'drizzle' ? 0.7 : 1);
             const posA = this.pGeo.attributes.position.array;
