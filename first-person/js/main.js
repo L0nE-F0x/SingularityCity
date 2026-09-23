@@ -147,7 +147,13 @@ async function boot() {
     if (G.preset.shadowMap > 0) {
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.shadowMap.autoUpdate = true;
+        /* Re-rendered every other frame (see the loop), not every frame. The
+           shadow pass redraws every caster in the sun's frustum — towers,
+           trees, the whole crowd — and at a walk nothing moves far enough in
+           1/60 s for a 30 Hz shadow to show. The map and its matrix update
+           together, so a skipped frame is consistent, just a frame old. */
+        renderer.shadowMap.autoUpdate = false;
+        renderer.shadowMap.needsUpdate = true;
     }
     document.getElementById('app').appendChild(renderer.domElement);
     G.renderer = renderer;
@@ -480,6 +486,17 @@ async function boot() {
             Audio.setWeatherBeds(Weather.state, Weather.intensity, 1 - Math.max(0, Math.sin((G.dayPhase - 0.25) * Math.PI * 2)));
         }
 
+        if (renderer.shadowMap.enabled) {
+            // every other frame — but every frame while moving fast (free-fly,
+            // a train), where a stale map would visibly swim
+            const cp = G.camera.position;
+            const moved = G._shadowAt ? Math.abs(cp.x - G._shadowAt.x) + Math.abs(cp.z - G._shadowAt.z) : 1e9;
+            if ((G.tick & 1) === 0 || moved > 12) {
+                renderer.shadowMap.needsUpdate = true;
+                G._shadowAt = G._shadowAt || new THREE.Vector3();
+                G._shadowAt.copy(cp);
+            }
+        }
         renderer.render(G.scene, G.camera);
 
         // perf tracking + adaptive resolution

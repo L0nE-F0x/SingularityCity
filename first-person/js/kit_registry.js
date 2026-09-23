@@ -277,7 +277,32 @@ export const KITS = {
     in_reception: { src: 'vice-beach/lobby_reception_desk.glb', kind: 'interior', group: 'interior' },
     in_rattan: { src: 'vice-beach/lobby_rattan_seating.glb', kind: 'interior', group: 'interior' },
     in_cafe_set: { src: 'vice-beach/cafe_table_chairs.glb', kind: 'interior', group: 'interior' },
-    in_banquette: { src: 'vice-beach/club_banquette_booth.glb', kind: 'interior', group: 'interior' }
+    in_banquette: { src: 'vice-beach/club_banquette_booth.glb', kind: 'interior', group: 'interior' },
+
+    /* ── Festival dressing (seasonal.js). `group: 'seasonal'` is fetched only
+       while a festival that uses it is running. */
+    hw_jack: { src: 'halloween/jack_o_lantern_01.glb', kind: 'street', group: 'seasonal' },
+    hw_pile: { src: 'halloween/pumpkin_pile_01.glb', kind: 'street', group: 'seasonal' },
+    hw_porch: { src: 'halloween/pumpkin_porch_stack_01.glb', kind: 'street', group: 'seasonal' },
+    hw_scarecrow: { src: 'halloween/scarecrow_01.glb', kind: 'street', group: 'seasonal' },
+    hw_skeleton: { src: 'halloween/skeleton_01.glb', kind: 'street', group: 'seasonal' },
+    hw_tomb: { src: 'halloween/tombstone_01.glb', kind: 'street', group: 'seasonal' },
+    hw_crypt: { src: 'halloween/crypt_tomb_01.glb', kind: 'street', group: 'seasonal' },
+    hw_bare_tree: { src: 'halloween/bare_tree_01.glb', kind: 'street', group: 'seasonal' },
+    hw_face_tree: { src: 'halloween/gnarled_face_tree_01.glb', kind: 'street', group: 'seasonal' },
+    hw_raven: { src: 'halloween/raven_01.glb', kind: 'street', group: 'seasonal' },
+    hw_bats: { src: 'halloween/bats_01.glb', kind: 'street', group: 'seasonal' },
+    hw_ghost: { src: 'halloween/ghost_01.glb', kind: 'street', group: 'seasonal' },
+    hw_inflatable_ghost: { src: 'halloween/inflatable_ghost_01.glb', kind: 'street', group: 'seasonal' },
+    hw_inflatable_cat: { src: 'halloween/inflatable_cat_pumpkin_01.glb', kind: 'street', group: 'seasonal' },
+    hw_cornstalk: { src: 'halloween/cornstalk_shock_01.glb', kind: 'street', group: 'seasonal' },
+    hw_hay: { src: 'halloween/square_hay_bale_01.glb', kind: 'street', group: 'seasonal' },
+    hw_lantern_post: { src: 'halloween/lantern_post_01.glb', kind: 'street', group: 'seasonal' },
+    hw_black_cat: { src: 'halloween/black_cat_01.glb', kind: 'street', group: 'seasonal' },
+    hw_banner: { src: 'halloween/banner_arch_01.glb', kind: 'street', group: 'seasonal' },
+    hw_web: { src: 'halloween/spider_web_01.glb', kind: 'street', group: 'seasonal' },
+    hw_cauldron: { src: 'halloween/cauldron_01.glb', kind: 'street', group: 'seasonal' },
+    hw_maple: { src: 'halloween/autumn_maple_01.glb', kind: 'street', group: 'seasonal' }
 };
 
 /** Published path of a kit, relative to first-person/assets/. */

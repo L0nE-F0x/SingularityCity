@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G, CITY_W, CITY_D } from './state.js';
 import { City } from './city.js';
+import { Assets, WORLD_PER_M } from './assets.js';
 
 /* ─── ambient month tone ───────────────────────────────────────────────────
    Kept from the original: when no festival is running the city still wants a
@@ -305,52 +306,119 @@ export const Seasonal = {
                 break;
             }
             case 'pumpkins': {
-                const geo = mergeGeometries([
-                    new THREE.SphereGeometry(7, 10, 7).scale(1, 0.82, 1),
-                    new THREE.CylinderGeometry(1.2, 1.6, 4, 5).translate(0, 7, 0)
-                ], false);
-                const spots = [];
-                for (const ax of City.avenueXs) {
-                    for (let z = -CITY_D / 2 + 140; z < CITY_D / 2; z += 190) {
-                        spots.push({ x: ax + (rng() < 0.5 ? 82 : -82), z: z + rng() * 60 });
-                    }
-                }
-                const im = new THREE.InstancedMesh(geo,
-                    new THREE.MeshStandardMaterial({
-                        color: 0xe07b1e, emissive: new THREE.Color(0xff6a00),
-                        emissiveIntensity: 0.55, roughness: 0.7
-                    }), spots.length);
-                spots.forEach((s, i) => {
-                    D.position.set(s.x, 8, s.z); D.rotation.set(0, rng() * Math.PI, 0);
-                    D.scale.setScalar(0.8 + rng() * 0.6); D.updateMatrix(); im.setMatrixAt(i, D.matrix);
-                });
-                im.instanceMatrix.needsUpdate = true;
-                this._add(im, scene);
+                /* Halloween, from the Halloween pack: jack-o'-lanterns down the
+                   avenues (their carved faces glow after dark — the kit bakes the
+                   flame as an over-bright colour, see assets.js tagGlazing), a
+                   properly haunted graveyard for the retired models, and porch
+                   pumpkins, inflatables and cats in suburbia. The kits are only
+                   fetched while Halloween is on; until they land (or if they
+                   fail) the old glowing spheres stand in. */
+                const ids = ['hw_jack', 'hw_pile', 'hw_porch', 'hw_scarecrow', 'hw_skeleton', 'hw_tomb', 'hw_crypt',
+                    'hw_bare_tree', 'hw_face_tree', 'hw_raven', 'hw_bats', 'hw_ghost', 'hw_inflatable_ghost',
+                    'hw_inflatable_cat', 'hw_cornstalk', 'hw_hay', 'hw_lantern_post', 'hw_black_cat', 'hw_web', 'hw_cauldron', 'hw_maple'];
+                const fallback = this._pumpkinSpheres(scene, rng, D);
+                Assets.loadIds(ids).then(() => {
+                    if (!Assets.has('hw_jack')) return;
+                    fallback.visible = false;
+                    this._halloween(scene);
+                }).catch(() => { /* keep the spheres */ });
                 break;
             }
             case 'penjor': {
-                /* Balinese penjor: a tall bamboo pole bowing over the street.
-                   A curved arc of segments reads as the bow far better than a
-                   straight pole with a flag on it. */
-                const parts = [];
-                for (const ax of City.avenueXs) {
-                    for (let z = -CITY_D / 2 + 200; z < CITY_D / 2; z += 340) {
-                        const bx = ax + 84;
-                        for (let s = 0; s < 12; s++) {
-                            const t = s / 11;
-                            const y = 12 + t * 120;
-                            const bend = Math.pow(t, 2.4) * 62;
-                            const g = new THREE.BoxGeometry(3.2, 12, 3.2);
-                            g.rotateZ(-Math.pow(t, 1.6) * 0.8);
-                            g.translate(bx - bend, y, z);
-                            parts.push(g);
-                        }
+                /* Galungan & Kuningan: a penjor outside every compound, bowing
+                   over the road. The old version stacked twelve tilted boxes,
+                   which read from any distance as a dashed yellow line drawn
+                   diagonally into the sky. This is the real shape: a bamboo
+                   pole standing straight for two-thirds of its height, then
+                   arching out over the carriageway with its tip hanging down;
+                   woven janur fringe along the arc, the sampian hanging from the
+                   tip, a cloth wrap low on the pole, and the little sanggah
+                   shrine for offerings at its foot.
+
+                   One template, instanced per city chunk so the ones behind you
+                   are culled. Local frame: pole at the origin, road toward -x. */
+                const tmpl = [];
+                const colour = (g, hex) => {
+                    const c = new THREE.Color(hex), n = g.attributes.position.count;
+                    const a = new Float32Array(n * 3);
+                    for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+                    g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+                    if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+                    tmpl.push(g.index ? g : g);
+                    return g;
+                };
+                const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
+                const lower = new THREE.CatmullRomCurve3([V(0, 0), V(0, 40), V(0, 82)]);
+                const upper = new THREE.CatmullRomCurve3([V(0, 80), V(-4, 100), V(-18, 118), V(-40, 127), V(-60, 123), V(-74, 111), V(-79, 99)]);
+                colour(new THREE.TubeGeometry(lower, 6, 1.7, 5, false), 0xc4a064);
+                colour(new THREE.TubeGeometry(upper, 18, 1.05, 5, false), 0xd1b070);
+                // janur fringe hanging from the arc
+                for (let i = 0; i <= 12; i++) {
+                    const t = 0.12 + (i / 12) * 0.86;
+                    const p = upper.getPoint(t);
+                    const len = 6 + (i % 3) * 2;
+                    for (const tilt of [-0.35, 0.35]) {
+                        const g = new THREE.BoxGeometry(0.5, len, 2.4);
+                        g.translate(0, -len / 2, 0);
+                        g.rotateZ(tilt);
+                        g.translate(p.x, p.y - 1, p.z);
+                        colour(g, i % 4 === 0 ? 0xf2e6a6 : 0xe6d98a);
                     }
                 }
-                if (parts.length) {
-                    const m = new THREE.Mesh(mergeGeometries(parts, false),
-                        new THREE.MeshStandardMaterial({ color: 0xd8b24a, roughness: 0.75 }));
-                    this._add(m, scene);
+                // sampian at the tip + a tassel of rice and leaves
+                const tip = upper.getPoint(1);
+                colour(new THREE.ConeGeometry(3.4, 10, 6).rotateX(Math.PI).translate(tip.x, tip.y - 7, 0), 0xf0e2a0);
+                colour(new THREE.SphereGeometry(2.2, 6, 4).translate(tip.x, tip.y - 1.5, 0), 0xe8d27a);
+                colour(new THREE.BoxGeometry(0.6, 9, 3).translate(tip.x, tip.y - 16, 0), 0xc9b061);
+                // cloth wrap: white with a yellow band
+                colour(new THREE.CylinderGeometry(2.3, 2.3, 12, 7, 1, true).translate(0, 28, 0), 0xf6f4ec);
+                colour(new THREE.CylinderGeometry(2.4, 2.4, 3, 7, 1, true).translate(0, 35.5, 0), 0xf2c14e);
+                // sanggah: the little offering shrine at the foot, pavement side
+                const sx = 7;
+                for (const [lx, lz] of [[-2.6, -2.6], [2.6, -2.6], [-2.6, 2.6], [2.6, 2.6]]) {
+                    colour(new THREE.BoxGeometry(0.8, 12, 0.8).translate(sx + lx, 6, lz), 0x8a6a3e);
+                }
+                colour(new THREE.BoxGeometry(7.4, 1, 7.4).translate(sx, 12.4, 0), 0x9a784a);
+                colour(new THREE.ConeGeometry(6.4, 5, 4).rotateY(Math.PI / 4).translate(sx, 16, 0), 0x6b4f33);
+                colour(new THREE.BoxGeometry(3, 1.6, 3).translate(sx, 13.7, 0), 0xe0564a);   // canang offering
+                colour(new THREE.BoxGeometry(1.4, 1.2, 1.4).translate(sx + 1.6, 13.6, 1.4), 0xf5d142);
+                const geo = mergeGeometries(tmpl.map(g => g.index ? g.toNonIndexed() : g), false);
+                const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0 });
+
+                // one per lamp gap, both kerbs of every avenue and street, arcing over the road
+                const spots = [];
+                const off = 60 + 9;
+                for (const ax of City.avenueXs) {
+                    for (let z = -CITY_D / 2 + 140; z < CITY_D / 2; z += 230) {
+                        if (City.clearOfCrossRoads(ax + off, z, true)) spots.push({ x: ax + off, z, ry: 0 });
+                        if (City.clearOfCrossRoads(ax - off, z + 115, true)) spots.push({ x: ax - off, z: z + 115, ry: Math.PI });
+                    }
+                }
+                for (const sz of City.streetZs) {
+                    for (let x = -CITY_W / 2 + 140; x < CITY_W / 2; x += 230) {
+                        if (City.clearOfCrossRoads(x, sz + off, false)) spots.push({ x, z: sz + off, ry: -Math.PI / 2 });
+                        if (City.clearOfCrossRoads(x + 115, sz - off, false)) spots.push({ x: x + 115, z: sz - off, ry: Math.PI / 2 });
+                    }
+                }
+                const chunks = new Map();
+                for (const sp of spots) {
+                    const k = Math.floor((sp.x + 5000) / 1000) * 100 + Math.floor((sp.z + 5000) / 1000);
+                    if (!chunks.has(k)) chunks.set(k, []);
+                    chunks.get(k).push(sp);
+                }
+                for (const list of chunks.values()) {
+                    const im = new THREE.InstancedMesh(geo, mat, list.length);
+                    list.forEach((sp, i) => {
+                        D.position.set(sp.x, 1.8, sp.z);
+                        D.rotation.set(0, sp.ry + (rng() - 0.5) * 0.12, 0);
+                        D.scale.setScalar(0.92 + rng() * 0.18);
+                        D.updateMatrix();
+                        im.setMatrixAt(i, D.matrix);
+                    });
+                    im.instanceMatrix.needsUpdate = true;
+                    im.computeBoundingSphere();
+                    im.name = 'penjor';
+                    this._add(im, scene);
                 }
                 break;
             }
@@ -557,9 +625,139 @@ export const Seasonal = {
 
     isActive(id) { return this.active.some(f => f.id === id); },
 
+    /* The pre-kit pumpkins: glowing orange spheres along the avenues. */
+    _pumpkinSpheres(scene, rng, D) {
+        const geo = mergeGeometries([
+            new THREE.SphereGeometry(7, 10, 7).scale(1, 0.82, 1),
+            new THREE.CylinderGeometry(1.2, 1.6, 4, 5).translate(0, 7, 0)
+        ], false);
+        const spots = [];
+        for (const ax of City.avenueXs) {
+            for (let z = -CITY_D / 2 + 140; z < CITY_D / 2; z += 190) {
+                spots.push({ x: ax + (rng() < 0.5 ? 82 : -82), z: z + rng() * 60 });
+            }
+        }
+        const im = new THREE.InstancedMesh(geo,
+            new THREE.MeshStandardMaterial({
+                color: 0xe07b1e, emissive: new THREE.Color(0xff6a00),
+                emissiveIntensity: 0.55, roughness: 0.7
+            }), spots.length);
+        spots.forEach((sp, i) => {
+            D.position.set(sp.x, 8, sp.z); D.rotation.set(0, rng() * Math.PI, 0);
+            D.scale.setScalar(0.8 + rng() * 0.6); D.updateMatrix(); im.setMatrixAt(i, D.matrix);
+        });
+        im.instanceMatrix.needsUpdate = true;
+        this._add(im, scene);
+        return im;
+    },
+
+    _halloween(scene) {
+        const rng = mulberry32(1031);
+        const D = new THREE.Object3D();
+        const sets = new Map();
+        const put = (id, x, z, ry = 0, s = 1, y = 0) => {
+            if (!Assets.has(id)) return;
+            if (!sets.has(id)) sets.set(id, []);
+            sets.get(id).push({ x, y, z, ry, s });
+        };
+        const clearAt = (x, z, r) => !City.onCarriageway(x, z) &&
+            !G.colliders.some(c => x + r > c.x0 && x - r < c.x1 && z + r > c.z0 && z - r < c.z1);
+
+        // jack-o'-lanterns on the building side of every avenue pavement
+        for (const ax of City.avenueXs) {
+            for (let z = -CITY_D / 2 + 150; z < CITY_D / 2; z += 150) {
+                for (const side of [-1, 1]) {
+                    const x = ax + side * 92, zz = z + side * 40;
+                    if (!City.clearOfCrossRoads(x, zz, true) || !clearAt(x, zz, 6)) continue;
+                    if (rng() < 0.7) put('hw_jack', x, zz, side > 0 ? -Math.PI / 2 : Math.PI / 2, 1.1 + rng() * 0.5, 1.8);
+                    else put('hw_pile', x, zz, rng() * 6.28, 0.9, 1.8);
+                }
+            }
+        }
+        // the graveyard of retired models goes properly spooky
+        const gy = G.bldById?.['graveyard'];
+        if (gy) {
+            const gx = gy.worldX, gz = gy.worldZ;
+            const hw = (gy.worldW || 160) / 2 + 30, hd = (gy.worldD || 160) / 2 + 30;
+            for (let i = 0; i < 26; i++) {
+                const x = gx + (rng() - 0.5) * hw * 2, z = gz + (rng() - 0.5) * hd * 2;
+                put('hw_tomb', x, z, (rng() - 0.5) * 0.5, 1.1 + rng() * 0.3);
+            }
+            put('hw_crypt', gx - hw * 0.5, gz - hd * 0.6, 0, 1.3);
+            put('hw_face_tree', gx + hw * 0.7, gz - hd * 0.5, rng() * 6.28, 2.2);
+            put('hw_bare_tree', gx - hw * 0.8, gz + hd * 0.4, rng() * 6.28, 2.0);
+            put('hw_bare_tree', gx + hw * 0.2, gz + hd * 0.9, rng() * 6.28, 1.7);
+            for (let i = 0; i < 4; i++) put('hw_lantern_post', gx + (i % 2 ? hw : -hw), gz + (i < 2 ? -hd : hd), 0, 1.2);
+            for (let i = 0; i < 3; i++) put('hw_raven', gx + (rng() - 0.5) * hw, gz + (rng() - 0.5) * hd, rng() * 6.28, 1.4, 0);
+            put('hw_skeleton', gx + hw * 0.1, gz - hd * 0.1, 0.6, 1.1);
+            put('hw_cauldron', gx - hw * 0.2, gz + hd * 0.3, 0, 1.3);
+            put('hw_bats', gx, gz, 0, 3, 120);
+            this._ghostAt = { x: gx + hw * 0.3, z: gz + hd * 0.2 };
+            put('hw_ghost', this._ghostAt.x, this._ghostAt.z, 0, 1.6, 14);
+        }
+        // suburbia: porch pumpkins, inflatables, cats, the odd scarecrow
+        for (const d of City.districts) {
+            if (d.biome !== 'suburban') continue;
+            for (let i = 0; i < 22; i++) {
+                const x = d.cx + (rng() - 0.5) * 720, z = d.cz + (rng() - 0.5) * 720;
+                if (!clearAt(x, z, 10) || City.onSidewalk(x, z)) continue;
+                const r = rng();
+                if (r < 0.35) put('hw_porch', x, z, rng() * 6.28, 1.1);
+                else if (r < 0.5) put(rng() < 0.5 ? 'hw_inflatable_ghost' : 'hw_inflatable_cat', x, z, rng() * 6.28, 1.2);
+                else if (r < 0.65) put('hw_black_cat', x, z, rng() * 6.28, 1.3);
+                else if (r < 0.8) put('hw_maple', x, z, rng() * 6.28, 1.6);
+                else put('hw_jack', x, z, rng() * 6.28, 1.3);
+            }
+        }
+        // parks: harvest corners
+        for (const d of City.districts) {
+            if (d.biome !== 'park') continue;
+            for (let i = 0; i < 5; i++) {
+                const x = d.cx + (rng() - 0.5) * 600, z = d.cz + (rng() - 0.5) * 600;
+                if (!clearAt(x, z, 14)) continue;
+                put('hw_scarecrow', x, z, rng() * 6.28, 1.3);
+                put('hw_cornstalk', x + 18, z + 6, rng() * 6.28, 1.2);
+                put('hw_hay', x - 16, z + 10, rng() * 6.28, 1.2);
+                put('hw_pile', x + 4, z - 16, rng() * 6.28, 1);
+            }
+        }
+        for (const [id, list] of sets) {
+            const kit = Assets.get(id);
+            const im = new THREE.InstancedMesh(kit.geometry, kit.material, list.length);
+            list.forEach((it, i) => {
+                D.position.set(it.x, it.y, it.z);
+                D.rotation.set(0, it.ry, 0);
+                D.scale.setScalar(it.s * WORLD_PER_M);
+                D.updateMatrix();
+                im.setMatrixAt(i, D.matrix);
+            });
+            im.instanceMatrix.needsUpdate = true;
+            im.computeBoundingSphere();
+            im.name = 'halloween:' + id;
+            im.userData.kitShared = true;
+            // built after World.finalizeShadows ran, so opt in by hand
+            im.castShadow = !!G.world?.shadows;
+            im.receiveShadow = true;
+            if (id === 'hw_ghost') this._ghost = im;
+            this._add(im, scene);
+        }
+        this._halloweenBuilt = true;
+    },
+
     update(dt) {
         const t = G.time || 0;
         if (this.mesh) this.mesh.rotation.y += dt * 0.15;
+        // the graveyard ghost drifts and bobs
+        if (this._ghost && this._ghostAt) {
+            const m = this._ghost;
+            const D = this._gD || (this._gD = new THREE.Object3D());
+            D.position.set(this._ghostAt.x + Math.sin(t * 0.3) * 30, 14 + Math.sin(t * 1.3) * 4, this._ghostAt.z + Math.cos(t * 0.23) * 24);
+            D.rotation.set(0, t * 0.4, Math.sin(t * 0.9) * 0.08);
+            D.scale.setScalar(16);
+            D.updateMatrix();
+            m.setMatrixAt(0, D.matrix);
+            m.instanceMatrix.needsUpdate = true;
+        }
         if (this._star) this._star.rotation.y += dt * 0.8;
         // Candle / bulb flicker. Modulate a COPY of the authored colour —
         // setScalar() would set r=g=b and turn every warm lamp grey.

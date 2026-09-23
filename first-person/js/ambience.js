@@ -377,6 +377,9 @@ export const Ambience = {
                     y = p.oy - k * p.fall;
                     // flicker as it flips end over end
                     a = (0.45 + 0.55 * Math.abs(Math.sin(t * 6 + i))) * (1 - k * 0.5);
+                    // Additive glow reads as a coin after dark; by day it was a
+                    // row of warm lens smudges down every VC Row facade.
+                    a *= 0.22 + night * 0.78;
                     break;
                 }
                 default: { // STEAM

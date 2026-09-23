@@ -177,11 +177,13 @@ const GLAZE_PALETTES = {
     metropolis: { glass: '#9fc6d8', glassDark: '#5f8ba3', glass2: '#b8d4e0', glassOff: '#7c98a8', curtain: '#7fb0c8', curtainDark: '#4a7690', neon: '#d84a9a', neon2: '#3ab8c8' },
     'vice-beach': { glass: '#bcd7e0', glassBlock: '#cfe4e6', glassDark: '#7fa6b2', glassBlockD: '#a2bcc0', glass2: '#dceaf0', glassOff: '#4a6470', curtain: '#587a8e', curtainDark: '#3d5a6c', neon: '#3fe0d8', neonP: '#ff5aa8', neonB: '#7a7aff' },
     city: { glass: '#bcd7e0', glassDark: '#7fa6b2', glass2: '#dcecf3', glassOff: '#5c7888', curtain: '#587a8e', curtainDark: '#3a5464', neon: '#d84a9a', neon2: '#3ab8c8' },
-    'suburban-neighborhood': { glass: '#c2d6e0', glassDark: '#82a4b4', glassOff: '#b4c8d4' }
+    'suburban-neighborhood': { glass: '#c2d6e0', glassDark: '#82a4b4', glassOff: '#b4c8d4' },
+    halloween: { glass: '#bcd0d4', glassDark: '#7f9aa2', lamp: '#f2e2b8', flame: '#ff9a3c', bulbO: '#e8883c', bulbP: '#9a6cd0', catEye: '#8dd44e', spiderEye: '#c0402c', ghostGlow: '#cfeede', batEye: '#8a7a3a' }
 };
 const GLAZE_CODE = {
     glass: 1, glassBlock: 1, glassDark: 2, glassBlockD: 2, glass2: 3, glassOff: 4,
-    curtain: 5, curtainDark: 5, neon: 6, neon2: 6, neonP: 6, neonB: 6
+    curtain: 5, curtainDark: 5, neon: 6, neon2: 6, neonP: 6, neonB: 6,
+    lamp: 1, flame: 6, bulbO: 6, bulbP: 6, catEye: 6, spiderEye: 6, ghostGlow: 6, batEye: 6
 };
 const _glazeTables = {};
 function glazeTable(src) {
@@ -207,9 +209,15 @@ function tagGlazing(geo, src) {
     const table = glazeTable(src);
     const n = geo.getAttribute('position').count;
     const codes = new Float32Array(n);
-    if (col && table) {
+    if (col) {
         for (let i = 0; i < n; i++) {
             const r = col.getX(i), g = col.getY(i), b = col.getZ(i);
+            /* Several packs bake their light sources as over-bright vertex
+               colours — a jack-o'-lantern's carved face is (1.04, 0.34, 0.05).
+               Nothing lit by the sun can be brighter than white, so anything
+               over 1 is a lamp, a flame or a bulb: glow at night. */
+            if (r > 1.001 || g > 1.001 || b > 1.001) { codes[i] = 6; continue; }
+            if (!table) continue;
             let best = 0, bestD = 0.0012;
             for (const t of table) {
                 const d = (t[0] - r) ** 2 + (t[1] - g) ** 2 + (t[2] - b) ** 2;
@@ -303,7 +311,7 @@ const KIT_FRAG_EMISSIVE = /* glsl */`
                       : vec3( 0.62, 0.8, 1.0 );                           // #cfe8ff
             glow = tint * min( on, 1.0 ) * ( 0.42 + 0.4 * kitHash( bay.yx + vKitSeed * 7.0 ) );
         } else if ( kitCode > 5.5 ) {
-            glow = vKitRaw * 1.8;                                         // neon tube
+            glow = min( vKitRaw, vec3( 1.2 ) ) * 1.6;                     // neon tube, flame, bulb
         }
         totalEmissiveRadiance = glow * kitNight * kitTint;
     }
@@ -532,6 +540,13 @@ export function loadGroup(group, opts = {}) {
     return st.promise;
 }
 export function groupReady(group) { return !!_groupState[group]?.done; }
+
+/** Fetch specific kits (festival dressing), whatever group they're in. */
+export async function loadIds(ids) {
+    if (typeof window === 'undefined') return;
+    const loader = await getLoader();
+    await Promise.allSettled(ids.filter(id => KITS[id]).map(id => loadOne(loader, id)));
+}
 export function onGroup(group, fn) {
     const st = _groupState[group] || (_groupState[group] = { done: false, listeners: [] });
     if (st.done) fn();
@@ -584,6 +599,6 @@ export const VEHICLE_CYCLE = VEHICLE_IDS;
 
 export const Assets = {
     KITS, LANDMARKS, windowMaterials, WORLD_PER_M,
-    load, loadGroup, groupReady, onGroup, get, has, kitIdForPlacement, kitIdForInfill, kitScale, treeIdForBiome,
+    load, loadGroup, loadIds, groupReady, onGroup, get, has, kitIdForPlacement, kitIdForInfill, kitScale, treeIdForBiome,
     instantiateVehicle, instantiateWorld, instantiateInterior, VEHICLE_CYCLE
 };

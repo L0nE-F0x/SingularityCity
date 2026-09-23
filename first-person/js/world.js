@@ -888,11 +888,17 @@ export const World = {
     _placeKits(scene) {
         const dummy = new THREE.Object3D();
         const col = new THREE.Color();
-        for (const [kitId, list] of this._kitBuckets) {
+        for (const [kitId, fullList] of this._kitBuckets) {
             const kit = Assets.get(kitId);
-            if (!kit || !list.length) continue;
+            if (!kit || !fullList.length) continue;
+            /* One InstancedMesh per kit PER CITY CHUNK, not per city. A
+               city-wide mesh can't be frustum-culled (its bounds are the whole
+               city), so every tower behind you was drawn — and drawn again in
+               the shadow pass. Chunked, the camera and the sun each skip the
+               chunks they can't see; the extra draw calls are cheap next to
+               the vertices saved. */
+            for (const list of chunked(fullList, (it) => it.p)) {
             const im = new THREE.InstancedMesh(kit.geometry, kit.material, list.length);
-            im.frustumCulled = false;
             im.name = 'kit:' + kitId;
             list.forEach((item, i) => {
                 const p = item.p;
@@ -924,9 +930,11 @@ export const World = {
             });
             im.instanceMatrix.needsUpdate = true;
             if (im.instanceColor) im.instanceColor.needsUpdate = true;
+            im.computeBoundingSphere();
             scene.add(im);
             this.bldMeshes = this.bldMeshes || [];
             this.bldMeshes.push(im);
+            }
         }
         for (const m of Assets.windowMaterials) {
             if (!this.windowMats.includes(m)) this.windowMats.push(m);
@@ -960,20 +968,23 @@ export const World = {
             scene.add(cans);
             return;
         }
-        for (const [id, list] of buckets) {
+        for (const [id, all] of buckets) {
             const kit = Assets.get(id);
-            const im = new THREE.InstancedMesh(kit.geometry, kit.material, list.length);
-            im.frustumCulled = false;
-            im.name = 'kit:' + id;
-            list.forEach((t, i) => {
-                dummy.position.set(t.x, 0, t.z);
-                dummy.scale.setScalar(WORLD_PER_M * t.s);
-                dummy.rotation.y = t.spin;
-                dummy.updateMatrix();
-                im.setMatrixAt(i, dummy.matrix);
-            });
-            im.instanceMatrix.needsUpdate = true;
-            scene.add(im);
+            // chunked for culling, like the building kits (see _placeKits)
+            for (const list of chunked(all, (t) => t)) {
+                const im = new THREE.InstancedMesh(kit.geometry, kit.material, list.length);
+                im.name = 'kit:' + id;
+                list.forEach((t, i) => {
+                    dummy.position.set(t.x, 0, t.z);
+                    dummy.scale.setScalar(WORLD_PER_M * t.s);
+                    dummy.rotation.y = t.spin;
+                    dummy.updateMatrix();
+                    im.setMatrixAt(i, dummy.matrix);
+                });
+                im.instanceMatrix.needsUpdate = true;
+                im.computeBoundingSphere();
+                scene.add(im);
+            }
         }
     },
 
@@ -2742,6 +2753,20 @@ export const World = {
         }
     }
 };
+
+/* Split a placement list into city chunks (~1 km squares) so each chunk can
+   be its own frustum-culled InstancedMesh. `pos(item)` returns {x, z}. */
+const CHUNK = 1000;
+function chunked(list, pos) {
+    const m = new Map();
+    for (const it of list) {
+        const p = pos(it);
+        const k = Math.floor((p.x + 5000) / CHUNK) * 100 + Math.floor((p.z + 5000) / CHUNK);
+        if (!m.has(k)) m.set(k, []);
+        m.get(k).push(it);
+    }
+    return [...m.values()];
+}
 
 function matVC() {
     if (!matVC._m) matVC._m = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 18, specular: 0x222228 });
