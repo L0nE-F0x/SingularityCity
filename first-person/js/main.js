@@ -188,6 +188,10 @@ async function boot() {
         G.camera.updateProjectionMatrix();
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, G.preset.dpr) * dynScale);
         renderer.setSize(w, h);
+        if (G.composer) {
+            G.composer.setPixelRatio(renderer.getPixelRatio());
+            G.composer.setSize(w, h);
+        }
     };
     let sizeQueued = false;
     const queueSize = () => {
@@ -198,6 +202,39 @@ async function boot() {
     window.addEventListener('resize', queueSize);
     window.addEventListener('orientationchange', () => { queueSize(); setTimeout(applySize, 350); });
     if (window.visualViewport) window.visualViewport.addEventListener('resize', queueSize);
+
+    /* Bloom — `high` only (or ?bloom=1). The performance posture of this app
+       is no post-processing, and on medium/low that stands: the city is
+       fill-rate bound on the machines that pick those. On `high` a half-res
+       bloom is what makes a night skyline read as lit — windows, neon, lamp
+       heads and interior light panels bleed a little light the way a camera
+       sees them. Tone mapping and sRGB move into OutputPass, so the HDR values
+       the bloom thresholds on are the real linear ones. */
+    const wantBloom = G.preset.bloom || new URLSearchParams(location.search).get('bloom') === '1';
+    if (wantBloom) {
+        try {
+            const { EffectComposer } = await import('../lib/postprocessing/EffectComposer.js');
+            const { RenderPass } = await import('../lib/postprocessing/RenderPass.js');
+            const { UnrealBloomPass } = await import('../lib/postprocessing/UnrealBloomPass.js');
+            const { OutputPass } = await import('../lib/postprocessing/OutputPass.js');
+            const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, {
+                type: THREE.HalfFloatType,
+                samples: G.touchMode ? 0 : 4
+            });
+            const composer = new EffectComposer(renderer, rt);
+            composer.addPass(new RenderPass(G.scene, G.camera));
+            const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.4, 0.55, 0.92);
+            composer.addPass(bloom);
+            composer.addPass(new OutputPass());
+            composer.setPixelRatio(renderer.getPixelRatio());
+            composer.setSize(innerWidth, innerHeight);
+            G.composer = composer;
+            G.bloomPass = bloom;
+        } catch (e) {
+            console.warn('[bloom] unavailable, rendering without it', e);
+            G.composer = null;
+        }
+    }
 
     // ── wire modules into G (order matters: layout before world) ──
     G.ui = UI;
@@ -325,6 +362,11 @@ async function boot() {
     // ── start screen ──
     const startGame = () => {
         G.settings.music = mChk ? mChk.checked : true;
+        // the attract-mode flyover had the camera; hand it back to the player
+        if (G.attract) {
+            G.attract = false;
+            Player.placeAtSpawn();
+        }
         document.getElementById('startScreen').style.display = 'none';
         G.started = true;
         Player.enabled = true;
@@ -353,6 +395,13 @@ async function boot() {
     if (enterBtn) {
         enterBtn.disabled = false;
         enterBtn.textContent = enterLabel;
+    }
+    /* Attract mode. The city is built and alive by the time ENTER works, so
+       the start screen stops hiding it: the panel goes to glass and the camera
+       flies a slow orbit over the skyline until the player comes in. */
+    if (new URLSearchParams(location.search).get('autostart') !== '1') {
+        G.attract = true;
+        document.getElementById('startScreen')?.classList.add('live');
     }
     document.getElementById('enterBtn').addEventListener('click', () => {
         G.quality = qSel ? qSel.value : G.quality;
@@ -440,6 +489,23 @@ async function boot() {
             climate: Weather.climate
         });
 
+        if (!G.started && G.attract) {
+            // slow orbit over the downtown skyline, behind the start panel
+            const a = G.time * 0.035;
+            const cx = -900, cz = -700;
+            const r = 1350 + Math.sin(G.time * 0.05) * 150;
+            G.camera.position.set(cx + Math.cos(a) * r, 330 + Math.sin(G.time * 0.08) * 60, cz + Math.sin(a) * r);
+            G.camera.lookAt(cx, 140, cz);
+            Weather.update(dt, G.time);
+            World.update(dt, G.time);
+            Citizens.update(dt);
+            Traffic.update(dt, G.time);
+            Signals.update(dt);
+            Birds.update(dt, G.time);
+            Ambience.update(dt, G.time);
+            Seasonal.update(dt);
+            Metro.update(dt);
+        }
         if (G.started && CityStore.getView() !== 'map') {
             if (!G.orbitMode && !G.terminalOpen) Player.update(dt);
             Tour.update(dt);
@@ -497,7 +563,15 @@ async function boot() {
                 G._shadowAt.copy(cp);
             }
         }
-        renderer.render(G.scene, G.camera);
+        if (G.composer) {
+            // stronger after dark and indoors, a whisper at noon
+            const night = G.weatherSys?.night ?? 0;
+            G.bloomPass.strength = G.inside ? 0.35 : 0.12 + night * 0.5;
+            G.bloomPass.threshold = G.inside ? 1.05 : 0.95 - night * 0.2;
+            G.composer.render(dt);
+        } else {
+            renderer.render(G.scene, G.camera);
+        }
 
         // perf tracking + adaptive resolution
         fpsAcc += dt; fpsN++; fpsT += dt;

@@ -29,6 +29,20 @@ button { font-family: inherit; cursor: pointer; }
     position: fixed; inset: 0; z-index: 100;
     background: radial-gradient(ellipse at 50% 30%, #16204a 0%, #0a0e1a 65%);
     display: flex; align-items: center; justify-content: center;
+    transition: background 1.6s ease;
+}
+/* Attract mode: the city is built and flying past behind the panel. */
+#startScreen.live {
+    background: radial-gradient(ellipse at 50% 45%, rgba(10,14,26,.18) 0%, rgba(10,14,26,.55) 55%, rgba(6,9,18,.86) 100%);
+}
+#startScreen.live .start-inner {
+    background: rgba(8, 12, 24, .62);
+    border: 1px solid rgba(34, 211, 238, .22);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .45), inset 0 0 40px rgba(34, 211, 238, .05);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    padding: 28px 30px;
 }
 .start-inner { text-align: center; max-width: 640px; padding: 24px; }
 .start-kicker { font-family: var(--px); font-size: 9px; color: var(--t3); letter-spacing: 3px; margin-bottom: 22px; }

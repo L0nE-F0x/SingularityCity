@@ -81,7 +81,8 @@ export function qualityPreset(q) {
            only cost of more of them is CPU stepping — which is already
            staggered across frames. */
         case 'low':    { return { dpr: 1.0,  particles: 900,  citizens: 380, cars: 8,  far: 2600, shadowMap: 0,    shadowRadius: 0 }; }
-        case 'high':   { return { dpr: 1.75, particles: 2200, citizens: 1100, cars: 22, far: 4200, shadowMap: 4096, shadowRadius: 900 }; }
+        // `bloom`: the one post effect, and only here — see main.js setupBloom
+        case 'high':   { return { dpr: 1.75, particles: 2200, citizens: 1100, cars: 22, far: 4200, shadowMap: 4096, shadowRadius: 900, bloom: true }; }
         default:       { return { dpr: 1.35, particles: 1500, citizens: 700, cars: 14, far: 3400, shadowMap: 2048, shadowRadius: 700 }; }
     }
 }
