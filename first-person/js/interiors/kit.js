@@ -15,6 +15,7 @@
    this file may reach for arc(), fill(), save/restore or measureText.
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
+import { bakedPerson } from '../people.js';
 
 // ── canvas plumbing (local copy of the textures.js house style; textures.js is
 //    owned by another module, so interiors keep their own panel factory) ──────
@@ -433,24 +434,42 @@ export const P = {
 
     /** Named staffer. Blocky on purpose — these are set dressing you can read
      *  from across the room, not citizens; the nameplate carries the identity. */
+    /* A person, from the same body plan as the street crowd (people.js), at
+       adult height: ~58 local units to the top of the head against a 51-unit
+       eye line. The old box figure was 40 — 1.33 m — and read as a child
+       beside real furniture. `def.pose: 'sit'` seats them (on a chair at the
+       spot); rooms that only speak box/lit get the old box figure. */
     npc(c, x, z, def = {}, facing = 1) {
         const col = def.color != null ? def.color : 0x64748b;
-        const skin = def.skin != null ? def.skin : 0xd9b38c;
-        c.box(15, 13, 9, x, 6.5, z, 0x1f2937);          // legs
-        c.box(19, 17, 12, x, 21, z, col);               // torso
-        for (const s of [-1, 1]) c.box(4, 15, 6, x + s * 11.5, 21, z, col);
-        c.box(11, 10, 10, x, 34, z, skin);              // head
-        c.box(12, 3, 11, x, 38.5, z, def.hair != null ? def.hair : 0x2b2118);
-        c.lit(2.5, 2, 1, x - 3, 35, z + facing * 5.4, 0x0b0f16);
-        c.lit(2.5, 2, 1, x + 3, 35, z + facing * 5.4, 0x0b0f16);
-        // lanyard/collar glow keeps staff legible in the dim rooms (bar, sewer)
-        c.lit(17, 2.5, 3, x, 28, z, col);
+        const sit = def.pose === 'sit';
+        if (c.mesh) {
+            const g = bakedPerson({
+                clothing: col, skin: def.skin, hair: def.hair, pose: sit ? 'sit' : 'stand',
+                key: def.key || def.name || `${x | 0}:${z | 0}`
+            });
+            if (facing < 0) g.rotateY(Math.PI);
+            g.translate(x, 0, z);
+            c.mesh(g);
+            // lanyard/collar glow keeps staff legible in the dim rooms (bar, sewer)
+            c.lit(8, 1.4, 1.2, x, sit ? 33 : 40.5, z + facing * 5.2, col);
+        } else {
+            const skin = def.skin != null ? def.skin : 0xd9b38c;
+            c.box(15, 13, 9, x, 6.5, z, 0x1f2937);          // legs
+            c.box(19, 17, 12, x, 21, z, col);               // torso
+            for (const s of [-1, 1]) c.box(4, 15, 6, x + s * 11.5, 21, z, col);
+            c.box(11, 10, 10, x, 34, z, skin);              // head
+            c.box(12, 3, 11, x, 38.5, z, def.hair != null ? def.hair : 0x2b2118);
+            c.lit(17, 2.5, 3, x, 28, z, col);
+        }
         if (c.plate && def.name) {
             /* `plateY` staggers the label height. A room with a dozen occupants
                in one sightline had every plate at the same y, so they overlapped
-               into an unreadable band — the caller alternates a few rows. */
+               into an unreadable band — the caller alternates a few rows. The
+               +22 keeps the rows authored for the old 40-unit figure above the
+               new heads. */
+            const py = (def.plateY != null ? def.plateY : 40) + (c.mesh ? (sit ? 14 : 22) : 0);
             c.plate(nameTex(def.name, def.role, hex(col)), 22, 6.5,
-                x, def.plateY != null ? def.plateY : 40, z + facing * 8,
+                x, py, z + facing * 8,
                 facing > 0 ? 0 : Math.PI);
         }
     },

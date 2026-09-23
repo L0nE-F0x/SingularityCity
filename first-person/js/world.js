@@ -21,6 +21,7 @@ import * as TEX from './textures.js';
 import { City, CARRIAGE, KERB_H } from './city.js';
 import { Ships } from './ships.js';
 import { Assets, kitScale, WORLD_PER_M } from './assets.js';
+import { Streetscape } from './streetscape.js';
 
 // How far up the sun sits from the shadow frustum centre. Short enough to keep
 // depth precision usable, tall enough to clear the tallest tower.
@@ -324,6 +325,7 @@ export const World = {
         this._buildStreetGlass(scene);
         this._buildSigns(scene);
         this._buildProps(scene);
+        Streetscape.build(scene, { lampSpots: this.lampSpots, treeSpots: this.treeSpots, boxLots: this._boxLots });
         this._buildWater(scene);
         this._buildBillboard(scene);
         this._buildHills(scene);
@@ -448,7 +450,8 @@ export const World = {
         const pavTex = TEX.pavement();
         const pavGeos = [];
         for (const d of City.districts) {
-            if (d.biome === 'forest' || d.biome === 'desert' || d.biome === 'park') continue;
+            // The Underground is a wasteland: bare packed earth, not civic paving.
+            if (d.biome === 'forest' || d.biome === 'desert' || d.biome === 'park' || d.biome === 'wasteland') continue;
             for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
                 const g = new THREE.PlaneGeometry(352, 352);
                 g.rotateX(-Math.PI / 2);
@@ -1009,6 +1012,7 @@ export const World = {
             if (kitId && Assets.has(kitId)) this._collectKit(kitId, l, false);
             else lots.push(l);
         }
+        this._boxLots = lots;       // flat procedural roofs — streetscape puts billboards on some
         if (!lots.length) return;
         const tiers = this._facadeTiers();
         const buckets = [];
@@ -1948,6 +1952,7 @@ export const World = {
             }
         }
         this._placeKitTrees(scene, dummy, treeSpots);
+        this.treeSpots = treeSpots;
 
         /* Street lamps down BOTH pavements of every avenue and street.
            They used to be 34 units — 3.4 m — tall, with a single unlit sphere on
@@ -1959,45 +1964,74 @@ export const World = {
            under it — are added below for two extra draw calls and no lights. */
         const LAMP_H = 88;
         const lampSpots = [];
+        /* The lamps now stand at the KERB with their arm over the road — the
+           threejsassets LED street light — rather than as a bare pole in the
+           middle of the pavement. Each spot keeps the pole (x, z) for
+           collision and furniture clearance, and the lamp HEAD (hx, hz), where
+           the halo, the ground pool and the real spot lights hang. */
+        const LED = Assets.has('st_led_lamp') ? Assets.get('st_led_lamp') : null;
+        const LAMP_S = LED ? (LAMP_H / LED.size.y) : 1;         // world units per file metre
+        const ARM = LED ? 1.45 * LAMP_S : 0;                     // pole → lens
+        const KERB_OFF = CARRIAGE.main / 2 + 5;
         // A run down one road passes straight through every crossing road, and
         // the pavement is cut away there — so a spot at a junction put the lamp
         // (and its ground light pool) in the middle of the other carriageway.
-        const addLamp = (x, z, alongVertical) => {
+        const addLamp = (x, z, alongVertical, dx, dz) => {
             if (!City.clearOfCrossRoads(x, z, alongVertical)) return;
-            lampSpots.push({ x, z });
+            // local +x (the arm) turned to point along (dx, dz)
+            const ry = Math.atan2(-dz, dx);
+            lampSpots.push({ x, z, hx: x + dx * ARM, hz: z + dz * ARM, ry });
         };
+        const off = LED ? KERB_OFF : 79;
         for (const ax of City.avenueXs) {
             for (let z = -CITY_D / 2 + 80; z < CITY_D / 2; z += 230) {
-                addLamp(ax + 79, z, true);
-                addLamp(ax - 79, z + 115, true);
+                addLamp(ax + off, z, true, -1, 0);
+                addLamp(ax - off, z + 115, true, 1, 0);
             }
         }
         for (const sz of City.streetZs) {
             for (let x = -CITY_W / 2 + 80; x < CITY_W / 2; x += 230) {
-                addLamp(x, sz + 79, false);
-                addLamp(x + 115, sz - 79, false);
+                addLamp(x, sz + off, false, 0, -1);
+                addLamp(x + 115, sz - off, false, 0, 1);
             }
         }
-        const poleGeo = mergeGeometries([
-            new THREE.CylinderGeometry(1.5, 2.6, LAMP_H, 6).translate(0, LAMP_H / 2, 0),
-            new THREE.CylinderGeometry(4.5, 3, 3, 8).translate(0, LAMP_H + 1.5, 0)   // luminaire hood
-        ], false);
-        const headGeo = new THREE.SphereGeometry(3.4, 8, 6);
-        headGeo.translate(0, LAMP_H - 1.2, 0);
-        const poles = new THREE.InstancedMesh(poleGeo,
-            new THREE.MeshStandardMaterial({ color: 0x2f353f, metalness: 0.4, roughness: 0.6, envMapIntensity: ENV_I }),
-            lampSpots.length);
+        let poles;
+        if (LED) {
+            poles = new THREE.InstancedMesh(LED.geometry, LED.material, lampSpots.length);
+            poles.name = 'kit:st_led_lamp';
+        } else {
+            const poleGeo = mergeGeometries([
+                new THREE.CylinderGeometry(1.5, 2.6, LAMP_H, 6).translate(0, LAMP_H / 2, 0),
+                new THREE.CylinderGeometry(4.5, 3, 3, 8).translate(0, LAMP_H + 1.5, 0)   // luminaire hood
+            ], false);
+            poles = new THREE.InstancedMesh(poleGeo,
+                new THREE.MeshStandardMaterial({ color: 0x2f353f, metalness: 0.4, roughness: 0.6, envMapIntensity: ENV_I }),
+                lampSpots.length);
+        }
+        // The lens: a small emissive slab under the lamp head, lit at night.
+        const headGeo = LED ? new THREE.BoxGeometry(9, 1.2, 4.5) : new THREE.SphereGeometry(3.4, 8, 6);
+        headGeo.translate(0, LED ? LAMP_H - 5.5 : LAMP_H - 1.2, 0);
         this.lampHeadMat = new THREE.MeshBasicMaterial({ color: 0x2a2a2a, toneMapped: false });
         const heads = new THREE.InstancedMesh(headGeo, this.lampHeadMat, lampSpots.length);
         lampSpots.forEach((l, i) => {
             // Stand on the pavement surface, not sunk KERB_H into it.
             dummy.position.set(l.x, KERB_H, l.z);
-            dummy.scale.setScalar(1); dummy.rotation.y = 0; dummy.updateMatrix();
+            dummy.rotation.set(0, LED ? l.ry : 0, 0);
+            dummy.scale.setScalar(LED ? LAMP_S : 1);
+            dummy.updateMatrix();
             poles.setMatrixAt(i, dummy.matrix);
+            dummy.position.set(l.hx, KERB_H, l.hz);
+            dummy.scale.setScalar(1);
+            dummy.updateMatrix();
             heads.setMatrixAt(i, dummy.matrix);
+            if (LED) G.colliders.push({ x0: l.x - 2.5, z0: l.z - 2.5, x1: l.x + 2.5, z1: l.z + 2.5, id: 'lamp' });
         });
         scene.add(poles, heads);
-        this._buildLampLight(scene, lampSpots, LAMP_H);
+        this.lampSpots = lampSpots;
+        // halo, pool and the real lights all hang from the head, not the pole
+        const heads2 = lampSpots.map(l => ({ x: l.hx, z: l.hz }));
+        this._buildLampLight(scene, heads2, LED ? LAMP_H - 4 : LAMP_H);
+        this._buildLampLights(scene, heads2, LAMP_H);
 
         // Benches (park districts + public square)
         const benchSpots = [];
@@ -2011,15 +2045,20 @@ export const World = {
                 benchSpots.push({ x: bx, z: bz, r: rng() * Math.PI });
             }
         }
-        const benchGeo = new THREE.BoxGeometry(16, 4, 6);
-        benchGeo.translate(0, 4, 0);
-        const benches = new THREE.InstancedMesh(benchGeo, new THREE.MeshLambertMaterial({ color: 0x6a4e30 }), benchSpots.length);
-        benchSpots.forEach((bp, i) => {
-            dummy.position.set(bp.x, 0, bp.z);
-            dummy.rotation.y = bp.r; dummy.scale.setScalar(1); dummy.updateMatrix();
-            benches.setMatrixAt(i, dummy.matrix);
-        });
-        scene.add(benches);
+        // Streetscape lays real kit benches in the parks; the brown boxes are
+        // only the fallback when that kit didn't load. (The spots are still
+        // drawn from rng either way so everything after keeps its layout.)
+        if (!Assets.has('st_bench')) {
+            const benchGeo = new THREE.BoxGeometry(16, 4, 6);
+            benchGeo.translate(0, 4, 0);
+            const benches = new THREE.InstancedMesh(benchGeo, new THREE.MeshLambertMaterial({ color: 0x6a4e30 }), benchSpots.length);
+            benchSpots.forEach((bp, i) => {
+                dummy.position.set(bp.x, 0, bp.z);
+                dummy.rotation.y = bp.r; dummy.scale.setScalar(1); dummy.updateMatrix();
+                benches.setMatrixAt(i, dummy.matrix);
+            });
+            scene.add(benches);
+        }
 
         // ── City-wide power lines (a Living City feature from the 2D app):
         // wooden utility poles with two crossarms + insulators down the avenue
@@ -2324,6 +2363,93 @@ export const World = {
         scene.add(pools);
     },
 
+    /* Real light from the street lamps, for the handful the player is
+       actually standing among. The halo and ground pool above are sprites:
+       they sell a lamp seen from a distance, but they light nothing — a façade,
+       a passer-by or the kerb under a lamp stayed exactly as dark as one a
+       block away, which is why night at street level was a black void with
+       yellow dots in it.
+
+       A small fixed pool of PointLights is re-seated on the nearest lamps a
+       few times a second. The pool never changes size (changing the number of
+       lights recompiles every lit material in the city), lights that keep
+       their lamp stay put, and a light moved to a new lamp fades in, so the
+       hand-over at the edge of the pool doesn't pop. No shadows: the cost is
+       one extra light term per fragment per light, and none on `low`. */
+    _buildLampLights(scene, spots, lampH) {
+        const n = G.quality === 'high' ? 8 : G.quality === 'low' ? 0 : 5;
+        this.lampSpots = spots;
+        this.lampLights = [];
+        this._lampT = 0;
+        for (let i = 0; i < n; i++) {
+            /* Spot, not point: a street lamp throws its light DOWN. A point
+               light at 8.8 m lit a whole tower face from pavement to parapet
+               in flat cream, which read as a floodlit wall, not a lamp. */
+            const l = new THREE.SpotLight(0xffd29a, 0, 300, 1.05, 0.65, 2);
+            l.position.set(0, -9000, 0);
+            scene.add(l.target);
+            l.userData.lamp = -1;
+            l.userData.fade = 0;
+            l.castShadow = false;
+            scene.add(l);
+            this.lampLights.push(l);
+        }
+        this._lampH = lampH - 6;
+    },
+
+    _updateLampLights(dt) {
+        const lights = this.lampLights;
+        if (!lights || !lights.length) return;
+        const lit = G.inside || G.ridingMetro ? 0 : (G.weatherSys?.lampLit ?? 0);
+        if (lit <= 0.001) {
+            for (const l of lights) { l.intensity = 0; l.userData.fade = 0; }
+            return;
+        }
+        this._lampT -= dt;
+        if (this._lampT <= 0) {
+            this._lampT = 0.25;
+            const cam = G.camera.position;
+            const spots = this.lampSpots;
+            // nearest N lamps — a partial selection over ~1k spots, 4x a second
+            const best = [];
+            for (let i = 0; i < spots.length; i++) {
+                const dx = spots[i].x - cam.x, dz = spots[i].z - cam.z;
+                const d = dx * dx + dz * dz;
+                if (d > 900 * 900) continue;
+                if (best.length < lights.length) {
+                    best.push({ i, d });
+                    best.sort((a, b) => a.d - b.d);
+                } else if (d < best[best.length - 1].d) {
+                    best[best.length - 1] = { i, d };
+                    best.sort((a, b) => a.d - b.d);
+                }
+            }
+            const want = new Set(best.map(b => b.i));
+            const free = [];
+            for (const l of lights) {
+                if (want.has(l.userData.lamp)) want.delete(l.userData.lamp);
+                else free.push(l);
+            }
+            for (const idx of want) {
+                const l = free.pop();
+                if (!l) break;
+                const sp = spots[idx];
+                l.userData.lamp = idx;
+                l.userData.fade = 0;
+                l.position.set(sp.x, this._lampH, sp.z);
+                l.target.position.set(sp.x, 0, sp.z);
+                l.target.updateMatrixWorld();
+            }
+            for (const l of free) { l.userData.lamp = -1; l.userData.fade = 0; }
+        }
+        for (const l of lights) {
+            if (l.userData.lamp < 0) { l.intensity = 0; continue; }
+            l.userData.fade = Math.min(1, l.userData.fade + dt * 2.5);
+            // ~0.9 on the pavement straight under an 8.8 m lamp (I / d²)
+            l.intensity = 7000 * lit * l.userData.fade;
+        }
+    },
+
     // ── WATER + BEACH ────────────────────────────────────────────────────────
     _buildWater(scene) {
         this.waterTex = TEX.water();
@@ -2581,6 +2707,8 @@ export const World = {
     // ── per-frame ────────────────────────────────────────────────────────────
     update(dt, t) {
         Ships.update(dt, t);
+        this._updateLampLights(dt);
+        Streetscape.update(dt);
         /* Specialty window light follows the same night curve the facade
            emissive maps do, so a mansion lights up on the same schedule as the
            tower across the road rather than on one of its own. */

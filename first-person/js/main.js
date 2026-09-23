@@ -88,6 +88,7 @@ async function boot() {
        triangle count on the cheap box path. */
     const kitsPromise = Assets.load({
         infill: G.quality !== 'low',
+        heavy: G.quality !== 'low',
         vehicles: true,
         harbour: true,
         interiors: true
@@ -394,9 +395,16 @@ async function boot() {
     const wx = params.get('wx');
     if (wx) { Weather.set(wx); Weather._timer = 1e9; Weather.intensity = 1; }
 
-    // ?inside=<buildingId> — boot straight into that building's lobby
+    /* Interior furniture streams in behind the city: nobody needs an office
+       chair to see the skyline, and ~1.5 MB of sofas shouldn't hold up ENTER.
+       Rooms entered before it lands use their box furniture and rebuild when
+       it arrives. A test boot straight into a room waits for it instead. */
     const insideId = params.get('inside');
-    if (insideId && G.bldById[insideId]) Interior.enter(G.bldById[insideId]);
+    const furniture = Assets.loadGroup('interior');
+    if (insideId && G.bldById[insideId]) {
+        await Promise.race([furniture, new Promise(r => setTimeout(r, 8000))]);
+        Interior.enter(G.bldById[insideId]);
+    }
 
     // ?debug=1 — report draw calls / triangles after the scene warms up
     if (params.get('debug') === '1') {

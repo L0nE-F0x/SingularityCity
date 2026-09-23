@@ -49,6 +49,25 @@ for (const id of Object.values(LANDMARKS)) {
     assert(!!KITS[id], 'landmark kit registered: ' + id);
 }
 
+// Every registered kit has a compressed copy on disk (tools/fp_kits.mjs), so
+// production never asks for a file that only exists in someone's pack dump.
+{
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const { kitAssetPath } = await import('../js/kit_registry.js');
+    const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../assets');
+    const missing = Object.keys(KITS).filter(id => !fs.existsSync(path.join(root, kitAssetPath(id))));
+    assert(missing.length === 0, `every kit shipped (${Object.keys(KITS).length})` + (missing.length ? ' — missing: ' + missing.join(', ') : ''));
+}
+// Furniture layouts only ask for kits that exist.
+{
+    const { NEEDS } = await import('../js/interiors/furnish.js');
+    for (const [cat, ids] of Object.entries(NEEDS)) {
+        const bad = ids.filter(id => !KITS[id]);
+        assert(bad.length === 0, `furnish layout '${cat}' kits registered` + (bad.length ? ': ' + bad.join(', ') : ''));
+    }
+}
+
 const out = lines.join('\n');
 console.log(out);
 console.log(failed ? `FAILED ${failed}` : `ALL ${lines.length} OK`);

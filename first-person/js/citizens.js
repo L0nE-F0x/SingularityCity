@@ -9,6 +9,7 @@ import { G, EYE_H } from './state.js';
 import { LABS, SEED, ROSTER, FOUNDERS, WORKERS, STAGES, ACTS, getStage, getAct, getFounderAct, LAB_HQ, scheduleHooks } from './data.js';
 import { City, KERB_H } from './city.js';
 import { speedMod, venueBias, traitLabel } from './personality.js';
+import { streetGeometry, SKIN, HAIR } from './people.js';
 
 /* Goal-driven archetypes (ported from the 2D app): ~20% of citizens have a
    lifestyle that pulls them to a favourite venue during their free time — a
@@ -33,56 +34,20 @@ const ARCHETYPES = [
      aStage per-instance: 0 adult · 1 baby · 2 kid · 3 rumored · 4 retired
               — babies get oversized heads + pacifier, kids a backpack,
                 rumored a translucent purple aura (not size-only). */
-const SKIN = [0xe8b98e, 0xd79a6a, 0xb87d52, 0x8d5a3b, 0xf0c9a4];
-const HAIR = [0x2a2118, 0x4a3524, 0x6b4a2f, 0x1a1a1e, 0x8a6a3a];
 export const STAGE_CODE = { adult: 0, baby: 1, kid: 2, rumored: 3, retired: 4 };
 
+/* A person, ~19 units tall (1.9 m to the hair, 1.75 m to the eyes). The body
+   plan lives in people.js, shared with the figures indoors; the attributes it
+   carries (aLimb / aTint / aPart) are what the walk shader below reads:
+
+     aLimb  1 = left leg · 2 = right leg · 3 = left arm · 4 = right arm
+     aTint  0 = trousers/shoes · 1 = clothing · 2 = skin · 3 = hair
+     aPart  0 = body · 1 = head · 2 = hair · 3 = prop (pacifier / backpack / aura)
+     aStage per-instance: 0 adult · 1 baby · 2 kid · 3 rumored · 4 retired
+              — babies get oversized heads + pacifier, kids a backpack,
+                rumored a translucent purple aura (not size-only). */
 function personGeometry() {
-    const parts = [];
-    const limbs = [];
-    const tints = [];
-    const partsId = [];
-    const box = (w, h, d, x, y, z, hex, limb, tint, part = 0) => {
-        const g = new THREE.BoxGeometry(w, h, d);
-        g.translate(x, y, z);
-        const n = g.attributes.position.count;
-        const col = new THREE.Color(hex);
-        const c = new Float32Array(n * 3);
-        for (let i = 0; i < n; i++) { c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b; }
-        g.setAttribute('color', new THREE.BufferAttribute(c, 3));
-        for (let i = 0; i < n; i++) { limbs.push(limb); tints.push(tint); partsId.push(part); }
-        parts.push(g);
-    };
-    // legs (slightly tapered stance) + shoes
-    box(2.5, 7.0, 2.4, -1.75, 3.5, 0, 0x2f3644, 1, 0);   // left leg
-    box(2.5, 7.0, 2.4, 1.75, 3.5, 0, 0x2f3644, 2, 0);    // right leg
-    box(2.8, 1.15, 3.8, -1.75, 0.55, 0.55, 0x12141a, 1, 0); // left shoe
-    box(2.8, 1.15, 3.8, 1.75, 0.55, 0.55, 0x12141a, 2, 0);  // right shoe
-    // hips / belt break so torso doesn't read as one slab
-    box(5.8, 1.4, 3.2, 0, 7.5, 0, 0x1e2430, 0, 0);
-    // torso + shoulders (wider top — closer to 2D "person" proportions)
-    box(6.2, 5.8, 3.3, 0, 10.6, 0, 0xffffff, 0, 1);      // torso — lab colour
-    box(7.2, 2.2, 3.5, 0, 13.6, 0, 0xffffff, 0, 1);      // shoulders / jacket
-    // collar / neck
-    box(2.4, 1.3, 2.2, 0, 14.85, 0.2, 0xffffff, 0, 2, 1); // neck skin
-    box(1.7, 6.2, 1.9, -4.15, 11.0, 0, 0xffffff, 3, 1);   // left arm
-    box(1.7, 6.2, 1.9, 4.15, 11.0, 0, 0xffffff, 4, 1);    // right arm
-    box(1.6, 1.5, 1.7, -4.15, 7.7, 0.3, 0xffffff, 3, 2, 1); // left hand
-    box(1.6, 1.5, 1.7, 4.15, 7.7, 0.3, 0xffffff, 4, 2, 1);  // right hand
-    // head (taller than cube) + hair volume
-    box(4.0, 4.6, 3.9, 0, 17.0, 0, 0xffffff, 0, 2, 1);   // head — skin
-    box(4.4, 1.6, 4.2, 0, 19.3, -0.15, 0xffffff, 0, 3, 2); // hair top
-    box(4.5, 2.4, 1.5, 0, 18.2, -1.5, 0xffffff, 0, 3, 2);  // hair back
-    // stage props: aLimb 10=pacifier, 11=backpack, 12=aura
-    box(1.4, 1.0, 1.4, 0, 15.6, 2.3, 0xff6bb5, 10, 0, 1);  // pacifier (baby)
-    box(3.6, 4.2, 2.0, 0, 11.0, -2.8, 0x2563eb, 11, 0, 0); // backpack (kid)
-    box(7.2, 7.2, 7.2, 0, 12.0, 0, 0xa78bfa, 12, 0, 0);    // rumored aura shell
-    const geo = mergeGeometries(parts, false);
-    geo.setAttribute('aLimb', new THREE.BufferAttribute(new Float32Array(limbs), 1));
-    geo.setAttribute('aTint', new THREE.BufferAttribute(new Float32Array(tints), 1));
-    // aPart packed: 0 body · 1 head · 2 hair (props use aLimb ≥ 10)
-    geo.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(partsId), 1));
-    return geo;
+    return streetGeometry();
 }
 
 /* Swings the limbs in the vertex shader. `transformed` is in model space here

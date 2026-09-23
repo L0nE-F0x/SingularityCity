@@ -133,9 +133,9 @@ function cloudTexture() {
 const _cDayTop = new THREE.Color(0x2f6fc4);
 const _cDayBot = new THREE.Color(0xcfe8f7);
 const _cDayMid = new THREE.Color(0x7eb6e8);
-const _cNightTop = new THREE.Color(0x050812);
-const _cNightBot = new THREE.Color(0x0c1428);
-const _cNightMid = new THREE.Color(0x0a1838);
+const _cNightTop = new THREE.Color(0x02040c);
+const _cNightBot = new THREE.Color(0x0a1224);
+const _cNightMid = new THREE.Color(0x050a1c);
 const _cDuskTop = new THREE.Color(0x2a2860);
 const _cDuskBot = new THREE.Color(0xe8825a);
 const _cDuskMid = new THREE.Color(0xc45a78);
@@ -143,7 +143,7 @@ const _cStorm = new THREE.Color(0x1a2230);
 const _cTmp = new THREE.Color();
 const _cTmp2 = new THREE.Color();
 const _ambDay = new THREE.Color(0x8a97ac);
-const _ambNight = new THREE.Color(0x3a2a55);
+const _ambNight = new THREE.Color(0x4a5a8a);   // moonlit blue, not a purple murk
 
 export const Weather = {
     state: 'clear',
@@ -169,7 +169,8 @@ export const Weather = {
             bottom: { value: new THREE.Color(0xcfe8f7) },
             sunDir: { value: new THREE.Vector3(0.4, 0.7, 0.2).normalize() },
             sunGlow: { value: 0.55 },
-            haze: { value: 0.35 }
+            haze: { value: 0.35 },
+            nightAmt: { value: 0 }
         };
         const skyMat = new THREE.ShaderMaterial({
             uniforms: this.skyU,
@@ -182,7 +183,7 @@ export const Weather = {
                 }`,
             fragmentShader: /* glsl */`
                 uniform vec3 top, mid, bottom, sunDir;
-                uniform float sunGlow, haze;
+                uniform float sunGlow, haze, nightAmt;
                 varying vec3 vW;
                 void main(){
                     vec3 n = normalize(vW);
@@ -194,12 +195,15 @@ export const Weather = {
                     col = mix(col, top, tHigh);
                     // soft horizon brightening (atmosphere thickness)
                     float hor = exp(-abs(n.y) * 6.5) * haze;
-                    col += vec3(0.12, 0.10, 0.06) * hor;
+                    col += vec3(0.12, 0.10, 0.06) * hor * (1.0 - nightAmt);
+                    // after dark the horizon glow is the city's own light
+                    // pollution: a thin sodium band, not a daytime haze
+                    col += vec3(0.030, 0.018, 0.014) * exp(-max(n.y, 0.0) * 9.0) * nightAmt;
                     // sun-side warm glow (cheap mie stand-in)
-                    float sunAmt = pow(max(0.0, dot(n, normalize(sunDir))), 8.0) * sunGlow;
+                    float sunAmt = pow(max(0.0, dot(n, normalize(sunDir))), 8.0) * sunGlow * (1.0 - nightAmt);
                     col += vec3(1.0, 0.72, 0.38) * sunAmt * 0.55;
                     // broader coronal wash around sun
-                    float corona = pow(max(0.0, dot(n, normalize(sunDir))), 2.2) * sunGlow * 0.22;
+                    float corona = pow(max(0.0, dot(n, normalize(sunDir))), 2.2) * sunGlow * 0.22 * (1.0 - nightAmt);
                     col += vec3(1.0, 0.85, 0.6) * corona;
                     // Ordered-ish dither. A smooth low-contrast gradient across
                     // ~1000px of 8-bit output bands visibly, especially in blue;
@@ -207,6 +211,16 @@ export const Weather = {
                     float d = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
                     col += (d - 0.5) / 255.0;
                     gl_FragColor = vec4(col, 1.0);
+                    /* The uniforms are linear THREE.Colors, and fog is tone
+                       mapped and encoded to sRGB like every lit surface. The sky
+                       skipped both, so it drew darker and more saturated than
+                       the fog it is meant to meet — a visible pale band where
+                       the fogged ground ended and the sky began, and a navy
+                       noon. Same pipeline as the fog now, so the horizon is
+                       seamless. (PMREM renders to a linear target, where both
+                       chunks are no-ops, so the IBL is unchanged.) */
+                    #include <tonemapping_fragment>
+                    #include <colorspace_fragment>
                 }`,
             side: THREE.BackSide, depthWrite: false, fog: false
         });
@@ -526,6 +540,7 @@ export const Weather = {
         // sun direction into sky shader (world-ish, relative to dome center)
         this._sunDir.set(az * 0.75, Math.max(0.02, sunEl), -0.45).normalize();
         this.skyU.sunDir.value.copy(this._sunDir);
+        this.skyU.nightAmt.value = Math.min(1, night * night * 1.2);
         this.skyU.sunGlow.value = (0.15 + day * 0.55 + dusk * 0.85) * dim * (1 - (this.state === 'fog' ? 0.5 : 0) * this.intensity);
         this.skyU.haze.value = 0.22 + day * 0.2 + dusk * 0.35
             + (this.state === 'fog' ? 0.45 * this.intensity : 0)
@@ -610,13 +625,22 @@ export const Weather = {
            rolls the top end off, so the same numbers left every lobby and bar
            reading as a blackout — the rooms are lit almost entirely by ambient
            and hemi, with no key light to survive the curve. */
+        // Indoors wants a lower exposure than a sunlit street; ease between them
+        // so walking through a door doesn't pop.
+        if (G.renderer) {
+            const want = G.inside ? 1.12 : 1.35;
+            G.renderer.toneMappingExposure += (want - G.renderer.toneMappingExposure) * Math.min(1, dt * 4);
+        }
         if (G.inside) {
             /* Trimmed from 2.0/1.35: those were set when interiors were 3x
                scale and mostly dark surfaces. At human scale the pale office
                palette bounces far more light and the rooms blew out white. */
-            if (W.hemi) W.hemi.intensity = 1.35;
-            if (W.ambient) W.ambient.intensity = 0.85;
-            if (W.sun) W.sun.intensity = 0.45;
+            /* Trimmed again for the kit-furnished rooms: pale walls, a pale
+               floor and a white ceiling under ACES at 1.35 exposure read as
+               an overexposed photo. The furniture needs shade to have form. */
+            if (W.hemi) W.hemi.intensity = 1.0;
+            if (W.ambient) W.ambient.intensity = 0.55;
+            if (W.sun) W.sun.intensity = 0.4;
             if (W.ambient) W.ambient.color.setHex(0x9aa6bc);
         } else if (G.ridingMetro) {
             if (W.hemi) W.hemi.intensity = 0.45;
@@ -814,6 +838,7 @@ export const Weather = {
         // indoors so neither costs a blended draw when it can't be seen.
         {
             const lit = Math.max(0, night * night * 1.25 - 0.05) * (surfaceAtmo ? 1 : 0) * blackout;
+            this.lampLit = Math.min(1, lit);
             if (W.lampGlowMat) {
                 W.lampGlowMat.opacity = Math.min(0.5, lit * 0.46);
                 W.lampGlowMat.visible = lit > 0.01;
@@ -839,10 +864,15 @@ export const Weather = {
         if (surfaceAtmo) {
             if (W.ambient) {
                 W.ambient.color.copy(_ambDay).lerp(_ambNight, Math.min(1, night * 1.1));
-                W.ambient.intensity = (0.45 + 0.35 * day + night * 0.28) * fill + flashBoost * 0.35;
+                W.ambient.intensity = (0.45 + 0.35 * day + night * 0.42) * fill + flashBoost * 0.35;
             }
             if (W.hemi) {
-                W.hemi.intensity = (0.5 + 0.9 * day * dim + night * 0.22) * fill + flashBoost * 0.9;
+                W.hemi.intensity = (0.5 + 0.9 * day * dim + night * 0.4) * fill + flashBoost * 0.9;
+                /* The hemisphere took its sky colour from the sky dome's
+                   zenith, which at night is all but black — so the fill that
+                   carries every unlit surface went out with the sun. Moonlight
+                   is a cool, low blue; streets should read, not vanish. */
+                if (night > 0) W.hemi.color.lerp(_cTmp2.set(0x7088c0), Math.min(1, night * 0.85));
             }
         }
     }

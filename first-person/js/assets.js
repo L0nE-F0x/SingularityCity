@@ -12,98 +12,13 @@
    vertex-color mask on emissiveIntensity; no bloom/SSAO/transmission.
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
+import { KITS, kitAssetPath, kitPack } from './kit_registry.js';
 
-const ROOT = new URL('../assets/models/', import.meta.url);
+export { KITS };
+
+const ROOT = new URL('../assets/', import.meta.url);
 
 export const WORLD_PER_M = 10;
-
-const M = '_packs/metropolis/glb/individual/';
-const S = '_packs/suburban-neighborhood/glb/individual/';
-const V = '_packs/vice-beach/glb/individual/';
-const C = '_packs/city/glb/individual/';
-const L = '_packs/living-room/glb/individual/';
-const B = 'interiors/bunker-facility/glb/individual/';
-const CV = '_packs/cozy-village/glb/individual/';
-const RW = '_packs/railway/glb/individual/';
-const FM = '_packs/farm/glb/individual/';
-const DS = '_packs/desert-kingdom/glb/individual/';
-
-/** Registry of kits we actually fetch. Keep this list small — draw-call budget
-    is one InstancedMesh per kit, reused for landmarks AND infill. */
-export const KITS = {
-    glass_supertall:           { path: M + 'glass_supertall_01.glb',           kind: 'tower' },
-    twisting_supertall:        { path: M + 'twisting_supertall_01.glb',        kind: 'tower' },
-    twin_tower:                { path: M + 'twin_tower_01.glb',                kind: 'tower' },
-    hotel_tower:               { path: M + 'hotel_tower_01.glb',               kind: 'tower' },
-    crown_tower:               { path: M + 'crown_tower_01.glb',               kind: 'tower' },
-    convention_megastructure:  { path: M + 'convention_megastructure_01.glb',  kind: 'tower' },
-    corporate_hq:              { path: M + 'corporate_hq_01.glb',              kind: 'tower' },
-    midrise_office:            { path: M + 'midrise_office_01.glb',            kind: 'tower' },
-    mixeduse_tower:            { path: M + 'mixeduse_tower_01.glb',            kind: 'tower' },
-    condo_midrise:             { path: M + 'condo_midrise_01.glb',             kind: 'tower' },
-    boutique_hotel:            { path: M + 'boutique_hotel_01.glb',            kind: 'tower' },
-    mall_block:                { path: M + 'mall_block_01.glb',                kind: 'tower' },
-    residential_highrise:      { path: M + 'residential_highrise_01.glb',      kind: 'tower' },
-    retail_infill:             { path: M + 'retail_infill_01.glb',             kind: 'tower' },
-    metro_headhouse:           { path: M + 'metro_headhouse_01.glb',           kind: 'pad', fit: 'footprint' },
-    downtown_glass:            { path: V + 'downtown_glass_tower.glb',         kind: 'tower' },
-    nightclub:                 { path: V + 'nightclub_facade.glb',             kind: 'tower' },
-    grand_deco_hotel:          { path: V + 'grand_deco_hotel.glb',             kind: 'tower' },
-    waterfront_condo:          { path: V + 'waterfront_condo_tower.glb',       kind: 'tower' },
-    deco_bank:                 { path: V + 'deco_bank_civic.glb',              kind: 'tower' },
-    streamline_diner:          { path: V + 'streamline_diner.glb',             kind: 'tower' },
-    city_diner:                { path: C + 'diner_01.glb',                     kind: 'tower' },
-    dock_warehouse:            { path: V + 'dock_warehouse_unit.glb',          kind: 'pad', fit: 'footprint' },
-    fuel_dock:                 { path: V + 'marina_fuel_dock_office.glb',      kind: 'pad', fit: 'footprint' },
-    modern_house:              { path: S + 'modern_house.glb',                 kind: 'house', fit: 'uniform' },
-    ranch_house:               { path: S + 'ranch_house.glb',                  kind: 'house', fit: 'uniform' },
-    two_story_house:           { path: S + 'two_story_house.glb',              kind: 'house', fit: 'uniform' },
-    townhouse_duplex:          { path: S + 'townhouse_duplex.glb',             kind: 'house', fit: 'uniform' },
-    bungalow_house:            { path: S + 'bungalow_house.glb',               kind: 'house', fit: 'uniform' },
-    split_level_house:         { path: S + 'split_level_house.glb',            kind: 'house', fit: 'uniform' },
-    sedan:                     { path: M + 'sedan_01.glb',                     kind: 'vehicle' },
-    metro_taxi:                { path: M + 'metropolis_taxi_01.glb',           kind: 'vehicle' },
-    rideshare:                 { path: M + 'rideshare_compact_01.glb',         kind: 'vehicle' },
-    suv:                       { path: M + 'suv_blackcar_01.glb',              kind: 'vehicle' },
-    box_truck:                 { path: M + 'box_truck_01.glb',                 kind: 'vehicle' },
-    police:                    { path: V + 'police_cruiser.glb',               kind: 'vehicle' },
-    city_bus:                  { path: C + 'city_bus_01.glb',                  kind: 'vehicle' },
-    delivery_van:              { path: C + 'delivery_van_01.glb',              kind: 'vehicle' },
-    yacht:                     { path: V + 'motor_yacht_vessel.glb',           kind: 'boat' },
-    speedboat:                 { path: V + 'cigarette_speedboat.glb',          kind: 'boat' },
-    floatplane:                { path: V + 'moored_floatplane.glb',            kind: 'boat' },
-    dock_module:               { path: V + 'marina_dock_module.glb',           kind: 'prop' },
-    royal_palm:                { path: V + 'royal_palm.glb',                   kind: 'prop' },
-    coconut_palm:              { path: V + 'coconut_palm.glb',                 kind: 'prop' },
-    seawall:                   { path: V + 'canal_seawall_tile.glb',           kind: 'prop' },
-    lobby_desk:                { path: V + 'lobby_reception_desk.glb',         kind: 'prop' },
-    sofa:                      { path: L + 'sofa_3seat.glb',                   kind: 'prop' },
-    armchair:                  { path: L + 'armchair.glb',                     kind: 'prop' },
-    club_bar:                  { path: V + 'club_bar_counter.glb',             kind: 'prop' },
-    dj_booth:                  { path: V + 'club_dj_booth.glb',                kind: 'prop' },
-    neon_wall:                 { path: V + 'club_neon_wall_panel.glb',         kind: 'prop' },
-    dancefloor:                { path: V + 'lit_dancefloor_module.glb',        kind: 'prop' },
-    console:                   { path: B + 'control_console.glb',              kind: 'prop' },
-    crt:                       { path: B + 'crt_terminal.glb',                 kind: 'prop' },
-    radio_rack:                { path: B + 'radio_rack.glb',                   kind: 'prop' },
-    street_tree_metro:         { path: M + 'metropolis_street_tree_01.glb',    kind: 'tree' },
-    street_tree_col:           { path: M + 'columnar_street_tree_01.glb',      kind: 'tree' },
-    street_tree_city:          { path: C + 'street_tree_01.glb',               kind: 'tree' },
-    park_tree:                 { path: C + 'park_tree_01.glb',                 kind: 'tree' },
-    plaza_ficus:               { path: M + 'plaza_ficus_01.glb',               kind: 'tree' },
-    shade_tree:                { path: S + 'shade_tree.glb',                   kind: 'tree' },
-    flowering_tree:            { path: S + 'flowering_tree.glb',               kind: 'tree' },
-    oak:                       { path: CV + 'tree_oak_01.glb',                 kind: 'tree' },
-    pine:                      { path: CV + 'tree_pine_01.glb',                kind: 'tree' },
-    fruit_tree:                { path: CV + 'tree_fruit_01.glb',               kind: 'tree' },
-    lineside_oak:              { path: RW + 'lineside_oak.glb',                kind: 'tree' },
-    lineside_pine:             { path: RW + 'lineside_pine.glb',               kind: 'tree' },
-    apple_tree:                { path: FM + 'apple_tree.glb',                  kind: 'tree' },
-    date_palm:                 { path: DS + 'date_palm.glb',                   kind: 'tree' },
-    doum_palm:                 { path: DS + 'doum_palm.glb',                   kind: 'tree' },
-    diesel:                    { path: RW + 'diesel_locomotive.glb',           kind: 'vehicle' },
-    container_wagon:           { path: RW + 'container_flat_wagon.glb',        kind: 'vehicle' }
-};
 
 /** Unique meshes for VC Row + major HQs. Sharing a kit across two labs is
     intentional: brand tint is per-instance, and it keeps draw calls down. */
@@ -235,7 +150,166 @@ export function has(id) {
     return !!cache.get(id);
 }
 
-function windowMaterial(src) {
+/* Kit façades — glazing from the packs' own palettes.
+
+   Every threejsassets pack bakes its colours from a named palette
+   (palettes.json, not shipped), and the night variant of that palette says
+   exactly what the artists meant: `glass` becomes a warm lit window, `glassDark`
+   amber, `glass2` a cool fluorescent office, while `glassOff` and the
+   `curtain` wall stay dark. The GLBs only carry the DAY colours, though, so
+   the old shader guessed — it lit "anything bright cyan or warm", which missed
+   every window in a VC Row tower (they went pitch black at night) and, when a
+   first attempt keyed on dark cool colours instead, lit `metalDark`: the
+   frame, which turned whole towers into cream slabs.
+
+   So the palette is reproduced below (day values only), each vertex is
+   matched against it once at load, and the result rides along as `aGlaze`:
+     0 structure · 1 lit warm · 2 lit amber · 3 lit cool · 4 dark glass ·
+     5 curtain wall · 6 neon
+   (`screen` is deliberately left out: its day colour, #4a5560, is within
+   rounding of the mullion charcoal that makes up ~30% of a tower's area, and
+   matching it lit every frame as a white wireframe.)
+   By day every glazed code is smooth and semi-metallic so the towers reflect
+   the sky PMREM. By night codes 1–3 glow in their palette colour, with a
+   per-building hash switching off roughly a quarter of the floor bays so a
+   city of identical kits doesn't light identically, and neon/screens burn. */
+const GLAZE_PALETTES = {
+    metropolis: { glass: '#9fc6d8', glassDark: '#5f8ba3', glass2: '#b8d4e0', glassOff: '#7c98a8', curtain: '#7fb0c8', curtainDark: '#4a7690', neon: '#d84a9a', neon2: '#3ab8c8' },
+    'vice-beach': { glass: '#bcd7e0', glassBlock: '#cfe4e6', glassDark: '#7fa6b2', glassBlockD: '#a2bcc0', glass2: '#dceaf0', glassOff: '#4a6470', curtain: '#587a8e', curtainDark: '#3d5a6c', neon: '#3fe0d8', neonP: '#ff5aa8', neonB: '#7a7aff' },
+    city: { glass: '#bcd7e0', glassDark: '#7fa6b2', glass2: '#dcecf3', glassOff: '#5c7888', curtain: '#587a8e', curtainDark: '#3a5464', neon: '#d84a9a', neon2: '#3ab8c8' },
+    'suburban-neighborhood': { glass: '#c2d6e0', glassDark: '#82a4b4', glassOff: '#b4c8d4' }
+};
+const GLAZE_CODE = {
+    glass: 1, glassBlock: 1, glassDark: 2, glassBlockD: 2, glass2: 3, glassOff: 4,
+    curtain: 5, curtainDark: 5, neon: 6, neon2: 6, neonP: 6, neonB: 6
+};
+const _glazeTables = {};
+function glazeTable(src) {
+    const pack = String(src).split('/')[0];
+    if (!GLAZE_PALETTES[pack]) return null;
+    if (!pack) return null;
+    if (_glazeTables[pack]) return _glazeTables[pack];
+    const c = new THREE.Color();
+    const rows = [];
+    for (const [name, hex] of Object.entries(GLAZE_PALETTES[pack])) {
+        c.set(hex);   // THREE.Color stores linear, which is what GLB COLOR_0 holds
+        rows.push([c.r, c.g, c.b, GLAZE_CODE[name]]);
+    }
+    _glazeTables[pack] = rows;
+    return rows;
+}
+
+/** Tag every vertex with its glazing code (see above). Exact-ish palette
+    matching: a vertex within 0.02 (linear, per channel RMS) of a named colour
+    takes its code; anything else is structure. */
+function tagGlazing(geo, src) {
+    const col = geo.getAttribute('color');
+    const table = glazeTable(src);
+    const n = geo.getAttribute('position').count;
+    const codes = new Float32Array(n);
+    if (col && table) {
+        for (let i = 0; i < n; i++) {
+            const r = col.getX(i), g = col.getY(i), b = col.getZ(i);
+            let best = 0, bestD = 0.0012;
+            for (const t of table) {
+                const d = (t[0] - r) ** 2 + (t[1] - g) ** 2 + (t[2] - b) ** 2;
+                if (d < bestD) { bestD = d; best = t[3]; }
+            }
+            codes[i] = best;
+        }
+    }
+    geo.setAttribute('aGlaze', new THREE.BufferAttribute(codes, 1));
+}
+
+const KIT_VERT_PARS = /* glsl */`
+    attribute float aGlaze;
+    varying float vGlaze;
+    varying vec3 vKitW;
+    varying vec3 vKitN;
+    varying vec3 vKitRaw;
+    varying float vKitSeed;
+`;
+const KIT_VERT_BODY = /* glsl */`
+    {
+        vGlaze = aGlaze;
+        vec4 kw = vec4( transformed, 1.0 );
+        vec3 kn = objectNormal;
+        #ifdef USE_INSTANCING
+            kw = instanceMatrix * kw;
+            kn = mat3( instanceMatrix ) * kn;
+            vKitSeed = fract( sin( dot( instanceMatrix[3].xz, vec2( 12.9898, 78.233 ) ) ) * 43758.5453 );
+        #else
+            vKitSeed = fract( sin( dot( modelMatrix[3].xz, vec2( 12.9898, 78.233 ) ) ) * 43758.5453 );
+        #endif
+        kw = modelMatrix * kw;
+        vKitW = kw.xyz;
+        vKitN = normalize( mat3( modelMatrix ) * kn );
+        #ifdef USE_COLOR
+            vKitRaw = color.rgb;
+        #else
+            vKitRaw = vec3( 1.0 );
+        #endif
+    }
+`;
+const KIT_FRAG_PARS = /* glsl */`
+    varying float vGlaze;
+    varying vec3 vKitW;
+    varying vec3 vKitN;
+    varying vec3 vKitRaw;
+    varying float vKitSeed;
+    float kitHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
+`;
+// After color_fragment: classify the fragment once, reuse it below.
+const KIT_FRAG_CLASSIFY = /* glsl */`
+    float kitCode = floor( vGlaze + 0.5 );
+    #ifdef KIT_HOUSE
+        // The suburban palette designs most house panes as glassOff, which
+        // left a street of homes pitch black after dark. Treat them as
+        // windows that may be lit; the per-bay hash below keeps it to some.
+        if ( kitCode > 3.5 && kitCode < 4.5 ) kitCode = 1.0;
+    #endif
+    float kitLitGlass = step( 0.5, kitCode ) * step( kitCode, 3.5 );
+    float kitGlazed = step( 0.5, kitCode ) * step( kitCode, 5.5 );
+`;
+const KIT_FRAG_ROUGH = /* glsl */`
+    #include <roughnessmap_fragment>
+    roughnessFactor = mix( roughnessFactor, 0.12, kitGlazed );
+`;
+const KIT_FRAG_METAL = /* glsl */`
+    #include <metalnessmap_fragment>
+    metalnessFactor = mix( metalnessFactor, 0.55, kitGlazed );
+`;
+const KIT_FRAG_EMISSIVE = /* glsl */`
+    #include <emissivemap_fragment>
+    {
+        // The emissive uniform is colour x intensity, and Weather's colours are
+        // all ~1.0 in their brightest channel, so its max IS the night ramp
+        // (incl. Wetness's rain boost). Half of its hue is kept so the crisis
+        // flicker in news_reactivity still reddens the skyline.
+        float kitNight = max( emissive.r, max( emissive.g, emissive.b ) );
+        vec3 kitTint = mix( vec3( 1.0 ), emissive / max( kitNight, 1e-4 ), 0.5 );
+        vec3 glow = vec3( 0.0 );
+        if ( kitLitGlass > 0.5 ) {
+            vec2 tng = normalize( vec2( -vKitN.z, vKitN.x ) + vec2( 1e-4 ) );
+            vec2 bay = floor( vec2( dot( vKitW.xz, tng ) / 64.0, vKitW.y / 34.0 ) );
+            float h = kitHash( bay + vKitSeed * 131.0 );
+            #ifdef KIT_HOUSE
+                float on = step( 0.45, h );
+            #else
+                float on = step( 0.24, h ) + ( 1.0 - step( 1.0, bay.y ) );   // lobbies always on
+            #endif
+            vec3 tint = kitCode < 1.5 ? vec3( 1.0, 0.72, 0.38 )          // #ffd98a
+                      : kitCode < 2.5 ? vec3( 0.75, 0.36, 0.07 )          // #e0a24a
+                      : vec3( 0.62, 0.8, 1.0 );                           // #cfe8ff
+            glow = tint * min( on, 1.0 ) * ( 0.42 + 0.4 * kitHash( bay.yx + vKitSeed * 7.0 ) );
+        } else if ( kitCode > 5.5 ) {
+            glow = vKitRaw * 1.8;                                         // neon tube
+        }
+        totalEmissiveRadiance = glow * kitNight * kitTint;
+    }
+`;
+
+function windowMaterial(src, kind) {
     const mat = src && src.isMaterial ? src.clone() : new THREE.MeshStandardMaterial();
     mat.vertexColors = true;
     mat.flatShading = true;
@@ -247,24 +321,19 @@ function windowMaterial(src) {
     mat.transparent = false;
     mat.opacity = 1;
     if ('transmission' in mat) mat.transmission = 0;
+    if (kind === 'house') mat.defines = { ...(mat.defines || {}), KIT_HOUSE: '' };
     mat.onBeforeCompile = (shader) => {
-        shader.fragmentShader = shader.fragmentShader.replace(
-            '#include <emissivemap_fragment>',
-            `#include <emissivemap_fragment>
-             #ifdef USE_COLOR
-             {
-                vec3 vc = vColor;
-                float lum = dot(vc, vec3(0.299, 0.587, 0.114));
-                float cyan = clamp(vc.b - vc.r * 0.55, 0.0, 1.0);
-                float warm = clamp(vc.r * 1.15 - vc.b * 0.60, 0.0, 1.0);
-                float neon = clamp(max(vc.r, vc.b) - vc.g * 0.80, 0.0, 1.0);
-                float win = smoothstep(0.26, 0.58, lum) * max(cyan, max(warm, neon * 0.9));
-                totalEmissiveRadiance *= win;
-             }
-             #endif`
+        shader.vertexShader = KIT_VERT_PARS + shader.vertexShader.replace(
+            '#include <project_vertex>',
+            '#include <project_vertex>\n' + KIT_VERT_BODY
         );
+        shader.fragmentShader = KIT_FRAG_PARS + shader.fragmentShader
+            .replace('#include <color_fragment>', '#include <color_fragment>\n' + KIT_FRAG_CLASSIFY)
+            .replace('#include <roughnessmap_fragment>', KIT_FRAG_ROUGH)
+            .replace('#include <metalnessmap_fragment>', KIT_FRAG_METAL)
+            .replace('#include <emissivemap_fragment>', KIT_FRAG_EMISSIVE);
     };
-    mat.customProgramCacheKey = () => 'sc-kit-night-windows';
+    mat.customProgramCacheKey = () => (kind === 'house' ? 'sc-kit-glaze-v3-house' : 'sc-kit-glaze-v3');
     return mat;
 }
 
@@ -280,6 +349,20 @@ function vehicleMaterial(src) {
     return mat;
 }
 
+/* Furniture: matte, barely metallic, smooth-shaded where the kit has
+   normals. The vehicle material's sheen made every sofa look lacquered. */
+function furnitureMaterial(src) {
+    const mat = src && src.isMaterial ? src.clone() : new THREE.MeshStandardMaterial();
+    mat.vertexColors = true;
+    mat.flatShading = true;
+    mat.metalness = 0.04;
+    mat.roughness = 0.78;
+    mat.envMapIntensity = 0.55;
+    mat.transparent = false;
+    if ('transmission' in mat) mat.transmission = 0;
+    return mat;
+}
+
 function prepare(gltf, def) {
     const root = gltf.scene;
     root.updateMatrixWorld(true);
@@ -290,16 +373,22 @@ function prepare(gltf, def) {
     geo.applyMatrix4(src.matrixWorld);
     geo.computeBoundingBox();
     const bb = geo.boundingBox;
-    const cx = (bb.min.x + bb.max.x) * 0.5;
-    const cz = (bb.min.z + bb.max.z) * 0.5;
+    // A lamp's pole or a blade sign's wall bracket IS the placement point;
+    // recentring on the bounding box would plant the lamp by its arm.
+    const authored = def.origin === 'authored';
+    const cx = authored ? 0 : (bb.min.x + bb.max.x) * 0.5;
+    const cz = authored ? 0 : (bb.min.z + bb.max.z) * 0.5;
     geo.translate(-cx, -bb.min.y, -cz);
     geo.computeBoundingBox();
     geo.computeBoundingSphere();
     const size = new THREE.Vector3();
     geo.boundingBox.getSize(size);
     if (size.x < 1e-4 || size.y < 1e-4 || size.z < 1e-4) return null;
-    const windows = def.kind === 'tower' || def.kind === 'house' || def.kind === 'pad';
-    const material = windows ? windowMaterial(src.material) : vehicleMaterial(src.material);
+    const windows = def.kind === 'tower' || def.kind === 'house' || def.kind === 'pad' || def.kind === 'street';
+    if (windows) tagGlazing(geo, def.src);
+    const material = windows ? windowMaterial(src.material, def.kind)
+        : def.kind === 'interior' ? furnitureMaterial(src.material)
+            : vehicleMaterial(src.material);
     return {
         geometry: geo,
         material,
@@ -326,7 +415,7 @@ async function loadOne(loader, id) {
     if (cache.has(id)) return cache.get(id);
     const def = KITS[id];
     if (!def) return null;
-    const url = new URL(def.path, ROOT).href;
+    const url = new URL(kitAssetPath(id), ROOT).href;
     try {
         const gltf = await loader.loadAsync(url);
         const kit = prepare(gltf, def);
@@ -336,7 +425,7 @@ async function loadOne(loader, id) {
         }
         kit.id = id;
         cache.set(id, kit);
-        if (def.kind === 'tower' || def.kind === 'house' || def.kind === 'pad') {
+        if (def.kind === 'tower' || def.kind === 'house' || def.kind === 'pad' || def.kind === 'street') {
             windowMaterials.push(kit.material);
         }
         return kit;
@@ -348,6 +437,9 @@ async function loadOne(loader, id) {
 }
 
 function idsToLoad(opts) {
+    if (opts._onlyGroups) {
+        return Object.entries(KITS).filter(([, k]) => opts.groups.includes(k.group)).map(([id]) => id);
+    }
     const need = new Set(Object.values(LANDMARKS));
     need.add('metro_headhouse');
     for (const id of HOUSES) need.add(id);
@@ -380,6 +472,18 @@ function idsToLoad(opts) {
         need.add('diesel');
         need.add('container_wagon');
     }
+    if (opts.groups) {
+        for (const [id, k] of Object.entries(KITS)) {
+            if (opts.groups.includes(k.group)) need.add(id);
+        }
+    }
+    if (opts.street !== false) {
+        for (const [id, k] of Object.entries(KITS)) {
+            if (k.group !== 'street') continue;
+            if (k.heavy && opts.heavy === false) continue;
+            need.add(id);
+        }
+    }
     return [...need].filter((id) => KITS[id]);
 }
 
@@ -408,6 +512,30 @@ export async function load(opts = {}) {
         else failed++;
     }
     return { loaded, failed, total: ids.length };
+}
+
+/* Groups fetched after boot (interior furniture). Listeners run once the
+   group is in, so a room that was built without its furniture can rebuild. */
+const _groupState = {};
+export function loadGroup(group, opts = {}) {
+    if (_groupState[group]?.promise) return _groupState[group].promise;
+    const st = _groupState[group] || { done: false, listeners: [] };
+    st.promise = load({ ...opts, street: false, infill: false, vehicles: false, harbour: false,
+        interiors: false, trees: false, groups: [group], _onlyGroups: true })
+        .then((r) => {
+            st.done = true;
+            for (const fn of st.listeners) { try { fn(r); } catch (e) { console.warn(e); } }
+            st.listeners.length = 0;
+            return r;
+        });
+    _groupState[group] = st;
+    return st.promise;
+}
+export function groupReady(group) { return !!_groupState[group]?.done; }
+export function onGroup(group, fn) {
+    const st = _groupState[group] || (_groupState[group] = { done: false, listeners: [] });
+    if (st.done) fn();
+    else st.listeners.push(fn);
 }
 
 /** Ambient-fleet helper. File forward is +Z, pivot at the rear axle.
@@ -456,6 +584,6 @@ export const VEHICLE_CYCLE = VEHICLE_IDS;
 
 export const Assets = {
     KITS, LANDMARKS, windowMaterials, WORLD_PER_M,
-    load, get, has, kitIdForPlacement, kitIdForInfill, kitScale, treeIdForBiome,
+    load, loadGroup, groupReady, onGroup, get, has, kitIdForPlacement, kitIdForInfill, kitScale, treeIdForBiome,
     instantiateVehicle, instantiateWorld, instantiateInterior, VEHICLE_CYCLE
 };

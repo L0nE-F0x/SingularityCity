@@ -1,0 +1,293 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   KIT REGISTRY — every threejsassets GLB First Person ships, as plain data.
+
+   Plain data on purpose: `tools/fp_kits.mjs` imports this file under bare
+   Node (no importmap, no 'three') to know what to compress, and assets.js
+   imports it to know what to load. One list, so the two cannot drift.
+
+   `src` is `<pack>/<file>.glb` inside the (untracked, licence-restricted)
+   pack dumps at first-person/assets/models/_packs/<pack>/glb/individual/.
+   The shipped copy is the Draco-compressed one the tool writes to
+   first-person/assets/kits/<KIT_VERSION>/<pack>/<file>.glb.
+
+   KIT_VERSION is part of the URL because netlify.toml serves
+   /first-person/assets/* as immutable for a year. Re-encoding a kit in place
+   would leave every returning visitor on the old bytes forever; bump the
+   version (and re-run the tool) instead.
+
+   kind: tower · house · pad  → façade material with night glazing
+         vehicle · boat · prop · tree · street · interior → plain kit material
+   ══════════════════════════════════════════════════════════════════════════ */
+
+export const KIT_VERSION = 'k1';
+
+export const KITS = {
+    glass_supertall: { src: 'metropolis/glass_supertall_01.glb', kind: 'tower' },
+    twisting_supertall: { src: 'metropolis/twisting_supertall_01.glb', kind: 'tower' },
+    twin_tower: { src: 'metropolis/twin_tower_01.glb', kind: 'tower' },
+    hotel_tower: { src: 'metropolis/hotel_tower_01.glb', kind: 'tower' },
+    crown_tower: { src: 'metropolis/crown_tower_01.glb', kind: 'tower' },
+    convention_megastructure: { src: 'metropolis/convention_megastructure_01.glb', kind: 'tower' },
+    corporate_hq: { src: 'metropolis/corporate_hq_01.glb', kind: 'tower' },
+    midrise_office: { src: 'metropolis/midrise_office_01.glb', kind: 'tower' },
+    mixeduse_tower: { src: 'metropolis/mixeduse_tower_01.glb', kind: 'tower' },
+    condo_midrise: { src: 'metropolis/condo_midrise_01.glb', kind: 'tower' },
+    boutique_hotel: { src: 'metropolis/boutique_hotel_01.glb', kind: 'tower' },
+    mall_block: { src: 'metropolis/mall_block_01.glb', kind: 'tower' },
+    residential_highrise: { src: 'metropolis/residential_highrise_01.glb', kind: 'tower' },
+    retail_infill: { src: 'metropolis/retail_infill_01.glb', kind: 'tower' },
+    metro_headhouse: { src: 'metropolis/metro_headhouse_01.glb', kind: 'pad', fit: 'footprint' },
+    downtown_glass: { src: 'vice-beach/downtown_glass_tower.glb', kind: 'tower' },
+    nightclub: { src: 'vice-beach/nightclub_facade.glb', kind: 'tower' },
+    grand_deco_hotel: { src: 'vice-beach/grand_deco_hotel.glb', kind: 'tower' },
+    waterfront_condo: { src: 'vice-beach/waterfront_condo_tower.glb', kind: 'tower' },
+    deco_bank: { src: 'vice-beach/deco_bank_civic.glb', kind: 'tower' },
+    streamline_diner: { src: 'vice-beach/streamline_diner.glb', kind: 'tower' },
+    city_diner: { src: 'city/diner_01.glb', kind: 'tower' },
+    dock_warehouse: { src: 'vice-beach/dock_warehouse_unit.glb', kind: 'pad', fit: 'footprint' },
+    fuel_dock: { src: 'vice-beach/marina_fuel_dock_office.glb', kind: 'pad', fit: 'footprint' },
+    modern_house: { src: 'suburban-neighborhood/modern_house.glb', kind: 'house', fit: 'uniform' },
+    ranch_house: { src: 'suburban-neighborhood/ranch_house.glb', kind: 'house', fit: 'uniform' },
+    two_story_house: { src: 'suburban-neighborhood/two_story_house.glb', kind: 'house', fit: 'uniform' },
+    townhouse_duplex: { src: 'suburban-neighborhood/townhouse_duplex.glb', kind: 'house', fit: 'uniform' },
+    bungalow_house: { src: 'suburban-neighborhood/bungalow_house.glb', kind: 'house', fit: 'uniform' },
+    split_level_house: { src: 'suburban-neighborhood/split_level_house.glb', kind: 'house', fit: 'uniform' },
+    sedan: { src: 'metropolis/sedan_01.glb', kind: 'vehicle' },
+    metro_taxi: { src: 'metropolis/metropolis_taxi_01.glb', kind: 'vehicle' },
+    rideshare: { src: 'metropolis/rideshare_compact_01.glb', kind: 'vehicle' },
+    suv: { src: 'metropolis/suv_blackcar_01.glb', kind: 'vehicle' },
+    box_truck: { src: 'metropolis/box_truck_01.glb', kind: 'vehicle' },
+    police: { src: 'vice-beach/police_cruiser.glb', kind: 'vehicle' },
+    city_bus: { src: 'city/city_bus_01.glb', kind: 'vehicle' },
+    delivery_van: { src: 'city/delivery_van_01.glb', kind: 'vehicle' },
+    yacht: { src: 'vice-beach/motor_yacht_vessel.glb', kind: 'boat' },
+    speedboat: { src: 'vice-beach/cigarette_speedboat.glb', kind: 'boat' },
+    floatplane: { src: 'vice-beach/moored_floatplane.glb', kind: 'boat' },
+    dock_module: { src: 'vice-beach/marina_dock_module.glb', kind: 'prop' },
+    royal_palm: { src: 'vice-beach/royal_palm.glb', kind: 'prop' },
+    coconut_palm: { src: 'vice-beach/coconut_palm.glb', kind: 'prop' },
+    seawall: { src: 'vice-beach/canal_seawall_tile.glb', kind: 'prop' },
+    lobby_desk: { src: 'vice-beach/lobby_reception_desk.glb', kind: 'prop' },
+    sofa: { src: 'living-room/sofa_3seat.glb', kind: 'prop' },
+    armchair: { src: 'living-room/armchair.glb', kind: 'prop' },
+    club_bar: { src: 'vice-beach/club_bar_counter.glb', kind: 'prop' },
+    dj_booth: { src: 'vice-beach/club_dj_booth.glb', kind: 'prop' },
+    neon_wall: { src: 'vice-beach/club_neon_wall_panel.glb', kind: 'prop' },
+    dancefloor: { src: 'vice-beach/lit_dancefloor_module.glb', kind: 'prop' },
+    console: { src: 'bunker-facility/control_console.glb', kind: 'prop' },
+    crt: { src: 'bunker-facility/crt_terminal.glb', kind: 'prop' },
+    radio_rack: { src: 'bunker-facility/radio_rack.glb', kind: 'prop' },
+    street_tree_metro: { src: 'metropolis/metropolis_street_tree_01.glb', kind: 'tree' },
+    street_tree_col: { src: 'metropolis/columnar_street_tree_01.glb', kind: 'tree' },
+    street_tree_city: { src: 'city/street_tree_01.glb', kind: 'tree' },
+    park_tree: { src: 'city/park_tree_01.glb', kind: 'tree' },
+    plaza_ficus: { src: 'metropolis/plaza_ficus_01.glb', kind: 'tree' },
+    shade_tree: { src: 'suburban-neighborhood/shade_tree.glb', kind: 'tree' },
+    flowering_tree: { src: 'suburban-neighborhood/flowering_tree.glb', kind: 'tree' },
+    oak: { src: 'cozy-village/tree_oak_01.glb', kind: 'tree' },
+    pine: { src: 'cozy-village/tree_pine_01.glb', kind: 'tree' },
+    fruit_tree: { src: 'cozy-village/tree_fruit_01.glb', kind: 'tree' },
+    lineside_oak: { src: 'railway/lineside_oak.glb', kind: 'tree' },
+    lineside_pine: { src: 'railway/lineside_pine.glb', kind: 'tree' },
+    apple_tree: { src: 'farm/apple_tree.glb', kind: 'tree' },
+    date_palm: { src: 'desert-kingdom/date_palm.glb', kind: 'tree' },
+    doum_palm: { src: 'desert-kingdom/doum_palm.glb', kind: 'tree' },
+    diesel: { src: 'railway/diesel_locomotive.glb', kind: 'vehicle' },
+    container_wagon: { src: 'railway/container_flat_wagon.glb', kind: 'vehicle' },
+
+    /* ── Street furniture (streetscape.js). `group: 'street'` loads with the
+       city; `heavy` kits (the wasteland set runs 5–30k triangles apiece) are
+       skipped on the `low` preset. `origin: 'authored'` keeps the file's own
+       pivot — a street lamp's pole, a blade sign's wall bracket — instead of
+       recentring on the bounding box. */
+    st_led_lamp: { src: 'metropolis/led_streetlight_01.glb', kind: 'street', group: 'street', origin: 'authored' },
+    st_bench: { src: 'metropolis/plaza_bench_01.glb', kind: 'street', group: 'street' },
+    st_recycle: { src: 'metropolis/recycling_bin_01.glb', kind: 'street', group: 'street' },
+    st_bollards: { src: 'metropolis/security_bollard_01.glb', kind: 'street', group: 'street' },
+    st_wayfinding: { src: 'metropolis/wayfinding_pylon_01.glb', kind: 'street', group: 'street' },
+    st_bus_flag: { src: 'metropolis/bus_stop_flag_01.glb', kind: 'street', group: 'street' },
+    st_bike_rack: { src: 'metropolis/bike_rack_01.glb', kind: 'street', group: 'street' },
+    st_hydrant: { src: 'metropolis/metropolis_fire_hydrant_01.glb', kind: 'street', group: 'street' },
+    st_vent_cab: { src: 'metropolis/utility_vent_cabinet_01.glb', kind: 'street', group: 'street' },
+    st_transformer: { src: 'metropolis/transformer_kiosk_01.glb', kind: 'street', group: 'street' },
+    st_shrub_bed: { src: 'metropolis/shrub_planting_bed_01.glb', kind: 'street', group: 'street' },
+    st_topiary: { src: 'metropolis/topiary_hedge_01.glb', kind: 'street', group: 'street' },
+    st_billboard: { src: 'metropolis/giant_billboard_01.glb', kind: 'street', group: 'street' },
+    st_centerpiece: { src: 'metropolis/plaza_centerpiece_01.glb', kind: 'street', group: 'street' },
+    st_pool: { src: 'metropolis/reflecting_pool_tile_01.glb', kind: 'street', group: 'street' },
+    st_logo_sign: { src: 'metropolis/rooftop_logo_sign_01.glb', kind: 'street', group: 'street' },
+    st_media: { src: 'metropolis/media_facade_01.glb', kind: 'street', group: 'street' },
+    st_dumpster: { src: 'metropolis/service_dumpster_01.glb', kind: 'street', group: 'street' },
+    st_blade: { src: 'metropolis/neon_storefront_01.glb', kind: 'street', group: 'street', origin: 'authored' },
+    st_kiosk: { src: 'metropolis/info_kiosk_01.glb', kind: 'street', group: 'street' },
+    st_shelter: { src: 'metropolis/transit_shelter_01.glb', kind: 'street', group: 'street' },
+    st_planter: { src: 'metropolis/plaza_planter_01.glb', kind: 'street', group: 'street' },
+    st_boulder: { src: 'metropolis/landscape_boulder_01.glb', kind: 'street', group: 'street' },
+    st_green_roof: { src: 'metropolis/green_roof_01.glb', kind: 'street', group: 'street' },
+    ct_fountain: { src: 'city/park_fountain_01.glb', kind: 'street', group: 'street', heavy: true },
+    ct_food_cart: { src: 'city/food_cart_01.glb', kind: 'street', group: 'street', heavy: true },
+    ct_cafe: { src: 'city/cafe_terrace_01.glb', kind: 'street', group: 'street', heavy: true },
+    // suburbia
+    sb_mailbox: { src: 'suburban-neighborhood/mailbox.glb', kind: 'street', group: 'street' },
+    sb_bins: { src: 'suburban-neighborhood/wheelie_bins.glb', kind: 'street', group: 'street' },
+    sb_hydrant: { src: 'suburban-neighborhood/fire_hydrant.glb', kind: 'street', group: 'street' },
+    sb_stop: { src: 'suburban-neighborhood/street_stop_sign.glb', kind: 'street', group: 'street' },
+    sb_hoop: { src: 'suburban-neighborhood/basketball_hoop.glb', kind: 'street', group: 'street' },
+    sb_fence: { src: 'suburban-neighborhood/picket_fence.glb', kind: 'street', group: 'street' },
+    sb_hedge: { src: 'suburban-neighborhood/boxwood_hedge.glb', kind: 'street', group: 'street' },
+    sb_flowers: { src: 'suburban-neighborhood/flower_bed.glb', kind: 'street', group: 'street' },
+    sb_bbq: { src: 'suburban-neighborhood/bbq_grill.glb', kind: 'street', group: 'street' },
+    sb_swing: { src: 'suburban-neighborhood/swing_set.glb', kind: 'street', group: 'street' },
+    sb_forsale: { src: 'suburban-neighborhood/for_sale_sign.glb', kind: 'street', group: 'street' },
+    sb_sedan: { src: 'suburban-neighborhood/family_sedan.glb', kind: 'car', group: 'street' },
+    sb_minivan: { src: 'suburban-neighborhood/suv_minivan.glb', kind: 'car', group: 'street' },
+    sb_pickup: { src: 'suburban-neighborhood/family_pickup.glb', kind: 'car', group: 'street' },
+    // the waterfront
+    vb_deco_lamp: { src: 'vice-beach/deco_street_lamp.glb', kind: 'street', group: 'street' },
+    vb_payphone: { src: 'vice-beach/payphone_booth.glb', kind: 'street', group: 'street' },
+    vb_bin: { src: 'vice-beach/trash_bin.glb', kind: 'street', group: 'street' },
+    vb_palm_pot: { src: 'vice-beach/potted_palm_planter.glb', kind: 'street', group: 'street' },
+    vb_bench: { src: 'vice-beach/terrazzo_bench.glb', kind: 'street', group: 'street' },
+    vb_umbrella: { src: 'vice-beach/beach_umbrella.glb', kind: 'street', group: 'street' },
+    vb_lounger: { src: 'vice-beach/sun_lounger.glb', kind: 'street', group: 'street' },
+    vb_lifeguard: { src: 'vice-beach/pastel_lifeguard_tower.glb', kind: 'street', group: 'street' },
+    vb_cafe: { src: 'vice-beach/cafe_table_chairs.glb', kind: 'street', group: 'street' },
+    vb_pastel_car: { src: 'vice-beach/pastel_sedan.glb', kind: 'car', group: 'street', heavy: true },
+    vb_convertible: { src: 'vice-beach/convertible_cruiser.glb', kind: 'car', group: 'street', heavy: true },
+    // the Underground
+    wl_wreck: { src: 'wasteland/wrecked_car.glb', kind: 'street', group: 'street', heavy: true },
+    wl_barrel: { src: 'wasteland/wasteland_fire_barrel.glb', kind: 'street', group: 'street', heavy: true },
+    wl_bus: { src: 'wasteland/abandoned_bus.glb', kind: 'street', group: 'street', heavy: true },
+    wl_pickup: { src: 'wasteland/rusted_pickup.glb', kind: 'street', group: 'street', heavy: true },
+    wl_weeds: { src: 'wasteland/overgrown_weeds.glb', kind: 'street', group: 'street', heavy: true },
+    wl_dead_tree: { src: 'wasteland/dead_tree.glb', kind: 'street', group: 'street', heavy: true },
+    wl_rubble: { src: 'wasteland/wasteland_rubble_pile.glb', kind: 'street', group: 'street', heavy: true },
+    wl_crate: { src: 'wasteland/wasteland_supply_crate.glb', kind: 'street', group: 'street', heavy: true },
+    wl_hazard: { src: 'wasteland/hazard_tape.glb', kind: 'street', group: 'street', heavy: true },
+    wl_sandbags: { src: 'wasteland/sandbags.glb', kind: 'street', group: 'street', heavy: true },
+    wl_generator: { src: 'wasteland/generator.glb', kind: 'street', group: 'street', heavy: true },
+    wl_cart: { src: 'wasteland/rusted_shopping_cart.glb', kind: 'street', group: 'street', heavy: true },
+    wl_emergency: { src: 'wasteland/emergency_light.glb', kind: 'street', group: 'street', heavy: true },
+    wl_campfire: { src: 'wasteland/campfire.glb', kind: 'street', group: 'street', heavy: true },
+    wl_motorbike: { src: 'wasteland/motorcycle_wreck.glb', kind: 'street', group: 'street', heavy: true },
+    wl_chunk: { src: 'wasteland/concrete_chunk.glb', kind: 'street', group: 'street', heavy: true },
+    // the Space Zone's desert
+    ds_scrub: { src: 'desert-kingdom/desert_scrub.glb', kind: 'street', group: 'street' },
+    ds_boulder: { src: 'desert-kingdom/sandstone_boulder.glb', kind: 'street', group: 'street' },
+    ds_mesa: { src: 'desert-kingdom/mesa_outcrop.glb', kind: 'street', group: 'street' },
+    ds_arch: { src: 'desert-kingdom/rock_arch.glb', kind: 'street', group: 'street' },
+    ds_drift: { src: 'desert-kingdom/sand_drift.glb', kind: 'street', group: 'street' },
+
+    /* ── Interior furniture (interiors/furnish.js). `group: 'interior'` is
+       fetched in the background after the city is up, not at boot — nobody
+       needs an office chair to see the skyline. Rooms built before it lands
+       fall back to their procedural furniture and are rebuilt when it does. */
+    in_l_desk: { src: 'home-office/l_desk.glb', kind: 'interior', group: 'interior' },
+    in_standing_desk: { src: 'home-office/standing_desk.glb', kind: 'interior', group: 'interior' },
+    in_writing_desk: { src: 'home-office/writing_desk.glb', kind: 'interior', group: 'interior' },
+    in_task_chair: { src: 'home-office/task_chair.glb', kind: 'interior', group: 'interior' },
+    in_exec_chair: { src: 'home-office/exec_chair.glb', kind: 'interior', group: 'interior' },
+    in_lounge_chair: { src: 'home-office/lounge_chair.glb', kind: 'interior', group: 'interior' },
+    in_monitor: { src: 'home-office/monitor.glb', kind: 'interior', group: 'interior' },
+    in_ultrawide: { src: 'home-office/ultrawide.glb', kind: 'interior', group: 'interior' },
+    in_dual_monitor: { src: 'home-office/monitor_arm_dual.glb', kind: 'interior', group: 'interior' },
+    in_laptop: { src: 'home-office/laptop.glb', kind: 'interior', group: 'interior' },
+    in_keyboard: { src: 'home-office/keyboard.glb', kind: 'interior', group: 'interior' },
+    in_desk_lamp: { src: 'home-office/desk_lamp.glb', kind: 'interior', group: 'interior' },
+    in_desk_plant: { src: 'home-office/desk_plant.glb', kind: 'interior', group: 'interior' },
+    in_mug: { src: 'home-office/coffee_mug.glb', kind: 'interior', group: 'interior' },
+    in_office_plant: { src: 'home-office/office_floor_plant.glb', kind: 'interior', group: 'interior' },
+    in_hanging_plant: { src: 'home-office/office_hanging_plant.glb', kind: 'interior', group: 'interior' },
+    in_partition: { src: 'home-office/partition.glb', kind: 'interior', group: 'interior' },
+    in_whiteboard: { src: 'home-office/whiteboard.glb', kind: 'interior', group: 'interior' },
+    in_office_shelf: { src: 'home-office/office_bookshelf.glb', kind: 'interior', group: 'interior' },
+    in_filing: { src: 'home-office/filing_cabinet.glb', kind: 'interior', group: 'interior' },
+    in_credenza: { src: 'home-office/credenza.glb', kind: 'interior', group: 'interior' },
+    in_acoustic: { src: 'home-office/acoustic_panel.glb', kind: 'interior', group: 'interior' },
+    in_office_pendant: { src: 'home-office/office_pendant_light.glb', kind: 'interior', group: 'interior' },
+    in_office_rug: { src: 'home-office/office_area_rug.glb', kind: 'interior', group: 'interior' },
+    in_storage_cubes: { src: 'home-office/storage_cubes.glb', kind: 'interior', group: 'interior' },
+    in_office_art: { src: 'home-office/office_wall_art.glb', kind: 'interior', group: 'interior' },
+    in_side_table_o: { src: 'home-office/office_side_table.glb', kind: 'interior', group: 'interior' },
+    in_speakers: { src: 'home-office/speakers.glb', kind: 'interior', group: 'interior' },
+    in_corkboard: { src: 'home-office/corkboard.glb', kind: 'interior', group: 'interior' },
+    in_neon_chart: { src: 'home-office/neon_sign.glb', kind: 'interior', group: 'interior' },
+    // living room
+    in_sofa: { src: 'living-room/sofa_3seat.glb', kind: 'interior', group: 'interior' },
+    in_sectional: { src: 'living-room/sectional_l.glb', kind: 'interior', group: 'interior' },
+    in_loveseat: { src: 'living-room/loveseat.glb', kind: 'interior', group: 'interior' },
+    in_armchair: { src: 'living-room/armchair.glb', kind: 'interior', group: 'interior' },
+    in_accent_chair: { src: 'living-room/accent_chair.glb', kind: 'interior', group: 'interior' },
+    in_coffee_table: { src: 'living-room/coffee_table.glb', kind: 'interior', group: 'interior' },
+    in_media_unit: { src: 'living-room/media_unit.glb', kind: 'interior', group: 'interior' },
+    in_tv: { src: 'living-room/tv_flatscreen.glb', kind: 'interior', group: 'interior' },
+    in_floor_lamp: { src: 'living-room/floor_lamp.glb', kind: 'interior', group: 'interior' },
+    in_area_rug: { src: 'living-room/area_rug.glb', kind: 'interior', group: 'interior' },
+    in_bookshelf: { src: 'living-room/bookshelf.glb', kind: 'interior', group: 'interior' },
+    in_floor_plant: { src: 'living-room/floor_plant.glb', kind: 'interior', group: 'interior' },
+    in_side_table: { src: 'living-room/side_table.glb', kind: 'interior', group: 'interior' },
+    in_sideboard: { src: 'living-room/sideboard.glb', kind: 'interior', group: 'interior' },
+    in_bar_cart: { src: 'living-room/bar_cart.glb', kind: 'interior', group: 'interior' },
+    in_display_cab: { src: 'living-room/display_cabinet.glb', kind: 'interior', group: 'interior' },
+    in_wall_art: { src: 'living-room/wall_art.glb', kind: 'interior', group: 'interior' },
+    in_pendant: { src: 'living-room/pendant_light.glb', kind: 'interior', group: 'interior' },
+    in_table_lamp: { src: 'living-room/table_lamp.glb', kind: 'interior', group: 'interior' },
+    in_gallery: { src: 'living-room/gallery_set.glb', kind: 'interior', group: 'interior' },
+    in_wall_clock: { src: 'living-room/wall_clock_round.glb', kind: 'interior', group: 'interior' },
+    // kitchen
+    in_counter: { src: 'kitchen/countertop_run.glb', kind: 'interior', group: 'interior' },
+    in_base_cab: { src: 'kitchen/base_cabinet_door.glb', kind: 'interior', group: 'interior' },
+    in_base_drawers: { src: 'kitchen/base_cabinet_drawers.glb', kind: 'interior', group: 'interior' },
+    in_sink: { src: 'kitchen/sink_base_unit.glb', kind: 'interior', group: 'interior' },
+    in_range: { src: 'kitchen/range_cooker.glb', kind: 'interior', group: 'interior' },
+    in_fridge: { src: 'kitchen/fridge_freezer.glb', kind: 'interior', group: 'interior' },
+    in_larder: { src: 'kitchen/tall_larder.glb', kind: 'interior', group: 'interior' },
+    in_hood: { src: 'kitchen/range_hood.glb', kind: 'interior', group: 'interior' },
+    in_wall_cab: { src: 'kitchen/wall_cabinet_door.glb', kind: 'interior', group: 'interior' },
+    in_island: { src: 'kitchen/kitchen_island.glb', kind: 'interior', group: 'interior' },
+    in_bar_stool: { src: 'kitchen/bar_stool.glb', kind: 'interior', group: 'interior' },
+    in_coffee_machine: { src: 'kitchen/coffee_machine.glb', kind: 'interior', group: 'interior' },
+    in_kitchen_pendant: { src: 'kitchen/kitchen_pendant.glb', kind: 'interior', group: 'interior' },
+    in_microwave: { src: 'kitchen/microwave.glb', kind: 'interior', group: 'interior' },
+    in_fruit_bowl: { src: 'kitchen/fruit_bowl.glb', kind: 'interior', group: 'interior' },
+    in_herbs: { src: 'kitchen/potted_herb.glb', kind: 'interior', group: 'interior' },
+    // bedroom
+    in_queen_bed: { src: 'bedroom/queen_bed.glb', kind: 'interior', group: 'interior' },
+    in_nightstand: { src: 'bedroom/nightstand.glb', kind: 'interior', group: 'interior' },
+    in_bedside_lamp: { src: 'bedroom/bedside_lamp.glb', kind: 'interior', group: 'interior' },
+    in_wardrobe: { src: 'bedroom/wardrobe.glb', kind: 'interior', group: 'interior' },
+    in_dresser: { src: 'bedroom/dresser.glb', kind: 'interior', group: 'interior' },
+    in_bedroom_rug: { src: 'bedroom/bedroom_area_rug.glb', kind: 'interior', group: 'interior' },
+    // library (hero pieces only — these run 6–30k triangles each)
+    in_issue_desk: { src: 'library/issue_desk.glb', kind: 'interior', group: 'interior' },
+    in_reading_table: { src: 'library/reading_table.glb', kind: 'interior', group: 'interior' },
+    in_library_chair: { src: 'library/library_chair.glb', kind: 'interior', group: 'interior' },
+    in_chesterfield: { src: 'library/chesterfield_sofa.glb', kind: 'interior', group: 'interior' },
+    in_reading_arm: { src: 'library/reading_armchair.glb', kind: 'interior', group: 'interior' },
+    in_banker_lamp: { src: 'library/banker_lamp.glb', kind: 'interior', group: 'interior' },
+    in_globe: { src: 'library/globe.glb', kind: 'interior', group: 'interior' },
+    in_card_cat: { src: 'library/card_catalogue.glb', kind: 'interior', group: 'interior' },
+    in_carrel: { src: 'library/carrel_bank.glb', kind: 'interior', group: 'interior' },
+    in_runner_rug: { src: 'library/runner_rug.glb', kind: 'interior', group: 'interior' },
+    in_lib_plant: { src: 'library/library_potted_plant.glb', kind: 'interior', group: 'interior' },
+    in_lib_pendant: { src: 'library/library_pendant_light.glb', kind: 'interior', group: 'interior' },
+    in_display_case: { src: 'library/display_case.glb', kind: 'interior', group: 'interior' },
+    in_newspaper_rack: { src: 'library/newspaper_rack.glb', kind: 'interior', group: 'interior' },
+    // lobbies, bars, cafés
+    in_reception: { src: 'vice-beach/lobby_reception_desk.glb', kind: 'interior', group: 'interior' },
+    in_rattan: { src: 'vice-beach/lobby_rattan_seating.glb', kind: 'interior', group: 'interior' },
+    in_cafe_set: { src: 'vice-beach/cafe_table_chairs.glb', kind: 'interior', group: 'interior' },
+    in_banquette: { src: 'vice-beach/club_banquette_booth.glb', kind: 'interior', group: 'interior' }
+};
+
+/** Published path of a kit, relative to first-person/assets/. */
+export function kitAssetPath(id) {
+    const k = KITS[id];
+    return k ? `kits/${KIT_VERSION}/${k.src}` : null;
+}
+
+/** Pack a kit came from (the first segment of `src`). */
+export function kitPack(id) {
+    const k = KITS[id];
+    return k ? k.src.split('/')[0] : null;
+}

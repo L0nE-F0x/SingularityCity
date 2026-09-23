@@ -20,6 +20,7 @@ import * as TEX from './textures.js';
 import { resolveRoom, floorLabel } from './interiors/rooms.js';
 import { seeded, P as PROP, nameTex } from './interiors/kit.js';
 import { Assets } from './assets.js';
+import { Furnisher, LAYOUTS, NEEDS, spineTexture } from './interiors/furnish.js';
 
 export const FLOOR_Y = -4000;          // where interiors live
 
@@ -137,7 +138,25 @@ export const Interior = {
     _lift: { phase: 'idle', t: 0, doors: 1, from: 0, to: 0, dur: 0 },
     _carParts: null,
 
+    /* The interior kit group streams in after boot. A room entered before it
+       landed was built from boxes; rebuild it in place once, and if the
+       player now stands inside a new sofa, walk them back to the door. */
+    _onFurniture() {
+        if (!this.building || this._spec) return;
+        if (this._lift?.phase && this._lift.phase !== 'idle') return;
+        const cat = this._theme(this.building).cat;
+        if (!LAYOUTS[cat] && !['openplan', 'boardroom'].includes(cat) && cat !== 'office') return;
+        const f = this.floor;
+        this.floor = -1;                       // defeat _setFloor's same-floor shortcut
+        this._build(this.building, f);
+        G.colliders = this._colliders.map(c => ({ x0: S(c.x0), x1: S(c.x1), z0: S(c.z0), z1: S(c.z1) }));
+        const p = G.camera.position;
+        const stuck = G.colliders.some(c => p.x > c.x0 - 7 && p.x < c.x1 + 7 && p.z > c.z0 - 7 && p.z < c.z1 + 7);
+        if (stuck) G.player.teleport(0, S(ROOM_D / 2 - 70), 0);
+    },
+
     init(scene) {
+        Assets.onGroup('interior', () => this._onFurniture());
         this.group = new THREE.Group();
         this.group.position.set(0, FLOOR_Y, 0);
         this.group.scale.setScalar(ROOM_SCALE);
@@ -261,8 +280,11 @@ export const Interior = {
             // Traverse: ctx.animate() adds Groups, whose meshes are one level
             // down and would otherwise leak a buffer per floor change.
             m.traverse?.(o => {
+                // furniture instances share the city-wide kit geometry and
+                // material — disposing them would free every other room's copy
+                if (o.userData?.kitShared) return;
                 o.geometry?.dispose();
-                if (o.material?.map) o.material.map.dispose();
+                if (o.material?.map && !o.material.map.userData?.shared) o.material.map.dispose();
                 o.material?.dispose();
             });
             if (!m.traverse) {
@@ -319,6 +341,9 @@ export const Interior = {
             arr.push(paint(g, hex));
         };
         const lit = (w, h, d, x, y, z, hex) => box(w, h, d, x, y, z, hex, glow);
+        // any pre-coloured indexed geometry (the people.js figures)
+        const mesh = (geo, arr = parts) => arr.push(geo);
+        this._meshBucket = mesh;
 
         const lab = b.lab && LABS[b.lab];
         const accent = new THREE.Color(lab ? lab.color : th.accent);
@@ -465,7 +490,7 @@ export const Interior = {
         }
         this.group.add(sign);
         this._signMesh = sign;
-        if (!spec && th.cat === 'home') this._placeLivingRoom();
+        if (!spec && th.cat === 'home' && !this._furnished) this._placeLivingRoom();
 
         // theme-tinted fill lights
         if (this._fillLight) {
@@ -537,6 +562,32 @@ export const Interior = {
             { x0: x - w / 2, z0: z - d / 2, x1: x + w / 2, z1: z + d / 2 });
         const cat = th.cat;
         const top = this.maxFloor > 0 && floor === this.maxFloor;
+        this._furnished = false;
+
+        /* Real furniture from the interior kit packs, when they've arrived
+           (they stream in after boot — see main.js). The box-built layouts
+           below stay as the fallback, and as the whole dressing for the
+           categories no kit layout covers yet. */
+        const layout = LAYOUTS[cat];
+        if (layout && Furnisher.ready(NEEDS[cat] || [])) {
+            const F = new Furnisher(this.group, this._propColliders);
+            const spines = [];
+            const ctx = {
+                box, lit, solid, H: ROOM_H, W: ROOM_W, D: ROOM_D,
+                floor, top, lift: this.maxFloor > 0,
+                accent: accent.getHex(), rnd: seeded(`${b.id || 'x'}:furnish:${floor}`), b
+            };
+            this._occSpots = layout(F, ctx, spines);
+            F.finish();
+            if (spines.length) {
+                const books = new THREE.Mesh(mergeGeometries(spines, false),
+                    new THREE.MeshStandardMaterial({ map: spineTexture(), roughness: 0.85, metalness: 0 }));
+                books.matrixAutoUpdate = false;
+                this.group.add(books);
+            }
+            this._furnished = true;
+            return;
+        }
 
         // ── small helpers (all merge into parts/glow) ───────────────────────
         const desk = (x, z, rot = 0) => {
@@ -1044,7 +1095,7 @@ export const Interior = {
         const solid = (x, z, w, d) => this._propColliders.push(
             { x0: x - w / 2, z0: z - d / 2, x1: x + w / 2, z1: z + d / 2 });
         const ctx = {
-            box, lit, solid,
+            box, lit, solid, mesh: this._meshBucket,
             /** Textured quad (canvas art). Kept out of the merge buckets because
              *  each one carries its own map; rooms use them sparingly. */
             plate(tex, w, h, x, y, z, rotY = 0) {
@@ -1157,6 +1208,8 @@ export const Interior = {
         // Other authored spots (empty desks, the open floor) are where people
         // walk to. Using only the unused tail meant a full lobby never moved.
         const spareOf = (s) => spots.filter(p => p !== s);
+        // who is sitting where, so two people never walk to the same chair
+        const claims = new Set();
         for (let i = 0; i < n; i++) {
             const c = here[i];
             const s = spots[i];
@@ -1165,24 +1218,31 @@ export const Interior = {
                 name: opts.silent ? null : (m.name || 'Visitor'),
                 role: opts.role || (m.founder ? 'Founder' : (LABS[m.lab]?.name || 'Model')),
                 color: c.color?.getHex ? c.color.getHex() : 0x94a3b8,
+                key: m.id || m.name,
+                pose: s.pose,
                 plateY: 40
             }, s.facing ?? 1);
             /* Interior-LOCAL units, no scale of its own. These are children of
                `this.group`, which already sits at FLOOR_Y and carries
                ROOM_SCALE — applying either again puts the figure 4000 units
                under the floor at a ninth of its size, i.e. invisible. */
-            figure.position.set(s.x, s.pose === 'work' || s.pose === 'sit' ? -2 : 0, s.z);
-            figure.rotation.y = (s.facing ?? 1) > 0 ? 0 : Math.PI;
+            figure.position.set(s.x, 0, s.z);
+            // `ry` (a full heading) beats `facing` (±z) — café chairs face across
+            figure.rotation.y = s.ry ?? ((s.facing ?? 1) > 0 ? 0 : Math.PI);
 
             const others = spareOf(s);
             const roam = s.roam === true || (s.pose === 'work');
+            claims.add(s);
             const st = {
+                spot: s, claims,
+                seated: s.pose === 'sit' || s.pose === 'work',
                 home: { x: s.x, z: s.z }, to: null,
                 phase: ((c.idx || i) * 0.7) % (Math.PI * 2),
                 next: roam ? 2 + ((c.idx || i) * 1.7) % 6 : 8 + ((c.idx || i) * 3.1) % 14,
                 roam: s.roam === true,
                 pose: s.pose || 'stand',
                 facing: s.facing ?? 1,
+                ry: s.ry,
                 stay: !!s.stay
             };
             this._animateOccupant(figure, st, others);
@@ -1192,34 +1252,53 @@ export const Interior = {
 
     /** One occupant as a standalone merged mesh, in interior-local units. */
     _buildOccupant(ctx, def, facing) {
-        const parts = [], glow = [];
-        const local = {
-            box: (w, h, d, x, y, z, hex) => parts.push(paint(
-                new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex)),
-            lit: (w, h, d, x, y, z, hex) => glow.push(paint(
-                new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex))
-            // no `plate` — the nameplate is added below as a live child so it
-            // travels with the figure instead of staying where they started
+        /* One figure per pose. Somebody seated at a desk gets up and walks to
+           another; sliding a seated mesh across the floor read worse than the
+           old standing cubes, so the animator swaps between the two. */
+        const build = (pose) => {
+            const parts = [], glow = [];
+            const local = {
+                box: (w, h, d, x, y, z, hex) => parts.push(paint(
+                    new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex)),
+                lit: (w, h, d, x, y, z, hex) => glow.push(paint(
+                    new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex)),
+                mesh: (g) => parts.push(g)
+                // no `plate` — the nameplate is added below as a live child so it
+                // travels with the figure instead of staying where they started
+            };
+            PROP.npc(local, 0, 0, { ...def, name: null, pose }, 1);
+            const g = new THREE.Group();
+            if (parts.length) {
+                g.add(new THREE.Mesh(mergeGeometries(parts, false),
+                    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0.03 })));
+            }
+            if (glow.length) {
+                g.add(new THREE.Mesh(mergeGeometries(glow, false),
+                    new THREE.MeshBasicMaterial({ vertexColors: true })));
+            }
+            return g;
         };
-        PROP.npc(local, 0, 0, { ...def, name: null }, facing);
-        const g = new THREE.Group();
-        if (parts.length) {
-            g.add(new THREE.Mesh(mergeGeometries(parts, false),
-                new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.05 })));
-        }
-        if (glow.length) {
-            g.add(new THREE.Mesh(mergeGeometries(glow, false),
-                new THREE.MeshBasicMaterial({ vertexColors: true })));
+        const seated = def.pose === 'sit' || def.pose === 'work';
+        const root = new THREE.Group();
+        const stand = build('stand');
+        root.add(stand);
+        root.userData.stand = stand;
+        if (seated) {
+            const sit = build('sit');
+            root.add(sit);
+            root.userData.sit = sit;
+            stand.visible = false;
         }
         if (def.name) {
             const tag = new THREE.Mesh(
                 new THREE.PlaneGeometry(22, 6.5),
                 new THREE.MeshBasicMaterial({ map: nameTex(def.name, def.role, '#' + (def.color >>> 0).toString(16).padStart(6, '0')), transparent: true }));
-            tag.position.set(0, def.plateY ?? 40, facing * 8);
-            if (facing < 0) tag.rotation.y = Math.PI;
-            g.add(tag);
+            tag.position.set(0, (def.plateY ?? 40) + (seated ? 14 : 22), 8);
+            root.add(tag);
+            root.userData.tag = tag;
+            root.userData.tagY = { sit: (def.plateY ?? 40) + 14, stand: (def.plateY ?? 40) + 22 };
         }
-        return g;
+        return root;
     },
 
     /* Work bob at a desk, or a stroll across the open floor. Receptionists
@@ -1227,19 +1306,39 @@ export const Interior = {
        swaying on a cube. */
     _animateOccupant(obj, st, spare) {
         this.group.add(obj);
+        // pick somewhere free to go: a seat nobody has, or open floor
+        const choose = () => {
+            const free = spare.filter(p => !st.claims.has(p));
+            if (!free.length) return null;
+            return free[Math.floor(Math.random() * free.length)];
+        };
+        const go = (pick) => {
+            st.claims.delete(st.spot);
+            st.claims.add(pick);
+            st.spot = pick;
+            st.to = { x: pick.x, z: pick.z };
+            st.walk = 0;
+        };
         this._animators.push({
             obj,
             fn: (o, dt, t) => {
                 st.next -= dt;
                 if (st.roam && st.next <= 0 && !st.to && spare.length) {
-                    const pick = spare[Math.floor(Math.random() * spare.length)];
-                    if (pick) { st.to = { x: pick.x, z: pick.z }; st.walk = 0; }
+                    const pick = choose();
+                    if (pick) go(pick);
                     st.next = 4 + Math.random() * 8;
                 } else if (st.pose === 'work' && !st.stay && st.next <= 0 && !st.to && spare.length) {
                     // Get up and walk to another desk — the 2D work loop.
-                    const pick = spare[Math.floor(Math.random() * spare.length)];
-                    if (pick) { st.to = { x: pick.x, z: pick.z }; st.walk = 0; }
+                    const pick = choose();
+                    if (pick) go(pick);
                     st.next = 10 + Math.random() * 16;
+                }
+                const ud = o.userData;
+                const seatedNow = !st.to && st.seated;
+                if (ud.sit) {
+                    ud.sit.visible = seatedNow;
+                    ud.stand.visible = !seatedNow;
+                    if (ud.tag) ud.tag.position.y = seatedNow ? ud.tagY.sit : ud.tagY.stand;
                 }
                 if (st.to) {
                     st.walk = Math.min(1, st.walk + dt * 0.55);
@@ -1248,13 +1347,21 @@ export const Interior = {
                     o.position.z = st.home.z + (st.to.z - st.home.z) * k;
                     const dx = st.to.x - st.home.x, dz = st.to.z - st.home.z;
                     if (Math.abs(dx) + Math.abs(dz) > 1) o.rotation.y = Math.atan2(dx, dz);
-                    o.position.y = Math.abs(Math.sin(t * 8 + st.phase)) * 2.4;
-                    if (st.walk >= 1) { st.home = st.to; st.to = null; }
-                } else if (st.pose === 'work' || st.pose === 'sit') {
-                    o.position.y = -2 + Math.sin(t * 3.2 + st.phase) * 0.45;
-                    o.rotation.y = (st.facing > 0 ? 0 : Math.PI) + Math.sin(t * 0.35 + st.phase) * 0.08;
+                    o.position.y = Math.abs(Math.sin(t * 8 + st.phase)) * 1.6;
+                    if (st.walk >= 1) {
+                        st.home = st.to; st.to = null;
+                        // arrive and take up the spot's own pose and heading
+                        st.facing = st.spot.facing ?? st.facing;
+                        st.ry = st.spot.ry;
+                        st.seated = !!ud.sit && (st.spot.pose === 'sit' || st.spot.pose === 'work');
+                        o.rotation.y = st.ry ?? (st.facing > 0 ? 0 : Math.PI);
+                        o.position.y = 0;
+                    }
+                } else if (st.seated) {
+                    o.position.y = Math.sin(t * 3.2 + st.phase) * 0.2;
+                    o.rotation.y = (st.ry ?? (st.facing > 0 ? 0 : Math.PI)) + Math.sin(t * 0.35 + st.phase) * 0.05;
                 } else {
-                    o.position.y = Math.sin(t * 1.4 + st.phase) * 0.7;
+                    o.position.y = Math.sin(t * 1.4 + st.phase) * 0.5;
                     o.rotation.y += Math.sin(t * 0.45 + st.phase) * dt * 0.25;
                 }
             }
@@ -1373,6 +1480,8 @@ export const Interior = {
 
     /** Extra prop density — theme-aware dressing layer for every room. */
     _enrichRoom(box, lit, th, accent, floor = 0) {
+        // a kit-furnished room is already dressed; the box extras only clutter it
+        if (this._furnished) return;
         if (!this._propColliders) this._propColliders = [];
         const solid = (x, z, w, d) => this._propColliders.push(
             { x0: x - w / 2, z0: z - d / 2, x1: x + w / 2, z1: z + d / 2 });
