@@ -1,16 +1,138 @@
 # Resume here
 
-**Updated:** 2026-09-23 (session wrap) · **Live `main`:** `a473c3a` (this wrap sits on top)
-**Status:** Phone minimap fix is **on `main`**. Netlify should auto-deploy.
-Hard-refresh `singularitycity.net` on a phone (the city plays in landscape).
-Cache is **v555** — a stale service worker will keep the old 7px map until it updates.
+**Updated:** 2026-09-23 (night session wrap) · **Live `main`:** `598fa17` (this wrap sits on top)
+**Status:** Housing-tower performance fix is **live**. Netlify served cache **v556**
+about 20 s after the push, and production was measured at night (see Verified).
+**Next:** the owner plans a fresh **First Person Mode** session later today. See
+"Next session" at the end of the first section.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
 Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
 
 ---
 
-## This session (2026-09-23) — phone minimap
+## This session (2026-09-23, night) — housing towers crawled at night
+
+**Shipped in `598fa17`.** Owner report: the 2D city "crawls to unusable" inside
+the housing buildings, worst at night when every model is asleep in them.
+
+Measured in headless Chrome (Intel iGPU, 1440×900), 02:30 city time, 898 models,
+same residents in bed for both builds:
+
+| Tower | Asleep | Before | After |
+|---|---|---|---|
+| `res_us` (101 floors) | 362 | 19 fps · render 43 ms · update 7.8 ms | 60 fps · 1.6 ms · 0.4 ms |
+| `res_eu` (75 floors) | 272 | 33 fps · 24 ms · 4.4 ms | 60 fps · 1.6 ms · 0.35 ms |
+| `res_cn` (46 floors) | 135 | 56 fps · 12 ms · 1.6 ms | 60 fps · 1.5 ms · 0.2 ms |
+
+A tower gets one floor per four residents, so it grows with the model count. What
+was wrong, worst first:
+
+1. **Lift floor lights were floors².** Every door had one `Graphics` per floor,
+   all cleared and redrawn every frame: 10,404 of them in `res_us`, for dots a third
+   of a pixel apart. Now `LiftIndicators` (`js/city_elevator.js`) draws one strip,
+   shares its geometry across every door, and moves a single green dot when the
+   car changes floor. The lab-HQ `CityElevator` had the same code. `bld_alibaba`
+   (49 floors) went from 50 to 59 fps, with render time 16 → 7.3 ms.
+2. **No culling.** All 100 floors were drawn, transformed and hover-hit-tested every
+   frame (every prop is `eventMode: 'static'` for tooltips), with about 10 on screen.
+3. **Three `PIXI.Text` per sleeper** for the "z z Z": 1,087 private canvases and GPU
+   textures, which also outlived the interior (the exit path destroys with
+   `texture: false`). Now three shared white glyph textures, tinted per lab.
+4. **`getAct` + `G.models.indexOf` for every resident, every frame.** That's
+   362×60 schedule lookups a second, each allocating dates and a context object;
+   GC was 17% of the frame. The schedule is now asked twice a second per resident,
+   staggered, with the model index cached.
+5. `InteriorRes.build` only *detached* the old scene. Following a model rebuilds
+   in place on an activity change, so every rebuild leaked the whole tower. It now
+   destroys the old one.
+
+### What a new agent must not re-break
+
+1. **Floors are culled** (`InteriorRes.cull()`, called by `Interior.update` *after*
+   the tracking camera). Each floor's pieces live in `InteriorRes._bands`:
+   `roomGfx`, `floorLine`, the basement door, both lift doors and the indicator strip
+   as `items`, and the floor's `floorCont`. **Anything new drawn per floor must join
+   its band** (or go in `floorCont`), or it will still be drawn on every floor.
+2. **Avatars stay parented to their own floor's `floorCont`**, even while crossing
+   the lobby or riding the lift. `cull()` keeps a floor's container visible while
+   one of its residents is on screen somewhere else. If you ever reparent avatars,
+   update `cull()`.
+3. **Two margins:** residents within **480px** of the viewport animate (`update`),
+   floors within **80px** are shown (`cull`). Keep the first wider, or a floor can
+   appear before its sleepers are posed.
+4. **`working` residents:** `_sleeping` is the cached schedule answer; `_posed` is the
+   pose actually applied. Getting into or out of bed is applied on every floor;
+   only the z-bob and the awake idle are skipped off screen.
+5. **The z sprites share `InteriorRes._zTex`.** Never destroy the interior tree with
+   `texture: true`, and don't `clear()` or draw into a `LiftIndicators` strip: its
+   geometry is shared by every door.
+
+### Verified
+
+- Pixel A/B against a pristine `git archive HEAD` copy, with the ticker stopped and
+  `Math.random`, `G.tick` and day phase pinned. `res_us` / `res_eu` at night are
+  **pixel-identical** at bottom, middle, top and after a far jump. The only
+  differences were speech bubbles (random) and `res_cn` lobby visitors, and a HEAD vs
+  HEAD control run differs by the same amount.
+- Scroll/jump fuzz, 235 frames: nothing on screen culled. Tracking Grok 4.7
+  from the street to floor 99 at 1.45× zoom, 4,718 frames: none. A floor-96 resident
+  riding down and walking out across the lobby: shown for all 475 frames, and its
+  floor re-culled after. Founder estate: CEO goes to bed with sprite z's. Lab-HQ lift
+  dot matches the car on 38 floor crossings. Eight enter/exit cycles: geometries flat.
+- `npm run lint` clean, `npm run test:fp` green, touched files Prettier-clean.
+- **Live, after the push:** same probe against `singularitycity.net` at 02:40 city
+  time. `res_us` (103 floors, 364 asleep): 58 fps (at the cap), render 1.5 ms,
+  update 0.39 ms. `res_eu` (255) and `res_cn` (182): 60 fps. Mid-tower matches.
+
+### Not done
+
+- **Lab HQs (`InteriorCity`) have no floor culling.** Fine at 49 floors after the
+  lift fix; give them bands too if they grow.
+- **The lift is one car, first-come first-served.** 300 residents leaving at once
+  take minutes to reach the lobby. This predates the fix; the exterior's 30 s
+  stuck-teleport hides it outside.
+- The roof-sign `PIXI.Text` is still one texture per visit until PIXI's texture GC
+  reclaims it (~1 min). Harmless.
+- **Noticed, not investigated:** on production,
+  `api.rss2json.com/v1/api.json?rss_url=…venturebeat.com/category/business/feed/`
+  answers **HTTP 422**. That proxy feeds the VC Row deal ticker (MAINTENANCE.md Part A,
+  `API.vcDeals`), so the ticker may be on its fallback lines. Unrelated to this fix.
+
+### Measuring the 2D city headless
+
+Headless Chrome only gets the real GPU with `--use-angle=gl` (Vulkan gave no WebGL
+here). Day phase is the wall clock, so pin night with a timezone override. If you
+wrap a ticker-driven function, **return its value**: `Entities.update` returns the
+occupancy map. A wrapper that throws stops PIXI's ticker for good, while
+`requestAnimationFrame` keeps running, so the page looks alive.
+
+### Next session — First Person Mode
+
+The owner plans to work on First Person Mode later today in a fresh session. The
+goal wasn't set, and nothing in FP was reported or changed this session; this fix is
+2D-only.
+
+Useful if it turns to performance:
+
+- FP pins the clock itself: `/first-person/?autostart=1&dp=0.1&debug=1`
+  (`dp` sets `G.fixedPhase`, `first-person/js/main.js:364`). No timezone override
+  needed. The same `--use-angle=gl` flag applies, and Three.js reports draw calls
+  in `renderer.info`.
+- From a read of the code (**not measured**): FP interiors draw **one floor at a
+  time**. Occupants come from `_occupantsFor(b)` (`first-person/js/interior.js`
+  ~1113), are spread across floors by `_floorShare`, and are capped by the room's
+  `spots` (the default scatter has at most 12). So FP shouldn't have the 2D tower's
+  "every floor, every resident" growth. Each occupant is still its own merged mesh,
+  `MeshStandardMaterial` and 256×72 name-plate canvas texture (`nameTex`,
+  `first-person/js/interiors/kit.js:185`), all built on entry.
+- What made the 2D towers slow, worth checking first in any view: work per floor
+  that is floors², off-screen content that is still drawn, a private texture per
+  person, and schedule lookups every frame.
+
+---
+
+## Previous (2026-09-23) — phone minimap
 
 **Shipped in `a473c3a`.** Owner sent a landscape screenshot: the MAP panel's zone
 list was a cramped two-column mush. Pushed for the Netlify deploy.
