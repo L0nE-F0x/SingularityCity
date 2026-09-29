@@ -111,6 +111,8 @@ export default [
                 Entities: 'writable',
                 EntitiesGfx: 'writable',
                 Environment: 'writable',
+                PixelArt: 'writable',
+                PL: 'writable',
                 Holomap: 'writable',
                 InteriorAvatarStates: 'writable',
                 InteriorAgents: 'writable',

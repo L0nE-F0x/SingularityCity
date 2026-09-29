@@ -3347,6 +3347,10 @@ const Environment = {
             this._lastBuildFP = fp;
         }
 
+        // Pixel art skin (js/pixel/pixel_art.js): swaps facades only, see facade() below.
+        const pixel = typeof PixelArt !== 'undefined' && PixelArt.enabled;
+        if (pixel) PixelArt.beginBuild();
+
         // Clear building references before destroying PIXI objects
         if (window.BLDS) {
             BLDS.forEach((b) => {
@@ -7375,6 +7379,13 @@ const Environment = {
             }
 
             container.addChildAt(gfx, 0);
+            // Pixel art skin: the pixel facade replaces the classic one on screen. The classic
+            // Graphics stays in the container, hidden, so code below can still draw into it.
+            const pxFacade = pixel ? PixelArt.facade(b, h) : null;
+            if (pxFacade) {
+                gfx.visible = false;
+                container.addChildAt(pxFacade, 1);
+            }
             // Add overlay text elements ON TOP of gfx for special buildings
             if (b.id === 'black_market' && typeof BlackMarket !== 'undefined') {
                 BlackMarket.drawOverlay(container, b, h);
@@ -7382,7 +7393,7 @@ const Environment = {
             // Cache building body as bitmap — converts all Graphics draw calls into a single batched sprite
             // Skip cacheAsBitmap for underground buildings — they're offscreen at render time,
             // and PIXI may produce a blank texture for offscreen cached graphics
-            if (b.id !== 'black_market') gfx.cacheAsBitmap = true;
+            if (b.id !== 'black_market' && !pxFacade) gfx.cacheAsBitmap = true;
 
             // ─── ROOFTOP HELIPAD for HQ buildings with founders ───
             if (
@@ -7614,7 +7625,8 @@ const Environment = {
                 if (sign.width > b.w - 4) sign.scale.set((b.w - 4) / sign.width);
                 container.addChild(sign);
                 b._sign = sign;
-                if (lab) {
+                // The pixel facade paints the lab name on its own rooftop sign.
+                if (lab && !(pxFacade && PixelArt.pixelSigns)) {
                     const boardW = b.w * 0.8;
                     const boardH = 24;
                     const boardX = b.w / 2 - boardW / 2;
@@ -7690,7 +7702,7 @@ const Environment = {
                     flicker: 0.2,
                 };
             }
-            if (nc) {
+            if (nc && !pxFacade) {
                 const neonCont = new PIXI.Container();
                 // Neon text (create first to measure width)
                 const colHexStr = '#' + nc.col.toString(16).padStart(6, '0');
@@ -7839,6 +7851,8 @@ const Environment = {
             const b = BLDS[i];
             if (!b._container || SKIP_IDS[b.id] || (b.type && SPACE_TYPES[b.type])) continue;
             if (SKIP.some((p) => b.id.startsWith(p))) continue;
+            // Pixel facades carry their own shading.
+            if (typeof PixelArt !== 'undefined' && PixelArt.isPorted(b)) continue;
             const floors = b.dynamicFl || b.fl || 3;
             const h = floors * 18 + 24;
             const topY = gy - 24 - h; // world-Y of the building top
@@ -8727,6 +8741,7 @@ const Environment = {
     },
 
     update(dp, night, occ) {
+        if (typeof PixelArt !== 'undefined') PixelArt.update(dp);
         if (!this._vpEl) this._vpEl = document.getElementById('viewport');
         const vp = this._vpEl;
         let sky;
