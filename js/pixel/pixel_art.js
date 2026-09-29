@@ -53,6 +53,7 @@ const PixelArt = {
         'suburb_',
         'house_',
         'forest_',
+        'power_',
     ],
     isPorted(b) {
         if (!this.enabled || !b || !b.id || typeof PL === 'undefined' || !PL.paintBuilding) return false;
@@ -179,6 +180,7 @@ const PixelArt = {
             b.name,
             PL.dataKey ? PL.dataKey(b) : '',
             PL.dataKeyRow ? PL.dataKeyRow(b) : '',
+            PL.dataKeyPower ? PL.dataKeyPower(b) : '',
         ].join('|');
         let hit = this._cache.get(key);
         if (hit) return hit;
@@ -281,6 +283,36 @@ const PixelArt = {
         if (!this.isPorted(b)) return;
         this._hideDuplicates(b, container);
         if (b.type === 'embassy' || b.type === 'diplomat_villa') this._pixelizeFlag(b);
+        // Polaris plasma halo (PowerEnv pulses its alpha and scale).
+        if (b.id === 'power_fusion')
+            container.children.forEach((c) => {
+                if (c instanceof PIXI.Graphics && c.blendMode === PIXI.BLEND_MODES.ADD) this.pixelize(c);
+            });
+    },
+
+    // Zone modules build their animated vector pieces lazily (when the camera first nears
+    // the zone), so they are pixelised as they appear. Each piece is re-drawn once.
+    _lazySources() {
+        const out = [];
+        if (typeof PowerEnv !== 'undefined') {
+            (PowerEnv.turbineBlades || []).forEach((tb) => tb.cont && out.push(...tb.cont.children));
+            out.push(...(PowerEnv.steamParts || []), ...(PowerEnv.smokeParts || []));
+        }
+        return out;
+    },
+    _sweepLazy() {
+        for (const g of this._lazySources()) {
+            if (!g || g.destroyed || g._pxDone || !(g instanceof PIXI.Graphics)) continue;
+            g._pxDone = true;
+            this.pixelizeKeep(g);
+        }
+    },
+    // Like pixelize() but the texture belongs to a long-lived zone object, so it is not
+    // freed on the next building rebuild.
+    pixelizeKeep(g) {
+        const before = this._rts.length;
+        this.pixelize(g);
+        if (this._rts.length > before) this._rts.pop();
     },
 
     // Live weather names → the palette's weather states.
@@ -309,7 +341,9 @@ const PixelArt = {
 
     // Called every frame from Environment.update().
     update(dp) {
-        if (!this.enabled || !this._entries.length) return;
+        if (!this.enabled) return;
+        if (typeof G !== 'undefined' && G.tick % 30 === 0) this._sweepLazy();
+        if (!this._entries.length) return;
         this._K = PL.tod(dp, this._wx());
         const t = performance.now() / 1000;
         for (const e of this._entries) {
