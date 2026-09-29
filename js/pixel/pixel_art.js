@@ -54,6 +54,7 @@ const PixelArt = {
         'house_',
         'forest_',
         'power_',
+        'port_',
     ],
     isPorted(b) {
         if (!this.enabled || !b || !b.id || typeof PL === 'undefined' || !PL.paintBuilding) return false;
@@ -79,6 +80,7 @@ const PixelArt = {
         if (b.id === 'park') hide(b._monIcon);
         if (b.type === 'alignment') hideText((b.name || '').toUpperCase());
         if (b.id === 'neon_bar') hideText('🍸');
+        if (b.id === 'port_authority') hideText('⚓');
         if (b.id.startsWith('suburb_'))
             hideText(String(100 + (parseInt(b.id.replace('suburb_', ''), 10) || 1) * 4));
         // Estate name sign: the board Graphics right before b._stationSign, and the Text.
