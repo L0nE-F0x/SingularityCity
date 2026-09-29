@@ -29,7 +29,7 @@
             if (g.isMask) return null;
             if (g._pxSkinP === g.parent && g._pxSkinV === this.version) return g._pxSkinR;
             let r = null;
-            for (let p = g.parent; p; p = p.parent) {
+            for (let p = g; p; p = p.parent) {
                 if (p._pxNoSkin) break;
                 if (p._pxSkin) {
                     r = p._pxSkin;
@@ -98,21 +98,25 @@
             const half = A * 0.72;
             for (const d of g.geometry.graphicsData) {
                 let s = d.shape;
-                const solid =
-                    (d.fillStyle.visible && d.fillStyle.alpha >= 0.35) ||
-                    (d.lineStyle.visible && d.lineStyle.alpha >= 0.35);
-                if (solid && d.fillStyle.visible) {
+                // Dots and strokes always keep at least one pixel; small rectangles only when
+                // opaque enough to read (faint hatching would merge into a block).
+                const solid = d.fillStyle.visible && d.fillStyle.alpha >= 0.35;
+                if (d.fillStyle.visible) {
                     if (s.type === SH.CIRC && s.radius < half) s = new PIXI.Circle(s.x, s.y, half);
                     else if (s.type === SH.ELIP && (s.width < half || s.height < half))
                         s = new PIXI.Ellipse(s.x, s.y, Math.max(s.width, half), Math.max(s.height, half));
-                    else if ((s.type === SH.RECT || s.type === SH.RREC) && (s.width < A || s.height < A)) {
+                    else if (
+                        solid &&
+                        (s.type === SH.RECT || s.type === SH.RREC) &&
+                        (s.width < A || s.height < A)
+                    ) {
                         const w = Math.max(s.width, A);
                         const h = Math.max(s.height, A);
                         s = new PIXI.Rectangle(s.x - (w - s.width) / 2, s.y - (h - s.height) / 2, w, h);
                     }
                 }
                 let line = d.lineStyle;
-                if (solid && line.visible && line.width > 0 && line.width < A) {
+                if (line.visible && line.width > 0 && line.width < A) {
                     line = line.clone();
                     line.width = A;
                 }
@@ -123,9 +127,49 @@
         },
 
         // Render g's geometry at art resolution. Returns [{ tex, x, y }] (strips if wide), [] if empty.
+        // The visible part of g in its local space (a few pixels of overscan), or null
+        // when g is no larger than the view (then it is rendered whole).
+        viewClip(g, bnd) {
+            const scr = G.app.renderer.screen;
+            const wt = g.worldTransform;
+            const pts = [
+                [0, 0],
+                [scr.width, 0],
+                [0, scr.height],
+                [scr.width, scr.height],
+            ].map(([x, y]) => wt.applyInverse(new PIXI.Point(x, y)));
+            const xs = pts.map((p) => p.x);
+            const ys = pts.map((p) => p.y);
+            const pad = A * 4;
+            const v = new PIXI.Rectangle(
+                Math.min(...xs) - pad,
+                Math.min(...ys) - pad,
+                Math.max(...xs) - Math.min(...xs) + pad * 2,
+                Math.max(...ys) - Math.min(...ys) + pad * 2
+            );
+            if (bnd.width < v.width * 1.5 && bnd.height < v.height * 1.5) return null;
+            const x = Math.max(bnd.x, v.x);
+            const y = Math.max(bnd.y, v.y);
+            const r = new PIXI.Rectangle(
+                x,
+                y,
+                Math.min(bnd.x + bnd.width, v.x + v.width) - x,
+                Math.min(bnd.y + bnd.height, v.y + v.height) - y
+            );
+            return r;
+        },
+
         render(g, dither, into) {
             const src = this.source(g);
-            const bnd = src.getLocalBounds();
+            let bnd = src.getLocalBounds();
+            // Every-frame Graphics larger than the view render only what is on screen.
+            if (into && bnd.width > 0) {
+                const clip = this.viewClip(g, bnd);
+                if (clip) {
+                    bnd = clip;
+                    g._pxClipped = true;
+                }
+            }
             const parts = [];
             if (bnd.width > 0 && bnd.height > 0) {
                 const x0 = Math.floor(bnd.x / A) * A;
@@ -194,8 +238,10 @@
 
         skin(g) {
             const dirty = g.geometry.dirty;
-            if (g._pxGeom === dirty) return;
+            const moved = g._pxClipped && g._pxView !== this.viewKey;
+            if (g._pxGeom === dirty && !moved) return;
             g._pxGeom = dirty;
+            g._pxView = this.viewKey;
             if (!g._pxHooked) {
                 g._pxHooked = true;
                 g.once('destroyed', () => this.release(g));
@@ -258,6 +304,8 @@
         flush() {
             if (!this.on || !G.app) return;
             this.frame++;
+            const w = G.world;
+            this.viewKey = w ? w.x.toFixed(1) + ',' + w.y.toFixed(1) + ',' + w.scale.x : '';
             // Every-frame redraws first (cheap), then new geometry within a time budget;
             // the rest waits for the next frames (drawn as vector meanwhile if never skinned).
             if (this.queue.size) {
@@ -286,7 +334,8 @@
     const orig = PIXI.Graphics.prototype._render;
     PIXI.Graphics.prototype._render = function (renderer) {
         if (!S.on || this._pxVec || !S.skinOf(this)) return orig.call(this, renderer);
-        if (this._pxGeom !== this.geometry.dirty) S.queue.add(this);
+        if (this._pxGeom !== this.geometry.dirty || (this._pxClipped && this._pxView !== S.viewKey))
+            S.queue.add(this);
         const kids = this._pxKids;
         if (!kids && this._pxGeom !== this.geometry.dirty) return orig.call(this, renderer);
         if (kids) {

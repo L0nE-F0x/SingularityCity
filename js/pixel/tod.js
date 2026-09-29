@@ -178,9 +178,46 @@
             far2: grey(k.far2, amount * 0.6),
             haze: grey(k.haze, amount),
             stars: k.stars * (1 - amount),
-            sun: k.sun * (1 - amount * 0.85),
+            sun: k.sun * (1 - PL.clamp(amount * 1.6, 0, 1)),
             night: Math.min(1, k.night + amount * 0.25 * (1 - k.night)),
         });
+    }
+
+    // The classic sky under weather (Environment.update): daytime gradients for each state,
+    // snow at any hour. Resampled onto the ramp and blended in by daylight.
+    const WX_SKY = {
+        drizzle: [0x2f3640, 0x475569, 0x64748b],
+        rain: [0x2f3640, 0x475569, 0x64748b],
+        thunderstorm: [0x1a1f2a, 0x2d3340, 0x444a55],
+        overcast: [0x4a5568, 0x64748b, 0x94a3b8],
+        fog: [0x8a9099, 0xa8b1bb, 0xc0c8d0],
+        partly_cloudy: [0x355088, 0x6a9abf, 0x93b9d8],
+        snow: [0x1a1a2e, 0x2d3748, 0x4a5568],
+    };
+    // How much each state greys and dims the rest of the palette.
+    const WX_GREY = {
+        drizzle: 0.35,
+        rain: 0.55,
+        thunderstorm: 0.85,
+        overcast: 0.4,
+        fog: 0.6,
+        partly_cloudy: 0.08,
+        snow: 0.45,
+    };
+    const WX_ALIAS = { storm: 'thunderstorm' };
+    function weatherSky(k, w, dp) {
+        const stops = WX_SKY[w];
+        if (!stops) return k;
+        const day = w === 'snow' ? 1 : Math.min(PL.smooth(0.27, 0.3, dp), 1 - PL.smooth(0.72, 0.75, dp));
+        if (day <= 0) return k;
+        const n = k.sky.length;
+        const sky = k.sky.map((c, i) => {
+            const t = n > 1 ? i / (n - 1) : 0;
+            const wc =
+                t < 0.5 ? PL.mix(stops[0], stops[1], t * 2) : PL.mix(stops[1], stops[2], (t - 0.5) * 2);
+            return PL.mix(c, wc, day);
+        });
+        return Object.assign({}, k, { sky: sky, haze: PL.mix(k.haze, stops[2], day) });
     }
 
     PL.tod = function (dp, weather) {
@@ -200,17 +237,10 @@
             }
         }
         let k = lerpKey(a, b, PL.smooth(0, 1, t));
-        const wet =
-            weather === 'rain'
-                ? 0.55
-                : weather === 'storm'
-                  ? 0.85
-                  : weather === 'snow'
-                    ? 0.45
-                    : weather === 'fog'
-                      ? 0.6
-                      : 0;
+        const w = WX_ALIAS[weather] || weather;
+        const wet = WX_GREY[w] || 0;
         k = overcast(k, wet);
+        k = weatherSky(k, w, dp);
         k.dp = dp;
         // Sun crosses the sky 06:00 → 18:00, moon 18:00 → 06:00 (screen-space arc, 0..1 across).
         k.sunT = PL.clamp((dp - 0.24) / 0.54, 0, 1);

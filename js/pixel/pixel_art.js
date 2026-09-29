@@ -483,21 +483,24 @@ const PixelArt = {
     _markLayers() {
         const S = this.Skin;
         if (!S) return;
-        [G.charLayer, G.carLayer, G.trainLayer, G.reflectionLayer, G.undergroundLayer].forEach((l) =>
-            S.mark(l)
+        [G.charLayer, G.carLayer, G.trainLayer, G.reflectionLayer, G.undergroundLayer, G.shadowLayer].forEach(
+            (l) => S.mark(l)
         );
         if (typeof CityAmbience !== 'undefined' && CityAmbience.glowLayer)
             S.mark(CityAmbience.glowLayer, { dither: true });
+        if (typeof SeasonalEnv !== 'undefined') S.mark(SeasonalEnv._overlayGfx);
+        // Weather, fog, lightning and snow cover are redrawn every frame or two.
+        [G.fxGfx, Environment._fogGfx, Environment._flashGfx, Environment._snowGfx].forEach((g) => {
+            if (g && !g._pxSkin) {
+                g._pxDyn = true;
+                S.mark(g);
+            }
+        });
     },
 
-    // Live weather names → the palette's weather states.
+    // The live weather state (PL.tod reads the classic names; the look-dev page uses its own).
     _wx() {
-        const w = typeof Environment !== 'undefined' ? Environment.weather : 'clear';
-        if (w === 'rain' || w === 'drizzle') return 'rain';
-        if (w === 'thunderstorm') return 'storm';
-        if (w === 'snow') return 'snow';
-        if (w === 'fog') return 'fog';
-        return 'clear';
+        return typeof Environment !== 'undefined' && Environment.weather ? Environment.weather : 'clear';
     },
 
     _apply(e, t) {
@@ -507,7 +510,10 @@ const PixelArt = {
         e.emit.alpha = emitA;
         if (e.bloom) e.bloom.alpha = emitA * 0.85;
         if (e.snow) {
-            e.snow.visible = this._wx() === 'snow';
+            // Follows the classic snow build-up and melt (Environment._drawSnowAccum).
+            const acc = typeof Environment !== 'undefined' ? Environment._snowAccum || 0 : 0;
+            e.snow.visible = acc > 0.02;
+            e.snow.alpha = Math.min(1, acc * 1.7);
             e.snow.tint = PL.mix(K.amb, 0xffffff, 0.35);
         }
         for (const s of e.lights) s.alpha = s.baseA * emitA;
