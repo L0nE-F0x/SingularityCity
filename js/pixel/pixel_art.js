@@ -545,3 +545,8 @@ const PixelArt = {
         }
     },
 };
+
+// Default zoom 1 with the skin, so one art pixel is exactly 3 screen pixels (0.8 gave
+// 2.4, drawing some pixel columns 2 wide and some 3). Camera.init frames from it.
+if (PixelArt.enabled && typeof Camera !== 'undefined')
+    Camera.zoom = Camera.targetZoom = Camera.defaultZoom = 1;

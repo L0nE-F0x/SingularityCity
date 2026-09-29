@@ -8,6 +8,7 @@ const Camera = {
     targetY: 0,
     zoom: 0.8,
     targetZoom: 0.8,
+    defaultZoom: 0.8, // the pixel-art skin raises all three to 1 (js/pixel/pixel_art.js)
     isDragging: false,
     lastX: 0,
     lastY: 0,

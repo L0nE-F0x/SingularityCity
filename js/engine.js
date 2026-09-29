@@ -1289,7 +1289,7 @@ const G = {
             } else if (typeof AutoTour !== 'undefined' && AutoTour.active && AutoTour._userZoom) {
                 Camera.targetZoom = AutoTour._userZoom;
             } else {
-                Camera.targetZoom = this._savedInteriorZoom || 0.8;
+                Camera.targetZoom = this._savedInteriorZoom || Camera.defaultZoom;
             }
         }
     },
@@ -1350,7 +1350,7 @@ const G = {
         if (topUI) topUI.style.display = '';
 
         if (typeof Camera !== 'undefined') {
-            Camera.targetZoom = this.tracking ? 1.3 : this._savedTrainZoom || 0.8;
+            Camera.targetZoom = this.tracking ? 1.3 : this._savedTrainZoom || Camera.defaultZoom;
         }
     },
 
@@ -1434,7 +1434,7 @@ const G = {
             if (typeof AutoTour !== 'undefined' && AutoTour.active && AutoTour._userZoom) {
                 Camera.targetZoom = AutoTour._userZoom;
             } else {
-                Camera.targetZoom = this._savedTrackingZoom || 0.8;
+                Camera.targetZoom = this._savedTrackingZoom || Camera.defaultZoom;
             }
         }
     },
