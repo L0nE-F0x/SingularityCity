@@ -242,10 +242,11 @@
         k = overcast(k, wet);
         k = weatherSky(k, w, dp);
         k.dp = dp;
-        // Sun crosses the sky 06:00 → 18:00, moon 18:00 → 06:00 (screen-space arc, 0..1 across).
-        k.sunT = PL.clamp((dp - 0.24) / 0.54, 0, 1);
-        const md = dp < 0.5 ? dp + 1 : dp;
-        k.moonT = PL.clamp((md - 0.78) / 0.52, 0, 1);
+        // The classic schedule (Environment.update): the sun crosses the screen left to
+        // right from 06:00 to 19:55 (dp 0.25 → 0.83), the moon from 19:55 to 06:00.
+        // Outside 0..1 the body is below the horizon.
+        k.sunT = (dp - 0.25) / (0.83 - 0.25);
+        k.moonT = (dp > 0.83 ? dp - 0.83 : dp + 0.17) / 0.42;
         k.moonA = PL.clamp(k.night * 1.2 - 0.1, 0, 1) * (1 - wet * 0.8);
         return k;
     };

@@ -14,6 +14,7 @@
         img: null,
         tex: null,
         key: '',
+        topPad: 0,
         cloudTex: {},
 
         _ensure(w, h) {
@@ -92,7 +93,8 @@
                             hh > 0.99975 ? 0xfff6e0 : mix(ramp[1], 0xe8e8f8, 0.35 + tw * 0.5 * K.stars)
                         );
                     }
-            const arcH = Math.min(horizonY - 20, 170);
+            // Peak of the arc stays below the top toolbar (topPad sky pixels).
+            const arcH = PL.clamp(horizonY - 20 - this.topPad, 0, 170);
             if (K.sun > 0.02 && K.sunT > 0 && K.sunT < 1)
                 this._sun(
                     img,
@@ -101,15 +103,15 @@
                     6,
                     K
                 );
-            if (K.moonA > 0.02) {
+            if (K.moonA > 0.02 && K.moonT > 0 && K.moonT < 1) {
                 const p =
                     typeof CityAmbience !== 'undefined' && CityAmbience.getMoonPhase
                         ? CityAmbience.getMoonPhase()
                         : 0.5;
                 this._moon(
                     img,
-                    Math.round(w * (0.12 + K.moonT * 0.76)),
-                    Math.round(horizonY - 70 - Math.sin(K.moonT * Math.PI) * arcH * 0.8),
+                    Math.round(w * (0.08 + K.moonT * 0.84)),
+                    Math.round(horizonY - 18 - Math.sin(K.moonT * Math.PI) * arcH * 0.9),
                     7,
                     p,
                     K.moonA
@@ -133,6 +135,7 @@
             this.sprite.scale.set(s);
             // Horizon: the pavement line (groundY − 24) on screen, in sky pixels.
             const horizon = Math.round((G.world.y + (G.groundY - 24) * zoom) / s);
+            this.topPad = Math.ceil(100 / s) + 8;
             const key = [w, h, horizon, Math.round(K.dp * 1440), Environment.weather, Math.floor(t * 2)].join(
                 '|'
             );

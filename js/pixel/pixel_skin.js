@@ -91,12 +91,106 @@
             return true;
         },
 
+        // Faces: a head (rect) with two identical tiny dots side by side on one line — every
+        // citizen, commuter, vendor and avatar draws its eyes like that. At art resolution the
+        // two dots land on neighbouring pixels and smudge into one, so each eye gets its own
+        // pixel with one pixel between them; on an even-width face the pair sits toward +x,
+        // the way a walker faces (the container's scale.x flips it). Highlights, glasses
+        // rings and the faint mouth line on a face are dropped at this size.
+        // Returns Map(index → Rectangle to draw instead | null to skip).
+        faces(list) {
+            const out = new Map();
+            const dot = (d) => d.shape.type === SH.CIRC && d.shape.radius < A * 0.75 && !d.matrix;
+            const faceOf = (i, x0, x1, y) => {
+                for (let j = i - 1; j >= 0; j--) {
+                    const f = list[j].shape;
+                    if (
+                        (f.type === SH.RREC || f.type === SH.RECT) &&
+                        list[j].fillStyle.visible &&
+                        f.x <= x0 &&
+                        f.x + f.width >= x1 &&
+                        f.y <= y &&
+                        f.y + f.height >= y
+                    )
+                        return f;
+                }
+                return null;
+            };
+            let face = null;
+            for (let i = 0; i + 1 < list.length; i++) {
+                const a = list[i];
+                const b = list[i + 1];
+                if (out.has(i) || !dot(a) || !dot(b)) continue;
+                const sa = a.shape;
+                const sb = b.shape;
+                const dx = Math.abs(sa.x - sb.x);
+                if (
+                    Math.abs(sa.y - sb.y) > 0.01 ||
+                    Math.abs(sa.radius - sb.radius) > 0.01 ||
+                    dx < 0.5 ||
+                    dx > A * 3
+                )
+                    continue;
+                const f = faceOf(i, Math.min(sa.x, sb.x), Math.max(sa.x, sb.x), sa.y);
+                if (!f) continue;
+                face = f;
+                const filled = a.fillStyle.visible && b.fillStyle.visible;
+                if (!filled || a.fillStyle.alpha < 0.9) {
+                    out.set(i, null);
+                    out.set(i + 1, null);
+                    i++;
+                    continue;
+                }
+                const c0 = Math.ceil((f.x - A / 2) / A);
+                const n = Math.floor((f.x + f.width - A / 2) / A) - c0 + 1;
+                const row = Math.floor(sa.y / A);
+                const px = (c) => new PIXI.Rectangle(c * A, row * A, A, A);
+                const mid = c0 + Math.floor(n / 2);
+                const [li, ri] = sa.x < sb.x ? [i, i + 1] : [i + 1, i];
+                if (n >= 3) {
+                    out.set(li, px(mid - 1));
+                    out.set(ri, px(mid + 1));
+                } else {
+                    out.set(li, null);
+                    out.set(ri, px(c0 + Math.max(0, n - 1)));
+                }
+                i++;
+            }
+            // Faint sub-pixel marks on a face (the mouth line) would sit against the eyes.
+            if (face)
+                list.forEach((d, i) => {
+                    const sh = d.shape;
+                    if (
+                        !out.has(i) &&
+                        sh.type === SH.RECT &&
+                        sh.width < A &&
+                        sh.height < A &&
+                        d.fillStyle.visible &&
+                        d.fillStyle.alpha < 0.6 &&
+                        sh.x >= face.x &&
+                        sh.x + sh.width <= face.x + face.width &&
+                        sh.y >= face.y &&
+                        sh.y <= face.y + face.height
+                    )
+                        out.set(i, null);
+                });
+            return out;
+        },
+
         // A copy of g's geometry with sub-pixel shapes grown to one art pixel.
         source(g) {
             const src = new PIXI.Graphics();
             const geo = src.geometry;
             const half = A * 0.72;
-            for (const d of g.geometry.graphicsData) {
+            const list = g.geometry.graphicsData;
+            const fix = this.faces(list);
+            for (let i = 0; i < list.length; i++) {
+                const d = list[i];
+                if (fix.has(i)) {
+                    const r = fix.get(i);
+                    if (r) geo.drawShape(r, d.fillStyle, new PIXI.LineStyle(), null);
+                    continue;
+                }
                 let s = d.shape;
                 // Dots and strokes always keep at least one pixel; small rectangles only when
                 // opaque enough to read (faint hatching would merge into a block).
@@ -126,7 +220,6 @@
             return src;
         },
 
-        // Render g's geometry at art resolution. Returns [{ tex, x, y }] (strips if wide), [] if empty.
         // The visible part of g in its local space (a few pixels of overscan), or null
         // when g is no larger than the view (then it is rendered whole).
         viewClip(g, bnd) {
@@ -159,6 +252,8 @@
             return r;
         },
 
+        // Render g's geometry at art resolution. Returns [{ tex, x, y }] (strips if wide), [] if
+        // empty, or null when a per-frame texture would be too wide.
         render(g, dither, into) {
             const src = this.source(g);
             let bnd = src.getLocalBounds();
