@@ -158,7 +158,7 @@
         const lc = labColor(b);
         const pal = K.labPalette(lc);
         const up = h - LOBBY;
-        const inset = w > 30 ? 2 : 1;
+        const inset = 0;
         // Tower shaft: dark glass with lab-tinted reflection.
         const gTop = mix(0x9cc0e0, pal.accent, 0.12);
         const gBot = mix(0x3a5578, pal.deep, 0.35);
@@ -184,20 +184,37 @@
         }
         K.lobby(B, 0, up, w, LOBBY, { accent: pal.accent, interior: 0xf4d8a8 });
         const top = roofSign(B, labName(b), 0, w, 0, pal.accent);
-        if (w > 24) K.antenna(B, w - 4, 0, Math.min(14, 6 + Math.round(up * 0.05)));
+        if (w > 24) K.antenna(B, w - 4, 0, 4);
         if (w > 36) K.ac(B, 3, 0);
         void top;
     };
 
+    // Classic floor row f (0 = top) starts at 14 + f × 18 world px; in art px:
+    const rowY = (f) => Math.round((14 + f * 18) / PL.ART);
+    // Lab name on a vertical blade when the whole name fits, else the rooftop sign.
+    function bladeOrRoof(B, b, x, y, maxLetters, col, bladeOpts, roof) {
+        const name = String(labName(b))
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, '');
+        if (name.length && name.length <= maxLetters)
+            return K.blade(B, x, y, labName(b), col, Object.assign({ max: maxLetters }, bladeOpts));
+        return roofSign(B, labName(b), roof.x, roof.w, roof.y, col, roof.o);
+    }
+
+    // Campus: a slimmer tower (inset 12 world px) on a podium the width of the lot — the
+    // classic's bottom two floor rows — with a terrace railing and a tree on each shoulder.
     P.campus = function (B, b, w, h) {
         const lc = labColor(b);
         const pal = K.labPalette(lc);
         const up = h - LOBBY;
+        const floors = Math.max(1, Math.round(up / FLOOR));
         const anthropic = b.lab === 'anthropic';
         const wall = anthropic ? 0xc9b49a : b.lab === 'google' ? 0xd8dce2 : mix(0xcdbfa8, pal.pale, 0.4);
-        K.wall(B, 0, 0, w, up, wall, anthropic ? 'stone' : 'stucco');
-        // Wide windows in long bands, wood-framed; warm light at night.
-        K.windows(B, 1, 3, w - 2, up - 3, {
+        const kind = anthropic ? 'stone' : 'stucco';
+        const accent = anthropic ? 0xd97757 : pal.accent;
+        const ins = floors > 2 ? Math.round(12 / PL.ART) : 0;
+        const podTop = floors > 2 ? Math.min(up - 3, rowY(floors - 2)) : 0;
+        const win = {
             floorH: FLOOR,
             winW: 4,
             winH: 4,
@@ -209,25 +226,41 @@
             frame: anthropic ? 0x6a4a36 : 0x4a5262,
             glassTop: 0xb8d0e0,
             glassBot: 0x6a8aa8,
-        });
-        // Horizontal accent bands every few floors.
-        const every = up > 90 ? 5 : 3;
-        for (let f = every; f * FLOOR < up - 2; f += every)
-            K.band(B, 0, f * FLOOR + 3, w, anthropic ? 0xd97757 : pal.accent);
-        // Roof garden with a pergola.
-        K.cap(B, 0, 0, w, anthropic ? 0xe8d8c0 : 0xe8eaee);
-        K.plants(B, 2, 0, Math.max(4, w - 4));
+        };
+        const tw = w - ins * 2;
+        // Tower.
+        if (podTop > 0) {
+            K.wall(B, ins, 0, tw, podTop, wall, kind);
+            if (podTop > 5) K.windows(B, ins + 1, 3, tw - 2, podTop - 3, win);
+            const every = podTop > 90 ? 5 : 3;
+            for (let f = every; f * FLOOR < podTop - 2; f += every) K.band(B, ins, f * FLOOR + 3, tw, accent);
+        }
+        // Podium.
+        K.wall(B, 0, podTop, w, up - podTop, wall, kind);
+        K.windows(B, 1, podTop + (podTop ? 1 : 3), w - 2, up - podTop - (podTop ? 1 : 3), win);
+        if (podTop > 0) {
+            K.cap(B, 0, podTop, ins, light(wall, 0.12));
+            K.cap(B, w - ins, podTop, ins, light(wall, 0.12));
+            if (floors >= 4 && ins >= 3) {
+                [0, w - ins].forEach((x0) => {
+                    for (let x = x0; x < x0 + ins; x += 2) B.px(x, podTop - 1, 0x94a3b8);
+                    const tx = x0 + Math.floor(ins / 2);
+                    B.px(tx, podTop - 1, 0x5a3a24);
+                    B.rect(tx - 1, podTop - 3, 3, 2, 0x2d6a4f);
+                    B.px(tx, podTop - 4, 0x3a8a60);
+                });
+            }
+        }
+        // Roof garden on the tower.
+        K.cap(B, ins, 0, tw, anthropic ? 0xe8d8c0 : 0xe8eaee);
+        K.plants(B, ins + 2, 0, Math.max(4, tw - 4));
         if (b.lab === 'google') {
             const cols = [0x4285f4, 0xea4335, 0xfbbc05, 0x34a853];
             for (let i = 0; i < w - 2; i++) B.px(1 + i, up - 1, cols[Math.floor(i / 4) % 4]);
         }
-        K.lobby(B, 0, up, w, LOBBY, {
-            accent: anthropic ? 0xd97757 : pal.accent,
-            frame: 0x3a3230,
-            interior: 0xffe0b0,
-        });
-        roofSign(B, labName(b), 0, w, -2, anthropic ? 0xf0a07a : pal.accent);
-        if (up > 30) K.emblem(B, b.lab, w - 6, 8, pal.accent, true);
+        K.lobby(B, 0, up, w, LOBBY, { accent: accent, frame: 0x3a3230, interior: 0xffe0b0 });
+        roofSign(B, labName(b), ins, tw, -2, anthropic ? 0xf0a07a : pal.accent);
+        if (podTop > 30) K.emblem(B, b.lab, w - ins - 6, 8, pal.accent, true);
     };
 
     P.brutalist = function (B, b, w, h) {
@@ -274,78 +307,98 @@
         K.dish(B, 6, 0, 3);
     };
 
+    // Setback (art deco): the classic's tiers — top third inset 14 world px, middle third 7,
+    // base full width — each tier capped, with a deco crown band on the top tier.
     P.setback = function (B, b, w, h) {
         const lc = labColor(b);
         const pal = K.labPalette(lc);
         const up = h - LOBBY;
+        const floors = Math.max(1, Math.round(up / FLOOR));
         const stone = mix(0xb8aa94, pal.pale, 0.25);
-        // Three tiers, each narrower; art-deco piers.
-        const tiers = up > 60 ? 3 : 2;
-        let y = up;
-        for (let t = 0; t < tiers; t++) {
-            const tw = Math.round(w * (1 - t * 0.18));
-            const tx = Math.round((w - tw) / 2);
-            const th = t === tiers - 1 ? y - 10 : Math.round((up - 10) / tiers);
-            const ty = y - th;
-            K.wall(B, tx, ty, tw, th, stone, 'stone');
-            K.windows(B, tx + 1, ty + 2, tw - 2, th - 2, {
-                floorH: FLOOR,
-                winW: 2,
-                winH: 4,
-                pitch: 4,
-                top: 1,
-                inset: 1,
-                tone: 'mixed',
-                lit: 0.55,
-                glassTop: 0x98b8d4,
-                glassBot: 0x4a6480,
-            });
+        const insetFor = (f) =>
+            f < floors / 3 ? Math.round(14 / PL.ART) : f < (floors * 2) / 3 ? Math.round(7 / PL.ART) : 0;
+        const tiers = [];
+        for (let f = 0; f < floors; f++) {
+            const ins = insetFor(f);
+            if (!tiers.length || tiers[tiers.length - 1].ins !== ins)
+                tiers.push({ ins: ins, y0: f === 0 ? 0 : Math.min(up - 1, rowY(f)) });
+        }
+        tiers.forEach((t, i) => (t.y1 = i + 1 < tiers.length ? tiers[i + 1].y0 : up));
+        tiers.forEach((t, i) => {
+            const tx = t.ins;
+            const tw = w - t.ins * 2;
+            const th = t.y1 - t.y0;
+            if (th <= 0) return;
+            K.wall(B, tx, t.y0, tw, th, stone, 'stone');
+            const wy = t.y0 + (i === 0 ? 5 : 2);
+            if (t.y1 - wy > 4)
+                K.windows(B, tx + 1, wy, tw - 2, t.y1 - wy, {
+                    floorH: FLOOR,
+                    winW: 2,
+                    winH: 4,
+                    pitch: 4,
+                    top: 1,
+                    inset: 1,
+                    tone: 'mixed',
+                    lit: 0.55,
+                    glassTop: 0x98b8d4,
+                    glassBot: 0x4a6480,
+                });
             // Piers.
-            for (let x = tx + 3; x < tx + tw - 2; x += 8) {
-                for (let yy = ty + 2; yy < ty + th; yy++) {
+            for (let x = tx + 3; x < tx + tw - 2; x += 8)
+                for (let yy = t.y0 + 2; yy < t.y1; yy++) {
                     B.px(x, yy, light(stone, 0.15));
                     B.px(x + 1, yy, dark(stone, 0.1));
                 }
-            }
-            K.cap(B, tx, ty, tw, light(stone, 0.1), { thick: true });
-            y = ty;
+            // Tier cap: the lab-tinted ledge where the tier above steps in.
+            K.cap(B, tx, t.y0, tw, i === 0 ? light(stone, 0.1) : mix(light(stone, 0.1), pal.accent, 0.5), {
+                thick: true,
+            });
+        });
+        // Crown band on the top tier: stepped deco courses with sunburst lights.
+        const ti = tiers[0].ins;
+        const cw = w - ti * 2;
+        for (let s2 = 0; s2 < 2; s2++) {
+            B.rect(ti + 1 + s2, 2 + s2, cw - 2 - s2 * 2, 1, s2 % 2 ? light(stone, 0.35) : 0xd8dce2);
+            for (let i = 2 + s2; i < cw - 2 - s2; i += 2) B.epx(ti + i, 2 + s2, 0xfff0c0);
         }
-        // Crown: stepped arches with sunburst lights (Chrysler nod).
-        const cw = Math.round(w * 0.36);
-        const cx = Math.round((w - cw) / 2);
-        const cy = y;
-        for (let s = 0; s < 4; s++) {
-            const sw = cw - s * 4;
-            if (sw < 3) break;
-            const sx = cx + s * 2;
-            const sy = cy - 3 - s * 3;
-            B.rect(sx, sy, sw, 3, s % 2 ? light(stone, 0.35) : 0xd8dce2);
-            for (let i = 1; i < sw - 1; i += 2) B.epx(sx + i, sy + 1, 0xfff0c0);
-        }
-        const tipY = cy - 3 - 4 * 3;
-        B.rect(cx + cw / 2, tipY - 8, 1, 8, 0xd8dce2);
-        B.blink(cx + cw / 2, tipY - 9, 0xff4050, 1.8, 0.2);
-        B.px(cx + cw / 2, tipY - 9, 0xff5060);
+        B.blink(Math.round(w / 2), -1, 0xff4050, 1.8, 0.2);
+        B.px(Math.round(w / 2), -1, 0xd8dce2);
         K.lobby(B, 0, up, w, LOBBY, { accent: pal.accent, frame: 0x3a342c, interior: 0xffe6b8 });
-        // Name on a blade sign on the facade, emblem over the door.
-        if (up > 40)
-            K.blade(B, w - 3, 14, labName(b), pal.accent, { max: Math.min(8, Math.floor((up - 24) / 6)) });
-        else roofSign(B, labName(b), 0, w, y, pal.accent);
+        // Name: a blade on the full-width base when the whole name fits, else on the roof.
+        const base = tiers[tiers.length - 1];
+        bladeOrRoof(
+            B,
+            b,
+            w - 3,
+            base.y0 + 2,
+            Math.min(9, Math.floor((up - base.y0 - 6) / 6)),
+            pal.accent,
+            {},
+            {
+                x: ti,
+                w: cw,
+                y: -2,
+            }
+        );
         K.emblem(B, b.lab, Math.round(w / 2), up - 5, pal.accent, true);
     };
 
+    // Pagoda: full-width body, upturned eaves on every third classic floor line (they
+    // overhang one pixel like the classic's cornices), a tiled crown on the roof rows.
     P.pagoda = function (B, b, w, h) {
         const lc = labColor(b);
         const pal = K.labPalette(lc);
         const up = h - LOBBY;
+        const floors = Math.max(1, Math.round(up / FLOOR));
         const wall = mix(0xd8cdb8, pal.pale, 0.2);
         const roof = 0x2e3a4a;
         const red = 0xb8342a;
         const gold = 0xe8b848;
-        const tierH = up > 80 ? 30 : up > 40 ? 18 : 12;
-        const inset = 3;
-        K.wall(B, inset, 0, w - inset * 2, up, wall, 'stucco');
-        K.windows(B, inset + 1, 2, w - inset * 2 - 2, up - 2, {
+        const eaves = [];
+        for (let f = 3; f < floors; f += 3) eaves.push(rowY(f));
+        K.wall(B, 0, 0, w, up, wall, 'stucco');
+        K.windows(B, 1, 6, w - 2, up - 6, {
             floorH: FLOOR,
             winW: 3,
             winH: 4,
@@ -357,47 +410,54 @@
             frame: dark(red, 0.2),
             glassTop: 0xa8c4d8,
             glassBot: 0x587490,
-            skip: (f) => ((f + 1) * FLOOR) % tierH < 4,
         });
         // Red corner columns.
         for (let y = 0; y < up; y++) {
-            B.px(inset, y, red);
-            B.px(inset + 1, y, dark(red, 0.25));
-            B.px(w - inset - 1, y, dark(red, 0.35));
-            B.px(w - inset - 2, y, red);
+            B.px(0, y, red);
+            B.px(1, y, dark(red, 0.25));
+            B.px(w - 1, y, dark(red, 0.35));
+            B.px(w - 2, y, red);
         }
-        // Upturned eaves at each tier with hanging lanterns.
-        for (let y = tierH; y < up - 4; y += tierH) {
+        eaves.forEach((y) => {
             for (let i = -1; i <= w; i++) {
-                const lift = i < 2 ? 2 - i : i > w - 3 ? i - (w - 3) : 0;
-                B.px(i, y - lift, light(roof, 0.2));
-                B.px(i, y + 1 - lift, roof);
-                B.px(i, y + 2 - lift, dark(roof, 0.3));
+                const lift = i < 1 ? 1 - i : i > w - 2 ? i - (w - 2) : 0;
+                B.px(i, y - 1 - lift, light(roof, 0.2));
+                B.px(i, y - lift, roof);
             }
-            B.rect(0, y + 3, w, 1, gold);
+            B.rect(0, y + 1, w, 1, gold);
             [3, w - 4].forEach((lx) => {
-                B.px(lx, y + 4, 0x3a2a20);
-                B.rect(lx - 1, y + 5, 3, 2, 0xd8402a);
-                B.erect(lx - 1, y + 5, 3, 2, 0xff7a4a);
-                B.light(lx, y + 6, 0xff8a4a, 6, 'lantern');
+                B.px(lx, y + 2, 0x3a2a20);
+                B.rect(lx - 1, y + 3, 3, 2, 0xd8402a);
+                B.erect(lx - 1, y + 3, 3, 2, 0xff7a4a);
+                B.light(lx, y + 4, 0xff8a4a, 6, 'lantern');
             });
-        }
-        // Crowning roof.
-        for (let s = 0; s < 5; s++) {
-            const rw = w + 2 - s * Math.max(2, Math.round(w / 10));
+        });
+        // Tiled crown on the top rows, ridge ornament just above.
+        for (let s2 = 0; s2 < 4; s2++) {
+            const rw = w + 2 - s2 * Math.max(2, Math.round(w / 8));
             if (rw < 3) break;
             const rx = Math.round((w - rw) / 2);
-            B.rect(rx, -1 - s, rw, 1, s === 0 ? light(roof, 0.25) : roof);
+            B.rect(rx, 4 - s2, rw, 1, s2 === 0 ? light(roof, 0.25) : roof);
         }
-        B.px(Math.round(w / 2), -7, gold);
-        B.px(Math.round(w / 2), -8, gold);
+        B.rect(0, 5, w, 1, gold);
+        B.px(Math.round(w / 2), 0, gold);
+        B.px(Math.round(w / 2), -1, gold);
         K.lobby(B, 0, up, w, LOBBY, { accent: red, frame: 0x3a1c1a, interior: 0xffd8a0 });
-        if (up > 40)
-            K.blade(B, -1, 10, labName(b), gold, {
-                bg: 0x5a1410,
-                max: Math.min(7, Math.floor((up - 20) / 6)),
-            });
-        else roofSign(B, labName(b), 0, w, -8, gold, { bg: 0x5a1410 });
+        bladeOrRoof(
+            B,
+            b,
+            -1,
+            10,
+            Math.min(9, Math.floor((up - 20) / 6)),
+            gold,
+            { bg: 0x5a1410 },
+            {
+                x: 0,
+                w: w,
+                y: -3,
+                o: { bg: 0x5a1410 },
+            }
+        );
     };
 
     P.euro = function (B, b, w, h) {
