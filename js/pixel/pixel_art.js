@@ -122,10 +122,7 @@ const PixelArt = {
     // rendered once at one texel per art pixel and shown as a child sprite, so whatever
     // animates the object (position, skew, alpha) keeps working unchanged.
     _rts: [],
-    _kept: [], // { g, tex } for long-lived objects; freed once the object is gone
-    // opts.keep: the texture belongs to a long-lived object (not freed on rebuild).
-    // opts.detach: with keep, the object is dropped (not destroyed) when its owner rebuilds.
-    // opts.dither: quantise alpha to four ordered-dither steps (for glows and pools).
+    // opts.dither: quantise alpha to ordered-dither steps (for glows and pools).
     pixelize(g, opts) {
         if (!g || g.destroyed || !(g instanceof PIXI.Graphics) || !G.app) return;
         opts = opts || {};
@@ -138,7 +135,6 @@ const PixelArt = {
             .forEach((c) => {
                 const i = this._rts.indexOf(c.texture);
                 if (i >= 0) this._rts.splice(i, 1);
-                this._kept = this._kept.filter((k) => k.tex !== c.texture);
                 c.destroy({ texture: true, baseTexture: true });
             });
         if (!(bnd.width > 0 && bnd.height > 0)) {
@@ -169,8 +165,7 @@ const PixelArt = {
             sp.x = x0 + cx * A;
             sp.y = y0;
             g.addChild(sp);
-            if (opts.keep) this._kept.push({ g: g, tex: tex, detach: !!opts.detach });
-            else this._rts.push(tex);
+            this._rts.push(tex);
         }
         clone.destroy();
         g.clear();
@@ -474,46 +469,25 @@ const PixelArt = {
             });
     },
 
-    // Zone modules build their animated vector pieces lazily (when the camera first nears
-    // the zone), so they are pixelised as they appear. Each piece is re-drawn once.
-    _lazySources() {
-        const out = [];
-        if (typeof PowerEnv !== 'undefined') {
-            (PowerEnv.turbineBlades || []).forEach((tb) => tb.cont && out.push(...tb.cont.children));
-            out.push(...(PowerEnv.steamParts || []), ...(PowerEnv.smokeParts || []));
-        }
-        return out;
-    },
+    // Objects rebuilt with the buildings that live outside the building containers.
     _sweepLazy() {
-        // Textures of long-lived objects that have since been destroyed or dropped.
-        this._kept = this._kept.filter((k) => {
-            if (!k.g.destroyed && (k.g.parent || !k.detach)) return true;
-            if (k.tex.baseTexture) k.tex.destroy(true);
-            return false;
-        });
-        // Per-build objects (recreated on every rebuild): their textures are freed with the build.
         if (
             typeof BlackMarket !== 'undefined' &&
             BlackMarket._dumpsterSprite &&
             !BlackMarket._dumpsterSprite.destroyed
         )
             BlackMarket._dumpsterSprite.children.forEach((g) => this._hasVector(g) && this.pixelize(g));
-        for (const g of this._lazySources()) if (this._hasVector(g)) this.pixelize(g, { keep: true });
-        // Street furniture, traffic-light overlays, lamp glow pools and steam (CityAmbience).
-        if (typeof CityAmbience !== 'undefined') {
-            const A = CityAmbience;
-            [A.furnGfx, A.trafficA, A.trafficB].forEach(
-                (g) => this._hasVector(g) && this.pixelize(g, { keep: true })
-            );
-            if (A.glowLayer)
-                A.glowLayer.children.forEach(
-                    (g) => this._hasVector(g) && this.pixelize(g, { keep: true, detach: true, dither: true })
-                );
-            (A.steamParts || []).forEach((p) => {
-                const g = p && (p.g || p.gfx || p);
-                if (this._hasVector(g)) this.pixelize(g, { keep: true, dither: true });
-            });
-        }
+    },
+
+    // Entity layers drawn through PixelArt.Skin (js/pixel/pixel_skin.js).
+    _markLayers() {
+        const S = this.Skin;
+        if (!S) return;
+        [G.charLayer, G.carLayer, G.trainLayer, G.reflectionLayer, G.undergroundLayer].forEach((l) =>
+            S.mark(l)
+        );
+        if (typeof CityAmbience !== 'undefined' && CityAmbience.glowLayer)
+            S.mark(CityAmbience.glowLayer, { dither: true });
     },
 
     // Live weather names → the palette's weather states.
@@ -543,7 +517,11 @@ const PixelArt = {
     // Called every frame from Environment.update().
     update(dp) {
         if (!this.enabled) return;
-        if (typeof G !== 'undefined' && G.tick % 30 === 0) this._sweepLazy();
+        if (typeof G !== 'undefined' && G.tick % 30 === 0) {
+            this._sweepLazy();
+            this._markLayers();
+        }
+        if (this.Skin) this.Skin.flush();
         this._K = PL.tod(dp, this._wx());
         if (PL.Sky) PL.Sky.update(this._K, performance.now() / 1000);
         // The classic ground palette is already dusky, so it takes a gentler ambient tint.
