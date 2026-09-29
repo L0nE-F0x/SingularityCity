@@ -445,8 +445,16 @@ const SpaceEnvironment = {
         }
 
         container.addChild(gfx);
+        // Pixel art skin (js/pixel/pixel_art.js): the pixel facade replaces the body on
+        // screen; the classic gfx stays in the container, hidden.
+        const pxFacade = typeof PixelArt !== 'undefined' && PixelArt.enabled ? PixelArt.facade(b, h) : null;
+        if (pxFacade) {
+            gfx.visible = false;
+            container.addChildAt(pxFacade, 0);
+        }
         // Rotating scan dish sits ON TOP of the cached body gfx.
         if (b._scanDish) container.addChild(b._scanDish);
+        if (pxFacade) PixelArt.adopt(b, container);
 
         // Tooltip + click
         container.eventMode = 'static';

@@ -69,6 +69,7 @@ const PixelArt = {
         // Lab HQ towers (the `else if (lab)` branch of buildBuildings).
         if (b.id.startsWith('bld_') && b.lab) return true;
         if (this.PORTED_IDS.has(b.id)) return true;
+        if (b.type && ['launchpad', 'mission_control', 'assembly', 'tracking'].includes(b.type)) return true;
         return this.PORTED_PREFIXES.some((p) => b.id.startsWith(p));
     },
 
@@ -294,6 +295,12 @@ const PixelArt = {
         if (!this.isPorted(b)) return;
         this._hideDuplicates(b, container);
         if (b.type === 'embassy' || b.type === 'diplomat_villa') this._pixelizeFlag(b);
+        // Space zone: the pad's SpaceRockets vehicle and the tracking station's scan dish.
+        if (b.type === 'launchpad')
+            container.children.forEach((c) => {
+                if (c instanceof PIXI.Graphics && c.visible) this.pixelize(c);
+            });
+        if (b._scanDish) b._scanDish.children.forEach((c) => this.pixelize(c));
         // Polaris plasma halo (PowerEnv pulses its alpha and scale).
         if (b.id === 'power_fusion')
             container.children.forEach((c) => {
