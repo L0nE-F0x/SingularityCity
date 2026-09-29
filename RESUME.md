@@ -1,18 +1,115 @@
 # Resume here
 
-**Updated:** 2026-09-29 (pixel-art port wrap) · **Live `main`:** `4032acd` (this wrap sits on top)
-**Status:** The 2D city's lofi **pixel-art skin is live**, interiors included, on
-2D cache **v557**. Netlify served v557 on the first poll after the push, and a
-headless check of production passed (see Verified). First Person is untouched.
-**Next:** the owner is playing the pixel city and will report findings. Start from
-their report; the "Not done" list below is the backlog.
+**Updated:** 2026-09-29 (benchmark overhaul wrap) · **Live `main`:** `d9ab16d` (this wrap sits on top)
+**Status:** The 2D benchmark observatory and birth-time scores are live on cache
+**v558**. Netlify is serving `singularity-city-v558` (`sw.js` and
+`js/benchmarks.js?v=558` both return the new files). The pixel skin from the
+session below is still the art. First Person was not touched.
+**Next:** the owner will look at the new Bench panel. Start from their report.
+Grok-3 sitting at #2 from two scores is the formula working as shipped.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
 Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
+`serve.py` proxies `/api/zeroeval/` and `/api/arena/`. ZeroEval sends no CORS
+headers, so the browser has to use that same-origin path or the board stays empty.
 
 ---
 
-## This session (2026-09-29) — the 2D city in lofi pixel art
+## This session (2026-09-29) — benchmark observatory and live scores
+
+Owner brief, with a screenshot of the old observatory: a new citizen's Bench
+tab arrives empty, and the table was ranking saturated 2023–24 scores (MusicGen
+at 11% in gold) while the callout cards already named a frontier model. Track
+the benches people argue about in 2026, and stamp real scores at birth. One
+commit, `d9ab16d`, on `main`. No invented numbers: a blank cell means that
+board has not published the score.
+
+### What shipped
+
+| Area | What changed | Where |
+|---|---|---|
+| Module | Catalog, name match, frontier index, citizen Bench tab, observatory HTML. Loaded immediately before `data.js`. `BM_M` and `function avgBM` live only here; `var BM` stays in `data.js`. | `js/benchmarks.js` |
+| Birth | Hugging Face, OpenRouter, and ZeroEval call `Bench.attach` before save, then `attachAll` + `refreshOpen`. A scan sets `benchmarks` to null before verify, then attach-only. | `js/api.js` |
+| Observatory | Seven boards. Default sort is the frontier index, best first, nulls last. Medals only on that sort. Phone uses the existing bottom sheet. | `js/ui.js`, `css/styles.css`, `bench-ov` in `index.html` |
+| Arena | Text and code Elo from the public oolong daily snapshot (a top slice). Unmatched stored Elos render dim. Scan Elo returns early when `Bench.fed[id].ELO === 'arena'`. | `API.fetchArena` in `js/api.js`; timer 9s / 30min in `js/engine.js` |
+| Verifier | Elo-scale keys accept 500–2500. Percent keys stay 0–100. Same split in the Netlify function. `submit-data` numeric map cap is 40. | `js/api.js`, `netlify/functions/_shared/model-verify.mjs`, `submit-data.mjs` |
+| City score | Lab flagship, terminal, and the compute worker use `Bench.cityScore` (the index, else the mean of whatever hard benches exist, else 0). Elo stays out of that 0–100 number. The worker receives an `indexes` map. Building tip reads `FRONTIER`. | `js/engine.js`, `js/compute_worker.js`, `js/persistence.js`, `js/terminal.js` |
+| Speech | Citizen quips, citizen of the day, and the AI-lab interior use `Bench.flexLine` when it has something to say. | `js/entities.js`, `js/citizen_of_day.js`, `js/interior_res_ai.js` |
+| Proxy | `/api/arena/*` → `raw.githubusercontent.com` (ZeroEval's redirect was already there). CSP `connect-src` includes that host. Local `serve.py` proxies both prefixes. | `netlify.toml`, `serve.py` |
+| Copy | How-it-works calls Bench a live frontier leaderboard. The university library names GPQA Diamond, SWE-bench Pro, Terminal-Bench, ARC-AGI-2, and Humanity's Last Exam. | `index.html`, `js/university.js` |
+
+### The index
+
+Weighted mean of **hard** benches only. Null unless at least two hard scores
+exist, so one lucky number cannot sit at #1. `avgBM(id)` is `Math.round` of
+that, or null. One decimal in the observatory.
+
+Weights: SWE-Pro 1.5, Terminal-Bench 1.5, HLE 1.5, ARC-AGI-2 1.4, FrontierMath
+1.4, SWE-bench Verified 1.2, OSWorld 1.2, SciCode 1.1, GPQA 1.0, BrowseComp 1.0,
+τ-bench 0.9, Toolathlon 0.9, MCP Atlas 0.9, Apex 0.8, AIME 0.7. Knowledge
+(MMMU, MMMLU, SimpleQA, CharXiv, MRCR, ScreenSpot) and the archive suite
+(MMLU, HumanEval, MATH, AI2 ARC-Challenge, MGSM) have weight 0. Elo is a
+separate scale and is not folded into the percent index.
+
+Boards, and the column they open sorted by: Live (index), Agents (SWE-Pro),
+Reasoning (HLE), Arena (text Elo), Knowledge (MMMLU), Archive (MMLU), No score
+(newest release). Live columns are GPQA, SWE-V, SWE-Pro, HLE, ARC-AGI-2, AIME,
+Terminal, Arena, plus the index and $/1M out. Models with exactly one hard
+score appear as chips under the live table, top 18.
+
+### Settled local city
+
+Headless Chrome, after `API._zeroevalLoaded && API._arenaLoaded`. Do not treat
+`Bench.status.zeModels` as "the board is ready": that flag flips at ingest,
+before the per-model writes and `attachAll` finish, and an early open shows a
+partial table (the first pass showed 7 live rows and a stored Elo of 1279).
+
+- ZeroEval canonical board: 399 models. After attach: Live 178, Agents 156, Reasoning 755, Arena 33 (30 text plus stored leftovers), Knowledge 171, Archive 688, No score 130. About 900 models in `G`.
+- **#1 GPT-6 Astra** (`gpt-6-astra`), index **94.3** on 3 hard benches, GPQA 96, ARC-AGI-2 95, arena text **1478**, code **1792**, output $50. Gold medal.
+- Arena king: **Claude Opus 4.6 (Fast), Elo 1505**, live, snapshot date **2026-09-25**. Parentheticals are stripped, so "(Fast)" inherits the higher 4.6 variant. Accepted.
+- Hardest-gap card: Terminal still separates, Claude Sonnet 4.5 at 50%, p90 47.1%. Best value inside the top 8: Grok-3 Mini, $0.30/1M in.
+- Claude Opus 4.7 (`claude-opus-4-7`): index 74.2 on 6 hard, arena text 1502. Claude Fable 5: 78.8. Claude Mythos Preview: 81.9 on 5 (GPQA 94.6, SWE 93.9, SWE-Pro 77.8, HLE 64.7), no arena Elo. Kimi K3: 72.2, arena 1488 / code 1660. Gemini 3.1 Pro (`gemini-3.1-pro-preview`): index 67 on 9, arena 1487. It matches because the stored id contains `preview`.
+- **Claude Opus 5.5** (`anthropic_claude_opus_5_5`): SWE-Pro **89.9** only, so the index is null. It leads Agents and shows as a one-score chip. Arena text 1509, code 1827.
+- **Grok-3 is #2 at 88.2** from GPQA 84.6 + AIME 93.3, above Mythos Preview's five harder benches. AIME's weight is already 0.7. The specialist boards show the split. Leave the formula unless the owner asks.
+- Scored Bench tab checked on Grok-3: frontier 88.2, rank 2 of 178, grouped bars, archive suite labeled as older, no history chart. Empty tab checked on Llama 3 Euryale 70B v2.1: names the feeds that were checked and stops.
+- Phone 390×844: sheet about 371×717, title on screen, cards stacked, table scrolls sideways. Dismiss the Daily Briefing (SKIP TODAY) or it covers the bottom of the sheet. That modal predates this change.
+- Headless Chrome needs WebGL: `--ignore-gpu-blocklist --enable-webgl --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader` and a fresh `--user-data-dir`. `--disable-gpu` makes Pixi throw "Unable to auto-detect a suitable renderer." Do not `pkill` a pattern that also appears in the node driver's command line.
+
+### What a new agent must not re-break
+
+1. **Never invent a score.** The fake Arena sparkline (current Elo minus 60 / 25 / 10, plus 5) stays deleted. `eloChart` is still destroyed at the start of `panelTab`.
+2. **`benchmarks.js` is the only owner of `BM_M` and `avgBM`.** These are classic scripts in one global scope; redeclaring either throws. It must stay before `data.js` in `index.html` and in `sw.js` `CORE_ASSETS`.
+3. **HumanEval is not SWE-bench. Archive `ARC` is the 2018 AI2 ARC-Challenge, not ARC-AGI-2 (`ARCAGI`).** MMMLU stays distinct from MMLU. GPQA Diamond aliases to GPQA. AIME 2025/2026 alias to AIME.
+4. **One hard score does not rank on Live.** Opus 5.5 stays a chip and the Agents leader until ZeroEval publishes a second hard score.
+5. **No model-version ceiling.** A `/gpt[6-9]/` pattern once blocked the real GPT-6 Astra, and db-maintenance deleted it again. GPT-6 Astra, Claude Opus 5.x, Fable 5, Gemini 3.x, Grok 4.x, and Kimi K3 are real as of 2026-09-29.
+6. **The arena-Elo guard is in the caller**, `elo_updates`: return when `Bench.fed[id].ELO === 'arena'`. `writeScores(..., { overwrite: true })` will replace the number. Do not "simplify" the guard away.
+7. **`fetchZeroEval` always uses** `/api/zeroeval/leaderboard/models/full?justCanonicals=true`. Direct `api.zeroeval.com` returns 200 with no `Access-Control-Allow-Origin`. Arena on localhost still fetches `raw.githubusercontent.com` (GitHub sends CORS); a deployed host uses `/api/arena/oolong-tea-2026/arena-ai-leaderboards/main/data/`. Snapshot path must match `^[\w.-]+$`. The agent board has no `score` key; skip it. The code file is `code.json` (`webdev.json` 404s).
+8. **Elo 500–2500 is checked before the trusted-source return**, in both verifiers. A code Elo near 1800 used to fail `v > 100` and delete the whole citizen. Cloud saves strip `_src`, so the next load hit that check. `submit-data` selftest covers ELO_CODE 1750 accepted, GPQA 140 rejected, ELO 80 rejected (18 pass, 0 fail).
+9. **`cityScore` is the only 0–100 lab number.** Do not fold raw Elo back in with `(ELO-1000)/4.5`. Kardashev and the AI Index already average `avgBM` against a ceiling of 100; they were left alone. The holomap's per-lab "frontier star" still adds Elo + `avgBM`. Left on purpose.
+10. **Name match.** Parentheticals are deleted. Digit-hyphen-digit becomes a dot first, so Arena `claude-opus-4-7-high` matches `Claude Opus 4.7`, while canon keeps the dot so `4.7` does not equal `47`. A trailing effort token (`high`, `xhigh`, `max`, `low`, `medium`, `med`, `minimal`, `thinking`, `nothinking`, `adaptive`) strips only when it is last. `fast` is not an effort token. Do not strip `preview`, `instruct`, `mini`, `flash`, or `turbo`. `gpt-4o` must not match `gpt-4o-mini`.
+11. **Do not write every refresh back to Supabase.** Leaderboard values overwrite the same key and do not wipe keys the feed lacks. The first HF fetch can save births before ZeroEval has loaded; later `attachAll` fills memory only.
+12. **No new columns without a feed.** LiveCodeBench, MMLU-Pro, and ARC-AGI-3 are not in the catalog.
+13. **NPC gate is unchanged.** No arch, no benchmarks, no phase, and no `_src` still opens the NPC panel, which has no Bench tab. Real births have one of those; `selectModel` then calls `Bench.attach`. The caller must switch to the Bench tab itself: `selectModel` ends on the info tab.
+14. **Cache is `singularity-city-v558`.** Bump with `node tools/cachebust.mjs` only after a later edit that clients must pick up. Do not run `tools/build.mjs` locally. Leave `first-person/assets/models/*`, `landing_preview2.html`, `landing_preview3.html`, and `pixel-lab/` untracked. `pixel-lab/` shares `js/pixel/*` with the skin; see the pixel session below.
+
+### Verified
+
+- `node --check` on the touched scripts, `python3 -m py_compile serve.py`, submit-data selftest 18 pass / 0 fail.
+- Local headless Chrome, desktop 1440×900 and phone 390×844, after both feeds finished: live count 178, Astra first with GPQA and ARC-AGI-2, Agents chip selected, search kept focus, scored Bench tab, empty Bench tab, source footnote. No leftover console errors after the favicon filter.
+- Production at wrap time: `https://singularitycity.net/sw.js` is `singularity-city-v558` and lists `/js/benchmarks.js`; the live `index.html` references `js/benchmarks.js?v=558` and the "live frontier leaderboard" line. The click-through above was local, before the push. The playtest server on 8931 was stopped after the push.
+
+### Not done / worth a look
+
+- First Person still uses its older static roster.
+- Arena is a top slice of the oolong snapshot, not the full Arena site. Unmatched stored Elos can win the king card only when no live match exists.
+- Grok-3 at #2 from two scores is intentional until the owner says otherwise.
+- Holomap lab "frontier star" still adds Elo to `avgBM`. The interior bench quip calls `flexLine` twice; harmless.
+- On a specialist board, the first click of the column you landed on sets the sort rather than flipping it, if `_benchSort` is still `index`.
+- The Daily Briefing modal can cover the bottom of the phone bench sheet.
+
+---
+
+## Previous (2026-09-29) — the 2D city in lofi pixel art
 
 Owner brief: redraw the 2D city in the style of https://loficities.com/, starting
 from a Grok prototype in `pixel-lab/`. **An art swap only**: "every freaking
