@@ -433,6 +433,26 @@
         return s;
     };
 
+    // Greedy word wrap into lines that fit maxW; a "Name (Place)" label splits at the
+    // parenthesis first. Words longer than a line are cut with PL.fit.
+    PL.wrap = function (s, maxW, size, maxLines) {
+        s = String(s || '')
+            .toUpperCase()
+            .trim();
+        const m = s.match(/^(.*?)\s*\((.*)\)\s*$/);
+        const parts = m ? [m[1], m[2]] : [s];
+        const lines = [];
+        parts.forEach((part) => {
+            part.split(/\s+/).forEach((wd) => {
+                const last = lines.length ? lines[lines.length - 1] : null;
+                if (last !== null && last.part === part && PL.textW(last.t + ' ' + wd, size) <= maxW)
+                    last.t += ' ' + wd;
+                else lines.push({ t: PL.fit(wd, maxW, size), part: part });
+            });
+        });
+        return lines.slice(0, maxLines || 3).map((l) => l.t);
+    };
+
     // Canvas → nearest-neighbour Pixi texture.
     PL.tex = function (canvasOrImg) {
         const c = canvasOrImg instanceof Img ? canvasOrImg.done() : canvasOrImg;

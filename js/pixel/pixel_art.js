@@ -35,7 +35,17 @@ const PixelArt = {
         'graveyard',
         'bld_1',
     ]),
-    PORTED_PREFIXES: ['npc_apt_', 'metro_', 'res_', 'robotics_'],
+    PORTED_PREFIXES: [
+        'npc_apt_',
+        'metro_',
+        'res_',
+        'robotics_',
+        'dc_',
+        'fab_',
+        'vcrow_',
+        'embassy_',
+        'diplomat_villa_',
+    ],
     isPorted(b) {
         if (!this.enabled || !b || !b.id || typeof PL === 'undefined' || !PL.paintBuilding) return false;
         // Lab HQ towers (the `else if (lab)` branch of buildBuildings).
@@ -58,10 +68,68 @@ const PixelArt = {
         if (b.id.startsWith('metro_')) hide(b._metroSign);
         if (b.id === 'visitor_monument') hideText('🌐');
         if (b.id === 'park') hide(b._monIcon);
+        // Datacentre / fab name board: the Graphics added right before the name Text.
+        if ((b.id.startsWith('dc_') || b.id.startsWith('fab_')) && b._dcSign) {
+            const i = container.children.indexOf(b._dcSign);
+            if (i > 0 && container.children[i - 1] instanceof PIXI.Graphics) hide(container.children[i - 1]);
+            hide(b._dcSign);
+        }
+        // Embassy name plaque: its Graphics plus the Text right after it.
+        if (b.type === 'embassy') {
+            const txt = container.children.find(
+                (c) => c instanceof PIXI.Text && c.text === (b.name || '').toUpperCase()
+            );
+            if (txt) {
+                const i = container.children.indexOf(txt);
+                if (i > 0 && container.children[i - 1] instanceof PIXI.Graphics)
+                    hide(container.children[i - 1]);
+                hide(txt);
+            }
+        }
+    },
+
+    // Re-draw a live vector overlay (a flag, a pole) as pixels, in place: its geometry is
+    // rendered once at one texel per art pixel and shown as a child sprite, so whatever
+    // animates the object (position, skew, alpha) keeps working unchanged.
+    _rts: [],
+    pixelize(g) {
+        if (!g || g.destroyed || !(g instanceof PIXI.Graphics) || !G.app) return;
+        const A = PL.ART;
+        const clone = g.clone();
+        const bnd = clone.getLocalBounds();
+        if (!(bnd.width > 0 && bnd.height > 0)) return clone.destroy();
+        const x0 = Math.floor(bnd.x / A) * A;
+        const y0 = Math.floor(bnd.y / A) * A;
+        const tw = Math.ceil((bnd.x + bnd.width - x0) / A) + 1;
+        const th = Math.ceil((bnd.y + bnd.height - y0) / A) + 1;
+        const rt = PIXI.RenderTexture.create({
+            width: tw,
+            height: th,
+            scaleMode: PIXI.SCALE_MODES.NEAREST,
+            resolution: 1,
+        });
+        const m = new PIXI.Matrix(1 / A, 0, 0, 1 / A, -x0 / A, -y0 / A);
+        G.app.renderer.render(clone, { renderTexture: rt, transform: m, clear: true });
+        clone.destroy();
+        g.clear();
+        const sp = new PIXI.Sprite(rt);
+        sp.scale.set(A);
+        sp.x = x0;
+        sp.y = y0;
+        g.addChild(sp);
+        this._rts.push(rt);
+    },
+    _pixelizeFlag(b) {
+        const f = b._flagGfx;
+        if (!f || !f.parent) return;
+        f.parent.children.forEach((c) => this.pixelize(c));
     },
 
     beginBuild() {
         this._entries = [];
+        // Old containers are destroyed (textures kept) right after this in buildBuildings.
+        this._rts.forEach((rt) => rt.destroy(true));
+        this._rts = [];
     },
 
     _haloTex(r) {
@@ -92,6 +160,7 @@ const PixelArt = {
             lab ? lab.color : '',
             b.name,
             PL.dataKey ? PL.dataKey(b) : '',
+            PL.dataKeyRow ? PL.dataKeyRow(b) : '',
         ].join('|');
         let hit = this._cache.get(key);
         if (hit) return hit;
@@ -193,6 +262,7 @@ const PixelArt = {
     adopt(b, container) {
         if (!this.isPorted(b)) return;
         this._hideDuplicates(b, container);
+        if (b.type === 'embassy' || b.type === 'diplomat_villa') this._pixelizeFlag(b);
     },
 
     // Live weather names → the palette's weather states.

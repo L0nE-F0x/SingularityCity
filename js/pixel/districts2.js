@@ -363,33 +363,6 @@
             void i;
         });
     };
-    D.vcrow_exchange = function (B, b, w, h) {
-        const stone = 0xe0d6c4;
-        K.wall(B, 0, 8, w, h - 8, stone, 'stone');
-        K.columns(B, 3, 13, w - 6, h - 14, light(stone, 0.08), 6);
-        const top = K.pediment(B, 0, 13, w, stone);
-        B.rect(0, 8, w, 5, light(stone, 0.1));
-        B.text('EXCHANGE', Math.round(w / 2 - PL.textW('EXCHANGE', 3) / 2), 9, 0x3a2a1a, 3);
-        K.screen(B, 8, 16, w - 16, 5, 'text', 0x5aff7a);
-        for (let x = 7; x < w - 7; x += 6) K.pane(B, x + 1, 23, 3, h - 26, { tone: 'office', lit: 0.8 }, x);
-        void top;
-    };
-    D.vcrow_cryptex = function (B, b, w, h) {
-        const up = h - LOBBY;
-        K.wall(B, 0, 0, w, up, 0x14121e, 'panel', { pitch: 5 });
-        // Neon grid facade.
-        for (let y = 3; y < up - 2; y += 5)
-            for (let x = 2; x < w - 2; x++) {
-                const c = (x + y) % 18 < 9 ? 0xb04aff : 0x3ad8ff;
-                B.px(x, y, dark(c, 0.5));
-                if ((x + (y >> 1)) % 3 !== 0) B.epx(x, y, c, 200);
-            }
-        K.screen(B, 6, 8, w - 12, 12, 'chart', 0xffb84a);
-        K.lobby(B, 0, up, w, LOBBY, { accent: 0xb04aff, frame: 0x1a1024, interior: 0xe0c8ff });
-        PL.roofSign(B, 'CRYPTEX', 0, w, 0, 0xffb84a, { bg: 0x0e0a14 });
-        K.antenna(B, w - 5, 0, 14);
-    };
-
     // ── Embassy Quarter ─────────────────────────────────────────────────────
     const NATION = {
         us: { flag: [0xb22234, 0xe8e8ee, 0xb22234, 0x3c3b6e], wall: 0xe8e4dc, roof: 0x5a6a7a, acc: 0x3c3b6e },
