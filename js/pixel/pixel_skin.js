@@ -15,6 +15,31 @@
     const SH = PIXI.SHAPES;
     const MAX_W = 4096;
 
+    // Ordered-dither alpha on the GPU: alpha snaps to five levels through a 4×4 Bayer
+    // pattern in render-target pixels (the mean is kept), colour is un-premultiplied and
+    // re-premultiplied. Replaces a CPU read-back per translucent shape.
+    const DITHER_FRAG = `
+        varying vec2 vTextureCoord;
+        uniform sampler2D uSampler;
+        float b2(vec2 v) { return mod(2.0 * v.x + 3.0 * v.y, 4.0); }
+        void main(void) {
+            vec4 c = texture2D(uSampler, vTextureCoord);
+            if (c.a < 0.004) { gl_FragColor = vec4(0.0); return; }
+            vec2 p = mod(floor(gl_FragCoord.xy), 4.0);
+            float b = (4.0 * b2(mod(p, 2.0)) + b2(floor(p / 2.0)) + 0.5) / 16.0;
+            float q = min(4.0, floor(c.a * 4.0 + b)) / 4.0;
+            gl_FragColor = vec4(c.rgb / c.a * q, q);
+        }`;
+    let ditherFilter = null;
+    const dither = () => {
+        if (!ditherFilter) {
+            ditherFilter = new PIXI.Filter(undefined, DITHER_FRAG);
+            ditherFilter.resolution = 1;
+            ditherFilter.padding = 0;
+        }
+        return ditherFilter;
+    };
+
     const S = (PixelArt.Skin = {
         on: PixelArt.enabled,
         queue: new Set(),
@@ -254,7 +279,7 @@
 
         // Render g's geometry at art resolution. Returns [{ tex, x, y }] (strips if wide), [] if
         // empty, or null when a per-frame texture would be too wide.
-        render(g, dither, into) {
+        render(g, dithered, into) {
             const src = this.source(g);
             let bnd = src.getLocalBounds();
             // Every-frame Graphics larger than the view render only what is on screen.
@@ -288,8 +313,9 @@
                             resolution: 1,
                         });
                     const m = new PIXI.Matrix(1 / A, 0, 0, 1 / A, -x0 / A - cx, -y0 / A);
+                    src.filters = dithered ? [dither()] : null;
                     G.app.renderer.render(src, { renderTexture: rt, transform: m, clear: true });
-                    parts.push({ tex: dither ? PixelArt._ditherAlpha(rt) : rt, x: x0 + cx * A, y: y0 });
+                    parts.push({ tex: rt, x: x0 + cx * A, y: y0 });
                 }
             }
             src.destroy();
@@ -396,9 +422,14 @@
             if (e.parts.length) this.attach(g, e.parts, e);
         },
 
+        // Runs every frame just before the renderer (its own ticker step, so it keeps going
+        // inside interiors, where the game loop skips Environment.update).
         flush() {
             if (!this.on || !G.app) return;
             this.frame++;
+            if (G.interiorLayer) this.mark(G.interiorLayer);
+            if (G.activeInterior) PixelArt.interiorFrame();
+            else if (PL.Sky && PL.Sky.sprite && G.world && !G.world.visible) PL.Sky.sprite.visible = false;
             const w = G.world;
             this.viewKey = w ? w.x.toFixed(1) + ',' + w.y.toFixed(1) + ',' + w.scale.x : '';
             // Every-frame redraws first (cheap), then new geometry within a time budget;
@@ -410,8 +441,10 @@
                         this.queue.delete(g);
                         if (!g.destroyed) this.skin(g);
                     }
+                // A fresh interior or district brings hundreds of shapes: convert faster.
+                const budget = this.queue.size > 150 ? this.budgetMs * 3 : this.budgetMs;
                 for (const g of this.queue) {
-                    if (performance.now() - t0 > this.budgetMs) break;
+                    if (performance.now() - t0 > budget) break;
                     this.queue.delete(g);
                     if (!g.destroyed) this.skin(g);
                 }
@@ -427,20 +460,28 @@
     });
 
     // ── Text ────────────────────────────────────────────────────────────────
-    // Tickers, labels and signs in the city (not interiors) keep their objects, strings and
-    // layout; only the face changes, to Silkscreen at a size it renders pixel-exact
-    // (8 px, or 16 px for text the classic set at 12 px and up), with sharp sampling and
-    // hard shadows instead of blurred glows. Emoji fall through to the emoji fonts; pure
+    // Tickers, labels and signs in the city and its interiors keep their objects, strings
+    // and layout; only the face changes, to a pixel font at a size it renders pixel-exact.
+    // Each text takes the first of these that fits its original width (within 8%): chunky
+    // Silkscreen 16 (for text the classic set at 11 px and up), narrow Tiny5 16, Silkscreen
+    // 8, then Tiny5 8 — so signs stay on their boards and labels don't collide. Sampling
+    // is sharp and glows become hard shadows. Emoji fall through to the emoji fonts; pure
     // emoji icons and sub-6 px facade details are left alone. ?classicText=1 turns it off.
-    const PIXEL_FACE =
-        'Silkscreen, "Twemoji Mozilla", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", monospace';
+    const EMOJI_STACK =
+        '"Twemoji Mozilla", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", monospace';
+    const FACES = [
+        ['Silkscreen', 16],
+        ['Tiny5', 16],
+        ['Silkscreen', 8],
+        ['Tiny5', 8],
+    ];
     S.textOn = PixelArt.enabled && PixelArt.pixelText;
-    S.outdoors = function (t) {
+    S.inCity = function (t) {
         if (t._pxOutP === t.parent) return t._pxOut;
         let r = false;
         for (let p = t.parent; p; p = p.parent) {
-            if (p === G.interiorLayer || p === G.macroLayer) break;
-            if (p === G.world) {
+            if (p === G.macroLayer) break;
+            if (p === G.world || p === G.interiorLayer) {
                 r = true;
                 break;
             }
@@ -449,45 +490,71 @@
         t._pxOut = r;
         return r;
     };
+    const faceStyle = (st, face, size, bold) => {
+        st.fontFamily = face + ', ' + EMOJI_STACK;
+        st.fontSize = size;
+        st.fontWeight = bold && face === 'Silkscreen' ? 'bold' : 'normal';
+        st.fontStyle = 'normal';
+        st.letterSpacing = Math.round(st.letterSpacing || 0);
+    };
     S.pixelText = function (t) {
         const st = t._style;
         const size = parseFloat(st.fontSize) || 8;
         const letters = /[A-Za-z0-9]/.test(t.text);
-        if (size >= 6 && (letters || !/Emoji/.test(String(st.fontFamily)))) {
-            st.fontFamily = PIXEL_FACE;
-            st.fontSize = size >= 12 ? 16 : 8;
-            const w = String(st.fontWeight);
-            st.fontWeight = w === 'bold' || parseInt(w, 10) >= 600 ? 'bold' : 'normal';
-            st.fontStyle = 'normal';
-            st.letterSpacing = Math.round(st.letterSpacing || 0);
-            // A 1 px font has no room for antialiased strokes or blurred glows: a stroke in the
-            // fill colour (a fake bold) goes; a contrasting outline becomes a hard shadow; a
-            // zero-distance glow goes; a real drop shadow keeps its offset, unblurred.
-            const same = (a, b) => new PIXI.Color(a).toNumber() === new PIXI.Color(b).toNumber();
-            let outline = null;
-            if (st.strokeThickness) {
-                if (!same(st.stroke, st.fill)) outline = st.stroke;
-                st.strokeThickness = 0;
-            }
-            if (st.dropShadow && !(st.dropShadowDistance >= 1)) st.dropShadow = false;
-            if (st.dropShadow) {
-                st.dropShadowBlur = 0;
-                st.dropShadowDistance = Math.max(1, Math.round(st.dropShadowDistance));
-            } else if (outline !== null) {
-                st.dropShadow = true;
-                st.dropShadowColor = outline;
-                st.dropShadowBlur = 0;
-                st.dropShadowDistance = 1;
-                st.dropShadowAngle = Math.PI / 2;
-            }
-            t.texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
+        if (size < 6 || (!letters && /Emoji/.test(String(st.fontFamily)))) {
+            t._pxText = st.styleID;
+            return;
         }
+        // Wait for real text and for both faces, so widths are measured right.
+        if (
+            !String(t.text).trim() ||
+            !document.fonts.check('8px Silkscreen') ||
+            !document.fonts.check('8px Tiny5')
+        )
+            return;
+        const w = String(st.fontWeight);
+        const bold = w === 'bold' || parseInt(w, 10) >= 600;
+        const room = PIXI.TextMetrics.measureText(t.text, st).width * 1.08 + 1;
+        let pick = FACES[FACES.length - 1];
+        for (const f of FACES) {
+            if (f[1] === 16 && size < 11) continue;
+            const probe = st.clone();
+            faceStyle(probe, f[0], f[1], bold);
+            probe.strokeThickness = 0;
+            probe.dropShadow = false;
+            if (PIXI.TextMetrics.measureText(t.text, probe).width <= room) {
+                pick = f;
+                break;
+            }
+        }
+        faceStyle(st, pick[0], pick[1], bold);
+        // A 1 px font has no room for antialiased strokes or blurred glows: a stroke in the
+        // fill colour (a fake bold) goes; a contrasting outline becomes a hard shadow; a
+        // zero-distance glow goes; a real drop shadow keeps its offset, unblurred.
+        const same = (a, b) => new PIXI.Color(a).toNumber() === new PIXI.Color(b).toNumber();
+        let outline = null;
+        if (st.strokeThickness) {
+            if (!same(st.stroke, st.fill)) outline = st.stroke;
+            st.strokeThickness = 0;
+        }
+        if (st.dropShadow && !(st.dropShadowDistance >= 1)) st.dropShadow = false;
+        if (st.dropShadow) {
+            st.dropShadowBlur = 0;
+            st.dropShadowDistance = Math.max(1, Math.round(st.dropShadowDistance));
+        } else if (outline !== null) {
+            st.dropShadow = true;
+            st.dropShadowColor = outline;
+            st.dropShadowBlur = 0;
+            st.dropShadowDistance = 1;
+            st.dropShadowAngle = Math.PI / 2;
+        }
+        t.texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
         t._pxText = st.styleID;
     };
     if (S.textOn) {
         const origText = PIXI.Text.prototype.updateText;
         PIXI.Text.prototype.updateText = function (respectDirty) {
-            if (this._style && this._pxText !== this._style.styleID && S.outdoors(this)) S.pixelText(this);
+            if (this._style && this._pxText !== this._style.styleID && S.inCity(this)) S.pixelText(this);
             return origText.call(this, respectDirty);
         };
         // Chat bubbles use a font baked at boot (BitmapFonts): bake it in the pixel face.
@@ -510,6 +577,10 @@
 
     const orig = PIXI.Graphics.prototype._render;
     PIXI.Graphics.prototype._render = function (renderer) {
+        if (S.on && !S.ticking && G.app) {
+            S.ticking = true;
+            G.app.ticker.add(() => S.flush(), null, PIXI.UPDATE_PRIORITY.LOW + 1);
+        }
         if (!S.on || this._pxVec || !S.skinOf(this)) return orig.call(this, renderer);
         if (this._pxGeom !== this.geometry.dirty || (this._pxClipped && this._pxView !== S.viewKey))
             S.queue.add(this);

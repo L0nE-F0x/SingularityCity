@@ -122,27 +122,30 @@
         },
 
         // Called every frame from PixelArt.update.
-        update(K, t) {
+        // Called every frame from PixelArt.update. view (interiors): { zoom, horizonY, visible }
+        // with horizonY in screen px; the city derives it from the world transform.
+        update(K, t, view) {
             if (!G.app || !G.world) return;
             const A = PL.ART;
-            const zoom = G.world.scale.x || 1;
+            const zoom = view ? view.zoom : G.world.scale.x || 1;
             const s = A * zoom;
             const w = Math.ceil(G.vpW / s) + 1;
             const h = Math.ceil(G.vpH / s) + 1;
             this._ensure(w, h);
             const xray = typeof XRayMode !== 'undefined' && XRayMode.active;
-            this.sprite.visible = G.world.visible && !xray;
+            this.sprite.visible = view ? view.visible : G.world.visible && !xray;
             this.sprite.scale.set(s);
             // Horizon: the pavement line (groundY − 24) on screen, in sky pixels.
-            const horizon = Math.round((G.world.y + (G.groundY - 24) * zoom) / s);
+            const horizon = Math.round((view ? view.horizonY : G.world.y + (G.groundY - 24) * zoom) / s);
             this.topPad = Math.ceil(100 / s) + 8;
             const key = [w, h, horizon, Math.round(K.dp * 1440), Environment.weather, Math.floor(t * 2)].join(
                 '|'
             );
-            if (key !== this.key) {
+            if (this.sprite.visible && key !== this.key) {
                 this.key = key;
                 this.paint(K, horizon, t);
             }
+            if (view) return;
             if (Environment.starsLayer) Environment.starsLayer.visible = false;
             if (Environment.celestialGfx) Environment.celestialGfx.visible = false;
             this._clouds(K);

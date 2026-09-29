@@ -522,6 +522,24 @@ const PixelArt = {
         for (const s of e.blinks) s.alpha = PL.frac(t / s.period + s.phase) < 0.45 ? 0.6 + emitA * 0.4 : 0;
     },
 
+    // Every frame while inside a building (the game loop skips Environment.update there).
+    // An interior that shows the sky keeps its sun and moon in module.celestialGfx (and its
+    // stars in starsLayer), whether it paints the sky itself or through
+    // InteriorCity._applyDynamicSky. For those the pixel sky stands in, horizon at the bottom
+    // of the screen, and their own sun, moon and stars are hidden. Interiors with their own
+    // backdrop (the Black Market) are left alone.
+    interiorFrame() {
+        if (!PL.Sky || !PL.Sky.sprite) return;
+        const m = typeof Interior !== 'undefined' ? Interior.activeModule : null;
+        const sky = !!(m && m.celestialGfx && !m.celestialGfx.destroyed);
+        if (sky) {
+            m.celestialGfx.visible = false;
+            if (m.starsLayer && !m.starsLayer.destroyed) m.starsLayer.visible = false;
+        }
+        this._K = PL.tod(G.getDayPhase(), this._wx());
+        PL.Sky.update(this._K, performance.now() / 1000, { zoom: 1, horizonY: G.vpH, visible: sky });
+    },
+
     // Called every frame from Environment.update().
     update(dp) {
         if (!this.enabled) return;
@@ -529,7 +547,6 @@ const PixelArt = {
             this._sweepLazy();
             this._markLayers();
         }
-        if (this.Skin) this.Skin.flush();
         this._K = PL.tod(dp, this._wx());
         if (PL.Sky) PL.Sky.update(this._K, performance.now() / 1000);
         // The classic ground palette is already dusky, so it takes a gentler ambient tint.
