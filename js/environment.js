@@ -1900,6 +1900,8 @@ const Environment = {
             g.quadraticCurveTo((x1 + x2) / 2, gy - 46 + sagB, x2 + 5, gy - 47);
             g.lineStyle(0);
         }
+        // Pixel art skin: show this ground rendered at art resolution instead.
+        if (typeof PixelArt !== 'undefined' && PixelArt.enabled) PixelArt.pixelizeGround(g);
     },
 
     buildDataPulses() {

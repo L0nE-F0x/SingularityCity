@@ -149,6 +149,115 @@ const PixelArt = {
         g.addChild(sp);
         this._rts.push(rt);
     },
+    // The ground (Environment.buildGround's one big Graphics: terrain per zone, basements,
+    // cable trays, bunkers, power poles) is rendered once at one texel per art pixel into
+    // strips and shown instead of the vector original, which stays in place, hidden.
+    _ground: null,
+    pixelizeGround(g) {
+        if (!g || g.destroyed || !G.app) return;
+        if (this._ground && !this._ground.destroyed)
+            this._ground.destroy({ children: true, texture: true, baseTexture: true });
+        const A = PL.ART;
+        const gy = G.groundY;
+        const y0 = Math.floor((gy - 102) / A) * A;
+        const y1 = gy + 702;
+        const bnd = g.getLocalBounds();
+        if (!(bnd.width > 0)) return;
+        const x0 = Math.floor(bnd.x / A) * A;
+        const x1 = bnd.x + bnd.width;
+        const clone = g.clone();
+        const cont = new PIXI.Container();
+        cont.name = 'pixelGround';
+        const CH = 4096 * A;
+        for (let cx = x0; cx < x1; cx += CH) {
+            const tw = Math.ceil(Math.min(CH, x1 - cx) / A);
+            const th = Math.ceil((y1 - y0) / A);
+            const rt = PIXI.RenderTexture.create({
+                width: tw,
+                height: th,
+                scaleMode: PIXI.SCALE_MODES.NEAREST,
+                resolution: 1,
+            });
+            const m = new PIXI.Matrix(1 / A, 0, 0, 1 / A, -cx / A, -y0 / A);
+            G.app.renderer.render(clone, { renderTexture: rt, transform: m, clear: true });
+            const sp = new PIXI.Sprite(this._stylizeGround(rt, cx, y0));
+            sp.scale.set(A);
+            sp.x = cx;
+            sp.y = y0;
+            cont.addChild(sp);
+        }
+        // Everything deeper than the band is the classic's plain bedrock fill.
+        const deep = new PIXI.Graphics();
+        deep.beginFill(0x0a0a0f);
+        deep.drawRect(x0, y1, x1 - x0, 3000);
+        deep.endFill();
+        cont.addChild(deep);
+        clone.destroy();
+        g.visible = false;
+        const par = g.parent;
+        if (par) par.addChildAt(cont, par.getChildIndex(g) + 1);
+        this._ground = cont;
+    },
+
+    // Texture pass over the pixelised ground, keyed on the classic colours so zone
+    // terrain keeps its own look: paving slabs on the city pavement, grain on the road,
+    // and a faint two-level dither on other flat areas. Returns a new texture (the
+    // render texture is freed).
+    _stylizeGround(rt, wx0, wy0) {
+        const A = PL.ART;
+        const W = rt.width;
+        const H = rt.height;
+        let px;
+        try {
+            px = G.app.renderer.extract.pixels(rt);
+        } catch (e) {
+            return rt;
+        }
+        const gy = G.groundY;
+        const rowOf = (worldY) => Math.round((worldY - wy0) / A);
+        const paveTop = rowOf(gy - 24);
+        const roadTop = rowOf(gy);
+        const roadEnd = rowOf(gy + 32);
+        const duskyGrey = (r, g, b) => b >= r + 6 && b >= g + 6 && Math.abs(r - g) < 14 && r < 110;
+        const out = new PL.Img(W, H);
+        for (let y = 0; y < H; y++)
+            for (let x = 0; x < W; x++) {
+                const o = (y * W + x) * 4;
+                const a = px[o + 3];
+                if (!a) continue;
+                let r = px[o];
+                let g = px[o + 1];
+                let b = px[o + 2];
+                if (a < 255) {
+                    r = Math.min(255, (r * 255) / a);
+                    g = Math.min(255, (g * 255) / a);
+                    b = Math.min(255, (b * 255) / a);
+                }
+                let c = PL.rgb(r, g, b);
+                const X = Math.round(wx0 / A) + x;
+                const n = PL.hash(97, X, y);
+                if (y >= paveTop && y < roadTop && duskyGrey(r, g, b)) {
+                    // Paving slabs: seams, a lit top row, speckle.
+                    const row = y - paveTop;
+                    if (row > 0 && X % 9 === 0) c = PL.shade(c, 0.82);
+                    else if (row === 4) c = PL.shade(c, 0.9);
+                    else if (row === 0) c = PL.light(c, 0.12);
+                    if (n > 0.93) c = PL.shade(c, 0.9);
+                    else if (n < 0.05) c = PL.light(c, 0.06);
+                } else if (y >= roadTop && y < roadEnd && duskyGrey(r, g, b)) {
+                    // Asphalt grain and tyre tracks.
+                    if (n > 0.9) c = PL.shade(c, 0.86);
+                    else if (n < 0.06) c = PL.light(c, 0.08);
+                    if ((y - roadTop === 3 || y - roadTop === 8) && PL.hash(31, X >> 1, y) > 0.6)
+                        c = PL.shade(c, 0.9);
+                } else if (n > 0.965) c = PL.shade(c, 0.93);
+                else if (n < 0.03) c = PL.light(c, 0.05);
+                out.set(x, y, c, a);
+            }
+        rt.destroy(true);
+        return PL.tex(out);
+    },
+
     _pixelizeFlag(b) {
         const f = b._flagGfx;
         if (!f || !f.parent) return;
@@ -373,8 +482,13 @@ const PixelArt = {
     update(dp) {
         if (!this.enabled) return;
         if (typeof G !== 'undefined' && G.tick % 30 === 0) this._sweepLazy();
-        if (!this._entries.length) return;
         this._K = PL.tod(dp, this._wx());
+        // The classic ground palette is already dusky, so it takes a gentler ambient tint.
+        if (this._ground && !this._ground.destroyed) {
+            const tint = PL.mix(this._K.amb, 0xffffff, 0.45);
+            this._ground.children.forEach((c) => (c.tint = tint));
+        }
+        if (!this._entries.length) return;
         const t = performance.now() / 1000;
         for (const e of this._entries) {
             if (e.root.destroyed) continue;
