@@ -347,13 +347,12 @@ const Entities = {
                     `They call me ${m.name.split(' ')[0]}.`,
                 ];
                 msg = nameQuips[Math.floor(Math.random() * nameQuips.length)];
-            } else if (personalRoll < 0.25 && BM[m.id]) {
-                // Real benchmark flex
-                const bm = BM[m.id];
-                if (bm.ELO) msg = `ELO: ${bm.ELO} 💪`;
-                else if (bm.MMLU) msg = `MMLU: ${bm.MMLU}% 📊`;
-                else if (bm.HumanEval) msg = `HumanEval: ${bm.HumanEval}% ✓`;
-                else msg = pool[Math.floor(Math.random() * pool.length)];
+            } else if (
+                personalRoll < 0.25 &&
+                typeof Bench !== 'undefined' &&
+                Bench.flexLine(Bench.scoresFor(m))
+            ) {
+                msg = Bench.flexLine(Bench.scoresFor(m)) + ' 📊';
             } else if (personalRoll < 0.32 && act === 'arena') {
                 // Arena trash talk referencing a rival lab
                 const myLab = m.lab;

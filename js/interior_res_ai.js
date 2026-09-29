@@ -297,11 +297,8 @@ const InteriorResAI = {
                     `They call me ${av.m.name.split(' ')[0]}.`,
                 ];
                 msg = nameQuips[Math.floor(Math.random() * nameQuips.length)];
-            } else if (Math.random() < 0.15 && av.m && typeof BM !== 'undefined' && BM[av.m.id]) {
-                const bm = BM[av.m.id];
-                if (bm.ELO) msg = `ELO: ${bm.ELO} 💪`;
-                else if (bm.MMLU) msg = `MMLU: ${bm.MMLU}%`;
-                else msg = pool[Math.floor(Math.random() * pool.length)];
+            } else if (Math.random() < 0.15 && av.m && typeof Bench !== 'undefined' && Bench.flexLine(Bench.scoresFor(av.m))) {
+                msg = Bench.flexLine(Bench.scoresFor(av.m));
             } else {
                 msg = pool[Math.floor(Math.random() * pool.length)];
             }

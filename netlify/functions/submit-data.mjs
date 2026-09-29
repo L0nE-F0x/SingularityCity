@@ -56,7 +56,7 @@ const numericBenchmarks = (b) => {
     if (b == null) return true;
     if (typeof b !== 'object' || Array.isArray(b)) return false;
     const entries = Object.entries(b);
-    if (entries.length > 20) return false;
+    if (entries.length > 40) return false;
     return entries.every(([k, v]) => isStr(k, 40) && typeof v === 'number' && isFinite(v));
 };
 
@@ -294,6 +294,9 @@ if (process.argv.includes('--selftest')) {
     const cases = [
         // [table, rows, op, expectAccepted, expectRejected]
         ['models', [{ id: 'm1', name: 'Claude Opus 4.6', lab: 'anthropic', benchmarks: { MMLU: 90 } }], undefined, 1, 0],
+        ['models', [{ id: 'm6', name: 'Mystery Model', lab: 'nobody', benchmarks: { ELO_CODE: 1750, GPQA: 90 } }], undefined, 1, 0],
+        ['models', [{ id: 'm7', name: 'Mystery Model', lab: 'nobody', benchmarks: { GPQA: 140 } }], undefined, 0, 1],
+        ['models', [{ id: 'm8', name: 'Mystery Model', lab: 'nobody', benchmarks: { ELO: 80 } }], undefined, 0, 1],
         ['models', [{ id: 'm2', name: 'GPT-9', lab: 'openai' }], undefined, 0, 1],                       // version cap
         ['models', [{ id: 'm3', name: 'Nova X (rumored)', lab: 'amazon' }], undefined, 0, 1],            // hallucination marker
         ['models', [{ id: 'm4', name: 'x'.repeat(200), lab: 'openai' }], undefined, 0, 1],               // length cap

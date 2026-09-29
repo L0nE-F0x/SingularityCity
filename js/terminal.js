@@ -230,11 +230,8 @@ const Terminal = {
                     const b = BM_[m.id];
                     if (!b) continue;
                     if (typeof b.ELO === 'number' && b.ELO > topElo) topElo = b.ELO;
-                    const vals = [b.MMLU, b.HumanEval, b.MATH, b.GPQA].filter((v) => typeof v === 'number');
-                    if (vals.length) {
-                        const a = vals.reduce((s, x) => s + x, 0) / vals.length;
-                        if (a > bench) bench = a;
-                    }
+                    const idx = typeof avgBM === 'function' ? avgBM(m.id) : null;
+                    if (idx && idx > bench) bench = idx;
                 }
                 if (topElo > 0) this._lhSample('topElo', topElo);
                 if (bench > 0) this._lhSample('benchCeiling', bench);
@@ -1437,18 +1434,24 @@ const Terminal = {
             .join('');
     },
 
-    _benchRadar(bm) {
-        const g = (k) => this._num(bm && bm[k]);
-        const axes = [
-            { label: 'MMLU', v: g('MMLU') },
-            { label: 'GPQA', v: g('GPQA') },
-            { label: 'MATH', v: g('MATH') },
-            { label: 'CODE', v: g('HumanEval') != null ? g('HumanEval') : g('HUMANEVAL') },
-            { label: 'ARC', v: g('ARC') },
-        ].filter((a) => a.v != null);
-        if (axes.length < 3) return '';
+    _frontier(id) {
+        if (typeof Bench !== 'undefined' && Bench.cityScore) {
+            const v = Bench.cityScore(id);
+            return v > 0 ? v : null;
+        }
+        if (typeof avgBM === 'function') return avgBM(id);
+        return null;
+    },
+
+    _benchRadar(id) {
+        if (typeof Bench === 'undefined') return '';
+        const scores = Bench.scoresFor(id);
+        const present = Bench.present(scores).filter((s) => s.scale !== 'elo');
+        const hard = present.filter((s) => s.hard);
+        const use = (hard.length >= 3 ? hard : present).slice(0, 6);
+        if (use.length < 3) return '';
         return this._svgRadar(
-            axes.map((a) => ({ label: a.label, value: a.v / 100 })),
+            use.map((s) => ({ label: s.short, value: Math.max(0, Math.min(100, scores[s.id])) / 100 })),
             { size: 168, pad: 26 }
         );
     },
@@ -1468,10 +1471,7 @@ const Terminal = {
         const rows = models
             .map((m) => {
                 const b = BM_[m.id] || {};
-                const vals = [b.MMLU, b.HumanEval || b.HUMANEVAL, b.MATH, b.GPQA]
-                    .map((v) => this._num(v))
-                    .filter((v) => v != null);
-                const avg = vals.length ? vals.reduce((a, x) => a + x, 0) / vals.length : null;
+                const avg = this._frontier(m.id);
                 if (avg != null) {
                     scoreSum += avg;
                     scoreN++;
@@ -1520,7 +1520,7 @@ const Terminal = {
                 })
                 .join('') || '<tr><td colspan="6" class="tm-empty">No models tracked</td></tr>';
 
-        const radar = flagship ? this._benchRadar(BM_[flagship.id]) : '';
+        const radar = flagship ? this._benchRadar(flagship.id) : '';
         const computeBody = hqDCs.length
             ? `<div class="tm-d-kv"><span>Operational MW</span><b>${hqMW >= 1000 ? (hqMW / 1000).toFixed(1) + ' GW' : hqMW + ' MW'}</b></div>` +
               hqDCs
@@ -1542,7 +1542,7 @@ const Terminal = {
                         <div class="tm-d-flag-meta">
                             <div class="tm-d-flag-name" style="color:${color}">${esc(flagship ? flagship.name || flagship.id : '—')}</div>
                             <div class="tm-d-kv"><span>Top ELO</span><b style="color:#22d3ee">${topElo != null ? Math.round(topElo) : '—'}</b></div>
-                            <div class="tm-d-kv"><span>Avg score</span><b>${avgScore != null ? avgScore.toFixed(1) : '—'}</b></div>
+                            <div class="tm-d-kv"><span>Frontier</span><b>${avgScore != null ? avgScore.toFixed(1) : '—'}</b></div>
                             <div class="tm-d-kv"><span>Models</span><b>${models.length}</b></div>
                         </div>
                     </div>`
@@ -1553,7 +1553,7 @@ const Terminal = {
                     `
                     <div class="tm-scroll tm-d-roster">
                         <table class="tm-table"><thead><tr>
-                            <th class="tm-rank">#</th><th>MODEL</th><th>PHASE</th><th class="tm-num">AVG</th><th>SCORE</th><th class="tm-num">ELO</th>
+                            <th class="tm-rank">#</th><th>MODEL</th><th>PHASE</th><th class="tm-num">IDX</th><th>SCORE</th><th class="tm-num">ELO</th>
                         </tr></thead><tbody>${rosterRows}</tbody></table>
                     </div>`,
                     true
@@ -1573,7 +1573,7 @@ const Terminal = {
             chips: [
                 { k: 'REGION', v: esc(regionName) },
                 { k: 'MODELS', v: models.length },
-                { k: 'AVG', v: avgScore != null ? avgScore.toFixed(0) : '—' },
+                { k: 'IDX', v: avgScore != null ? avgScore.toFixed(0) : '—' },
                 { k: 'TOP ELO', v: topElo != null ? Math.round(topElo) : '—', color: '#22d3ee' },
                 hqMW
                     ? { k: 'COMPUTE', v: hqMW >= 1000 ? (hqMW / 1000).toFixed(1) + ' GW' : hqMW + ' MW' }
@@ -1593,24 +1593,23 @@ const Terminal = {
         const color = (lab && lab.color) || '#22d3ee';
         const elo = this._num(b.ELO);
         const age = this._yearsSince(m.rel);
-        const radar = this._benchRadar(b);
+        const radar = this._benchRadar(id);
 
-        const benchKeys = [
-            ['MMLU', 'MMLU'],
-            ['GPQA', 'GPQA'],
-            ['MATH', 'MATH'],
-            ['HumanEval', 'CODE'],
-            ['ARC', 'ARC'],
-            ['MGSM', 'MGSM'],
-        ];
-        const benchBars =
-            benchKeys
-                .map(([k, lbl]) => {
-                    const v = this._num(b[k] != null ? b[k] : b[k.toUpperCase()]);
-                    if (v == null) return '';
-                    return `<div class="tm-bar-row"><span class="tm-bar-lbl">${lbl}</span><div class="tm-bar-track"><div class="tm-bar-fill" style="width:${Math.max(2, Math.min(100, v))}%;background:${color}"></div></div><span class="tm-bar-val">${v}</span></div>`;
-                })
-                .join('') || '<div class="tm-empty">No benchmark data</div>';
+        let benchBars = '<div class="tm-empty">No benchmark data</div>';
+        if (typeof Bench !== 'undefined') {
+            const scores = Bench.scoresFor(id);
+            const shown = Bench.present(scores)
+                .filter((s) => s.scale !== 'elo')
+                .slice(0, 6);
+            if (shown.length) {
+                benchBars = shown
+                    .map((s) => {
+                        const v = scores[s.id];
+                        return `<div class="tm-bar-row"><span class="tm-bar-lbl">${esc(s.short)}</span><div class="tm-bar-track"><div class="tm-bar-fill" style="width:${Math.max(2, Math.min(100, v))}%;background:${color}"></div></div><span class="tm-bar-val">${esc(Bench.fmt(s, v))}</span></div>`;
+                    })
+                    .join('');
+            }
+        }
 
         const body = `
             <div class="tm-d-grid">
@@ -1848,12 +1847,10 @@ const Terminal = {
                     const b = BM_[m.id] || {};
                     const e = this._num(b.ELO);
                     if (e != null && e > topElo) topElo = e;
-                    const vals = [b.MMLU, b.HumanEval || b.HUMANEVAL, b.MATH, b.GPQA]
-                        .map((v) => this._num(v))
-                        .filter((v) => v != null);
-                    const avg = vals.length ? vals.reduce((s, x) => s + x, 0) / vals.length : -1;
-                    if (avg > fa) {
-                        fa = avg;
+                    const avg = this._frontier(m.id);
+                    const avgN = avg == null ? -1 : avg;
+                    if (avgN > fa) {
+                        fa = avgN;
                         flag = m.name || m.id;
                     }
                 });
@@ -2149,19 +2146,15 @@ const Terminal = {
             let topElo = null,
                 flagshipName = null;
             for (const m of models) {
-                const b = BM_[m.id];
-                if (!b) continue;
-                const vals = [b.MMLU, b.HumanEval, b.MATH, b.GPQA].filter((v) => typeof v === 'number');
-                if (vals.length) {
-                    const avg = vals.reduce((a, x) => a + x, 0) / vals.length;
-                    scoreSum += avg;
+                const frontier = this._frontier(m.id);
+                if (frontier != null) {
+                    scoreSum += frontier;
                     scoreN++;
                 }
-                if (typeof b.ELO === 'number') {
-                    if (topElo === null || b.ELO > topElo) {
-                        topElo = b.ELO;
-                        flagshipName = m.name || m.id;
-                    }
+                const elo = BM_[m.id] && typeof BM_[m.id].ELO === 'number' ? BM_[m.id].ELO : null;
+                if (elo != null && (topElo === null || elo > topElo)) {
+                    topElo = elo;
+                    flagshipName = m.name || m.id;
                 }
             }
             const avgScore = scoreN ? scoreSum / scoreN : null;
@@ -2260,7 +2253,7 @@ const Terminal = {
             name: 'Lab name. Click to sort A→Z / Z→A.',
             region: 'HQ region. US · EU · CN · UK · IN · AE. Click a pill in a row to filter.',
             models: 'Total shipped models tracked in this sim.',
-            score: 'Average benchmark score across MMLU · HumanEval · MATH · GPQA.',
+            score: 'Mean frontier index. Needs two current hard benches, otherwise the mean of the hard benches that are published.',
             flagship: 'Top ELO model from this lab.',
             elo: "LMArena-style head-to-head ELO of the lab's top model.",
         };

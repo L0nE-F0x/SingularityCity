@@ -141,6 +141,10 @@ const Persistence = {
             }
             const labRegions = {};
             for (const k in LABS) if (LABS[k]) labRegions[k] = LABS[k].region || 'eu';
+            const indexes = {};
+            if (typeof Bench !== 'undefined' && Bench.cityScore) {
+                for (let i = 0; i < models.length; i++) indexes[models[i].id] = Bench.cityScore(models[i].id);
+            }
             this._computeWorker.postMessage({
                 type: 'crunch',
                 payload: {
@@ -148,6 +152,7 @@ const Persistence = {
                     benchmarks: typeof BM !== 'undefined' ? BM : {},
                     costs: typeof COSTS !== 'undefined' ? COSTS : {},
                     labRegions,
+                    indexes,
                 },
             });
         } catch (ex) {

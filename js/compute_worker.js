@@ -20,7 +20,7 @@ self.onmessage = function (e) {
  * @param {Object} payload.costs      — { modelId: { output: N }, ... }
  * @param {Object} payload.labRegions — { labKey: 'us'|'cn'|'eu', ... }
  */
-function crunch({ models, benchmarks, costs, labRegions }) {
+function crunch({ models, benchmarks, costs, labRegions, indexes }) {
     const now = Date.now();
 
     // ─── Global counters (HUD stats) ───
@@ -64,34 +64,32 @@ function crunch({ models, benchmarks, costs, labRegions }) {
         if (isAlive) pl.active++;
         if (m.os) pl.osCount++;
 
-        // Benchmark scoring — find top model per lab
+        // Flagship score is the frontier index the main thread computed.
+        // Elo stays on its own scale and only picks the arena leader.
         const bm = benchmarks[m.id];
-        if (bm) {
-            let score = 0;
-            if (bm.ELO) {
-                score = (bm.ELO - 1000) / 4.5;
-                if (bm.ELO > pl.topElo) pl.topElo = bm.ELO;
-            }
-            if (score === 0) {
-                const keys = Object.keys(bm);
-                let sum = 0,
-                    cnt = 0;
-                for (let k = 0; k < keys.length; k++) {
-                    const v = bm[keys[k]];
-                    if (typeof v === 'number' && v > 0) {
-                        sum += v;
-                        cnt++;
-                    }
+        const hasIndex = indexes && Object.prototype.hasOwnProperty.call(indexes, m.id);
+        let score = hasIndex ? indexes[m.id] || 0 : 0;
+        if (!hasIndex && bm) {
+            const keys = Object.keys(bm);
+            let sum = 0,
+                cnt = 0;
+            for (let k = 0; k < keys.length; k++) {
+                if (keys[k] === 'ELO' || keys[k] === 'ELO_CODE') continue;
+                const v = bm[keys[k]];
+                if (typeof v === 'number' && v > 0 && v <= 100) {
+                    sum += v;
+                    cnt++;
                 }
-                if (cnt > 0) score = sum / cnt;
             }
-            if (score >= pl.topScore) {
-                pl.topScore = score;
-                pl.topName = m.name;
-            }
-
-            // Global top ELO
-            if (bm.ELO && bm.ELO > topElo) {
+            if (cnt > 0) score = sum / cnt;
+        }
+        if (score > pl.topScore) {
+            pl.topScore = score;
+            pl.topName = m.name;
+        }
+        if (bm && bm.ELO) {
+            if (bm.ELO > pl.topElo) pl.topElo = bm.ELO;
+            if (bm.ELO > topElo) {
                 topElo = bm.ELO;
                 topLab = m.lab;
             }

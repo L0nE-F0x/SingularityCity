@@ -345,10 +345,18 @@ function verifyModel(m, { verified, caps }) {
         }
     }
 
-    if (m.benchmarks) {
+    // Arena code Elo is ~1500–1900. Only ELO / ELO_CODE use that scale;
+    // every other numeric key is still a 0–100 percent. A non-number is ignored
+    // here (submit-data's numeric map check rejects it first).
+    if (m.benchmarks && typeof m.benchmarks === 'object') {
         for (const [k, v] of Object.entries(m.benchmarks)) {
-            if (k !== 'ELO' && (v > 100 || v < 0)) return { ok: false, reason: `Impossible benchmark ${k}=${v}` };
-            if (k === 'ELO' && (v < 500 || v > 2500)) return { ok: false, reason: `Impossible ELO=${v}` };
+            if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+            const elo = k === 'ELO' || k === 'ELO_CODE';
+            if (elo) {
+                if (v < 500 || v > 2500) return { ok: false, reason: `Impossible ELO ${k}=${v}` };
+            } else if (v > 100 || v < 0) {
+                return { ok: false, reason: `Impossible benchmark ${k}=${v}` };
+            }
         }
     }
 

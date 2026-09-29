@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v557';
+const CACHE_NAME = 'singularity-city-v558';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -19,6 +19,7 @@ const CORE_ASSETS = [
     '/css/terminal.css',
     '/js/shared_boot.js',
     '/js/personality.js',
+    '/js/benchmarks.js',
     '/js/data.js',
     '/js/api.js',
     '/js/ui.js',

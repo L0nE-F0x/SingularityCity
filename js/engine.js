@@ -1070,16 +1070,12 @@ const G = {
                 if (isAlive) pl.active++;
                 if (m.os) pl.osCount++;
 
-                // Benchmark scoring
+                // Flagship score stays on the 0–100 frontier scale. Arena Elo is
+                // tracked separately below and must not outrank a real index.
                 let score = 0;
-                if (typeof avgBM === 'function') score = avgBM(m.id) || 0;
-                if (score === 0) score = (typeof BM !== 'undefined' && BM[m.id]?.ELO) || 0;
-                if (score === 0 && typeof BM !== 'undefined') {
-                    const bms = BM[m.id] || {};
-                    const vals = Object.values(bms).filter((v) => typeof v === 'number' && v > 0);
-                    if (vals.length > 0) score = vals.reduce((a, b) => a + b, 0) / vals.length;
-                }
-                if (score >= pl.topScore) {
+                if (typeof Bench !== 'undefined' && Bench.cityScore) score = Bench.cityScore(m.id) || 0;
+                else if (typeof avgBM === 'function') score = avgBM(m.id) || 0;
+                if (score > pl.topScore) {
                     pl.topScore = score;
                     pl.topName = m.name;
                 }
@@ -1169,7 +1165,7 @@ const G = {
                 pl.osCount >= pl.total / 2 ? '🟢 Open-Weights Focus' : '🔒 Closed-Weights Focus';
             const flagshipText = pl.topName || (pl.total > 0 ? 'Active' : 'Awaiting Data');
             const modelCount = pl.total;
-            const benchInfo = pl.topScore > 0 ? `⚡ AVG SCORE: ${pl.topScore.toFixed(0)}%` : '';
+            const benchInfo = pl.topScore > 0 ? `⚡ FRONTIER: ${pl.topScore.toFixed(0)}` : '';
 
             const baseLore =
                 LABS[b.lab]?.desc ||
@@ -2325,6 +2321,12 @@ const G = {
         if (typeof API !== 'undefined') {
             setTimeout(() => API.fetchZeroEval(), 8000); // initial fetch after 8s
             setInterval(() => API.fetchZeroEval(), 20 * 60 * 1000); // every 20 min
+        }
+
+        // ─── ARENA: text + code Elo snapshot (public, no key) ───
+        if (typeof API !== 'undefined' && typeof API.fetchArena === 'function') {
+            setTimeout(() => API.fetchArena(), 9000);
+            setInterval(() => API.fetchArena(), 30 * 60 * 1000);
         }
 
         // ─── OPENROUTER: Catches beta/preview models before GA (free, no-auth) ───

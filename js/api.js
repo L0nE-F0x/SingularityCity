@@ -415,11 +415,15 @@ const API = {
                         return;
                     }
 
-                    if (m.benchmarks) {
+                    if (m.benchmarks && typeof Bench !== 'undefined') {
+                        // Canonical keys. Uppercasing used to turn HumanEval into
+                        // HUMANEVAL, which the average then ignored.
+                        Bench.adoptStored(m);
+                    } else if (m.benchmarks) {
                         if (!window.BM) window.BM = {};
                         if (!window.BM[m.id]) window.BM[m.id] = {};
                         Object.keys(m.benchmarks).forEach((k) => {
-                            window.BM[m.id][k.toUpperCase()] = m.benchmarks[k];
+                            window.BM[m.id][k] = m.benchmarks[k];
                         });
                     }
 
@@ -597,6 +601,8 @@ const API = {
                 );
                 if (isDupe) continue;
 
+                if (typeof Bench !== 'undefined') Bench.attach(nm);
+
                 existingNames.add(safeName);
                 G.models.push(nm);
                 if (typeof Entities !== 'undefined') Entities.createChar(nm);
@@ -613,14 +619,19 @@ const API = {
                 if (added >= 6) break;
             }
 
+            let stamped = 0;
+            if (typeof Bench !== 'undefined') {
+                stamped = Bench.attachAll();
+                Bench.refreshOpen();
+            }
             if (added > 0) {
                 if (typeof UI !== 'undefined')
                     UI.addToast(`🤗 Hugging Face: ${added} new open-source models!`);
                 if (typeof NOTIFY !== 'undefined')
                     NOTIFY.send('Models Discovered!', `🤗 ${added} new open-source models from Hugging Face`);
                 if (typeof UI !== 'undefined') UI.addLog(`🤗 HF API: ${added} trending models added`);
-                G.evolveCity();
             }
+            if (added > 0 || stamped > 0) G.evolveCity();
             this._huggingfaceLoaded = true;
         } catch (e) {
             console.warn('[HF API] Fetch failed:', e.message);
@@ -678,10 +689,10 @@ const API = {
 
     async fetchZeroEval() {
         try {
-            const isDeployed = !['localhost', '127.0.0.1'].includes(window.location.hostname);
-            const url = isDeployed
-                ? '/api/zeroeval/leaderboard/models/full?justCanonicals=true'
-                : 'https://api.zeroeval.com/leaderboard/models/full?justCanonicals=true';
+            // The board does not send CORS headers, so the browser cannot call it
+            // directly. Production proxies this through Netlify; serve.py does the
+            // same thing for a local playtest.
+            const url = '/api/zeroeval/leaderboard/models/full?justCanonicals=true';
             const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
             if (!res.ok) {
                 console.warn('[ZeroEval] HTTP', res.status);
@@ -689,6 +700,7 @@ const API = {
             }
             const models = await res.json();
             if (!Array.isArray(models)) return;
+            if (typeof Bench !== 'undefined') Bench.ingestZeroEval(models);
 
             const existingNames = new Set(
                 G.models.map((m) => m.name.toLowerCase().replace(/[^a-z0-9]/g, ''))
@@ -719,12 +731,10 @@ const API = {
                 const safeId = ze.model_id ? ze.model_id.toLowerCase().replace(/[^a-z0-9]/g, '') : safeName;
                 const fuzzyName = fuzzyNorm(ze.name);
 
-                // Build benchmark object from ZeroEval scores
-                const bm = {};
-                if (ze.gpqa_score) bm.GPQA = Math.round(ze.gpqa_score * 100);
-                if (ze.mmmlu_score) bm.MMLU = Math.round(ze.mmmlu_score * 100);
-                if (ze.aime_2025_score) bm.MATH = Math.round(ze.aime_2025_score * 100);
-                if (ze.swe_bench_verified_score) bm.HumanEval = Math.round(ze.swe_bench_verified_score * 100);
+                // Every published column, under its own name. AIME is not MATH
+                // and SWE-bench is not HumanEval — those aliases hid the scores
+                // people actually look up.
+                const bm = typeof Bench !== 'undefined' ? Bench.fromZeroEval(ze) : {};
 
                 // Try to match to an existing model — use fuzzy matching to catch version variants
                 const existing = G.models.find((m) => {
@@ -737,15 +747,8 @@ const API = {
                 if (existing) {
                     // Backfill benchmarks, pricing, context, and correct stale data
                     let updated = false;
-                    if (Object.keys(bm).length > 0) {
-                        if (!window.BM) window.BM = {};
-                        if (!window.BM[existing.id]) window.BM[existing.id] = {};
-                        Object.entries(bm).forEach(([k, v]) => {
-                            if (!window.BM[existing.id][k] || v > window.BM[existing.id][k]) {
-                                window.BM[existing.id][k] = v;
-                                updated = true;
-                            }
-                        });
+                    if (Object.keys(bm).length > 0 && typeof Bench !== 'undefined') {
+                        if (Bench.writeScores(existing, bm, { overwrite: true, source: 'zeroeval' })) updated = true;
                     }
                     if (ze.input_price != null && ze.output_price != null) {
                         if (!window.COSTS) window.COSTS = {};
@@ -812,10 +815,8 @@ const API = {
                     },
                 };
 
-                // Store benchmarks
-                if (Object.keys(bm).length > 0) {
-                    if (!window.BM) window.BM = {};
-                    window.BM[nm.id] = bm;
+                if (Object.keys(bm).length > 0 && typeof Bench !== 'undefined') {
+                    Bench.writeScores(nm, bm, { overwrite: true, source: 'zeroeval' });
                 }
                 if (ze.input_price != null && ze.output_price != null) {
                     if (!window.COSTS) window.COSTS = {};
@@ -843,7 +844,15 @@ const API = {
                 if (added >= 8) break; // cap per fetch
             }
 
-            if (added > 0 || benchUpdated > 0) {
+            // The fuzzy-skip branch above leaves a citizen unmatched. Stamp every
+            // model the board actually published, including ones born elsewhere.
+            let stamped = 0;
+            if (typeof Bench !== 'undefined') {
+                stamped = Bench.attachAll();
+                Bench.refreshOpen();
+            }
+
+            if (added > 0 || benchUpdated > 0 || stamped > 0) {
                 if (typeof UI !== 'undefined') {
                     if (added > 0) {
                         UI.addToast(`📊 ZeroEval: ${added} new models with real benchmarks!`);
@@ -853,7 +862,9 @@ const API = {
                                 `📊 ${added} new models with real benchmark scores`
                             );
                     }
-                    UI.addLog(`📊 ZeroEval: +${added} models, ${benchUpdated} benchmark backfills`);
+                    UI.addLog(
+                        `📊 ZeroEval: +${added} models, ${benchUpdated} backfills, ${stamped} matched to the live board`
+                    );
                 }
                 G.evolveCity();
             }
@@ -1063,6 +1074,8 @@ const API = {
                     window.CTX[nm.id] = or.context_length;
                 }
 
+                if (typeof Bench !== 'undefined') Bench.attach(nm);
+
                 existingNames.add(safeName);
                 existingFuzzy.add(fuzzyName);
                 G.models.push(nm);
@@ -1080,7 +1093,13 @@ const API = {
                 if (added >= 8) break; // cap per fetch
             }
 
-            if (added > 0 || updated > 0) {
+            let stamped = 0;
+            if (typeof Bench !== 'undefined') {
+                stamped = Bench.attachAll();
+                Bench.refreshOpen();
+            }
+
+            if (added > 0 || updated > 0 || stamped > 0) {
                 if (typeof UI !== 'undefined') {
                     if (added > 0) {
                         UI.addToast(
@@ -1092,13 +1111,61 @@ const API = {
                                 `🌐 ${added} new model${added > 1 ? 's' : ''} from OpenRouter`
                             );
                     }
-                    UI.addLog(`🌐 OpenRouter: +${added} models, ${updated} backfills`);
+                    UI.addLog(`🌐 OpenRouter: +${added} models, ${updated} backfills, ${stamped} scored from live boards`);
                 }
                 G.evolveCity();
             }
             this._openrouterLoaded = true;
         } catch (e) {
             console.warn('[OpenRouter] Fetch failed:', e.message);
+        }
+    },
+
+    // Arena text + code Elo. Public daily snapshot, no key. A top slice, not
+    // the full board — unmatched stored Elos stay on file and render dim.
+    async fetchArena() {
+        try {
+            const isDeployed = !['localhost', '127.0.0.1'].includes(window.location.hostname);
+            const base = isDeployed
+                ? '/api/arena/oolong-tea-2026/arena-ai-leaderboards/main/data/'
+                : 'https://raw.githubusercontent.com/oolong-tea-2026/arena-ai-leaderboards/main/data/';
+            const latestRes = await fetch(base + 'latest.json', { signal: AbortSignal.timeout(15000) });
+            if (!latestRes.ok) {
+                console.warn('[Arena] latest HTTP', latestRes.status);
+                return;
+            }
+            const latest = await latestRes.json();
+            const path = latest && (latest.path || latest.date);
+            if (!path || !/^[\w.-]+$/.test(String(path))) {
+                console.warn('[Arena] bad snapshot path');
+                return;
+            }
+            const [textRes, codeRes] = await Promise.all([
+                fetch(base + path + '/text.json', { signal: AbortSignal.timeout(15000) }),
+                fetch(base + path + '/code.json', { signal: AbortSignal.timeout(15000) }),
+            ]);
+            let text = null;
+            let code = null;
+            if (textRes.ok) text = await textRes.json();
+            else console.warn('[Arena] text HTTP', textRes.status);
+            if (codeRes.ok) code = await codeRes.json();
+            else console.warn('[Arena] code HTTP', codeRes.status);
+            if (typeof Bench === 'undefined') return;
+            if (text) Bench.ingestArena('text', text);
+            if (code) Bench.ingestArena('code', code);
+            if (!text && !code) return;
+            const matched = Bench.attachAll();
+            Bench.refreshOpen();
+            if (matched > 0) {
+                if (typeof UI !== 'undefined') {
+                    UI.addToast(`⚔️ Arena: ${matched} citizens matched to the ${path} snapshot`);
+                    UI.addLog(`⚔️ Arena snapshot ${path}: ${matched} citizens matched`);
+                }
+                if (typeof G !== 'undefined' && G.evolveCity) G.evolveCity();
+            }
+            this._arenaLoaded = true;
+        } catch (e) {
+            console.warn('[Arena] Fetch failed:', e.message);
         }
     },
 
@@ -2465,14 +2532,18 @@ Respond with ONLY minified JSON, no markdown:
             }
         }
 
-        // 4. Reject benchmark scores that are impossible (>100 for percentage-based)
-        if (m.benchmarks) {
+        // 4. Reject scores outside their scale. Arena code Elo sits near 1800;
+        // treating every key except ELO as a percent used to delete the citizen.
+        if (m.benchmarks && typeof m.benchmarks === 'object') {
             for (const [k, v] of Object.entries(m.benchmarks)) {
-                if (k !== 'ELO' && (v > 100 || v < 0)) {
+                if (typeof v !== 'number' || !isFinite(v)) continue;
+                const id = typeof Bench !== 'undefined' ? Bench.alias(k) : null;
+                const spec = id && typeof Bench !== 'undefined' ? Bench.spec(id) : null;
+                const elo = (spec && spec.scale === 'elo') || k === 'ELO' || k === 'ELO_CODE';
+                if (elo) {
+                    if (v < 500 || v > 2500) return { ok: false, reason: `Impossible ELO ${k}=${v}` };
+                } else if (v > 100 || v < 0) {
                     return { ok: false, reason: `Impossible benchmark ${k}=${v}` };
-                }
-                if (k === 'ELO' && (v < 500 || v > 2500)) {
-                    return { ok: false, reason: `Impossible ELO=${v}` };
                 }
             }
         }
@@ -3327,15 +3398,16 @@ CRITICAL ACCURACY RULES — VIOLATIONS WILL CORRUPT A PUBLIC DATABASE:
    - Rule of thumb: the next real increment past the current release = YES; a fabricated jump with no blog post / API / press release = NO.
 3. Version numbers must match real, publicly documented versions. If unsure, SKIP that model entirely.
 4. Release dates must be real dates when the model became publicly available. If unsure, use null.
-5. Benchmarks must be from official papers or leaderboards (e.g. LMSYS, ZeroEval). If unsure, omit the benchmark.
+5. Set "benchmarks" to null. The city fills scores from live leaderboards after you reply. Do not guess MMLU, HumanEval, MATH, GPQA, or an Arena Elo inside the model object. The numbers in the example below are a shape, not values to copy.
 6. "phase": "released" for launched models, "rumored" ONLY for models officially teased/leaked by the lab itself.
 7. Use the model's FULL official name (e.g. "Claude Opus 4", not just "Claude 4"; "Grok 3 Mini" not "Grok-mini").
 8. For any lab in the "MISSING a founder/CEO" list, include "founder_name" (e.g. Dario Amodei for Anthropic, Sam Altman for OpenAI, Elon Musk for xAI).
 9. Include accurate pricing (cost_input/cost_out per 1M tokens USD) and context window (ctx in tokens).
 10. If you are not 100% certain a model exists, DO NOT include it. Return fewer than 4 models if needed.
+11. elo_updates only when you know a current public Arena text Elo for a model already in the city. If you are not sure, return an empty array. Never invent one.
 
 JSON (no markdown):
-{"models":[{"id":"model_id","name":"Full Model Name","lab":"lab_id","region":"us","founder_name":"CEO Name or null","released":"2025-01-01","retired":null,"phase":"released","os":false,"desc":"Summary.","personality":"Helpful","talent":"Coding","favSpot":"Server Room","benchmarks":{"MMLU":90,"HumanEval":85,"MATH":75,"GPQA":55},"arch":{"params":"200B","type":"Dense","tokens":"15T","compute":"1e25 FLOPs"},"ctx":200000,"cost_input":3.0,"cost_out":15.0}],"retirements":[],"elo_updates":[],"events":[],"lineage_updates":[]}`;
+{"models":[{"id":"model_id","name":"Full Model Name","lab":"lab_id","region":"us","founder_name":"CEO Name or null","released":"2025-01-01","retired":null,"phase":"released","os":false,"desc":"Summary.","personality":"Helpful","talent":"Coding","favSpot":"Server Room","benchmarks":null,"arch":{"params":"200B","type":"Dense","tokens":"15T","compute":"1e25 FLOPs"},"ctx":200000,"cost_input":3.0,"cost_out":15.0}],"retirements":[],"elo_updates":[],"events":[],"lineage_updates":[]}`;
 
                     let url = '',
                         hd = { 'Content-Type': 'application/json' },
@@ -3604,6 +3676,7 @@ JSON (no markdown):
                                 target.ctx = m.ctx;
                                 needsUpdate = true;
                             }
+                            if (typeof Bench !== 'undefined') Bench.attach(target);
                             if (needsUpdate && this.supabase) {
                                 this._cloudSubmit(
                                     'models',
@@ -3623,6 +3696,10 @@ JSON (no markdown):
                         continue;
                     }
 
+                    // Live boards own the numbers. A guessed GPQA plus a guessed AIME
+                    // used to mint a frontier index. Drop whatever the scan sent.
+                    m.benchmarks = null;
+
                     // ─── VERIFICATION GATE: Reject hallucinated/impossible models ───
                     const verification = this._verifyModel(m);
                     if (!verification.ok) {
@@ -3630,14 +3707,6 @@ JSON (no markdown):
                         if (typeof UI !== 'undefined')
                             UI.addLog(`🚫 Rejected "${m.name}": ${verification.reason}`);
                         continue;
-                    }
-
-                    if (m.benchmarks) {
-                        if (!window.BM) window.BM = {};
-                        window.BM[m.id] = {};
-                        Object.keys(m.benchmarks).forEach(
-                            (k) => (window.BM[m.id][k.toUpperCase()] = m.benchmarks[k])
-                        );
                     }
 
                     if (m.cost_input != null && m.cost_out != null) {
@@ -3674,6 +3743,7 @@ JSON (no markdown):
 
                     // PASS REGION INTO ENGINE DYNAMICALLY
                     nm.lab = G.ensureLabExists(nm.lab, m.region);
+                    if (typeof Bench !== 'undefined') Bench.attach(nm);
 
                     if (m.founder_name && typeof REAL_FOUNDERS !== 'undefined') {
                         let existingFounder = REAL_FOUNDERS.find((f) => f.lab === nm.lab);
@@ -3890,13 +3960,24 @@ JSON (no markdown):
                     });
 
                     if (m) {
-                        if (!window.BM) window.BM = {};
-                        if (!window.BM[m.id]) window.BM[m.id] = {};
-                        const old = window.BM[m.id].ELO;
-                        window.BM[m.id].ELO = Math.round(eu.elo);
-                        ec++;
-                        if (old && Math.abs(old - eu.elo) > 20 && typeof UI !== 'undefined') {
-                            UI.addToast(`📊 ${m.name} ELO: ${old} → ${Math.round(eu.elo)}`);
+                        const fed =
+                            typeof Bench !== 'undefined' && Bench.fed[m.id] ? Bench.fed[m.id].ELO : '';
+                        // Today's Arena snapshot wins. A scan must not paint over it.
+                        if (fed === 'arena') return;
+                        const elo = Math.round(eu.elo);
+                        const old = window.BM && window.BM[m.id] ? window.BM[m.id].ELO : null;
+                        if (typeof Bench !== 'undefined') {
+                            if (Bench.writeScores(m, { ELO: elo }, { overwrite: true, source: 'scan' })) {
+                                ec++;
+                                if (old && Math.abs(old - elo) > 20 && typeof UI !== 'undefined') {
+                                    UI.addToast(`📊 ${m.name} ELO: ${old} → ${elo}`);
+                                }
+                            }
+                        } else {
+                            if (!window.BM) window.BM = {};
+                            if (!window.BM[m.id]) window.BM[m.id] = {};
+                            window.BM[m.id].ELO = elo;
+                            ec++;
                         }
                     }
                 });
@@ -3913,6 +3994,7 @@ JSON (no markdown):
             if (G.models.length >= 100) G.unlockAchieve('hundred_models');
             if (new Set(G.models.map((m) => m.lab)).size >= 7) G.unlockAchieve('all_labs');
 
+            if (typeof Bench !== 'undefined') Bench.refreshOpen();
             G.save();
             G.evolveCity();
 

@@ -823,7 +823,7 @@ const Holomap = {
                     ttH +=
                         '<div class="htt-stat"><span>' + (STAGES[stg] ? STAGES[stg].label : stg) + '</span>';
                     if (elo) ttH += ' · <span style="color:#4ade80">ELO ' + elo + '</span>';
-                    if (bm) ttH += ' · <span>Avg ' + bm + '%</span>';
+                    if (bm) ttH += ' · <span>Frontier ' + bm + '</span>';
                     ttH += '</div>';
                     if (m.desc) ttH += '<div class="htt-desc">' + m.desc + '</div>';
                     self.tooltip.innerHTML = ttH;
@@ -910,8 +910,8 @@ const Holomap = {
         }
         var m = s.m,
             lab = LABS[m.lab] || { name: '?', color: '#888' };
-        var bm = BM[m.id] || {},
-            stg = this.getStageForModel(m);
+        var scores = typeof Bench !== 'undefined' ? Bench.scoresFor(m) : BM[m.id] || {};
+        var stg = this.getStageForModel(m);
         var avg = avgBM(m.id),
             cHex = this.displayHex(lab.color);
 
@@ -932,18 +932,18 @@ const Holomap = {
             '<div class="holo-stat"><span class="holo-stat-lbl">Status</span><span class="holo-stat-val">' +
             (STAGES[stg] ? STAGES[stg].emoji + ' ' + STAGES[stg].label : stg) +
             '</span></div>';
-        if (bm.ELO)
+        if (scores.ELO)
             h +=
-                '<div class="holo-stat"><span class="holo-stat-lbl">ELO</span><span class="holo-stat-val" style="color:#4ade80">' +
-                bm.ELO +
+                '<div class="holo-stat"><span class="holo-stat-lbl">Arena</span><span class="holo-stat-val" style="color:#4ade80">' +
+                scores.ELO +
                 '</span></div>';
         if (avg)
             h +=
-                '<div class="holo-stat"><span class="holo-stat-lbl">Avg Benchmark</span><span class="holo-stat-val" style="color:' +
+                '<div class="holo-stat"><span class="holo-stat-lbl">Frontier</span><span class="holo-stat-val" style="color:' +
                 (avg > 80 ? '#4ade80' : avg > 50 ? '#facc15' : '#f87171') +
                 '">' +
                 avg +
-                '%</span></div>';
+                '</span></div>';
         var relDate = m.rel || m.released;
         if (relDate)
             h +=
@@ -951,25 +951,26 @@ const Holomap = {
                 relDate +
                 '</span></div>';
 
-        var bmKeys = ['MMLU', 'HumanEval', 'MATH', 'GPQA', 'ARC', 'MGSM'];
-        if (
-            bmKeys.some(function (k) {
-                return bm[k] !== undefined;
-            })
-        ) {
+        var bars = [];
+        if (typeof Bench !== 'undefined') {
+            Bench.present(scores).forEach(function (spec) {
+                if (spec.scale === 'elo' || bars.length >= 6) return;
+                if (!spec.hard && bars.length >= 3) return;
+                bars.push(spec);
+            });
+        }
+        if (bars.length) {
             h += '<div class="holo-bm-section">';
-            bmKeys.forEach(function (k) {
-                var v = bm[k];
-                if (v === undefined) return;
-                var meta = BM_M[k] || { l: k, c: '#888' };
-                h += '<div class="holo-bm-row"><span class="holo-bm-lbl">' + meta.l + '</span>';
+            bars.forEach(function (spec) {
+                var v = scores[spec.id];
+                h += '<div class="holo-bm-row"><span class="holo-bm-lbl">' + spec.short + '</span>';
                 h +=
                     '<div class="holo-bm-bar"><div class="holo-bm-fill" style="width:' +
-                    v +
+                    Math.max(0, Math.min(100, v)) +
                     '%;background:' +
-                    meta.c +
+                    spec.color +
                     '"></div></div>';
-                h += '<span class="holo-bm-val">' + v + '</span></div>';
+                h += '<span class="holo-bm-val">' + Bench.fmt(spec, v) + '</span></div>';
             });
             h += '</div>';
         }

@@ -16,22 +16,8 @@ var CTX = {};
 var FAMILIES = {};
 var AI_EVENTS = [];
 
-const BM_M = {
-    MMLU: { l: 'MMLU', d: 'General Knowledge', c: '#4ade80' },
-    HumanEval: { l: 'Coding', d: 'Programming skills', c: '#22d3ee' },
-    MATH: { l: 'MATH', d: 'Advanced mathematics', c: '#facc15' },
-    GPQA: { l: 'GPQA', d: 'Graduate-level reasoning', c: '#f472b6' },
-    ARC: { l: 'ARC', d: 'Reasoning Challenge', c: '#a78bfa' },
-    MGSM: { l: 'MGSM', d: 'Multilingual Math', c: '#f97316' },
-    ELO: { l: 'Arena ELO', d: 'LMSYS Chatbot Arena', c: '#ffffff' },
-};
-
-const avgBM = (id) => {
-    const s = BM[id];
-    if (!s) return null;
-    const sc = [s.MMLU, s.HumanEval, s.MATH, s.GPQA, s.ARC, s.MGSM].filter(Boolean);
-    return sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : null;
-};
+// BM_M and avgBM live in js/benchmarks.js (loaded first). avgBM is the
+// frontier index — two or more current hard benches — not a mean of MMLU-era exams.
 
 const SUPPLY_CHAIN = {
     bottlenecks: [

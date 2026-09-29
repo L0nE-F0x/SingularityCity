@@ -9,8 +9,16 @@ ERR_EMPTY_RESPONSE. This serves the same folder with a thread per connection.
 import base64
 import os
 import sys
+import urllib.request
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+# Same paths as the Netlify redirects. ZeroEval does not send CORS headers, so a
+# local playtest has to fetch it from this origin or the bench panel stays empty.
+DEV_PROXIES = (
+    ('/api/zeroeval/', 'https://api.zeroeval.com/'),
+    ('/api/arena/', 'https://raw.githubusercontent.com/'),
+)
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8931
 ROOT = os.path.dirname(os.path.abspath(__file__))   # serve this folder, whatever the cwd
@@ -21,6 +29,31 @@ class Handler(SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store')
         super().end_headers()
+
+    def do_GET(self):
+        for prefix, origin in DEV_PROXIES:
+            if self.path.startswith(prefix):
+                self._proxy(origin + self.path[len(prefix):])
+                return
+        return super().do_GET()
+
+    def _proxy(self, url):
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'SingularityCity-dev'})
+            with urllib.request.urlopen(req, timeout=25) as res:
+                body = res.read()
+                self.send_response(getattr(res, 'status', 200))
+                self.send_header('Content-Type', res.headers.get('Content-Type', 'application/json'))
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+        except Exception as e:
+            msg = str(e).encode()
+            self.send_response(502)
+            self.send_header('Content-Type', 'text/plain; charset=utf-8')
+            self.send_header('Content-Length', str(len(msg)))
+            self.end_headers()
+            self.wfile.write(msg)
 
     def do_POST(self):
         """Dev-only: POST a canvas data URL to /__shot?name=foo and it lands in

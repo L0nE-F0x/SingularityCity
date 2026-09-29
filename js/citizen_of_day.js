@@ -413,11 +413,9 @@ window.CitizenOfDay = (function () {
         if (rel) parts.push(`released ${rel}`);
         let line = parts.join(' ') + '.';
 
-        // Optional benchmark flex
-        if (typeof BM !== 'undefined' && BM[m.id]) {
-            const b = BM[m.id];
-            if (b.ELO) line += ` Arena ELO: ${b.ELO}.`;
-            else if (b.MMLU) line += ` MMLU: ${b.MMLU}%.`;
+        if (typeof Bench !== 'undefined') {
+            const flex = Bench.flexLine(Bench.scoresFor(m));
+            if (flex) line += ` ${flex}.`;
         }
         if (phase) line += ` Currently ${phase.toLowerCase()}.`;
         return line;

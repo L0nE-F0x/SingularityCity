@@ -785,6 +785,7 @@ const UI = {
 
         this.selModel = m;
         this.selBld = null;
+        if (typeof Bench !== 'undefined' && Bench.attach) Bench.attach(m);
         const stg = getStage(m.rel, m.ret, m.phase);
         const sd = STAGES[stg];
         const lab = LABS[m.lab] || LABS.other || { name: 'Unknown', color: '#64748b', icon: '🌐' };
@@ -870,7 +871,7 @@ const UI = {
           <div class="ipanel-stat"><span class="ipanel-lbl">Personality</span><span class="ipanel-val">${escapeHTML(m.per)}</span></div>
           <div class="ipanel-stat"><span class="ipanel-lbl">Talent</span><span class="ipanel-val">${escapeHTML(m.tal)}</span></div>
           <div class="ipanel-stat"><span class="ipanel-lbl">Fav Spot</span><span class="ipanel-val">${escapeHTML(m.fav)}</span></div>
-          ${avg ? `<div class="ipanel-stat"><span class="ipanel-lbl">Avg Score</span><span class="ipanel-val" style="color:${avg > 80 ? '#4ade80' : avg > 50 ? '#facc15' : '#ef4444'}">${avg}%</span></div>` : ''}
+          ${avg ? `<div class="ipanel-stat"><span class="ipanel-lbl">Frontier</span><span class="ipanel-val" style="color:${avg > 80 ? '#4ade80' : avg > 50 ? '#facc15' : '#ef4444'}">${avg}</span></div>` : ''}
           </div>
           <div class="arch-title">⚡ Deep Architecture</div>
           <div class="ipanel-grid" style="padding-top:5px">
@@ -880,81 +881,10 @@ const UI = {
             <div class="ipanel-stat"><span class="ipanel-lbl">Compute FLOPs</span><span class="ipanel-val" style="color:#facc15">${m.arch?.compute || 'Unknown'}</span></div>
           </div>`;
         } else if (tab === 'bench') {
-            const sc = BM[m.id] || m.benchmarks || {};
-            if (Object.keys(sc).length === 0) {
-                ct.innerHTML =
-                    '<div style="padding:20px;text-align:center;color:var(--t3);font-size:10px">No benchmark data.</div>';
-                return;
-            }
-
-            let html = Object.entries(BM_M)
-                .map(([k, bm]) => {
-                    const v = sc[k] !== undefined ? sc[k] : sc[k.toUpperCase()] || 0;
-                    const fw = k === 'ELO' ? (v ? Math.min(100, (v - 1000) / 4.5) : 0) : Math.min(100, v);
-                    const dv = k === 'ELO' ? v || '—' : v ? v + '%' : '—';
-                    return `<div class="bench-row"><div class="bench-hdr"><span class="bench-name">${bm.l}</span><span class="bench-score" style="color:${bm.c}">${dv}</span></div><div class="bench-bg"><div class="bench-fill" style="width:${fw}%;background:linear-gradient(90deg,${bm.c}88,${bm.c})"></div></div><div class="bench-desc">${bm.d}</div></div>`;
-                })
-                .join('');
-
-            html += `<div class="arch-title" style="margin-top: 15px;">📈 Historical ELO Trajectory</div>
-                 <div class="chart-wrapper"><canvas id="eloChartCanvas"></canvas></div>`;
-
-            ct.innerHTML = html;
-
-            setTimeout(() => {
-                const ctx = document.getElementById('eloChartCanvas');
-                if (!ctx || typeof Chart === 'undefined') return;
-
-                if (UI.eloChart) {
-                    UI.eloChart.destroy();
-                    UI.eloChart = null;
-                }
-
-                const currentElo = BM[m.id]?.ELO || 1000;
-                const history = [
-                    currentElo - 60,
-                    currentElo - 25,
-                    currentElo - 10,
-                    currentElo + 5,
-                    currentElo,
-                ];
-                const labColor = (LABS[m.lab] || LABS.other || { color: '#64748b' }).color;
-
-                UI.eloChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Now'],
-                        datasets: [
-                            {
-                                label: 'Arena ELO',
-                                data: history,
-                                borderColor: labColor,
-                                backgroundColor: `${labColor}22`,
-                                borderWidth: 2,
-                                fill: true,
-                                tension: 0.4,
-                                pointBackgroundColor: '#fff',
-                                pointRadius: 3,
-                            },
-                        ],
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            x: {
-                                grid: { color: '#33334a' },
-                                ticks: { color: '#a0a0b8', font: { size: 9, family: 'JetBrains Mono' } },
-                            },
-                            y: {
-                                grid: { color: '#33334a' },
-                                ticks: { color: '#a0a0b8', font: { size: 9, family: 'JetBrains Mono' } },
-                            },
-                        },
-                    },
-                });
-            }, 10);
+            ct.innerHTML =
+                typeof Bench !== 'undefined' && Bench.panelHTML
+                    ? Bench.panelHTML(m)
+                    : '<div class="bench-empty"><div class="bench-empty-h">Benchmark catalog failed to load</div></div>';
         } else if (tab === 'cost') {
             const c = COSTS[m.id];
             if (!c || (c.input === undefined && c.output === undefined)) {
@@ -1048,7 +978,7 @@ const UI = {
                             y: {
                                 title: {
                                     display: true,
-                                    text: 'Avg Score (%)',
+                                    text: 'Frontier index',
                                     color: '#a0a0b8',
                                     font: { size: 9, family: 'JetBrains Mono' },
                                 },
@@ -1748,142 +1678,54 @@ const UI = {
         list.innerHTML = h;
     },
 
-    _benchSort: 'avg',
+    _benchSort: 'index',
     _benchSortDir: -1,
+    _benchBoard: 'live',
+    _benchQuery: '',
+
+    _openBenchModel(id) {
+        const ov = document.getElementById('benchOv');
+        if (ov) ov.classList.remove('open');
+        const m = G.models.find((x) => x.id === id);
+        if (m) this.selectModel(m);
+    },
 
     showBenchmarks(sortKey) {
         G.unlockAchieve('benchmark_view');
-        document.getElementById('benchOv').classList.add('open');
-
-        // Update sort state
-        if (sortKey) {
-            if (this._benchSort === sortKey) {
-                this._benchSortDir *= -1;
-            } else {
+        const ov = document.getElementById('benchOv');
+        if (ov) ov.classList.add('open');
+        if (typeof sortKey === 'string' && sortKey.indexOf('board:') === 0) {
+            this._benchBoard = sortKey.slice(6);
+            this._benchSort = null;
+            this._benchSortDir = -1;
+        } else if (sortKey) {
+            if (this._benchSort === sortKey) this._benchSortDir *= -1;
+            else {
                 this._benchSort = sortKey;
                 this._benchSortDir = -1;
             }
         }
-        const sk = this._benchSort;
-        const sd = this._benchSortDir;
-
-        // Sort models by chosen metric
-        const getSortVal = (m) => {
-            if (sk === 'avg') return avgBM(m.id) || 0;
-            if (sk === 'cost') return COSTS[m.id] ? COSTS[m.id].output : 9999;
-            if (sk === 'ctx') return CTX[m.id] || 0;
-            const sc = BM[m.id] || {};
-            return sc[sk] !== undefined ? sc[sk] : sc[sk.toUpperCase()] || 0;
-        };
-
-        const models = G.models.filter((m) => BM[m.id] && typeof avgBM === 'function' && avgBM(m.id));
-        if (sk === 'cost') {
-            models.sort((a, b) => sd * ((getSortVal(a) || 9999) - (getSortVal(b) || 9999)));
-        } else {
-            models.sort((a, b) => sd * (getSortVal(b) - getSortVal(a)));
+        const pan = document.getElementById('benchPan');
+        if (!pan) return;
+        if (typeof Bench === 'undefined' || !Bench.observatoryHTML) {
+            pan.innerHTML = '<div class="bench-empty"><div class="bench-empty-h">Benchmark catalog failed to load</div></div>';
+            return;
         }
-
-        // Callout cards
-        let topCallout = '';
-        if (models.length > 0) {
-            const avgSorted = [...models].sort((a, b) => (avgBM(b.id) || 0) - (avgBM(a.id) || 0));
-            const top = avgSorted[0];
-            const topLab = LABS[top.lab] || { name: top.lab, color: '#64748b' };
-            const topAvg = avgBM(top.id);
-            const eloTop = models
-                .filter((m) => BM[m.id] && BM[m.id].ELO)
-                .sort((a, b) => BM[b.id].ELO - BM[a.id].ELO)[0];
-
-            topCallout = `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">`;
-            topCallout += `<div style="flex:1;min-width:180px;padding:10px 14px;background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:8px"><div style="font-size:8px;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">👑 #1 Overall</div><div style="font-size:12px;font-weight:700;color:#fff">${escapeHTML(top.name)}</div><div style="font-size:9px;color:${topLab.color}">${topLab.name} · avg ${topAvg}%</div></div>`;
-            if (eloTop && eloTop.id !== top.id) {
-                const eloLab = LABS[eloTop.lab] || { name: eloTop.lab, color: '#64748b' };
-                topCallout += `<div style="flex:1;min-width:180px;padding:10px 14px;background:rgba(250,204,21,0.06);border:1px solid rgba(250,204,21,0.2);border-radius:8px"><div style="font-size:8px;color:#facc15;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">⚔️ Arena King</div><div style="font-size:12px;font-weight:700;color:#fff">${escapeHTML(eloTop.name)}</div><div style="font-size:9px;color:${eloLab.color}">${eloLab.name} · ELO ${BM[eloTop.id].ELO}</div></div>`;
+        pan.innerHTML = Bench.observatoryHTML({
+            board: this._benchBoard || 'live',
+            sort: this._benchSort,
+            dir: this._benchSortDir,
+            q: this._benchQuery || '',
+        });
+        if (this._benchFocus) {
+            const input = document.getElementById('benchSearch');
+            if (input) {
+                input.focus();
+                const n = input.value.length;
+                try { input.setSelectionRange(n, n); } catch (e) { /* older browsers */ }
             }
-            const frontier = avgSorted.slice(0, 10);
-            const cheapFrontier = frontier
-                .filter((m) => COSTS[m.id] && COSTS[m.id].input > 0)
-                .sort((a, b) => COSTS[a.id].input - COSTS[b.id].input)[0];
-            if (cheapFrontier) {
-                const cfLab = LABS[cheapFrontier.lab] || { name: cheapFrontier.lab, color: '#64748b' };
-                topCallout += `<div style="flex:1;min-width:180px;padding:10px 14px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.2);border-radius:8px"><div style="font-size:8px;color:#22d3ee;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💰 Best Value Frontier</div><div style="font-size:12px;font-weight:700;color:#fff">${escapeHTML(cheapFrontier.name)}</div><div style="font-size:9px;color:${cfLab.color}">${cfLab.name} · $${COSTS[cheapFrontier.id].input}/1M in</div></div>`;
-            }
-            topCallout += `</div>`;
+            this._benchFocus = false;
         }
-
-        const sortLabel =
-            sk === 'avg'
-                ? 'average score'
-                : sk === 'cost'
-                  ? 'output cost'
-                  : sk === 'ctx'
-                    ? 'context window'
-                    : sk;
-        const sortArrow = sd === -1 ? '▼' : '▲';
-
-        let h = `<button class="ipanel-x" onclick="document.getElementById('benchOv').classList.remove('open')">✕</button><div class="ov-title">📊 BENCHMARK OBSERVATORY</div>`;
-        h += `<div style="font-size:9px;color:var(--t3);text-align:center;margin-bottom:10px">${models.length} ranked models · sorted by ${sortLabel} ${sortArrow} · click any column to re-sort</div>`;
-        h += topCallout;
-
-        // Build sortable header
-        const thStyle = 'cursor:pointer;user-select:none;transition:color 0.2s';
-        const activeCol = (key) => (sk === key ? 'color:#4ade80;' : '');
-        h += `<div style="overflow-x:auto;overflow-y:auto;max-height:55vh"><table class="bench-table"><thead><tr>`;
-        h += `<th style="text-align:left;position:sticky;left:0;background:var(--sf);z-index:2">Model</th>`;
-        h += `<th style="${thStyle};${activeCol('avg')}" onclick="UI.showBenchmarks('avg')">Avg${sk === 'avg' ? ' ' + sortArrow : ''}</th>`;
-        Object.entries(BM_M).forEach(([k, bm]) => {
-            h += `<th style="${thStyle};${activeCol(k)}color:${sk === k ? '#4ade80' : bm.c}" onclick="UI.showBenchmarks('${k}')">${bm.l}${sk === k ? ' ' + sortArrow : ''}</th>`;
-        });
-        h += `<th style="${thStyle};${activeCol('cost')}" onclick="UI.showBenchmarks('cost')">$/1M out${sk === 'cost' ? ' ' + sortArrow : ''}</th>`;
-        h += `<th style="${thStyle};${activeCol('ctx')}" onclick="UI.showBenchmarks('ctx')">Context${sk === 'ctx' ? ' ' + sortArrow : ''}</th>`;
-        h += `</tr></thead><tbody>`;
-
-        models.forEach((m, rank) => {
-            const avg = avgBM(m.id);
-            const sc = BM[m.id] || {};
-            const lab = LABS[m.lab] || { color: '#64748b' };
-            const medal =
-                rank === 0
-                    ? '🥇'
-                    : rank === 1
-                      ? '🥈'
-                      : rank === 2
-                        ? '🥉'
-                        : `<span style="font-size:8px;color:var(--t3)">${rank + 1}</span>`;
-            const rowBorder = rank < 3 ? `border-left:2px solid ${lab.color}` : '';
-
-            h += `<tr onclick="document.getElementById('benchOv').classList.remove('open');UI.selectModel(G.models.find(x=>x.id==='${m.id}'))" style="cursor:pointer;${rowBorder}"><td style="position:sticky;left:0;background:var(--cd);z-index:2"><div style="display:flex;align-items:center;gap:6px">${medal}<div><span style="font-size:9px;font-weight:700">${escapeHTML(m.name)}</span><div style="font-size:7px;color:${lab.color}">${lab.name || m.lab}</div></div></div></td>`;
-
-            h += `<td style="${sk === 'avg' ? 'background:rgba(74,222,128,0.05);' : ''}"><div style="display:flex;align-items:center;gap:4px"><div style="width:30px;height:4px;background:var(--bd);border-radius:2px;overflow:hidden"><div style="width:${avg}%;height:100%;background:${avg > 85 ? '#4ade80' : avg > 70 ? '#facc15' : '#ef4444'};border-radius:2px"></div></div><span style="font-weight:700;font-size:9px;color:${avg > 85 ? '#4ade80' : avg > 70 ? '#facc15' : '#ef4444'}">${avg}%</span></div></td>`;
-
-            Object.keys(BM_M).forEach((k) => {
-                const v = sc[k] !== undefined ? sc[k] : sc[k.toUpperCase()];
-                const col =
-                    k === 'ELO'
-                        ? v > 1350
-                            ? '#4ade80'
-                            : v > 1250
-                              ? '#facc15'
-                              : '#ef4444'
-                        : v > 90
-                          ? '#4ade80'
-                          : v > 70
-                            ? '#facc15'
-                            : v > 0
-                              ? '#ef4444'
-                              : 'var(--t3)';
-                const highlight = sk === k ? 'background:rgba(74,222,128,0.05);' : '';
-                h += `<td style="color:${col};${highlight}">${k === 'ELO' ? v || '—' : v ? v + '%' : '—'}</td>`;
-            });
-
-            const cost = COSTS[m.id];
-            h += `<td style="color:#facc15;${sk === 'cost' ? 'background:rgba(250,204,21,0.05);' : ''}">${cost && cost.output !== undefined ? '$' + cost.output : '—'}</td>`;
-
-            const ctx_val = CTX[m.id];
-            h += `<td style="color:var(--t2);${sk === 'ctx' ? 'background:rgba(34,211,238,0.05);' : ''}">${ctx_val !== undefined ? (ctx_val >= 1e6 ? (ctx_val / 1e6).toFixed(1).replace('.0', '') + 'M' : (ctx_val / 1e3).toFixed(0) + 'K') : '—'}</td></tr>`;
-        });
-        h += '</tbody></table></div>';
-        document.getElementById('benchPan').innerHTML = h;
     },
 
     showCompare() {
@@ -1899,21 +1741,12 @@ const UI = {
         ms.forEach((m) => {
             const lab = LABS[m.lab] || LABS.other || { color: '#64748b', name: 'Independent' };
             const avg = typeof avgBM === 'function' ? avgBM(m.id) : 0;
-            h += `<div style="text-align:center;padding:10px;background:var(--cd);border:2px solid ${lab.color}44;border-radius:6px"><div style="font-size:10px;font-weight:700">${escapeHTML(m.name)}</div><div style="font-size:8px;color:${lab.color}">${lab.name}</div>${avg ? `<div style="font-size:14px;font-weight:700;color:${avg > 80 ? '#4ade80' : '#facc15'};margin-top:4px">${avg}%</div>` : ''}</div>`;
+            h += `<div style="text-align:center;padding:10px;background:var(--cd);border:2px solid ${lab.color}44;border-radius:6px"><div style="font-size:10px;font-weight:700">${escapeHTML(m.name)}</div><div style="font-size:8px;color:${lab.color}">${lab.name}</div>${avg ? `<div style="font-size:14px;font-weight:700;color:${avg > 80 ? '#4ade80' : '#facc15'};margin-top:4px">${avg}</div>` : ''}</div>`;
         });
         h += '</div><div style="max-height:50vh;overflow-y:auto">';
-        Object.entries(BM_M).forEach(([k, bm]) => {
-            h += `<div style="margin-bottom:12px"><div style="font-size:9px;color:var(--t2);margin-bottom:4px">${bm.l}</div>`;
-            ms.forEach((m) => {
-                const sc = BM[m.id] || {};
-                const v = sc[k] !== undefined ? sc[k] : sc[k.toUpperCase()] || 0;
-                const lab = LABS[m.lab] || LABS.other || { color: '#64748b' };
-                const fw = k === 'ELO' ? (v ? Math.min(100, (v - 1000) / 4.5) : 0) : Math.min(100, v);
-                const dv = k === 'ELO' ? v || '—' : v ? v + '%' : '—';
-                h += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><span style="font-size:8px;color:var(--t3);width:60px;text-align:right;flex-shrink:0">${escapeHTML(m.name).split(' ').pop()}</span><div style="flex:1;height:6px;background:var(--bd);border-radius:3px;overflow:hidden"><div style="width:${fw}%;height:100%;background:${lab.color};border-radius:3px"></div></div><span style="font-size:8px;color:${bm.c};width:36px;font-weight:700">${dv}</span></div>`;
-            });
-            h += '</div>';
-        });
+        h += typeof Bench !== 'undefined' && Bench.compareRowsHTML
+            ? Bench.compareRowsHTML(ms)
+            : '<div class="bench-empty">Benchmark catalog failed to load.</div>';
         h += `</div><div style="margin-top:12px;text-align:center"><button class="btn" onclick="UI.compareList=[];document.getElementById('compareOv').classList.remove('open')">Clear & Close</button></div>`;
         pan.innerHTML = h;
     },

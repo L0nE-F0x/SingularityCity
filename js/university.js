@@ -29,14 +29,14 @@ const UniversityData = {
             fl: 3,
             emoji: '📚',
             type: 'university',
-            desc: "Vast archives of training corpora and the benchmarks that grade every graduate: MMLU, GPQA, SWE-bench, ARC-AGI and Humanity's Last Exam. Models come here to absorb knowledge — and to be measured against it.",
+            desc: "Vast archives of training corpora and the benchmarks that grade every graduate: GPQA Diamond, SWE-bench Pro, Terminal-Bench, ARC-AGI-2 and Humanity's Last Exam. Models come here to absorb knowledge — and to be measured against it.",
             curriculum: [
                 'Common Crawl & filtered web',
                 'Textbooks & academic papers',
                 'Code (The Stack)',
                 'Synthetic & self-play data',
             ],
-            faculty: ['MMLU', 'GPQA Diamond', 'SWE-bench', 'ARC-AGI', "Humanity's Last Exam"],
+            faculty: ['GPQA Diamond', 'SWE-bench Pro', 'Terminal-Bench', 'ARC-AGI-2', "Humanity's Last Exam"],
         },
         {
             id: 'uni_dorm',
