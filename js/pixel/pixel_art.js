@@ -34,6 +34,7 @@ const PixelArt = {
         'city_park',
         'graveyard',
         'bld_1',
+        'neon_bar',
     ]),
     PORTED_PREFIXES: [
         'npc_apt_',
@@ -49,6 +50,9 @@ const PixelArt = {
         'agents_',
         'longevity_',
         'align_',
+        'suburb_',
+        'house_',
+        'forest_',
     ],
     isPorted(b) {
         if (!this.enabled || !b || !b.id || typeof PL === 'undefined' || !PL.paintBuilding) return false;
@@ -73,6 +77,15 @@ const PixelArt = {
         if (b.id === 'visitor_monument') hideText('🌐');
         if (b.id === 'park') hide(b._monIcon);
         if (b.type === 'alignment') hideText((b.name || '').toUpperCase());
+        if (b.id === 'neon_bar') hideText('🍸');
+        if (b.id.startsWith('suburb_'))
+            hideText(String(100 + (parseInt(b.id.replace('suburb_', ''), 10) || 1) * 4));
+        // Estate name sign: the board Graphics right before b._stationSign, and the Text.
+        if (b.id.startsWith('house_') && b._stationSign) {
+            const i = container.children.indexOf(b._stationSign);
+            if (i > 0 && container.children[i - 1] instanceof PIXI.Graphics) hide(container.children[i - 1]);
+            hide(b._stationSign);
+        }
         // Datacentre / fab name board: the Graphics added right before the name Text.
         if ((b.id.startsWith('dc_') || b.id.startsWith('fab_')) && b._dcSign) {
             const i = container.children.indexOf(b._dcSign);

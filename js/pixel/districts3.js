@@ -279,16 +279,17 @@
         [1, w - 3].forEach(
             (gx) => (B.rect(gx, h - 7, 2, 7, 0xb8b0a0), B.px(gx, h - 8, acc), B.epx(gx, h - 8, acc))
         );
-        K.plaqueC(
-            B,
-            w / 2,
-            h - 30 - (st === 'brutalist' ? 4 : 0),
-            b.name.replace(/'s Estate$| Estate$| Residence$| Compound$/, ''),
-            0xf2e2c0,
-            0x1a1a24,
-            true,
-            w + 8
-        );
+        if (!PL.noEstatePlaque)
+            K.plaqueC(
+                B,
+                w / 2,
+                h - 30 - (st === 'brutalist' ? 4 : 0),
+                b.name.replace(/'s Estate$| Estate$| Residence$| Compound$/, ''),
+                0xf2e2c0,
+                0x1a1a24,
+                true,
+                w + 8
+            );
     };
 
     // ── Power ───────────────────────────────────────────────────────────────
