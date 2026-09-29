@@ -45,6 +45,10 @@ const PixelArt = {
         'vcrow_',
         'embassy_',
         'diplomat_villa_',
+        'backbone_',
+        'agents_',
+        'longevity_',
+        'align_',
     ],
     isPorted(b) {
         if (!this.enabled || !b || !b.id || typeof PL === 'undefined' || !PL.paintBuilding) return false;
@@ -68,6 +72,7 @@ const PixelArt = {
         if (b.id.startsWith('metro_')) hide(b._metroSign);
         if (b.id === 'visitor_monument') hideText('🌐');
         if (b.id === 'park') hide(b._monIcon);
+        if (b.type === 'alignment') hideText((b.name || '').toUpperCase());
         // Datacentre / fab name board: the Graphics added right before the name Text.
         if ((b.id.startsWith('dc_') || b.id.startsWith('fab_')) && b._dcSign) {
             const i = container.children.indexOf(b._dcSign);

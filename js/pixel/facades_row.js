@@ -20,6 +20,7 @@
     // Rooftop name board on two legs, where the classic draws its name sign (-30..-12).
     // "Google (The Dalles)" reads GOOGLE / THE DALLES so two sites of one firm stay distinct.
     function roofBoard(B, b, w, col) {
+        B.named = true;
         const maxW = Math.min(w - 2, q(150)) - 4;
         const lines = PL.wrap(b.name, maxW, 3, 2);
         const bw =
@@ -268,6 +269,7 @@
         }
     }
     D['pre:vcrow'] = function (B, b, w, h) {
+        B.named = true;
         const bc = b.color
             ? typeof b.color === 'number'
                 ? b.color
@@ -343,6 +345,7 @@
                 in: [0xff9933, 0xffffff, 0x138808],
                 ae: [0x00732f, 0xffffff, 0x000000],
             }[b.id.split('_')[1]] || [0xcccccc];
+        B.named = true;
         const accent = typeof b.accent === 'number' ? b.accent : flagCols[0];
         const marble = 0xeee8d6;
         const shadow = 0xb8b098;

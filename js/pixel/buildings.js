@@ -65,6 +65,7 @@
     // Rooftop name sign — 5×7 letters when they fit, else 3×5.
     function roofSign(B, text, x, w, y, col, o) {
         o = o || {};
+        B.named = true;
         // ?classicSigns=1: the game keeps its original name boards instead.
         if (PL.noRoofSigns) return y;
         const s5 = PL.fit(text, w - 4, 5);
@@ -85,6 +86,72 @@
         });
     }
     PL.roofSign = roofSign;
+
+    // Environment.buildBuildings' neon sign rules: the social strip's fixed signs, then an
+    // auto sign (name in muted blue) for every non-lab building not on the exclusion list.
+    const NEON = {
+        cafe: ['API CAFE', 0xf59e0b],
+        gym: ['RLHF GYM', 0x22d3ee],
+        arena: ['LMSYS ARENA', 0xef4444],
+        open_square: ['OPEN SOURCE HUB', 0xa855f7],
+        neon_bar: ['NEON BAR', 0xff00ff],
+        uni_dorm: ['DORMITORY', 0x60a5fa],
+    };
+    const NO_NEON_PRE = [
+        'metro_',
+        'forest_',
+        'house_',
+        'dc_',
+        'fab_',
+        'npc_apt_',
+        'suburb_',
+        'res_',
+        'embassy_',
+        'align_',
+    ];
+    const NO_NEON_ID = {
+        graveyard: 1,
+        visitor_monument: 1,
+        park: 1,
+        city_park: 1,
+        ai_index: 1,
+        black_market: 1,
+        times_hq: 1,
+    };
+    PL.classicNeon = function (b) {
+        if (NEON[b.id]) return { text: NEON[b.id][0], col: NEON[b.id][1] };
+        if (labOf(b)) return null;
+        if (NO_NEON_ID[b.id] || NO_NEON_PRE.some((p) => b.id.startsWith(p))) return null;
+        if (b.type && ['launchpad', 'mission_control', 'assembly', 'tracking'].includes(b.type)) return null;
+        const text = String(b.name || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase();
+        return { text: text, col: 0x6688aa };
+    };
+    // Neon sign board centred on the roofline (the classic sits at y = -6 world px).
+    PL.neonSign = function (B, text, col, w) {
+        const lines = PL.wrap(text, Math.max(12, w - 2), 3, 3);
+        const bw =
+            Math.max.apply(
+                null,
+                lines.map((l) => PL.textW(l, 3))
+            ) + 4;
+        const bh = lines.length * 6 + 1;
+        const x = Math.round(w / 2 - bw / 2);
+        const y = -2 - bh;
+        const tube = light(col, col === 0x6688aa ? 0.35 : 0.15);
+        B.rect(x, y, bw, bh, 0x0a0a14);
+        B.rect(x, y, bw, 1, dark(col, 0.3));
+        B.rect(x, y + bh - 1, bw, 1, dark(col, 0.45));
+        lines.forEach((ln, i) => {
+            const tx = Math.round(w / 2 - PL.textW(ln, 3) / 2);
+            B.text(ln, tx, y + 1 + i * 6, dark(tube, 0.1), 3);
+            B.etext(ln, tx, y + 1 + i * 6, tube, 3);
+        });
+        B.light(w / 2, y + bh / 2, col, Math.max(8, Math.min(20, bw * 0.45)), 'neon');
+        B.named = true;
+    };
 
     // ── HQ towers ───────────────────────────────────────────────────────────
     P.monolith = function (B, b, w, h) {
@@ -424,9 +491,19 @@
     PL.paintBuilding = function (b, hWorld) {
         const w = PL.artW(b);
         const h = hWorld ? Math.max(1, Math.round(hWorld / PL.ART)) : PL.artH(b);
-        const B = new PL.Bake(w, h, { seed: PL.seedOf(b.id), head: PL.headFor(b, h), padX: 10 });
+        const B = new PL.Bake(w, h, {
+            seed: PL.seedOf(b.id),
+            head: PL.headFor(b, h),
+            padX: PL.padFor ? PL.padFor(b) : 10,
+        });
         const fn = PL.pick(b);
         fn(B, b, w, h);
+        // The classic city puts an automatic neon name sign on most non-lab buildings; the
+        // pixel facade carries the same sign unless the painter already shows the name.
+        if (!B.named && PL.classicNeon) {
+            const nc = PL.classicNeon(b);
+            if (nc) PL.neonSign(B, nc.text, nc.col, w);
+        }
         B.finish();
         B.bld = b;
         B.fw = w;

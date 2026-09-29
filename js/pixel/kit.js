@@ -1027,6 +1027,7 @@
     };
     // Flat sign on a facade, text in 3×5.
     K.plaque = function (B, x, y, text, fg, bg, glow) {
+        B.named = true;
         bg = bg === undefined ? 0x16141c : bg;
         const s = String(text).toUpperCase();
         const w = PL.textW(s, 3) + 4;

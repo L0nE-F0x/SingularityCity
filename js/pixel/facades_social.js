@@ -483,6 +483,7 @@
     D.times_hq = function (B, b, w, h) {
         const n = noiseFor(b);
         const floors = PL.floorsOf(b);
+        B.named = true;
         const INK = 0x14141c;
         const CREAM = 0xd8d3c8;
         const RED = 0xb91c1c;
