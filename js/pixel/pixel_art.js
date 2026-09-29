@@ -483,6 +483,7 @@ const PixelArt = {
         if (!this.enabled) return;
         if (typeof G !== 'undefined' && G.tick % 30 === 0) this._sweepLazy();
         this._K = PL.tod(dp, this._wx());
+        if (PL.Sky) PL.Sky.update(this._K, performance.now() / 1000);
         // The classic ground palette is already dusky, so it takes a gentler ambient tint.
         if (this._ground && !this._ground.destroyed) {
             const tint = PL.mix(this._K.amb, 0xffffff, 0.45);
