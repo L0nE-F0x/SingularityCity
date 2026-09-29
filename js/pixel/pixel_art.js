@@ -35,6 +35,14 @@ const PixelArt = {
         'graveyard',
         'bld_1',
         'neon_bar',
+        'uni_main',
+        'uni_library',
+        'uni_dorm',
+        'uni_lab',
+        'court_senate',
+        'court_hearing',
+        'ai_jail',
+        'convention_center',
     ]),
     PORTED_PREFIXES: [
         'npc_apt_',
@@ -183,6 +191,7 @@ const PixelArt = {
             PL.dataKey ? PL.dataKey(b) : '',
             PL.dataKeyRow ? PL.dataKeyRow(b) : '',
             PL.dataKeyPower ? PL.dataKeyPower(b) : '',
+            PL.dataKeyCampus ? PL.dataKeyCampus(b) : '',
         ].join('|');
         let hit = this._cache.get(key);
         if (hit) return hit;
