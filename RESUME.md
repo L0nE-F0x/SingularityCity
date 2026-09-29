@@ -1,11 +1,10 @@
 # Resume here
 
-**Updated:** 2026-09-23 (First Person overhaul wrap) · **Live `main`:** `0dfd8cf` (this wrap sits on top)
-**Status:** The First Person overhaul is **live**. Netlify served it about 30 s
-after the push, and a headless check of production passed (see Verified). The 2D
-app is untouched; its cache is still **v556** (FP files aren't in the service
-worker's precache, so FP-only ships don't bump it — same as every past FP ship).
-**Next:** the owner is walking the city and will report findings. Start from
+**Updated:** 2026-09-29 (pixel-art port wrap) · **Live `main`:** `4032acd` (this wrap sits on top)
+**Status:** The 2D city's lofi **pixel-art skin is live**, interiors included, on
+2D cache **v557**. Netlify served v557 on the first poll after the push, and a
+headless check of production passed (see Verified). First Person is untouched.
+**Next:** the owner is playing the pixel city and will report findings. Start from
 their report; the "Not done" list below is the backlog.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
@@ -13,7 +12,119 @@ Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
 
 ---
 
-## This session (2026-09-23, evening) — First Person overhaul
+## This session (2026-09-29) — the 2D city in lofi pixel art
+
+Owner brief: redraw the 2D city in the style of https://loficities.com/, starting
+from a Grok prototype in `pixel-lab/`. **An art swap only**: "every freaking
+detail" of placement, dynamic tower heights, routines, the underground and the
+interiors had to stay exactly as it was. One art pixel = **3 world px**. Owner
+calls along the way: default zoom 1.0 (every art pixel exactly 3 screen px), keep
+the pixel name signs, move tickers and labels to the pixel font too, sun and moon
+keep moving with the real clock, citizens get two readable eyes. 21 commits,
+`9569faa` → `4032acd`, fast-forwarded onto `main` and pushed together.
+Before/after page (private to the owner, classic vs pixel from identical cameras,
+districts day/night, close-ups, weather, underground, all 29 interiors):
+https://claude.ai/artifact/DqzjoapjyFgx9BV6rtfmz1
+
+### What shipped
+
+| Area | What changed | Where |
+|---|---|---|
+| Foundation | `PixelArt` bakes a pixel facade per building (base, emissive, bloom, snow layers) keyed on id, height and the live data it shows, lit per frame from a time-of-day palette. The classic facade `Graphics` stays in the container, hidden; overlays, tickers and hit areas are untouched. | `js/pixel/pixel_art.js`, `core.js`, `kit.js`, `tod.js`, hooks in `environment.js` / `space_environment.js` |
+| Buildings | A painter for every building branch: lab HQs (monolith, campus podium, setback tiers, pagoda, euro, brutalist, following the classic insets), social strip, civic, housing, datacentres, fabs, VC Row, embassies, villas, backbone, agents, longevity, alignment cabins, suburbs, estates, forests, power, port, campus, court, jail, space. Names on pixel signs (never truncated: they wrap). | `js/pixel/buildings.js`, `districts*.js`, `facades_*.js` |
+| Ground and sky | The ground `Graphics` renders at art resolution into strips with a paving/asphalt texture pass. A screen-space dithered sky with stars, a sun and a moon at its real phase on the classic's hours (sun 06:00–19:55, moon 19:55–06:00), the classic's weather skies, pixel clouds. | `pixel_art.js` (`pixelizeGround`), `js/pixel/sky.js` |
+| Everything else | `js/pixel/pixel_skin.js` patches `PIXI.Graphics._render`: any vector `Graphics` under the entity layers, weather, shadows, seasonal overlay and **interiors** is drawn from a cached pixel texture of its own geometry. Citizens, cars, trains, ships, robots, furniture, lamp glows (GPU-dithered), rain, snow build-up, fog, lightning. | `js/pixel/pixel_skin.js` |
+| Text | `PIXI.Text` outdoors and indoors switches to Silkscreen or Tiny5, whichever fits its original width, at 8 or 16 px (the only pixel-exact sizes); glows become hard shadows. Chat bubbles' bitmap font is baked in Silkscreen. | `pixel_skin.js`, Tiny5 added to the fonts link in `index.html` |
+| Camera | `Camera.defaultZoom` replaces three hard-coded `0.8` restore fallbacks; pixel mode sets zoom, target and default to 1. | `js/camera.js`, `js/engine.js` |
+| Switches | `?classic=1` (original art, zoom 0.8), `?classicSigns=1` (original name boards), `?classicText=1` (original fonts). | `pixel_art.js` |
+
+### What a new agent must not re-break
+
+1. **It is a skin.** No game logic may depend on it, and the classic `Graphics`
+   must stay in each building container (hidden), because overlays, hit areas and
+   references point into it. `?classic=1` must always give the untouched original.
+2. **`PIXI.Graphics.prototype._render` is patched.** Under a skinned layer
+   (`_pxSkin`: char, car, train, reflection, underground, shadow, interior layers,
+   `fxGfx`, fog/flash/snow gfx, seasonal overlay) a `Graphics` never draws its vector;
+   it draws `_pxAuto` sprite children rendered from its geometry, which stays
+   intact for bounds and hit-testing. So: new vector art there is pixelised for
+   free; masks are skipped (`isMask`); **don't `cacheAsBitmap` a container inside a
+   skinned layer** (the first capture would be blank); `Graphics` redrawn every
+   frame get a private texture (`_pxDyn`), clipped to the view when larger than it.
+3. **The skin runs on its own ticker step** (`UPDATE_PRIORITY.LOW + 1`, just before
+   render). The game loop skips `Environment.update` inside buildings, so nothing
+   the skin needs per frame may live only there.
+4. **Pixi 7.3.2's `extract.pixels()` corrupts translucent pixels** (it
+   un-premultiplies into a `Uint8Array` without clamping: 50% red reads back as
+   r = 1). Read back with `PixelArt._readPixels` (raw, premultiplied). Dithering is
+   a shader (`DITHER_FRAG`), not a read-back.
+5. **Bake cache keys carry the data a facade shows** (`PL.dataKey`, `dataKeyRow`,
+   `dataKeyPower`, `dataKeyCampus`). A painter that starts reading new live data must
+   add it to its key, or the facade won't refresh when the data changes.
+6. **Text must fit.** `S.pixelText` measures the original width and picks the
+   first of Silkscreen 16 / Tiny5 16 / Silkscreen 8 / Tiny5 8 within 8% of it. Keep
+   `Tiny5` in the Google Fonts link. Pixel faces are only crisp at 8 and 16 px.
+7. **The pixel sky mirrors the classic.** `WX_SKY` in `tod.js` copies
+   `Environment.update`'s weather gradients, and the sun/moon use its 0.25 → 0.83
+   schedule. Change one, change both. Interiors that show sky are the ones whose
+   module has a `celestialGfx`; the skin hides that and their `starsLayer` every frame.
+8. **Faces are recognised, not special-cased**: two identical tiny dots on one
+   line inside a head rect become two pixels with one between them
+   (`S.faces`). A new character drawn that way gets the same treatment.
+9. **`js/pixel/*` is shared with `pixel-lab/`** (untracked look-dev page that
+   loads `../js/pixel/`). Painters must run without the game (they guard
+   `typeof SpaceRockets` etc.).
+
+### Verified
+
+- Headless Chrome (`--use-angle=gl`, Intel iGPU, 1440×900), pixel vs `?classic=1`:
+  every district day and night, dusk, rain, storm, snow, fog, the underground,
+  29 interiors; no page errors.
+- Full-city pan: 59.4 fps pixel vs 59.3 classic, worst frame 28.7 vs 33.3 ms.
+  Interiors 60 fps in both; a fresh interior is fully pixel in 0.06–0.11 s. Building
+  rebuild 56 ms vs 84 ms (bakes are cached); ground rebuild 179 ms vs 11 ms (only on
+  rezoning).
+- **Production**, after the push: `sw.js` served `singularity-city-v557` on the
+  first poll, `js/pixel/pixel_skin.js?v=557` returned 200, and the live site booted
+  in pixel mode (227 facades, zoom 1, pixel text, 60 fps) with no page errors.
+
+### Not done / worth a look
+
+- **Real-device performance** is unmeasured (headless iGPU only). Watch the
+  skin's texture cache (300–500 small textures in a busy view) on phones first.
+- **Convention centre interior** was never seen (it exists only during conference
+  weeks). It goes through the same generic skin.
+- **Fine interior detail** (the tiny charts on HQ monitors, dense props) turns into
+  colour blocks at 3 px; candidates for hand-drawn pixel touches if the owner asks.
+- **Emoji icons** (🌮, ⚓, 👑…) stay smooth emoji.
+- **Ground rebuild** is 179 ms on rezoning; could be chunked if it ever shows.
+- **Not reviewed under the skin**: orbit mode, macro view, holomap overlays.
+- Deliberate differences, already accepted by the owner: pixel signs are bigger
+  than the classic boards; the pixel sun arcs up from the horizon (the classic's
+  arc was upside down); the wind-turbine hub sits on the spinning blades (the
+  classic's nacelle floated 24 px above them); the classic's parallax skylines stay
+  removed (v516 note).
+
+### Working on the pixel city headless (the tooling isn't in the repo)
+
+- puppeteer-core with `executablePath: '/usr/bin/google-chrome-stable'` and
+  `--use-angle=gl --enable-gpu`; load, wait ~4 s, `enterCity()`, wait ~12 s.
+- The city clock follows the viewer's timezone, so set the hour with
+  `page.emulateTimezone()`: pick a zone whose local time is the hour you want
+  (at about 08:00 UTC, Asia/Karachi gave midday, America/Los_Angeles after
+  midnight, Pacific/Noumea dusk). Pin weather with
+  `setInterval(() => { Environment.weather = 'thunderstorm'; Environment.weatherIntensity = Environment.weatherTargetIntensity = 1; Environment.weatherPending = null; }, 50)`
+  (it changes on its own otherwise); `Environment._snowAccum = 1` for snow cover.
+- Camera on a building: `Camera.x = -x + G.vpW / (2 * z)`,
+  `Camera.y = G.vpH * 0.72 / z - (G.groundY - 24)` with `Camera.zoom = Camera.targetZoom = z`.
+- Interiors: `G.enterInterior(G.bldById[id])`, wait ~3 s, `G.exitInterior()`.
+  Hide `#sc-briefing-prompt, #sc-briefing-share` for clean shots.
+- `PixelArt.Skin.stats` / `.queue.size` show conversion progress; lossless WebP
+  keeps pixel screenshots tiny (~30 KB a frame).
+
+---
+
+## Previous (2026-09-23, evening) — First Person overhaul
 
 Owner brief: overhaul FP with as many threejsassets packs as fit, "blow me away,
 fix everything". Follow-up: make the AI models look robotic, keep founders /
@@ -109,7 +220,7 @@ https://claude.ai/artifact/KLLC52JRX1z9rshYLpzbUx
 
 ---
 
-## This session (2026-09-23, night) — housing towers crawled at night
+## Previous (2026-09-23, night) — housing towers crawled at night
 
 **Shipped in `598fa17`.** Owner report: the 2D city "crawls to unusable" inside
 the housing buildings, worst at night when every model is asleep in them.
