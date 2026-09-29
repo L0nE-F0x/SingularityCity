@@ -319,6 +319,18 @@ const PixelArt = {
         return out;
     },
     _sweepLazy() {
+        // Per-build objects (recreated on every rebuild): their textures are freed with the build.
+        if (
+            typeof BlackMarket !== 'undefined' &&
+            BlackMarket._dumpsterSprite &&
+            !BlackMarket._dumpsterSprite.destroyed
+        )
+            BlackMarket._dumpsterSprite.children.forEach((g) => {
+                if (g instanceof PIXI.Graphics && !g._pxDone) {
+                    g._pxDone = true;
+                    this.pixelize(g);
+                }
+            });
         for (const g of this._lazySources()) {
             if (!g || g.destroyed || g._pxDone || !(g instanceof PIXI.Graphics)) continue;
             g._pxDone = true;
