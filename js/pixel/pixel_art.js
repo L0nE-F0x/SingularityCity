@@ -122,32 +122,93 @@ const PixelArt = {
     // rendered once at one texel per art pixel and shown as a child sprite, so whatever
     // animates the object (position, skew, alpha) keeps working unchanged.
     _rts: [],
-    pixelize(g) {
+    _kept: [], // { g, tex } for long-lived objects; freed once the object is gone
+    // opts.keep: the texture belongs to a long-lived object (not freed on rebuild).
+    // opts.detach: with keep, the object is dropped (not destroyed) when its owner rebuilds.
+    // opts.dither: quantise alpha to four ordered-dither steps (for glows and pools).
+    pixelize(g, opts) {
         if (!g || g.destroyed || !(g instanceof PIXI.Graphics) || !G.app) return;
+        opts = opts || {};
         const A = PL.ART;
         const clone = g.clone();
         const bnd = clone.getLocalBounds();
-        if (!(bnd.width > 0 && bnd.height > 0)) return clone.destroy();
+        // Previous pixel sprites (the object was redrawn since).
+        g.children
+            .filter((c) => c._pxSprite)
+            .forEach((c) => {
+                const i = this._rts.indexOf(c.texture);
+                if (i >= 0) this._rts.splice(i, 1);
+                this._kept = this._kept.filter((k) => k.tex !== c.texture);
+                c.destroy({ texture: true, baseTexture: true });
+            });
+        if (!(bnd.width > 0 && bnd.height > 0)) {
+            clone.destroy();
+            g.clear();
+            return;
+        }
         const x0 = Math.floor(bnd.x / A) * A;
         const y0 = Math.floor(bnd.y / A) * A;
-        const tw = Math.ceil((bnd.x + bnd.width - x0) / A) + 1;
+        const totalW = Math.ceil((bnd.x + bnd.width - x0) / A) + 1;
         const th = Math.ceil((bnd.y + bnd.height - y0) / A) + 1;
-        const rt = PIXI.RenderTexture.create({
-            width: tw,
-            height: th,
-            scaleMode: PIXI.SCALE_MODES.NEAREST,
-            resolution: 1,
-        });
-        const m = new PIXI.Matrix(1 / A, 0, 0, 1 / A, -x0 / A, -y0 / A);
-        G.app.renderer.render(clone, { renderTexture: rt, transform: m, clear: true });
+        const CH = 4096;
+        for (let cx = 0; cx < totalW; cx += CH) {
+            const tw = Math.min(CH, totalW - cx);
+            const rt = PIXI.RenderTexture.create({
+                width: tw,
+                height: th,
+                scaleMode: PIXI.SCALE_MODES.NEAREST,
+                resolution: 1,
+            });
+            const m = new PIXI.Matrix(1 / A, 0, 0, 1 / A, -x0 / A - cx, -y0 / A);
+            G.app.renderer.render(clone, { renderTexture: rt, transform: m, clear: true });
+            const tex = opts.dither ? this._ditherAlpha(rt) : rt;
+            const sp = new PIXI.Sprite(tex);
+            sp._pxSprite = true;
+            sp.blendMode = g.blendMode;
+            sp.scale.set(A);
+            sp.x = x0 + cx * A;
+            sp.y = y0;
+            g.addChild(sp);
+            if (opts.keep) this._kept.push({ g: g, tex: tex, detach: !!opts.detach });
+            else this._rts.push(tex);
+        }
         clone.destroy();
         g.clear();
-        const sp = new PIXI.Sprite(rt);
-        sp.scale.set(A);
-        sp.x = x0;
-        sp.y = y0;
-        g.addChild(sp);
-        this._rts.push(rt);
+    },
+    // Premultiplied RGBA of a render texture. Pixi 7.3's extract.pixels() un-premultiplies
+    // in place without clamping (a 50% red reads back as r = 1), so the raw read is used.
+    _readPixels(rt) {
+        const ex = G.app.renderer.extract;
+        try {
+            if (ex._rawPixels) return ex._rawPixels(rt).pixels;
+            return ex.pixels(rt);
+        } catch (e) {
+            return null;
+        }
+    },
+    _ditherAlpha(rt) {
+        const px = this._readPixels(rt);
+        if (!px) return rt;
+        const W = rt.width;
+        const H = rt.height;
+        const out = new PL.Img(W, H);
+        for (let y = 0; y < H; y++)
+            for (let x = 0; x < W; x++) {
+                const o = (y * W + x) * 4;
+                const a = px[o + 3] / 255;
+                if (a <= 0.01) continue;
+                // Ordered dither between the two nearest of five levels (keeps the mean).
+                const q = Math.min(4, Math.floor(a * 4 + PL.bayer(x, y))) / 4;
+                if (q <= 0) continue;
+                const k = 1 / a;
+                out.set(x, y, PL.rgb(px[o] * k, px[o + 1] * k, px[o + 2] * k), q * 255);
+            }
+        rt.destroy(true);
+        return PL.tex(out);
+    },
+    // A Graphics that holds fresh vector content (drawn, or redrawn after a rebuild).
+    _hasVector(g) {
+        return g instanceof PIXI.Graphics && !g.destroyed && g.geometry && g.geometry.graphicsData.length > 0;
     },
     // The ground (Environment.buildGround's one big Graphics: terrain per zone, basements,
     // cable trays, bunkers, power poles) is rendered once at one texel per art pixel into
@@ -207,12 +268,8 @@ const PixelArt = {
         const A = PL.ART;
         const W = rt.width;
         const H = rt.height;
-        let px;
-        try {
-            px = G.app.renderer.extract.pixels(rt);
-        } catch (e) {
-            return rt;
-        }
+        const px = this._readPixels(rt);
+        if (!px) return rt;
         const gy = G.groundY;
         const rowOf = (worldY) => Math.round((worldY - wy0) / A);
         const paveTop = rowOf(gy - 24);
@@ -428,30 +485,35 @@ const PixelArt = {
         return out;
     },
     _sweepLazy() {
+        // Textures of long-lived objects that have since been destroyed or dropped.
+        this._kept = this._kept.filter((k) => {
+            if (!k.g.destroyed && (k.g.parent || !k.detach)) return true;
+            if (k.tex.baseTexture) k.tex.destroy(true);
+            return false;
+        });
         // Per-build objects (recreated on every rebuild): their textures are freed with the build.
         if (
             typeof BlackMarket !== 'undefined' &&
             BlackMarket._dumpsterSprite &&
             !BlackMarket._dumpsterSprite.destroyed
         )
-            BlackMarket._dumpsterSprite.children.forEach((g) => {
-                if (g instanceof PIXI.Graphics && !g._pxDone) {
-                    g._pxDone = true;
-                    this.pixelize(g);
-                }
+            BlackMarket._dumpsterSprite.children.forEach((g) => this._hasVector(g) && this.pixelize(g));
+        for (const g of this._lazySources()) if (this._hasVector(g)) this.pixelize(g, { keep: true });
+        // Street furniture, traffic-light overlays, lamp glow pools and steam (CityAmbience).
+        if (typeof CityAmbience !== 'undefined') {
+            const A = CityAmbience;
+            [A.furnGfx, A.trafficA, A.trafficB].forEach(
+                (g) => this._hasVector(g) && this.pixelize(g, { keep: true })
+            );
+            if (A.glowLayer)
+                A.glowLayer.children.forEach(
+                    (g) => this._hasVector(g) && this.pixelize(g, { keep: true, detach: true, dither: true })
+                );
+            (A.steamParts || []).forEach((p) => {
+                const g = p && (p.g || p.gfx || p);
+                if (this._hasVector(g)) this.pixelize(g, { keep: true, dither: true });
             });
-        for (const g of this._lazySources()) {
-            if (!g || g.destroyed || g._pxDone || !(g instanceof PIXI.Graphics)) continue;
-            g._pxDone = true;
-            this.pixelizeKeep(g);
         }
-    },
-    // Like pixelize() but the texture belongs to a long-lived zone object, so it is not
-    // freed on the next building rebuild.
-    pixelizeKeep(g) {
-        const before = this._rts.length;
-        this.pixelize(g);
-        if (this._rts.length > before) this._rts.pop();
     },
 
     // Live weather names → the palette's weather states.
