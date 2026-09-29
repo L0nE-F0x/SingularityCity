@@ -7752,6 +7752,7 @@ const Environment = {
                 b._neonFlicker = nc.flicker;
                 b._neonCol = nc.col;
             }
+            if (pxFacade) PixelArt.adopt(b, container);
             container.eventMode = 'static';
             container.cursor = 'pointer';
             container.hitArea = new PIXI.Rectangle(0, 0, b.w, h + 10);

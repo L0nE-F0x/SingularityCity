@@ -567,8 +567,6 @@
             for (let x = 2; x < w; x += 3) B.px(x, f * FL + 1, dark(S.trim, 0.35));
         }
         K.cap(B, 0, 0, w, S.trim, { thick: true });
-        K.tank(B, 8, 0);
-        K.tank(B, w - 16, 0);
         K.antenna(B, coreX + 4, 0, 16);
         K.lobby(B, 0, up, w, LOBBY, { accent: S.acc, interior: 0xf0cc90 });
         PL.roofSign(B, S.label + ' HOUSING', 0, w, -1, S.trim === 0xc0392b ? 0xe8b830 : 0xf2d27a, {

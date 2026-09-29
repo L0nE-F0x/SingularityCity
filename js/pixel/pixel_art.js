@@ -22,11 +22,42 @@ const PixelArt = {
     _K: null,
 
     // Branches ported so far. A building not listed here keeps its classic facade.
+    PORTED_IDS: new Set([
+        'cafe',
+        'gym',
+        'arena',
+        'open_square',
+        'times_hq',
+        'visitor_monument',
+        'park',
+        'ai_index',
+        'city_park',
+        'graveyard',
+        'bld_1',
+    ]),
+    PORTED_PREFIXES: ['npc_apt_', 'metro_', 'res_', 'robotics_'],
     isPorted(b) {
         if (!this.enabled || !b || !b.id || typeof PL === 'undefined' || !PL.paintBuilding) return false;
         // Lab HQ towers (the `else if (lab)` branch of buildBuildings).
         if (b.id.startsWith('bld_') && b.lab) return true;
-        return false;
+        if (this.PORTED_IDS.has(b.id)) return true;
+        return this.PORTED_PREFIXES.some((p) => b.id.startsWith(p));
+    },
+
+    // Classic overlays that only repeat what the pixel facade now paints (a static name in a
+    // vector font). They stay in the container, alive and referenced, just hidden.
+    _hideDuplicates(b, container) {
+        if (!this.pixelSigns) return;
+        const hideText = (txt) =>
+            container.children.forEach((c) => {
+                if (c instanceof PIXI.Text && c.text === txt) c.visible = false;
+            });
+        const hide = (o) => o && (o.visible = false);
+        if (b.id === 'times_hq') hideText(b.name || 'Singularity City Times');
+        if (b.id.startsWith('npc_apt_')) hideText('🏬');
+        if (b.id.startsWith('metro_')) hide(b._metroSign);
+        if (b.id === 'visitor_monument') hideText('🌐');
+        if (b.id === 'park') hide(b._monIcon);
     },
 
     beginBuild() {
@@ -53,7 +84,15 @@ const PixelArt = {
         if (typeof LABS !== 'undefined') PL.LABS = LABS;
         const lab = b.lab && PL.LABS ? PL.LABS[b.lab] : null;
         PL.noRoofSigns = !this.pixelSigns;
-        const key = [b.id, h, b.w, b.lab || '', lab ? lab.color : '', b.name].join('|');
+        const key = [
+            b.id,
+            h,
+            b.w,
+            b.lab || '',
+            lab ? lab.color : '',
+            b.name,
+            PL.dataKey ? PL.dataKey(b) : '',
+        ].join('|');
         let hit = this._cache.get(key);
         if (hit) return hit;
         const B = PL.paintBuilding(b, h);
@@ -148,6 +187,12 @@ const PixelArt = {
         this._entries.push(e);
         this._apply(e, performance.now() / 1000);
         return root;
+    },
+
+    // Called by buildBuildings once the building's container holds every classic child.
+    adopt(b, container) {
+        if (!this.isPorted(b)) return;
+        this._hideDuplicates(b, container);
     },
 
     // Live weather names → the palette's weather states.
