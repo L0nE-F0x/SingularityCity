@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v556';
+const CACHE_NAME = 'singularity-city-v557';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -24,6 +24,27 @@ const CORE_ASSETS = [
     '/js/ui.js',
     '/js/snd.js',
     '/js/camera.js',
+    '/js/pixel/core.js',
+    '/js/pixel/tod.js',
+    '/js/pixel/kit.js',
+    '/js/pixel/sprites.js',
+    '/js/pixel/buildings.js',
+    '/js/pixel/districts.js',
+    '/js/pixel/districts2.js',
+    '/js/pixel/districts3.js',
+    '/js/pixel/facades_social.js',
+    '/js/pixel/facades_civic.js',
+    '/js/pixel/facades_row.js',
+    '/js/pixel/facades_villas.js',
+    '/js/pixel/facades_tech.js',
+    '/js/pixel/facades_homes.js',
+    '/js/pixel/facades_power.js',
+    '/js/pixel/facades_port.js',
+    '/js/pixel/facades_campus.js',
+    '/js/pixel/facades_space.js',
+    '/js/pixel/sky.js',
+    '/js/pixel/pixel_art.js',
+    '/js/pixel/pixel_skin.js',
     '/js/environment.js',
     '/js/entities_gfx.js',
     '/js/entities.js',
