@@ -426,6 +426,88 @@
         },
     });
 
+    // ── Text ────────────────────────────────────────────────────────────────
+    // Tickers, labels and signs in the city (not interiors) keep their objects, strings and
+    // layout; only the face changes, to Silkscreen at a size it renders pixel-exact
+    // (8 px, or 16 px for text the classic set at 12 px and up), with sharp sampling and
+    // hard shadows instead of blurred glows. Emoji fall through to the emoji fonts; pure
+    // emoji icons and sub-6 px facade details are left alone. ?classicText=1 turns it off.
+    const PIXEL_FACE =
+        'Silkscreen, "Twemoji Mozilla", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", monospace';
+    S.textOn = PixelArt.enabled && PixelArt.pixelText;
+    S.outdoors = function (t) {
+        if (t._pxOutP === t.parent) return t._pxOut;
+        let r = false;
+        for (let p = t.parent; p; p = p.parent) {
+            if (p === G.interiorLayer || p === G.macroLayer) break;
+            if (p === G.world) {
+                r = true;
+                break;
+            }
+        }
+        t._pxOutP = t.parent;
+        t._pxOut = r;
+        return r;
+    };
+    S.pixelText = function (t) {
+        const st = t._style;
+        const size = parseFloat(st.fontSize) || 8;
+        const letters = /[A-Za-z0-9]/.test(t.text);
+        if (size >= 6 && (letters || !/Emoji/.test(String(st.fontFamily)))) {
+            st.fontFamily = PIXEL_FACE;
+            st.fontSize = size >= 12 ? 16 : 8;
+            const w = String(st.fontWeight);
+            st.fontWeight = w === 'bold' || parseInt(w, 10) >= 600 ? 'bold' : 'normal';
+            st.fontStyle = 'normal';
+            st.letterSpacing = Math.round(st.letterSpacing || 0);
+            // A 1 px font has no room for antialiased strokes or blurred glows: a stroke in the
+            // fill colour (a fake bold) goes; a contrasting outline becomes a hard shadow; a
+            // zero-distance glow goes; a real drop shadow keeps its offset, unblurred.
+            const same = (a, b) => new PIXI.Color(a).toNumber() === new PIXI.Color(b).toNumber();
+            let outline = null;
+            if (st.strokeThickness) {
+                if (!same(st.stroke, st.fill)) outline = st.stroke;
+                st.strokeThickness = 0;
+            }
+            if (st.dropShadow && !(st.dropShadowDistance >= 1)) st.dropShadow = false;
+            if (st.dropShadow) {
+                st.dropShadowBlur = 0;
+                st.dropShadowDistance = Math.max(1, Math.round(st.dropShadowDistance));
+            } else if (outline !== null) {
+                st.dropShadow = true;
+                st.dropShadowColor = outline;
+                st.dropShadowBlur = 0;
+                st.dropShadowDistance = 1;
+                st.dropShadowAngle = Math.PI / 2;
+            }
+            t.texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
+        }
+        t._pxText = st.styleID;
+    };
+    if (S.textOn) {
+        const origText = PIXI.Text.prototype.updateText;
+        PIXI.Text.prototype.updateText = function (respectDirty) {
+            if (this._style && this._pxText !== this._style.styleID && S.outdoors(this)) S.pixelText(this);
+            return origText.call(this, respectDirty);
+        };
+        // Chat bubbles use a font baked at boot (BitmapFonts): bake it in the pixel face.
+        const origFrom = PIXI.BitmapFont.from;
+        PIXI.BitmapFont.from = function (name, style, options) {
+            const pixel = name === 'ChatBubble';
+            if (pixel)
+                style = Object.assign({}, style, {
+                    fontFamily: 'Silkscreen, monospace',
+                    fontWeight: 'normal',
+                });
+            const font = origFrom.call(this, name, style, options);
+            if (pixel || name === 'Neon8')
+                Object.values(font.pageTextures || {}).forEach(
+                    (tex) => (tex.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST)
+                );
+            return font;
+        };
+    }
+
     const orig = PIXI.Graphics.prototype._render;
     PIXI.Graphics.prototype._render = function (renderer) {
         if (!S.on || this._pxVec || !S.skinOf(this)) return orig.call(this, renderer);

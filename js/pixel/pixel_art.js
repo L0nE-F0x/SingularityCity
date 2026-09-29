@@ -8,13 +8,15 @@
    clicks, interiors, the simulation) is untouched.
 
    ?classic=1 turns the skin off and shows the original art. ?classicSigns=1 keeps the
-   original lab name boards instead of the pixel rooftop signs.
+   original lab name boards instead of the pixel rooftop signs; ?classicText=1 keeps the
+   original fonts on tickers, labels and chat bubbles.
 
    1 art pixel = 3 world pixels (PL.ART). Painters live in js/pixel/*.js (see pixel-lab/).
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 const PixelArt = {
     enabled: typeof location !== 'undefined' && !/[?&]classic=1\b/.test(location.search),
     pixelSigns: typeof location !== 'undefined' && !/[?&]classicSigns=1\b/.test(location.search),
+    pixelText: typeof location !== 'undefined' && !/[?&]classicText=1\b/.test(location.search),
 
     _cache: new Map(), // bake key → { B, tex: {base, emit, bloom, snow} }
     _entries: [], // live facades for per-frame lighting
