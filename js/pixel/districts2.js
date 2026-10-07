@@ -6,7 +6,7 @@
     const K = PL.K;
     const { mix, shade, dark, light } = PL;
     const D = (PL.D = PL.D || {});
-    const LOBBY = 8;
+    const LOBBY = PL.LOBBY;
     const FL = 6;
 
     // ── Civic ───────────────────────────────────────────────────────────────

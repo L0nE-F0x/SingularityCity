@@ -24,6 +24,9 @@
             this.H = this.h + this.head;
             this.base = new Img(this.W, this.H);
             this.emit = new Img(this.W, this.H);
+            // Signage: glows softly by day and fully after dark (PL.tod neon), unlike `emit`
+            // (windows, lamps), which only lights up at night.
+            this.neon = new Img(this.W, this.H);
             this.seed = opt.seed || 1;
             this.rnd = PL.rng(this.seed);
             this.lights = [];
@@ -71,7 +74,13 @@
             return PL.text(this.base, s, this.X(x), this.Y(y), c, size, gap, shadow);
         }
         etext(s, x, y, c, size, gap) {
-            return PL.text(this.emit, s, this.X(x), this.Y(y), c, size, gap);
+            return PL.text(this.neon, s, this.X(x), this.Y(y), c, size, gap);
+        }
+        npx(x, y, c, a) {
+            this.neon.set(this.X(x), this.Y(y), c, a);
+        }
+        nrect(x, y, w, h, c, a) {
+            this.neon.rect(this.X(x), this.Y(y), w, h, c, a);
         }
         stamp(img, x, y, flip) {
             this.base.draw(img, this.X(x), this.Y(y), flip);
@@ -110,60 +119,64 @@
                     if (PL.bayer(x, y + 1) > 0.7) snow.set(x, y + 1, 0xd0dcf0);
                 }
             this.snow = anySnow ? snow : null;
-            const e = this.emit;
-            const W = e.w;
-            const H = e.h;
-            const acc = new Float32Array(W * H * 3);
-            const R = 3;
-            const k = [];
-            for (let dy = -R; dy <= R; dy++)
-                for (let dx = -R; dx <= R; dx++) {
-                    const d = Math.hypot(dx, dy) / (R + 0.5);
-                    if (d < 1) k.push([dx, dy, (1 - d) * (1 - d)]);
-                }
-            let any = false;
-            for (let y = 0; y < H; y++)
-                for (let x = 0; x < W; x++) {
-                    const v = e.u[y * W + x];
-                    const a = v >>> 24;
-                    if (a < 40) continue;
-                    any = true;
-                    const s = (a / 255) * 0.11;
-                    const r = (v & 255) * s;
-                    const g = ((v >> 8) & 255) * s;
-                    const b = ((v >> 16) & 255) * s;
-                    for (let i = 0; i < k.length; i++) {
-                        const xx = x + k[i][0];
-                        const yy = y + k[i][1];
-                        if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
-                        const o = (yy * W + xx) * 3;
-                        const f = k[i][2];
-                        acc[o] += r * f;
-                        acc[o + 1] += g * f;
-                        acc[o + 2] += b * f;
-                    }
-                }
-            this.bloom = null;
-            if (any) {
-                const img = new Img(W, H);
-                for (let y = 0; y < H; y++)
-                    for (let x = 0; x < W; x++) {
-                        const o = (y * W + x) * 3;
-                        const m = Math.max(acc[o], acc[o + 1], acc[o + 2]);
-                        if (m < 6) continue;
-                        // Halo around lights, not over them: lit pixels keep their own colour.
-                        if (e.u[y * W + x] >>> 24 > 40) continue;
-                        // Quantise brightness to 4 steps with ordered dither.
-                        const q = Math.min(1, Math.floor((m / 255) * 4 + bayer(x, y)) / 4);
-                        if (q <= 0) continue;
-                        const sc = (q * 255) / m;
-                        img.set(x, y, PL.rgb(acc[o] * sc, acc[o + 1] * sc, acc[o + 2] * sc), 255);
-                    }
-                this.bloom = img;
-            }
+            this.bloom = Bake.bloomOf(this.emit);
+            this.bloomN = Bake.bloomOf(this.neon);
+            this.hasNeon = !!this.bloomN;
             return this;
         }
     }
+    // Soft additive halo grown from every lit pixel of `e`: this is what makes windows and
+    // neon read as light rather than as yellow paint. Null when nothing is lit.
+    Bake.bloomOf = function (e) {
+        const W = e.w;
+        const H = e.h;
+        const acc = new Float32Array(W * H * 3);
+        const R = 3;
+        const k = [];
+        for (let dy = -R; dy <= R; dy++)
+            for (let dx = -R; dx <= R; dx++) {
+                const d = Math.hypot(dx, dy) / (R + 0.5);
+                if (d < 1) k.push([dx, dy, (1 - d) * (1 - d)]);
+            }
+        let any = false;
+        for (let y = 0; y < H; y++)
+            for (let x = 0; x < W; x++) {
+                const v = e.u[y * W + x];
+                const a = v >>> 24;
+                if (a < 40) continue;
+                any = true;
+                const s = (a / 255) * 0.11;
+                const r = (v & 255) * s;
+                const g = ((v >> 8) & 255) * s;
+                const b = ((v >> 16) & 255) * s;
+                for (let i = 0; i < k.length; i++) {
+                    const xx = x + k[i][0];
+                    const yy = y + k[i][1];
+                    if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+                    const o = (yy * W + xx) * 3;
+                    const f = k[i][2];
+                    acc[o] += r * f;
+                    acc[o + 1] += g * f;
+                    acc[o + 2] += b * f;
+                }
+            }
+        if (!any) return null;
+        const img = new Img(W, H);
+        for (let y = 0; y < H; y++)
+            for (let x = 0; x < W; x++) {
+                const o = (y * W + x) * 3;
+                const m = Math.max(acc[o], acc[o + 1], acc[o + 2]);
+                if (m < 6) continue;
+                // Halo around lights, not over them: lit pixels keep their own colour.
+                if (e.u[y * W + x] >>> 24 > 40) continue;
+                // Quantise brightness to 4 steps with ordered dither.
+                const q = Math.min(1, Math.floor((m / 255) * 4 + bayer(x, y)) / 4);
+                if (q <= 0) continue;
+                const sc = (q * 255) / m;
+                img.set(x, y, PL.rgb(acc[o] * sc, acc[o + 1] * sc, acc[o + 2] * sc), 255);
+            }
+        return img;
+    };
     PL.Bake = Bake;
 
     const K = (PL.K = {});
@@ -595,6 +608,7 @@
         const fg = o.fg === undefined ? 0xf2d27a : o.fg;
         const legH = o.legH === undefined ? 3 : o.legH;
         const top = y - legH - h;
+        (B.signRects = B.signRects || []).push({ x: x, y: top - 2, w: w, h: h + legH + 2 });
         // Legs and catwalk.
         B.rect(x + 2, y - legH, 1, legH, 0x2a2c34);
         B.rect(x + w - 3, y - legH, 1, legH, 0x2a2c34);
@@ -642,13 +656,14 @@
             .slice(0, o.max || 6);
         const h = s.length * 6 + 2;
         const bg = o.bg === undefined ? 0x18141e : o.bg;
+        (B.signRects = B.signRects || []).push({ x: x - 1, y: y, w: 7, h: h });
         B.rect(x, y, 5, h, dark(bg, 0.3));
         B.rect(x + 1, y + 1, 3, h - 2, bg);
         B.rect(x - 1, y + 2, 1, 1, 0x3a3c44);
         B.rect(x - 1, y + h - 3, 1, 1, 0x3a3c44);
         for (let i = 0; i < s.length; i++) {
             PL.text(B.base, s[i], B.X(x + 1), B.Y(y + 1 + i * 6), col, 3);
-            PL.text(B.emit, s[i], B.X(x + 1), B.Y(y + 1 + i * 6), light(col, 0.3), 3);
+            PL.text(B.neon, s[i], B.X(x + 1), B.Y(y + 1 + i * 6), light(col, 0.3), 3);
         }
         B.light(x + 2, y + h / 2, col, Math.max(8, h * 0.6), 'neon');
         return h;
@@ -659,14 +674,14 @@
         for (let i = 0; i < w; i++) {
             B.px(x + i, y, shade(col, 0.7));
             B.px(x + i, y + h - 1, shade(col, 0.7));
-            B.epx(x + i, y, col);
-            B.epx(x + i, y + h - 1, col);
+            B.npx(x + i, y, col);
+            B.npx(x + i, y + h - 1, col);
         }
         for (let j = 0; j < h; j++) {
             B.px(x, y + j, shade(col, 0.7));
             B.px(x + w - 1, y + j, shade(col, 0.7));
-            B.epx(x, y + j, col);
-            B.epx(x + w - 1, y + j, col);
+            B.npx(x, y + j, col);
+            B.npx(x + w - 1, y + j, col);
         }
     };
 
@@ -688,7 +703,7 @@
     K.emblem = function (B, lab, cx, cy, col, glow) {
         const P = (x, y, c) => {
             B.px(cx + x, cy + y, c);
-            if (glow) B.epx(cx + x, cy + y, light(c, 0.3));
+            if (glow) B.npx(cx + x, cy + y, light(c, 0.3));
         };
         const W = 0xffffff;
         switch (lab) {
@@ -1021,7 +1036,7 @@
                     if (h - j <= hh && i % 2 === 0) c = [col, 0xffb84a, 0x7aff9a][(i >> 1) % 3];
                 }
                 B.px(x + i, y + j, c);
-                B.epx(x + i, y + j, c, 230);
+                B.npx(x + i, y + j, c, 230);
             }
         B.light(x + w / 2, y + h / 2, col, PL.clamp(Math.round(w * 0.5), 8, 16), 'neon');
     };
@@ -1031,6 +1046,7 @@
         bg = bg === undefined ? 0x16141c : bg;
         const s = String(text).toUpperCase();
         const w = PL.textW(s, 3) + 4;
+        (B.signRects = B.signRects || []).push({ x: x, y: y, w: w, h: 7 });
         B.rect(x, y, w, 7, bg);
         B.rect(x, y, w, 1, light(bg, 0.3));
         B.rect(x, y + 6, w, 1, dark(bg, 0.4));

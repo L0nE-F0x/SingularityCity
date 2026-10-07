@@ -6,7 +6,7 @@
     const K = PL.K;
     const { mix, dark, light, hex } = PL;
     const D = (PL.D = PL.D || {});
-    const LOBBY = 8;
+    const LOBBY = PL.LOBBY;
     const FL = 6;
 
     // A tidy modern block used by the tech districts; o.acc tints trims and signage.

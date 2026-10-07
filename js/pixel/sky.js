@@ -47,60 +47,86 @@
                     img.blend(cx + x, cy + y, c, a * (lit ? 1 : 0.55));
                 }
         },
+        // The sun through smog: a pale disc inside a wide, stepped warm halo.
         _sun(img, cx, cy, r, K) {
-            for (let y = -r - 5; y <= r + 5; y++)
-                for (let x = -r - 5; x <= r + 5; x++) {
-                    const d = Math.hypot(x, y) / r;
-                    if (d <= 1)
-                        img.blend(
-                            cx + x,
-                            cy + y,
-                            d > 0.78 && PL.bayer(x, y) > 0.45 ? 0xffe8b0 : 0xfff6dc,
-                            K.sun
-                        );
-                    else if (d < 1.6 && PL.bayer(cx + x, cy + y) < (1.6 - d) * 0.6)
-                        img.blend(cx + x, cy + y, 0xfff0c8, K.sun * 0.5);
+            const R = Math.round(r * (3.2 + K.smog * 2.4));
+            const halo = PL.mix(K.haze, 0xfff0c8, 0.55);
+            for (let y = -R; y <= R; y++)
+                for (let x = -R; x <= R; x++) {
+                    const d = Math.hypot(x, y);
+                    if (d > R) continue;
+                    const X = cx + x;
+                    const Y = cy + y;
+                    if (d <= r) {
+                        const rim = d > r - 1.5;
+                        img.blend(X, Y, rim && PL.bayer(X, Y) > 0.5 ? 0xffe2a8 : 0xfff8e4, K.sun);
+                        continue;
+                    }
+                    // Three halo rings, dithered at their edges.
+                    const t = 1 - (d - r) / (R - r);
+                    const q = Math.floor(Math.pow(t, 1.6) * 3 + PL.bayer(X, Y) * 0.9) / 3;
+                    if (q <= 0) continue;
+                    img.blend(X, Y, halo, K.sun * q * (0.18 + K.smog * 0.22));
                 }
+        },
+
+        // Sky ramp expanded to `n` stops (pairwise mixes), for thin bands.
+        _ramp(ramp, n) {
+            const out = [];
+            for (let i = 0; i < n; i++) {
+                const v = (i / (n - 1)) * (ramp.length - 1);
+                const k = Math.min(ramp.length - 2, Math.floor(v));
+                out.push(PL.mix(ramp[k], ramp[k + 1], v - k));
+            }
+            return out;
         },
 
         paint(K, horizonY, t) {
             const img = this.img;
-            const top = horizonY - 260;
-            const ramp = K.sky;
+            const S3 = PL.S3;
+            const top = horizonY - Math.round(260 * S3);
+            const ramp = this._ramp(K.sky, 18);
             const u = img.u;
             const w = img.w;
             const cols = ramp.map(
                 (c) => (0xff000000 | ((c & 255) << 16) | (c & 0xff00) | ((c >> 16) & 255)) >>> 0
             );
+            // Flat bands; only the last third of each band dithers into the next one.
             for (let y = 0; y < img.h; y++) {
                 const tt = PL.clamp((y - top) / (horizonY - top), 0, 1);
-                const v = Math.pow(tt, 1.35) * (ramp.length - 1);
+                const v = Math.pow(tt, 1.25) * (ramp.length - 1);
                 const k0 = Math.floor(v);
                 const f = v - k0;
+                const edge = f > 0.62 ? (f - 0.62) / 0.38 : -1;
                 const row = y * w;
-                for (let x = 0; x < w; x++)
-                    u[row + x] = cols[f > PL.bayer(x, y) ? Math.min(k0 + 1, ramp.length - 1) : k0];
+                const k1 = Math.min(k0 + 1, ramp.length - 1);
+                for (let x = 0; x < w; x++) u[row + x] = cols[edge > PL.bayer(x, y) ? k1 : k0];
             }
             if (K.stars > 0.02)
-                for (let y = 0; y < Math.min(img.h, horizonY - 30); y++)
+                for (let y = 0; y < Math.min(img.h, horizonY - 30); y++) {
+                    // Light pollution: fewer stars toward the horizon.
+                    const fade = PL.clamp((horizonY - 30 - y) / (horizonY * 0.6), 0, 1);
+                    const dens = 0.0016 * K.stars * fade;
                     for (let x = 0; x < w; x++) {
                         const hh = hash(911, x, y);
-                        if (hh < 1 - 0.0022 * K.stars) continue;
+                        if (hh < 1 - dens) continue;
                         const tw = 0.5 + 0.5 * Math.sin(t * (1 + hash(3, x, y) * 3) + hh * 99);
-                        img.set(
-                            x,
-                            y,
-                            hh > 0.99975 ? 0xfff6e0 : mix(ramp[1], 0xe8e8f8, 0.35 + tw * 0.5 * K.stars)
-                        );
+                        const c = mix(ramp[2], 0xe8e8f8, 0.35 + tw * 0.5 * K.stars);
+                        img.set(x, y, hh > 1 - dens * 0.08 ? 0xfff6e0 : c);
+                        if (hh > 1 - dens * 0.03 && tw > 0.55) {
+                            const g = mix(ramp[2], 0xc8c8e8, 0.4);
+                            (img.set(x - 1, y, g), img.set(x + 1, y, g), img.set(x, y - 1, g), img.set(x, y + 1, g));
+                        }
                     }
+                }
             // Peak of the arc stays below the top toolbar (topPad sky pixels).
-            const arcH = PL.clamp(horizonY - 20 - this.topPad, 0, 170);
+            const arcH = PL.clamp(horizonY - 20 - this.topPad, 0, Math.round(170 * S3));
             if (K.sun > 0.02 && K.sunT > 0 && K.sunT < 1)
                 this._sun(
                     img,
                     Math.round(w * (0.08 + K.sunT * 0.84)),
                     Math.round(horizonY - 18 - Math.sin(K.sunT * Math.PI) * arcH),
-                    6,
+                    Math.round(6 * S3),
                     K
                 );
             if (K.moonA > 0.02 && K.moonT > 0 && K.moonT < 1) {
@@ -108,14 +134,19 @@
                     typeof CityAmbience !== 'undefined' && CityAmbience.getMoonPhase
                         ? CityAmbience.getMoonPhase()
                         : 0.5;
-                this._moon(
-                    img,
-                    Math.round(w * (0.08 + K.moonT * 0.84)),
-                    Math.round(horizonY - 18 - Math.sin(K.moonT * Math.PI) * arcH * 0.9),
-                    7,
-                    p,
-                    K.moonA
-                );
+                const mx = Math.round(w * (0.08 + K.moonT * 0.84));
+                const my = Math.round(horizonY - 18 - Math.sin(K.moonT * Math.PI) * arcH * 0.9);
+                const mr = Math.round(7 * S3);
+                // Faint moon halo.
+                const R = mr * 3;
+                for (let y = -R; y <= R; y++)
+                    for (let x = -R; x <= R; x++) {
+                        const d = Math.hypot(x, y);
+                        if (d <= mr || d > R) continue;
+                        const q = Math.floor(Math.pow(1 - (d - mr) / (R - mr), 2) * 3 + PL.bayer(mx + x, my + y)) / 3;
+                        if (q > 0) img.blend(mx + x, my + y, 0xb8b0e0, K.moonA * q * 0.16);
+                    }
+                this._moon(img, mx, my, mr, p, K.moonA);
             }
             img.done();
             this.tex.baseTexture.update();

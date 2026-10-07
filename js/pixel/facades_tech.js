@@ -538,7 +538,7 @@
         pine(w - 2, 0.6);
     };
     PL.padFor = function (b) {
-        if (b.type === 'alignment' || (b.id && b.id.startsWith('align_'))) return 22;
-        return 10;
+        if (b.type === 'alignment' || (b.id && b.id.startsWith('align_'))) return Math.round(22 * PL.S3);
+        return Math.round(10 * PL.S3);
     };
 })();

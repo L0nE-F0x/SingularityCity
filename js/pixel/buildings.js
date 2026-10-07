@@ -9,8 +9,8 @@
     const { mix, dark, light, hex } = PL;
 
     const P = (PL.P = {});
-    const LOBBY = 8;
-    const FLOOR = 6;
+    const LOBBY = PL.LOBBY;
+    const FLOOR = PL.FLOOR;
 
     PL.floorsOf = (b) => b.dynamicFl || b.dfl || b.fl || 1;
     PL.artW = (b) => Math.max(4, Math.round(b.w / PL.ART));
@@ -140,6 +140,7 @@
         const bh = lines.length * 6 + 1;
         const x = Math.round(w / 2 - bw / 2);
         const y = -2 - bh;
+        (B.signRects = B.signRects || []).push({ x: x, y: y, w: bw, h: bh + 2 });
         const tube = light(col, col === 0x6688aa ? 0.35 : 0.15);
         B.rect(x, y, bw, bh, 0x0a0a14);
         B.rect(x, y, bw, 1, dark(col, 0.3));
@@ -554,7 +555,7 @@
         const B = new PL.Bake(w, h, {
             seed: PL.seedOf(b.id),
             head: PL.headFor(b, h),
-            padX: PL.padFor ? PL.padFor(b) : 10,
+            padX: PL.padFor ? PL.padFor(b) : Math.round(10 * PL.S3),
         });
         const fn = PL.pick(b);
         fn(B, b, w, h);
@@ -564,6 +565,7 @@
             const nc = PL.classicNeon(b);
             if (nc) PL.neonSign(B, nc.text, nc.col, w);
         }
+        if (PL.dress) PL.dress(B, b, w, h);
         B.finish();
         B.bld = b;
         B.fw = w;
@@ -571,9 +573,10 @@
         return B;
     };
     PL.headFor = function (b, h) {
-        if (b.type === 'launchpad') return 110;
-        if (/^(power_wind|power_nuclear|port_crane|space_assembly)/.test(b.id)) return 80;
-        return h > 200 ? 40 : 56;
+        const k = PL.S3;
+        if (b.type === 'launchpad') return Math.round(110 * k);
+        if (/^(power_wind|power_nuclear|port_crane|space_assembly)/.test(b.id)) return Math.round(80 * k);
+        return Math.round((h > 200 * k ? 40 : 56) * k);
     };
     PL.pick = function (b) {
         const id = b.id;

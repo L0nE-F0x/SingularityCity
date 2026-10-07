@@ -11,7 +11,7 @@
    original lab name boards instead of the pixel rooftop signs; ?classicText=1 keeps the
    original fonts on tickers, labels and chat bubbles.
 
-   1 art pixel = 3 world pixels (PL.ART). Painters live in js/pixel/*.js (see pixel-lab/).
+   1 art pixel = 2 world pixels (PL.ART). Painters live in js/pixel/*.js (see pixel-lab/).
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 const PixelArt = {
     enabled: typeof location !== 'undefined' && !/[?&]classic=1\b/.test(location.search),
@@ -328,15 +328,15 @@ const PixelArt = {
     _haloTex(r) {
         if (!this._halos) {
             this._halos = {};
-            [3, 4, 6, 8, 10, 12, 16, 20, 26, 34].forEach((k) => {
+            [3, 4, 6, 8, 10, 12, 16, 20, 26, 34, 42, 52].forEach((k) => {
                 this._halos[k] = PL.tex(PL.halo(k, 0xffffff, 0.5, 2, 5));
             });
-            this._halos.pool = PL.tex(PL.haloE(16, 3, 0xffffff, 0.55, 1.4, 4));
-            this._halos.poolS = PL.tex(PL.haloE(9, 2, 0xffffff, 0.5, 1.4, 4));
+            this._halos.pool = PL.tex(PL.haloE(Math.round(16 * PL.S3), Math.round(3 * PL.S3), 0xffffff, 0.55, 1.4, 4));
+            this._halos.poolS = PL.tex(PL.haloE(Math.round(9 * PL.S3), Math.round(2 * PL.S3), 0xffffff, 0.5, 1.4, 4));
         }
         if (typeof r === 'string') return this._halos[r];
         let best = 3;
-        for (const k of [3, 4, 6, 8, 10, 12, 16, 20, 26, 34])
+        for (const k of [3, 4, 6, 8, 10, 12, 16, 20, 26, 34, 42, 52])
             if (Math.abs(k - r) < Math.abs(best - r)) best = k;
         return this._halos[best];
     },
@@ -366,6 +366,8 @@ const PixelArt = {
                 base: PL.tex(B.base),
                 emit: PL.tex(B.emit),
                 bloom: B.bloom ? PL.tex(B.bloom) : null,
+                neon: B.hasNeon ? PL.tex(B.neon) : null,
+                bloomN: B.bloomN ? PL.tex(B.bloomN) : null,
                 snow: B.snow ? PL.tex(B.snow) : null,
             },
         };
@@ -413,6 +415,8 @@ const PixelArt = {
         if (e.snow) e.snow.visible = false;
         e.emit = mk(bake.tex.emit);
         e.bloom = bake.tex.bloom ? mk(bake.tex.bloom, PIXI.BLEND_MODES.ADD) : null;
+        e.neon = bake.tex.neon ? mk(bake.tex.neon) : null;
+        e.bloomN = bake.tex.bloomN ? mk(bake.tex.bloomN, PIXI.BLEND_MODES.ADD) : null;
         // Light halos, door and shop pools on the pavement, blinking beacons.
         const fx = (x) => ox + (x + B.padX) * A + A / 2;
         const fy = (y) => oy + (y + B.head) * A + A / 2;
@@ -423,9 +427,10 @@ const PixelArt = {
                 s.y = h + 3 * A;
                 s.baseA = 0.8;
             } else {
-                s = new PIXI.Sprite(this._haloTex(l.r));
+                s = new PIXI.Sprite(this._haloTex(l.r * PL.S3));
                 s.y = fy(l.y);
                 s.baseA = l.kind === 'spot' ? 0.55 : l.kind === 'neon' ? 0.7 : 0.8;
+                s.isNeon = l.kind === 'neon';
             }
             s.anchor.set(0.5);
             s.scale.set(A);
@@ -436,7 +441,7 @@ const PixelArt = {
             e.lights.push(s);
         });
         B.blinks.forEach((bl) => {
-            const s = new PIXI.Sprite(this._haloTex(4));
+            const s = new PIXI.Sprite(this._haloTex(4 * PL.S3));
             s.anchor.set(0.5);
             s.scale.set(A);
             s.x = fx(bl.x);
@@ -518,7 +523,11 @@ const PixelArt = {
             e.snow.alpha = Math.min(1, acc * 1.7);
             e.snow.tint = PL.mix(K.amb, 0xffffff, 0.35);
         }
-        for (const s of e.lights) s.alpha = s.baseA * emitA;
+        // Signage never switches off; it just glows harder after dark.
+        const neonA = Math.max(emitA, K.neon === undefined ? 0 : K.neon);
+        if (e.neon) e.neon.alpha = neonA;
+        if (e.bloomN) e.bloomN.alpha = neonA * 0.85;
+        for (const s of e.lights) s.alpha = s.baseA * (s.isNeon ? Math.max(emitA, neonA * 0.45) : emitA);
         for (const s of e.blinks) s.alpha = PL.frac(t / s.period + s.phase) < 0.45 ? 0.6 + emitA * 0.4 : 0;
     },
 
@@ -538,6 +547,7 @@ const PixelArt = {
         }
         this._K = PL.tod(G.getDayPhase(), this._wx());
         PL.Sky.update(this._K, performance.now() / 1000, { zoom: 1, horizonY: G.vpH, visible: sky });
+        if (PL.Backdrop && PL.Backdrop.sprite) PL.Backdrop.sprite.visible = false;
     },
 
     // Called every frame from Environment.update().
@@ -549,6 +559,7 @@ const PixelArt = {
         }
         this._K = PL.tod(dp, this._wx());
         if (PL.Sky) PL.Sky.update(this._K, performance.now() / 1000);
+        if (PL.Backdrop) PL.Backdrop.update(this._K, performance.now() / 1000);
         // The classic ground palette is already dusky, so it takes a gentler ambient tint.
         if (this._ground && !this._ground.destroyed) {
             const tint = PL.mix(this._K.amb, 0xffffff, 0.45);
@@ -565,7 +576,7 @@ const PixelArt = {
     },
 };
 
-// Default zoom 1 with the skin, so one art pixel is exactly 3 screen pixels (0.8 gave
+// Default zoom 1 with the skin, so one art pixel is exactly PL.ART screen pixels (0.8 gave
 // 2.4, drawing some pixel columns 2 wide and some 3). Camera.init frames from it.
 if (PixelArt.enabled && typeof Camera !== 'undefined')
     Camera.zoom = Camera.targetZoom = Camera.defaultZoom = 1;

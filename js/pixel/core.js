@@ -7,7 +7,12 @@
 
     // One art pixel covers this many live-city world pixels. A floor in the live city is
     // 18 world px (6 art px) and a building base sits 24 world px (8 art px) above the road.
-    PL.ART = 3;
+    PL.ART = 2;
+    // A live floor (18 world px) and the lobby band under the first floor (24 world px), in art px.
+    PL.FLOOR = 18 / PL.ART;
+    PL.LOBBY = 24 / PL.ART;
+    // Painters and halos were first drawn on a 3 px grid; this converts a size from that grid.
+    PL.S3 = 3 / PL.ART;
 
     PL.clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
     PL.lerp = (a, b, t) => a + (b - a) * t;
