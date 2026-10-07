@@ -18,7 +18,8 @@ const PixelArt = {
     pixelSigns: typeof location !== 'undefined' && !/[?&]classicSigns=1\b/.test(location.search),
     pixelText: typeof location !== 'undefined' && !/[?&]classicText=1\b/.test(location.search),
 
-    _cache: new Map(), // bake key → { B, tex: {base, emit, bloom, snow} }
+    _cache: new Map(), // bake key → { B, tex: {base, emit, bloom, neon, bloomN, refl, snow} }
+    _wet: 0,
     _entries: [], // live facades for per-frame lighting
     _halos: null,
     _K: null,
@@ -318,8 +319,19 @@ const PixelArt = {
         f.parent.children.forEach((c) => this.pixelize(c));
     },
 
+    _reflLayer() {
+        if (this._refl && !this._refl.destroyed) return this._refl;
+        if (!G.world || !G.shadowLayer || !G.shadowLayer.parent) return null;
+        this._refl = new PIXI.Container();
+        this._refl.name = 'pixelReflections';
+        this._refl.eventMode = 'none';
+        G.world.addChildAt(this._refl, G.world.getChildIndex(G.shadowLayer) + 1);
+        return this._refl;
+    },
+
     beginBuild() {
         this._entries = [];
+        if (this._refl && !this._refl.destroyed) this._refl.removeChildren().forEach((c) => c.destroy());
         // Old containers are destroyed (textures kept) right after this in buildBuildings.
         this._rts.forEach((rt) => rt.destroy(true));
         this._rts = [];
@@ -368,6 +380,7 @@ const PixelArt = {
                 bloom: B.bloom ? PL.tex(B.bloom) : null,
                 neon: B.hasNeon ? PL.tex(B.neon) : null,
                 bloomN: B.bloomN ? PL.tex(B.bloomN) : null,
+                refl: B.refl ? PL.tex(B.refl) : null,
                 snow: B.snow ? PL.tex(B.snow) : null,
             },
         };
@@ -417,6 +430,21 @@ const PixelArt = {
         e.bloom = bake.tex.bloom ? mk(bake.tex.bloom, PIXI.BLEND_MODES.ADD) : null;
         e.neon = bake.tex.neon ? mk(bake.tex.neon) : null;
         e.bloomN = bake.tex.bloomN ? mk(bake.tex.bloomN, PIXI.BLEND_MODES.ADD) : null;
+        // Wet-street reflection: starts at the pavement line under the facade. It lives in
+        // its own layer above the ground (which is drawn over the buildings) and follows the
+        // building container every frame.
+        e.refl = null;
+        const RL = this._reflLayer();
+        if (bake.tex.refl && RL) {
+            const s = new PIXI.Sprite(bake.tex.refl);
+            s.scale.set(A);
+            s.blendMode = PIXI.BLEND_MODES.ADD;
+            s.eventMode = 'none';
+            s.dx = ox;
+            s.dy = h;
+            RL.addChild(s);
+            e.refl = s;
+        }
         // Light halos, door and shop pools on the pavement, blinking beacons.
         const fx = (x) => ox + (x + B.padX) * A + A / 2;
         const fy = (y) => oy + (y + B.head) * A + A / 2;
@@ -490,9 +518,9 @@ const PixelArt = {
     _markLayers() {
         const S = this.Skin;
         if (!S) return;
-        [G.charLayer, G.carLayer, G.trainLayer, G.reflectionLayer, G.undergroundLayer, G.shadowLayer].forEach(
-            (l) => S.mark(l)
-        );
+        // Street-level layers take the time-of-day light; the underground keeps its own.
+        [G.charLayer, G.carLayer, G.trainLayer, G.reflectionLayer].forEach((l) => S.mark(l, { amb: true }));
+        [G.undergroundLayer, G.shadowLayer].forEach((l) => S.mark(l));
         if (typeof CityAmbience !== 'undefined' && CityAmbience.glowLayer)
             S.mark(CityAmbience.glowLayer, { dither: true });
         if (typeof SeasonalEnv !== 'undefined') S.mark(SeasonalEnv._overlayGfx);
@@ -526,6 +554,16 @@ const PixelArt = {
         // Signage never switches off; it just glows harder after dark.
         const neonA = Math.max(emitA, K.neon === undefined ? 0 : K.neon);
         if (e.neon) e.neon.alpha = neonA;
+        if (e.refl) {
+            const c = e.root.parent;
+            const show = !!c && c.visible && c.worldVisible !== false && this._wet > 0.02;
+            e.refl.visible = show;
+            if (show) {
+                e.refl.x = c.x + e.refl.dx;
+                e.refl.y = c.y + e.refl.dy;
+                e.refl.alpha = this._wet * Math.max(emitA * 0.9, neonA * 0.5);
+            }
+        }
         if (e.bloomN) e.bloomN.alpha = neonA * 0.85;
         for (const s of e.lights) s.alpha = s.baseA * (s.isNeon ? Math.max(emitA, neonA * 0.45) : emitA);
         for (const s of e.blinks) s.alpha = PL.frac(t / s.period + s.phase) < 0.45 ? 0.6 + emitA * 0.4 : 0;
@@ -558,6 +596,14 @@ const PixelArt = {
             this._markLayers();
         }
         this._K = PL.tod(dp, this._wx());
+        // How wet the street looks: always a sheen after dark (the neon city), soaked in rain.
+        const wx = this._wx();
+        const rain = /rain|drizzle|storm/.test(wx)
+            ? (typeof Environment !== 'undefined' ? Environment.weatherIntensity || 0.6 : 0.6)
+            : 0;
+        this._wet = PL.clamp(Math.max(this._K.night * 0.55, rain * 1.1), 0, 1);
+        // Entities a little brighter than the facades, so the crowd reads at night.
+        if (this.Skin) this.Skin.setAmbient(PL.mix(this._K.amb, 0xffffff, 0.18));
         if (PL.Sky) PL.Sky.update(this._K, performance.now() / 1000);
         if (PL.Backdrop) PL.Backdrop.update(this._K, performance.now() / 1000);
         // The classic ground palette is already dusky, so it takes a gentler ambient tint.
@@ -570,7 +616,10 @@ const PixelArt = {
         for (const e of this._entries) {
             if (e.root.destroyed) continue;
             const c = e.b._container;
-            if (c && !c.visible) continue;
+            if (c && !c.visible) {
+                if (e.refl) e.refl.visible = false;
+                continue;
+            }
             this._apply(e, t);
         }
     },

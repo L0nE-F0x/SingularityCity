@@ -90,6 +90,7 @@ const InteriorResAI = {
         legR.drawRect(-lw / 2, 0, lw, lh);
         legR.endFill();
         legR.x = bw * 0.15;
+        if (typeof PL !== 'undefined' && PL.Robot) PL.Robot.restyle(m, { head, body, legL, legR }, stg, finalSc, sd, colHex);
         legR.y = 0;
 
         // Status dot — color-coded by lifecycle stage

@@ -77,9 +77,13 @@ const Interior = {
             this.activeModule.build(bld, layer);
             this.isDragging = this.activeModule.isDragging;
         }
+        // Pixel skin: open zoomed in, scrolling through the floors (js/pixel/interior_zoom.js).
+        if (typeof PixelArt !== 'undefined' && PixelArt.enabled && typeof PL !== 'undefined' && PL.InteriorZoom)
+            PL.InteriorZoom.begin(this.activeModule, layer);
     },
 
     cleanup() {
+        if (typeof PL !== 'undefined' && PL.InteriorZoom) PL.InteriorZoom.end();
         // Remove stale window event listeners when exiting any interior
         if (this.activeModule) {
             // Modules use either onMove/_onMove and onUp/_onUp patterns
@@ -106,6 +110,7 @@ const Interior = {
         // to keep the tracked avatar centered. Runs once per frame so elevator
         // / walking motion is followed smoothly.
         this._updateInteriorCamera();
+        if (typeof PL !== 'undefined' && PL.InteriorZoom) PL.InteriorZoom.update();
         // Viewport culling goes last, once the camera has moved the scene.
         if (this.activeModule && this.activeModule.cull) this.activeModule.cull();
     },

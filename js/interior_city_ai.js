@@ -182,6 +182,7 @@ const InteriorCityAI = {
         w.legR.drawRect(-lw / 2, 0, lw, lh);
         w.legR.endFill();
         w.legR.x = bw * 0.15;
+        if (typeof PL !== 'undefined' && PL.Robot) PL.Robot.restyle(w.m, w, stg, finalSc, sd, colHex);
 
         w.dot.clear();
         const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : 0x4ade80;
@@ -380,6 +381,7 @@ const InteriorCityAI = {
         legR.drawRect(-lw / 2, 0, lw, lh);
         legR.endFill();
         legR.x = bw * 0.15;
+        if (typeof PL !== 'undefined' && PL.Robot) PL.Robot.restyle(m, { head, body, legL, legR }, stg, finalSc, sd, colHex);
 
         // Status dot — color-coded by lifecycle stage
         const dot = new PIXI.Graphics();

@@ -422,6 +422,24 @@
             if (e.parts.length) this.attach(g, e.parts, e);
         },
 
+        amb: 0xffffff,
+        _mulCache: new Map(),
+        mulTint(t) {
+            let v = this._mulCache.get(t);
+            if (v === undefined) {
+                const a = this.amb;
+                v = PL.rgb((PL.r(t) * PL.r(a)) / 255, (PL.g(t) * PL.g(a)) / 255, (PL.b(t) * PL.b(a)) / 255);
+                if (this._mulCache.size > 256) this._mulCache.clear();
+                this._mulCache.set(t, v);
+            }
+            return v;
+        },
+        setAmbient(c) {
+            if (c === this.amb) return;
+            this.amb = c;
+            this._mulCache.clear();
+        },
+
         // Runs every frame just before the renderer (its own ticker step, so it keeps going
         // inside interiors, where the game loop skips Environment.update).
         flush() {
@@ -587,7 +605,12 @@
         const kids = this._pxKids;
         if (!kids && this._pxGeom !== this.geometry.dirty) return orig.call(this, renderer);
         if (kids) {
-            const t = this.tint;
+            // City entities take the time-of-day light (S.amb); emissive parts and additive
+            // glows keep their own colour.
+            let t = this.tint;
+            const sk = this._pxSkinR;
+            if (sk && sk.amb && !this._pxLit && this.blendMode !== PIXI.BLEND_MODES.ADD)
+                t = t === 0xffffff ? S.amb : S.mulTint(t);
             const bm = this.blendMode;
             for (let i = 0; i < kids.length; i++) {
                 const k = kids[i];

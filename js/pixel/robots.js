@@ -21,9 +21,14 @@
 
     // A tiny canvas of colour cells; null = empty.
     function Grid(w, h) {
-        const g = { w: w, h: h, c: new Array(w * h).fill(null) };
+        const g = { w: w, h: h, c: new Array(w * h).fill(null), lit: [] };
         g.set = (x, y, col) => {
             if (x >= 0 && y >= 0 && x < w && y < h && col !== undefined) g.c[y * w + x] = col;
+        };
+        // Emissive cell: also drawn on the robot's glow layer, which night never dims.
+        g.glow = (x, y, col) => {
+            g.set(x, y, col);
+            g.lit.push([x, y, col]);
         };
         g.rect = (x, y, rw, rh, col) => {
             for (let j = 0; j < rh; j++) for (let i = 0; i < rw; i++) g.set(x + i, y + j, col);
@@ -49,6 +54,28 @@
                 x = e;
             }
         }
+    }
+
+    function emitLit(gfx, g, ox, oy, alpha) {
+        const A = PL.ART;
+        g.lit.forEach(([x, y, col]) => {
+            gfx.beginFill(col, alpha === undefined ? 1 : alpha);
+            gfx.drawRect((ox + x) * A, (oy + y) * A, A, A);
+            gfx.endFill();
+        });
+    }
+    // The unlit-by-night overlay that rides on a Graphics (created once).
+    function glowOf(parent) {
+        let gl = parent._pxGlow;
+        if (!gl || gl.destroyed) {
+            gl = new PIXI.Graphics();
+            gl._pxLit = true;
+            gl.eventMode = 'none';
+            parent.addChild(gl);
+            parent._pxGlow = gl;
+        }
+        gl.clear();
+        return gl;
     }
 
     function palette(colHex, isR, isRm) {
@@ -102,14 +129,15 @@
             if (stg === 'baby') {
                 // One big eye.
                 const ex = fx + Math.floor((hx1 - fx) / 2) - 1;
-                g.rect(ex, fy + Math.floor((fh - 2) / 2), 2, 2, P.eye);
+                const ey = fy + Math.floor((fh - 2) / 2);
+                [0, 1].forEach((i) => [0, 1].forEach((j) => g.glow(ex + i, ey + j, P.eye)));
             } else {
-                g.set(hx1 - 3, fy + Math.floor(fh / 2), P.eye);
-                g.set(hx1 - 1, fy + Math.floor(fh / 2), P.eye);
+                g.glow(hx1 - 3, fy + Math.floor(fh / 2), P.eye);
+                g.glow(hx1 - 1, fy + Math.floor(fh / 2), P.eye);
             }
             if (kind === 'orb' && stg !== 'baby') {
                 // Halo ring hovering over the head.
-                for (let i = 1; i < hw - 1; i++) g.set(hx0 + i, top - 2, 0xffe08a);
+                for (let i = 1; i < hw - 1; i++) g.glow(hx0 + i, top - 2, 0xffe08a);
                 g.set(hx0, top - 1, 0xffd060);
                 g.set(hx1, top - 1, 0xffd060);
             }
@@ -128,15 +156,15 @@
                 // Thin glowing slit across the front.
                 const sy = top + Math.floor(HA * 0.45);
                 g.rect(hx0 + 1, sy, hw - 1, 1, VISOR);
-                for (let i = Math.floor(hw / 2); i < hw; i++) g.set(hx0 + i, sy, P.eye);
+                for (let i = Math.floor(hw / 2); i < hw; i++) g.glow(hx0 + i, sy, P.eye);
             } else {
                 const vy = top + Math.max(1, Math.floor(HA * 0.3));
                 const vh = Math.max(2, Math.round(HA * 0.38));
                 g.rect(hx0 + 1, vy, hw - 1, vh, VISOR);
                 g.set(hx0 + 1, vy, mix(VISOR, 0xffffff, 0.25));
                 const ey = vy + Math.floor((vh - 1) / 2);
-                g.set(hx1 - 3, ey, P.eye);
-                g.set(hx1 - 1, ey, P.eye);
+                g.glow(hx1 - 3, ey, P.eye);
+                g.glow(hx1 - 1, ey, P.eye);
             }
             // Ear bolt at the back.
             g.set(hx0, top + Math.floor(HA / 2), M.lo);
@@ -170,7 +198,7 @@
             const pw = W - 4;
             g.rect(px, ty + 1, pw, Math.max(1, tb - 3), P.shell);
             g.rect(px, ty + 1, pw, 1, P.shellHi);
-            g.set(px + pw - 1 - Math.floor((pw - 1) / 2), ty + 1 + Math.floor((tb - 3) / 2), P.core);
+            g.glow(px + pw - 1 - Math.floor((pw - 1) / 2), ty + 1 + Math.floor((tb - 3) / 2), P.core);
         }
         // Belt and hands.
         g.rect(ox + 1, ty + tb - 1, W - 2, 1, M.deep);
@@ -186,7 +214,7 @@
             // Egg-drone: a thruster glow instead of legs.
             g.set(0, 0, M.lo);
             g.set(1, 0, M.mid);
-            if (LH > 1) g.set(0, 1, 0x8af4ff);
+            if (LH > 1) g.glow(0, 1, 0x8af4ff);
             return g;
         }
         for (let j = 0; j < LH - 1; j++) {
@@ -207,9 +235,20 @@
             return 'helmet';
         },
 
+        // Interior avatar factories: same robot over their freshly drawn head/body/legs
+        // (parts: { head, body, legL, legR, ghostL?, ghostR?, isMoE? }).
+        restyle(m, parts, stg, finalSc, sd, colHex) {
+            if (typeof PixelArt === 'undefined' || !PixelArt.enabled || !parts || !parts.body) return;
+            if (m && (m.isCeo || m.founderData)) return;
+            this.drawCitizen(m, parts, stg, stg === 'retired', stg === 'rumored', finalSc, sd, colHex);
+        },
+
         // Replaces the head/body/legs drawing in EntitiesGfx.updateCharStateVisuals.
         drawCitizen(m, refs, stg, isR, isRm, finalSc, sd, colHex) {
             const A = PL.ART;
+            if (!(finalSc > 0) || !isFinite(finalSc)) finalSc = 1;
+            if (!sd || !(sd.headR > 0)) sd = { size: 1, headR: 0.4 };
+            if (typeof colHex !== 'number' || !isFinite(colHex)) colHex = 0x64748b;
             const P = palette(colHex, isR, isRm);
             const kind = this.kindOf(m, refs);
             // The engine positions head and body from these world sizes.
@@ -228,10 +267,12 @@
             refs.body.clear();
             const alpha = isR ? 0.5 : isRm ? 0.6 : 1;
             emit(refs.body, U.g, -U.ox - W / 2, -U.top - HA, alpha);
+            emitLit(glowOf(refs.body), U.g, -U.ox - W / 2, -U.top - HA, alpha);
             const L = leg(LH, P, stg);
             [refs.legL, refs.legR].forEach((g, k) => {
                 g.clear();
                 emit(g, L, -1, 0, k === 0 ? alpha * 0.92 : alpha);
+                if (L.lit.length) emitLit(glowOf(g), L, -1, 0, alpha);
             });
             const lx = Math.max(1, Math.round(W / 4));
             refs.legL.x = -lx * A;

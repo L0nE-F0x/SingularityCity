@@ -771,8 +771,10 @@ const InteriorRes = {
     _viewSpan(pad) {
         const s = this.scene;
         if (!s || s.destroyed) return { top: -Infinity, bottom: Infinity };
-        const sc = s.scale.y || 1;
-        return { top: -s.y / sc - pad, bottom: (G.vpH - s.y) / sc + pad };
+        // Through the full transform, so a zoomed interior layer (pixel skin) culls right.
+        const t = s.toLocal(new PIXI.Point(0, 0));
+        const b = s.toLocal(new PIXI.Point(0, G.vpH));
+        return { top: t.y - pad, bottom: b.y + pad };
     },
 
     // ─── Floor culling ───

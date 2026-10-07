@@ -122,6 +122,7 @@
             this.bloom = Bake.bloomOf(this.emit);
             this.bloomN = Bake.bloomOf(this.neon);
             this.hasNeon = !!this.bloomN;
+            this.refl = Bake.reflectionOf(this);
             return this;
         }
     }
@@ -176,6 +177,40 @@
                 img.set(x, y, PL.rgb(acc[o] * sc, acc[o + 1] * sc, acc[o + 2] * sc), 255);
             }
         return img;
+    };
+    // Wet-street reflection under a facade: the lit street level (lobby glow, shop fronts,
+    // low windows, neon) mirrored onto the pavement and road, squashed a little, each row
+    // nudged sideways by a ripple, every few rows broken, fading with distance and stepped
+    // with ordered dither. Drawn additively below the building; null when nothing low is lit.
+    Bake.REFL_H = Math.round(56 / PL.ART); // pavement + road, in art px
+    Bake.reflectionOf = function (B) {
+        const W = B.W;
+        const H = B.H;
+        const RH = Bake.REFL_H;
+        const out = new Img(W, RH);
+        let any = false;
+        for (let y = 0; y < RH; y++) {
+            // Ripple lines: a broken row every 3rd–4th line further out.
+            if (y > 2 && (y % 4 === 3 || (y > RH / 2 && y % 3 === 0))) continue;
+            const srcY = H - 1 - Math.floor(y * 1.5);
+            if (srcY < 0) break;
+            const dx = Math.round(Math.sin(y * 1.3 + B.seed) * (y < 4 ? 0 : 1.2));
+            const fade = 0.7 * Math.pow(1 - y / RH, 1.3);
+            for (let x = 0; x < W; x++) {
+                const sx = x + dx;
+                if (sx < 0 || sx >= W) continue;
+                const n = B.neon.u[srcY * W + sx];
+                const e = B.emit.u[srcY * W + sx];
+                const v = n >>> 24 > 60 ? n : e >>> 24 > 60 ? e : 0;
+                if (!v) continue;
+                const a = ((v >>> 24) / 255) * fade * (v === n ? 1.15 : 0.85);
+                const q = Math.floor(a * 3 + bayer(x, y) * 0.95) / 3;
+                if (q <= 0) continue;
+                out.set(x, y, ((v & 255) << 16) | (v & 0xff00) | ((v >> 16) & 255), Math.min(1, q) * 255);
+                any = true;
+            }
+        }
+        return any ? out : null;
     };
     PL.Bake = Bake;
 
