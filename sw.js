@@ -44,6 +44,7 @@ const CORE_ASSETS = [
     '/js/pixel/facades_campus.js',
     '/js/pixel/facades_space.js',
     '/js/pixel/dress.js',
+    '/js/pixel/robots.js',
     '/js/pixel/sky.js',
     '/js/pixel/backdrop.js',
     '/js/pixel/pixel_art.js',

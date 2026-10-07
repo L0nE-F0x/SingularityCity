@@ -1012,141 +1012,149 @@ const EntitiesGfx = {
         refs.shadow.beginFill(0x000000, 0.25);
         refs.shadow.drawEllipse(0, 2, bw * 0.6, 3);
         refs.shadow.endFill();
-        refs.head.clear();
-        // ─── AGE-SPECIFIC SKIN TONES ───
-        const babySkin = 0xffe4c4; // rosier/pinker for babies
-        const kidSkin = 0xfde0b8; // slightly warmer for kids
-        const ageSkin = isR
-            ? 0xb8c0cc
-            : isRm
-              ? 0x8b5cf6
-              : stg === 'baby'
-                ? babySkin
-                : stg === 'kid'
-                  ? kidSkin
-                  : 0xfdd8b5;
-        refs.head.beginFill(ageSkin, isR ? 0.3 : isRm ? 0.5 : 1);
-        refs.head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
-        refs.head.endFill();
-        // Eyes — babies get bigger, rounder eyes; kids get standard
-        const ageEyeS = stg === 'baby' ? eyeS * 1.4 : eyeS;
-        const eyeCol = isR ? 0xaaccff : isRm ? 0xa78bfa : stg === 'baby' ? 0x1a1a2e : 0x2c1810;
-        refs.head.beginFill(eyeCol);
-        refs.head.drawCircle(-bw * 0.12, headH * 0.38, isR ? eyeS * 1.5 : ageEyeS);
-        refs.head.drawCircle(bw * 0.12, headH * 0.38, isR ? eyeS * 1.5 : ageEyeS);
-        refs.head.endFill();
-        // Baby eye highlights (cute sparkle)
-        if (stg === 'baby') {
-            refs.head.beginFill(0xffffff, 0.7);
-            refs.head.drawCircle(-bw * 0.12 + 1, headH * 0.35, ageEyeS * 0.4);
-            refs.head.drawCircle(bw * 0.12 + 1, headH * 0.35, ageEyeS * 0.4);
-            refs.head.endFill();
-        }
-        // Mouth — babies get a small 'o', kids get a smile, adults get neutral line
-        if (stg === 'baby') {
-            refs.head.beginFill(0xdd8888, 0.6);
-            refs.head.drawCircle(0, headH * 0.65, bw * 0.06);
-            refs.head.endFill();
+        // Pixel skin: every model is a little robot (js/pixel/robots.js).
+        const _robot =
+            typeof PixelArt !== 'undefined' && PixelArt.enabled && typeof PL !== 'undefined' && PL.Robot;
+        if (_robot) {
+            if (refs._metroState !== 'riding') PL.Robot.drawCitizen(m, refs, stg, isR, isRm, finalSc, sd, colHex);
+            refs.head.y = -h;
         } else {
-            refs.head.beginFill(0x000000, 0.4);
-            refs.head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
+            refs.head.clear();
+            // ─── AGE-SPECIFIC SKIN TONES ───
+            const babySkin = 0xffe4c4; // rosier/pinker for babies
+            const kidSkin = 0xfde0b8; // slightly warmer for kids
+            const ageSkin = isR
+                ? 0xb8c0cc
+                : isRm
+                  ? 0x8b5cf6
+                  : stg === 'baby'
+                    ? babySkin
+                    : stg === 'kid'
+                      ? kidSkin
+                      : 0xfdd8b5;
+            refs.head.beginFill(ageSkin, isR ? 0.3 : isRm ? 0.5 : 1);
+            refs.head.drawRoundedRect(-bw * 0.4, 0, bw * 0.8, headH, headH * 0.25);
             refs.head.endFill();
-        }
-        // ─── BABY ACCESSORIES: Pacifier + tuft of hair ───
-        if (stg === 'baby') {
-            // Tuft of hair on top
-            refs.head.beginFill(eyeCol, 0.7);
-            refs.head.drawEllipse(-bw * 0.1, -1, bw * 0.12, 3);
-            refs.head.drawEllipse(bw * 0.05, -2, bw * 0.1, 2.5);
+            // Eyes — babies get bigger, rounder eyes; kids get standard
+            const ageEyeS = stg === 'baby' ? eyeS * 1.4 : eyeS;
+            const eyeCol = isR ? 0xaaccff : isRm ? 0xa78bfa : stg === 'baby' ? 0x1a1a2e : 0x2c1810;
+            refs.head.beginFill(eyeCol);
+            refs.head.drawCircle(-bw * 0.12, headH * 0.38, isR ? eyeS * 1.5 : ageEyeS);
+            refs.head.drawCircle(bw * 0.12, headH * 0.38, isR ? eyeS * 1.5 : ageEyeS);
             refs.head.endFill();
-            // Pacifier
-            refs.head.beginFill(0xff88aa, 0.8);
-            refs.head.drawCircle(0, headH * 0.72, bw * 0.1);
-            refs.head.endFill();
-            refs.head.beginFill(0xffaacc, 0.9);
-            refs.head.drawCircle(0, headH * 0.72, bw * 0.06);
-            refs.head.endFill();
-        }
-        // ─── KID ACCESSORIES: Baseball cap ───
-        if (stg === 'kid') {
-            // Cap brim
-            refs.head.beginFill(suitCol, 0.9);
-            refs.head.drawRect(-bw * 0.45, -1, bw * 0.9, 3);
-            refs.head.endFill();
-            // Cap dome
-            refs.head.beginFill(suitCol, 0.85);
-            refs.head.drawRoundedRect(-bw * 0.38, -4, bw * 0.76, 5, 2);
-            refs.head.endFill();
-            // Cap button
-            refs.head.beginFill(0xffffff, 0.4);
-            refs.head.drawCircle(0, -3, 1);
-            refs.head.endFill();
-        }
-        // ─── RUMORED: Question mark floating above ───
-        if (isRm) {
-            refs.head.beginFill(0xa78bfa, 0.7);
-            refs.head.drawRect(-1, -8, 2, 4); // stem
-            refs.head.drawCircle(0, -10, 2.5); // top curve
-            refs.head.drawCircle(0, -3, 1); // dot
-            refs.head.endFill();
-        }
-        refs.head.y = -h;
-
-        if (refs._metroState !== 'riding') {
-            refs.body.clear();
-            // ─── AGE-SPECIFIC BODY STYLE ───
+            // Baby eye highlights (cute sparkle)
             if (stg === 'baby') {
-                // Onesie — rounded, pastel version of lab color
-                const onesieCol = suitCol;
-                refs.body.beginFill(onesieCol, isRm ? 0.4 : 0.85);
-                refs.body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.25);
-                refs.body.endFill();
-                // Onesie buttons
-                refs.body.beginFill(0xffffff, 0.5);
-                for (let bi = 0; bi < Math.min(2, bodyH / 4); bi++) {
-                    refs.body.drawCircle(0, 2 + bi * 3, 0.8);
-                }
-                refs.body.endFill();
-            } else if (stg === 'kid') {
-                // T-shirt + shorts look — lab color top, darker bottom
-                const shirtH = Math.max(bodyH * 0.6, 3);
-                refs.body.beginFill(suitCol, isRm ? 0.4 : 1);
-                refs.body.drawRoundedRect(-bw / 2, 0, bw, shirtH, bw * 0.1);
-                refs.body.endFill();
-                // Shorts
-                refs.body.beginFill(0x2a2a3a, 0.8);
-                refs.body.drawRect(-bw / 2, shirtH, bw, Math.max(bodyH - shirtH, 2));
-                refs.body.endFill();
-            } else {
-                refs.body.beginFill(suitCol, isR ? 0.4 : isRm ? 0.4 : 1);
-                refs.body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1);
-                refs.body.endFill();
+                refs.head.beginFill(0xffffff, 0.7);
+                refs.head.drawCircle(-bw * 0.12 + 1, headH * 0.35, ageEyeS * 0.4);
+                refs.head.drawCircle(bw * 0.12 + 1, headH * 0.35, ageEyeS * 0.4);
+                refs.head.endFill();
             }
-            refs.body.y = -h + headH;
-        }
+            // Mouth — babies get a small 'o', kids get a smile, adults get neutral line
+            if (stg === 'baby') {
+                refs.head.beginFill(0xdd8888, 0.6);
+                refs.head.drawCircle(0, headH * 0.65, bw * 0.06);
+                refs.head.endFill();
+            } else {
+                refs.head.beginFill(0x000000, 0.4);
+                refs.head.drawRect(-bw * 0.08, headH * 0.6, bw * 0.16, 1.5);
+                refs.head.endFill();
+            }
+            // ─── BABY ACCESSORIES: Pacifier + tuft of hair ───
+            if (stg === 'baby') {
+                // Tuft of hair on top
+                refs.head.beginFill(eyeCol, 0.7);
+                refs.head.drawEllipse(-bw * 0.1, -1, bw * 0.12, 3);
+                refs.head.drawEllipse(bw * 0.05, -2, bw * 0.1, 2.5);
+                refs.head.endFill();
+                // Pacifier
+                refs.head.beginFill(0xff88aa, 0.8);
+                refs.head.drawCircle(0, headH * 0.72, bw * 0.1);
+                refs.head.endFill();
+                refs.head.beginFill(0xffaacc, 0.9);
+                refs.head.drawCircle(0, headH * 0.72, bw * 0.06);
+                refs.head.endFill();
+            }
+            // ─── KID ACCESSORIES: Baseball cap ───
+            if (stg === 'kid') {
+                // Cap brim
+                refs.head.beginFill(suitCol, 0.9);
+                refs.head.drawRect(-bw * 0.45, -1, bw * 0.9, 3);
+                refs.head.endFill();
+                // Cap dome
+                refs.head.beginFill(suitCol, 0.85);
+                refs.head.drawRoundedRect(-bw * 0.38, -4, bw * 0.76, 5, 2);
+                refs.head.endFill();
+                // Cap button
+                refs.head.beginFill(0xffffff, 0.4);
+                refs.head.drawCircle(0, -3, 1);
+                refs.head.endFill();
+            }
+            // ─── RUMORED: Question mark floating above ───
+            if (isRm) {
+                refs.head.beginFill(0xa78bfa, 0.7);
+                refs.head.drawRect(-1, -8, 2, 4); // stem
+                refs.head.drawCircle(0, -10, 2.5); // top curve
+                refs.head.drawCircle(0, -3, 1); // dot
+                refs.head.endFill();
+            }
+            refs.head.y = -h;
 
-        // ─── AGE-SPECIFIC LEG COLORS ───
-        const ageLegCol = isR
-            ? 0x7788aa
-            : isRm
-              ? 0x6b7280
-              : stg === 'baby'
-                ? 0xfdd8b5
-                : stg === 'kid'
-                  ? 0x2a2a3a
-                  : 0x3d2914;
-        const lw = Math.max(2, bw * 0.25),
-            lh = Math.max(legH, 2);
-        refs.legL.clear();
-        refs.legL.beginFill(ageLegCol, isR ? 0.25 : 1);
-        refs.legL.drawRect(-lw / 2, 0, lw, lh);
-        refs.legL.endFill();
-        refs.legL.x = -bw * 0.15;
-        refs.legR.clear();
-        refs.legR.beginFill(ageLegCol, isR ? 0.25 : 1);
-        refs.legR.drawRect(-lw / 2, 0, lw, lh);
-        refs.legR.endFill();
-        refs.legR.x = bw * 0.15;
+            if (refs._metroState !== 'riding') {
+                refs.body.clear();
+                // ─── AGE-SPECIFIC BODY STYLE ───
+                if (stg === 'baby') {
+                    // Onesie — rounded, pastel version of lab color
+                    const onesieCol = suitCol;
+                    refs.body.beginFill(onesieCol, isRm ? 0.4 : 0.85);
+                    refs.body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.25);
+                    refs.body.endFill();
+                    // Onesie buttons
+                    refs.body.beginFill(0xffffff, 0.5);
+                    for (let bi = 0; bi < Math.min(2, bodyH / 4); bi++) {
+                        refs.body.drawCircle(0, 2 + bi * 3, 0.8);
+                    }
+                    refs.body.endFill();
+                } else if (stg === 'kid') {
+                    // T-shirt + shorts look — lab color top, darker bottom
+                    const shirtH = Math.max(bodyH * 0.6, 3);
+                    refs.body.beginFill(suitCol, isRm ? 0.4 : 1);
+                    refs.body.drawRoundedRect(-bw / 2, 0, bw, shirtH, bw * 0.1);
+                    refs.body.endFill();
+                    // Shorts
+                    refs.body.beginFill(0x2a2a3a, 0.8);
+                    refs.body.drawRect(-bw / 2, shirtH, bw, Math.max(bodyH - shirtH, 2));
+                    refs.body.endFill();
+                } else {
+                    refs.body.beginFill(suitCol, isR ? 0.4 : isRm ? 0.4 : 1);
+                    refs.body.drawRoundedRect(-bw / 2, 0, bw, Math.max(bodyH, 4), bw * 0.1);
+                    refs.body.endFill();
+                }
+                refs.body.y = -h + headH;
+            }
+
+            // ─── AGE-SPECIFIC LEG COLORS ───
+            const ageLegCol = isR
+                ? 0x7788aa
+                : isRm
+                  ? 0x6b7280
+                  : stg === 'baby'
+                    ? 0xfdd8b5
+                    : stg === 'kid'
+                      ? 0x2a2a3a
+                      : 0x3d2914;
+            const lw = Math.max(2, bw * 0.25),
+                lh = Math.max(legH, 2);
+            refs.legL.clear();
+            refs.legL.beginFill(ageLegCol, isR ? 0.25 : 1);
+            refs.legL.drawRect(-lw / 2, 0, lw, lh);
+            refs.legL.endFill();
+            refs.legL.x = -bw * 0.15;
+            refs.legR.clear();
+            refs.legR.beginFill(ageLegCol, isR ? 0.25 : 1);
+            refs.legR.drawRect(-lw / 2, 0, lw, lh);
+            refs.legR.endFill();
+            refs.legR.x = bw * 0.15;
+        }
         refs.dot.clear();
         const dotCol = isR
             ? 0x88aaff
@@ -1178,7 +1186,7 @@ const EntitiesGfx = {
             }
         }
 
-        if (refs.isMoE) {
+        if (refs.isMoE && !_robot) {
             refs.ghostL.clear();
             refs.ghostR.clear();
             refs.ghostL.beginFill(suitCol, 0.5);
