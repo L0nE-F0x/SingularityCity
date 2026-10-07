@@ -31,14 +31,16 @@
         for (let y = 0; y < TH; y++)
             for (let x = 0; x < TILE; x++) {
                 let c;
-                if (y < 3) c = y === 2 ? 0x3a424c : 0x161a20; // ceiling slab
-                else if (y < 8) c = 0x101318; // cable-tray recess
+                if (y < 3)
+                    c = y === 2 ? 0x3a424c : 0x161a20; // ceiling slab
+                else if (y < 8)
+                    c = 0x101318; // cable-tray recess
                 else if (y < 34) {
                     const row = y - 8;
                     const course = Math.floor(row / 3);
                     const off = (course & 1) * 3;
                     const isGrout = row % 3 === 2 || (x + off) % 6 === 0;
-                    c = isGrout ? grout : shade(tileCol, 0.92 + hash(7, (x + off) / 6 | 0, course) * 0.16);
+                    c = isGrout ? grout : shade(tileCol, 0.92 + hash(7, ((x + off) / 6) | 0, course) * 0.16);
                     // Grime toward the floor.
                     if (y > 26 && bayer(x, y) < (y - 26) / 10) c = shade(c, 0.78);
                 } else if (y < 40) {
@@ -173,7 +175,12 @@
     }
     const DOORS = [-50, 0, 50];
     const isWindow = (x, y) =>
-        y >= -10 && y < -2 && x > -86 && x < 85 && (x + 90) % 22 > 2 && !DOORS.some((d) => x >= d - 1 && x < d + 11);
+        y >= -10 &&
+        y < -2 &&
+        x > -86 &&
+        x < 85 &&
+        (x + 90) % 22 > 2 &&
+        !DOORS.some((d) => x >= d - 1 && x < d + 11);
 
     function trainBody() {
         const img = new Img(TW, THT);
@@ -203,7 +210,8 @@
                     continue;
                 }
                 let c = shell;
-                if (y <= -15) c = 0xd4dae4; // roof highlight
+                if (y <= -15)
+                    c = 0xd4dae4; // roof highlight
                 else if (y === -14) c = 0xbcc4d0;
                 if (y === -11 || y === -2) c = 0x7a828e; // window frame lines
                 if (y >= -1 && y <= 1) c = y === 0 ? col : light(col, 0.25); // livery
@@ -259,7 +267,10 @@
         trainParts(lineCol) {
             const key = 'train' + (lineCol || 0);
             if (!this._tex[key])
-                this._tex[key] = { body: PL.tex(trainBody()), front: PL.tex(trainFront(lineCol || 0x22d3ee)) };
+                this._tex[key] = {
+                    body: PL.tex(trainBody()),
+                    front: PL.tex(trainFront(lineCol || 0x22d3ee)),
+                };
             return this._tex[key];
         },
         // Same shape as EntitiesGfx.buildTrainSprite's result: { tBg, fGfx, lightL, lightR }.
@@ -280,7 +291,12 @@
                 g.endFill();
                 return g;
             };
-            return { tBg: mk(T.body), fGfx: mk(T.front), lightL: lamp(0xff4050, -178), lightR: lamp(0xfff4d8, 176) };
+            return {
+                tBg: mk(T.body),
+                fGfx: mk(T.front),
+                lightL: lamp(0xff4050, -178),
+                lightR: lamp(0xfff4d8, 176),
+            };
         },
 
         _tunnel: null,
@@ -289,7 +305,11 @@
             const L = G.undergroundLayer;
             if (!L || (this._tunnel && !this._tunnel.destroyed && this._tunnel.parent === L)) return;
             const g = L.children.find(
-                (c) => c instanceof PIXI.Graphics && c.geometry && c.geometry.graphicsData.length > 100 && c.getLocalBounds().width > 30000
+                (c) =>
+                    c instanceof PIXI.Graphics &&
+                    c.geometry &&
+                    c.geometry.graphicsData.length > 100 &&
+                    c.getLocalBounds().width > 30000
             );
             if (!g) return;
             const A = PL.ART;

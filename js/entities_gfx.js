@@ -31,7 +31,9 @@ const EntitiesGfx = {
         carCont.addChild(gfx);
 
         const beam = new PIXI.Graphics();
-        beam.beginFill(0xffffee, 0.4);
+        // Pixel skin: a softer, warmer cone (the skin dithers it; full strength reads as a wedge).
+        const _pxBeam = typeof PixelArt !== 'undefined' && PixelArt.enabled;
+        beam.beginFill(_pxBeam ? 0xffd9a0 : 0xffffee, _pxBeam ? 0.16 : 0.4);
         beam.drawPolygon([24, -8, 200, -40, 200, 30, 24, 0]);
         beam.endFill();
         beam.blendMode = PIXI.BLEND_MODES.ADD;
@@ -742,7 +744,8 @@ const EntitiesGfx = {
 
         container.addChild(gfx);
         const beam = new PIXI.Graphics();
-        beam.beginFill(0xffffee, 0.5);
+        const _pxBeam = typeof PixelArt !== 'undefined' && PixelArt.enabled;
+        beam.beginFill(_pxBeam ? 0xffd9a0 : 0xffffee, _pxBeam ? 0.18 : 0.5);
         beam.drawPolygon([35, -10, 250, -40, 250, 30, 35, 0]);
         beam.endFill();
         beam.blendMode = PIXI.BLEND_MODES.ADD;

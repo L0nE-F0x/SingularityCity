@@ -17,6 +17,7 @@ const CORE_ASSETS = [
     '/js/compute_worker.js',
     '/css/styles.css',
     '/css/terminal.css',
+    '/css/pixel-ui.css',
     '/js/shared_boot.js',
     '/js/personality.js',
     '/js/benchmarks.js',

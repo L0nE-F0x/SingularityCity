@@ -652,6 +652,9 @@ const PixelArt = {
     },
 };
 
+// The light pixel UI restyle (css/pixel-ui.css) follows the skin.
+if (PixelArt.enabled && typeof document !== 'undefined') document.documentElement.classList.add('px-ui');
+
 // Default zoom 1 with the skin, so one art pixel is exactly PL.ART screen pixels (0.8 gave
 // 2.4, drawing some pixel columns 2 wide and some 3). Camera.init frames from it.
 if (PixelArt.enabled && typeof Camera !== 'undefined')

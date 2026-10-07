@@ -1,0 +1,233 @@
+/* Pixel UI — a light restyle of the 2D city's chrome to match the pixel skin (smog-gold
+   days, neon nights). Same layout, same behaviour: square pixel frames with hard drop
+   shadows instead of rounded, blurred cards; the night-city palette; neon edges on hover,
+   focus and active states. Scoped to html.px-ui, which js/pixel/pixel_art.js sets unless
+   ?classic=1, so the classic city keeps the classic UI. */
+
+html.px-ui {
+    --bg: #0b0918;
+    --bd: #2e2850;
+    --cd: #12101f;
+    --sf: #1d1832;
+    --t2: #a8a0c4;
+    --t3: #706892;
+    --neon: #ff4fd8;
+    --neon2: #4ff0ff;
+    --px-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.55);
+    --px-frame: 0 0 0 1px #000, 3px 3px 0 1px rgba(0, 0, 0, 0.55);
+}
+html.px-ui ::-webkit-scrollbar-thumb {
+    border-radius: 0;
+    background: var(--bd);
+}
+html.px-ui ::-webkit-scrollbar-thumb:hover {
+    background: #4a4078;
+}
+
+/* ─── Top bar ─── */
+html.px-ui .logo h1 {
+    text-shadow:
+        2px 2px 0 #000,
+        0 0 10px rgba(255, 79, 216, 0.35);
+}
+html.px-ui .nfo {
+    border-radius: 0;
+    border: 2px solid var(--bd);
+    background: rgba(11, 9, 24, 0.92);
+    backdrop-filter: none;
+    box-shadow: var(--px-frame);
+}
+html.px-ui .btn {
+    border-radius: 0;
+    border: 2px solid var(--bd);
+    background: var(--cd);
+    box-shadow: var(--px-shadow);
+    transition:
+        transform 0.08s steps(2),
+        border-color 0.12s,
+        box-shadow 0.08s;
+}
+html.px-ui .btn:hover {
+    background: var(--sf);
+    border-color: var(--neon2);
+    transform: translate(-1px, -1px);
+    box-shadow:
+        4px 4px 0 0 rgba(0, 0, 0, 0.6),
+        0 0 8px rgba(79, 240, 255, 0.25);
+}
+html.px-ui .btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 0 rgba(0, 0, 0, 0.6);
+}
+html.px-ui .btn:focus-visible {
+    outline: 2px solid var(--neon);
+    outline-offset: 2px;
+}
+html.px-ui .btn.on {
+    border-color: var(--ac);
+    box-shadow:
+        var(--px-shadow),
+        inset 0 -2px 0 0 var(--ac),
+        0 0 10px rgba(74, 222, 128, 0.25);
+}
+
+/* ─── Bottom ticker ─── */
+html.px-ui .tick {
+    background: rgba(11, 9, 24, 0.96);
+    border-top: 2px solid var(--bd);
+    box-shadow: 0 -2px 0 0 rgba(255, 79, 216, 0.25);
+}
+html.px-ui .tick-lbl {
+    font-family: 'Silkscreen', 'JetBrains Mono', monospace;
+    font-weight: 400;
+}
+
+/* ─── Tooltips and toasts ─── */
+html.px-ui .game-tt {
+    border-radius: 0;
+    border: 2px solid var(--bd);
+    background: rgba(11, 9, 24, 0.97);
+    backdrop-filter: none;
+    box-shadow:
+        var(--px-frame),
+        0 0 12px rgba(79, 240, 255, 0.12);
+}
+html.px-ui .tt-name {
+    font-family: 'Silkscreen', 'JetBrains Mono', monospace;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+}
+html.px-ui .toast {
+    border-radius: 0;
+    border: 2px solid var(--bd);
+    border-left: 4px solid var(--ac);
+    background: rgba(11, 9, 24, 0.95);
+    box-shadow: var(--px-frame);
+    animation:
+        pxSlideIn 0.24s steps(6),
+        fadeOut 0.5s steps(4) 5.5s forwards;
+}
+@keyframes pxSlideIn {
+    from {
+        transform: translateX(60%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ─── Info panel ─── */
+html.px-ui .ipanel {
+    border-radius: 0;
+    border: 2px solid var(--bd);
+    border-right: none;
+    background: rgba(11, 9, 24, 0.97);
+    box-shadow:
+        -3px 3px 0 0 rgba(0, 0, 0, 0.55),
+        -2px 0 0 0 rgba(255, 79, 216, 0.2);
+}
+html.px-ui .ipanel-top {
+    border-radius: 0;
+}
+html.px-ui .ipanel-av {
+    border-radius: 0;
+    box-shadow: var(--px-frame);
+    image-rendering: pixelated;
+}
+html.px-ui .ipanel-name {
+    font-family: 'Silkscreen', 'JetBrains Mono', monospace;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+}
+html.px-ui .ipanel-badge {
+    border-radius: 0;
+}
+html.px-ui .ipanel-x {
+    border-radius: 0;
+}
+html.px-ui .ipanel-x:hover {
+    color: var(--neon);
+    background: rgba(255, 79, 216, 0.12);
+}
+html.px-ui .ipanel-tab.active {
+    border-bottom-width: 3px;
+}
+
+/* ─── Overlays, scan log, minimap ─── */
+html.px-ui .ov {
+    backdrop-filter: none;
+    background: rgba(6, 4, 14, 0.82);
+}
+html.px-ui .ov-pan {
+    border-radius: 0;
+    border: 2px solid var(--bd);
+    box-shadow:
+        0 0 0 2px #000,
+        6px 6px 0 2px rgba(0, 0, 0, 0.5),
+        0 0 24px rgba(255, 79, 216, 0.12);
+}
+html.px-ui .ov-title {
+    border-bottom: 2px solid var(--bd);
+    text-shadow: 2px 2px 0 #000;
+}
+html.px-ui .slog,
+html.px-ui .slog-t,
+html.px-ui .slog-e {
+    border-radius: 0;
+}
+html.px-ui .slog {
+    border: 2px solid var(--bd);
+    backdrop-filter: none;
+    box-shadow: var(--px-frame);
+}
+html.px-ui #minimap {
+    border-radius: 0;
+    border: 2px solid var(--bd);
+    backdrop-filter: none;
+    box-shadow: var(--px-frame);
+}
+html.px-ui #mmCanvas {
+    image-rendering: pixelated;
+}
+
+/* ─── Pills, briefing cards, map header ─── */
+html.px-ui .mp-counter {
+    border-radius: 0;
+    box-shadow: var(--px-shadow);
+}
+html.px-ui #sc-briefing-prompt,
+html.px-ui #sc-briefing-nodata,
+html.px-ui #sc-briefing-share {
+    border-radius: 0 !important;
+    box-shadow: var(--px-frame) !important;
+}
+html.px-ui #sc-briefing-prompt button,
+html.px-ui #sc-briefing-share button {
+    border-radius: 0 !important;
+}
+html.px-ui .mm-toggle {
+    border-radius: 0;
+}
+
+/* ─── Reactions, exit button ─── */
+html.px-ui .mp-react-btn {
+    border-radius: 0 !important;
+    box-shadow: var(--px-shadow);
+}
+html.px-ui #btnExitInterior {
+    border-radius: 0 !important;
+    border-bottom: 4px solid #9f1239 !important;
+    box-shadow:
+        0 0 0 2px #000,
+        3px 3px 0 2px rgba(0, 0, 0, 0.5) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    html.px-ui .btn {
+        transition: none;
+    }
+    html.px-ui .toast {
+        animation: fadeOut 0.5s steps(4) 5.5s forwards;
+    }
+}

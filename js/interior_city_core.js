@@ -1360,7 +1360,12 @@ const InteriorCity = {
             const lampFloors = [];
             for (let f = 0; f < numFloors; f++)
                 lampFloors.push({ y: roofH + (numFloors - 1 - f) * floorH, h: floorH });
-            PL.InteriorLight.addLamps(this.scene, this.startX + 40, this.startX + this.usableW - 20, lampFloors);
+            PL.InteriorLight.addLamps(
+                this.scene,
+                this.startX + 40,
+                this.startX + this.usableW - 20,
+                lampFloors
+            );
         }
 
         const bottomPadding = 56;
