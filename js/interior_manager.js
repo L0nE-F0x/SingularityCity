@@ -89,6 +89,7 @@ const Interior = {
 
     cleanup() {
         if (typeof PL !== 'undefined' && PL.InteriorZoom) PL.InteriorZoom.end();
+        if (typeof PL !== 'undefined' && PL.InteriorLight) PL.InteriorLight.end();
         // Remove stale window event listeners when exiting any interior
         if (this.activeModule) {
             // Modules use either onMove/_onMove and onUp/_onUp patterns

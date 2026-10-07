@@ -1355,6 +1355,14 @@ const InteriorCity = {
             if (av && av.cont) av.cont.zIndex = 100;
         });
 
+        // Pixel skin: ceiling lamps over every above-ground floor (js/pixel/interior_light.js).
+        if (!isForest && typeof PL !== 'undefined' && PL.InteriorLight) {
+            const lampFloors = [];
+            for (let f = 0; f < numFloors; f++)
+                lampFloors.push({ y: roofH + (numFloors - 1 - f) * floorH, h: floorH });
+            PL.InteriorLight.addLamps(this.scene, this.startX + 40, this.startX + this.usableW - 20, lampFloors);
+        }
+
         const bottomPadding = 56;
 
         if (isForest) {

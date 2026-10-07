@@ -607,6 +607,7 @@ const PixelArt = {
             if (m.starsLayer && !m.starsLayer.destroyed) m.starsLayer.visible = false;
         }
         this._K = PL.tod(G.getDayPhase(), this._wx());
+        if (PL.InteriorLight) PL.InteriorLight.update(this._K, performance.now() / 1000);
         PL.Sky.update(this._K, performance.now() / 1000, { zoom: 1, horizonY: G.vpH, visible: sky });
         if (PL.Backdrop && PL.Backdrop.sprite) PL.Backdrop.sprite.visible = false;
     },
