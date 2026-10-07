@@ -954,7 +954,8 @@ const InteriorBlackMarket = {
         legR.drawRect(-lw / 2, 0, lw, lh);
         legR.endFill();
         legR.x = bw * 0.15;
-        if (typeof PL !== 'undefined' && PL.Robot) PL.Robot.restyle(m, { head, body, legL, legR }, stg, finalSc, sd, colHex);
+        if (typeof PL !== 'undefined' && PL.Robot)
+            PL.Robot.restyle(m, { head, body, legL, legR }, stg, finalSc, sd, colHex);
 
         const dot = new PIXI.Graphics();
         const dotCol = isR ? 0x88aaff : isRm ? 0x8b5cf6 : stg === 'baby' ? 0xff69b4 : 0x4ade80;

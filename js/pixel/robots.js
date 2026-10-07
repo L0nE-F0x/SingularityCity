@@ -182,9 +182,12 @@
         for (let j = 0; j < tb; j++)
             for (let i = 0; i < W; i++) {
                 let c = M.mid;
-                if (i === 0) c = M.lo; // back arm
-                else if (i === R) c = M.hi; // front arm, lit
-                else if (j === 0) c = P.shell; // shoulders
+                if (i === 0)
+                    c = M.lo; // back arm
+                else if (i === R)
+                    c = M.hi; // front arm, lit
+                else if (j === 0)
+                    c = P.shell; // shoulders
                 else if (i === 1) c = M.hi;
                 else if (i === R - 1) c = M.lo;
                 g.set(ox + i, ty + j, c);
@@ -260,7 +263,10 @@
             const HA = Math.max(stg === 'baby' ? 5 : 4, Math.round(headH / A));
             const LH = Math.max(2, Math.round((4 * finalSc) / A) + 1);
             // Torso rows: neck + plate + hands end at the hip line (y 0), where the legs hang.
-            const BA = Math.max(stg === 'baby' ? 1 : 3, Math.round((h - headH) / A) - (stg === 'baby' ? 3 : 1));
+            const BA = Math.max(
+                stg === 'baby' ? 1 : 3,
+                Math.round((h - headH) / A) - (stg === 'baby' ? 3 : 1)
+            );
             const U = upper(W, HA, BA, kind, P, stg);
             // body.y = -h + headH: the head sits above that line, the torso below it.
             refs.head.clear();

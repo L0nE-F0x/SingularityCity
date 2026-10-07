@@ -1016,7 +1016,8 @@ const EntitiesGfx = {
         const _robot =
             typeof PixelArt !== 'undefined' && PixelArt.enabled && typeof PL !== 'undefined' && PL.Robot;
         if (_robot) {
-            if (refs._metroState !== 'riding') PL.Robot.drawCitizen(m, refs, stg, isR, isRm, finalSc, sd, colHex);
+            if (refs._metroState !== 'riding')
+                PL.Robot.drawCitizen(m, refs, stg, isR, isRm, finalSc, sd, colHex);
             refs.head.y = -h;
         } else {
             refs.head.clear();

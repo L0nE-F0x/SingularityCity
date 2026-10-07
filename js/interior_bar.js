@@ -952,7 +952,8 @@ const InteriorBar = {
         legR.drawRect(-lw / 2, 0, lw, lh);
         legR.endFill();
         legR.x = bw * 0.15;
-        if (typeof PL !== 'undefined' && PL.Robot) PL.Robot.restyle(m, { head, body, legL, legR }, stg, finalSc, sd, colHex);
+        if (typeof PL !== 'undefined' && PL.Robot)
+            PL.Robot.restyle(m, { head, body, legL, legR }, stg, finalSc, sd, colHex);
 
         // Status dot
         const dot = new PIXI.Graphics();

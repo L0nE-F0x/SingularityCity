@@ -38,8 +38,10 @@
             const shape = R();
             for (let i = 0; i < bw; i++) {
                 let tt = top;
-                if (shape > 0.9) tt = top + Math.round(Math.abs(i - bw / 2) * 1.2); // spire / pyramid
-                else if (shape > 0.78 && (i < bw * 0.2 || i > bw * 0.8)) tt = top + Math.round(bh * 0.18); // setback
+                if (shape > 0.9)
+                    tt = top + Math.round(Math.abs(i - bw / 2) * 1.2); // spire / pyramid
+                else if (shape > 0.78 && (i < bw * 0.2 || i > bw * 0.8))
+                    tt = top + Math.round(bh * 0.18); // setback
                 else if (shape > 0.7 && i > bw * 0.35 && i < bw * 0.65) tt = top - Math.round(bh * 0.08); // crown
                 for (let y = Math.max(0, tt); y < H; y++) {
                     let c = i === 0 ? 0xffffff : i >= bw - 2 ? 0xc0c0c0 : 0xdcdcdc;
@@ -67,7 +69,8 @@
                 wset(emit, ax, top - ah - 1, 0xff4050);
             } else if (r > 0.35 && bw > 6) {
                 const tx = x + 1 + Math.floor(R() * (bw - 5));
-                for (let j = 1; j <= 3; j++) for (let i = 0; i < 3; i++) wset(base, tx + i, top - j, 0xd4d4d4);
+                for (let j = 1; j <= 3; j++)
+                    for (let i = 0; i < 3; i++) wset(base, tx + i, top - j, 0xd4d4d4);
             }
             // Neon: vertical blades and holo billboards.
             if (o.neon && R() < o.neon && bh > 14) {
@@ -87,7 +90,12 @@
                     for (let j = 0; j < hh; j++)
                         for (let i = 0; i < hw; i++)
                             if (hy + j < H)
-                                wset(emit, hx + i, hy + j, (i + j * 2) % 5 < 2 ? c2 : mix(col, 0x000000, 0.25));
+                                wset(
+                                    emit,
+                                    hx + i,
+                                    hy + j,
+                                    (i + j * 2) % 5 < 2 ? c2 : mix(col, 0x000000, 0.25)
+                                );
                 }
             }
             x += bw + (R() < o.gap ? 1 + Math.floor(R() * 4) : 0);
@@ -116,7 +124,8 @@
         const R = PL.rng(seed);
         // Low continuous skyline first.
         for (let x = 0; x < TW; x++) {
-            const hh = 10 + Math.round((Math.sin(x * 0.031 + seed) * 0.5 + 0.5) * 8 + hash(seed, x >> 3, 1) * 10);
+            const hh =
+                10 + Math.round((Math.sin(x * 0.031 + seed) * 0.5 + 0.5) * 8 + hash(seed, x >> 3, 1) * 10);
             for (let y = H - hh; y < H; y++) base.set(x, y, 0xd8d8d8);
         }
         const megas = [
@@ -160,7 +169,8 @@
             wset(emit, Math.round(cx), H - m.h - 1, 0xff4050);
             if (m.kind === 'needle')
                 for (let j = 20; j < m.h - 10; j += 24)
-                    for (let i = -2; i <= 2; i++) wset(emit, Math.round(cx) + i, H - m.h + j, NEON[(j / 24) % 6 | 0]);
+                    for (let i = -2; i <= 2; i++)
+                        wset(emit, Math.round(cx) + i, H - m.h + j, NEON[((j / 24) % 6) | 0]);
             if (m.kind === 'tether') {
                 // The cable rises out of frame; light pulses are added at runtime.
                 for (let y = 0; y < H - m.h; y++) {
@@ -184,9 +194,14 @@
             if (kind === 'desert') {
                 const m = Math.sin(X * f(3) + seed) + Math.sin(X * f(7) + seed * 2) * 0.6;
                 const plateau = PL.smooth(0.45, 0.8, m);
-                hh = H * (0.08 + Math.max(0, m + 0.6) * 0.12) + plateau * H * 0.32 + (hash(seed, X >> 3, 5) - 0.5) * 2;
+                hh =
+                    H * (0.08 + Math.max(0, m + 0.6) * 0.12) +
+                    plateau * H * 0.32 +
+                    (hash(seed, X >> 3, 5) - 0.5) * 2;
             } else if (kind === 'sea') {
-                hh = H * (0.04 + Math.max(0, Math.sin(X * f(4) + 1) * 0.6 + Math.sin(X * f(13)) * 0.25) * 0.16);
+                hh =
+                    H *
+                    (0.04 + Math.max(0, Math.sin(X * f(4) + 1) * 0.6 + Math.sin(X * f(13)) * 0.25) * 0.16);
             } else {
                 hh = H * (0.2 + (Math.sin(X * f(3) + seed) * 0.5 + 0.5) * 0.24 + Math.sin(X * f(11)) * 0.03);
             }
@@ -227,7 +242,8 @@
                 emit.set(X + 1, H - h - 1, 0xff4050);
                 for (let j = 0; j < 30; j++) {
                     const half = Math.round(9 + Math.pow(Math.abs(j / 30 - 0.62) * 1.6, 2) * 9);
-                    for (let i = -half; i <= half; i++) base.set(X + 60 + i, H - j, i < 0 ? 0xe0e0e0 : 0xc8c8c8);
+                    for (let i = -half; i <= half; i++)
+                        base.set(X + 60 + i, H - j, i < 0 ? 0xe0e0e0 : 0xc8c8c8);
                 }
             }
         if (kind === 'desert')
@@ -350,14 +366,36 @@
                 this.beams.push(s);
             }
             L.mid = this._layer(
-                genCity(130, { seed: 21, minW: 7, maxW: 22, minH: 18, maxH: 120, gap: 0.25, win: 0.42, neon: 0.28, spires: true, cables: 0 }),
+                genCity(130, {
+                    seed: 21,
+                    minW: 7,
+                    maxW: 22,
+                    minH: 14,
+                    maxH: 92,
+                    gap: 0.3,
+                    win: 0.34,
+                    neon: 0.22,
+                    spires: true,
+                    cables: 0,
+                }),
                 0.14,
                 1,
                 'city'
             );
             L.hazeMid = this._hazeBand(50, 1.7);
             L.near = this._layer(
-                genCity(150, { seed: 33, minW: 10, maxW: 30, minH: 22, maxH: 140, gap: 0.35, win: 0.5, neon: 0.42, spires: false, cables: 0.45 }),
+                genCity(150, {
+                    seed: 33,
+                    minW: 10,
+                    maxW: 30,
+                    minH: 16,
+                    maxH: 100,
+                    gap: 0.4,
+                    win: 0.4,
+                    neon: 0.3,
+                    spires: false,
+                    cables: 0.35,
+                }),
                 0.28,
                 2,
                 'city'
@@ -371,7 +409,7 @@
                 return PL.tex(img);
             });
             const lightTex = PL.tex(new Img(1, 1).rect(0, 0, 1, 1, 0xffffff));
-            for (let i = 0; i < 26; i++) {
+            for (let i = 0; i < 16; i++) {
                 const depth = i % 3;
                 const c = new PIXI.Container();
                 c.body = new PIXI.Sprite(craftTex[depth]);
@@ -451,8 +489,8 @@
             // Each layer's colour: its own silhouette tone pushed into the haze.
             const tFar = mix(K.far2, K.haze, 0.55 + K.smog * 0.2);
             const day = 1 - PL.clamp(K.night * 1.4, 0, 1);
-            const tMid = mix(K.far2, K.haze, 0.3 + K.smog * 0.15 + day * 0.18);
-            const tNear = mix(K.far1, K.haze, 0.12 + K.smog * 0.1 + day * 0.14);
+            const tMid = mix(K.far2, K.haze, 0.38 + K.smog * 0.15 + day * 0.24);
+            const tNear = mix(K.far1, K.haze, 0.2 + K.smog * 0.1 + day * 0.22);
             const city = Z.city;
 
             L.streaks.width = w;
@@ -473,9 +511,9 @@
                 s.alpha = a;
             };
             hz(L.hazeFar, 70, 0.35 + K.smog * 0.35);
-            place(L.mid, 10, tMid, Math.max(emitA * 0.85, neonA * 0.35), city);
+            place(L.mid, 10, tMid, Math.max(emitA * 0.65, neonA * 0.3), city);
             hz(L.hazeMid, 50, (0.25 + K.smog * 0.3) * Math.max(city, 0.3));
-            place(L.near, 12, tNear, Math.max(emitA, neonA * 0.45), city);
+            place(L.near, 12, tNear, Math.max(emitA * 0.8, neonA * 0.4), city * 0.92);
             hz(L.hazeNear, 40, (0.18 + K.smog * 0.25) * Math.max(city, 0.3));
 
             // Searchlights after dark, swinging slowly.
@@ -492,7 +530,7 @@
             this.craft.forEach((c) => {
                 const span = w + 40;
                 let x = c.x0 + c.dir * t * c.speed - camX * c.p;
-                x = ((x % span) + span) % span - 20;
+                x = (((x % span) + span) % span) - 20;
                 c.x = Math.round(x);
                 c.y = Math.round(horizon - c.lane - 40);
                 c.body.tint = mix(K.far2, 0x000000, 0.3);

@@ -1602,7 +1602,8 @@ const InteriorMetroStation = {
         }
         head.y = -h;
         cont.addChild(head);
-        if (m && typeof PL !== 'undefined' && PL.Robot) PL.Robot.restyle(m, { head, body, legL, legR }, stg, finalSc, sd, suitHex);
+        if (m && typeof PL !== 'undefined' && PL.Robot)
+            PL.Robot.restyle(m, { head, body, legL, legR }, stg, finalSc, sd, suitHex);
 
         // ─── Status dot ───
         const dot = new PIXI.Graphics();

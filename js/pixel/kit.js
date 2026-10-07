@@ -195,7 +195,7 @@
             const srcY = H - 1 - Math.floor(y * 1.5);
             if (srcY < 0) break;
             const dx = Math.round(Math.sin(y * 1.3 + B.seed) * (y < 4 ? 0 : 1.2));
-            const fade = 0.7 * Math.pow(1 - y / RH, 1.3);
+            const fade = 0.85 * Math.pow(1 - y / RH, 1.15);
             for (let x = 0; x < W; x++) {
                 const sx = x + dx;
                 if (sx < 0 || sx >= W) continue;

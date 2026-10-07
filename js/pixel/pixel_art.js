@@ -343,8 +343,12 @@ const PixelArt = {
             [3, 4, 6, 8, 10, 12, 16, 20, 26, 34, 42, 52].forEach((k) => {
                 this._halos[k] = PL.tex(PL.halo(k, 0xffffff, 0.5, 2, 5));
             });
-            this._halos.pool = PL.tex(PL.haloE(Math.round(16 * PL.S3), Math.round(3 * PL.S3), 0xffffff, 0.55, 1.4, 4));
-            this._halos.poolS = PL.tex(PL.haloE(Math.round(9 * PL.S3), Math.round(2 * PL.S3), 0xffffff, 0.5, 1.4, 4));
+            this._halos.pool = PL.tex(
+                PL.haloE(Math.round(16 * PL.S3), Math.round(3 * PL.S3), 0xffffff, 0.55, 1.4, 4)
+            );
+            this._halos.poolS = PL.tex(
+                PL.haloE(Math.round(9 * PL.S3), Math.round(2 * PL.S3), 0xffffff, 0.5, 1.4, 4)
+            );
         }
         if (typeof r === 'string') return this._halos[r];
         let best = 3;
@@ -561,7 +565,7 @@ const PixelArt = {
             if (show) {
                 e.refl.x = c.x + e.refl.dx;
                 e.refl.y = c.y + e.refl.dy;
-                e.refl.alpha = this._wet * Math.max(emitA * 0.9, neonA * 0.5);
+                e.refl.alpha = this._wet * Math.max(emitA, neonA * 0.6);
             }
         }
         if (e.bloomN) e.bloomN.alpha = neonA * 0.85;
@@ -599,9 +603,11 @@ const PixelArt = {
         // How wet the street looks: always a sheen after dark (the neon city), soaked in rain.
         const wx = this._wx();
         const rain = /rain|drizzle|storm/.test(wx)
-            ? (typeof Environment !== 'undefined' ? Environment.weatherIntensity || 0.6 : 0.6)
+            ? typeof Environment !== 'undefined'
+                ? Environment.weatherIntensity || 0.6
+                : 0.6
             : 0;
-        this._wet = PL.clamp(Math.max(this._K.night * 0.55, rain * 1.1), 0, 1);
+        this._wet = PL.clamp(Math.max(this._K.night * 0.8, rain * 1.1), 0, 1);
         // Entities a little brighter than the facades, so the crowd reads at night.
         if (this.Skin) this.Skin.setAmbient(PL.mix(this._K.amb, 0xffffff, 0.18));
         if (PL.Sky) PL.Sky.update(this._K, performance.now() / 1000);

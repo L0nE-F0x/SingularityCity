@@ -12,8 +12,32 @@
     const { hash, mix, dark, light, shade } = PL;
 
     const NEON = [0xff4fd8, 0x4ff0ff, 0xffb84a, 0x7aff8a, 0xb07aff, 0xff5a6a, 0xfff07a];
-    const WORDS = ['AI', 'GPU', 'LLM', 'API', '24H', 'BAR', 'RAMEN', 'TOKEN', 'DATA', 'HOTEL', 'CLINIC', 'PARTS',
-        'NOODLE', 'VR', 'BYTE', 'ROBO', 'MECH', 'SUSHI', 'KARAOKE', 'REPAIR', 'CHIPS', 'OPEN', 'TEA', 'PHO'];
+    const WORDS = [
+        'AI',
+        'GPU',
+        'LLM',
+        'API',
+        '24H',
+        'BAR',
+        'RAMEN',
+        'TOKEN',
+        'DATA',
+        'HOTEL',
+        'CLINIC',
+        'PARTS',
+        'NOODLE',
+        'VR',
+        'BYTE',
+        'ROBO',
+        'MECH',
+        'SUSHI',
+        'KARAOKE',
+        'REPAIR',
+        'CHIPS',
+        'OPEN',
+        'TEA',
+        'PHO',
+    ];
 
     // How much dressing each kind of building takes.
     const KIND = {
@@ -41,7 +65,8 @@
         const r = B.signRects;
         if (!r) return false;
         for (let i = 0; i < r.length; i++)
-            if (x >= r[i].x - 1 && x < r[i].x + r[i].w + 1 && y >= r[i].y - 1 && y < r[i].y + r[i].h + 3) return true;
+            if (x >= r[i].x - 1 && x < r[i].x + r[i].w + 1 && y >= r[i].y - 1 && y < r[i].y + r[i].h + 3)
+                return true;
         return false;
     }
     // Is the box (x..x+w-1, y-h..y-1) above the roof free to paint?
@@ -171,9 +196,28 @@
                 }
                 const pick = hash(seed, x, ri * 7 + 3);
                 const kind =
-                    pick < 0.3 ? 'ac' : pick < 0.45 ? 'vent' : pick < 0.58 ? 'tank' : pick < 0.68 ? 'dish'
-                        : pick < 0.8 ? 'mast' : pick < 0.9 ? 'hut' : 'holo';
-                const need = { ac: [6, 5], vent: [2, 8], tank: [7, 15], dish: [7, 8], mast: [2, 22], hut: [8, 9], holo: [10, 12] }[kind];
+                    pick < 0.3
+                        ? 'ac'
+                        : pick < 0.45
+                          ? 'vent'
+                          : pick < 0.58
+                            ? 'tank'
+                            : pick < 0.68
+                              ? 'dish'
+                              : pick < 0.8
+                                ? 'mast'
+                                : pick < 0.9
+                                  ? 'hut'
+                                  : 'holo';
+                const need = {
+                    ac: [6, 5],
+                    vent: [2, 8],
+                    tank: [7, 15],
+                    dish: [7, 8],
+                    mast: [2, 22],
+                    hut: [8, 9],
+                    holo: [10, 12],
+                }[kind];
                 if (x + need[0] > r.x + r.w - 2 || !free(B, x, r.y, need[0], need[1])) {
                     x += 3;
                     continue;
@@ -246,7 +290,8 @@
                     const p = B.get(x, y + k);
                     if (p < 0) break;
                     const f = 1 - (1 - k / (len + 1)) * 0.16;
-                    if (PL.bayer(x, y + k) < (1 - k / (len + 1)) * 0.9) B.px(x, y + k, PL.mix(shade(p, f), 0x2a2030, 0.06));
+                    if (PL.bayer(x, y + k) < (1 - k / (len + 1)) * 0.9)
+                        B.px(x, y + k, PL.mix(shade(p, f), 0x2a2030, 0.06));
                 }
                 y += len;
             }

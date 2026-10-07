@@ -115,7 +115,10 @@
                         img.set(x, y, hh > 1 - dens * 0.08 ? 0xfff6e0 : c);
                         if (hh > 1 - dens * 0.03 && tw > 0.55) {
                             const g = mix(ramp[2], 0xc8c8e8, 0.4);
-                            (img.set(x - 1, y, g), img.set(x + 1, y, g), img.set(x, y - 1, g), img.set(x, y + 1, g));
+                            (img.set(x - 1, y, g),
+                                img.set(x + 1, y, g),
+                                img.set(x, y - 1, g),
+                                img.set(x, y + 1, g));
                         }
                     }
                 }
@@ -143,7 +146,9 @@
                     for (let x = -R; x <= R; x++) {
                         const d = Math.hypot(x, y);
                         if (d <= mr || d > R) continue;
-                        const q = Math.floor(Math.pow(1 - (d - mr) / (R - mr), 2) * 3 + PL.bayer(mx + x, my + y)) / 3;
+                        const q =
+                            Math.floor(Math.pow(1 - (d - mr) / (R - mr), 2) * 3 + PL.bayer(mx + x, my + y)) /
+                            3;
                         if (q > 0) img.blend(mx + x, my + y, 0xb8b0e0, K.moonA * q * 0.16);
                     }
                 this._moon(img, mx, my, mr, p, K.moonA);

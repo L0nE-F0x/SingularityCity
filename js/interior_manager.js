@@ -78,7 +78,12 @@ const Interior = {
             this.isDragging = this.activeModule.isDragging;
         }
         // Pixel skin: open zoomed in, scrolling through the floors (js/pixel/interior_zoom.js).
-        if (typeof PixelArt !== 'undefined' && PixelArt.enabled && typeof PL !== 'undefined' && PL.InteriorZoom)
+        if (
+            typeof PixelArt !== 'undefined' &&
+            PixelArt.enabled &&
+            typeof PL !== 'undefined' &&
+            PL.InteriorZoom
+        )
             PL.InteriorZoom.begin(this.activeModule, layer);
     },
 
