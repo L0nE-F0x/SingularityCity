@@ -414,7 +414,7 @@
         };
         for (let wx = 8; wx < b.w - 14; wx += 20) {
             const x = q(wx);
-            for (let wy = 16; wy < h * 3 - 20; wy += 15) {
+            for (let wy = 16; wy < h * PL.ART - 20; wy += 15) {
                 const lit = lr() > 0.35;
                 const y = q(wy);
                 for (let j = 0; j < 4; j++)
@@ -423,7 +423,7 @@
                         if (lit) B.epx(x + i, y + j, j === 0 ? mix(0xeafff4, ac, 0.3) : 0xe0fff0, 225);
                     }
             }
-            B.rect(x - 1, q(16), 1, q(h * 3 - 36), 0x05080c);
+            B.rect(x - 1, q(16), 1, q(h * PL.ART - 36), 0x05080c);
         }
         // Clean-room lobby with an airlock door.
         K.lobby(B, 2, h - 7, w - 4, 6, { accent: ac, frame: 0x0a1620, interior: 0xeafff4, planters: false });
@@ -458,7 +458,7 @@
         pine(w + 2 - Math.round(sr() * 2), 0.75 + sr() * 0.15);
         pine(w + 12 - Math.round(sr() * 2), 0.8 + sr() * 0.2);
         // Cabin body: stacked logs, two wood tones, notched corners.
-        const bodyTop = q(Math.max(h * 3 * 0.3, 18));
+        const bodyTop = q(Math.max(h * PL.ART * 0.3, 18));
         const x0 = 3;
         const x1 = w - 3;
         for (let y = bodyTop; y < h - 2; y++) {

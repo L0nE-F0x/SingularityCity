@@ -19,7 +19,7 @@
     D['type:launchpad'] = function (B, b, w, h) {
         B.named = true;
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         // Concrete pad.
         B.rect(q(20), h - 3, w - q(40), 3, 0x94a3b8);
         B.rect(q(20), h - 3, w - q(40), 1, 0xb8c2ce);
@@ -113,7 +113,7 @@
         K.wall(B, 0, q(14), w, h - q(14), 0x2a3a50, 'panel', { pitch: 5 });
         // Flanking static dishes with faint signal arcs.
         [-30, 30].forEach((off) => {
-            const dx = Math.round(w / 2 + off / 3);
+            const dx = Math.round(w / 2 + off / PL.ART);
             for (let j = 0; j < 5; j++)
                 for (let i = -j; i <= j; i++) B.px(dx + i, j, j === 4 ? 0xcbd5e1 : 0xf1f5f9);
             B.rect(dx, 1, 1, 5, 0x94a3b8);

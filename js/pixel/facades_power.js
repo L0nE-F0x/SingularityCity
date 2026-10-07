@@ -46,7 +46,7 @@
     // ── Solar + Storage: sun-tracking panel rows, Megapacks, inverter shed ──
     D.power_solar = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         pad(B, w, h, 0x3a3a2c, q(10));
         for (let x = 1; x < w; x += q(16)) B.rect(x, h - 5, 1, 2, 0x6b7280);
         B.rect(0, h - 5, w, 1, 0x5a6270);
@@ -119,7 +119,7 @@
     // ── Crane Clean Energy Center: twin cooling towers, dome, turbine hall ──
     D.power_nuclear = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         pad(B, w, h, 0x6b7280, q(8));
         [26, 78].forEach((cx) => {
             const X = (v) => q(cx + v);
@@ -166,7 +166,7 @@
     // ── Gas turbine array: four gensets with exhaust stacks, a substation ──
     D.power_coal = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         pad(B, w, h, 0x4b5563, q(8));
         for (let gi = 0; gi < 4; gi++) {
             const gx = 6 + gi * 30;
@@ -189,7 +189,7 @@
     // ── Columbia Hydro: stepped gravity dam with three spillways ────────────
     D.power_hydro = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         B.rect(0, q(H - 78), w, 2, 0x155e75);
         poly(
             B,
@@ -205,7 +205,7 @@
             ],
             (x, y) => {
                 let c = x > q(W * 0.64) ? 0x7d8896 : 0x9aa5b1;
-                if ((x * 3 - 40) % 24 < 3 && x > q(40) && x < q(W - 40)) c = 0x6e7987;
+                if ((x * PL.ART - 40) % 24 < 3 && x > q(40) && x < q(W - 40)) c = 0x6e7987;
                 if ((y - q(H - 74)) % 5 === 4) c = dark(c, 0.08);
                 return c;
             }
@@ -234,15 +234,15 @@
         B.rect(px, q(H - 28), q(44), 1, 0x334155);
         [-16, -4, 8].forEach(
             (d) => (
-                B.rect(Math.round(w / 2 + d / 3), q(H - 21), 3, 2, 0x5a4a20),
-                B.erect(Math.round(w / 2 + d / 3), q(H - 21), 3, 2, 0xffd27a)
+                B.rect(Math.round(w / 2 + d / PL.ART), q(H - 21), 3, 2, 0x5a4a20),
+                B.erect(Math.round(w / 2 + d / PL.ART), q(H - 21), 3, 2, 0xffd27a)
             )
         );
     };
 
     // ── Hermes 2 SMR: reactor hall, one domed module, one in scaffolding ───
     D.power_smr = function (B, b, w, h) {
-        const H = h * 3;
+        const H = h * PL.ART;
         pad(B, w, h, 0x8b7355, q(8));
         B.rect(1, h - 4, w - 2, 1, 0x6b7280);
         B.rect(q(10), q(H - 48), q(66), q(40), 0x334155);
@@ -283,7 +283,7 @@
     // ── Polaris Fusion: dark machine hall, capacitor banks, plasma porthole ─
     D.power_fusion = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         pad(B, w, h, 0x1f2430, q(8));
         K.wall(B, q(8), q(H - 54), w - 2 * q(8), q(46), 0x2a3040, 'panel', { pitch: 8 });
         B.rect(q(8), q(H - 54), w - 2 * q(8), 1, 0x3a4458);

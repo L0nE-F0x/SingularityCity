@@ -68,7 +68,7 @@
         // Arched upper windows, warm-lit, some with flower boxes.
         for (let f = 0; f < floors - 1; f++) {
             const wy = 16 + f * 18;
-            if (wy + 14 > h * 3 - 32) break;
+            if (wy + 14 > h * PL.ART - 32) break;
             const cols = Math.max(2, Math.floor((b.w - 16) / 26));
             const gap = (b.w - cols * 16) / (cols + 1);
             for (let c = 0; c < cols; c++) {
@@ -242,8 +242,8 @@
         // Window grid on the right wing.
         for (let f = 0; f < floors - 1; f++) {
             const wy = 16 + f * 18;
-            if (wy + 12 > b.w * 0 + h * 3 - 24) break;
-            for (let wx = 8 + atW * 3 + 10; wx + 15 < b.w - 24 - 4; wx += 22) {
+            if (wy + 12 > b.w * 0 + h * PL.ART - 24) break;
+            for (let wx = 8 + atW * PL.ART + 10; wx + 15 < b.w - 24 - 4; wx += 22) {
                 const x = q(wx);
                 const y = q(wy);
                 B.rect(x - 1, y - 1, 7, 5, dark(body, 0.4));
@@ -271,7 +271,7 @@
         B.rect(jbX - 2, 0, jbW + 4, 1, AC);
         // Jumbotron: two fighter bots + a gold VS, ELO ticker pixels along the bottom.
         const scrY = q(16);
-        const scrH = Math.max(6, q(Math.min(34, h * 3 - 60)));
+        const scrH = Math.max(6, q(Math.min(34, h * PL.ART - 60)));
         B.rect(jbX - 1, scrY - 1, jbW + 2, scrH + 2, 0x334155);
         for (let j = 0; j < scrH; j++)
             for (let i = 0; i < jbW; i++) {
@@ -342,7 +342,7 @@
         // Concourse windows below the screen.
         for (let f = 2; f < floors - 1; f++) {
             const wy = 16 + f * 18;
-            if (q(wy) < scrY + scrH + 1 || wy + 11 > h * 3 - 24) continue;
+            if (q(wy) < scrY + scrH + 1 || wy + 11 > h * PL.ART - 24) continue;
             for (let wx = 10; wx < b.w - 24; wx += 24) {
                 const x = q(wx);
                 B.rect(x - 1, q(wy) - 1, 7, 5, dark(body, 0.4));
@@ -394,7 +394,7 @@
         const twX = 3;
         const twW = q(Math.max(64, b.w * 0.34));
         const twY = 5;
-        const twH = Math.max(6, q(Math.min(42, h * 3 - 44)));
+        const twH = Math.max(6, q(Math.min(42, h * PL.ART - 44)));
         B.rect(twX - 1, twY - 1, twW + 2, twH + 2, dark(CODE, 0.5));
         B.rect(twX, twY, twW, twH, 0x04070d);
         [
@@ -430,7 +430,7 @@
         // Hackathon windows — nearly all lit, warm / cool / purple.
         for (let f = 0; f < floors - 1; f++) {
             const wy = 16 + f * 18;
-            if (wy + 11 > h * 3 - 24) break;
+            if (wy + 11 > h * PL.ART - 24) break;
             const startX = q(wy) < twY + twH + 1 ? twX + twW + 3 : 3;
             for (let x = startX; x < w - 8; x += 8) {
                 const wx = x * 3;
@@ -522,7 +522,7 @@
         // Sash windows on the newsroom floors.
         for (let f = 0; f < floors - 1; f++) {
             const wy = 18 + f * 18;
-            if (wy + 12 > h * 3 - 26) break;
+            if (wy + 12 > h * PL.ART - 26) break;
             for (let wx = 10; wx < b.w - 20; wx += 24) {
                 if (f === 0 && wx + 14 > ccx * 3 - 10 && wx < ccx * 3 + 10) continue;
                 const x = q(wx);

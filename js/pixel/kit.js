@@ -376,7 +376,7 @@
     // o: floorH, top, winW, winH, pitch, frame, sill, lintel, tone, lit, skip(f,c)
     K.windows = function (B, x, y, w, h, o) {
         o = o || {};
-        const fh = o.floorH || 6;
+        const fh = o.floorH || PL.FLOOR;
         const ww = o.winW || 3;
         const wh = o.winH || Math.max(2, fh - 2);
         const top = o.top === undefined ? 1 : o.top;
@@ -413,7 +413,7 @@
     // Full-height curtain wall: mullions every `pitch`, spandrel every floor.
     K.curtain = function (B, x, y, w, h, o) {
         o = o || {};
-        const fh = o.floorH || 6;
+        const fh = o.floorH || PL.FLOOR;
         const pitch = o.pitch || 4;
         const mull = o.mullion === undefined ? 0x3a4658 : o.mullion;
         const span = o.spandrel === undefined ? dark(mull, 0.2) : o.spandrel;

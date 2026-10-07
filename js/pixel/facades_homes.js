@@ -10,7 +10,7 @@
 
     // ── Neon Bar: dark brick, neon strips, coloured windows, a stage, a cocktail ─
     D.neon_bar = function (B, b, w, h) {
-        const H = h * 3;
+        const H = h * PL.ART;
         K.wall(B, 0, 0, w, h, 0x2a1a3a, 'brick', { mortar: 0x1a1028 });
         const strip = (y, c) => {
             for (let x = 0; x < w; x++) (B.px(x, y, mix(0x2a1a3a, c, 0.45)), B.epx(x, y, c, 200));
@@ -97,7 +97,7 @@
         const idNum = parseInt(b.id.replace('suburb_', ''), 10) || 1;
         const p = PALS[(idNum - 1) % PALS.length];
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         // Lawn.
         for (let x = 0; x < w; x++)
             for (let y = h - 2; y < h; y++)

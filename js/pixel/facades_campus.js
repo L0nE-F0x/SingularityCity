@@ -21,7 +21,7 @@
     // ── AI Academy: classical stone, five columns, pediment, working clock ──
     D.uni_main = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         K.wall(B, 0, 0, w, h, 0x9a8264, 'stone');
         for (let row = 0; row < flOf(b) - 1; row++)
             for (let wi = 0; wi < 4; wi++) {
@@ -172,7 +172,7 @@
     // ── AI Detention Center: concrete, barred slits, razor wire, guard tower ─
     D.ai_jail = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         K.wall(B, 0, 0, w, h, 0x5b6270, 'concrete', { seams: false });
         B.rect(1, 1, w - 2, h - 2, 0x4b515d);
         for (let sx = 30; sx < W - 10; sx += 38) B.rect(q(sx), 2, 1, h - 4, 0x3c4049);

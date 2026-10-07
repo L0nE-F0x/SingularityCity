@@ -97,7 +97,7 @@
             B.ellipse(X + 2, top - 3, 1.2, 1, 0x3a4048);
         }
         // Server-room glow strips every 14 world px, with rack LEDs.
-        for (let y = q(h * 3 - 58); y < h - 4; y += q(14)) {
+        for (let y = q(h * PL.ART - 58); y < h - 4; y += q(14)) {
             B.rect(4, y, w - 8, 3, 0x0e2a38);
             for (let x = 4; x < w - 4; x++) {
                 B.epx(x, y, mix(0x22d3ee, 0x06b6d4, 0.5), 150);
@@ -130,7 +130,7 @@
         const top = h - q(60);
         K.wall(B, 2, top, w - 4, h - top, 0xe2e8f0, 'panel', { pitch: 6, seamY: 7 });
         // Cleanroom yellow lighting strips every 12 world px.
-        for (let y = q(h * 3 - 52); y < h - 3; y += q(12)) {
+        for (let y = q(h * PL.ART - 52); y < h - 3; y += q(12)) {
             B.rect(4, y, w - 8, 2, 0xd8c890);
             for (let x = 4; x < w - 4; x++) {
                 B.px(x, y, x % 5 === 0 ? 0xb8a870 : 0xe8d8a0);
@@ -145,6 +145,16 @@
             B.rect(q(x), top - 3, 4, 1, 0xb4c0cc);
         }
         B.rect(2, top, w - 4, 1, col);
+        // Scrubber exhaust stacks (red-banded) joined by a roof duct.
+        const stacks = [Math.round(w * 0.18), Math.round(w * 0.78)].filter((x) => x > 3 && x < w - 6);
+        if (stacks.length === 2) {
+            for (let x = stacks[0]; x <= stacks[1]; x++) {
+                B.px(x, top - 4, 0xb4bcc8);
+                B.px(x, top - 3, 0x8a929e);
+            }
+            for (let x = stacks[0] + 6; x < stacks[1]; x += 10) B.rect(x, top - 2, 1, 2, 0x6a727e);
+        }
+        stacks.forEach((x, i) => K.stack(B, x, top - 1, 16 + i * 4, 0xd8dce4, 0xd84a4a, 0.5));
         // Hazmat markings and the entry.
         for (let i = 0; i < 10; i++) B.px(Math.round(w / 2) - 5 + i, h - 3, i % 2 ? 0x1a1a1e : 0xfbbf24);
         K.lobby(B, 3, h - 7, Math.max(8, Math.round(w * 0.3)), 4, {
@@ -286,7 +296,7 @@
         for (let i = 0; i < w; i++) B.epx(i, 1, bc, 110);
         // Curtain wall, lit panes from the classic's seeded sequence.
         const glassTop = 16;
-        const glassBot = h * 3 - 22;
+        const glassBot = h * PL.ART - 22;
         const colW = 20;
         const nCols = Math.max(2, Math.floor((b.w - 12) / colW));
         const gutter = (b.w - 12 - nCols * (colW - 4)) / (nCols + 1);
@@ -380,7 +390,7 @@
         const dh = Math.min(q(26), h - top - 5);
         const dx = Math.round(w / 2 - dw / 2);
         const dy = h - 3 - dh;
-        [Math.round(w / 2 - 50 / 3), Math.round(w / 2 + 30 / 3)].forEach((wx) => {
+        [Math.round(w / 2 - 50 / PL.ART), Math.round(w / 2 + 30 / PL.ART)].forEach((wx) => {
             if (wx < 5 || wx + 7 > w - 5) return;
             const wy = top + 3;
             const wh = Math.max(3, h - 5 - wy);

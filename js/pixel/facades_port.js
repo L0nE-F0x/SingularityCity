@@ -21,7 +21,7 @@
     // ── Port Authority: maritime tower, orange harbour band, radar, flags ───
     D.port_authority = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         K.wall(B, 0, 0, w, h, 0x2e4058, 'concrete', { seams: false });
         B.rect(0, 0, q(8), h, 0x364e66);
         B.rect(w - q(8), 0, q(8), h, 0x2a3a50);
@@ -80,7 +80,7 @@
     // ── Export Control Office: federal navy, portico, gold seal, barrier ────
     D.port_customs = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         const bw = w - q(26);
         K.wall(B, 0, 0, bw, h, 0x26385c, 'stone');
         B.rect(0, 0, q(6), h, 0x2e4468);
@@ -115,7 +115,7 @@
     // ── GPU Warehouse: corrugated hall, skylight, bay doors, guard booth ────
     D.port_warehouse = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         K.wall(B, 0, 2, w, h - 2, 0x34445c, 'corrugated');
         B.rect(0, 2, w, q(10), 0x3a4a60);
         for (let x = 0; x < w; x++)
@@ -151,7 +151,7 @@
     // ── Container Terminal: brand-colour stacks, reach stacker, floodlight ──
     D.port_container = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         B.rect(0, h - 3, w, 3, 0x2b3646);
         for (let x = 1; x < w; x += q(22)) B.rect(x, h - 2, 4, 1, mix(0x2b3646, 0xfbbf24, 0.4));
         const stacks = [
@@ -188,7 +188,7 @@
 
     // ── Fuel & Gas Depot: cryogenic helium sphere, diesel tank, manifold ───
     D.port_fuel = function (B, b, w, h) {
-        const H = h * 3;
+        const H = h * PL.ART;
         B.rect(0, h - 3, w, 3, 0x2a3446);
         const spx = q(30);
         const spy = q(H - 34);
@@ -238,7 +238,7 @@
     // ── Ship-to-shore gantry crane: legs, bracing, beam over the water, A-frame ─
     D.port_crane = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         const amber = 0xf59e0b;
         const Y = (v) => q(H - v);
         // Legs with cross-bracing.

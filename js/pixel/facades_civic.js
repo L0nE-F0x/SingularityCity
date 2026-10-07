@@ -16,7 +16,7 @@
     // ── Visitor Monument — digital obelisk; the live counters sit on its screen ──
     D.visitor_monument = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         const stone = 0x2a2a48;
         // Base platform.
         B.rect(q(5), h - 3, q(W - 10), 3, 0x3a3a5a);
@@ -89,10 +89,10 @@
                     PL.dpick([0x2d6a4f, 0x3d7a5f, 0x4a8a64], y === h - 4 ? 0.9 : PL.hash(B.seed, x, y), x, y)
                 );
         // A-frame lookout (left).
-        B.line(q(14), h - 4, q(22), q(h * 3 - 42), 0x6a6a74);
-        B.line(q(30), h - 4, q(22), q(h * 3 - 42), 0x6a6a74);
-        B.rect(q(18), q(h * 3 - 40), 3, 1, 0x7a7a84);
-        B.rect(q(17), q(h * 3 - 22), 4, 1, 0x8b5cf6);
+        B.line(q(14), h - 4, q(22), q(h * PL.ART - 42), 0x6a6a74);
+        B.line(q(30), h - 4, q(22), q(h * PL.ART - 42), 0x6a6a74);
+        B.rect(q(18), q(h * PL.ART - 40), 3, 1, 0x7a7a84);
+        B.rect(q(17), q(h * PL.ART - 22), 4, 1, 0x8b5cf6);
         // Playground: ladder tower + cyan slide (right).
         const lx = q(W - 55);
         B.rect(lx, h - 14, 1, 10, 0x55555f);
@@ -160,10 +160,10 @@
         B.rect(cx - 1, h - 5, 3, 5, 0x3a3a4a);
         B.rect(cx - 2, h - 6, 5, 1, 0x4a4a5a);
         B.rect(q(W / 2 - 20), h - 7, q(40), 1, 0x333344);
-        B.rect(cx - 1, q(h * 3 - 80), 2, q(66), 0x333344);
+        B.rect(cx - 1, q(h * PL.ART - 80), 2, q(66), 0x333344);
         // Screen at the classic rect (b._screenX…) — AIIndex.updateBillboard draws over it.
         const X = b._screenX !== undefined ? b._screenX : 10;
-        const Y = b._screenY !== undefined ? b._screenY : h * 3 - 82;
+        const Y = b._screenY !== undefined ? b._screenY : h * PL.ART - 82;
         const SW = b._screenW !== undefined ? b._screenW : W - 20;
         const SH = b._screenH !== undefined ? b._screenH : 65;
         const sx = q(X);
@@ -191,7 +191,7 @@
     // ── Central Park — trees, fountain, pond, benches, lamps at the classic spots ──
     D.city_park = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         // Grass with a lighter stripe and texture.
         for (let x = 0; x < w; x++)
             for (let y = h - 5; y < h; y++) {
@@ -277,7 +277,7 @@
     // ── Memorial Park — one headstone per retired model, at b._headstones ──────
     D.graveyard = function (B, b, w, h) {
         const W = b.w;
-        const H = h * 3;
+        const H = h * PL.ART;
         // Dark earth + stone path.
         for (let x = 0; x < w; x++)
             for (let y = h - 5; y < h; y++)
