@@ -618,6 +618,9 @@ const EntitiesGfx = {
     /* Shared train visual — used by exterior createTrainObj AND Underground.attachLiveTrains
        so the basement view never drifts from the city above. Returns body+front graphics. */
     buildTrainSprite() {
+        // Pixel skin: a painted metro train (js/pixel/underground.js).
+        if (typeof PixelArt !== 'undefined' && PixelArt.enabled && typeof PL !== 'undefined' && PL.Under)
+            return PL.Under.train();
         const tBg = new PIXI.Graphics();
         tBg.beginFill(0x1e293b);
         tBg.drawRoundedRect(-180, -35, 360, 65, 8);

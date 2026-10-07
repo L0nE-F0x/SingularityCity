@@ -273,6 +273,10 @@ const PixelArt = {
         const paveTop = rowOf(gy - 24);
         const roadTop = rowOf(gy);
         const roadEnd = rowOf(gy + 32);
+        const pipeW0 = rowOf(gy + 220);
+        const pipeW1 = rowOf(gy + 228);
+        const pipeS0 = rowOf(gy + 235);
+        const pipeS1 = rowOf(gy + 247);
         const duskyGrey = (r, g, b) => b >= r + 6 && b >= g + 6 && Math.abs(r - g) < 14 && r < 110;
         const out = new PL.Img(W, H);
         for (let y = 0; y < H; y++)
@@ -305,6 +309,20 @@ const PixelArt = {
                     else if (n < 0.06) c = PL.light(c, 0.08);
                     if ((y - roadTop === 3 || y - roadTop === 8) && PL.hash(31, X >> 1, y) > 0.6)
                         c = PL.shade(c, 0.9);
+                } else if (
+                    (y >= pipeW0 && y < pipeW1 && b > r + 30) ||
+                    (y >= pipeS0 && y < pipeS1 && r > b + 40)
+                ) {
+                    // Water main and sewer: rounded with a lit top, a shadowed belly, flanges.
+                    const top = y < pipeW1 ? pipeW0 : pipeS0;
+                    const bot = y < pipeW1 ? pipeW1 : pipeS1;
+                    const rel = y - top;
+                    if (rel === 0) c = PL.light(c, 0.32);
+                    else if (rel === 1) c = PL.light(c, 0.14);
+                    else if (rel >= bot - top - 1) c = PL.dark(c, 0.38);
+                    else if (rel >= bot - top - 2) c = PL.dark(c, 0.18);
+                    if (X % 24 < 2) c = PL.dark(c, 0.28);
+                    else if (X % 24 === 2 && rel === 2) c = PL.light(c, 0.4);
                 } else if (n > 0.965) c = PL.shade(c, 0.93);
                 else if (n < 0.03) c = PL.light(c, 0.05);
                 out.set(x, y, c, a);
@@ -510,6 +528,7 @@ const PixelArt = {
 
     // Objects rebuilt with the buildings that live outside the building containers.
     _sweepLazy() {
+        if (PL.Under) PL.Under.adopt();
         if (
             typeof BlackMarket !== 'undefined' &&
             BlackMarket._dumpsterSprite &&
@@ -612,6 +631,7 @@ const PixelArt = {
         if (this.Skin) this.Skin.setAmbient(PL.mix(this._K.amb, 0xffffff, 0.18));
         if (PL.Sky) PL.Sky.update(this._K, performance.now() / 1000);
         if (PL.Backdrop) PL.Backdrop.update(this._K, performance.now() / 1000);
+        if (PL.Under) PL.Under.pulses(performance.now() / 1000);
         // The classic ground palette is already dusky, so it takes a gentler ambient tint.
         if (this._ground && !this._ground.destroyed) {
             const tint = PL.mix(this._K.amb, 0xffffff, 0.45);
