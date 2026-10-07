@@ -1,17 +1,83 @@
 # Resume here
 
-**Updated:** 2026-09-29 (benchmark overhaul wrap) · **Live `main`:** `d9ab16d` (this wrap sits on top)
-**Status:** The 2D benchmark observatory and birth-time scores are live on cache
-**v558**. Netlify is serving `singularity-city-v558` (`sw.js` and
-`js/benchmarks.js?v=558` both return the new files). The pixel skin from the
-session below is still the art. First Person was not touched.
-**Next:** the owner will look at the new Bench panel. Start from their report.
-Grok-3 sitting at #2 from two scores is the formula working as shipped.
+**Updated:** 2026-10-07 (2D art 10x pass + promo video wrap) · **Live `main`:** `36a4fc6` (this wrap sits on top)
+**Status:** The 2D city's "smog-gold days, neon nights" art pass is live on cache
+**v560**. Netlify served `singularity-city-v560` on the second poll, and
+`js/pixel/underground.js`, `js/pixel/interior_light.js` and `css/pixel-ui.css` return 200.
+The owner played it and posted the promo video (below) on the official X account.
+First Person was not touched.
+**Next:** start from the owner's next request. Known gaps are listed at the end of
+this session's section.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
 Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
 `serve.py` proxies `/api/zeroeval/` and `/api/arena/`. ZeroEval sends no CORS
 headers, so the browser has to use that same-origin path or the board stays empty.
+
+---
+
+## This session (2026-10-07) — the 2D art 10x pass, and a promo video
+
+Owner brief: make the 2D city "10x" better while keeping the pixel aesthetic, First
+Person excluded. They were quizzed first and picked: lofi atmosphere + full-time neon
+cyberpunk; hazy smog-gold days; **2px art pixels** (was 3px); citizens as **little robots**
+in lab colours (founders/staff stay human); interiors keep their layout but open zoomed in
+and scroll through the floors; a **light** UI restyle; no phone quality tier (owner said it
+runs well on their phone). After reviewing style frames they asked for a touch less yellow
+by day, a calmer backdrop, more neon by day and stronger night reflections. Two releases,
+v559 (`4008a2c` → `7964b6d`) and v560 (`13c1460` → `36a4fc6`), each pushed on the owner's
+word. Style-frame before/after page (private): https://claude.ai/artifact/9yx8qguTcYVTATkYCDgZtx
+
+### What shipped
+
+| Area | What changed | Where |
+|---|---|---|
+| Grid | `PL.ART = 2`; `PL.FLOOR = 18/ART`, `PL.LOBBY = 24/ART`, `PL.S3 = 3/ART` (converts sizes drawn for the old grid). Bake margins, head room, light halos scale with it. | `js/pixel/core.js`, `buildings.js`, `pixel_art.js` |
+| Palette | Ten new time-of-day keys: navy/magenta nights, teal-violet dawn, smog-gold day, orange golden hour. New fields `neon` (signage glow level, never 0) and `smog`. | `js/pixel/tod.js` |
+| Sky | 18-stop banded gradient with dithered edges only at band seams; smog halo round the sun; moon halo; fewer stars near the horizon. | `js/pixel/sky.js` |
+| Backdrop | New screen-space parallax layer between sky and world, rendered at art resolution into an RT: far arcologies + orbital tether, mid/near skylines with lit windows and neon, smog streaks and haze bands, night searchlights, sky traffic; sea/desert/hills/industry cross-fade by zone. Does not scale with zoom. | `js/pixel/backdrop.js` |
+| Neon layer | Bakes have a third canvas `neon` (signage). `B.etext`, `npx`, `nrect`, billboards, blades, plaques, emblems, screens write there; it glows at `max(night, K.neon)`, with its own bloom. | `js/pixel/kit.js`, `pixel_art.js` |
+| Dressing | Post-painter pass: rooftop clutter on flat roof runs (AC, vents, tanks, dishes, masts, stair huts, rails, holo boxes), side blades with words, AC boxes, drainpipes, grime streaks, vending machines. Amount per building kind (lab tidy, apartment busy). Avoids `B.signRects`. | `js/pixel/dress.js` |
+| Reflections | Each bake makes a mirrored, rippled reflection of its lit street level; drawn in `PixelArt._reflLayer()` (inserted above `G.shadowLayer`, because the ground draws over buildings). Alpha = wetness (`night × 0.8` or rain) × light. | `kit.js` `Bake.reflectionOf`, `pixel_art.js` |
+| Night tint | The skin multiplies `S.amb` (ambient from the palette) into sprites under layers marked `{amb: true}` (char, car, train, reflection). Graphics flagged `_pxLit`, and ADD blends, are exempt. | `js/pixel/pixel_skin.js` |
+| Robots | `PL.Robot.drawCitizen` writes a pixel template into the citizen's own head/body/legs Graphics (head drawn in `body`, `head` left empty): visor helmet, halo orb (open weights), slit dome (MoE), egg-drone babies, ghost-steel retired, violet rumoured. Eyes/core/halo on an unlit glow child. Also called from 5 interior avatar factories via `PL.Robot.restyle`. | `js/pixel/robots.js`, `entities_gfx.js`, `interior_city_ai.js`, `interior_res_ai.js`, `interior_black_market.js`, `interior_metro.js`, `interior_bar.js` |
+| Humans | `HumanAvatar.draw` ends with `PL.Robot.human`: same skin, hair, suit/tie, glasses, beard, hats, two readable eyes. | `robots.js`, `js/human_avatar.js` |
+| Interiors | `PL.InteriorZoom` scales the interior layer by a pixel-exact factor (1.5–3), keeps the street level put, owns drag/wheel panning, pins the module's own drag (`minY = maxY`). Eases to 1 while tracking. `InteriorRes._viewSpan` culls through the full transform. | `js/pixel/interior_zoom.js`, `interior_manager.js`, `interior_res_core.js` |
+| Interior light | Ceiling lamps with warm dithered cones and floor pools for `InteriorCity` floors (lab HQs, social strip), brighter at night, a few dead/flickering; a gentle grade filter on the interior layer. | `js/pixel/interior_light.js`, `interior_city_core.js` |
+| Underground | Tunnel Graphics (the >30000-px-wide child of `undergroundLayer`) hidden and replaced by a 16-bay painted TilingSprite; pixel metro trains via `EntitiesGfx.buildTrainSprite` → `PL.Under.train()` (cabin behind riders, shell with window cut-outs in front); same train in station interiors; data pulses along the fibre trunk; shaded water/sewer pipes in `_stylizeGround`. | `js/pixel/underground.js`, `entities_gfx.js`, `interior_metro.js`, `pixel_art.js` |
+| Painter fix | Several painters converted art px back to world px with a hard-coded 3 (`h * 3`, `w/2 - 50/3`, ...): DC server strips and fab cleanroom bands never drew on the 2px grid. Now `PL.ART`. Kit default floor height is `PL.FLOOR`. Fabs got scrubber stacks. | `facades_*.js`, `kit.js` |
+| UI | `css/pixel-ui.css`, scoped to `html.px-ui` (set by `pixel_art.js` when the skin is on): square pixel frames, hard shadows, neon hover/focus. Same layout. Headlight cones warmer and fainter under the skin. | `css/pixel-ui.css`, `entities_gfx.js` |
+
+### What a new agent must not re-break
+
+1. **Never hard-code the art scale.** World ↔ art goes through `PL.ART` (or `q()`); floor and lobby heights through `PL.FLOOR` / `PL.LOBBY`. Sizes designed for the old grid can use `PL.S3`.
+2. **Don't name a Pixi container property `emit`** (Pixi's event emitter). The backdrop uses `lit`.
+3. **Reflections live in `_reflLayer`**, not in the facade root: the ground Graphics draws after `bldLayer` and would hide them. `beginBuild` empties that layer.
+4. **Signage goes to the neon canvas**, windows/lamps to `emit`. A painter's new sign should call `B.etext`/`npx` and push a `B.signRects` entry so the dresser keeps clear.
+5. **Robots/humans draw into existing Graphics**; don't replace those objects (hit areas, animation and states point at them). The head Graphics stays empty under the skin; `refs.head.y` is still set.
+6. **InteriorZoom pins `minY = maxY`** on modules after build. A module that needs its own drag back must opt out explicitly. Culling must use the full transform (see `_viewSpan`).
+7. **`Environment.update` → `PixelArt.update(dp)` drives the look.** The promo capture patched `Environment.update` (not `G.getDayPhase`) so the look could follow a scripted clock while routines kept real time; overriding `G.getDayPhase` empties the city.
+8. **Cache is `singularity-city-v560`.** `node tools/cachebust.mjs` regenerates `CORE_ASSETS` from `index.html` (new pixel files are picked up automatically). Leave `first-person/assets/models/*`, `landing_preview2.html`, `landing_preview3.html`, `pixel-lab/` untracked; `pixel-lab/` shares `js/pixel/*` (painters must still run without the game).
+
+### Verified
+
+- Node harness painting all 228 snapshot buildings: 0 failures, ~380 ms.
+- Headless Chrome 1440×900, every district at noon / 18:00 / 23:00, 6+ interiors, the underground: no page errors.
+- Panning the whole city: 59.6 fps pixel vs 59.7 classic, p95 frame 21.1 vs 19.7 ms.
+- Production after each push: v559 and v560 served within two polls; the live site rendered the new art, interiors and tunnel.
+- Lint: the only errors are 4 pre-existing `Bench` no-undef in `interior_res_ai.js` (from `d9ab16d`).
+
+### Promo video (posted by the owner on X)
+
+80 s, 1080p30, `~/Videos/SingularityCity-promo-2026-10.mp4`, music = `SingularityCity.mp3` from 0:26 so the drop (56.0 s, ~154 BPM, bar 1.558 s) hits the 0:30 cut. Captured from production with virtual time: a shim replaces `requestAnimationFrame` and `performance.now`, a director sets camera/clock/weather/interiors/captions per frame, CDP screenshots every 1/30 s, ffmpeg muxes. The director and capture scripts lived in the session scratchpad (not in the repo); recreate from this description if a re-cut is wanted.
+
+### Not done / worth a look
+
+- Interior lamps only in `InteriorCity`; other interiors get the grade and robots only. Interior props were not redrawn.
+- Interiors still pan while tracking a model (the module camera takes over, zoom eases to 1).
+- `B.smoke` puffs are recorded by painters but never rendered in the game.
+- Datacentre/fab classic tickers ("AWAITING TELEMETRY") overlap their rooftop boards at some widths (pre-existing).
+- Phones untested by me; the owner reports it runs well on theirs.
 
 ---
 
