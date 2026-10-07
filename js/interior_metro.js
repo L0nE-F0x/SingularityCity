@@ -789,6 +789,7 @@ const InteriorMetroStation = {
         this.scene.addChild(this.trainGfx);
         this._trainG = new PIXI.Graphics();
         this.trainGfx.addChild(this._trainG);
+        this._pxPool = [];
 
         // ─── METRO WORKER NPCs (always visible, 24/7 staff) ───
         this._spawnStationWorkers(theme, W, hallTop, hallH, platTop, this._platStandY);
@@ -858,6 +859,10 @@ const InteriorMetroStation = {
             const trainHalfW = 180;
             const offscreenCut = W / 2 + trainHalfW + 10;
 
+            // Pixel skin: the painted metro train (js/pixel/underground.js) instead of vectors.
+            const pxTrains =
+                typeof PixelArt !== 'undefined' && PixelArt.enabled && typeof PL !== 'undefined' && PL.Under;
+            let pxUsed = 0;
             const trains = [];
             if (typeof Entities !== 'undefined') {
                 if (Entities.trainWest) trains.push(Entities.trainWest);
@@ -879,8 +884,11 @@ const InteriorMetroStation = {
                 const bob = t.state === 'moving' ? Math.sin(tick * 0.5) * 1.5 : 0;
                 const cy = trainCenterY + bob;
                 const atStation = Math.abs(cxOffset) < 5;
-                this._drawExteriorTrain(g, cx, cy, atStation, t.dir);
+                if (pxTrains) this._pxTrain(pxUsed++, cx, cy);
+                else this._drawExteriorTrain(g, cx, cy, atStation, t.dir);
             }
+            if (this._pxPool)
+                for (let i = pxUsed; i < this._pxPool.length; i++) this._pxPool[i].visible = false;
         }
 
         // ─── Drive the LIFT ───
@@ -1305,6 +1313,21 @@ const InteriorMetroStation = {
     // ─────────────────────────────────────────────────────────────
     //  EXTERIOR-MATCHING TRAIN VISUAL
     // ─────────────────────────────────────────────────────────────
+    _pxTrain(i, cx, cy) {
+        if (!this._pxPool) this._pxPool = [];
+        let c = this._pxPool[i];
+        if (!c || c.destroyed) {
+            const T = PL.Under.train();
+            c = new PIXI.Container();
+            c.addChild(T.tBg, T.fGfx, T.lightL, T.lightR);
+            this.trainGfx.addChild(c);
+            this._pxPool[i] = c;
+        }
+        c.visible = true;
+        c.x = Math.round(cx);
+        c.y = Math.round(cy);
+    },
+
     _drawExteriorTrain(g, cx, cy, atStation, dir) {
         // Body
         g.beginFill(0x1e293b);
