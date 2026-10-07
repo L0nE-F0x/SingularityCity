@@ -231,11 +231,135 @@
         return g;
     }
 
+    // ── Humans (founders, staff, diplomats, researchers): HumanAvatar's options as pixels ──
+    // HumanAvatar's fixed doll: 16 × 32 world px, head 12, torso 16, legs 4 → in art cells
+    // 8 wide, 6 head rows, 8 torso rows, 2+ leg rows. Facing right; the container mirrors.
+    function humanUpper(o) {
+        const W = 8;
+        const HA = 6;
+        const BA = 9;
+        const g = Grid(W + 2, HA + BA + 3);
+        const ox = 1;
+        const top = 2;
+        const skin = o.skin;
+        const skinLo = dark(skin, 0.18);
+        const hair = o.hair;
+        const sh = o.shirt;
+        // Head (cells x 1..6).
+        for (let j = 0; j < HA; j++)
+            for (let i = 1; i < 7; i++) {
+                if ((j === 0 || j === HA - 1) && (i === 1 || i === 6)) continue;
+                g.set(ox + i, top + j, i === 6 ? skinLo : skin);
+            }
+        // Hair: crown and the back of the head (left = back when facing right).
+        for (let i = 2; i < 6; i++) g.set(ox + i, top - 1, hair);
+        for (let i = 1; i < 7; i++) g.set(ox + i, top, hair);
+        g.set(ox + 1, top + 1, hair);
+        g.set(ox + 1, top + 2, hair);
+        if (o.longHair) {
+            g.set(ox + 1, top + 3, hair);
+            g.set(ox + 1, top + 4, hair);
+        }
+        g.set(ox + 6, top + 1, hair); // fringe
+        // Ear and eyes (two pixels, one between).
+        g.set(ox + 2, top + 3, skinLo);
+        const ey = top + 2;
+        if (o.glasses) {
+            g.rect(ox + 3, ey, 4, 1, 0x1a1a24);
+            g.set(ox + 3, ey + 1, 0x2a2a34);
+            g.set(ox + 5, ey + 1, 0x2a2a34);
+        } else {
+            g.set(ox + 3, ey + 1, 0x1a1418);
+            g.set(ox + 5, ey + 1, 0x1a1418);
+        }
+        if (o.beard) {
+            g.rect(ox + 3, top + 4, 4, 1, dark(hair, 0.1));
+            g.rect(ox + 3, top + 5, 3, 1, dark(hair, 0.1));
+        } else g.set(ox + 5, top + 4, dark(skin, 0.3)); // mouth
+        // Hats.
+        if (o.hat === 'cap') {
+            g.rect(ox + 1, top - 1, 6, 2, 0x1a2438);
+            g.rect(ox + 6, top, 3, 1, 0x1a2438);
+        } else if (o.hat === 'beret') {
+            g.rect(ox + 1, top - 1, 6, 2, 0x7c2d12);
+            g.set(ox + 3, top - 2, 0x7c2d12);
+        } else if (o.hat === 'crown') {
+            g.rect(ox + 1, top - 1, 6, 1, 0xfbbf24);
+            [1, 3, 6].forEach((i) => g.set(ox + i, top - 2, 0xfbbf24));
+            g.glow(ox + 3, top - 2, 0xfff0a0);
+        }
+        // Neck.
+        const ty = top + HA;
+        g.rect(ox + 3, ty, 2, 1, skinLo);
+        // Torso.
+        const tb = BA - 2;
+        for (let j = 1; j <= tb; j++)
+            for (let i = 0; i < W; i++) {
+                let c = sh;
+                if (i === 0) c = dark(sh, 0.3);
+                else if (i === W - 1) c = light(sh, 0.18);
+                else if (j === 1) c = light(sh, 0.1);
+                g.set(ox + i, ty + j, c);
+            }
+        if (o.suit) {
+            // Shirt V, tie, lapels.
+            g.rect(ox + 3, ty + 1, 3, 1, 0xfffbe8);
+            g.set(ox + 4, ty + 2, 0xfffbe8);
+            g.set(ox + 5, ty + 2, 0xfffbe8);
+            g.rect(ox + 5, ty + 1, 1, 5, o.tie);
+            g.set(ox + 2, ty + 2, dark(sh, 0.45));
+            g.set(ox + 6, ty + 2, dark(sh, 0.45));
+            g.set(ox + 2, ty + 3, 0xd8c070); // pocket pin
+        } else {
+            g.rect(ox + 2, ty + 1, 4, 1, dark(sh, 0.25)); // collar
+            if (o.stripe) g.rect(ox + 1, ty + 4, W - 2, 1, light(sh, 0.3));
+        }
+        // Belt and hands.
+        g.rect(ox + 1, ty + tb, W - 2, 1, 0x14141c);
+        g.set(ox, ty + tb + 1, skin);
+        g.set(ox + W - 1, ty + tb + 1, skin);
+        return { g: g, ox: ox, top: top, W: W, HA: HA };
+    }
+    function humanLeg(o) {
+        const g = Grid(3, 3);
+        g.set(0, 0, o.trousers);
+        g.set(1, 0, dark(o.trousers, 0.2));
+        g.set(0, 1, o.trousers);
+        g.set(1, 1, dark(o.trousers, 0.2));
+        g.rect(0, 2, 3, 1, 0x0a0a0e);
+        return g;
+    }
+
     const R = (PL.Robot = {
         kindOf(m, refs) {
             if (refs && refs.isMoE) return 'dome';
             if (m && m.os) return 'orb';
             return 'helmet';
+        },
+
+        // HumanAvatar.draw: redraw its head/body/legs as a pixel human with the same look.
+        // look: { skin, hair, shirt, suit, tie, glasses, beard, hat, trousers, seed }
+        human(parts, look) {
+            if (typeof PixelArt === 'undefined' || !PixelArt.enabled || !parts || !parts.body) return;
+            const A = PL.ART;
+            const o = Object.assign({}, look);
+            const r = PL.hash(PL.seedOf(o.seed || 'h'), 3, 7);
+            o.longHair = r > 0.55;
+            o.stripe = r < 0.3;
+            const U = humanUpper(o);
+            // The engine places head at y = -32 and body at y = -32 + 12.
+            const headH = 12;
+            parts.head.clear();
+            parts.body.clear();
+            emit(parts.body, U.g, -U.ox - U.W / 2, -U.top - headH / A);
+            if (U.g.lit.length) emitLit(glowOf(parts.body), U.g, -U.ox - U.W / 2, -U.top - headH / A);
+            const L = humanLeg(o);
+            [parts.legL, parts.legR].forEach((g, k) => {
+                g.clear();
+                emit(g, L, -1, 0, k === 0 ? 0.92 : 1);
+            });
+            parts.legL.x = -2 * A;
+            parts.legR.x = 1 * A;
         },
 
         // Interior avatar factories: same robot over their freshly drawn head/body/legs

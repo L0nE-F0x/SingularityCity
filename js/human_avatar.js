@@ -275,6 +275,23 @@ const HumanAvatar = {
             if (opts.facing === -1) tag.scale.x = -1;
         }
 
+        // Pixel skin: the same person as a pixel doll (js/pixel/robots.js).
+        if (typeof PL !== 'undefined' && PL.Robot && PL.Robot.human)
+            PL.Robot.human(
+                { head, body, legL, legR },
+                {
+                    skin: skinCol,
+                    hair: hairCol,
+                    shirt: shirtCol,
+                    suit: isSuit,
+                    tie: tieCol,
+                    glasses: !!opts.glasses,
+                    beard: !!opts.beard,
+                    hat: opts.hat || null,
+                    trousers: isSuit ? 0x1a1a2a : 0x2a2a30,
+                    seed: opts.seed || opts.name || 'human',
+                }
+            );
         cont.addChild(shadow, legL, legR, body, head);
         if (dot) cont.addChild(dot);
         if (tag) cont.addChild(tag);
