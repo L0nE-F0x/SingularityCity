@@ -226,7 +226,7 @@ export const Streetscape = {
 
     _ok(x, z, r, opts) {
         if (!opts.allowRoad && City.onCarriageway(x, z)) return false;
-        if (!this.occ.free(x, z, r)) return false;
+        if (!this.occ.free(x, z, r + (opts.pad || 0))) return false;
         const m = opts.margin ?? 4;
         for (const c of G.colliders) {
             if (x + r + m > c.x0 && x - r - m < c.x1 && z + r + m > c.z0 && z - r - m < c.z1) return false;
@@ -568,7 +568,8 @@ export const Streetscape = {
             const big = id === 'ds_arch';
             if (this._put(id, x, z, rnd() * 6.28, {
                 r: big ? 30 : id === 'ds_boulder' ? 10 : 8, solid: big || id === 'ds_boulder',
-                hx: big ? 20 : 6, hz: big ? 8 : 6, range: big ? 2600 : 1400, scale: big ? 1.4 : 1 + rnd() * 0.6
+                hx: big ? 20 : 6, hz: big ? 8 : 6, range: big ? 2600 : 1400, scale: big ? 1.4 : 1 + rnd() * 0.6,
+                margin: 10, pad: 7   // rocks are turned at random: clear the corners, not just the sides
             })) placed++;
         }
         // (no mesas: the kit reads as a stack of floating discs at that
@@ -596,7 +597,7 @@ export const Streetscape = {
                 for (let i = 0; i < 14; i++) {
                     const x = d.cx + (rnd() - 0.5) * (CELL_W - 80);
                     const z = d.cz + (rnd() - 0.5) * (CELL_D - 80);
-                    this._put('st_boulder', x, z, rnd() * 6.28, { r: 10, solid: true, hx: 7, hz: 7, scale: 1 + rnd() });
+                    this._put('st_boulder', x, z, rnd() * 6.28, { r: 10, solid: true, hx: 7, hz: 7, scale: 1 + rnd(), pad: 8 });
                 }
             }
         }
