@@ -10,7 +10,7 @@ import {
 } from '../js/vc_dealflow.js';
 import { makePaperJob, stepPaper, PAPER_LABS, PAPER_SOURCES } from '../js/research_papers.js';
 import { STAGE_CODE } from '../js/citizens.js';
-import { buildMetroRoutes, stepTrain } from '../js/metro.js';
+import { buildMetroRoutes, stepTrain, newTrain } from '../js/metro.js';
 import { createJailState, detain, reconcileJail, JAIL_BID } from '../js/jail.js';
 import { selectDetained, ruleAppliesToViewer } from '../../shared/ai_bans.js';
 import { DOCKET, REGULATION_THEMES, pickHearingTheme } from '../../shared/ai_docket.js';
@@ -52,7 +52,9 @@ VC_OFFICES.forEach((id, i) => place(id, -400 + i * 120, 200));
 HQ_TARGETS.forEach((id, i) => place(id, -300 + i * 100, -400));
 PAPER_SOURCES.forEach((id, i) => place(id, 100 + i * 80, 100));
 PAPER_LABS.forEach((id, i) => { if (!bld[id]) place(id, -300 + i * 100, -400); });
-['metro_west', 'metro_central', 'metro_east', 'metro_innovation'].forEach((id, i) => place(id, -600 + i * 300, 0));
+// the real network's shape: a straight trunk on one z, two lines crossing it
+[['metro_west', -2600, -880], ['metro_central', -1200, -880], ['metro_east', 400, -880], ['metro_east_ex', 2600, -880],
+    ['metro_dc', -1700, -2100], ['metro_res', -360, 1120], ['metro_innovation', 780, -120]].forEach(([id, x, z]) => place(id, x, z));
 place(JAIL_BID, 500, 500);
 place('court_hearing', 600, 200);
 place('court_senate', 700, 200);
@@ -402,10 +404,21 @@ const metroSrc = fs.readFileSync(path.join(root, 'js/metro.js'), 'utf8');
 assert(metroSrc.includes('board(') && metroSrc.includes('alight(') && metroSrc.includes('canBoardNear'),
     'metro has board/alight/canBoardNear');
 assert(metroSrc.includes('riding') && metroSrc.includes('cabin'), 'metro ride cabin present');
-// dwell long enough to board
-const train2 = { routeIdx: 0, seg: 0, segProgress: 0.999, speed: 200, x: routes[0].pts[0].x, z: routes[0].pts[0].z, dirX: 1, dirZ: 0, dwellT: 0, laps: 0, atStop: null, _longDwell: true };
-for (let i = 0; i < 5; i++) stepTrain(train2, 0.05, routes);
-assert(train2.dwellT > 0 || train2.atStop, 'metro dwells at stops for boarding');
+// dwell long enough to board, and twin track: opposing sets never share a road
+const tA = newTrain(routes, 0, 0, 1, 0), tB = newTrain(routes, 0, routes[0].stops.length - 1, -1, 0);
+let dwelled = false, minGap = Infinity, met = false;
+for (let i = 0; i < 4000; i++) {
+    stepTrain(tA, 0.05, routes, [tA, tB]);
+    stepTrain(tB, 0.05, routes, [tA, tB]);
+    if (tA.dwellT > 0 && tA.atStop) dwelled = true;
+    const along = Math.abs(tA.c - tB.c);
+    if (along < 60) { met = true; minGap = Math.min(minGap, Math.abs(tA.lat - tB.lat)); }
+}
+assert(dwelled, 'metro dwells at stops for boarding');
+assert(met && minGap >= 40, 'opposing sets pass on separate roads (lateral gap ' + Math.round(minGap) + ')');
+for (const r of routes) {
+    assert(r.stopS.every((s, i) => i === 0 || s > r.stopS[i - 1]), r.id + ' stations in order along the route');
+}
 
 // 16. Elevator / multi-floor structural
 assert(intSrc.includes('rideElevator') && intSrc.includes("cat: 'metro'") && (intSrc.includes("cat === 'platform'") || (intSrc.includes("cat === 'platform'") || intSrc.includes("'platform'"))),

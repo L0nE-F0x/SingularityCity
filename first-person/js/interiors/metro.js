@@ -1,327 +1,205 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   METRO STATION — ported from 2D js/interior_metro.js.
+   METRO STATION — the ticket hall.
 
-   Two levels only, and deliberately so: interact.js boards trains when
-   `Interior.floor === Interior.maxFloor` and the building type is metro, so
-   the platform must stay the top floor. Floor 0 is the ticket hall, floor 1
-   the platform; the glass lift shaft is drawn on both so the descent reads.
+   The platform is no longer a room. It used to be a second "floor" of this
+   building with a scaled-up toy train of its own, driven off the network's
+   dwell timer — a train you could board that was not the train you then rode,
+   in a room 3× the scale of the car you rode in. The platforms are now the
+   real ones under the street (metro.js platform mode): the escalators here
+   take you down to them, one per line that calls at this station, and the
+   lift at the end of each platform brings you back up to this hall.
 
-   Staff rotate on the day/night shift like the 2D station does — eight named
-   workers total, never all present at once.
+   Staff rotate on the day/night shift like the 2D station does.
    ══════════════════════════════════════════════════════════════════════════ */
-import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { P, panelTex, vistaTex } from './kit.js';
+import { P, panelTex, canvas, tex, hex } from './kit.js';
 import { G } from '../state.js';
-
-/* ── The train that pulls into the platform ────────────────────────────────
-   Built at interior scale (the room is 560 × 460 × 96) and driven by
-   ctx.animate. Everything else on this floor is baked into the static merge,
-   so before this the "platform" was a track bed nothing ever ran on: you took
-   the lift down, and then a train teleported you underground with no arrival
-   to watch. The cycle is APPROACH → DOORS OPEN → DWELL → DOORS SHUT → LEAVE,
-   and Metro.trainAtStop is what decides whether E boards, so the doors being
-   open and a train being boardable stay the same fact. */
-/* Interiors are authored at ~3x human scale: the room is 560 x 460 x 96 local
-   units and a standing eye is at 51 of them. So the car is dimensioned against
-   that eye, not against the exterior rolling stock — y = 0 is the car floor,
-   level with the platform, and the window band straddles 51 so you look
-   straight into it from the platform and out of it from a seat. */
-const CAR_L = 440, CAR_H = 76, CAR_W = 80;
-const WIN_Y = 47, WIN_H = 24;
-const DOOR_W_T = 46;
-
-function tint(geo, hex) {
-    const c = new THREE.Color(hex);
-    const n = geo.attributes.position.count;
-    const a = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
-    geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
-    return geo;
-}
-
-function buildPlatformTrain(lineHex) {
-    const g = new THREE.Group();
-    const body = [], glow = [];
-    const box = (arr, w, h, d, x, y, z, hex) => {
-        arr.push(tint(new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex));
-    };
-
-    /* Underframe, roof, and side walls built as SEGMENTS between the door bays.
-       A single full-length box meant the doors slid across solid bodywork —
-       they moved, and nothing opened. The gaps left here are the doorways, and
-       the lit interior below is what shows through them. */
-    const DOOR_XS = [-150, -50, 50, 150];
-    const DOOR_H = 60;
-    box(body, CAR_L, 10, CAR_W - 8, 0, -5, 0, 0x1e293b);          // underframe
-    box(body, CAR_L, 8, CAR_W - 5, 0, CAR_H - 4, 0, 0x94a3b8);    // roof
-    box(body, CAR_L, CAR_H - 8 - DOOR_H, CAR_W, 0,
-        DOOR_H + (CAR_H - 8 - DOOR_H) / 2, 0, 0xc5ced8);          // header above the doors
-
-    // Wall panels between (and outboard of) the doorways
-    const edges = [-CAR_L / 2];
-    for (const dx of DOOR_XS) edges.push(dx - DOOR_W_T / 2, dx + DOOR_W_T / 2);
-    edges.push(CAR_L / 2);
-    for (let i = 0; i < edges.length; i += 2) {
-        const w = edges[i + 1] - edges[i];
-        if (w <= 0.5) continue;
-        const cx = (edges[i] + edges[i + 1]) / 2;
-        box(body, w, DOOR_H, CAR_W, cx, DOOR_H / 2, 0, 0xc5ced8);
-        box(body, w + 1, 10, CAR_W + 1.5, cx, 26, 0, lineHex);     // livery band
-    }
-
-    /* Interior seen through the open doors: a dark saloon with a lit ceiling
-       and a floor level with the platform. Inset so it never z-fights the
-       bodywork. */
-    box(body, CAR_L - 6, 1.5, CAR_W - 10, 0, 0.75, 0, 0x2b3646);
-    box(glow, CAR_L - 10, 1.6, 14, 0, CAR_H - 10, 0, 0xfde68a);
-    for (const s of [-1, 1]) {
-        box(body, CAR_L - 20, 5, 14, 0, 22, s * (CAR_W / 2 - 12), 0x1e3a5f);   // bench
-        box(body, CAR_L - 20, 22, 4, 0, 34, s * (CAR_W / 2 - 6), 0x1e3a5f);    // back
-    }
-    for (const px of [-190, -110, -10, 90, 190]) {
-        box(body, 3, CAR_H - 18, 3, px, (CAR_H - 18) / 2, 0, 0xa8b2bd);        // grab pole
-    }
-    // Cab ends, running on past the room walls
-    for (const s of [-1, 1]) {
-        box(body, 24, CAR_H - 20, CAR_W - 14, s * (CAR_L / 2 + 11), (CAR_H - 20) / 2 + 4, 0, 0xb0bac6);
-        box(glow, 4, 18, 46, s * (CAR_L / 2 + 22), 50, 0, 0x0c4a6e);   // cab window
-        for (const dz of [22, -22]) {
-            box(glow, 4, 7, 10, s * (CAR_L / 2 + 23), 14, dz, s > 0 ? 0xfff2cc : 0xff3344);
-        }
-    }
-    // Roof kit
-    box(body, 70, 10, 34, -70, CAR_H + 4, 0, 0x64748b);
-    box(body, 6, 16, 6, -70, CAR_H + 15, 0, 0x94a3b8);
-    // Bogies, dropped into the track bed
-    for (const bx of [-140, 140]) {
-        box(body, 70, 12, 46, bx, -14, 0, 0x0f172a);
-        for (const w of [-24, 24]) box(body, 18, 16, 52, bx + w, -12, 0, 0x1a1a1a);
-    }
-    // Lit window band both sides, one window centred in each wall panel
-    for (let i = 0; i < edges.length; i += 2) {
-        const w = edges[i + 1] - edges[i];
-        if (w < 30) continue;
-        const cx = (edges[i] + edges[i + 1]) / 2;
-        const ww = Math.min(w - 14, 70);
-        for (const s of [-1, 1]) {
-            box(body, ww + 6, WIN_H + 6, 2.5, cx, WIN_Y, s * (CAR_W / 2 - 0.4), 0x475569);
-            box(glow, ww, WIN_H, 3, cx, WIN_Y, s * (CAR_W / 2 + 0.2), 0x9fd8f0);
-        }
-    }
-    g.add(new THREE.Mesh(mergeGeometries(body, false),
-        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.35 })));
-    g.add(new THREE.Mesh(mergeGeometries(glow, false),
-        new THREE.MeshBasicMaterial({ vertexColors: true })));
-
-    /* Sliding doors — four pairs, and the ONLY moving parts. Each leaf slides
-       outward along x by DOOR_W_T/2, so `open` 0→1 is the whole animation. */
-    const leaves = [];
-    const doorMat = new THREE.MeshStandardMaterial({
-        color: 0x334155, roughness: 0.4, metalness: 0.4
-    });
-    const glassMat = new THREE.MeshStandardMaterial({
-        color: 0x7dd3fc, transparent: true, opacity: 0.3, roughness: 0.08,
-        metalness: 0.1, depthWrite: false
-    });
-    for (const dx of DOOR_XS) {
-        for (const half of [-1, 1]) {
-            const leaf = new THREE.Group();
-            const panel = new THREE.Mesh(
-                new THREE.BoxGeometry(DOOR_W_T / 2 - 1, DOOR_H, 3), doorMat);
-            panel.position.y = DOOR_H / 2;
-            const pane = new THREE.Mesh(
-                new THREE.PlaneGeometry(DOOR_W_T / 2 - 8, WIN_H), glassMat);
-            pane.position.set(0, WIN_Y, 2);
-            leaf.add(panel, pane);
-            leaf.position.set(dx + half * DOOR_W_T / 4, 0, CAR_W / 2 + 1);
-            leaf.userData.shut = leaf.position.x;
-            leaf.userData.slide = half * (DOOR_W_T / 2);
-            g.add(leaf);
-            leaves.push(leaf);
-        }
-    }
-    g.userData.leaves = leaves;
-    return g;
-}
-
-function setDoors(train, open) {
-    for (const l of train.userData.leaves) {
-        l.position.x = l.userData.shut + l.userData.slide * open;
-    }
-}
+import { etaTo } from '../metro.js';
 
 const STAFF = {
     ticket: { name: 'Ticket Agent', role: 'Ticket Agent', color: 0x3b82f6 },
     guard: { name: 'Station Guard', role: 'Station Guard', color: 0xef4444 },
     info: { name: 'Info Desk', role: 'Passenger Info', color: 0x06b6d4 },
-    attendant: { name: 'Platform Attendant', role: 'Platform Attendant', color: 0xfbbf24 },
-    dispatch: { name: 'Train Dispatcher', role: 'Dispatcher', color: 0x22c55e },
     nightGuard: { name: 'Night Guard', role: 'Night Guard', color: 0xef4444 },
-    maint: { name: 'Maintenance Tech', role: 'Maintenance', color: 0x22c55e },
-    signal: { name: 'Signal Operator', role: 'Signal Ops', color: 0x06b6d4 }
+    maint: { name: 'Maintenance Tech', role: 'Maintenance', color: 0x22c55e }
 };
+
+/** Schematic of the whole network, drawn from the live routes. */
+function networkMapTex(hereId) {
+    const W = 512, H = 300;
+    const [c, x] = canvas(W, H);
+    x.fillStyle = '#f4f1ea'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#10151f'; x.fillRect(0, 0, W, 34);
+    x.fillStyle = '#f4f1ea'; x.font = 'bold 18px Silkscreen, monospace';
+    x.textAlign = 'left'; x.textBaseline = 'middle';
+    x.fillText('SINGULARITY METRO', 14, 18);
+    const routes = G.metro?.routes || [];
+    const ids = [...new Set(routes.flatMap(r => r.stops))];
+    const bs = ids.map(id => G.bldById[id]).filter(Boolean);
+    if (!bs.length) return tex(c);
+    const minX = Math.min(...bs.map(b => b.worldX)), maxX = Math.max(...bs.map(b => b.worldX));
+    const minZ = Math.min(...bs.map(b => b.worldZ)), maxZ = Math.max(...bs.map(b => b.worldZ));
+    const mx = (v) => 40 + (v - minX) / Math.max(1, maxX - minX) * (W - 80);
+    const mz = (v) => 64 + (v - minZ) / Math.max(1, maxZ - minZ) * (H - 104);
+    for (const r of routes) {
+        x.strokeStyle = hex(r.color); x.lineWidth = 9;
+        x.beginPath();
+        r.stops.forEach((id, i) => {
+            const b = G.bldById[id];
+            if (b) (i ? x.lineTo : x.moveTo).call(x, mx(b.worldX), mz(b.worldZ));
+        });
+        x.stroke();
+    }
+    x.font = '11px Silkscreen, monospace';
+    for (const b of bs) {
+        const px = mx(b.worldX), pz = mz(b.worldZ);
+        const here = b.id === hereId;
+        x.fillStyle = here ? '#ef4444' : '#10151f';
+        x.fillRect(px - 7, pz - 7, 14, 14);
+        x.fillStyle = '#ffffff';
+        x.fillRect(px - 4, pz - 4, 8, 8);
+        x.fillStyle = here ? '#b91c1c' : '#334155';
+        x.textAlign = px > W - 120 ? 'right' : 'left';
+        x.fillText((here ? '▶ ' : '') + b.name.replace(/\s*station$/i, '').toUpperCase(), px + (px > W - 120 ? -12 : 12), pz - 12);
+    }
+    // legend
+    let ly = H - 22;
+    x.textAlign = 'left';
+    routes.forEach((r, i) => {
+        const lx = 14 + i * 168;
+        x.fillStyle = hex(r.color); x.fillRect(lx, ly - 5, 24, 10);
+        x.fillStyle = '#10151f'; x.fillText(r.name.toUpperCase(), lx + 30, ly);
+    });
+    return tex(c);
+}
+
+/** Next trains from this station, both ways on every line. */
+function departures(bid) {
+    const rows = [];
+    for (const r of G.metro?.routes || []) {
+        const si = r.stops.indexOf(bid);
+        if (si < 0) continue;
+        for (const dir of [1, -1]) {
+            const endIdx = dir > 0 ? r.stops.length - 1 : 0;
+            if (si === endIdx) continue;
+            const toward = G.bldById[r.stops[endIdx]]?.name || r.stops[endIdx];
+            let eta = null;
+            for (const t of G.metro.trains) {
+                if (t.routeIdx !== r.index) continue;
+                const e = etaTo(t, r, si, dir);
+                if (eta == null || e < eta) eta = e;
+            }
+            rows.push({ r, toward, eta });
+        }
+    }
+    return rows;
+}
 
 export const METRO = {
     id: 'metro',
     theme(b, f, th) {
-        if (f >= 1) {
-            th.cat = 'platform';
-            th.wall = 0x0f172a; th.ceil = 0x020617; th.floor = 0x1e293b;
-            th.lamp = 0xfbbf24; th.accent = '#fbbf24'; th.dim = true;
-        } else {
-            th.cat = 'metro';
-            th.wall = 0x1e293b; th.ceil = 0x0f172a; th.floor = 0x334155;
-            th.lamp = 0x22d3ee; th.accent = '#22d3ee'; th.dim = true;
-        }
+        th.cat = 'metro';
+        th.wall = 0xd5dbe1; th.ceil = 0x2c3542; th.floor = 0x8f99a5;
+        th.lamp = 0xfff1d6; th.accent = '#22d3ee'; th.dim = false;
     },
     floors: [
-        // ── 0 · TICKET HALL ─────────────────────────────────────────────────
         {
             key: 'hall', label: 'TICKET HALL',
             build(c) {
                 const night = c.night;
-                // Fare gates in one line, with a walkable aisle on the right
-                // toward the real lift bank (left wall is owned by Interior).
-                for (const gx of [-90, -30, 30]) P.turnstile(c, gx, -10, gx < 0 ? 0x4ade80 : 0xef4444);
-                c.lit(220, 1.2, 6, -30, 1.2, 40, 0x22d3ee);
+                const bid = c.b?.id;
+                const lines = (G.metro?.linesAt?.(bid)) || [];
 
-                // Ticket machines — back wall, left
+                // terrazzo floor bands and a tiled dado round the walls
+                c.box(c.W - 40, 0.6, 120, 0, 0.3, 120, 0xa7b0bb);
+                c.box(c.W - 40, 0.6, 6, 0, 0.4, 56, 0x5f6b79);
+                for (const sx of [-1, 1]) c.box(4, 30, c.D - 40, sx * (c.W / 2 - c.WALL / 2 - 2), 15, 0, 0x5f6b79);
+                c.box(c.W - 40, 30, 4, 0, 15, -c.D / 2 + c.WALL / 2 + 2, 0x5f6b79);
+
+                // ── the gate line: four gates across the hall, a wide aisle each side
+                for (const gx of [-90, -30, 30, 90]) P.turnstile(c, gx, 30, gx < 0 ? 0x4ade80 : 0xef4444);
+                for (const sx of [-1, 1]) {
+                    c.box(110, 30, 6, sx * 185, 15, 30, 0x64748b);
+                    c.solid(sx * 185, 30, 110, 6);
+                    c.lit(104, 2, 1, sx * 185, 30.5, 33.2, 0x22d3ee);
+                }
+                // ticket machines on the left wall, the staffed window on the right
                 for (let i = 0; i < 3; i++) {
-                    const mx = -180 + i * 58;
-                    c.box(44, 52, 24, mx, 26, -180, 0x1e293b); c.solid(mx, -180, 44, 24);
-                    c.lit(32, 20, 1, mx, 36, -167, 0x22d3ee);
-                    c.lit(16, 4, 1, mx, 18, -167, 0x4ade80);
+                    const mz = 110 + i * 46;
+                    c.box(24, 56, 36, -c.W / 2 + c.WALL + 14, 28, mz, 0x1e293b);
+                    c.solid(-c.W / 2 + c.WALL + 14, mz, 24, 36);
+                    c.lit(1, 22, 26, -c.W / 2 + c.WALL + 26.6, 38, mz, 0x22d3ee);
+                    c.lit(1, 4, 12, -c.W / 2 + c.WALL + 26.6, 20, mz, 0x4ade80);
                 }
-                // Staffed window — back wall, right
-                P.counter(c, 140, -180, 110, 36, 0x243447, 0x3d5570, 0x22d3ee);
-                c.box(110, 28, 5, 140, 52, -196, 0x0f172a);
-                c.lit(90, 18, 1, 140, 52, -192, 0x0e3a52);
+                P.counter(c, c.W / 2 - c.WALL - 30, 140, 40, 120, 0x243447, 0x3d5570, 0x22d3ee);
+                c.box(8, 34, 124, c.W / 2 - c.WALL - 4, 60, 140, 0x0f172a);
+                c.lit(1, 22, 100, c.W / 2 - c.WALL - 8.6, 60, 140, 0x0e3a52);
 
-                // One departure board, on the back wall, not floating in the room
-                c.plate(panelTex({
-                    w: 512, h: 200, bg: '#050a14', accent: '#22d3ee',
-                    title: 'DEPARTURES', titleSize: 30, grid: true,
-                    lines: ['+WEST LINE         2 min', '+EAST LINE         4 min',
-                        '~INNOVATION        7 min', (night ? '!REDUCED SERVICE' : '+GOOD SERVICE')],
-                    lineSize: 20
-                }), 200, 72, 0, 68, -c.D / 2 + c.WALL / 2 + 3);
-
-                // Escalator well that goes DOWN (the old stairs climbed into
-                // the ceiling). Visual only — the working lift is on the left.
-                c.box(88, 6, 110, 130, 3, 70, 0x0f172a); c.solid(130, 70, 88, 110);
-                for (let i = 0; i < 8; i++) {
-                    c.box(64, 3, 12, 130, -1 - i * 5, 110 - i * 12, 0x475569);
-                }
-                for (const sx of [-1, 1]) c.box(4, 28, 4, 130 + sx * 38, 14, 30, 0xfbbf24);
-                c.plate(panelTex({
-                    w: 256, h: 64, bg: '#071018', accent: '#fbbf24', align: 'center',
-                    title: 'PLATFORM  →  LIFT', titleSize: 22, lines: ['~left wall'], lineSize: 16
-                }), 70, 16, 130, 36, 12);
-
-                P.plant(c, -240, 170, 32);
-                c.box(18, 20, 18, -180, 10, 170, 0x475569);
-
-                if (night) {
-                    c.npc(c, 200, 130, STAFF.nightGuard, -1);
-                } else {
-                    c.npc(c, 140, -150, STAFF.ticket, 1);
-                    c.npc(c, 80, 150, STAFF.guard, -1);
-                }
-            }
-        },
-        // ── 1 · PLATFORM ────────────────────────────────────────────────────
-        {
-            key: 'platform', label: 'PLATFORM',
-            build(c) {
-                const night = c.night;
-                const trackZ = -170;
-                // platform edge: tactile strip then a drop to the ballast
-                c.box(c.W - 20, 3, 30, 0, 1.5, trackZ + 62, 0xfbbf24);
-                c.lit(c.W - 60, 1.6, 8, 0, 3, trackZ + 60, 0xfde68a);
-                c.box(c.W - 20, 22, 92, 0, -9, trackZ, 0x020617);
-                for (const rail of [-16, 16]) c.box(c.W - 30, 3, 4, 0, 1, trackZ + rail, 0x8b95a3);
-                for (let i = 0; i < 14; i++) c.box(44, 2.5, 9, -260 + i * 40, -0.5, trackZ, 0x3f3f46);
-                // conductor rail, kept off to one side like the real thing
-                c.box(c.W - 30, 3, 4, 0, 2, trackZ + 34, 0x64748b);
-                c.lit(c.W - 60, 1, 1.5, 0, 4, trackZ + 34, 0xf59e0b);
-
-                // tunnel mouths at both ends of the track bed
-                for (const s of [-1, 1]) {
-                    c.box(150, 62, 16, s * 200, 31, trackZ - 44, 0x0b1220);
-                    c.plate(vistaTex('tunnel', '#fbbf24'), 116, 82, s * 200, 34, trackZ - 34);
-                }
-
-                // canopy columns down the platform spine
-                for (const px of [-200, -70, 70, 200]) {
-                    P.column(c, px, -20, c.H - 6, 0x475569, 18);
-                    c.lit(22, 4, 22, px, c.H - 14, -20, 0xfbbf24);
-                }
-                // benches and waiting furniture behind the columns
-                for (const bx of [-185, -80, 120, 230]) {
-                    c.box(64, 12, 20, bx, 12, 60, 0x334155); c.solid(bx, 60, 64, 20);
-                    for (const s of [-1, 1]) c.box(6, 12, 16, bx + s * 26, 6, 60, 0x475569);
-                    c.box(64, 22, 5, bx, 24, 70, 0x475569);
-                }
-                // next-train indicator hanging over the platform
-                c.plate(panelTex({
-                    w: 512, h: 128, bg: '#050a14', accent: '#fbbf24', align: 'center',
-                    title: night ? 'LAST TRAINS' : 'NEXT TRAIN', titleSize: 30,
-                    lines: ['~CENTRAL · ALL STOPS', '+ARRIVING — STAND BACK'], lineSize: 22, padTop: 36
-                }), 210, 52, 0, 78, 20);
-                c.box(216, 6, 6, 0, c.H - 10, 20, 0x1e293b);
-
-                // ad panels on the far wall, and a vending machine
-                for (let i = 0; i < 4; i++) {
-                    c.box(58, 44, 3, -180 + i * 120, 50, c.D / 2 - c.WALL / 2 - 6, 0x0f172a);
-                    c.lit(50, 36, 1.2, -180 + i * 120, 50, c.D / 2 - c.WALL / 2 - 8,
-                        [0x22d3ee, 0xf472b6, 0xfbbf24, 0x4ade80][i]);
-                }
-                c.box(40, 58, 28, 250, 29, 130, 0x1e293b); c.solid(250, 130, 40, 28);
-                c.lit(28, 34, 1, 250, 36, 145, 0xf472b6);
-
-                /* The train itself. Its cycle is slaved to the network sim, not
-                   run locally: Metro.trainAtStop(building) is what interact.js
-                   asks before letting E board, so if the doors were opened on a
-                   timer of their own you would get open doors and no train to
-                   board, or the reverse. `dwellT` counting down IS the dwell. */
-                const train = buildPlatformTrain(c.th?.lamp || 0xfbbf24);
-                // y = 0 IS the car floor, so it lands level with the platform
-                // and the bogies drop into the track bed on their own.
-                train.position.set(0, 0, trackZ);
-                c.animate(train, (obj, dt) => {
-                    const hit = c.b && G.metro?.trainAtStop?.(c.b.id);
-                    const st = obj.userData;
-                    st.open = st.open || 0;
-                    if (hit) {
-                        // Berthed: run in over the first moment of the dwell,
-                        // then hold at the platform with the doors open.
-                        const dwell = hit.train.dwellT;
-                        st.arriveK = Math.min(1, (st.arriveK ?? 0) + dt * 1.6);
-                        obj.position.x = (1 - st.arriveK) * -820;
-                        // Doors only once stopped, and shut again before it goes.
-                        const wantOpen = st.arriveK >= 1 && dwell > 1.2 ? 1 : 0;
-                        st.open += (wantOpen - st.open) * Math.min(1, dt * 3.2);
-                        obj.visible = true;
-                    } else {
-                        // Gone: accelerate out of the far end and wait offstage.
-                        st.open += (0 - st.open) * Math.min(1, dt * 4);
-                        if (st.arriveK != null) {
-                            st.leaveK = Math.min(1, (st.leaveK ?? 0) + dt * 0.9);
-                            obj.position.x = st.leaveK * 820;
-                            if (st.leaveK >= 1) { st.arriveK = null; st.leaveK = null; }
-                        }
-                        obj.visible = st.arriveK != null;
+                // ── the escalators: one per line, down beyond the gates
+                const n = Math.max(1, lines.length);
+                const span = Math.min(420, n * 170);
+                lines.forEach((r, i) => {
+                    const ex = -span / 2 + span / n * (i + 0.5);
+                    const ez = -110;
+                    const col = r.color;
+                    // the well: a dark opening with the steps falling away
+                    c.box(96, 0.8, 150, ex, 0.5, ez, 0x0b0f16);
+                    for (let k = 0; k < 12; k++) {
+                        c.box(76, 0.6, 3, ex, 0.95, ez + 62 - k * 11, k < 2 ? 0xf2c230 : 0x2a313b);
                     }
-                    setDoors(obj, st.open);
+                    // balustrades with a lit handrail, glass panels between
+                    for (const sx of [-1, 1]) {
+                        c.box(6, 26, 150, ex + sx * 47, 13, ez, 0xc3cad2);
+                        c.solid(ex + sx * 47, ez, 6, 150);
+                        c.lit(7, 2, 150, ex + sx * 47, 27, ez, col);
+                    }
+                    c.box(96, 26, 6, ex, 13, ez - 76, 0xc3cad2);
+                    c.solid(ex, ez - 76, 96, 6);
+                    // the line's sign hanging over the head of the escalator
+                    c.box(120, 4, 4, ex, c.H - 14, ez + 70, 0x1e293b);
+                    for (const sx of [-1, 1]) c.box(2, 12, 2, ex + sx * 54, c.H - 8, ez + 70, 0x1e293b);
+                    c.plate(panelTex({
+                        w: 512, h: 128, bg: '#10151f', accent: hex(col), align: 'center',
+                        title: '⬇ ' + r.name.toUpperCase(), titleSize: 34, padTop: 40,
+                        lines: ['~platforms · trains both ways'], lineSize: 20
+                    }), 110, 28, ex, c.H - 34, ez + 72);
+                    c.hotspot(ex, ez + 66, 52, '⬇ escalator down to the ' + r.name + ' platforms', () => {
+                        G.metro?.enterPlatform?.(bid, r.index);
+                    });
                 });
+                if (!lines.length) {
+                    c.plate(panelTex({ w: 512, h: 128, bg: '#10151f', accent: '#f87171', align: 'center',
+                        title: 'NO SERVICE', titleSize: 34, padTop: 46, lines: ['!platforms closed'] }), 110, 28, 0, 60, -120);
+                }
+
+                // ── information: departures and the network map on the back wall
+                const rows = departures(bid);
+                const fmt = (e) => e == null ? '—' : e < 8 ? 'DUE' : e < 60 ? Math.ceil(e / 5) * 5 + ' s' : Math.round(e / 60) + ' min';
+                c.plate(panelTex({
+                    w: 512, h: 256, bg: '#050a14', accent: '#fbbf24',
+                    title: 'DEPARTURES', titleSize: 28, grid: true,
+                    lines: rows.length
+                        ? rows.slice(0, 5).map(rw => `+${rw.toward.replace(/\s*station$/i, '').slice(0, 16).padEnd(17)} ${fmt(rw.eta)}`)
+                            .concat(night ? ['!REDUCED NIGHT SERVICE'] : ['~GOOD SERVICE ON ALL LINES'])
+                        : ['!NO SERVICE'],
+                    lineSize: 19
+                }), 150, 75, 150, 66, -c.D / 2 + c.WALL / 2 + 3);
+                c.plate(networkMapTex(bid), 150, 88, -150, 62, -c.D / 2 + c.WALL / 2 + 3);
+                for (const sx of [-150, 150]) c.box(160, 4, 4, sx, 22, -c.D / 2 + c.WALL / 2 + 4, 0x1e293b);
+
+                // a bench pair and planters by the door
+                for (const sx of [-1, 1]) {
+                    c.box(70, 12, 20, sx * 160, 12, 190, 0x7a5a3a); c.solid(sx * 160, 190, 70, 20);
+                    c.box(70, 18, 4, sx * 160, 24, 199, 0x7a5a3a);
+                    P.plant(c, sx * 235, 200, 34);
+                }
 
                 if (night) {
-                    c.npc(c, -60, 30, STAFF.maint, 1);
-                    c.npc(c, 230, 40, STAFF.signal, -1);
+                    c.npc(c, 200, 90, STAFF.nightGuard, -1);
+                    c.npc(c, -160, -40, STAFF.maint, 1);
                 } else {
-                    c.npc(c, -120, 20, STAFF.attendant, 1);
-                    c.npc(c, 60, 20, STAFF.dispatch, 1);
+                    c.npc(c, c.W / 2 - c.WALL - 60, 140, STAFF.ticket, -1);
+                    c.npc(c, 150, 80, STAFF.guard, -1);
+                    c.npc(c, -150, 80, STAFF.info, 1);
                 }
             }
         }

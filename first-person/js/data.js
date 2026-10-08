@@ -598,17 +598,14 @@ export const DISTRICTS = [
 // (2D js/engine.js:1249). Every line is a spoke off Central so metro.js's
 // out-and-back route builder stays a simple two-stop shuttle per line.
 export const TRAM_LINES = [
-    { id: 'west_line',  stops: ['metro_west', 'metro_central'],       color: 0x22d3ee },
-    { id: 'east_line',  stops: ['metro_central', 'metro_east'],       color: 0xa78bfa },
-    { id: 'innovation', stops: ['metro_central', 'metro_innovation'], color: 0xfbbf24 },
-    { id: 'compute_line', stops: ['metro_central', 'metro_dc'],       color: 0x4ade80 },
-    { id: 'south_line',   stops: ['metro_central', 'metro_res'],      color: 0xf472b6 },
-    /* Serves the new eastern column. Runs from the existing East Terminal
-       rather than from Central, so the line reads as an extension of the
-       network instead of another spoke off the same hub — and so the station
-       has actual trains: Metro builds its routes from this table, and a stop
-       nobody lists is a platform nothing ever stops at. */
-    { id: 'exchange_line', stops: ['metro_east', 'metro_east_ex'],    color: 0xf97316 }
+    /* Routed lines (metro.js joins the stations with curves). The four
+       stations on z ≈ −880 make a straight east–west trunk; the other two
+       lines run north–south a level deeper, so they pass under it at Central
+       and East instead of crossing it. `axes` sets a platform's direction
+       where the dominant one would leave too little room for the curve. */
+    { id: 'harbour_line', name: 'Harbour Line', stops: ['metro_west', 'metro_central', 'metro_east', 'metro_east_ex'], color: 0x22d3ee, level: 0 },
+    { id: 'compute_line', name: 'Compute Line', stops: ['metro_dc', 'metro_central', 'metro_res'], color: 0x4ade80, level: 1 },
+    { id: 'innovation', name: 'Innovation Line', stops: ['metro_east', 'metro_innovation'], axes: ['z', 'x'], color: 0xfbbf24, level: 1 }
 ];
 
 // ─── NEWS (offline fallback headlines — the blimps & newspaper) ──────────────

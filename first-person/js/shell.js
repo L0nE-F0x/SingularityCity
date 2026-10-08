@@ -318,7 +318,14 @@ function buildMapStatic(W, H) {
         g.lineWidth = 2.2;
         g.globalAlpha = 0.85;
         g.beginPath();
-        pts.forEach((b, i) => (i ? g.lineTo(mx2(b.worldX), mz2(b.worldZ)) : g.moveTo(mx2(b.worldX), mz2(b.worldZ))));
+        if (route.path) {
+            // the routed line, curves and all (every 6th sample is plenty here)
+            const P = route.path;
+            for (let i = 0; i < P.n; i += 6) (i ? g.lineTo(mx2(P.X[i]), mz2(P.Z[i])) : g.moveTo(mx2(P.X[i]), mz2(P.Z[i])));
+            g.lineTo(mx2(P.X[P.n - 1]), mz2(P.Z[P.n - 1]));
+        } else {
+            pts.forEach((b, i) => (i ? g.lineTo(mx2(b.worldX), mz2(b.worldZ)) : g.moveTo(mx2(b.worldX), mz2(b.worldZ))));
+        }
         g.stroke();
         g.globalAlpha = 1;
         for (const b of pts) {

@@ -58,4 +58,9 @@ assert.ok(
 );
 console.log(`ok: cabin ${cabinH} fits inside bore ${th}`);
 
+/* Station halls are taller than the bore. */
+const HALL_H = num(/const HALL_H = ([\d.]+)/, 'HALL_H');
+assert.ok(TUNNEL_Y + HALL_H + 3 < 0, `station hall roof (y ${TUNNEL_Y + HALL_H + 3}) breaches the surface`);
+console.log('ok: station halls stay below ground');
+
 console.log('metro_depth_check: OK');

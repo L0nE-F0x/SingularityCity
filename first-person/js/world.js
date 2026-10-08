@@ -16,7 +16,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G, CELL_W, CELL_D, CITY_W, CITY_D, SEA_X, FLOOR_H } from './state.js';
-import { LABS, SPACE_ORGS, BIOMES, DISTRICTS, NEWS } from './data.js';
+import { LABS, SPACE_ORGS, BIOMES, DISTRICTS, NEWS, TRAM_LINES } from './data.js';
 import * as TEX from './textures.js';
 import { City, CARRIAGE, KERB_H } from './city.js';
 import { Ships } from './ships.js';
@@ -1164,34 +1164,64 @@ export const World = {
     },
 
     /** Street-level subway pavilion — not a generic office box. */
+    /* A metro entrance: a glass headhouse on a paved forecourt, the stair
+       well beside it, and a totem carrying a lit roundel in the colour of each
+       line that calls here. It used to be a dark canopy slab over a dark box —
+       the canopy put the whole pavilion in its own shadow, so every station in
+       the city read as a black block with a cyan cube on a stick. */
     _buildMetroStation(p) {
         const { x, z, w, d } = p;
-        const lineCol = 0x22d3ee;
-        // sunken plaza edge
-        sBox(w * 1.05, 3, d * 1.05, x, 1.5, z, 0x3a424e);
-        // pavilion shell
-        sBox(w * 0.72, 22, d * 0.55, x, 14, z, 0x4a5568);
-        // glass curtain walls (cyan-tinted blocks)
-        sBox(w * 0.66, 16, 2.2, x, 12, z + d * 0.26, 0x5ec8e8);
-        sBox(w * 0.66, 16, 2.2, x, 12, z - d * 0.26, 0x5ec8e8);
-        sBox(2.2, 16, d * 0.48, x + w * 0.34, 12, z, 0x5ec8e8);
-        sBox(2.2, 16, d * 0.48, x - w * 0.34, 12, z, 0x5ec8e8);
-        // roof canopy overhang
-        sBox(w * 0.88, 3, d * 0.72, x, 26, z, 0x2a3340);
-        // "M" totem / entrance pylon
-        sBox(8, 36, 8, x - w * 0.42, 18, z + d * 0.42, 0x1e293b);
-        sBox(10, 8, 10, x - w * 0.42, 38, z + d * 0.42, lineCol);
-        // escalator well — dark hole + side walls
-        sBox(w * 0.28, 2, d * 0.22, x + w * 0.08, 0.6, z, 0x0a0e14);
-        sBox(w * 0.3, 8, 2, x + w * 0.08, 4, z + d * 0.12, 0x334155);
-        sBox(w * 0.3, 8, 2, x + w * 0.08, 4, z - d * 0.12, 0x334155);
-        // handrail glow strip
-        sBox(w * 0.26, 1.2, 1.5, x + w * 0.08, 7, z + d * 0.12, lineCol);
-        sBox(w * 0.26, 1.2, 1.5, x + w * 0.08, 7, z - d * 0.12, lineCol);
-        // platform edge lights
-        for (const ox of [-0.2, 0, 0.2]) {
-            sBox(6, 1.5, 6, x + ox * w, 1.2, z + d * 0.38, lineCol);
+        const lines = TRAM_LINES.filter(l => l.stops.includes(p.id));
+        const lineCols = lines.length ? lines.map(l => l.color) : [0x22d3ee];
+        const main = lineCols[0];
+        // forecourt
+        sBox(w * 1.02, 1.2, d * 1.02, x, 0.6, z, 0xa3acb6);
+        sBox(w * 1.02, 0.4, 3, x, 1.3, z + d * 0.51, 0x6b7684);
+        // headhouse: glass box with a steel frame, set back to the rear half
+        const hw = w * 0.62, hd = d * 0.42, hz = z - d * 0.18, H = 30;
+        sBox(hw, 2, hd, x, 1.6, hz, 0x7d8896);                       // plinth
+        sBox(hw - 4, H - 4, hd - 4, x, H / 2, hz, 0x9cc9da);          // glazing
+        for (let i = 0; i <= 6; i++) {                                // mullions
+            const mx = x - hw / 2 + 1 + i * (hw - 2) / 6;
+            sBox(1.6, H - 2, 1.6, mx, H / 2, hz + hd / 2 - 1, 0x3b4452);
+            sBox(1.6, H - 2, 1.6, mx, H / 2, hz - hd / 2 + 1, 0x3b4452);
         }
+        for (const sx of [-1, 1]) sBox(2, H - 2, hd, x + sx * (hw / 2 - 1), H / 2, hz, 0x3b4452);
+        sBox(hw, 1.4, 1.6, x, H * 0.55, hz + hd / 2 - 1, 0x3b4452);   // transom
+        sBox(hw + 16, 3, hd + 14, x, H + 1, hz, 0xd5dbe2);           // roof, overhanging
+        sBox(hw + 16.2, 1.2, 1.2, x, H - 0.2, hz + hd / 2 + 7, main);
+        sGlow(hw + 16.4, 1, 1, x, H - 0.2, hz + hd / 2 + 7, main);    // lit roof edge
+        sGlow(1, 1, hd + 14.4, x - hw / 2 - 8, H - 0.2, hz, main);
+        sGlow(1, 1, hd + 14.4, x + hw / 2 + 8, H - 0.2, hz, main);
+        // doors: a lit opening in the middle of the front
+        sBox(22, 20, 1, x, 11, hz + hd / 2 + 0.2, 0x2a3442);
+        sGlow(18, 17, 0.6, x, 10, hz + hd / 2 + 0.8, 0xfff1d0);
+        // stair well in front, to the side: a dark opening with glass balustrades
+        const sx0 = x + w * 0.22, sz0 = z + d * 0.22, sw = w * 0.26, sd = d * 0.3;
+        sBox(sw, 0.6, sd, sx0, 1.5, sz0, 0x10141b);
+        for (let k = 0; k < 6; k++) sBox(sw - 6, 0.4, 2.2, sx0, 1.9, sz0 + sd / 2 - 3 - k * (sd - 6) / 6, k ? 0x2c333d : 0xf2c230);
+        for (const ex of [-1, 1]) {
+            sBox(1.6, 9, sd, sx0 + ex * sw / 2, 5.5, sz0, 0x9cc9da);
+            sBox(2.2, 1.2, sd + 2, sx0 + ex * sw / 2, 10.4, sz0, 0x3b4452);
+        }
+        sBox(sw, 9, 1.6, sx0, 5.5, sz0 - sd / 2, 0x9cc9da);
+        // totem with the line roundels, stacked
+        const tx = x - w * 0.4, tz = z + d * 0.4;
+        sBox(6, 52, 6, tx, 26, tz, 0x2b3240);
+        lineCols.forEach((col, i) => {
+            const ty = 46 - i * 15;
+            sBox(15, 15, 2.6, tx, ty, tz, col);           // the roundel by day
+            sGlow(14, 14, 3, tx, ty, tz, col);
+            // the "M": two posts and a vee, as raised white glow strokes
+            for (const fz of [1, -1]) {
+                for (const mx of [-3.6, 3.6]) sBox(1.8, 8, 0.6, tx + mx, ty, tz + fz * 1.6, 0xffffff);
+                sBox(1.6, 4.5, 0.6, tx - 1.5, ty + 1.2, tz + fz * 1.6, 0xffffff);
+                sBox(1.6, 4.5, 0.6, tx + 1.5, ty + 1.2, tz + fz * 1.6, 0xffffff);
+            }
+        });
+        // a few cycle stands and a bin on the forecourt
+        for (let i = 0; i < 4; i++) sBox(1.2, 7, 9, x - w * 0.12 + i * 7, 4.5, z + d * 0.4, 0x6b7684);
+        sBox(4, 8, 4, x + w * 0.42, 4, z + d * 0.42, 0x3a4554);
     },
 
     /* Parapets and rooftop plant. Every building was a bare box cut off flat

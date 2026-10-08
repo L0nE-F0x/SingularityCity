@@ -43,6 +43,9 @@ export const Interact = {
                 return;
             }
 
+            // On a real platform underground: board, lift up, or cross over
+            if (G.onPlatform && G.metro) { G.metro.platformAction(); return; }
+
             // Inside a building
             if (G.inside) {
                 const aimed = Interior.aimedButton();
@@ -57,13 +60,6 @@ export const Interact = {
                     G.ui?.addToast?.('Look at a floor button · or 0–' + Interior.maxFloor, 'info');
                     return;
                 }
-                // Platform boarding (metro upper floor)
-                if (G.inside.type === 'metro' && Interior.floor === Interior.maxFloor && G.metro) {
-                    const hit = G.metro.trainAtStop(G.inside.id);
-                    if (hit) { G.metro.board(hit.index); return; }
-                    G.ui?.addToast?.('No train at the platform — wait a moment', 'info');
-                    return;
-                }
                 if (Interior.atExit()) Interior.exit();
                 return;
             }
@@ -74,13 +70,6 @@ export const Interact = {
             if (!this.grounded()) {
                 G.ui?.addToast?.('Too high up to reach anything — land first', 'info');
                 return;
-            }
-
-            // Street: board if a train is dwelling at the nearest station
-            if (G.metro) {
-                const cam = G.camera.position;
-                const board = G.metro.canBoardNear(cam.x, cam.z);
-                if (board) { G.metro.board(board.index); return; }
             }
 
             if (!this.target) return;
@@ -152,6 +141,12 @@ export const Interact = {
             return;
         }
 
+        if (G.onPlatform && G.metro) {
+            this.target = null;
+            G.metro.platformPrompt();
+            return;
+        }
+
         /* indoors: exit, elevator, or board from platform
 
            ORDER MATTERS, and it was wrong. `maxFloor > 0` is a property of the
@@ -174,9 +169,6 @@ export const Interact = {
                 G.ui.prompt(`Look at a <b>floor button</b> · 0–${Interior.maxFloor} · F next`);
             } else if (Interior.maxFloor > 0 && Interior.atLift()) {
                 G.ui.prompt(`<b>E</b> step in · <b>F</b> next · 0–${Interior.maxFloor}`);
-            } else if (G.inside.type === 'metro' && Interior.floor === Interior.maxFloor && G.metro) {
-                const hit = G.metro.trainAtStop(G.inside.id);
-                G.ui.prompt(hit ? '<b>E</b> — board the train' : 'Platform — waiting for a train…');
             } else if (Interior.atExit()) {
                 G.ui.prompt('<b>E</b> — step outside');
             } else if (Interior.atHotspot()) {
@@ -209,17 +201,7 @@ export const Interact = {
             }
         }
 
-                // Street metro board opportunity (takes priority when train is dwelling)
-        if (G.metro && !G.inside) {
-            const board = G.metro.canBoardNear(px, pz);
-            if (board) {
-                this.target = null;
-                G.ui.lookLabel(null);
-                G.ui.prompt(`<b>E</b> — board metro at ${board.station.name}`);
-                return;
-            }
-        }
-// ── look target ──
+        // ── look target ──
         // Airborne: no crosshair target, so no prompt promising an E that the
         // keypress handler would refuse anyway.
         if (!this.grounded()) { this.target = null; G.ui.prompt(null); G.ui.lookLabel(null); return; }
