@@ -731,8 +731,9 @@ function buildStation(parts, glow, group, r, si) {
     const rnd = (k) => Math.abs(Math.sin((si + 1) * 91.7 + k * 13.1)) % 1;
     for (let k = 0; k < 8; k++) {
         const sd = k % 2 ? 1 : -1;
-        const u = -HL + 60 + rnd(k) * (L - 120);
-        const v = sd * (64 + rnd(k + 9) * 18);
+        // clear of the lift end, where you arrive
+        const u = -HL + 140 + rnd(k) * (L - 200);
+        const v = sd * (66 + rnd(k + 9) * 16);
         const bot = rnd(k + 3) > 0.45;
         const hex = [0x7c3aed, 0x0ea5e9, 0xf97316, 0x334155, 0x16a34a, 0xbe185d][k % 6];
         Bx(2.2, 8, 2.2, v - 1.4, RAIL_TOP + 4, u, 0x1f2937);

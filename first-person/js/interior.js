@@ -2124,7 +2124,7 @@ export const Interior = {
         // Arriving on an upper floor there is no street door to stand in — put
         // the player mid-room facing the way the floor is laid out.
         if (floorIdx > 0) G.player.teleport(0, S(60), Math.PI);
-        else G.player.teleport(0, S(ROOM_D / 2 - 44), 0);   // just inside the door, the room ahead of you
+        else G.player.teleport(0, S(ROOM_D / 2 - 56), 0);   // just inside the door, the room ahead of you
         const multi = this.maxFloor > 0 ? ` · ELEVATOR: F / E at lift / 0–${this.maxFloor}` : '';
         G.ui?.banner?.(`${b.emoji || '🏢'} ${b.name}`, 'press E at the door to leave' + multi);
         G.audio?.sfx?.('open');
