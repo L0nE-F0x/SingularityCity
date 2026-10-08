@@ -571,14 +571,8 @@ export const Streetscape = {
                 hx: big ? 20 : 6, hz: big ? 8 : 6, range: big ? 2600 : 1400, scale: big ? 1.4 : 1 + rnd() * 0.6
             })) placed++;
         }
-        // mesas out beyond the zone's outer edges, where nobody walks
-        for (let i = 0; i < 7; i++) {
-            const t = i / 6;
-            const x = d.cx - CELL_W / 2 - 260 - rnd() * 200;
-            const z = d.cz - CELL_D / 2 + t * CELL_D;
-            this._put('ds_mesa', x, z, rnd() * 6.28, { force: true, scale: 5 + rnd() * 4, range: 6000 });
-            this._put('ds_mesa', d.cx - CELL_W / 2 + t * CELL_W, d.cz - CELL_D / 2 - 280 - rnd() * 200, rnd() * 6.28, { force: true, scale: 5 + rnd() * 4, range: 6000 });
-        }
+        // (no mesas: the kit reads as a stack of floating discs at that
+        // scale, and the hills beyond the ring road already frame the zone)
     },
 
     // ── parks: real benches replace the brown boxes ─────────────────────────

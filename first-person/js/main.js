@@ -25,6 +25,7 @@ import { Tour } from './tour.js';
 import { Interior } from './interior.js';
 import { ChatBubbles } from './chatbubbles.js';
 import { Vendors } from './vendors.js';
+import { Neon } from './neon.js';
 import { Birds } from './birds.js';
 import { CitizenOfDay } from './citizen_of_day.js';
 import { VCDealFlow } from './vc_dealflow.js';
@@ -283,6 +284,8 @@ async function boot() {
     Interior.init(G.scene);
     Vendors.build(G.scene);
     G.vendors = Vendors;
+    Neon.init(G.scene);
+    G.neon = Neon;
     ChatBubbles.init(G.scene);
     G.chatBubbles = ChatBubbles;
     Birds.init(G.scene);
@@ -498,6 +501,7 @@ async function boot() {
             G.camera.position.set(cx + Math.cos(a) * r, 330 + Math.sin(G.time * 0.08) * 60, cz + Math.sin(a) * r);
             G.camera.lookAt(cx, 140, cz);
             Weather.update(dt, G.time);
+            Neon.update(dt);
             World.update(dt, G.time);
             Citizens.update(dt);
             Traffic.update(dt, G.time);
@@ -521,6 +525,7 @@ async function boot() {
             Signals.update(dt);
             // Weather before Metro: metro re-locks fog/bg/sky every ride frame after weather writes.
             Weather.update(dt, G.time);
+            Neon.update(dt);
             World.update(dt, G.time);
             VCDealFlow.update(dt);
             ResearchPapers.update(dt);

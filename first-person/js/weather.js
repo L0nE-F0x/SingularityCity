@@ -129,6 +129,38 @@ function cloudTexture() {
     return t;
 }
 
+/* The 2D city's time-of-day palette (js/pixel/tod.js), so both views share a
+   day: hazy smog-gold days with a muted teal zenith, an orange golden hour,
+   and deep navy-to-magenta nights. top / mid / bottom are its sky stops 0, 4
+   and 7; amb tints every lit surface; haze colours the distance; neon is how
+   hard signage glows (never off — the city is always on). */
+const TOD = [
+    { dp: 0.0, top: '#04050f', mid: '#1c123d', bot: '#5c1f5a', amb: '#6a6ea8', haze: '#4a1d58', rim: '#6a3a80', neon: 1 },
+    { dp: 0.2, top: '#05060f', mid: '#201440', bot: '#62215c', amb: '#6a6ea8', haze: '#4e1e5a', rim: '#6a3a80', neon: 1 },
+    { dp: 0.255, top: '#141a3a', mid: '#8a4e78', bot: '#f8b070', amb: '#a08aa8', haze: '#c07a80', rim: '#ffa070', neon: 0.9 },
+    { dp: 0.3, top: '#53708a', mid: '#b8b092', bot: '#e8c894', amb: '#f2e6d2', haze: '#dcc8a0', rim: '#fff0d0', neon: 0.75 },
+    { dp: 0.5, top: '#4c7490', mid: '#aeb29a', bot: '#e0c99c', amb: '#fdf4e6', haze: '#d6caa8', rim: '#fffaf0', neon: 0.7 },
+    { dp: 0.68, top: '#486c8c', mid: '#b4a48a', bot: '#eabc7c', amb: '#fbead2', haze: '#dec090', rim: '#fff4dc', neon: 0.72 },
+    { dp: 0.75, top: '#2e3a64', mid: '#c26e6e', bot: '#ffbc62', amb: '#ffc49a', haze: '#f0986a', rim: '#ffc080', neon: 0.88 },
+    { dp: 0.795, top: '#0e0f2e', mid: '#6a2866', bot: '#e8705e', amb: '#9a7aa4', haze: '#b03a6e', rim: '#f07070', neon: 1 },
+    { dp: 0.84, top: '#050616', mid: '#281646', bot: '#74245e', amb: '#7072ac', haze: '#5c2060', rim: '#6a3a7e', neon: 1 },
+    { dp: 0.9, top: '#04050f', mid: '#1c123d', bot: '#5c1f5a', amb: '#6a6ea8', haze: '#4a1d58', rim: '#6a3a80', neon: 1 },
+    { dp: 1.0, top: '#04050f', mid: '#1c123d', bot: '#5c1f5a', amb: '#6a6ea8', haze: '#4a1d58', rim: '#6a3a80', neon: 1 }
+].map(k => ({ ...k, top: new THREE.Color(k.top), mid: new THREE.Color(k.mid), bot: new THREE.Color(k.bot),
+    amb: new THREE.Color(k.amb), haze: new THREE.Color(k.haze), rim: new THREE.Color(k.rim) }));
+const _tod = { top: new THREE.Color(), mid: new THREE.Color(), bot: new THREE.Color(), amb: new THREE.Color(),
+    haze: new THREE.Color(), rim: new THREE.Color(), neon: 1 };
+function sampleTod(dp) {
+    dp = ((dp % 1) + 1) % 1;
+    let i = 0;
+    while (i < TOD.length - 2 && TOD[i + 1].dp <= dp) i++;
+    const a = TOD[i], b = TOD[i + 1];
+    const t = Math.max(0, Math.min(1, (dp - a.dp) / Math.max(1e-6, b.dp - a.dp)));
+    for (const k of ['top', 'mid', 'bot', 'amb', 'haze', 'rim']) _tod[k].copy(a[k]).lerp(b[k], t);
+    _tod.neon = a.neon + (b.neon - a.neon) * t;
+    return _tod;
+}
+
 // Reused Color temps (avoid per-frame alloc in hot path)
 const _cDayTop = new THREE.Color(0x2f6fc4);
 const _cDayBot = new THREE.Color(0xcfe8f7);
@@ -525,14 +557,10 @@ export const Weather = {
         if (G.flags?.konami) {
             mid.copy(top).lerp(bot, 0.5);
         } else {
-            top.copy(_cDayTop).lerp(_cNightTop, night);
-            mid.copy(_cDayMid).lerp(_cNightMid, night);
-            bot.copy(_cDayBot).lerp(_cNightBot, night);
-            if (dusk > 0) {
-                top.lerp(_cDuskTop, dusk * 0.72);
-                mid.lerp(_cDuskMid, dusk * 0.78);
-                bot.lerp(_cDuskBot, dusk * 0.85);
-            }
+            const k = sampleTod(dp);
+            top.copy(k.top);
+            mid.copy(k.mid);
+            bot.copy(k.bot);
             // storm / overcast desaturate toward slate
             if (dim < 0.7) {
                 const stormMix = (0.7 - dim) / 0.7;
@@ -576,7 +604,8 @@ export const Weather = {
         const fogFarTarget = FOG_FAR[this.state] ?? G.preset.far;
         const surfaceAtmo = !G.inside && !G.ridingMetro;
         if (G.scene.fog && surfaceAtmo) {
-            G.scene.fog.color.copy(bot);
+            // the distance takes the palette's haze, as the 2D skyline does
+            G.scene.fog.color.copy(bot).lerp(_tod.haze, G.flags?.konami ? 0 : 0.45);
             if (G.scene.background?.isColor) G.scene.background.copy(bot);
             // lightning flash bleaches fog briefly
             if (this._flash > 0) {
@@ -619,7 +648,8 @@ export const Weather = {
                 cam.x, cam.z
             );
             W.sun.intensity = (W.shadows ? 2.2 : 1.7) * day * dim + 0.12 + flashBoost * 2.8;
-            W.sun.color.setHSL(0.1, dusk > 0.3 ? 0.7 : 0.35, dusk > 0.3 ? 0.6 : 0.92);
+            // warm by day, the palette's rim at the golden hour
+            W.sun.color.setRGB(1, 0.95, 0.86).lerp(_tod.rim, Math.min(1, dusk * 1.4));
             if (flashBoost > 0.05) {
                 W.sun.color.lerp(_cTmp2.set(0xc8e0ff), flashBoost * 0.7);
             }
@@ -862,7 +892,7 @@ export const Weather = {
             }
             if (W.lampPoolMat) {
                 // Wet tarmac throws the pool further, so let rain push it up.
-                W.lampPoolMat.opacity = Math.min(0.6, lit * (0.34 + G.weatherIntensity * 0.3));
+                W.lampPoolMat.opacity = Math.min(0.8, lit * (0.5 + G.weatherIntensity * 0.3));
                 W.lampPoolMat.visible = lit > 0.01;
             }
         }
@@ -880,8 +910,9 @@ export const Weather = {
         // night sky budget rather than its own.
         if (surfaceAtmo) {
             if (W.ambient) {
-                W.ambient.color.copy(_ambDay).lerp(_ambNight, Math.min(1, night * 1.1));
-                W.ambient.intensity = (0.45 + 0.35 * day + night * 0.42) * fill + flashBoost * 0.35;
+                W.ambient.color.copy(_tod.amb);
+                // nights are navy and readable, as in the 2D city, not black
+                W.ambient.intensity = (0.45 + 0.35 * day + night * 0.7) * fill + flashBoost * 0.35;
             }
             if (W.hemi) {
                 W.hemi.intensity = (0.5 + 0.9 * day * dim + night * 0.4) * fill + flashBoost * 0.9;
@@ -890,7 +921,10 @@ export const Weather = {
                    carries every unlit surface went out with the sun. Moonlight
                    is a cool, low blue; streets should read, not vanish. */
                 if (night > 0) W.hemi.color.lerp(_cTmp2.set(0x7088c0), Math.min(1, night * 0.85));
+                W.hemi.color.lerp(_tod.amb, 0.45);
+                if (W.hemi.groundColor) W.hemi.groundColor.copy(_tod.haze).multiplyScalar(0.45);
             }
         }
+        this.neon = _tod.neon;
     }
 };

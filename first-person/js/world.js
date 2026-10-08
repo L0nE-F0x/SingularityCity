@@ -1360,18 +1360,29 @@ export const World = {
 
         switch (b.type) {
             case 'launchpad': {
+                /* One launch complex: pad, flame trench, a steel service tower
+                   with its arms, a water tower and a blockhouse. It used to be
+                   a 27 m rocket between two 28 m red lightning masts on every
+                   one of the sixteen pads — from anywhere in the Space Zone a
+                   forest of red columns. The rocket is now its own object
+                   (traffic.js): a few stand on their pads, the rest roll out
+                   for a real launch, and the one that lifts off is the one on
+                   the pad. */
                 const org = SPACE_ORGS[b.org] || { color: 0x999999 };
-                sBox(w * 0.9, 8, w * 0.9, x, 4, z, 0x8a8a86);                    // pad
-                sBox(w * 0.32, 5, w * 0.7, x, 2, z, 0x3a3a3a);                   // flame trench
-                sCyl(8, 10, 280, 8, x - w * 0.42, 140, z - w * 0.42, 0xb8483a);  // catch / lightning mast
-                sCyl(8, 10, 280, 8, x + w * 0.42, 140, z + w * 0.42, 0xb8483a);
-                // Stylised stack — threejsassets has no rockets; keep procedural
-                // but at skyline scale (old 7 m toy next to 70 m HQs looked lost).
-                sCyl(16, 18, 220, 12, x, 118, z, 0xf2f2f0);
-                sCone(16, 48, 12, x, 252, z, org.color);
-                sCyl(18, 18, 16, 12, x, 16, z, org.color);
-                sCyl(6, 10, 36, 8, x - 22, 22, z, 0xc8c8c4);  // booster
-                sCyl(6, 10, 36, 8, x + 22, 22, z, 0xc8c8c4);
+                const pw = Math.min(w, d) * 0.92;
+                sBox(pw, 6, pw, x, 3, z, 0x9a9890);                               // pad
+                sBox(pw * 0.26, 1, pw * 0.7, x, 6.2, z, 0x2f2f2f);                // flame trench
+                sBox(pw * 0.9, 0.6, 2.4, x, 6.4, z - pw * 0.36, org.color);       // org stripe
+                const tx = x + pw * 0.3, TH = 170;
+                sBox(12, TH, 12, tx, 6 + TH / 2, z, 0x6b7380);                     // tower
+                for (let k = 1; k < 8; k++) sBox(13, 2, 13, tx, 6 + k * TH / 8, z, 0x4a515c);
+                for (const ay of [70, 118]) sBox(pw * 0.22, 3, 4, tx - pw * 0.12, ay, z, 0x8a919c);   // service arms
+                sBox(3, 14, 3, tx, 6 + TH + 7, z, 0xd94a3a);                       // beacon mast
+                sCyl(7, 7, 12, 10, x - pw * 0.34, 46, z + pw * 0.34, 0xd8dde3);   // water tower
+                for (const lx of [-4, 4]) sBox(1.6, 40, 1.6, x - pw * 0.34 + lx, 20, z + pw * 0.34, 0x8a919c);
+                sBox(22, 12, 16, x - pw * 0.3, 12, z - pw * 0.32, 0x7d8580);       // blockhouse
+                G.launchPads = G.launchPads || [];
+                G.launchPads.push({ bid: b.id, x, z, y: 6 });
                 break;
             }
             case 'dish': {
@@ -2081,6 +2092,23 @@ export const World = {
             for (let x = -CITY_W / 2 + 80; x < CITY_W / 2; x += 230) {
                 addLamp(x, sz + off, false, 0, -1);
                 addLamp(x + 115, sz - off, false, 0, 1);
+            }
+        }
+        /* …and down each district's own main street, which is where you
+           actually walk: the inner cross roads had no lamps at all, so a
+           district's heart was the darkest place in it after sunset. */
+        const innerOff = CARRIAGE.inner / 2 + 4;
+        for (const d of City.districts) {
+            if (d.biome === 'forest' || d.biome === 'desert') continue;
+            for (let k = -CELL_D / 2 + 70; k < CELL_D / 2 - 30; k += 180) {
+                const z0 = d.cz + k;
+                if (Math.abs(z0 - d.cz) > 70) addLamp(d.cx + innerOff, z0, true, -1, 0);
+                const z1 = d.cz + k + 90;
+                if (Math.abs(z1 - d.cz) > 70 && z1 < d.cz + CELL_D / 2 - 20) addLamp(d.cx - innerOff, z1, true, 1, 0);
+                const x0 = d.cx + k;
+                if (Math.abs(x0 - d.cx) > 70) addLamp(x0, d.cz + innerOff, false, 0, -1);
+                const x1 = d.cx + k + 90;
+                if (Math.abs(x1 - d.cx) > 70 && x1 < d.cx + CELL_W / 2 - 20) addLamp(x1, d.cz - innerOff, false, 0, 1);
             }
         }
         let poles;

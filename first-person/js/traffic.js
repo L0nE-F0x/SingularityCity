@@ -1236,15 +1236,30 @@ export const Traffic = {
        silence is the bug this replaced. */
     _initRocketPads() {
         this.pads = {};
+        let k = 0;
         for (const b of Object.values(G.bldById)) {
             if (b && b.type === 'launchpad' && b.org) {
-                this.pads[b.id] = {
+                const p = this.pads[b.id] = {
                     bld: b, org: b.org, state: 'idle',
-                    launch: null, firedFor: null, mesh: null, flightT: 0
+                    launch: null, firedFor: null, mesh: null, flightT: 0,
+                    display: k++ % 3 === 0, respawn: 0
                 };
+                // a third of the pads have a rocket standing on them
+                if (p.display) this._rollOut(p);
             }
         }
         this._notified = {};
+    },
+
+    /** Stand a rocket on its pad (the display ones, or for a real launch). */
+    _rollOut(p) {
+        if (p.mesh) return;
+        const org = SPACE_ORGS[p.org] || { color: 0xffffff };
+        p.mesh = this._buildRocket(org.color);
+        p.mesh.scale.setScalar(2.1);
+        p.mesh.position.set(p.bld.worldX, 6, p.bld.worldZ);
+        p.mesh.userData.flame.visible = false;
+        G.scene.add(p.mesh);
     },
 
     async _pollLaunches() {
@@ -1261,8 +1276,8 @@ export const Traffic = {
 
     _beginFlight(p) {
         const org = SPACE_ORGS[p.org] || { color: 0xffffff, name: 'Space' };
-        p.mesh = this._buildRocket(org.color);
-        p.mesh.position.set(p.bld.worldX, 90, p.bld.worldZ);
+        this._rollOut(p);                       // the rocket on the pad is the one that goes
+        p.mesh.userData.flame.visible = true;
         p.flightT = 0;
         p.state = 'flight';
         G.scene.add(p.mesh);
@@ -1294,9 +1309,10 @@ export const Traffic = {
                     G.scene.remove(p.mesh);
                     p.mesh = null;
                     p.state = 'idle';
+                    p.respawn = 240;            // a new one rolls out in a while
                     continue;
                 }
-                p.mesh.position.y = 90 + 2600 * prog * prog;
+                p.mesh.position.y = 6 + 2600 * prog * prog;
                 const fl = p.mesh.userData.flame;
                 fl.scale.set(
                     1 + Math.sin(t * 40) * 0.15,
@@ -1304,6 +1320,11 @@ export const Traffic = {
                     1 + Math.cos(t * 37) * 0.15
                 );
                 continue;
+            }
+
+            if (p.display && !p.mesh) {
+                p.respawn -= dt;
+                if (p.respawn <= 0) this._rollOut(p);
             }
 
             const launch = this.launchesByOrg[p.org] || null;
@@ -1330,6 +1351,7 @@ export const Traffic = {
             if (diff > 60000 && diff <= 300000) {
                 if (p.state !== 'preparation' && p.state !== 'countdown') {
                     p.state = 'preparation';
+                    this._rollOut(p);
                     this._notifyOnce(launch, '5 minutes');
                 }
                 continue;
