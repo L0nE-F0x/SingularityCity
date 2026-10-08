@@ -629,7 +629,7 @@ export const Streetscape = {
     },
 
     update(dt) {
-        if (G.inside || G.ridingMetro) return;
+        if (G.inside || (G.ridingMetro || G.onPlatform)) return;
         this._t -= dt;
         if (this._t > 0) return;
         this._t = 0.2;

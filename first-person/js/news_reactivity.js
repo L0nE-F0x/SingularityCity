@@ -296,7 +296,7 @@ export const NewsReactivity = {
             F.geo.attributes.color.needsUpdate = true;
             F.geo.attributes.aAlpha.needsUpdate = true;
         }
-        F.mesh.visible = live && !G.inside && !G.ridingMetro;
+        F.mesh.visible = live && !G.inside && !(G.ridingMetro || G.onPlatform);
     }
 };
 

@@ -44,7 +44,7 @@ export const FlyMode = {
 
     enter() {
         if (this.active) return;
-        if (G.tourMode || G.orbitMode || G.xrayMode || G.holomapMode || G.ridingMetro || G.inside) {
+        if (G.tourMode || G.orbitMode || G.xrayMode || G.holomapMode || (G.ridingMetro || G.onPlatform) || G.inside) {
             G.ui?.addToast?.('Free-fly unavailable in this mode', 'info');
             return;
         }
@@ -122,7 +122,7 @@ export const FlyMode = {
            Player.update returns early whenever G.flyMode is set, so that state
            left you inside a room with walking dead and WASD flying you out
            through the walls. Land rather than fight over the camera. */
-        if (G.inside || G.ridingMetro) { this.exit(); return; }
+        if (G.inside || (G.ridingMetro || G.onPlatform)) { this.exit(); return; }
         if (dt > 0.05) dt = 0.05;
         const cam = G.camera;
         const p = G.player;

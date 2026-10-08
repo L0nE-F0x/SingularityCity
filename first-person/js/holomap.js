@@ -226,6 +226,8 @@ export const Holomap = {
     },
 
     enter() {
+        // a sky / map view needs the city drawn: not from a room or under the street
+        if (G.inside || G.ridingMetro || G.onPlatform) { G.ui?.addToast?.('Step outside first', 'info'); return; }
         if (G.orbitMode) return;
         this.active = true;
         G.holomapMode = true;

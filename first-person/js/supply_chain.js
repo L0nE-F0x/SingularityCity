@@ -206,7 +206,7 @@ export const SupplyChain = {
             m.instanceMatrix.needsUpdate = true;
             if (m.instanceColor) m.instanceColor.needsUpdate = true;
         }
-        m.visible = live > 0 && !G.inside && !G.ridingMetro;
+        m.visible = live > 0 && !G.inside && !(G.ridingMetro || G.onPlatform);
     },
 
     /* Brown out the starved buildings. Datacentres share instanced meshes with

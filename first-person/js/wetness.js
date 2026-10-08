@@ -214,7 +214,7 @@ export const Wetness = {
         const wx = G.weatherSys?.state || 'clear';
         const intens = G.weatherSys?.intensity || 0;
         // Surface-only: never draw wet ground / splash under metro slab or indoors
-        const surface = !G.inside && !G.ridingMetro;
+        const surface = !G.inside && !(G.ridingMetro || G.onPlatform);
         this.active = surface && isWetWeather(wx);
         // thunderstorm gets the strongest neon bounce; drizzle is subtle
         const wetScale = wx === 'thunderstorm' ? 1.0 : wx === 'rain' ? 0.85 : 0.45;

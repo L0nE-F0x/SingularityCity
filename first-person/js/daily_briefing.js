@@ -122,7 +122,7 @@ export const DailyBriefing = {
     // ── lifecycle ───────────────────────────────────────────────────────────
     start() {
         if (this.active || !G.started) return;
-        if (G.inside || G.ridingMetro) {
+        if (G.inside || (G.ridingMetro || G.onPlatform)) {
             G.ui?.addToast?.('📽 Step outside first — the briefing flies over the city', 'info');
             return;
         }

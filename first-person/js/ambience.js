@@ -317,7 +317,7 @@ export const Ambience = {
     update(dt, t) {
         if (!this.points) return;
         // Nothing here is visible from inside a lobby or a metro tunnel.
-        const show = !G.inside && !G.ridingMetro;
+        const show = !G.inside && !(G.ridingMetro || G.onPlatform);
         this.points.visible = show;
         if (!show) return;
 

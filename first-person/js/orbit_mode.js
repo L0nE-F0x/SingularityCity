@@ -76,6 +76,8 @@ export const OrbitMode = {
     },
 
     enter() {
+        // a sky / map view needs the city drawn: not from a room or under the street
+        if (G.inside || G.ridingMetro || G.onPlatform) { G.ui?.addToast?.('Step outside first', 'info'); return; }
         if (G.xrayMode || G.holomapMode || G.terminalOpen || G.tourMode || G.flyMode) return;
         // free-fly and LEO are mutually exclusive camera hijacks
         enterOrbit(this.state, G.camera, G.player);

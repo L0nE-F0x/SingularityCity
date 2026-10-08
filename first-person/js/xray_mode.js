@@ -189,6 +189,8 @@ export const XrayMode = {
     },
 
     enter() {
+        // a sky / map view needs the city drawn: not from a room or under the street
+        if (G.inside || G.ridingMetro || G.onPlatform) { G.ui?.addToast?.('Step outside first', 'info'); return; }
         if (G.orbitMode || G.holomapMode) return;
         this.active = true;
         G.xrayMode = true;

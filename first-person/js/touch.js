@@ -290,7 +290,7 @@ export const Touch = {
                    preventDefault, so the synthetic mousedown still reaches
                    interact.js and the blimp / moon raycast keeps working. */
                 if (quick && G.started && !G.panelOpen && !G.paused) {
-                    if ((G.interact && G.interact.target) || G.inside || G.ridingMetro) {
+                    if ((G.interact && G.interact.target) || G.inside || (G.ridingMetro || G.onPlatform)) {
                         e.preventDefault();
                         key('KeyE');
                     }

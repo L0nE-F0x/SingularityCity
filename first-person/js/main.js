@@ -119,6 +119,7 @@ async function boot() {
     // sync start-screen controls with saved state
     const qSel = document.getElementById('qualitySel');
     const mChk = document.getElementById('musicChk');
+    const pSel = document.getElementById('pixelSel');
     if (qSel) qSel.value = G.quality;
     if (mChk) mChk.checked = !!G.settings.music;
 
@@ -462,10 +463,13 @@ async function boot() {
         G.attract = true;
         document.getElementById('startScreen')?.classList.add('live');
     }
+    if (pSel) pSel.value = G.pixelLook;
     document.getElementById('enterBtn').addEventListener('click', () => {
         G.quality = qSel ? qSel.value : G.quality;
-        if (G.quality !== bootQuality) {
+        const look = pSel ? pSel.value : G.pixelLook;
+        if (G.quality !== bootQuality || look !== G.pixelLook) {
             localStorage.setItem('sc_fp_quality', G.quality);
+            try { localStorage.setItem('sc_fp_pixel', look); } catch (_) { /* */ }
             location.reload();
             return;
         }

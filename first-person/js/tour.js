@@ -113,7 +113,7 @@ export const Tour = {
 
     _canStart() {
         if (!G.started || G.paused || G.panelOpen || G.terminalOpen) return false;
-        if (G.inside || G.ridingMetro || G.orbitMode || G.xrayMode || G.holomapMode) return false;
+        if (G.inside || (G.ridingMetro || G.onPlatform) || G.orbitMode || G.xrayMode || G.holomapMode) return false;
         if (G.flyMode) return false;
         if (G.tutorial?.active || G.dailyBriefing?.active) return false;
         return true;
