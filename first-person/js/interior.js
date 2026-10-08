@@ -18,7 +18,7 @@ import { G, EYE_H } from './state.js';
 import { LABS, DISTRICTS } from './data.js';
 import * as TEX from './textures.js';
 import { resolveRoom, floorLabel } from './interiors/rooms.js';
-import { seeded, P as PROP, nameTex } from './interiors/kit.js';
+import { seeded, P as PROP, nameTex, panelTex } from './interiors/kit.js';
 import { Assets } from './assets.js';
 import { Furnisher, LAYOUTS, NEEDS, spineTexture } from './interiors/furnish.js';
 
@@ -1055,21 +1055,74 @@ export const Interior = {
             lit(60, 40, 1, ROOM_W / 2 - 20, 48, 40, 0x1a2e1a);
             plant(-200, 140); plant(0, 150);
         } else if (cat === 'arena') {
-            box(180, 8, 180, 0, 4, -20, 0xf97316);
-            box(160, 2, 160, 0, 8, -20, 0x1a1a22);
-            for (let r = 0; r < 3; r++) for (let a = 0; a < 10; a++) {
-                const ang = a * Math.PI / 5;
-                const rad = 100 + r * 38;
-                box(36, 12 + r * 8, 28, Math.cos(ang) * rad, 6 + r * 10, -20 + Math.sin(ang) * rad, 0x374151);
+            /* The Model Arena: two models on a stage, a blind vote, a crowd.
+               It was an orange square ringed by thirty grey boxes. */
+            const A = 0x22d3ee, B = 0xff4fd8;
+            // stage and its lit rim
+            box(240, 10, 120, 0, 5, -40, 0x1c1c26); solid(0, -40, 240, 120);
+            box(244, 2, 124, 0, 10.5, -40, 0x2a2a38);
+            lit(244, 1.6, 2, 0, 11, 22, 0xf97316);
+            lit(244, 1.6, 2, 0, 11, -102, 0xf97316);
+            // the two pods, facing each other across the stage
+            for (const [sx, col] of [[-1, A], [1, B]]) {
+                const px = sx * 72;
+                box(56, 34, 40, px, 27, -40, 0x14141c);
+                lit(52, 2, 36, px, 44.5, -40, col);
+                box(44, 30, 4, px, 64, -40 + 0, 0x0b0b12);
+                lit(40, 26, 1.5, px - sx * 2.6, 64, -40, col);
+                for (let k = 0; k < 6; k++) lit(4, 4, 4, px - 20 + k * 8, 16, -18, col);
             }
-            lit(220, 60, 2, 0, 55, -ROOM_D / 2 + 14, 0xfbbf24);
-            for (let i = 0; i < 5; i++) lit(36, 28, 1, -100 + i * 50, 50, -ROOM_D / 2 + 16, 0x22d3ee);
-            // score pylons
-            for (const sx of [-1, 1]) {
-                box(20, 70, 20, sx * 200, 35, 120, 0x1f2937); solid(sx * 200, 120, 20, 20);
-                lit(14, 20, 1, sx * 200, 60, 132, 0xf97316);
+            // the scoreboard over the back of the stage
+            box(230, 64, 6, 0, 120 - 52, -ROOM_D / 2 + 18, 0x0b0b12);
+            const sb = panelTex({
+                w: 640, h: 180, bg: '#07070f', accent: '#f97316', align: 'center',
+                title: 'MODEL ARENA · BLIND VOTE', titleSize: 30,
+                lines: ['~MODEL A        VS        MODEL B', '+VOTES OPEN · ELO UPDATES LIVE'], lineSize: 22, padTop: 40
+            });
+            const sbm = new THREE.Mesh(new THREE.PlaneGeometry(220, 58), new THREE.MeshBasicMaterial({ map: sb }));
+            sbm.position.set(0, 68, -ROOM_D / 2 + 21.5);
+            this.group.add(sbm);
+            // stepped bleachers: behind the stage and down the right, rows of
+            // seats with a crowd in them (models glow, people don't)
+            const crowd = [0x7c3aed, 0x0ea5e9, 0xf97316, 0x334155, 0x16a34a, 0xbe185d, 0xa16207];
+            let k = 0;
+            const seatRow = (x0, x1, z, y, alongX) => {
+                const len = alongX ? x1 - x0 : 0;
+                for (let t = 0; t <= (alongX ? 1.0001 : 0); t += alongX ? 22 / Math.max(22, len) : 1) {
+                    const sx = alongX ? x0 + t * len : x0, sz = alongX ? z : z;
+                    box(16, 4, 14, sx, y + 2, sz, 0x2b2b3a);
+                    if (((k++ * 7) % 10) < 6) {
+                        const hex = crowd[k % crowd.length], bot = k % 3 === 0;
+                        box(9, 11, 7, sx, y + 9.5, sz, hex);
+                        box(6.5, 6.5, 6.5, sx, y + 18, sz, bot ? 0xaeb6c2 : 0xe2b48c);
+                        if (bot) lit(6.8, 1.4, 6.8, sx, y + 18.6, sz, 0x67e8f9);
+                    }
+                }
+            };
+            for (let r = 0; r < 3; r++) {
+                const y = r * 12, z = -150 - r * 22;
+                box(420, y + 4, 22, 0, (y + 4) / 2, z, 0x3a3a4c);
+                seatRow(-190, 190, z, y + 4, true);
             }
-        } else if (cat === 'cafe') {
+            solid(0, -172, 440, 70);
+            for (let r = 0; r < 3; r++) {
+                const y = r * 12, x = 196 + r * 22;
+                box(22, y + 4, 300, x, (y + 4) / 2, 10, 0x3a3a4c);
+                for (let zz = -120; zz <= 140; zz += 22) seatRow(x, x, zz, y + 4, false);
+            }
+            solid(218, 10, 70, 300);
+            // lighting truss and spot cones on the stage
+            box(300, 4, 4, 0, ROOM_H - 14, -40, 0x2a2a38);
+            box(4, 4, 160, -150, ROOM_H - 14, -40, 0x2a2a38);
+            box(4, 4, 160, 150, ROOM_H - 14, -40, 0x2a2a38);
+            for (const sx of [-110, -40, 40, 110]) {
+                box(8, 8, 8, sx, ROOM_H - 20, -40, 0x14141c);
+                lit(6, 1, 6, sx, ROOM_H - 24.5, -40, 0xfff1d6);
+            }
+            // floor graphics: the arena ring and lane lines toward the stage
+            lit(300, 0.8, 3, 0, 0.9, 40, 0xf97316);
+            for (const sx of [-1, 1]) lit(3, 0.8, 120, sx * 150, 0.9, 100, 0x3b3b52);
+        } else if (cat === 'cafe') {        } else if (cat === 'cafe') {
             box(170, 34, 52, -100, 17, -120, 0x8b5a2b); solid(-100, -120, 170, 52);
             for (let i = 0; i < 8; i++) lit(6, 14, 6, -160 + i * 18, 48, -145, [0xfbbf24, 0xd97706][i % 2]);
             for (const [sx, sz] of [[80, -80], [140, -80], [80, -20], [140, -20], [80, 40], [140, 40], [80, 100], [140, 100], [-40, 80], [20, 80]]) {

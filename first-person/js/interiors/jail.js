@@ -123,10 +123,12 @@ export const JAIL = {
     id: 'jail',
     theme(b, f, th) {
         th.cat = 'jail';
-        th.wall = f === 4 ? 0x1c2026 : CONCRETE;
-        th.ceil = 0x14181e;
-        th.floor = f === 3 ? 0x232a34 : 0x3a4048;
-        th.lamp = f === 3 ? 0x38bdf8 : 0xff6a6a;
+        // intake is institutional: painted walls, white strip light; the
+        // blocks keep their concrete, solitary its red
+        th.wall = f === 4 ? 0x1c2026 : f === 0 ? 0x6f7f86 : CONCRETE;
+        th.ceil = f === 0 ? 0x3a4048 : 0x14181e;
+        th.floor = f === 3 ? 0x232a34 : f === 0 ? 0x5b6168 : 0x3a4048;
+        th.lamp = f === 3 ? 0x38bdf8 : f === 0 ? 0xeef2f6 : 0xff6a6a;
         th.accent = f === 3 ? '#38bdf8' : '#ef4444';
         th.dim = true;
     },
@@ -181,6 +183,24 @@ export const JAIL = {
                     ], lineSize: 17
                 }), 190, 96, c.W / 2 - c.WALL / 2 - 4, 60, 40, -Math.PI / 2);
 
+                // institutional paint: a green dado, a hazard band at the gate,
+                // floor lines walking you from the door to the desk
+                for (const sx of [-1, 1]) c.box(3, 34, c.D - 40, sx * (c.W / 2 - c.WALL / 2 - 2), 17, 0, 0x3f6b63);
+                c.box(c.W - 40, 34, 3, 0, 17, -c.D / 2 + c.WALL / 2 + 2, 0x3f6b63);
+                for (let k = 0; k < 10; k++) c.box(14, 6, 2, -63 + k * 14, 84, c.D / 2 - c.WALL - 12, k % 2 ? 0x111111 : 0xfacc15);
+                for (const lx of [-20, 20]) c.lit(4, 0.6, 250, lx, 0.8, 30, 0xfacc15);
+                c.lit(60, 0.6, 4, 0, 0.8, -92, 0xfacc15);
+                // a height chart behind the booking desk, and a glass screen on it
+                for (let k = 0; k <= 8; k++) c.box(k % 2 ? 26 : 40, 1.2, 1, 150, 10 + k * 10, -c.D / 2 + c.WALL + 3, 0x111827);
+                c.box(48, 90, 1, 150, 46, -c.D / 2 + c.WALL + 2.4, 0xd6dbe0);
+                c.box(220, 26, 1.2, 0, 66, -98, 0x9fd8f0);
+                // queue barriers on the way in
+                for (const qz of [40, 80]) {
+                    for (const qx of [-90, -30, 30, 90]) c.box(4, 30, 4, qx, 15, qz, STEEL);
+                    c.box(180, 2, 2, 0, 26, qz, 0xef4444);
+                }
+                c.plate(panelTex({ w: 256, h: 96, bg: '#0d1117', accent: '#facc15', align: 'center',
+                    title: 'WAIT HERE', titleSize: 26, lines: ['~until called'], lineSize: 16, padTop: 32 }), 30, 11, 0, 34, 41);
                 P.plant(c, -c.W / 2 + 50, 180, 34);
                 if (night) {
                     c.npc(c, 0, -96, STAFF.nightWatch, 1);

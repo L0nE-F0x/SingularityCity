@@ -79,11 +79,44 @@ function buildFoyer(c) {
         accent: c.accentCss
     }), 76, 52, 150, 46, -hd + c.WALL / 2 + 3);
 
-    // lobby seating and a tired pot plant
-    c.box(70, 16, 26, -40, 8, 90, 0x334155); c.solid(-40, 90, 70, 26);
-    c.box(70, 20, 8, -40, 22, 78, 0x3b4657);
-    P.plant(c, hw - 60, 100, 42);
-    P.plant(c, -hw + 60, 100, 34);
+    // wood wainscot round the room, and a brick-red feature wall behind the boxes
+    for (const sx of [-1, 1]) c.box(3, 30, c.D - 40, sx * (hw - c.WALL / 2 - 2), 15, 0, 0x6b4a32);
+    c.box(c.W - 40, 30, 3, 0, 15, -hd + c.WALL / 2 + 2, 0x6b4a32);
+    c.box(150, 60, 2, -120, 50, -hd + c.WALL / 2 + 2.6, 0x8a3b2a);
+
+    // the lounge: a sofa and chairs on a rug, a lamp, a coffee table
+    const K = (id, x, z, ry, o = {}) => !!(c.kit && c.kit(id, x, z, ry, o));
+    if (!K('in_area_rug', 150, 90, 0, { s: 1.6 })) c.box(130, 0.8, 80, 150, 0.5, 90, 0x7a3b3b);
+    if (!K('in_sofa', 150, 128, Math.PI, { s: 1.2, solid: true })) {
+        c.box(70, 16, 26, 150, 8, 128, 0x334155); c.solid(150, 128, 70, 26);
+        c.box(70, 20, 8, 150, 22, 140, 0x3b4657);
+    }
+    K('in_armchair', 84, 86, Math.PI / 2, { s: 1.2, solid: true });
+    K('in_armchair', 216, 86, -Math.PI / 2, { s: 1.2, solid: true });
+    K('in_coffee_table', 150, 86, 0, { s: 1.2, solid: true });
+    K('in_floor_lamp', 232, 140, 0, { s: 1.2 });
+    K('in_newspaper_rack', -hw + 60, 120, Math.PI / 2, { s: 1.2, solid: true });
+    // parcel lockers by the boxes, lit where something is waiting
+    for (let i = 0; i < 4; i++) {
+        c.box(26, 60, 22, 10 + i * 28, 30, -hd + c.WALL + 12, 0x4a5a6a);
+        c.solid(10 + i * 28, -hd + c.WALL + 12, 26, 22);
+        for (let r = 0; r < 3; r++) c.lit(4, 2, 1, 2 + i * 28, 14 + r * 18, -hd + c.WALL + 23.5, rnd() < 0.4 ? 0x4ade80 : 0x334155);
+    }
+    // notice board with the building's flyers
+    c.plate(panelTex({
+        w: 384, h: 256, bg: '#c9a46a', accent: '#6b4a32', grid: false,
+        title: 'NOTICES', titleSize: 22, titleColor: '#3b2a1a', lineColor: '#2b2118',
+        lines: ['BIN DAY: THURSDAY', 'GPU CO-OP MEETS 7PM', 'LOST: ONE CAT (TABBY)', 'NIGHT SHIFT: KEEP IT DOWN'], lineSize: 16
+    }), 70, 48, hw - c.WALL / 2 - 4, 50, 120, -Math.PI / 2);
+    // bikes parked inside the door
+    for (let i = 0; i < 3; i++) {
+        const bz = 150 + i * 18;
+        for (const wx of [-10, 10]) c.box(2, 14, 14, -hw + 80 + wx, 7, bz, 0x1f2937);
+        c.box(22, 2, 2, -hw + 80, 12, bz, [0xb91c1c, 0x2563eb, 0x15803d][i]);
+    }
+    c.solid(-hw + 80, 168, 30, 60);
+    P.plant(c, hw - 50, 30, 42);
+    P.plant(c, -hw + 60, 60, 34);
 
     // The doorman clocks off overnight — the 2D block does the same, and an
     // empty desk at 3am says more about shift work than a permanent NPC would.
@@ -187,8 +220,8 @@ export const WORKER_HOUSING = {
         th.cat = 'home';
         th.accent = '#38bdf8';
         if (f === 0) {
-            // foyer: municipal, a bit institutional, well lit
-            th.wall = 0x3d4757; th.ceil = 0x2b3340; th.floor = 0x55606e; th.lamp = 0xfff0c8;
+            // foyer: a lived-in lobby — warm plaster, wood, a rug, lamplight
+            th.wall = 0xb59a80; th.ceil = 0x6e5e50; th.floor = 0x8a7462; th.lamp = 0xffdca8;
         } else if (f >= maxFloor && maxFloor > 1) {
             // laundry / storage: concrete, cold strip light
             th.wall = 0x3a3f47; th.ceil = 0x24282e; th.floor = 0x4a5058; th.lamp = 0xdbeafe;
