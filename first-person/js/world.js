@@ -2439,6 +2439,15 @@ export const World = {
         add('diesel', x, z);
         add('container_wagon', x, z + 55);
         add('container_wagon', x, z + 95);
+        // the track it stands on, and a claim on the ground so the street
+        // furniture (a pocket plaza had laid its pool under the locomotive)
+        // keeps off it
+        const z0 = z - 70, z1 = z + 160;
+        sBox(26, 1.2, z1 - z0, x, 0.6, (z0 + z1) / 2, 0x6d6252);             // ballast
+        for (let tz = z0 + 4; tz < z1; tz += 9) sBox(22, 0.8, 3, x, 1.4, tz, 0x4a3a2e);
+        for (const rx of [-6.5, 6.5]) sBox(1.4, 1.2, z1 - z0, x + rx, 2.2, (z0 + z1) / 2, 0x9aa3ad);
+        sBox(20, 6, 4, x, 3, z1 + 2, 0xd94a3a);                                // buffer stop
+        G.colliders.push({ x0: x - 16, z0: z0 - 6, x1: x + 16, z1: z1 + 6, id: 'rail' });
     },
 
     /* The two halves of a lit street lamp, both free of actual lights:
