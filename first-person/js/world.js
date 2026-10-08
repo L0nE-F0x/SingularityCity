@@ -453,11 +453,12 @@ export const World = {
             // The Underground is a wasteland: bare packed earth, not civic paving.
             if (d.biome === 'forest' || d.biome === 'desert' || d.biome === 'park' || d.biome === 'wasteland') continue;
             for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-                const g = new THREE.PlaneGeometry(352, 352);
+                // from the inner street's pavement edge (56) out to the cell edge
+                const g = new THREE.PlaneGeometry(330, 330);
                 g.rotateX(-Math.PI / 2);
                 const uv = g.attributes.uv;
-                for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 22, uv.getY(i) * 22);
-                g.translate(d.cx + ox * 210, 0.25, d.cz + oz * 210);
+                for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 21, uv.getY(i) * 21);
+                g.translate(d.cx + ox * 221, 0.25, d.cz + oz * 221);
                 pavGeos.push(g);
             }
         }
@@ -605,8 +606,8 @@ export const World = {
                 // ...and off the four 352² paved quadrant pads, where those exist
                 // (parks, forests and desert districts don't get them).
                 if (hasPads &&
-                    Math.abs(Math.abs(gx - d.cx) - 210) < 176 &&
-                    Math.abs(Math.abs(gz - d.cz) - 210) < 176) continue;
+                    Math.abs(Math.abs(gx - d.cx) - 221) < 165 &&
+                    Math.abs(Math.abs(gz - d.cz) - 221) < 165) continue;
                 // avoid building footprints roughly
                 let hit = false;
                 for (const p of G.placements) {
@@ -1669,8 +1670,35 @@ export const World = {
                     const gz = z - 50 + Math.floor(i / 6) * 32 + rng() * 8;
                     sBox(10, 16 + rng() * 8, 3, gx, 8, gz, 0x9aa0a6, (rng() - 0.5) * 0.3);
                 }
-                for (let i = 0; i < 10; i++) sBox(3, 14, 3, x - 90 + i * 20, 7, z - 75, 0x3a3f46);
-                sBox(180, 4, 3, x, 13, z - 75, 0x3a3f46);
+                // the old "fence" was a 4-unit black beam on ten fat posts — from
+                // the street it read as a black slab. Wrought-iron pickets now,
+                // all the way round, with a gate between two stone piers.
+                const FX = 92, FZ = 75;
+                const pickets = (x0, z0, x1, z1) => {
+                    const len = Math.hypot(x1 - x0, z1 - z0), n = Math.floor(len / 5);
+                    for (let k = 0; k <= n; k++) {
+                        const t = k / n;
+                        sBox(0.9, 12, 0.9, x0 + (x1 - x0) * t, 6, z0 + (z1 - z0) * t, 0x2c3138);
+                    }
+                    const along = Math.abs(x1 - x0) > Math.abs(z1 - z0);
+                    for (const ry of [3, 11]) {
+                        sBox(along ? len : 0.8, 0.8, along ? 0.8 : len, (x0 + x1) / 2, ry, (z0 + z1) / 2, 0x2c3138);
+                    }
+                };
+                pickets(x - FX, z - FZ, x - 14, z - FZ);
+                pickets(x + 14, z - FZ, x + FX, z - FZ);
+                pickets(x - FX, z + FZ, x + FX, z + FZ);
+                pickets(x - FX, z - FZ, x - FX, z + FZ);
+                pickets(x + FX, z - FZ, x + FX, z + FZ);
+                for (const sx of [-1, 1]) {
+                    sBox(7, 18, 7, x + sx * 17, 9, z - FZ, 0x8d8f8a);
+                    sBox(9, 2, 9, x + sx * 17, 19, z - FZ, 0x7a7c78);
+                }
+                sBox(20, 0.4, 150, x, 0.4, z, 0x8a8174);                         // gravel path
+                // a small mausoleum at the back
+                sBox(34, 22, 24, x, 11, z + 52, 0x9a9c97);
+                sBox(38, 3, 28, x, 23.5, z + 52, 0x84867f);
+                sBox(10, 14, 1, x, 7, z + 39.6, 0x3a3f46);
                 break;
             }
             case 'park': {
@@ -1962,19 +1990,32 @@ export const World = {
         const color = new THREE.Color();
 
         const treeSpots = [];
+        const treeGrid = new Map();
+        const tKey = (x, z) => Math.floor(x / 40) + ',' + Math.floor(z / 40);
         const plant = (x, z, biome, s, spin) => {
             if (City.onCarriageway?.(x, z)) return;
             for (const c of G.colliders) {
                 if (x > c.x0 - 10 && x < c.x1 + 10 && z > c.z0 - 10 && z < c.z1 + 10) return;
             }
-            treeSpots.push({ x, z, biome, s, spin });
+            // canopies must not grow into one another
+            const gap = biome === 'forest' ? 16 : 26;
+            const gx = Math.floor(x / 40), gz = Math.floor(z / 40);
+            for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+                for (const t of treeGrid.get((gx + dx) + ',' + (gz + dz)) || []) {
+                    if (Math.hypot(t.x - x, t.z - z) < gap) return;
+                }
+            }
+            const spot = { x, z, biome, s, spin };
+            treeSpots.push(spot);
+            const k = tKey(x, z);
+            (treeGrid.get(k) || treeGrid.set(k, []).get(k)).push(spot);
         };
         for (const d of City.districts) {
             const count = { park: 70, forest: 120, plaza: 26, academic: 16, urban: 6, industry: 3, coastal: 10, wasteland: 5, desert: 2 }[d.biome] ?? 6;
             for (let i = 0; i < count; i++) {
                 const tx = d.cx + (rng() - 0.5) * (CELL_W - 70);
                 const tz = d.cz + (rng() - 0.5) * (CELL_D - 70);
-                if (Math.abs(tx - d.cx) < 44 || Math.abs(tz - d.cz) < 44) continue;
+                if (Math.abs(tx - d.cx) < 64 || Math.abs(tz - d.cz) < 64) continue;
                 const park = d.biome === 'park' || d.biome === 'forest';
                 plant(tx, tz, d.biome, (park ? 1.15 : 0.95) + rng() * 0.45, rng() * Math.PI);
             }
@@ -1994,6 +2035,12 @@ export const World = {
         }
         this._placeKitTrees(scene, dummy, treeSpots);
         this.treeSpots = treeSpots;
+        // you cannot walk through a trunk (forests excepted: they are dense
+        // enough that a collider each would turn them into a maze)
+        for (const t of treeSpots) {
+            if (t.biome === 'forest') continue;
+            G.colliders.push({ x0: t.x - 3, z0: t.z - 3, x1: t.x + 3, z1: t.z + 3, id: 'tree' });
+        }
 
         /* Street lamps down BOTH pavements of every avenue and street.
            They used to be 34 units — 3.4 m — tall, with a single unlit sphere on
@@ -2109,7 +2156,14 @@ export const World = {
         // Clear of buildings AND of the streets this avenue crosses — a pole at
         // a junction stands on the cross-street's tarmac. Dropping one just
         // makes the wire span the intersection, which is what wires do.
+        /* Overhead lines are what the 2D app draws on its outskirts. Downtown
+           they are buried: a wooden pole every 20 m down the same pavement as
+           the lamps and the trees put three things in one line, and it was
+           trees growing out of poles and poles through bus shelters. */
+        const POLE_BIOMES = new Set(['industry', 'suburban', 'coastal', 'wasteland', 'desert']);
         const clear = (x, z) => City.clearOfCrossRoads(x, z, true) &&
+            POLE_BIOMES.has(G.districtAt(x + 60, z)?.biome) &&
+            !this.lampSpots.some(l => Math.abs(l.x - x) < 16 && Math.abs(l.z - z) < 16) &&
             !G.colliders.some(c =>
                 x > c.x0 - 12 && x < c.x1 + 12 && z > c.z0 - 12 && z < c.z1 + 12);
 
@@ -2123,6 +2177,8 @@ export const World = {
             }
             if (row.length > 1) lines.push({ vertical: true, poles: row });
         }
+        this.utilityPoles = lines.flatMap(l => l.poles);
+        for (const p of this.utilityPoles) G.colliders.push({ x0: p.x - 3, z0: p.z - 3, x1: p.x + 3, z1: p.z + 3, id: 'pole' });
 
         const poleGeos = [];
         const wirePts = [];
@@ -2419,7 +2475,9 @@ export const World = {
        one extra light term per fragment per light, and none on `low`. */
     _buildLampLights(scene, spots, lampH) {
         const n = G.quality === 'high' ? 8 : G.quality === 'low' ? 0 : 5;
-        this.lampSpots = spots;
+        // the HEADS (over the road). lampSpots stays the poles — streetscape
+        // keeps its furniture clear of those, and was dodging the heads instead
+        this.lampHeads = spots;
         this.lampLights = [];
         this._lampT = 0;
         for (let i = 0; i < n; i++) {
@@ -2450,7 +2508,7 @@ export const World = {
         if (this._lampT <= 0) {
             this._lampT = 0.25;
             const cam = G.camera.position;
-            const spots = this.lampSpots;
+            const spots = this.lampHeads;
             // nearest N lamps — a partial selection over ~1k spots, 4x a second
             const best = [];
             for (let i = 0; i < spots.length; i++) {

@@ -38,8 +38,9 @@ export const Vendors = {
             !['park', 'graveyard', 'arena', 'monument'].includes(p.b.type));
         if (!hosts.length) return;
 
+        // the whole cart (≈ 48 × 30) has to fit, not just its centre point
         const clear = (x, z) => City.onSidewalk(x, z) &&
-            !G.colliders.some(c => x > c.x0 - 10 && x < c.x1 + 10 && z > c.z0 - 10 && z < c.z1 + 10);
+            !G.colliders.some(c => x + 28 > c.x0 && x - 28 < c.x1 && z + 28 > c.z0 && z - 28 < c.z1);
 
         // find a clear sidewalk spot next to a host, trying the vertical inner
         // road first, then the horizontal one
@@ -73,6 +74,9 @@ export const Vendors = {
                 if (s) { spot = s; used.add(key); break; }
             }
             if (!spot) continue;
+            (this.spots ||= []).push(spot);
+            // the cart is solid, and everything placed after it keeps clear
+            G.colliders.push({ x0: spot.x - 25, z0: spot.z - 25, x1: spot.x + 25, z1: spot.z + 25, id: 'vendor' });
             const nx = Math.sin(spot.ang), nz = Math.cos(spot.ang);
             this._cart(cartGeos, v, spot.x, spot.z, spot.ang);
             this._sign(signGeos, cell[i], spot.x + nx * 2, spot.z + nz * 2, spot.ang);

@@ -190,7 +190,8 @@ export const Streetscape = {
         const range = (opts.range ?? 850) * this.rangeMul;
         const s = this._set(id, range);
         if (!s) return false;
-        const r = opts.r ?? 8;
+        // clearance from the kit's real footprint, never less than asked for
+        const r = Math.max(opts.r ?? 8, this.radius(id, opts.scale ?? 1));
         if (!opts.force && !this._ok(x, z, r, opts)) return false;
         const scale = (opts.scale ?? 1) * WORLD_PER_M;
         s.add(x, opts.y ?? (opts.onKerb ? KERB_H : 0), z, ry, scale, opts.tint);
@@ -204,6 +205,23 @@ export const Streetscape = {
         }
         this.stats[id] = (this.stats[id] || 0) + 1;
         return true;
+    },
+
+    /** Half the longer side of a kit at `scale`, in world units. */
+    radius(id, scale = 1) {
+        const k = Assets.has(id) ? Assets.get(id) : null;
+        if (!k) return 0;
+        return 0.5 * Math.max(k.size.x, k.size.z) * WORLD_PER_M * scale * 0.92;
+    },
+
+    /** Nothing but open paving within `r` (no tarmac, no kerb). */
+    _openGround(x, z, r) {
+        for (let i = 0; i < 12; i++) {
+            const a = i / 12 * Math.PI * 2;
+            const px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
+            if (City.onCarriageway(px, pz) || City.onSidewalk(px, pz)) return false;
+        }
+        return !City.onCarriageway(x, z) && !City.onSidewalk(x, z);
     },
 
     _ok(x, z, r, opts) {
@@ -293,8 +311,9 @@ export const Streetscape = {
                         // terrazzo bench's backrest is on +z; the plaza bench's on -z
                         const ry = prog.deco ? faceRoad + Math.PI : faceRoad;
                         if (this._put(benchId, b.x, b.z, ry, { r: 9, onKerb: true, solid: true, hx: 8, hz: 3 })) {
-                            const bin = P(a + 16, bldOff);
-                            this._put(prog.deco ? 'vb_bin' : 'st_recycle', bin.x, bin.z, faceRoad, { r: 5, onKerb: true, solid: true, hx: 4, hz: 3 });
+                            const binId = prog.deco ? 'vb_bin' : 'st_recycle';
+                            const bin = P(a + this.radius(benchId) + this.radius(binId) + 4, bldOff);
+                            this._put(binId, bin.x, bin.z, faceRoad, { r: 5, onKerb: true, solid: true, hx: 4, hz: 3 });
                         }
                         continue;
                     }
@@ -394,8 +413,8 @@ export const Streetscape = {
                 if (want <= 0) break;
                 if (taken.some(t => Math.hypot(t.x - s.x, t.z - s.z) < 150)) continue;
                 if (!this._ok(s.x, s.z, 34, { margin: 12 })) continue;
-                if (City.onSidewalk(s.x, s.z)) continue;
-                const big = this._ok(s.x, s.z, 50, { margin: 14 });
+                if (!this._openGround(s.x, s.z, 62)) continue;
+                const big = this._ok(s.x, s.z, 50, { margin: 14 }) && this._openGround(s.x, s.z, 76);
                 this._plaza(s.x, s.z, rnd, big);
                 taken.push(s);
                 want--;
@@ -403,39 +422,44 @@ export const Streetscape = {
         }
     },
 
+    /* A pocket plaza: a centrepiece and its satellites, each ring sized from
+       the kits' real footprints. Satellites are placed through the same
+       clearance checks as everything else (they used to be forced in, which
+       is how benches ended up inside their own recycling bins and kiosks
+       inside bike racks). */
     _plaza(x, z, rnd, big) {
         const kind = rnd();
-        const benchRing = (cx, cz, rad, n) => {
+        const ring = (id, cx, cz, rad, n, a0 = Math.PI / 4, o = {}) => {
             for (let i = 0; i < n; i++) {
-                const a = (i / n) * Math.PI * 2 + Math.PI / 4;
-                const bx = cx + Math.sin(a) * rad, bz = cz + Math.cos(a) * rad;
+                const a = a0 + (i / n) * Math.PI * 2;
                 // seat faces outward: +z along the ring's radius
-                this._put('st_bench', bx, bz, a, { r: 8, solid: true, hx: 7, hz: 3, force: true, y: 0.3 });
+                this._put(id, cx + Math.sin(a) * rad, cz + Math.cos(a) * rad, a, { r: 8, solid: true, hx: 7, hz: 3, y: 0.3, ...o });
             }
         };
+        const R = (id, s = 1) => this.radius(id, s);
         if (big && kind < 0.22 && this.heavy && Assets.has('ct_fountain')) {
             this._put('ct_fountain', x, z, 0, { r: 36, solid: true, hx: 28, hz: 28, force: true, range: 2400, scale: 0.9 });
-            benchRing(x, z, 50, 4);
+            ring('st_bench', x, z, R('ct_fountain', 0.9) + R('st_bench') + 8, 4);
         } else if (big && kind < 0.4) {
             this._put('st_centerpiece', x, z, rnd() * 6.28, { r: 30, solid: true, hx: 22, hz: 22, force: true, range: 2600 });
-            for (const [dx, dz] of [[-40, 0], [40, 0], [0, -40], [0, 40]]) {
-                this._put('st_planter', x + dx, z + dz, Math.atan2(dx, dz), { r: 8, solid: true, hx: 6, hz: 4, force: true });
-            }
+            ring('st_planter', x, z, R('st_centerpiece') + R('st_planter') + 6, 4, 0, { hx: 6, hz: 4 });
         } else if (kind < 0.62) {
             this._put('st_pool', x, z, 0, { r: 26, force: true, range: 1800, y: 0.2 });
-            this._put('st_bench', x, z - 32, 0, { r: 8, solid: true, hx: 7, hz: 3, force: true });
-            this._put('st_bench', x, z + 32, Math.PI, { r: 8, solid: true, hx: 7, hz: 3, force: true });
-            this._put('st_topiary', x - 32, z, Math.PI / 2, { r: 8, solid: true, hx: 5, hz: 10, force: true });
-            this._put('st_topiary', x + 32, z, Math.PI / 2, { r: 8, solid: true, hx: 5, hz: 10, force: true });
+            const d = R('st_pool') + R('st_bench') + 5;
+            this._put('st_bench', x, z - d, 0, { r: 8, solid: true, hx: 7, hz: 3 });
+            this._put('st_bench', x, z + d, Math.PI, { r: 8, solid: true, hx: 7, hz: 3 });
+            const t = R('st_pool') + R('st_topiary') + 5;
+            this._put('st_topiary', x - t, z, Math.PI / 2, { r: 8, solid: true, hx: 5, hz: 10 });
+            this._put('st_topiary', x + t, z, Math.PI / 2, { r: 8, solid: true, hx: 5, hz: 10 });
         } else if (kind < 0.85) {
             this._put('st_planter', x, z, 0, { r: 10, solid: true, hx: 7, hz: 4, force: true });
-            benchRing(x, z, 22, 3);
-            this._put('st_recycle', x + 26, z + 20, 0, { r: 5, solid: true, hx: 4, hz: 3, force: true });
+            ring('st_bench', x, z, R('st_planter') + R('st_bench') + 6, 3);
+            this._put('st_recycle', x + 34, z + 26, 0, { r: 5, solid: true, hx: 4, hz: 3 });
         } else {
-            this._put('st_shrub_bed', x - 14, z, 0, { r: 12, solid: true, hx: 13, hz: 4, force: true });
-            this._put('st_shrub_bed', x + 14, z + 18, 0, { r: 12, solid: true, hx: 13, hz: 4, force: true });
-            this._put('st_kiosk', x, z - 22, 0, { r: 10, solid: true, hx: 10, hz: 7, force: true, range: 1500 });
-            this._put('st_bike_rack', x + 20, z - 20, 0, { r: 12, force: true });
+            this._put('st_kiosk', x, z - 26, 0, { r: 10, solid: true, hx: 10, hz: 7, force: true, range: 1500 });
+            this._put('st_shrub_bed', x - 26, z + 14, 0, { r: 12, solid: true, hx: 13, hz: 4 });
+            this._put('st_shrub_bed', x + 26, z + 14, 0, { r: 12, solid: true, hx: 13, hz: 4 });
+            this._put('st_bike_rack', x + R('st_kiosk') + R('st_bike_rack') + 6, z - 26, Math.PI / 2, { r: 12 });
         }
     },
 
@@ -582,6 +606,22 @@ export const Streetscape = {
                 }
             }
         }
+    },
+
+    /** Something placed after the streetscape (the AI Index board) claims a
+     *  rect: drop any furniture standing in it, and its colliders. */
+    evict(x0, z0, x1, z1) {
+        for (const set of this.sets.values()) {
+            if (!set.px) continue;
+            for (let i = 0; i < set.px.length; i++) {
+                if (set.px[i] > x0 && set.px[i] < x1 && set.pz[i] > z0 && set.pz[i] < z1) {
+                    set.px[i] = 1e9; set.pz[i] = 1e9;
+                }
+            }
+        }
+        G.colliders = G.colliders.filter(c => c.id !== 'furniture' ||
+            c.x1 < x0 || c.x0 > x1 || c.z1 < z0 || c.z0 > z1);
+        this.refresh(true);
     },
 
     /** Re-upload the near instances when the camera has moved far enough. */

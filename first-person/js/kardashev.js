@@ -4,6 +4,7 @@
    ────────────────────────────────────────────────────────────────────────── */
 import * as THREE from 'three';
 import { G } from './state.js';
+import { Streetscape } from './streetscape.js';
 import { City } from './city.js';
 
 export function kardashevScale(aiIndex) {
@@ -176,6 +177,7 @@ export const Kardashev = {
         G.colliders.push({
             x0: x - 36, z0: z - 16, x1: x + 36, z1: z + 16, id: 'kardashev_board'
         });
+        Streetscape.evict(x - 46, z - 26, x + 46, z + 26);
     },
 
     update(dt) {

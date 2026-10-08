@@ -282,6 +282,7 @@ async function boot() {
     G.signals = Signals;
     Interior.init(G.scene);
     Vendors.build(G.scene);
+    G.vendors = Vendors;
     ChatBubbles.init(G.scene);
     G.chatBubbles = ChatBubbles;
     Birds.init(G.scene);

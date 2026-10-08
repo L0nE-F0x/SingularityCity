@@ -9,8 +9,13 @@ import { CELL_W, CELL_D, GAP, GRID_COLS, GRID_ROWS, FLOOR_H, CITY_W, CITY_D, G }
 
 // Road cross-sections, in world units (10 u = 1 m). A "main" road is a 12 m
 // carriageway — two 3 m lanes each way — with 4 m sidewalks either side.
-export const CARRIAGE = { main: 120, ring: 96, inner: 44 };
-export const SIDEWALK = { main: 38, ring: 20, inner: 16 };
+/* The inner cross road through each district used to be a 4.4 m single
+   carriageway with 1.6 m pavements and the towers 40 cm behind them: every
+   district, seen from its own main street, was a canyon of glass walls. It is
+   now a proper two-lane street (6 m) with 2.6 m pavements, and the buildings
+   step back to leave a forecourt. */
+export const CARRIAGE = { main: 120, ring: 96, inner: 60 };
+export const SIDEWALK = { main: 38, ring: 20, inner: 26 };
 export const INNER_STRIP = CARRIAGE.inner + SIDEWALK.inner * 2;
 export const KERB_H = 1.8;
 export const LANE_W = 30;          // one lane; cars sit on its centre
@@ -97,7 +102,7 @@ export const City = {
             }
         }
 
-        const innerRoadHalf = 30;
+        const innerRoadHalf = 64;   // clear of the inner street + its pavement (56) + a forecourt
         const inset = 30;
         const halfW = CELL_W / 2;
         const quadAvail = halfW - innerRoadHalf - inset;
@@ -225,7 +230,7 @@ export const City = {
         this.infill = [];
         const STEP = 104;            // lot pitch
         const HALF = 392;            // stay a hair inside the cell so the pavement survives
-        const CROSS = 96;            // clearance around the inner cross road
+        const CROSS = 110;           // clearance around the inner cross road
         let seed = 90210;
 
         for (const d of this.districts) {

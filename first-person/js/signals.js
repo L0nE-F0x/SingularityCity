@@ -19,7 +19,7 @@ import { City, CARRIAGE, SIDEWALK } from './city.js';
 const SIGNAL_PERIOD = 26;   // seconds for a full two-phase cycle
 const AMBER = 0.06;         // fraction of a half-phase spent on amber
 
-const DARK = 0x14171d;      // pole / arm / housing colour
+const DARK = 0x2e343d;      // pole / arm / housing colour (galvanised dark grey, not a black beam)
 
 export const Signals = {
     matsX: null,   // { red, amber, green } for E-W (along-X) approaches
@@ -68,13 +68,15 @@ export const Signals = {
             // corner pole + cantilevered mast arm out to the head
             if (axis === 'z') {
                 const px = hx + (halfC + sw * 0.5 + 6);   // pole on the +X sidewalk
-                box(4.5, ARM_Y, 4.5, px, ARM_Y / 2, hz);  // post
-                box(px - hx, 3.5, 4, (px + hx) / 2, ARM_Y - 2, hz); // arm reaching -X
+                box(3.2, ARM_Y, 3.2, px, ARM_Y / 2, hz);  // post
+                box(px - hx, 1.8, 1.8, (px + hx) / 2, ARM_Y - 2, hz); // arm reaching -X
+                box(4.5, 3, 4.5, px, 1.5, hz);            // base
                 G.colliders.push({ x0: px - 4, z0: hz - 4, x1: px + 4, z1: hz + 4, id: 'signal' });
             } else {
                 const pz = hz + (halfC + sw * 0.5 + 6);
-                box(4.5, ARM_Y, 4.5, hx, ARM_Y / 2, pz);
-                box(4, 3.5, pz - hz, hx, ARM_Y - 2, (pz + hz) / 2);
+                box(3.2, ARM_Y, 3.2, hx, ARM_Y / 2, pz);
+                box(1.8, 1.8, pz - hz, hx, ARM_Y - 2, (pz + hz) / 2);
+                box(4.5, 3, 4.5, hx, 1.5, pz);
                 G.colliders.push({ x0: hx - 4, z0: pz - 4, x1: hx + 4, z1: pz + 4, id: 'signal' });
             }
         };

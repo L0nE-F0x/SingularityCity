@@ -342,13 +342,16 @@ function buildVipCar(founder) {
     ctx.beginPath();
     if (ctx.roundRect) { ctx.roundRect(8, 8, 240, 48, 8); ctx.fill(); } else { ctx.fillRect(8, 8, 240, 48); }
     ctx.fillStyle = '#fbbf24';
-    ctx.font = 'bold 28px system-ui,sans-serif';
+    ctx.font = 'bold 22px Silkscreen, monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(founder.name || 'CEO', 128, 42);
+    ctx.fillText(founder.name || 'CEO', 128, 41);
     const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true }));
-    spr.scale.set(36, 9, 1);
-    spr.position.set(0, 22, 0);
+    // a tag over the roof, not a billboard: it was 36 wide, and up close a
+    // founder's name filled a fifth of the screen
+    spr.scale.set(22, 5.5, 1);
+    spr.position.set(0, 26, 0);
     g.add(spr);
     g.userData.nameSprite = spr;
     return g;
@@ -772,7 +775,9 @@ function buildBlimp(hullHex, headline) {
 }
 
 
-const CAR_GAP = 62;          // bumper-to-bumper minimum in a queue
+const CAR_GAP = 62;          // centre-to-centre minimum in a queue
+const CARRIAGE_HALF = 60;    // a main road's carriageway, half
+const _pk = { x: 0, z: 0 };
 const STOP_LINE = 26;        // how far back from the junction a red light holds you
 const SIGNAL_PERIOD = 26;    // seconds for a full two-phase signal cycle
 
@@ -788,7 +793,10 @@ export const Traffic = {
     pads: null, launchesByOrg: {}, _launchPoll: 0, _notified: null,
     onBlimpClick: null,
 
+    vehicles: [],
+
     init(scene) {
+        this.vehicles = [];
         this._initCars(scene);
         this._initVipCars(scene);
         this._initTruck(scene);
@@ -798,10 +806,110 @@ export const Traffic = {
         this._initFounderHelis(scene);
     },
 
+    // ── ROUTES ──────────────────────────────────────────────────────────────
+    /* Every road vehicle — ambient cars, the founders' cars, the supply truck
+       and its vans — drives a closed loop of junction NODES, turned into a
+       lane-correct path here. The rule is one rule for everybody: a vehicle
+       keeps to the side R90(heading) of the road's centreline, `off` out. The
+       truck used to take its lane from laneCentre(+dir) and the ambient cars
+       from the opposite convention, so the two fleets drove on opposite sides
+       of the road; the founders' cars ran down the centre line. Corners are
+       rounded (a quadratic through the corner), so nothing snaps 90°. */
+    _routeFromNodes(nodes, off) {
+        const n = nodes.length;
+        if (n < 2) return null;
+        const R90 = (d) => ({ x: -d.z, z: d.x });
+        const dirOf = (a, b) => {
+            const dx = b.x - a.x, dz = b.z - a.z;
+            return Math.abs(dx) >= Math.abs(dz) ? { x: Math.sign(dx), z: 0 } : { x: 0, z: Math.sign(dz) };
+        };
+        const corners = [];
+        for (let i = 0; i < n; i++) {
+            const p = nodes[i], d1 = dirOf(nodes[(i - 1 + n) % n], p), d2 = dirOf(p, nodes[(i + 1) % n]);
+            if (d1.x === d2.x && d1.z === d2.z) continue;           // straight through
+            const r1 = R90(d1), r2 = R90(d2);
+            corners.push({ x: p.x + (r1.x + r2.x) * off, z: p.z + (r1.z + r2.z) * off, d1, d2 });
+        }
+        if (corners.length < 2) return null;
+        const pts = [];
+        for (const c of corners) {
+            // turning toward the kerb side is the tight one
+            const rad = 30 + off * 0.6;
+            const a = { x: c.x - c.d1.x * rad, z: c.z - c.d1.z * rad };
+            const b = { x: c.x + c.d2.x * rad, z: c.z + c.d2.z * rad };
+            for (let k = 0; k <= 6; k++) {
+                const t = k / 6, u = 1 - t;
+                pts.push({
+                    x: u * u * a.x + 2 * u * t * c.x + t * t * b.x,
+                    z: u * u * a.z + 2 * u * t * c.z + t * t * b.z,
+                    arc: k > 0 && k < 6
+                });
+            }
+        }
+        const segs = [];
+        let total = 0;
+        for (let i = 0; i < pts.length; i++) {
+            const q = pts[(i + 1) % pts.length];
+            const len = Math.hypot(q.x - pts[i].x, q.z - pts[i].z);
+            segs.push(len); total += len;
+        }
+        return { pts, segs, total };
+    },
+
+    /** The rectangle of junctions spanning some stops (never degenerate). */
+    _rectNodes(stops) {
+        const js = stops.map(s => City.nearestIntersection(s.x ?? s.worldX ?? 0, s.z ?? s.worldZ ?? 0));
+        const xs = [...City.avenueXs, ...City.ringX].sort((a, b) => a - b);
+        const zs = [...City.streetZs, ...City.ringZ].sort((a, b) => a - b);
+        let x0 = Math.min(...js.map(j => j.x)), x1 = Math.max(...js.map(j => j.x));
+        let z0 = Math.min(...js.map(j => j.z)), z1 = Math.max(...js.map(j => j.z));
+        const widen = (lo, hi, arr) => {
+            if (hi - lo > 2) return [lo, hi];
+            const k = arr.findIndex(v => Math.abs(v - lo) < 2);
+            return k < arr.length - 1 ? [lo, arr[k + 1]] : [arr[k - 1], lo];
+        };
+        [x0, x1] = widen(x0, x1, xs);
+        [z0, z1] = widen(z0, z1, zs);
+        return [{ x: x0, z: z0 }, { x: x1, z: z0 }, { x: x1, z: z1 }, { x: x0, z: z1 }];
+    },
+
+    /** Grid nodes visiting each stop's nearest junction, Manhattan legs between. */
+    _gridNodes(stops) {
+        const nodes = [];
+        const push = (x, z) => {
+            const l = nodes[nodes.length - 1];
+            if (l && Math.abs(l.x - x) < 2 && Math.abs(l.z - z) < 2) return;
+            nodes.push({ x, z });
+        };
+        const js = stops.map(s => City.nearestIntersection(s.x ?? s.worldX ?? 0, s.z ?? s.worldZ ?? 0));
+        for (let i = 0; i < js.length; i++) {
+            const a = js[i], b = js[(i + 1) % js.length];
+            push(a.x, a.z);
+            if (Math.abs(a.x - b.x) > 2 && Math.abs(a.z - b.z) > 2) push(a.x, b.z);
+        }
+        // drop a closing node that equals the first
+        if (nodes.length > 1 && Math.abs(nodes[0].x - nodes[nodes.length - 1].x) < 2 && Math.abs(nodes[0].z - nodes[nodes.length - 1].z) < 2) nodes.pop();
+        return nodes;
+    },
+
+    _addVehicle(obj, route, opts = {}) {
+        if (!route) return null;
+        const v = {
+            obj, ...route,
+            dist: opts.dist ?? Math.random() * route.total,
+            vmax: opts.speed ?? 110, v: 0, seg: 0,
+            yawOff: obj.userData.fwd === 'z' ? 0 : -Math.PI / 2,
+            kind: opts.kind || 'car', active: true, hx: 1, hz: 0
+        };
+        v.v = v.vmax * 0.6;
+        this.vehicles.push(v);
+        this._pose(v);
+        return v;
+    },
+
     // ── SUPPLY-CHAIN TRUCK ────────────────────────────────────────────────────
     _initTruck(scene) {
-        const port = G.placements.find(p => p.district === 'port')
-            || G.placements[0];
+        const port = G.placements.find(p => p.district === 'port') || G.placements[0];
         const fab = G.placements.find(p => /nvidia|fab|chipfab|datacenter/i.test(p.b?.name + p.b?.type + p.b?.id))
             || G.placements.find(p => p.district === 'compute')
             || G.placements[Math.min(3, G.placements.length - 1)];
@@ -809,227 +917,116 @@ export const Traffic = {
             || G.placements.find(p => p.district === 'tech')
             || G.placements[Math.min(5, G.placements.length - 1)];
         const stops = [port, fab, hq].filter(Boolean);
-        const path = this._gridRoute(stops.length >= 2 ? stops : null);
-        if (path) this._registerTruck(scene, path);
-    },
-
-    /* Manhattan route over the road grid, closed into a loop.
-
-       The route used to join each stop's nearest intersection to the NEXT
-       stop's with a single straight segment. Two intersections almost never
-       share a row or a column, so that segment cut diagonally across whole
-       blocks and the Nvidia truck drove through buildings. Every leg produced
-       here runs along exactly one avenue (constant x) or one street (constant
-       z), and sits in a lane rather than on the centreline. */
-    _gridRoute(stops) {
-        const xs = City.avenueXs?.length ? City.avenueXs : [0, 400];
-        const zs = City.streetZs?.length ? City.streetZs : [0, 400];
-        // No usable stops — fall back to a lap of the outermost avenues/streets.
-        const nodes = stops
-            ? stops.map(s => City.nearestIntersection(s.x ?? s.worldX ?? 0, s.z ?? s.worldZ ?? 0))
-            : [
-                { x: xs[0], z: zs[0] }, { x: xs[xs.length - 1], z: zs[0] },
-                { x: xs[xs.length - 1], z: zs[zs.length - 1] }, { x: xs[0], z: zs[zs.length - 1] }
-            ];
-        // Two facilities can snap to the same corner — a zero-length leg has no
-        // heading, and _stepPathVehicle would divide by it.
-        const uniq = nodes.filter((n, i) => i === 0 ||
-            Math.abs(n.x - nodes[i - 1].x) > 2 || Math.abs(n.z - nodes[i - 1].z) > 2);
-        if (uniq.length < 2) return null;
-        uniq.push({ ...uniq[0] });   // close the loop
-
-        const pts = [];
-        const push = (x, z) => {
-            const last = pts[pts.length - 1];
-            if (last && Math.abs(last.x - x) < 2 && Math.abs(last.z - z) < 2) return;
-            pts.push({ x, z });
-        };
-        for (let i = 0; i < uniq.length - 1; i++) {
-            const a = uniq[i], b = uniq[i + 1];
-            const zDir = Math.sign(b.z - a.z) || 1;      // heading of the avenue leg
-            const xDir = Math.sign(b.x - a.x) || 1;      // heading of the street leg
-            const avX = City.laneCentre(a.x, true, zDir, 0);
-            const stZ = City.laneCentre(b.z, false, -xDir, 0);
-            // Turn onto the avenue at whatever z the previous leg finished on.
-            const fromZ = pts.length ? pts[pts.length - 1].z : City.laneCentre(a.z, false, -xDir, 0);
-            push(avX, fromZ);       // corner
-            push(avX, stZ);         // …up/down the avenue
-            push(City.laneCentre(b.x, true, zDir, 0), stZ);   // …along the street
-        }
-        // Close the loop with a corner, not a straight line back to the start.
-        // The lane offsets mean the last point and the first rarely share an
-        // axis, and joining them directly re-introduces exactly the diagonal
-        // this routine exists to avoid — a short one, but a diagonal.
-        const last = pts[pts.length - 1], first = pts[0];
-        if (Math.abs(last.x - first.x) > 2 && Math.abs(last.z - first.z) > 2) {
-            push(last.x, first.z);
-        }
-        push(first.x, first.z);
-        return pts;
-    },
-
-    _registerTruck(scene, path) {
-        const segs = [];
-        let total = 0;
-        for (let i = 0; i < path.length - 1; i++) {
-            const len = Math.hypot(path[i + 1].x - path[i].x, path[i + 1].z - path[i].z) || 1;
-            segs.push(len); total += len;
-        }
+        if (stops.length < 2) return;
+        const route = this._routeFromNodes(this._rectNodes(stops), LANE_W * 1.5);
+        if (!route) return;
         const mesh = buildSupplyTruck();
         scene.add(mesh);
-        this.truck = { obj: mesh, path, segs, total: total || 1, dist: 0, speed: 115 };
-        // delivery vans on same logistics loop
+        this.truck = this._addVehicle(mesh, route, { speed: 95, dist: 0, kind: 'truck' });
         this.vans = [];
         const vanCols = [0x2563eb, 0xdc2626, 0xf59e0b];
-        for (let v = 0; v < 3; v++) {
-            const van = buildDeliveryVan(vanCols[v]);
+        for (let k = 0; k < 3; k++) {
+            const van = buildDeliveryVan(vanCols[k]);
             scene.add(van);
-            this.vans.push({
-                obj: van, path, segs, total: total || 1,
-                dist: (v + 1) * (total || 1) / 4,
-                speed: 95 + v * 8
-            });
+            this.vans.push(this._addVehicle(van, route, { speed: 105 + k * 6, dist: (k + 1) * route.total / 4, kind: 'van' }));
         }
-    },
-
-    _stepPathVehicle(v, dt) {
-        if (!v || !v.total) return;
-        v.dist = (v.dist + v.speed * dt) % v.total;
-        let rem = v.dist;
-        for (let i = 0; i < v.segs.length; i++) {
-            if (rem <= v.segs[i] || i === v.segs.length - 1) {
-                const t = v.segs[i] ? rem / v.segs[i] : 0;
-                const a = v.path[i], b = v.path[i + 1];
-                if (!a || !b) break;
-                v.obj.position.set(a.x + (b.x - a.x) * t, 0, a.z + (b.z - a.z) * t);
-                const yawOff = v.obj.userData.fwd === 'z' ? 0 : -Math.PI / 2;
-                const want = Math.atan2(b.x - a.x, b.z - a.z) + yawOff;
-                if (v.yaw == null) v.yaw = want;
-                // Ease into the new heading instead of snapping 90° at a corner.
-                let d = want - v.yaw;
-                while (d > Math.PI) d -= Math.PI * 2;
-                while (d < -Math.PI) d += Math.PI * 2;
-                v.yaw += d * Math.min(1, dt * 6);
-                v.obj.rotation.y = v.yaw;
-                break;
-            }
-            rem -= v.segs[i];
-        }
-    },
-
-    _updateTruck(dt) {
-        this._stepPathVehicle(this.truck, dt);
-        if (this.vans) for (const v of this.vans) this._stepPathVehicle(v, dt);
     },
 
     // ── CARS (detailed open-cabin meshes — fleet is small, glass stays real) ──
     _initCars(scene) {
         const N = G.preset.cars;
+        this.vehicles = this.vehicles || [];
         this.carGroup = new THREE.Group();
         this.carGroup.name = 'ambientCars';
         scene.add(this.carGroup);
-        // keep null instanced hooks so older debug probes don't explode
-        this.cars = null;
-        this.carDetail = null;
-        this.carLamps = null;
-        this.lampMat = null;
+        this.cars = null; this.carDetail = null; this.carLamps = null; this.lampMat = null;
         this.carData = [];
 
         const cols = [0xb3352a, 0x27618f, 0xa9b0b8, 0x232833, 0xc08a1e, 0x158a72, 0x6f3f9e, 0xdfe3e6, 0x30414f];
         const xs = [...City.avenueXs, ...City.ringX].sort((a, b) => a - b);
         const zs = [...City.streetZs, ...City.ringZ].sort((a, b) => a - b);
-        const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
+        // deterministic, and loops mostly a block or two across (a car that
+        // laps the whole city is a car you see once)
+        let seed = 4471;
+        const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
         for (let i = 0; i < N; i++) {
-            let x0 = pick(xs), x1 = pick(xs), z0 = pick(zs), z1 = pick(zs);
-            if (x0 === x1) x1 = xs[(xs.indexOf(x0) + 1) % xs.length];
-            if (z0 === z1) z1 = zs[(zs.indexOf(z0) + 1) % zs.length];
-            if (x0 > x1) [x0, x1] = [x1, x0];
-            if (z0 > z1) [z0, z1] = [z1, z0];
-
-            const dir = Math.random() < 0.5 ? 1 : -1;
-            const lane = Math.random() < 0.62 ? 0 : 1;
-            const off = (lane * LANE_W + LANE_W / 2) * dir;
-            const rect = [
-                { x: x0 + off, z: z0 + off }, { x: x1 - off, z: z0 + off },
-                { x: x1 - off, z: z1 - off }, { x: x0 + off, z: z1 - off }
-            ];
-            if (dir < 0) rect.reverse();
-            const perimeter = rect.reduce((s, p, j) => {
-                const q = rect[(j + 1) % 4];
-                return s + Math.hypot(q.x - p.x, q.z - p.z);
-            }, 0);
+            const ix = Math.floor(rnd() * (xs.length - 1)), iz = Math.floor(rnd() * (zs.length - 1));
+            const jx = Math.min(xs.length - 1, ix + 1 + Math.floor(rnd() * 2.2));
+            const jz = Math.min(zs.length - 1, iz + 1 + Math.floor(rnd() * 2.2));
+            let nodes = [{ x: xs[ix], z: zs[iz] }, { x: xs[jx], z: zs[iz] }, { x: xs[jx], z: zs[jz] }, { x: xs[ix], z: zs[jz] }];
+            if (rnd() < 0.5) nodes = nodes.reverse();
+            const lane = rnd() < 0.62 ? 0 : 1;
+            const route = this._routeFromNodes(nodes, lane * LANE_W + LANE_W / 2);
 
             let mesh = null;
-            if (i % 2 === 0) {
-                const vk = Assets.VEHICLE_CYCLE[i % Assets.VEHICLE_CYCLE.length];
-                mesh = Assets.instantiateVehicle(vk);
-            }
+            if (i % 2 === 0) mesh = Assets.instantiateVehicle(Assets.VEHICLE_CYCLE[i % Assets.VEHICLE_CYCLE.length]);
             if (!mesh) {
-                mesh = buildSedan(cols[i % cols.length], {
-                    glassOpacity: 0.15,
-                    driver: true,
-                    passenger: Math.random() < 0.45
-                });
+                mesh = buildSedan(cols[i % cols.length], { glassOpacity: 0.15, driver: true, passenger: rnd() < 0.45 });
             }
             this.carGroup.add(mesh);
-
-            this.carData.push({
-                rect, perimeter,
-                dist: Math.random() * perimeter,
-                speed: (lane ? 132 : 104) + Math.random() * 26,
-                obj: mesh
-            });
+            const v = this._addVehicle(mesh, route, { speed: (lane ? 128 : 104) + rnd() * 22, dist: rnd() * route.total });
+            if (v) this.carData.push(v);
         }
         this._dummy = new THREE.Object3D();
     },
 
-    _carPose(c) {
-        let rem = c.dist, seg = 0;
-        while (seg < 4) {
-            const p = c.rect[seg], q = c.rect[(seg + 1) % 4];
-            const len = Math.hypot(q.x - p.x, q.z - p.z);
-            if (rem <= len || seg === 3) {
-                const t = len ? Math.min(1, rem / len) : 0;
-                const alongX = Math.abs(q.x - p.x) > Math.abs(q.z - p.z);
-                return {
-                    x: p.x + (q.x - p.x) * t, z: p.z + (q.z - p.z) * t,
-                    dx: q.x - p.x, dz: q.z - p.z,
-                    toCorner: len - rem, alongX
-                };
-            }
-            rem -= len; seg++;
+    /** Where a vehicle would be at loop distance `d` (no side effects). */
+    _peek(v, d) {
+        d = ((d % v.total) + v.total) % v.total;
+        let i = 0;
+        const n = v.pts.length;
+        while (i < n - 1 && d > v.segs[i]) { d -= v.segs[i]; i++; }
+        const a = v.pts[i], b = v.pts[(i + 1) % n];
+        const t = v.segs[i] ? Math.min(1, d / v.segs[i]) : 0;
+        _pk.x = a.x + (b.x - a.x) * t; _pk.z = a.z + (b.z - a.z) * t;
+        return { x: _pk.x, z: _pk.z };
+    },
+
+    /** Position, heading and where on the loop a vehicle is. */
+    _pose(v) {
+        let rem = v.dist, i = 0;
+        const n = v.pts.length;
+        while (i < n - 1 && rem > v.segs[i]) { rem -= v.segs[i]; i++; }
+        const a = v.pts[i], b = v.pts[(i + 1) % n];
+        const t = v.segs[i] ? Math.min(1, rem / v.segs[i]) : 0;
+        v.x = a.x + (b.x - a.x) * t;
+        v.z = a.z + (b.z - a.z) * t;
+        const l = v.segs[i] || 1;
+        v.hx = (b.x - a.x) / l; v.hz = (b.z - a.z) / l;
+        v.turning = !!(a.arc || b.arc);
+        v.seg = i;
+    },
+
+    _inJunction(x, z) {
+        const near = (arr, v, h) => arr.some(c => Math.abs(c - v) < h);
+        return (near(City.avenueXs, x, CARRIAGE_HALF + 4) || near(City.ringX, x, 52)) &&
+            (near(City.streetZs, z, CARRIAGE_HALF + 4) || near(City.ringZ, z, 52));
+    },
+
+    /* Distance to the stop line of the next signalled junction ahead, or
+       Infinity. Only straight runs check; a car already turning is inside the
+       junction and clears it. */
+    _toStopLine(v) {
+        if (v.turning) return Infinity;
+        const alongX = Math.abs(v.hx) > Math.abs(v.hz);
+        const fwd = alongX ? Math.sign(v.hx) : Math.sign(v.hz);
+        const here = alongX ? v.x : v.z;
+        // the road we are on, and the roads that cross it
+        const crossing = alongX ? City.avenueXs : City.streetZs;
+        const myRoad = alongX ? City.streetZs : City.avenueXs;
+        const lineC = alongX ? v.z : v.x;
+        if (!myRoad.some(c => Math.abs(c - lineC) < CARRIAGE_HALF)) return Infinity;   // ring road: unsignalled
+        let best = Infinity;
+        for (const c of crossing) {
+            const edge = (c - fwd * (CARRIAGE_HALF + STOP_LINE) - here) * fwd;
+            if (edge > -2 && edge < best) best = edge;
         }
-        return null;
+        return best;
     },
 
     _updateCars(dt) {
-        if (!this.carData?.length) return;
-        const N = this.carData.length;
-
-        const pose = new Array(N);
-        const lanes = new Map();
-        for (let i = 0; i < N; i++) {
-            const c = this.carData[i];
-            const p = this._carPose(c);
-            pose[i] = p;
-            if (!p) continue;
-            const perp = p.alongX ? Math.round(p.z / 6) : Math.round(p.x / 6);
-            const fwd = p.alongX ? Math.sign(p.dx) : Math.sign(p.dz);
-            const key = `${p.alongX ? 'x' : 'z'}:${perp}:${fwd}`;
-            const along = (p.alongX ? p.x : p.z) * fwd;
-            let q = lanes.get(key);
-            if (!q) { q = []; lanes.set(key, q); }
-            q.push({ i, along });
-        }
-        const gapAllowed = new Float32Array(N).fill(Infinity);
-        for (const q of lanes.values()) {
-            q.sort((a, b) => a.along - b.along);
-            for (let k = 0; k < q.length - 1; k++) {
-                gapAllowed[q[k].i] = Math.max(0, q[k + 1].along - q[k].along - CAR_GAP);
-            }
-        }
-
+        const V = this.vehicles;
+        if (!V?.length) return;
         const cycle = (G.time % SIGNAL_PERIOD) / SIGNAL_PERIOD;
         const greenAlongX = cycle < 0.5;
         const amber = Math.abs(cycle % 0.5 - 0.5) < 0.06;
@@ -1039,26 +1036,112 @@ export const Traffic = {
         const dark = (h < 6.5 || h > 18.5) ? 1 : (h < 7.5 ? 7.5 - h : h > 17.5 ? h - 17.5 : 0);
         const lampOn = Math.min(1, Math.max(0, dark)) > 0.15;
 
+        // the player on foot in the road is an obstacle like any other
+        const cam = G.camera.position;
+        const playerOnRoad = !G.inside && !G.ridingMetro && !G.onPlatform && !G.flyMode &&
+            cam.y - (G.floorY || 0) < 40 && City.onCarriageway(cam.x, cam.z);
+
+        const N = V.length;
+        const room = new Float32Array(N).fill(Infinity);
+        const blockedBy = new Int32Array(N).fill(-1);
+        const inBox = new Uint8Array(N);
+        for (let i = 0; i < N; i++) if (V[i].active) inBox[i] = this._inJunction(V[i].x, V[i].z) ? 1 : 0;
         for (let i = 0; i < N; i++) {
-            const c = this.carData[i];
-            const p = pose[i];
-            if (!p || !c.obj) continue;
-
-            let advance = c.speed * dt;
-            const green = p.alongX ? greenAlongX : !greenAlongX;
-            if ((!green || amber) && p.toCorner < 150) {
-                advance = Math.min(advance, Math.max(0, p.toCorner - STOP_LINE));
+            const a = V[i];
+            if (!a.active) continue;
+            for (let j = 0; j < N; j++) {
+                if (i === j || !V[j].active) continue;
+                const b = V[j];
+                const rx = b.x - a.x, rz = b.z - a.z;
+                const along = rx * a.hx + rz * a.hz;
+                if (along <= 0 || along > 160) continue;
+                const lat = Math.abs(rx * a.hz - rz * a.hx);
+                const same = a.hx * b.hx + a.hz * b.hz;
+                /* Follow whatever is in my lane going my way. Cross traffic only
+                   matters when it is IN a junction in front of me and I am not
+                   in one myself: a car in the box always clears it. */
+                const follow = same > 0.5 && lat < 13;
+                const yieldTo = !follow && ((!inBox[i] && inBox[j] && lat < 22 && along < 90) ||
+                    (inBox[i] && inBox[j] && lat < 15 && along < 56));   // two in the box: one waits
+                if (follow || yieldTo) {
+                    const r = along - (follow ? CAR_GAP : 40);
+                    if (r < room[i]) { room[i] = r; blockedBy[i] = j; }
+                }
             }
-            advance = Math.min(advance, gapAllowed[i]);
+            if (playerOnRoad) {
+                const rx = cam.x - a.x, rz = cam.z - a.z;
+                const along = rx * a.hx + rz * a.hz, lat = Math.abs(rx * a.hz - rz * a.hx);
+                if (along > 0 && along < 140 && lat < 16) room[i] = Math.min(room[i], along - 34);
+            }
+        }
+        /* Paths that cross at an angle (a turn across the other lane) never
+           put either car dead ahead of the other. Project both forward a
+           second; if they would meet, the one that is not yet committed to
+           the junction (or, both in it, the higher index) waits. */
+        for (let i = 0; i < N; i++) {
+            const a = V[i];
+            if (!a.active) continue;
+            for (let j = i + 1; j < N; j++) {
+                const b = V[j];
+                if (!b.active) continue;
+                const dx0 = b.x - a.x, dz0 = b.z - a.z;
+                if (dx0 * dx0 + dz0 * dz0 > 220 * 220) continue;
+                if (a.hx * b.hx + a.hz * b.hz > 0.8) continue;     // same lane: following handles it
+                // along their own routes, so a turn about to start is seen
+                let meet = -1;
+                const va = Math.max(a.v, 40), vb = Math.max(b.v, 40);
+                for (let t = 0.2; t <= 2.0; t += 0.2) {
+                    const pa = this._peek(a, a.dist + va * t), pb = this._peek(b, b.dist + vb * t);
+                    const dx = pb.x - pa.x, dz = pb.z - pa.z;
+                    if (dx * dx + dz * dz < 30 * 30) { meet = t; break; }
+                }
+                if (meet < 0) continue;
+                const pa = inBox[i] * 2 + (a.turning ? 0 : 1), pb = inBox[j] * 2 + (b.turning ? 0 : 1);
+                const loser = pa > pb ? j : pb > pa ? i : j;
+                const w = V[loser];
+                // stop short of where the two would have met
+                const reach = Math.max(w.v, 40) * meet;
+                room[loser] = Math.min(room[loser], Math.max(0, reach - 38));
+                if (blockedBy[loser] < 0) blockedBy[loser] = loser === i ? j : i;
+            }
+        }
+        // two cars that each think the other is in front (nose to nose mid-
+        // junction): the lower index goes
+        for (let i = 0; i < N; i++) {
+            const j = blockedBy[i];
+            if (j >= 0 && blockedBy[j] === i && i < j) room[i] = Infinity;
+        }
 
-            c.dist = (c.dist + advance) % c.perimeter;
-            const np = this._carPose(c) || p;
-            c.obj.position.set(np.x, 0, np.z);
-            // Procedural cars face +X; kit GLBs face +Z (rear-axle pivot).
-            const yawOff = c.obj.userData.fwd === 'z' ? 0 : -Math.PI / 2;
-            c.obj.rotation.y = Math.atan2(np.dx, np.dz) + yawOff;
-            // headlight glow
-            const lm = c.obj.userData.headLampMat;
+        for (let i = 0; i < N; i++) {
+            const v = V[i];
+            if (!v.active) continue;
+            let lim = room[i];
+            const alongX = Math.abs(v.hx) > Math.abs(v.hz);
+            const green = alongX ? greenAlongX : !greenAlongX;
+            const sl = this._toStopLine(v);
+            if (!green || amber) {
+                // amber: stop if there is room to, otherwise carry on through
+                if (sl < 150 && !(amber && green && sl < 22)) lim = Math.min(lim, sl);
+            }
+            // don't block the box: only go in if there is room on the far side
+            if (sl < 150 && room[i] < sl + 2 * (CARRIAGE_HALF + STOP_LINE) + 10) lim = Math.min(lim, sl);
+            const vMax = v.turning ? Math.min(v.vmax, 62) : v.vmax;
+            const brake = lim < Infinity ? Math.sqrt(2 * 260 * Math.max(0, lim)) : Infinity;
+            const want = Math.min(vMax, brake);
+            v.v += Math.max(-420 * dt, Math.min(140 * dt, want - v.v));
+            if (v.v < 0) v.v = 0;
+            const step = Math.min(v.v * dt, Math.max(0, lim));
+            v.dist = (v.dist + step) % v.total;
+            this._pose(v);
+            v.obj.position.set(v.x, 0, v.z);
+            const yaw = Math.atan2(v.hx, v.hz) + v.yawOff;
+            if (v.yaw == null) v.yaw = yaw;
+            let d = yaw - v.yaw;
+            while (d > Math.PI) d -= Math.PI * 2;
+            while (d < -Math.PI) d += Math.PI * 2;
+            v.yaw += d * Math.min(1, dt * 10);
+            v.obj.rotation.y = v.yaw;
+            const lm = v.obj.userData.headLampMat;
             if (lm) lm.color.setHex(lampOn ? 0xfff6d5 : 0xb0a890);
         }
     },
@@ -1280,6 +1363,7 @@ export const Traffic = {
 
     _initVipCars(scene) {
         this.vipCars = [];
+        this.vehicles = this.vehicles || [];
         this.vipGroup = new THREE.Group();
         scene.add(this.vipGroup);
         const founders = this._founders();
@@ -1287,32 +1371,14 @@ export const Traffic = {
             const hq = G.bldById[LAB_HQ[f.lab]];
             const home = G.bldById['res_' + ((LABS[f.lab] && LABS[f.lab].region) || 'us')] || G.bldById['res_us'];
             if (!hq || !home) return;
+            let nodes = this._rectNodes([{ x: hq.worldX, z: hq.worldZ }, { x: home.worldX, z: home.worldZ }]);
+            if (i % 2) nodes = nodes.reverse();
+            const route = this._routeFromNodes(nodes, LANE_W / 2);
+            if (!route) return;
             const limo = buildVipCar(f);
             this.vipGroup.add(limo);
-
-            const hx = hq.worldX, hz = hq.worldZ;
-            const i1 = City.nearestIntersection(hx, hz);
-            const i2 = City.nearestIntersection(home.worldX, home.worldZ);
-            const lane1 = City.laneCentre(i1.x, true, 1, 0);
-            const lane2 = City.laneCentre(i2.x, true, 1, 0);
-            const path = [
-                { x: lane1, z: i1.z },
-                { x: lane2, z: i1.z },
-                { x: lane2, z: i2.z },
-                { x: lane1, z: i2.z },
-                { x: lane1, z: i1.z }
-            ];
-            const segs = [];
-            let total = 0;
-            for (let k = 0; k < path.length - 1; k++) {
-                const len = Math.hypot(path[k + 1].x - path[k].x, path[k + 1].z - path[k].z) || 1;
-                segs.push(len); total += len;
-            }
-            this.vipCars.push({
-                obj: limo, founder: f, path, segs, total: total || 1,
-                dist: (i / Math.max(1, founders.length)) * total,
-                speed: 100 + i * 5
-            });
+            const v = this._addVehicle(limo, route, { speed: 96 + i * 4, dist: (i / Math.max(1, founders.length)) * route.total, kind: 'vip' });
+            if (v) { v.founder = f; this.vipCars.push(v); }
         });
     },
 
@@ -1324,12 +1390,16 @@ export const Traffic = {
     _updateVipCars(dt) {
         if (!this.vipCars?.length) return;
         const on = this._vipActive();
+        // driven with everything else in _updateCars; parked out of hours
+        const cam = G.camera.position;
         for (const v of this.vipCars) {
-            v.obj.visible = on;
-            if (!on) continue;
-            this._stepPathVehicle(v, dt);
-            // Sprites billboard themselves — nothing to orient here. The tag
-            // just hides when the car is parked out of the day window above.
+            v.obj.visible = on; v.active = on;
+            // the tag only near enough to read, and not when you're beside it
+            const spr = v.obj.userData.nameSprite;
+            if (spr) {
+                const d = Math.hypot(v.x - cam.x, v.z - cam.z);
+                spr.visible = d > 60 && d < 520;
+            }
         }
     },
 
@@ -1388,9 +1458,8 @@ export const Traffic = {
     },
 
     update(dt, t) {
-        this._updateCars(dt);
         this._updateVipCars(dt);
-        this._updateTruck(dt);
+        this._updateCars(dt);
         this._updateTrams(dt);
         this._updateBlimps(dt, t);
         this._updateHeli(dt, t);
