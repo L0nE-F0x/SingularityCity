@@ -1,13 +1,13 @@
 # Resume here
 
-**Updated:** 2026-10-07 (2D art 10x pass + promo video wrap) · **Live `main`:** `36a4fc6` (this wrap sits on top)
-**Status:** The 2D city's "smog-gold days, neon nights" art pass is live on cache
-**v560**. Netlify served `singularity-city-v560` on the second poll, and
-`js/pixel/underground.js`, `js/pixel/interior_light.js` and `css/pixel-ui.css` return 200.
-The owner played it and posted the promo video (below) on the official X account.
-First Person was not touched.
-**Next:** start from the owner's next request. Known gaps are listed at the end of
-this session's section.
+**Updated:** 2026-10-08 (First Person overhaul wrap) · **Live `main`:** `85cce75` (this wrap sits on top)
+**Status:** The First Person overhaul is live on cache **v561**. Netlify served
+`singularity-city-v561` on the second poll; `first-person/js/neon.js` and `pedgraph.js`
+return 200 with `max-age=0, must-revalidate`, and a headless run against production did
+the full metro journey (hall → escalator → platform → board → ride → alight → lift) and
+every mode key with no page errors. The 2D city was only cache-bumped.
+**Next:** start from the owner's playtest notes. Known gaps are at the end of this
+session's section.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
 Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
@@ -15,6 +15,56 @@ Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
 headers, so the browser has to use that same-origin path or the board stays empty.
 
 ---
+
+## This session (2026-10-08) — First Person overhaul
+
+Owner brief: First Person felt far below the 2D city — bugs, cramped and overlapping
+props, broken metro trains, badly spaced transport — "do a super deep pass and perfect
+it", and bring its look closer to the 2D art. After the first before/after the owner said
+keep the pixel look as the default, finish the open items, then push and bump. Thirteen
+commits `edb10cf` → `85cce75`, pushed together. Before/after page (private, identical
+cameras): https://claude.ai/artifact/N8v9NGj7J32CRYzbt5KrAK
+
+### What shipped
+
+| Area | What changed | Where |
+|---|---|---|
+| Metro | Rebuilt. Lines in `TRAM_LINES` are routed: each station a straight platform run on a street axis, joined by Béziers; Harbour Line (W–Central–E–Exchange) on level 0, Compute and Innovation lines a level deeper. Twin track, keep-right, terminus crossovers, block signalling (`roomAhead`). Three-car sets (one car model is exterior and saloon), accel/brake, sliding doors on the platform side. Everything underground is baked-lit MeshBasic. `newTrain`, `stepTrain(t, dt, routes, others)`, `etaTo` exported. | `js/metro.js`, `js/data.js` |
+| Platforms | `Metro.enterPlatform(bid, routeIdx)` puts you on the real platform (city hidden, AABB colliders, `G.onPlatform`); `platformAction()` boards / lifts up / crosses over; alight lands beside your door. The ticket hall (single floor now) has one escalator hotspot per line, departures and a network map. Street "board from anywhere" removed. | `js/metro.js`, `js/interiors/metro.js`, `js/interact.js` |
+| Streets | Inner district road 60 carriage / 26 pavement (was 44/16), `innerRoadHalf` 64, infill `CROSS` 110, quadrant pads 330 at ±221. Lamps down every district street. | `js/city.js`, `js/world.js` |
+| Props | `World.lampSpots` stays the POLES; heads moved to `lampHeads` (the light pool overwrote it, so furniture dodged points over the road). Streetscape clearance from real kit footprints (`radius`), plaza satellites unforced, plazas need open ground (`_openGround`), trees spaced + trunk colliders (not forests), power poles only outskirts + solid, vendor carts solid, `Streetscape.evict` under the AI Index board, port rail siding has track + collider. Audit ~90 overlaps → only desert drifts. | `js/world.js`, `js/streetscape.js`, `js/vendors.js`, `js/kardashev.js` |
+| Traffic | One sim in `Traffic.vehicles` for ambient cars, founders' cars, truck and vans; `_routeFromNodes` builds lane-correct loops (offset `R90(heading)`), rounded corners; red lights at every signalled junction (`_toStopLine`), don't-block-the-box, yield to cars in a junction, route-projected conflict check. Cars stop for the player. Car counts 10/20/30. | `js/traffic.js`, `js/state.js` |
+| Pedestrians | `pedgraph.js`: every pavement line, nodes at corners, cached Dijkstra; citizens and VC partners route through it with a per-walker lane; door/patrol spots inside a block snap to the pavement. Inside-a-building time 5.3% → 0.13%. | `js/pedgraph.js`, `js/citizens.js`, `js/vc_dealflow.js` |
+| Look | Weather uses the 2D `tod.js` palette (sky stops, amb, haze, rim, neon). `neon.js`: painted shop windows + awnings + trim on street-facing ground floors, vertical blade signs, pavement/road spill at night, rooftop parapet neon and signs on box roofs, beacons, corner neon on kit towers. Pixel look: final ShaderPass block-samples 2×2 (soft, default) / 3×3 (crisp) with Bayer dither and posterise, at FULL resolution (a low-res target doubles point sprites). `?pixel=`, Settings, and the start screen's Look select (`localStorage sc_fp_pixel`). | `js/weather.js`, `js/neon.js`, `js/main.js`, `js/ui.js`, `index.html` |
+| Rooms | Dark palettes lifted by luminance (`liftDim`), beamed ceiling with framed panels, clerestory windows (`skylineTex`) for `WINDOW_CATS`, spawn just inside the door. Rebuilt: Model Arena, jail intake, worker foyer; agents table and gym mat toned down. | `js/interior.js`, `js/interiors/*.js` |
+| Misc | Space Zone: one service tower per pad, rockets are `Traffic.pads[*].mesh` (a third stand; rollout for real launches; the one on the pad flies); mesas removed. Lamp halos 22, ambience particles capped, stars behind clouds, smaller envelopes/VIP tags, slimmer signals, graveyard railings, glass metro entrances. | various |
+| Caching | `/first-person/js/*`, `/first-person/css/*`, `/shared/*` now `max-age=0, must-revalidate`: with 3600 a returning visitor right after a deploy got a mixed module set and could fail to link. | `netlify.toml` |
+
+### What a new agent must not re-break
+
+1. **Cars are modelled along +Z** in metro.js, and `rotation.y = atan2(hx, hz)`. The old car was along X and ran broadside.
+2. **`World.lampSpots` is the poles** (`hx/hz` are the heads); the light pool uses `lampHeads`.
+3. **On a platform `G.onPlatform` is set and `G.inside` is not.** Anything that shows surface objects each frame must treat it like `G.ridingMetro`; the sky/map modes refuse to start there.
+4. **The metro station interior has one floor.** The platforms are not interior floors; don't re-add the toy train.
+5. **Every road vehicle goes through `_addVehicle` / `_updateCars`.** Don't add a vehicle with its own path stepper: it will drive through the others.
+6. **The pixel pass samples blocks at full resolution.** Don't "optimise" it into a low-res render target.
+7. **Interior textures that rooms share carry `userData.shared`** (the skyline window) so the teardown doesn't dispose them.
+8. Tests: `npm run test:fp` (parity asserts opposing sets never share a road; depth check asserts station halls stay underground).
+
+### Verified
+
+- `npm run test:fp` green throughout; footprint audit, 400 s traffic sim (no gridlock, ~10 near-miss frames among 44 vehicles), 400 s metro sim (no shared-track overlaps).
+- Frame time, 7 street spots, headless RTX 4050: 14.4 ms before → 11.2 pixel / 13.2 smooth.
+- Phone emulation 844×390 touch: start screen, street, night, platform, no errors (~16.7 ms).
+- Production after push: v561, new modules 200, full journey + mode smoke test, no page errors.
+
+### Not done / worth a look
+
+- Kit towers' sculpted crowns are untouched (only beacons and lower-corner neon added).
+- Touch devices still boot `medium` when the store already holds a quality (pre-existing).
+- Most bespoke rooms beyond the three rebuilt kept their layouts (they got the shared fixes).
+- A few sand drifts still touch rocks in the Space Zone (natural-looking).
+
 
 ## This session (2026-10-07) — the 2D art 10x pass, and a promo video
 
