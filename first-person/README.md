@@ -37,7 +37,7 @@ connection and adds the `/__shot` endpoint below.
 `?autostart=1` · `?sim=<sec>` fast-forward · `?dp=<0..1>` freeze time of day ·
 `?wx=<state>` force weather · `?inside=<buildingId>` boot into an interior ·
 `?festival=<id>` · `?allregions=1` regional festivals · `?x= &z= &yaw=` teleport ·
-`?debug=1` log draw calls · `?tutorial=1` force it.
+`?debug=1` log draw calls · `?tutorial=1` force it · `?pixel=off|soft|crisp` look (soft is the default).
 
 ### Screenshots without a browser pane
 

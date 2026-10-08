@@ -102,10 +102,14 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# Revalidate every load (a cheap 304 when unchanged). With max-age=3600 a
+# visitor who had FP open in the hour before a deploy got a MIXED module set —
+# some files cached, some new — and a module importing an export its cached
+# neighbour didn't have yet failed to link, so the page never booted.
 [[headers]]
   for = "/first-person/js/*"
   [headers.values]
-    Cache-Control = "public, max-age=3600"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 # Shared source-of-truth modules (shared/space_live.js and friends). Same
 # reasoning as /first-person/js/* — imported by bare relative path with no ?v=,
@@ -113,12 +117,12 @@
 [[headers]]
   for = "/shared/*"
   [headers.values]
-    Cache-Control = "public, max-age=3600"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/first-person/css/*"
   [headers.values]
-    Cache-Control = "public, max-age=3600"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 # Three.js is genuinely immutable — it only changes when we deliberately
 # vendor a new build, which lands as a new deploy anyway.
