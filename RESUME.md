@@ -66,7 +66,7 @@ cameras): https://claude.ai/artifact/N8v9NGj7J32CRYzbt5KrAK
 - A few sand drifts still touch rocks in the Space Zone (natural-looking).
 
 
-## This session (2026-10-07) — the 2D art 10x pass, and a promo video
+## Previous (2026-10-07) — the 2D art 10x pass, and a promo video
 
 Owner brief: make the 2D city "10x" better while keeping the pixel aesthetic, First
 Person excluded. They were quizzed first and picked: lofi atmosphere + full-time neon
