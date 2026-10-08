@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G, EYE_H } from './state.js';
 import { LABS, SEED, ROSTER, FOUNDERS, WORKERS, STAGES, ACTS, getStage, getAct, getFounderAct, LAB_HQ, scheduleHooks } from './data.js';
+import { PedGraph } from './pedgraph.js';
 import { City, KERB_H } from './city.js';
 import { speedMod, venueBias, traitLabel } from './personality.js';
 import { streetGeometry, streetRobotGeometry, robotVariant, robotGlow, robotChassis, SKIN, HAIR } from './people.js';
@@ -447,7 +448,26 @@ export const Citizens = {
        2D app; at street level it is 100 people standing on one doormat. Each
        citizen gets its own spot on a golden-angle spiral around the venue, so
        a crowd spreads down the street instead of stacking up. */
+    /** Is this point inside a building (named or background block)? */
+    _inBlock(x, z) {
+        if (!this._blocks) {
+            const ids = new Set(G.placements.map(p => p.id));
+            this._blocks = G.colliders.filter(k => ids.has(k.id) || k.id === 'infill');
+        }
+        for (const k of this._blocks) if (x > k.x0 && x < k.x1 && z > k.z0 && z < k.z1) return true;
+        return false;
+    },
+
+    /** Keep a spot out of the buildings: onto the nearest pavement if needed. */
+    _clearSpot(p) {
+        return this._inBlock(p.x, p.z) ? PedGraph.snap(p.x, p.z) : p;
+    },
+
     _venueSpot(c, tb) {
+        return this._clearSpot(this._venueSpotRaw(c, tb));
+    },
+
+    _venueSpotRaw(c, tb) {
         // Founders / named CEOs stand on the entrance approach, not lost in the spiral.
         if (c.model.founder) {
             const face = Math.atan2(tb.worldX, tb.worldZ); // rough streetward bias
@@ -467,7 +487,7 @@ export const Citizens = {
         const base = Math.max(tb.worldW, tb.worldD) / 2 + 70;
         const r = base + 40 + ((c.venueSlot || 0) % 9) * 35 + c.seed * 55;
         const a = (c.seed * 6.283) + ((c.venueSlot || 0) * 0.7) + (c._patrolN || 0) * 1.1;
-        return City.offRoad(tb.worldX + Math.cos(a) * r, tb.worldZ + Math.sin(a) * r);
+        return this._clearSpot(City.offRoad(tb.worldX + Math.cos(a) * r, tb.worldZ + Math.sin(a) * r));
     },
 
     _paceFor(c, act) {
@@ -660,6 +680,15 @@ export const Citizens = {
     _routeTo(c, tb) {
         const spot = this._venueSpot(c, tb);
         const tx = spot.x, tz = spot.z;
+        // along the pavements, corner to corner (pedgraph.js); each walker
+        // keeps its own lane so a crowd spreads across the pavement
+        if (c.lane == null) c.lane = ((c.seed ?? Math.random()) - 0.5) * 16;
+        const walk = PedGraph.route(c.x, c.z, tx, tz, c.lane);
+        if (walk && walk.length > 1) {
+            c.path = walk.slice(1);
+            c.wp = 0;
+            return;
+        }
         const i1 = City.nearestIntersection(c.x, c.z);
         const i2 = City.nearestIntersection(tx, tz);
         // walk the x-leg along the street at i1.z, then the z-leg up i2.x
@@ -744,10 +773,14 @@ export const Citizens = {
                                 ? this._venueSpot(c, tb)
                                 : this._streetPatrol(c, tb);
                             const jitter = c.model.founder ? 28 : 60;
-                            c.path = [City.offRoad(
+                            const goal = this._clearSpot(City.offRoad(
                                 s.x + (Math.random() - 0.5) * jitter,
                                 s.z + (Math.random() - 0.5) * jitter
-                            )];
+                            ));
+                            // short hops go straight; anything longer walks the pavements
+                            const far = Math.hypot(goal.x - c.x, goal.z - c.z) > 140;
+                            const walk = far ? PedGraph.route(c.x, c.z, goal.x, goal.z, c.lane ?? 0) : null;
+                            c.path = walk && walk.length > 1 ? walk.slice(1) : [goal];
                             c.wp = 0;
                             c.speed = this._paceFor(c, c.act) * (c.model.founder ? 0.55 : 0.75);
                         }

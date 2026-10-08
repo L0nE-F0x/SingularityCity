@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G } from './state.js';
+import { PedGraph } from './pedgraph.js';
 import { City, KERB_H } from './city.js';
 
 export const VC_OFFICES = [
@@ -42,6 +43,8 @@ export function buildPartners(seed = 1) {
 }
 
 export function routeAlongSidewalk(fromX, fromZ, toX, toZ) {
+    const walk = PedGraph.ready ? PedGraph.route(fromX, fromZ, toX, toZ, 4) : null;
+    if (walk && walk.length > 1) return walk.slice(1);
     const i1 = City.nearestIntersection(fromX, fromZ);
     const i2 = City.nearestIntersection(toX, toZ);
     const sideZ = (fromZ >= i1.z) ? 1 : -1;
