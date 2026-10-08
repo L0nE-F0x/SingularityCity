@@ -227,7 +227,7 @@ export const Ambience = {
                        additively, and read as a glowing blob hanging over the
                        road. Cap the sprite, and fade the last stretch out
                        rather than letting the camera end up inside it. */
-                    gl_PointSize = min(aSize * (420.0 / max(40.0, dist)) * 6.0, uMaxPx);
+                    gl_PointSize = min(aSize * (420.0 / max(40.0, dist)) * 2.6, uMaxPx);   // glints, not blobs
                     vA = aAlpha * smoothstep(25.0, 95.0, dist);
                     gl_Position = projectionMatrix * mv;
                 }`,
@@ -327,7 +327,7 @@ export const Ambience = {
         // Keep the sprite ceiling proportional to the frame, so the same puff
         // covers the same fraction of the screen at every resolution.
         if (this._mat) {
-            this._mat.uniforms.uMaxPx.value = Math.max(60, G.renderer.domElement.height * 0.19);
+            this._mat.uniforms.uMaxPx.value = Math.max(24, G.renderer.domElement.height * 0.06);
         }
 
         for (let i = 0; i < this.parts.length; i++) {

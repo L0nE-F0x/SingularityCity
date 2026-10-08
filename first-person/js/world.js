@@ -870,6 +870,7 @@ export const World = {
             ...setbacks.filter(p => !p._hasStackAbove).map(p => ({ ...p, h: (p.y0 || 0) + p.h }))
         ];
         this._buildRoofs(scene, roofList);
+        this._roofList = roofList;      // neon.js dresses these roofs
         // Thin setback "floor plate" rings on intermediate steps (reads as a real step)
         this._buildSetbackPlates(scene, [
             ...buckets.flat().filter(p => p._hasStackAbove),
@@ -916,6 +917,7 @@ export const World = {
                 im.setMatrixAt(i, dummy.matrix);
                 const meshW = kit.size.x * s, meshD = kit.size.z * s, meshH = kit.size.y * s;
                 p.kitW = meshW; p.kitD = meshD; p.kitH = meshH;
+                (this._kitPlaced ||= []).push(p);
                 this._fitCollider(p, meshW, meshD);
                 let tint;
                 if (item.named && p.b) {
@@ -2466,7 +2468,7 @@ export const World = {
             // 92 was far too wide: two lamps near the camera filled the frame
             // with white, and a receding avenue of them stacked additively into
             // a blown-out wall at the vanishing point.
-            color: 0xffffff, size: 30, sizeAttenuation: true,   // a lamp head, not a snowball (lamps now line every street)
+            color: 0xffffff, size: 22, sizeAttenuation: true,   // a lamp head, not a snowball (lamps now line every street)
             transparent: true, opacity: 0, depthWrite: false,
             blending: THREE.AdditiveBlending, fog: false, toneMapped: false
         });

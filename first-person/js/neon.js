@@ -134,6 +134,30 @@ function bladeAtlas() {
     return { tex: t, cols: COLS };
 }
 
+/** Horizontal neon words for rooftop signs, one per atlas row. */
+function roofAtlas() {
+    const RW = 512, RH = 96, N = WORDS.length;
+    const c = document.createElement('canvas');
+    c.width = RW; c.height = RH * N;
+    const x = c.getContext('2d');
+    x.fillStyle = '#07070f'; x.fillRect(0, 0, RW, c.height);
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    WORDS.forEach((w, i) => {
+        const col = '#' + NEON[(i + 3) % NEON.length].toString(16).padStart(6, '0');
+        x.strokeStyle = col; x.lineWidth = 5;
+        x.strokeRect(6, i * RH + 6, RW - 12, RH - 12);
+        x.font = 'bold 54px Silkscreen, monospace';
+        x.shadowColor = col; x.shadowBlur = 14;
+        x.fillStyle = '#ffffff';
+        x.fillText(w, RW / 2, i * RH + RH / 2 + 3);
+        x.shadowBlur = 0;
+    });
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return { tex: t, rows: N };
+}
+
 export const Neon = {
     built: false,
 
@@ -263,6 +287,109 @@ export const Neon = {
         this.faces = faces;
         if (!glow.length) return;
 
+        /* Rooftops, the 2D city's skyline dressing: a lit parapet edge on a
+           third of the mid-rise roofs, neon word signs standing on the edge
+           that faces the street, and aircraft beacons on the tall ones. Box
+           roofs only — the kit towers bring their own crowns. */
+        const roofGlow = [], roofSigns = [], roofFrames = [], beacons = [];
+        const ratlas = roofAtlas();
+        const tops = [...(G.world?._roofList || []), ...(G.world?._boxLots || [])];
+        const CAP = 4.6;
+        for (const t of tops) {
+            if (!t || !(t.h > 36) || t.w < 30 || t.d < 30) continue;
+            const dist = G.districtAt?.(t.x, t.z);
+            if (dist && SKIP_BIOMES.has(dist.biome)) continue;
+            if (t.b && SKIP_IDS.test(t.b.id || '')) continue;
+            const r = rnd();
+            const y = t.h + CAP;
+            if (r < 0.32 && t.h < 320) {
+                const col = NEON[Math.floor(rnd() * NEON.length)];
+                for (const [w, d, ox, oz] of [[t.w + 4.4, 1.2, 0, t.d / 2 + 2.2], [t.w + 4.4, 1.2, 0, -t.d / 2 - 2.2],
+                    [1.2, t.d + 4.4, t.w / 2 + 2.2, 0], [1.2, t.d + 4.4, -t.w / 2 - 2.2, 0]]) {
+                    roofGlow.push(colorize(new THREE.BoxGeometry(w, 1.1, d).translate(t.x + ox, y - 0.6, t.z + oz), col));
+                }
+            }
+            // a sign on the street side
+            if (r > 0.78 && t.w > 46 && t.d > 46 && t.h < 260) {
+                let side = null;
+                for (const f of [{ nx: 0, nz: 1 }, { nx: 0, nz: -1 }, { nx: 1, nz: 0 }, { nx: -1, nz: 0 }]) {
+                    const half = f.nx ? t.w / 2 : t.d / 2;
+                    const qx = t.x + f.nx * (half + 40), qz = t.z + f.nz * (half + 40);
+                    if (City.onSidewalk(qx, qz) || City.onCarriageway(qx, qz)) { side = f; break; }
+                }
+                if (side) {
+                    const half = side.nx ? t.w / 2 : t.d / 2;
+                    const span = Math.min(90, (side.nx ? t.d : t.w) * 0.7);
+                    const ang = Math.atan2(side.nx, side.nz);
+                    const sx = t.x + side.nx * (half - 4), sz = t.z + side.nz * (half - 4);
+                    const wi = Math.floor(rnd() * ratlas.rows);
+                    const pl = new THREE.PlaneGeometry(span, span / 5.33);
+                    const uv = pl.attributes.uv;
+                    for (let q = 0; q < uv.count; q++) uv.setY(q, (ratlas.rows - 1 - wi + uv.getY(q)) / ratlas.rows);
+                    pl.rotateY(ang);
+                    pl.translate(sx + side.nx * 0.8, y + 8 + span / 10.6, sz + side.nz * 0.8);
+                    roofSigns.push(pl);
+                    const fr = new THREE.BoxGeometry(span + 2, span / 5.33 + 2, 1.2);
+                    fr.rotateY(ang); fr.translate(sx, y + 8 + span / 10.6, sz);
+                    roofFrames.push(colorize(fr, 0x14161d));
+                    for (const k of [-0.35, 0.35]) {
+                        const leg = new THREE.BoxGeometry(1.4, 9, 1.4);
+                        const lx = sx + (-side.nz) * span * k, lz = sz + side.nx * span * k;
+                        leg.translate(lx, y + 4.5, lz);
+                        roofFrames.push(colorize(leg, 0x2a2e36));
+                    }
+                }
+            }
+            // aircraft beacons on the tall ones
+            if (t.h > 190) {
+                for (const [ox, oz] of [[t.w / 2 - 3, t.d / 2 - 3], [-t.w / 2 + 3, -t.d / 2 + 3]]) {
+                    beacons.push(colorize(new THREE.BoxGeometry(3, 3, 3).translate(t.x + ox, y + 2, t.z + oz), 0xff2a2a));
+                }
+            }
+        }
+        /* Kit towers: their crowns are sculpted, so no parapet line — a
+           beacon on the very top of the tall ones, and on some a pair of neon
+           strips up the street-side corners of the lower floors, where the
+           fitted footprint is the building's own. */
+        for (const p of G.world?._kitPlaced || []) {
+            if (!(p.kitH > 60)) continue;
+            const dist = G.districtAt?.(p.x, p.z);
+            if (dist && SKIP_BIOMES.has(dist.biome)) continue;
+            if (p.b && SKIP_IDS.test(p.b.id || '')) continue;
+            if (p.kitH > 200) beacons.push(colorize(new THREE.BoxGeometry(3, 3, 3).translate(p.x, p.kitH + 1.5, p.z), 0xff2a2a));
+            if (rnd() > 0.28 || Math.abs(Math.sin(p.rot || 0)) > 0.1 && Math.abs(Math.cos(p.rot || 0)) > 0.1) continue;
+            const q = Math.abs(Math.sin(p.rot || 0)) > 0.7;
+            const hw = (q ? p.kitD : p.kitW) / 2 + 0.8, hd = (q ? p.kitW : p.kitD) / 2 + 0.8;
+            const top = Math.min(p.kitH * 0.42, 140), col = NEON[Math.floor(rnd() * NEON.length)];
+            for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+                const qx = p.x + sx * (hw + 30), qz = p.z + sz * (hd + 30);
+                if (!(City.onSidewalk(qx, qz) || City.onCarriageway(qx, qz))) continue;
+                roofGlow.push(colorize(new THREE.BoxGeometry(1.2, top - 30, 1.2).translate(p.x + sx * hw, 30 + (top - 30) / 2, p.z + sz * hd), col));
+            }
+        }
+        if (roofGlow.length) {
+            this.roofMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+            const m = new THREE.Mesh(mergeGeometries(roofGlow, false), this.roofMat);
+            m.name = 'neon:roofEdges'; m.matrixAutoUpdate = false; m.userData.noShadow = true;
+            scene.add(m);
+        }
+        if (roofSigns.length) {
+            this.roofSignMat = new THREE.MeshBasicMaterial({ map: ratlas.tex, toneMapped: false, side: THREE.DoubleSide });
+            const m = new THREE.Mesh(mergeGeometries(roofSigns, false), this.roofSignMat);
+            m.name = 'neon:roofSigns'; m.matrixAutoUpdate = false; m.userData.noShadow = true;
+            scene.add(m);
+            const f = new THREE.Mesh(mergeGeometries(roofFrames, false), new THREE.MeshLambertMaterial({ vertexColors: true }));
+            f.name = 'neon:roofFrames'; f.matrixAutoUpdate = false;
+            scene.add(f);
+        }
+        if (beacons.length) {
+            this.beaconMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+            const m = new THREE.Mesh(mergeGeometries(beacons, false), this.beaconMat);
+            m.name = 'neon:beacons'; m.matrixAutoUpdate = false; m.userData.noShadow = true;
+            scene.add(m);
+        }
+        this.roofCount = { edges: roofGlow.length / 4, signs: roofSigns.length, beacons: beacons.length / 2 };
+
         this.winMat = new THREE.MeshBasicMaterial({ map: shops.tex, toneMapped: false });
         const wm = new THREE.Mesh(mergeGeometries(windows, false), this.winMat);
         wm.name = 'neon:windows';
@@ -333,6 +460,12 @@ export const Neon = {
         this.glowMat.color.setScalar(Math.min(1, k) * flicker);
         this.winMat.color.setScalar(Math.min(1, 0.72 + 0.28 * night) * blackout);
         if (this.bladeMat) this.bladeMat.color.setScalar(Math.min(1, (0.55 + 0.45 * night) * neon * blackout));
+        if (this.roofMat) this.roofMat.color.setScalar(Math.min(1, (0.35 + 0.65 * night) * neon * blackout));
+        if (this.roofSignMat) this.roofSignMat.color.setScalar(Math.min(1, (0.6 + 0.4 * night) * neon * blackout));
+        if (this.beaconMat) {
+            const on = Math.sin((G.time || 0) * 2.2) > 0.55 ? 1 : 0.12;
+            this.beaconMat.color.setScalar((0.25 + 0.75 * night) * on);
+        }
         const wet = G.weatherIntensity || 0;
         const out = !G.inside && !G.ridingMetro && !G.onPlatform;
         this.spillMat.opacity = Math.min(0.85, night * (0.5 + wet * 0.3)) * blackout;
