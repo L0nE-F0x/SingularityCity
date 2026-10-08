@@ -98,7 +98,7 @@ export const ResearchPapers = {
         this.sprites = [];
         for (let i = 0; i < POOL; i++) {
             const sp = new THREE.Sprite(mat.clone());
-            sp.scale.set(18, 11, 1);
+            sp.scale.set(12, 7.5, 1);
             sp.visible = false;
             this.group.add(sp);
             this.sprites.push(sp);

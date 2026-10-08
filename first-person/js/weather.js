@@ -327,7 +327,7 @@ export const Weather = {
                     vA = tw;
                     vec4 mv = modelViewMatrix * vec4(position, 1.0);
                     // dome sits ~6k units out — large scale so points read as stars, not dust
-                    gl_PointSize = aSize * 170.0 * (420.0 / max(80.0, -mv.z));
+                    gl_PointSize = aSize * 95.0 * (420.0 / max(80.0, -mv.z));   // pinpricks, not snow
                     gl_Position = projectionMatrix * mv;
                 }`,
             fragmentShader: /* glsl */`
@@ -345,6 +345,9 @@ export const Weather = {
         });
         this.stars = new THREE.Points(sg, starMat);
         this.stars.frustumCulled = false;
+        // behind the clouds (-8): drawn after them, additive stars sat on top
+        // of every cloud and read as falling snow
+        this.stars.renderOrder = -9;
         scene.add(this.stars);
 
         // ── clouds (billboard sprites, camera-relative wrap) ──
@@ -887,7 +890,7 @@ export const Weather = {
             const lit = Math.max(0, night * night * 1.25 - 0.05) * (surfaceAtmo ? 1 : 0) * blackout;
             this.lampLit = Math.min(1, lit);
             if (W.lampGlowMat) {
-                W.lampGlowMat.opacity = Math.min(0.5, lit * 0.46);
+                W.lampGlowMat.opacity = Math.min(0.42, lit * 0.4);
                 W.lampGlowMat.visible = lit > 0.01;
             }
             if (W.lampPoolMat) {

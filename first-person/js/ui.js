@@ -790,6 +790,8 @@ export const UI = {
             // reload unless an unrelated achievement happened to save first.
             if (v) v.oninput = () => { G.audio.setVolume(parseFloat(v.value)); G.progress.save(); };
             if (s) s.oninput = () => { G.settings.sensitivity = parseFloat(s.value); G.progress.save(); };
+            const px = document.getElementById('setPixel');
+            if (px) px.onchange = () => { try { localStorage.setItem('sc_fp_pixel', px.value); } catch (_) { /* */ } location.reload(); };
             const tsens = $('setTouchSens');
             if (tsens) tsens.oninput = () => { G.settings.touchSensitivity = parseFloat(tsens.value); G.progress.save(); };
             if (iy) iy.onchange = () => { G.settings.invertY = iy.checked; G.progress.save(); };
@@ -813,6 +815,12 @@ export const UI = {
                         <option value="low" ${G.quality === 'low' ? 'selected' : ''}>Low</option>
                         <option value="medium" ${G.quality === 'medium' ? 'selected' : ''}>Medium</option>
                         <option value="high" ${G.quality === 'high' ? 'selected' : ''}>High</option>
+                    </select></td></tr>
+                <tr><td>🟪 Pixel look (like the 2D city)</td><td>
+                    <select id="setPixel" class="btn">
+                        <option value="off" ${G.pixelLook === 'off' ? 'selected' : ''}>Off — smooth</option>
+                        <option value="soft" ${G.pixelLook === 'soft' ? 'selected' : ''}>Soft — 2× pixels</option>
+                        <option value="crisp" ${G.pixelLook === 'crisp' ? 'selected' : ''}>Crisp — 3× pixels</option>
                     </select></td></tr>
                 <tr><td>Master volume</td><td><input id="setVol" type="range" min="0" max="1" step="0.05" value="${G.settings.volume}"></td></tr>
                 <tr><td>Music</td><td><input id="setMusic" type="checkbox" ${G.settings.music ? 'checked' : ''}></td></tr>

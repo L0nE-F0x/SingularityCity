@@ -2457,7 +2457,7 @@ export const World = {
             // 92 was far too wide: two lamps near the camera filled the frame
             // with white, and a receding avenue of them stacked additively into
             // a blown-out wall at the vanishing point.
-            color: 0xffffff, size: 54, sizeAttenuation: true,
+            color: 0xffffff, size: 30, sizeAttenuation: true,   // a lamp head, not a snowball (lamps now line every street)
             transparent: true, opacity: 0, depthWrite: false,
             blending: THREE.AdditiveBlending, fog: false, toneMapped: false
         });

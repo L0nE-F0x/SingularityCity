@@ -120,7 +120,12 @@ const KIND = {
         }
         // swarm table: a lit slab ringed by agent tokens, one per active worker
         c.box(150, 26, 96, 40, 13, 120, 0x141232); c.solid(40, 120, 150, 96);
-        c.lit(132, 2, 78, 40, 27, 120, e.accent);
+        // a dark glass top with a lit rim and grid — a full-bright 13 m slab
+        // in the accent colour filled the view from the door
+        c.box(140, 1.5, 86, 40, 26.6, 120, 0x1f1a46);
+        for (const sz of [-1, 1]) c.lit(140, 1.6, 2, 40, 27.6, 120 + sz * 42, e.accent);
+        for (const sx of [-1, 1]) c.lit(2, 1.6, 86, 40 + sx * 69, 27.6, 120, e.accent);
+        for (let g = -2; g <= 2; g++) c.lit(136, 0.8, 0.8, 40, 27.4, 120 + g * 16, 0x3b3480);
         for (let i = 0; i < 10; i++) {
             const a = i * Math.PI / 5;
             c.lit(9, 9, 9, 40 + Math.cos(a) * 56, 34, 120 + Math.sin(a) * 32,

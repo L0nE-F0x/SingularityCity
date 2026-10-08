@@ -192,6 +192,10 @@ async function boot() {
         if (G.composer) {
             G.composer.setPixelRatio(renderer.getPixelRatio());
             G.composer.setSize(w, h);
+            if (G.lofiPass) {
+                const pr = renderer.getPixelRatio();
+                G.lofiPass.uniforms.resolution.value.set(Math.floor(w * pr), Math.floor(h * pr));
+            }
         }
     };
     let sizeQueued = false;
@@ -212,27 +216,78 @@ async function boot() {
        sees them. Tone mapping and sRGB move into OutputPass, so the HDR values
        the bloom thresholds on are the real linear ones. */
     const wantBloom = G.preset.bloom || new URLSearchParams(location.search).get('bloom') === '1';
-    if (wantBloom) {
+    /* Pixel look — First Person drawn the way the 2D city is: the frame is
+       sampled in 2×2 (soft) or 3×3 (crisp) blocks so every art pixel is a
+       crisp square, and finished with a 4×4 ordered dither and a gentle
+       reduction in colour levels. The scene still renders at full resolution:
+       a low-resolution target doubled the size of every point sprite (lamp
+       halos, rain), which are sized from the canvas pixel ratio. Off restores
+       the smooth image. */
+    const pixParam = new URLSearchParams(location.search).get('pixel');
+    let pixelLook = pixParam || localStorage.getItem('sc_fp_pixel') || 'soft';
+    if (!['off', 'soft', 'crisp'].includes(pixelLook)) pixelLook = 'soft';
+    G.pixelLook = pixelLook;
+    const PIX = { off: 1, soft: 2, crisp: 3 }[pixelLook];
+    G.pixelScale = PIX;
+    if (wantBloom || PIX > 1) {
         try {
             const { EffectComposer } = await import('../lib/postprocessing/EffectComposer.js');
             const { RenderPass } = await import('../lib/postprocessing/RenderPass.js');
-            const { UnrealBloomPass } = await import('../lib/postprocessing/UnrealBloomPass.js');
             const { OutputPass } = await import('../lib/postprocessing/OutputPass.js');
             const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, {
                 type: THREE.HalfFloatType,
-                samples: G.touchMode ? 0 : 4
+                samples: G.touchMode || PIX > 1 ? 0 : 4
             });
             const composer = new EffectComposer(renderer, rt);
             composer.addPass(new RenderPass(G.scene, G.camera));
-            const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.4, 0.55, 0.92);
-            composer.addPass(bloom);
+            if (wantBloom) {
+                const { UnrealBloomPass } = await import('../lib/postprocessing/UnrealBloomPass.js');
+                const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.4, 0.55, 0.92);
+                composer.addPass(bloom);
+                G.bloomPass = bloom;
+            }
             composer.addPass(new OutputPass());
+            if (PIX > 1) {
+                const { ShaderPass } = await import('../lib/postprocessing/ShaderPass.js');
+                const lofi = new ShaderPass({
+                    uniforms: {
+                        tDiffuse: { value: null },
+                        resolution: { value: new THREE.Vector2(innerWidth, innerHeight) },
+                        block: { value: PIX },
+                        levels: { value: PIX > 2 ? 24.0 : 36.0 },
+                        dither: { value: PIX > 2 ? 1.0 : 0.75 }
+                    },
+                    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+                    fragmentShader: `
+                        uniform sampler2D tDiffuse; uniform vec2 resolution; uniform float levels; uniform float dither; uniform float block;
+                        varying vec2 vUv;
+                        float bayer4(vec2 p) {
+                            int x = int(mod(p.x, 4.0)), y = int(mod(p.y, 4.0));
+                            int i = x + y * 4;
+                            int m[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
+                            for (int k = 0; k < 16; k++) if (k == i) return float(m[k]) / 16.0;
+                            return 0.0;
+                        }
+                        void main() {
+                            vec2 px = floor(vUv * resolution / block);
+                            vec3 c = texture2D(tDiffuse, (px + 0.5) * block / resolution).rgb;
+                            float t = (bayer4(px) - 0.4375) * dither;
+                            c = floor(c * levels + 0.5 + t) / levels;
+                            gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+                        }`
+                });
+                composer.addPass(lofi);
+                G.lofiPass = lofi;
+            }
             composer.setPixelRatio(renderer.getPixelRatio());
             composer.setSize(innerWidth, innerHeight);
+            if (G.lofiPass) {
+                const pr = renderer.getPixelRatio();
+                G.lofiPass.uniforms.resolution.value.set(Math.floor(innerWidth * pr), Math.floor(innerHeight * pr));
+            }
             G.composer = composer;
-            G.bloomPass = bloom;
         } catch (e) {
-            console.warn('[bloom] unavailable, rendering without it', e);
+            console.warn('[post] unavailable, rendering without it', e);
             G.composer = null;
         }
     }
@@ -572,8 +627,10 @@ async function boot() {
         if (G.composer) {
             // stronger after dark and indoors, a whisper at noon
             const night = G.weatherSys?.night ?? 0;
-            G.bloomPass.strength = G.inside ? 0.35 : 0.12 + night * 0.5;
-            G.bloomPass.threshold = G.inside ? 1.05 : 0.95 - night * 0.2;
+            if (G.bloomPass) {
+                G.bloomPass.strength = G.inside ? 0.35 : 0.12 + night * 0.5;
+                G.bloomPass.threshold = G.inside ? 1.05 : 0.95 - night * 0.2;
+            }
             G.composer.render(dt);
         } else {
             renderer.render(G.scene, G.camera);

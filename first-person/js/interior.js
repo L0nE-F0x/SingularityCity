@@ -72,6 +72,61 @@ const DOOR_SECS = 1.1;        // open / close time
 const RIDE_PER_FLOOR = 1.15;  // travel seconds per storey
 const RIDE_MIN = 1.8, RIDE_MAX = 5.5;
 
+/* Dark themes (bars, the underground, server halls, the jail) were navy and
+   near-black walls under an indoor light budget of ~1: a room you could not
+   see into. Keep the hue and the mood, lift the value into a lofi range. */
+function liftDim(hex, k = 0.38) {
+    const c = new THREE.Color(hex);
+    return c.lerp(new THREE.Color(0x56607a), k).getHex();
+}
+
+/* The view out of a room's clerestory windows: the city at this hour, in the
+   2D city's palette — smog-gold day, orange dusk, navy-magenta night with lit
+   windows and neon. Canvas calls limited to what the headless test stubs. */
+const _skyCache = new Map();
+function skylineTex(phase) {
+    const night = phase > 0.82 || phase < 0.24, dusk = !night && phase > 0.7;
+    const key = night ? 'n' : dusk ? 'd' : 'a';
+    if (_skyCache.has(key)) return _skyCache.get(key);
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 128;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 128);
+    if (night) { g.addColorStop(0, '#070918'); g.addColorStop(0.7, '#2b1648'); g.addColorStop(1, '#5c1f5a'); }
+    else if (dusk) { g.addColorStop(0, '#2e3a64'); g.addColorStop(0.6, '#c26e6e'); g.addColorStop(1, '#ffbc62'); }
+    else { g.addColorStop(0, '#4c7490'); g.addColorStop(0.6, '#aeb29a'); g.addColorStop(1, '#e0c99c'); }
+    x.fillStyle = g; x.fillRect(0, 0, 512, 128);
+    let seed = 7;
+    const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (const layer of [0, 1]) {
+        for (let bx = 0; bx < 512;) {
+            const bw = 14 + Math.floor(r() * 30), bh = (layer ? 40 : 60) + Math.floor(r() * (layer ? 50 : 60));
+            x.fillStyle = night ? (layer ? '#120f28' : '#1c1736') : dusk ? (layer ? '#5a4466' : '#7a5a78') : (layer ? '#7e7a78' : '#9a9286');
+            x.fillRect(bx, 128 - bh, bw, bh);
+            if (layer) {
+                for (let wy = 128 - bh + 6; wy < 124; wy += 7) {
+                    for (let wx = bx + 3; wx < bx + bw - 3; wx += 5) {
+                        if (r() < (night ? 0.45 : 0.18)) {
+                            x.fillStyle = night ? (r() < 0.8 ? '#ffd890' : '#5ff6ff') : '#d8d2c4';
+                            x.fillRect(wx, wy, 2, 3);
+                        }
+                    }
+                }
+                if (night && r() < 0.3) { x.fillStyle = r() < 0.5 ? '#ff4fd8' : '#5ff6ff'; x.fillRect(bx + 2, 128 - bh - 3, bw - 4, 2); }
+            }
+            bx += bw + Math.floor(r() * 6);
+        }
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.magFilter = THREE.NearestFilter;
+    t.userData = { shared: true };
+    _skyCache.set(key, t);
+    return t;
+}
+const WINDOW_CATS = new Set(['office', 'openplan', 'boardroom', 'cafe', 'home', 'academic', 'vc', 'embassy',
+    'longevity', 'agents', 'conference', 'press', 'gym', 'robotics', 'nursery', 'court', 'alignment']);
+
 function paint(geo, hex) {
     const c = new THREE.Color(hex);
     const n = geo.attributes.position.count;
@@ -331,6 +386,14 @@ export const Interior = {
         } else if (floorIdx > 0 && th.cat === 'home') {
             // keep home
         }
+        {
+            // by value, not by the `dim` flag: bespoke rooms set their own
+            // dark palettes without it
+            const lum = (h) => { const c = new THREE.Color(h); return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; };
+            if (lum(th.wall) < 0.16) th.wall = liftDim(th.wall);
+            if (lum(th.ceil) < 0.1) th.ceil = liftDim(th.ceil, 0.3);
+            if (lum(th.floor) < 0.16) th.floor = liftDim(th.floor, 0.32);
+        }
         const parts = [];     // lit surfaces (standard, vertex-coloured)
         const glow = [];      // self-lit surfaces (basic, vertex-coloured)
         const box = (w, h, d, x, y, z, hex, arr = parts) => {
@@ -388,10 +451,35 @@ export const Interior = {
             : [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
         // th.noPanels lets a bespoke room own its ceiling (cellars, tunnels)
         if (!th.noPanels) {
-            for (const [ix, iz] of panels) lit(120, 2, 70, ix * 175, ROOM_H - 3, iz * 140, th.lamp);
+            /* A beamed ceiling with framed light panels. The old 120×70 flat
+               slabs were the single biggest thing in every room's view —
+               nine glowing rectangles the size of carpets. */
+            const beam = new THREE.Color(th.ceil).multiplyScalar(0.72).getHex();
+            for (const bx of [-175, 0, 175]) box(4, 5, ROOM_D - WALL, bx + 87.5, ROOM_H - 4.5, 0, beam);
+            for (const bz of [-140, 0, 140]) box(ROOM_W - WALL, 5, 4, 0, ROOM_H - 4.5, bz + 70, beam);
+            for (const [ix, iz] of panels) {
+                for (const [ox, oz] of [[-30, 0], [30, 0]]) {
+                    box(50, 1.6, 34, ix * 175 + ox, ROOM_H - 2.6, iz * 140 + oz, 0x2a2f38);
+                    lit(44, 1.2, 28, ix * 175 + ox, ROOM_H - 3.2, iz * 140 + oz, th.lamp);
+                }
+            }
             // cove LEDs along ceiling perimeter
             lit(ROOM_W - 30, 1.5, 3, 0, ROOM_H - 5, -ROOM_D / 2 + 18, th.lamp);
             lit(ROOM_W - 30, 1.5, 3, 0, ROOM_H - 5, ROOM_D / 2 - 18, th.lamp);
+        }
+        // clerestory windows on the right wall: the city outside, at this hour
+        if (WINDOW_CATS.has(th.cat) && !th.noWindows) {
+            const wx = ROOM_W / 2 - WALL / 2 - 0.6, wy = 68, wh = 30;
+            const span = ROOM_D - 120;
+            const win = new THREE.Mesh(new THREE.PlaneGeometry(span, wh),
+                new THREE.MeshBasicMaterial({ map: skylineTex(G.dayPhase ?? 0.5), toneMapped: false }));
+            win.material.map.userData = { shared: true };
+            win.position.set(wx, wy, 0);
+            win.rotation.y = -Math.PI / 2;
+            this.group.add(win);
+            box(2.2, 3, span + 4, wx - 0.4, wy - wh / 2 - 1.5, 0, 0x3a414c);   // sill
+            box(2.2, 3, span + 4, wx - 0.4, wy + wh / 2 + 1.5, 0, 0x3a414c);   // head
+            for (let k = 0; k <= 6; k++) box(2.4, wh, 2.4, wx - 0.4, wy, -span / 2 + k * span / 6, 0x3a414c);
         }
 
         this._propColliders = [];
@@ -494,7 +582,7 @@ export const Interior = {
         // theme-tinted fill lights
         if (this._fillLight) {
             this._fillLight.color.setHex(th.lamp);
-            this._fillLight.intensity = th.dim ? 0.7 : 1.05;
+            this._fillLight.intensity = th.dim ? 0.95 : 1.05;
             this._fillLight.position.set(0, 72, 0);
         }
         if (this._rimLight) {
@@ -999,7 +1087,8 @@ export const Interior = {
                 box(50, 20, 130, gx, 10, -40, 0x1f2937); solid(gx, -40, 50, 130);
                 for (let i = 0; i < 5; i++) box(40, 8, 8, gx, 18 + i * 12, -90 + i * 28, 0x6b7280);
             }
-            box(120, 4, 120, 0, 2, 110, 0x0ea5e9);
+            box(120, 2, 120, 0, 1, 110, 0x24435e);           // stretching mat (was a full-saturation blue slab at the door)
+            for (const lz of [-40, 0, 40]) box(120, 0.4, 2, 0, 2.2, 110 + lz, 0x3b6a8f);
             lit(90, 30, 2, 0, 50, -ROOM_D / 2 + 14, 0x38bdf8);
             // mirrors
             lit(2, 50, 100, ROOM_W / 2 - 16, 40, -40, 0xbae6fd);
@@ -2035,7 +2124,7 @@ export const Interior = {
         // Arriving on an upper floor there is no street door to stand in — put
         // the player mid-room facing the way the floor is laid out.
         if (floorIdx > 0) G.player.teleport(0, S(60), Math.PI);
-        else G.player.teleport(0, S(ROOM_D / 2 - 70), 0);
+        else G.player.teleport(0, S(ROOM_D / 2 - 44), 0);   // just inside the door, the room ahead of you
         const multi = this.maxFloor > 0 ? ` · ELEVATOR: F / E at lift / 0–${this.maxFloor}` : '';
         G.ui?.banner?.(`${b.emoji || '🏢'} ${b.name}`, 'press E at the door to leave' + multi);
         G.audio?.sfx?.('open');
