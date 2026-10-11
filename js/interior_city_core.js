@@ -48,6 +48,9 @@ const InteriorCity = {
         this.ceoCarGfx = null;
         this.bldTickerSym = null;
         this.tickerTxt = null;
+        // Cleared for every interior. Only the three forests set it, and the
+        // pixel zoom reads it to keep their ground line from riding up.
+        this._forestGroundScreen = null;
 
         const lab = LABS[bld.lab] ||
             LABS['other'] || {
@@ -103,14 +106,15 @@ const InteriorCity = {
 
         const voidMask = new PIXI.Graphics();
         if (isForest) {
-            // Earth connects directly below the ground strip where props sit
-            // For forests: fy = roofH, ground at fy + floorH - 4, grass at fy + floorH - 8
-            const grassY = roofH + floorH - 4;
-            voidMask.beginFill(0x1a1510);
-            voidMask.drawRect(0, grassY + 4, G.vpW, 40);
-            voidMask.endFill();
-            voidMask.beginFill(0x2d1f0f);
-            voidMask.drawRect(0, grassY + 20, G.vpW, 200);
+            // Base soil under the detailed strata. Wider than the viewport so a
+            // sideways pan (pixel interior zoom) can't reveal the sky beside it,
+            // and deep enough to reach the bottom of the screen below the ground line.
+            const grassY = roofH + floorH - 8;
+            const earthX = -120;
+            const earthW = G.vpW + 240;
+            const fill = Math.ceil(G.vpH * 0.45) + 160;
+            voidMask.beginFill(0x1a120c);
+            voidMask.drawRect(earthX, grassY, earthW, fill);
             voidMask.endFill();
             this.scene.addChild(voidMask);
         }
@@ -256,58 +260,73 @@ const InteriorCity = {
                 );
             } else if (isForest) {
                 // Forests are OUTDOORS — no walls, no ceiling, just ground.
-                // The CSS sky gradient on the viewport shows through the transparent canvas.
+                // The CSS sky gradient on the viewport shows through above the grass.
+                // The soil block is wider than the viewport: the interior zoom can
+                // pan ~40 scene px past either edge, and a viewport-wide rect left
+                // a strip of sky there. It also stays brown all the way down, so
+                // the cutaway doesn't turn into a black pit under the grass.
 
                 const groundY = fy + floorH - 8;
+                const earthX = -120;
+                const earthW = G.vpW + 240;
+                // Ground is pinned at 70% of the screen. This covers everything
+                // below that line even with the zoom at 1 (the zoomed view needs less).
+                const fill = Math.ceil(G.vpH * 0.45) + 160;
                 // Grass surface
                 roomGfx.beginFill(0x2d6a4f);
-                roomGfx.drawRect(0, groundY, G.vpW, 3);
+                roomGfx.drawRect(earthX, groundY, earthW, 3);
                 roomGfx.endFill();
                 roomGfx.beginFill(0x1b4332);
-                roomGfx.drawRect(0, groundY + 3, G.vpW, 4);
+                roomGfx.drawRect(earthX, groundY + 3, earthW, 4);
                 roomGfx.endFill();
                 // Rich topsoil
+                roomGfx.beginFill(0x3a2a16);
+                roomGfx.drawRect(earthX, groundY + 7, earthW, 22);
+                roomGfx.endFill();
                 roomGfx.beginFill(0x2a1f0e);
-                roomGfx.drawRect(0, groundY + 7, G.vpW, 18);
+                roomGfx.drawRect(earthX, groundY + 18, earthW, 16);
                 roomGfx.endFill();
-                roomGfx.beginFill(0x1e1608);
-                roomGfx.drawRect(0, groundY + 12, G.vpW, 14);
+                // Root-filled soil
+                roomGfx.beginFill(0x24180f);
+                roomGfx.drawRect(earthX, groundY + 32, earthW, 28);
                 roomGfx.endFill();
-                // Root-filled soil (darker with texture)
-                roomGfx.beginFill(0x1a1208);
-                roomGfx.drawRect(0, groundY + 26, G.vpW, 20);
-                roomGfx.endFill();
-                // Scattered roots
-                for (let rx = 20; rx < G.vpW; rx += 40 + Math.random() * 60) {
-                    roomGfx.beginFill(0x3d2b10, 0.3);
-                    roomGfx.drawRect(rx, groundY + 10 + Math.random() * 12, 12 + Math.random() * 20, 2);
+                for (let rx = earthX + 20; rx < earthX + earthW; rx += 40 + Math.random() * 60) {
+                    roomGfx.beginFill(0x4a3018, 0.45);
+                    roomGfx.drawRect(rx, groundY + 14 + Math.random() * 20, 12 + Math.random() * 20, 2);
                     roomGfx.endFill();
                 }
-                // Clay layer
-                roomGfx.beginFill(0x1a0f06);
-                roomGfx.drawRect(0, groundY + 46, G.vpW, 25);
+                // Clay
+                roomGfx.beginFill(0x3a2414);
+                roomGfx.drawRect(earthX, groundY + 58, earthW, 36);
                 roomGfx.endFill();
-                roomGfx.beginFill(0x14100a);
-                roomGfx.drawRect(0, groundY + 56, G.vpW, 20);
+                roomGfx.beginFill(0x2c1a10);
+                roomGfx.drawRect(earthX, groundY + 80, earthW, 24);
                 roomGfx.endFill();
-                // Rock / sediment
-                roomGfx.beginFill(0x0e0c08);
-                roomGfx.drawRect(0, groundY + 71, G.vpW, 30);
+                // Packed earth / sediment — still brown, not a void
+                roomGfx.beginFill(0x24160e);
+                roomGfx.drawRect(earthX, groundY + 100, earthW, 50);
                 roomGfx.endFill();
-                // Scattered stones
-                for (let sx = 30; sx < G.vpW; sx += 50 + Math.random() * 80) {
-                    roomGfx.beginFill(0x2a2520, 0.25);
+                for (let sx = earthX + 30; sx < earthX + earthW; sx += 50 + Math.random() * 80) {
+                    roomGfx.beginFill(0x3a3028, 0.35);
                     roomGfx.drawEllipse(
                         sx,
-                        groundY + 60 + Math.random() * 30,
+                        groundY + 70 + Math.random() * 50,
                         4 + Math.random() * 6,
                         2 + Math.random() * 3
                     );
                     roomGfx.endFill();
                 }
-                // Deep earth (fills to bottom)
-                roomGfx.beginFill(0x080604);
-                roomGfx.drawRect(0, groundY + 101, G.vpW, 400);
+                // Deep earth fills to the bottom of the view
+                const deepY = groundY + 140;
+                const deepH = Math.max(80, fill - 140);
+                roomGfx.beginFill(0x1c140e);
+                roomGfx.drawRect(earthX, deepY, earthW, deepH);
+                roomGfx.endFill();
+                roomGfx.beginFill(0x2a1c12);
+                roomGfx.drawRect(earthX, deepY + 16, earthW, 40);
+                roomGfx.endFill();
+                roomGfx.beginFill(0x1a120c);
+                roomGfx.drawRect(earthX, deepY + 80, earthW, Math.max(40, deepH - 100));
                 roomGfx.endFill();
             }
             this.scene.addChild(roomGfx);
@@ -1371,9 +1390,12 @@ const InteriorCity = {
         const bottomPadding = 56;
 
         if (isForest) {
-            // Forests: ground pinned at 70% viewport height, no vertical scroll at all
+            // Forests: ground pinned at 70% viewport height, no vertical scroll at all.
+            // _forestGroundScreen is the screen row of that line before the pixel
+            // zoom scales the layer. The zoom keeps this row put for forests.
             const groundSceneY = roofH + floorH - 4; // where props sit in scene coords
-            this.scene.y = G.vpH * 0.7 - groundSceneY;
+            this._forestGroundScreen = G.vpH * 0.7;
+            this.scene.y = this._forestGroundScreen - groundSceneY;
             this.minY = this.scene.y; // locked
             this.maxY = this.scene.y; // locked
             this._noYScroll = true;

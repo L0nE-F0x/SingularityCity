@@ -21,6 +21,12 @@
         drag: null,
         b: null,
 
+        // Pine Reserve, Silicon Woods, Frontier Pines. One outdoor ground, not a stack of floors.
+        _isForest(m) {
+            const id = m && m.bld && m.bld.id;
+            return id === 'forest_0' || id === 'forest_1' || id === 'forest_space';
+        },
+
         _content(m, layer) {
             const sc = m && m.scene && !m.scene.destroyed ? m.scene : layer;
             const r = sc.getBounds(); // screen space, layer still at identity
@@ -30,8 +36,15 @@
             let x1 = Math.min(r.x + r.width, W * 1.5);
             if (m && m.bldW && typeof m.startX === 'number' && m.scene) {
                 const s = m.scene.scale ? m.scene.scale.x : 1;
-                x0 = m.scene.x + m.startX * s - 30;
-                x1 = x0 + m.bldW * s + 60;
+                if (this._isForest(m)) {
+                    // The soil is the whole view. The building pads are empty sky,
+                    // and panning into them opened a gap on either side of the ground.
+                    x0 = m.scene.x + m.startX * s;
+                    x1 = x0 + m.bldW * s;
+                } else {
+                    x0 = m.scene.x + m.startX * s - 30;
+                    x1 = x0 + m.bldW * s + 60;
+                }
             }
             const y0 = Math.max(r.y, -H * 4);
             const y1 = Math.min(r.y + r.height, H + 420);
@@ -40,6 +53,8 @@
 
         begin(m, layer) {
             this.end();
+            this._lockY = false;
+            this._tyLock = 0;
             if (!layer || !G.app) return;
             this.layer = layer;
             this.mod = m;
@@ -63,6 +78,16 @@
             const anchorY = H - 56;
             this.tx = this.x = Math.round(W / 2 - anchorX * z);
             this.ty = this.y = Math.round(anchorY - anchorY * z + 40);
+            // Forests have no floors above the ground. The building anchor assumes
+            // a street at the bottom of a tall stack and the clamp then hauls the
+            // tree line up to the toolbar, leaving a black pit under the grass.
+            // Hold the ground on the row the forest module already chose.
+            if (this._isForest(m) && typeof m._forestGroundScreen === 'number') {
+                const gY = m._forestGroundScreen;
+                this._lockY = true;
+                this._tyLock = Math.round(gY * (1 - z));
+                this.ty = this.y = this._tyLock;
+            }
             this._clamp();
             this.x = this.tx;
             this.y = this.ty;
@@ -80,7 +105,7 @@
             this._move = (e) => {
                 if (!this.drag) return;
                 this.tx = this.drag.x + (e.clientX - this.drag.cx0);
-                this.ty = this.drag.y + (e.clientY - this.drag.cy0);
+                if (!this._lockY) this.ty = this.drag.y + (e.clientY - this.drag.cy0);
                 this._clamp();
             };
             this._wmove = (e) => {
@@ -122,6 +147,12 @@
             const ch = (b.y1 - b.y0) * z;
             if (cw <= W) this.tx = Math.round((W - cw) / 2 - b.x0 * z);
             else this.tx = PL.clamp(this.tx, W - 12 - b.x1 * z, 12 - b.x0 * z);
+            // Forests: vertical pan stays locked. The soil is drawn to the bottom
+            // of the screen, so there is nothing under the ground to scroll to.
+            if (this._lockY) {
+                this.ty = this._tyLock;
+                return;
+            }
             if (ch <= bot - top) this.ty = Math.round((top + bot - ch) / 2 - b.y0 * z);
             else this.ty = PL.clamp(this.ty, bot - b.y1 * z, top - b.y0 * z);
         },
@@ -159,6 +190,8 @@
             this.layer = null;
             this.mod = null;
             this.drag = null;
+            this._lockY = false;
+            this._tyLock = 0;
         },
     });
     void Z;
