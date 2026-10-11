@@ -1,13 +1,11 @@
 # Resume here
 
-**Updated:** 2026-10-08 (First Person overhaul wrap) · **Live `main`:** `85cce75` (this wrap sits on top)
-**Status:** The First Person overhaul is live on cache **v561**. Netlify served
-`singularity-city-v561` on the second poll; `first-person/js/neon.js` and `pedgraph.js`
-return 200 with `max-age=0, must-revalidate`, and a headless run against production did
-the full metro journey (hall → escalator → platform → board → ride → alight → lift) and
-every mode key with no page errors. The 2D city was only cache-bumped.
-**Next:** start from the owner's playtest notes. Known gaps are at the end of this
-session's section.
+**Updated:** 2026-10-11 (forest interior ground wrap) · **Live `main`:** `0d6a898` (this wrap sits on top)
+**Status:** Forest interiors are live on cache **v562**. `https://singularitycity.net/sw.js`
+is `singularity-city-v562`, and the live `js/pixel/interior_zoom.js` has the forest
+ground lock. Building interiors were not changed.
+**Next:** owner's playtest of Pine Reserve, Silicon Woods, and Frontier Pines. Nothing
+else is open from this session.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
 Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
@@ -16,7 +14,42 @@ headers, so the browser has to use that same-origin path or the board stays empt
 
 ---
 
-## This session (2026-10-08) — First Person overhaul
+## This session (2026-10-11) — forest interiors sit on the ground
+
+Owner brief: the zoomed-in building interiors are right and must stay. Forests (Pine
+Reserve, Silicon Woods, Frontier Pines) are a single outdoor ground, and that same zoom
+was floating the ground up in the sky with a black pit underneath. Dragging sideways
+shifted the earth block and left a gap of sky on the left and the right. Fix only that.
+One commit `0d6a898`, pushed, cache v562.
+
+### What shipped
+
+| Area | What changed | Where |
+|---|---|---|
+| Forest zoom | `PL.InteriorZoom` treats `forest_0`, `forest_1`, and `forest_space` as one outdoor ground. Horizontal bounds are the soil itself (no −30/+60 building pads). Vertical pan is locked so the ground row the module pinned (`_forestGroundScreen`, 70% of the viewport) stays on that screen row after the scale. Buildings keep the street anchor, the pads, and vertical scrolling. | `js/pixel/interior_zoom.js` |
+| Forest soil | The cutaway is wider than the viewport (`x = -120`, width `vpW + 240`) and deep enough to cover the screen below the grass (`0.45 * vpH + 160`). Strata stay brown to the bottom; the old near-black `0x080604` pit is gone. `_forestGroundScreen` is cleared at the start of every `InteriorCity.build` because the module is a singleton. | `js/interior_city_core.js` |
+| Cache | `node tools/cachebust.mjs` → v562. | `index.html`, `sw.js` |
+
+### What a new agent must not re-break
+
+1. **Do not give forests the building zoom.** They have no floors above the ground. `_isForest` is only those three ids. Removing `_lockY` puts the tree line back under the toolbar.
+2. **`InteriorCity` is one object for every building.** `_forestGroundScreen` must be set to `null` at the start of `build`, or the next lab interior inherits the forest lock.
+3. **Soil must extend past the pan clamp.** The zoom still allows 12 screen px of overscroll. A viewport-wide earth rect opens a sky gap on either side.
+4. **The deep fill is brown, not `0x080604`.** That near-black read as empty space under the grass.
+5. **Building zoom stays as it was** when `_lockY` is false: anchor `H - 56`, pads −30/+60, vertical clamp. The café was the check.
+6. Leave `first-person/assets/models/*`, `landing_preview2.html`, `landing_preview3.html`, and `pixel-lab/` untracked. Do not `git add -A`.
+
+### Verified
+
+- Headless Chrome 1440×900, `enterCity()`, then Pine Reserve, Frontier Pines, and Silicon Woods, each at rest and panned to both clamp edges. Ground line at 70% of the canvas (y ≈ 627–630 of 900). Below the grass: ~89% brown, ~0.1% near-black, and 0 sky-colored rows on the extreme left and right columns.
+- Café after the same boot: `_lockY` false, zoom 1.5, multi-floor stack and underground still scrolling. A forced vertical drag inside a forest was clamped back to the locked ground row.
+- Production at wrap: `https://singularitycity.net/sw.js` is `singularity-city-v562`, and the live `js/pixel/interior_zoom.js` contains `_isForest` and `_lockY`.
+
+### Not done
+
+- Nothing open. The owner asked for this fix only.
+
+## Previous (2026-10-08) — First Person overhaul
 
 Owner brief: First Person felt far below the 2D city — bugs, cramped and overlapping
 props, broken metro trains, badly spaced transport — "do a super deep pass and perfect
