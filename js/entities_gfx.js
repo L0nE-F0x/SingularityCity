@@ -307,30 +307,9 @@ const EntitiesGfx = {
         let mMidX = midStation ? midStation.x + midStation.w / 2 : null;
         let mLongX = longStation ? longStation.x + longStation.w / 2 : null;
 
-        // 1. Draw Massive Tunnel (oversized to survive any city expansion)
+        // 1. Draw the tunnel (Entities.updateTrain redraws it when the city widens)
         const gfx = new PIXI.Graphics();
-        const tunnelW = 50000;
-        gfx.beginFill(0x050508);
-        gfx.drawRect(-2000, tunnelY - 50, tunnelW, 100);
-        gfx.endFill();
-
-        gfx.beginFill(0x1a1a24);
-        gfx.drawRect(-2000, tunnelY + 30, tunnelW, 20);
-        gfx.endFill();
-
-        gfx.beginFill(0x4a4a5a);
-        gfx.drawRect(-2000, tunnelY + 35, tunnelW, 3);
-        gfx.drawRect(-2000, tunnelY + 42, tunnelW, 3);
-        gfx.endFill();
-
-        for (let x = -1000; x < 48000; x += 150) {
-            gfx.beginFill(0x111115);
-            gfx.drawRect(x, tunnelY - 50, 20, 100);
-            gfx.endFill();
-            gfx.beginFill(0xef4444);
-            gfx.drawCircle(x + 10, tunnelY - 30, 2);
-            gfx.endFill();
-        }
+        this.drawTunnel(gfx, tunnelY);
         undergroundLayer.addChild(gfx);
 
         // 2. Dynamic Station Visuals
@@ -523,7 +502,39 @@ const EntitiesGfx = {
             stationVisuals: stationVisuals,
             bunkerGfx: bunkerGfx,
             bunkerTxts: bunkerTxts,
+            tunnelGfx: gfx,
         };
+    },
+
+    /* The metro tunnel, from x -2000 to past the east edge of the city. Labs widen as models
+       arrive and push the eastern districts right, so a fixed end (it was 48000) fell short of
+       the Innovation Line and left a see-through gap under the Alignment Forest. */
+    drawTunnel(gfx, tunnelY) {
+        const x0 = -2000;
+        const x1 = Math.max(48000, (G.cityW || 0) + 2000);
+        const tunnelW = x1 - x0;
+        gfx.clear();
+        gfx.beginFill(0x050508);
+        gfx.drawRect(x0, tunnelY - 50, tunnelW, 100);
+        gfx.endFill();
+
+        gfx.beginFill(0x1a1a24);
+        gfx.drawRect(x0, tunnelY + 30, tunnelW, 20);
+        gfx.endFill();
+
+        gfx.beginFill(0x4a4a5a);
+        gfx.drawRect(x0, tunnelY + 35, tunnelW, 3);
+        gfx.drawRect(x0, tunnelY + 42, tunnelW, 3);
+        gfx.endFill();
+
+        for (let x = -1000; x < x1; x += 150) {
+            gfx.beginFill(0x111115);
+            gfx.drawRect(x, tunnelY - 50, 20, 100);
+            gfx.endFill();
+            gfx.beginFill(0xef4444);
+            gfx.drawCircle(x + 10, tunnelY - 30, 2);
+            gfx.endFill();
+        }
     },
 
     drawBunkers(bunkerGfx, charLayer, bunkerTxts) {

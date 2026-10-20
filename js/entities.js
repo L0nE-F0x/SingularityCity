@@ -42,6 +42,7 @@ const Entities = {
             this.stationVisuals = trains.stationVisuals;
             this.bunkerGfx = trains.bunkerGfx;
             this.bunkerTxts = trains.bunkerTxts;
+            this.tunnelGfx = trains.tunnelGfx;
             this.lastCityW = typeof G !== 'undefined' ? G.cityW : 3400;
         }
 
@@ -119,11 +120,14 @@ const Entities = {
             });
         }
 
-        // 2. Redraw silos if the city width updates (HQs expanding/pushing houses)
+        // 2. Redraw silos and stretch the tunnel if the city width updates (HQs expanding/pushing houses)
         if (G.cityW !== this.lastCityW) {
             this.lastCityW = G.cityW;
             if (this.bunkerGfx && this.bunkerTxts) {
                 EntitiesGfx.drawBunkers(this.bunkerGfx, this.charLayer, this.bunkerTxts);
+            }
+            if (this.tunnelGfx && !this.tunnelGfx.destroyed) {
+                EntitiesGfx.drawTunnel(this.tunnelGfx, G.groundY + 120);
             }
         }
 

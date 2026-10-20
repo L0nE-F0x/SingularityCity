@@ -303,7 +303,17 @@
         // Replace the classic tunnel Graphics (the widest child of the underground layer).
         adopt() {
             const L = G.undergroundLayer;
-            if (!L || (this._tunnel && !this._tunnel.destroyed && this._tunnel.parent === L)) return;
+            if (!L) return;
+            const t = this._tunnel;
+            if (t && !t.destroyed && t.parent === L) {
+                // The classic tunnel is redrawn wider when the city grows; stretch the strip with it.
+                const c = t._classic;
+                if (c && !c.destroyed) {
+                    const w = Math.ceil(c.getLocalBounds().width / PL.ART);
+                    if (w !== t.width) t.width = w;
+                }
+                return;
+            }
             const g = L.children.find(
                 (c) =>
                     c instanceof PIXI.Graphics &&
@@ -320,6 +330,7 @@
             ts.x = b.x;
             ts.y = b.y;
             ts._pxNoSkin = true;
+            ts._classic = g;
             g.visible = false;
             L.addChildAt(ts, L.getChildIndex(g) + 1);
             this._tunnel = ts;
