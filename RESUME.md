@@ -1,11 +1,10 @@
 # Resume here
 
-**Updated:** 2026-10-11 (forest interior ground wrap) · **Live `main`:** `0d6a898` (this wrap sits on top)
-**Status:** Forest interiors are live on cache **v562**. `https://singularitycity.net/sw.js`
-is `singularity-city-v562`, and the live `js/pixel/interior_zoom.js` has the forest
-ground lock. Building interiors were not changed.
-**Next:** owner's playtest of Pine Reserve, Silicon Woods, and Frontier Pines. Nothing
-else is open from this session.
+**Updated:** 2026-10-20 (metro tunnel gap wrap) · **Live `main`:** `ca88f48` (this wrap sits on top)
+**Status:** The tunnel fix is live on cache **v563**. `https://singularitycity.net/sw.js`
+is `singularity-city-v563`, and the live `js/entities_gfx.js` has `drawTunnel`.
+**Next:** owner's check that the strip under the Alignment Forest stays filled in a long
+session. Nothing else is open from this session.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
 Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
@@ -14,7 +13,58 @@ headers, so the browser has to use that same-origin path or the board stays empt
 
 ---
 
-## This session (2026-10-11) — forest interiors sit on the ground
+## This session (2026-10-20) — the tunnel gap under the Alignment Forest
+
+Owner brief: a flat tan block sat in the metro tunnel between the Alignment Forest and
+Suburbia, from under the METR cabin to past the Innovation Line platform. Fix it.
+One commit `ca88f48`, pushed, cache v563.
+
+### Cause
+
+`EntitiesGfx.initMetro` drew the classic tunnel once, from x −2000 to a fixed 48000 ("oversized
+to survive any city expansion"). Lab HQs widen as models arrive and `recalculateZoning` pushes
+the eastern districts right. Stations follow (`Entities.updateTrain` moves `stationVisuals`), but
+the tunnel did not. Once `metro_longevity` passed ~47840, the band `gy+70 … gy+170` between
+48000 and the station had nothing in it. `Environment` leaves that band transparent on purpose,
+and the rock fill starts only at `tunnelEndX` (station + 160), so the canvas was see-through: the
+tan was the page behind it, with the owner's desktop wallpaper faintly visible through the
+window. A fresh load of today's production layout ends before 48000 (METR ≈ 44504), so it only
+showed in a session where the city had grown.
+
+### What shipped
+
+| Area | What changed | Where |
+|---|---|---|
+| Tunnel | New `EntitiesGfx.drawTunnel(gfx, tunnelY)`: clears and draws from −2000 to `max(48000, G.cityW + 2000)`, pillars every 150 from −1000 to the same end. `initMetro` returns it as `tunnelGfx`. | `js/entities_gfx.js` |
+| Growth | `Entities.updateTrain` redraws `tunnelGfx` in the existing `G.cityW !== lastCityW` block (next to the bunkers). | `js/entities.js` |
+| Pixel strip | `PL.Under.adopt` keeps a `_classic` link on the tile strip and, every sweep (30 ticks), sets the strip width to the classic bounds / `PL.ART`. | `js/pixel/underground.js` |
+| Cache | `node tools/cachebust.mjs` → v563. | `index.html`, `sw.js` |
+
+### What a new agent must not re-break
+
+1. **Nothing under the street may assume a fixed city width.** `G.cityW` grows at runtime. Anything drawn once must redraw on the `lastCityW` change or be sized from it.
+2. **The tunnel band in `Environment` is transparent on purpose** (so the underground layer shows). Any gap in the underground layer reads as a hole through the whole canvas, not as a dark tunnel.
+3. **`PL.Under.adopt` finds the classic tunnel by bounds width > 30000.** Keep the 48000 floor in `drawTunnel` so a small city still gets adopted.
+4. Leave `first-person/assets/models/*`, `landing_preview2.html`, `landing_preview3.html`, and `pixel-lab/` untracked. Do not `git add -A`.
+
+### Verified
+
+- Headless Chrome 1900×1150, zoom 1.25 (the owner's view). Widened six `dc_*` HQs by 600 each,
+  `G.recalculateZoning()` + `Environment.buildGround()` + `buildBuildings()`: METR moved to 48312,
+  station to 49432. Old code: the same tan hole as the owner's screenshot, tile strip still
+  ending at 48000. New code: tunnel art unbroken through the forest and the platform, rock after
+  the station; strip and classic tunnel both end at 61302.
+- Not hardware-dependent: SwiftShader and the owner's Intel Mesa GPU rendered an ungrown city
+  identically.
+- `prettier --check` clean. ESLint reports four `Bench is not defined` at `js/entities.js:357`,
+  which predate this session.
+- Production at wrap: `sw.js` is `singularity-city-v563`; live `js/entities_gfx.js` has `drawTunnel`.
+
+### Not done
+
+- Nothing open. The owner asked for this fix only.
+
+## Previous (2026-10-11) — forest interiors sit on the ground
 
 Owner brief: the zoomed-in building interiors are right and must stay. Forests (Pine
 Reserve, Silicon Woods, Frontier Pines) are a single outdoor ground, and that same zoom
