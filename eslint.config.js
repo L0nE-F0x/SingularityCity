@@ -150,6 +150,7 @@ export default [
                 Seasonal: 'writable',
                 SeasonalEnv: 'writable',
                 SND: 'writable',
+                Soundscape: 'writable', // procedural ambient bed (js/soundscape.js)
                 SpaceData: 'writable',
                 SpaceEntities: 'writable',
                 SpaceEnvironment: 'writable',
