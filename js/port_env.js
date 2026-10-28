@@ -22,13 +22,31 @@ const PortEnv = {
 
         // Fish schools (animated groups)
         const fishCols = [0x4ade80, 0x22d3ee, 0xfbbf24, 0xff69b4, 0x60a5fa, 0xf59e0b];
+        // Pixel skin: pixel fish sprites (drawn facing right; the school's scale.x turns them).
+        const pxSea =
+            typeof PixelArt !== 'undefined' && PixelArt.enabled && typeof PL !== 'undefined' && PL.Sea
+                ? PL.Sea
+                : null;
         for (let si = 0; si < 6; si++) {
             const school = new PIXI.Container();
             const baseX = pMinX + 60 + Math.random() * (pMaxX - pMinX - 120);
             const baseY = gy + 50 + Math.random() * 130;
             const col = fishCols[si % fishCols.length];
             const dir = Math.random() > 0.5 ? 1 : -1;
-            for (let fi = 0; fi < 6 + Math.floor(Math.random() * 6); fi++) {
+            if (pxSea) {
+                const kind = si % 3;
+                for (let fi = 0; fi < 6 + Math.floor(Math.random() * 6); fi++) {
+                    const fish = new PIXI.Sprite(pxSea.fishTex(kind));
+                    fish.anchor.set(0.5);
+                    fish.scale.set(PL.ART);
+                    fish.tint = col;
+                    fish.x = Math.round(((Math.random() - 0.5) * 40) / PL.ART) * PL.ART;
+                    fish.y = Math.round(((Math.random() - 0.5) * 20) / PL.ART) * PL.ART;
+                    school.addChild(fish);
+                }
+                school.scale.x = dir;
+            }
+            for (let fi = 0; !pxSea && fi < 6 + Math.floor(Math.random() * 6); fi++) {
                 const fish = new PIXI.Graphics();
                 fish.beginFill(col, 0.5 + Math.random() * 0.3);
                 fish.moveTo(0, 0);
@@ -56,8 +74,8 @@ const PortEnv = {
             });
         }
 
-        // Algae strands (swaying)
-        for (let ai = 0; ai < 12; ai++) {
+        // Algae strands (swaying) — the pixel skin draws a kelp forest instead (js/pixel/sea.js)
+        for (let ai = 0; !pxSea && ai < 12; ai++) {
             const ax = pMinX + 30 + Math.random() * (pMaxX - pMinX - 60);
             const strand = new PIXI.Graphics();
             const sh = 15 + Math.random() * 30;

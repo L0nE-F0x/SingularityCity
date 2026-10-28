@@ -692,6 +692,7 @@ const PixelArt = {
         if (PL.Backdrop) PL.Backdrop.update(this._K, performance.now() / 1000);
         if (PL.Under) PL.Under.pulses(performance.now() / 1000);
         if (PL.Seasonal) PL.Seasonal.update(this._K, performance.now() / 1000);
+        if (PL.Sea) PL.Sea.update(this._K, performance.now() / 1000);
         // The classic ground palette is already dusky, so it takes a gentler ambient tint.
         if (this._ground && !this._ground.destroyed) {
             const tint = PL.mix(this._K.amb, 0xffffff, 0.45);
