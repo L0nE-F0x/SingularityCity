@@ -1387,15 +1387,19 @@ body.map-phone .mm-zone:active { background: rgba(255,255,255,0.12); color: #fff
 
 /* ════════════════════════════════════════════════════════════════════════════════
    NEWS REACTIVITY ENGINE — share toast.
-   When the city auto-reacts to real news, this floating card appears in the
-   lower-right with a post-ready draft + Copy / Post / Show-Me buttons.
-   Auto-fades after 45s. Single instance — newest reaction replaces the previous.
+   When the city auto-reacts to real news, this card appears bottom-left, just
+   above the reactions row, with a post-ready draft + Copy / Post / Show-Me.
+   It folds into a one-line pill (.sc-ns-folded) that opens on tap: at once on
+   phones, after an 8 s peek on desktop. Auto-fades after 45s. Single
+   instance — newest reaction replaces the previous. Kept clear of the info
+   panel (right on desktop; bottom sheet on phones), minimap and zoom pill.
    ════════════════════════════════════════════════════════════════════════════════ */
 #sc-news-share {
     position: fixed;
-    right: 20px;
-    bottom: 64px;
+    left: 12px;
+    bottom: 76px;
     width: clamp(280px, 26vw, 360px);
+    max-width: calc(100vw - 24px);
     z-index: 9990;
     background: linear-gradient(180deg, rgba(10,10,26,0.94) 0%, rgba(6,6,18,0.92) 100%);
     border: 1px solid rgba(34,211,238,0.35);
@@ -1421,7 +1425,30 @@ body.map-phone .mm-zone:active { background: rgba(255,255,255,0.12); color: #fff
     align-items: center;
     gap: 8px;
     margin-bottom: 8px;
+    cursor: pointer;
+    outline: none;
 }
+.sc-news-share-head:focus-visible { box-shadow: 0 0 0 2px rgba(34,211,238,0.6); }
+/* ▾ when open (tap to fold), ▸ when folded (tap to open) */
+.sc-news-share-fold::before { content: '▾'; font-size: 10px; color: #a0a0b8; }
+#sc-news-share.sc-ns-folded .sc-news-share-fold::before { content: '▸'; }
+#sc-news-share.sc-ns-folded {
+    width: auto;
+    padding: 5px 6px 5px 10px;
+}
+#sc-news-share.sc-ns-folded .sc-news-share-head { margin-bottom: 0; gap: 7px; }
+#sc-news-share.sc-ns-folded .sc-news-share-body,
+#sc-news-share.sc-ns-folded .sc-news-share-actions { display: none; }
+#sc-news-share.sc-ns-folded .sc-news-share-emoji { font-size: 14px; }
+#sc-news-share.sc-ns-folded .sc-news-share-lab { margin-left: 0; padding-right: 0; }
+#sc-news-share.sc-ns-folded .sc-news-share-lab::before { content: '· '; color: #6b7280; }
+#sc-news-share.sc-ns-folded .sc-news-share-close { width: 20px; height: 20px; font-size: 12px; }
+/* Never over a panel or sheet: overlays (z 200) sit under this card's z-index. */
+body:has(.ov.open) #sc-news-share,
+body:has(#tutOv.active) #sc-news-share,
+body:has(#gameWrap.macro-mode) #sc-news-share,
+body.map-phone:has(#minimap:not(.collapsed)) #sc-news-share { opacity: 0; pointer-events: none; }
+body:has(.slog.open) #sc-news-share { bottom: 300px; }
 .sc-news-share-emoji { font-size: 18px; line-height: 1; }
 .sc-news-share-arch {
     font-family: 'Press Start 2P', monospace;
@@ -1507,9 +1534,30 @@ body.map-phone .mm-zone:active { background: rgba(255,255,255,0.12); color: #fff
         right: 10px;
         left: 10px;
         width: auto;
-        bottom: 60px;
+        bottom: 72px;
     }
+    #sc-news-share.sc-ns-folded { right: auto; }
 }
+/* Phones: the info panel is a bottom sheet and the briefing cards share the
+   bottom edge, so step aside while either is up. */
+@media (max-width: 768px) {
+    body:has(#infoPanel.open) #sc-news-share,
+    body:has(#sc-briefing-prompt.sc-bp-in) #sc-news-share,
+    body:has(#sc-briefing-nodata.sc-bp-in) #sc-news-share,
+    body:has(#sc-briefing-share.sc-bs-show-in) #sc-news-share { opacity: 0; pointer-events: none; }
+}
+/* Landscape phone: the reactions row sits lower (bottom 28px, 26px buttons). */
+@media (max-height: 500px) and (max-width: 960px) {
+    #sc-news-share { left: calc(10px + env(safe-area-inset-left)); bottom: calc(60px + env(safe-area-inset-bottom)); }
+    #sc-news-share:not(.sc-ns-folded) { width: min(360px, calc(100vw - 20px)); }
+}
+body.is-portrait #sc-news-share {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    bottom: calc(68px + env(safe-area-inset-bottom));
+}
+body.is-portrait #sc-news-share.sc-ns-folded { right: auto; }
 
 /* ════════════════════════════════════════════════════════════════════════════════
    CITIZEN OF THE DAY — 👑 button next to multiplayer reactions + floating card
