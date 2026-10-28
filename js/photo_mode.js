@@ -165,6 +165,8 @@ const PhotoMode = {
         this.wx = null;
         this.drift = 0;
         this.hideUI = false;
+        // On a phone the full strip covers half the view: open folded until the user unfolds it.
+        if (!this._foldChosen) this.collapsed = window.innerHeight <= 500 || window.innerWidth <= 560;
         this._place = '';
         this._build();
         document.body.classList.add('pm-on');
@@ -1341,6 +1343,7 @@ const PhotoMode = {
                 return this._stopClip(false);
             case 'fold':
                 this.collapsed = !this.collapsed;
+                this._foldChosen = true;
                 return this._layout();
             case 'unhide':
                 this.hideUI = false;
@@ -1385,6 +1388,11 @@ const PhotoMode = {
         if (!R) return;
         R.classList.toggle('pm-hide', this.hideUI);
         R.classList.toggle('pm-folded', this.collapsed);
+        const fold = R.querySelector('.pm-fold');
+        fold.textContent = this.collapsed ? '▴ MORE' : '▾';
+        fold.title = this.collapsed
+            ? 'Time, weather, frames and options'
+            : 'Fold the controls (H hides them)';
         R.classList.toggle('pm-indoor', !!G.activeInterior);
         const fr = this._frameRect();
         const f = R.querySelector('.pm-frame');

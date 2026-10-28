@@ -213,9 +213,6 @@ body.pm-on #gameWrap > :not(#viewport) {
 .pm-root.pm-folded .pm-hint {
     display: none;
 }
-.pm-root.pm-folded .pm-fold {
-    transform: rotate(180deg);
-}
 .pm-root.pm-hide .pm-bar,
 .pm-root.pm-recording .pm-bar {
     display: none;
