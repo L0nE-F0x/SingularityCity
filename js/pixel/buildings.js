@@ -44,6 +44,7 @@
         ibm: 'setback',
         apple: 'monolith',
     };
+    PL.FIXED_STYLE = FIXED;
     function labHash(id) {
         let h = 0;
         const s = String(id || 'lab');
@@ -519,6 +520,9 @@
 
     // ── Generic labs & offices ──────────────────────────────────────────────
     P.hq = function (B, b, w, h) {
+        // The long tail gets a building that says what kind of lab it is (facades_labs.js).
+        const tier = PL.labTier ? PL.labTier(b) : null;
+        if (tier && P['tier_' + tier]) return P['tier_' + tier](B, b, w, h);
         const style = styleFor(b.lab);
         (P[style] || P.monolith)(B, b, w, h);
     };
