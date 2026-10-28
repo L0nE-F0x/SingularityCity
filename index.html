@@ -30,7 +30,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="screen-orientation" content="landscape">
 
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=Tiny5&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css?v=563">
@@ -78,7 +77,6 @@ html.embed-mode, html.embed-mode body { margin: 0; padding: 0; overflow: hidden;
 html.embed-mode #landing,
 html.embed-mode #installBanner,
 html.embed-mode #instrOv,
-html.embed-mode #orientationOverlay,
 html.embed-mode .top,
 html.embed-mode #minimap { display: none !important; }
 html.embed-mode #gameWrap { display: block !important; }
@@ -735,19 +733,6 @@ html:not(.embed-mode) #embedBadge { display: none; }
   </div>
 </div>
 
-<!-- ─── ORIENTATION OVERLAY (portrait blocker) ─── -->
-<div id="orientationOverlay" class="orient-ov" style="display:none">
-  <div class="orient-content">
-    <div class="orient-phone">
-      <div class="orient-phone-inner">
-        <div class="orient-arrow">↺</div>
-      </div>
-    </div>
-    <div class="orient-msg">Rotate your device to landscape</div>
-    <div class="orient-sub">Singularity City works best in horizontal mode</div>
-  </div>
-</div>
-
 <div id="instrOv" class="ov" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="instr-pan">
     <button class="instr-close" onclick="document.getElementById('instrOv').classList.remove('open')">✕</button>
@@ -877,25 +862,15 @@ if (sessionStorage.getItem('sc_install_dismissed')) {
     if (b) b.style.display = 'none';
 }
 
-// ─── ORIENTATION OVERLAY (portrait blocker) ───
-// Landing is meant to work in portrait (that's how you open a phone browser).
-// Only nag to rotate once the city itself is on screen.
+// ─── ORIENTATION ───
+// The city works both ways round. A phone held upright gets body.is-portrait:
+// a slim header and bottom-sheet panels (css/styles.css) plus its own zoom and
+// framing (Camera._fitOrientation in js/camera.js). Landscape is unchanged.
 function _checkOrientation() {
-    if (!_isMobile) return;
-    const overlay = document.getElementById('orientationOverlay');
-    if (!overlay) return;
-    const landing = document.getElementById('landing');
-    const onLanding = landing && !landing.classList.contains('exit');
-    if (onLanding) {
-        overlay.style.display = 'none';
-        return;
-    }
-    const isPortrait = window.innerHeight > window.innerWidth;
-    overlay.style.display = isPortrait ? 'flex' : 'none';
+    document.body.classList.toggle('is-portrait', !!_isMobile && window.innerHeight > window.innerWidth);
 }
 window.addEventListener('resize', _checkOrientation);
 window.addEventListener('orientationchange', () => setTimeout(_checkOrientation, 100));
-// Initial check — only blocks in-game, not landing page
 _checkOrientation();
 
 // ─── FULLSCREEN + WAKE LOCK HELPERS ───
@@ -912,14 +887,6 @@ async function _requestFullscreen() {
         if (el.requestFullscreen) await el.requestFullscreen();
         else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
     } catch(e) {}
-}
-// Try to lock orientation to landscape when entering city
-async function _lockLandscape() {
-    try {
-        if (screen.orientation && screen.orientation.lock) {
-            await screen.orientation.lock('landscape');
-        }
-    } catch(e) {} // Silently fail — not all browsers support this
 }
 
 // ─── HAPTIC FEEDBACK ───

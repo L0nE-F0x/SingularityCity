@@ -23,6 +23,13 @@ const Camera = {
     _lastTapTime: 0,
     _lastTapX: 0,
     _lastTapY: 0,
+    // Phone held upright (see _fitOrientation)
+    _portrait: false,
+    _landscapeZoom: null,
+    _cx: null, // world x at the screen centre last frame — kept across a rotation
+    _sheetOpen: false,
+    _sheetPrevY: null,
+    _dragSinceSheet: false,
 
     init() {
         const vp = document.getElementById('viewport');
@@ -93,6 +100,109 @@ const Camera = {
             this.targetY = undergroundY;
             this.y = undergroundY;
         }
+
+        // A phone held upright gets its own zoom and framing; turning it swaps.
+        this._fitOrientation(true);
+        window.addEventListener('resize', () => this._fitOrientation(false));
+    },
+
+    // ─── Phones held upright ──────────────────────────────────────────
+    // Portrait shows ~390 world px across. At the landscape zoom that is two
+    // HQs and 20-px robots, with the underground filling the bottom half.
+    // Upright, zoom in to ~280 world px across and stand the street a little
+    // below the middle, so a 3-floor HQ, its robots and the tunnel all read.
+    // Landscape keeps the original zoom and the underground opening view.
+    _isPortraitPhone() {
+        return !!window.isMobile && window.innerHeight > window.innerWidth;
+    },
+
+    // Whole canvas pixels per art pixel. The renderer runs at min(dpr, 1.5)
+    // (engine.js), so on a phone the pixel-exact zoom step is 1/3, not 1/2.
+    _portraitZoom() {
+        const res = (G.app && G.app.renderer && G.app.renderer.resolution) || 1;
+        const art = (typeof PL !== 'undefined' && PL.ART) || 2;
+        const step = 1 / (art * res);
+        const want = window.innerWidth / 280;
+        return Math.min(2, Math.max(1, Math.round(want / step) * step));
+    },
+
+    // Screen offset the world is drawn with after a viewport-height change
+    // (groundY is fixed at init; see update()).
+    _vpComp(vpH) {
+        return vpH - 56 - G.groundY;
+    },
+
+    // Camera y that puts the ground line at `frac` of the screen height.
+    _groundAtY(frac, z, vpH) {
+        return (frac * vpH - this._vpComp(vpH)) / z - G.groundY;
+    },
+
+    // Camera y of the opening view: the orange pipe (gy+247) just above the ticker.
+    _undergroundY(z, vpH) {
+        return (vpH - 25 - this._vpComp(vpH)) / z - (G.groundY + 247);
+    },
+
+    _fitOrientation(initial) {
+        if (typeof G === 'undefined' || !G.groundY) return;
+        const portrait = this._isPortraitPhone();
+        if (this._landscapeZoom === null) this._landscapeZoom = this.defaultZoom;
+        if (!initial && portrait === this._portrait) return;
+        this._portrait = portrait;
+        if (initial && !portrait) return; // landscape opening view is already set
+        const vpW = window.innerWidth;
+        const vpH = window.innerHeight;
+        const z = portrait ? this._portraitZoom() : this._landscapeZoom;
+        // Keep the same street under the middle of the screen across a turn.
+        const cx = initial || this._cx === null ? -this.x + vpW / (2 * this.zoom) : this._cx;
+        this.defaultZoom = z;
+        this.zoom = this.targetZoom = z;
+        this.x = this.targetX = -cx + vpW / (2 * z);
+        this.y = this.targetY = portrait ? this._groundAtY(0.6, z, vpH) : this._undergroundY(z, vpH);
+        this._momentumX = this._momentumY = 0;
+        this._sheetOpen = false;
+        this._sheetPrevY = null;
+    },
+
+    // Where the info panel's top edge comes to rest. It slides in on `bottom`,
+    // so read its height rather than its (still moving) top.
+    _sheetTop() {
+        if (!this._panelEl) this._panelEl = document.getElementById('infoPanel');
+        const p = this._panelEl;
+        if (!p || !p.classList.contains('open')) return null;
+        const h = p.getBoundingClientRect().height;
+        return h > 40 ? window.innerHeight - h : null;
+    },
+
+    // Upright, the info panel is a bottom sheet over the lower half. Lift the
+    // street to just above it while it is open (the tapped robot stays in
+    // view) and put it back on close unless the view was dragged meanwhile.
+    _followSheet() {
+        if (!this._portrait || G.activeInterior || G.trainFocus) return;
+        const top = this._sheetTop();
+        if (top !== null && !this._sheetOpen) {
+            this._sheetOpen = true;
+            this._dragSinceSheet = false;
+            this._sheetPrevY = this.targetY;
+            if (!G.tracking) {
+                const frac = Math.max(0.3, (top - 34) / G.vpH);
+                this.targetY = this._groundAtY(frac, this.targetZoom, G.vpH);
+            }
+        } else if (top === null && this._sheetOpen) {
+            this._sheetOpen = false;
+            if (!this._dragSinceSheet && !G.tracking && this._sheetPrevY !== null)
+                this.targetY = this._sheetPrevY;
+            this._sheetPrevY = null;
+        }
+    },
+
+    // Where a followed entity sits vertically: 60% down, or just above the
+    // bottom sheet when one is open on a phone held upright.
+    _focusFrac() {
+        if (this._portrait && this._sheetOpen) {
+            const top = this._sheetTop();
+            if (top !== null) return Math.max(0.3, (top - 34) / G.vpH);
+        }
+        return 0.6;
     },
 
     onDown(e) {
@@ -107,7 +217,13 @@ const Camera = {
             Math.abs(e.clientX - this._lastTapX) < 30 &&
             Math.abs(e.clientY - this._lastTapY) < 30
         ) {
-            this.targetZoom = this.targetZoom < 1.5 ? 2.0 : 1.0;
+            if (this._portrait) {
+                // Upright the default is already ~1.33, so toggle default ↔ 2× default.
+                const zIn = Math.min(3, this.defaultZoom * 2);
+                this.targetZoom = this.targetZoom < (this.defaultZoom + zIn) / 2 ? zIn : this.defaultZoom;
+            } else {
+                this.targetZoom = this.targetZoom < 1.5 ? 2.0 : 1.0;
+            }
             this._lastTapTime = 0;
             this._momentumX = 0;
             this._momentumY = 0;
@@ -141,6 +257,7 @@ const Camera = {
         const dy = e.clientY - this.lastY;
         this.targetX += dx / this.zoom;
         this.targetY += dy / this.zoom;
+        if (Math.abs(dx) + Math.abs(dy) > 2) this._dragSinceSheet = true;
 
         // Track velocity for inertia on release
         const dt = now - this._lastMoveTime;
@@ -291,10 +408,13 @@ const Camera = {
             if (entityX !== null) {
                 this.targetX = -entityX + G.vpW / 2 / this.zoom;
                 // Center entity vertically: offset so entityY lands at ~60% down the screen
-                this.targetY = -entityY + (G.vpH * 0.6) / this.zoom;
+                // (just above the bottom sheet on a phone held upright)
+                this.targetY = -entityY + (G.vpH * this._focusFrac()) / this.zoom;
                 this.targetZoom = 1.3;
             }
         }
+
+        if (this._portrait && G.tick % 6 === 0) this._followSheet();
 
         // ─── TRAIN FOCUS: "boarded" a train — zoom in and follow it through the
         //     real world. Frames the car at ~62% down so the real city above it
@@ -329,9 +449,13 @@ const Camera = {
         // the news ticker. Anything past that is empty deep earth — no reason
         // to let users drag the camera into a black void.
         // Solving: screen_y(gy+247) = vpH - tickerH
-        //   minY = (vpH - tickerH) / zoom - (groundY + 247)
+        //   minY = (vpH - tickerH - vpComp) / zoom - (groundY + 247)
+        // vpComp (see below) is 0 until the viewport height changes after init —
+        // e.g. turning a phone — and must be taken out or the pipes fall off-screen.
         const tickerH = 25;
-        const minY = (G.vpH - tickerH) / this.targetZoom - (G.groundY + 247);
+        let minY = (G.vpH - tickerH - this._vpComp(G.vpH)) / this.targetZoom - (G.groundY + 247);
+        // A bottom sheet hides the lower screen: the street may rise above it.
+        if (this._sheetOpen) minY = Math.min(minY, this._groundAtY(0.3, this.targetZoom, G.vpH));
 
         let maxY = groundAnchor;
         const visibleHeight = G.vpH / this.targetZoom;
@@ -385,6 +509,7 @@ const Camera = {
             // Store for external use (minimap, etc)
             this._vpCompensation = vpCompensation;
         }
+        this._cx = -this.x + G.vpW / (2 * this.zoom);
     },
 
     /* ── Desktop-only horizontal zoom ± pill (left of minimap) ─ */

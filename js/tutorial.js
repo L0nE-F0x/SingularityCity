@@ -42,7 +42,11 @@
         const z = zoom != null ? zoom : 1.0;
         Camera.targetZoom = z;
         Camera.targetX = -worldX + G.vpW / 2 / z;
-        const groundAnchor = (G.groundY || 360) * (1 / z - 1);
+        // Upright phones stand the street ~60% down (Camera._fitOrientation); the
+        // landscape anchor would sink it under the bottom controls.
+        const groundAnchor = Camera._portrait
+            ? Camera._groundAtY(0.6, z, G.vpH)
+            : (G.groundY || 360) * (1 / z - 1);
         Camera.targetY = groundAnchor + (worldY != null ? worldY : 0);
     }
 

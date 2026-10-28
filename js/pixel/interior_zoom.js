@@ -68,7 +68,9 @@
             let z = Math.floor(fit / step) * step;
             const minZ = W < 700 ? 1 : 1.5;
             z = PL.clamp(z, minZ, W < 700 ? 2 : 3);
-            if (z <= 1.001) {
+            // A phone held upright fits most interiors at 1, but the module rests them
+            // on the street with the sky above. Keep the framing and panning at 1 there.
+            if (z <= 1.001 && W >= H) {
                 this.layer = null;
                 return;
             }
