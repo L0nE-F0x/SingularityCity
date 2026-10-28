@@ -1,19 +1,81 @@
 # Resume here
 
-**Updated:** 2026-10-20 (metro tunnel gap wrap) · **Live `main`:** `ca88f48` (this wrap sits on top)
-**Status:** The tunnel fix is live on cache **v563**. `https://singularitycity.net/sw.js`
-is `singularity-city-v563`, and the live `js/entities_gfx.js` has `drawTunnel`.
-**Next:** owner's check that the strip under the Alignment Forest stays filled in a long
-session. Nothing else is open from this session.
+**Updated:** 2026-10-28 (alive-city 2D overhaul wrap) · **Live `main`:** `2d57131` (this wrap sits on top)
+**Status:** The overhaul is live on cache **v564**. `https://singularitycity.net/sw.js` is
+`singularity-city-v564`; the new modules (`js/street_life.js`, `js/soundscape.js`,
+`js/photo_mode.js`, `js/pixel/sea.js`, …) return 200 and `/api/rss` serves real feeds.
+**Next:** the owner's playtest notes. Open items are listed under "Not done" below.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
 Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
-`serve.py` proxies `/api/zeroeval/` and `/api/arena/`. ZeroEval sends no CORS
-headers, so the browser has to use that same-origin path or the board stays empty.
+`serve.py` proxies `/api/zeroeval/` and `/api/arena/`, and serves `/api/rss` from the same
+allowlist as the Netlify function. ZeroEval sends no CORS headers, so the browser has to use
+that same-origin path or the board stays empty.
 
 ---
 
-## This session (2026-10-20) — the tunnel gap under the Alignment Forest
+## This session (2026-10-28) — the alive city: a 2D overhaul
+
+Owner brief: an audit of the 2D city (headless captures of every district at noon, dusk and
+night, 24 interiors, the modes and phones) turned up a list of fixes and bigger moves; the owner
+said "do it all… go crazy… blow my mind". Built in phases on a local branch, four parts by
+helper agents in their own worktrees (sound + news feeds, photo mode + pixel icons, phone
+portrait + share card, interiors), merged, verified, then pushed together on the owner's word
+after the before/after page. 22 commits `cef2ae7` → `2d57131`, cache v564.
+Before/after page (private, identical cameras): https://claude.ai/artifact/9GfzYxB5ooYtYfyB5C9aHz
+
+### What shipped
+
+| Area | What changed | Where |
+|---|---|---|
+| Quick fixes | Sky craft are readable (airliners with contrails, air taxis with lit cabins, quad, parcel and patrol drones), lit and hazed by depth. Birds and bats use pixel flap frames. Park lunch crowd spreads back onto the lawn; ghosts drift at five heights; a new speech bubble needs room (`Entities.bubbleRoom`). Times masthead spacing + `signRects`; metro board above its globe lamps. District ground colours dither across 24 px (`_ditherSeams`). Snow by day is a pale overcast. | `js/pixel/backdrop.js`, `js/pixel/fauna.js`, `js/entities.js`, `js/bird_flocks.js`, `js/pixel/facades_social.js`, `js/pixel/districts.js`, `js/pixel/pixel_art.js`, `js/pixel/tod.js` |
+| Halloween | Pixel jack-o'-lanterns whose faces glow and flicker at night; bats circle the tallest towers after dark. | `js/pixel/seasonal.js`, `js/seasonal_env.js` |
+| Sky | Three parallax cumulus decks plus cirrus, rim-lit by the palette, cover by weather; the Milky Way on clear dark nights; meteors (sporadic + real annual showers by date, green fireballs); a rainbow when rain clears in daylight; a city-wide plume when a Space Zone pad lifts off for a real launch. | `js/pixel/backdrop.js`, `js/pixel/sky.js`, `js/pixel/skyevents.js` |
+| Street life | Pixel-only service layer in a window around the camera: sidewalk delivery bots, a city bus stopping at metro stations and civic stops, a night sweeper, parcel drones by day, a patrol drone with a searchlight after dark, pigeons that scatter. | `js/street_life.js`, hooks in `js/engine.js` |
+| Lab HQs | `PL.labTier`: big tech → pavilion on a plaza with a totem; academic → stone colonnade, dome or clock; open-source collective → brick hackerspace with a sawtooth roof, open workshop, mural; one-person lab → garage studio or walk-up over a shop; a quarter of startups → brick loft with a glass penthouse. | `js/pixel/facades_labs.js`, `P.hq` in `js/pixel/buildings.js` |
+| Construction | A tower crane (slewing, trolley, hook and load, aviation light) on labs with a release in the last 14 days (`m.rel`); scaffolding for the last 5; ten minutes of both when a building gains floors after the 90-s boot grace. | `js/pixel/construction.js`, `PixelArt.facade` / `_apply` |
+| Harbour | Lit water column, sun shafts, caustics, kelp forest, seabed rocks and a half-buried H100 container, the subsea cable with pulses, bubbles, jellyfish and plankton at night; pixel fish that face the way they swim. | `js/pixel/sea.js`, `js/port_env.js` |
+| Modes | Orbit Mode under the skin renders at 1/3 resolution with nearest-neighbour upscale and dithered, posterised shaders. Holomap labels are placed greedily so they never stack. | `js/orbit_mode.js`, `js/holomap.js` |
+| Photo mode | 📷 Photo / P: hides all UI; time-of-day scrub, ten weathers, frames 16:9/9:16/1:1/4:5, postcard border, PNG save/copy/X, 6-s MP4 clip. | `js/photo_mode.js`, `css/photo-mode.css` |
+| Pixel icons | A 12×12 icon set for the toolbar and reaction bar under `html.px-ui` (runtime swap; markup untouched). | `js/pixel/ui_icons.js`, `css/pixel-icons.css` |
+| Phones | Portrait works: rotate overlay and landscape lock removed, `body.is-portrait`, zoom ~280 world px across (whole canvas px per art px, 1–2), street at 60%, bottom-sheet info panel that lifts the street, swipeable toolbar. Share card folds into a pill that opens on tap. | `index.html`, `css/styles.css`, `js/camera.js`, `js/engine.js`, `js/tutorial.js`, `js/news_reactivity.js` |
+| Interiors | Under the skin on landscape screens ≥1000 px the manager builds each module in a building-sized virtual width (~70% of the screen at 1.5×), centres it and stretches edge rects; voids end in strata. HQ floors themed (lobby, research, training cluster, meeting rooms, cafeteria, roof terrace); non-citizen staff in every interior; lamps in template interiors; tiny labels become pixel text. | `js/interior_manager.js`, `js/pixel/interior_zoom.js`, `js/interior_city_*.js`, others |
+| Sound | Procedural soundscape from two shared noise buffers: districts, clock, weather (thunder on every bolt), camera zoom, visible crowds, cars, trains, interiors muffled. All through `SND.ambientGain`. | `js/soundscape.js`, `js/snd.js` |
+| News feeds | `api.rss2json.com` answers with a Cloudflare challenge, so the ticker was empty. `/api/rss` (Netlify function, strict allowlist, 3 MB cap, 7-s timeout) parses RSS/Atom into the rss2json shape; the client tries it first. | `netlify/functions/rss.mjs`, `_shared/rss-*.mjs`, `js/api.js`, `serve.py`, `netlify.toml` |
+| Hygiene | ESLint knows `Bench`, `StreetLife`, `PhotoMode`, `Soundscape` (zero errors now). Toolbar fits desktop widths down to 1280. | `eslint.config.js`, `css/styles.css` |
+
+### What a new agent must not re-break
+
+1. **Street life, sea, seasonal props, construction, sky effects and lab tiers are pixel-skin only.** `?classic=1` must stay the original; HQ floor themes and interior staff are the deliberate exception (structural, both looks).
+2. **Never override `G.getDayPhase`.** Photo mode's time scrub wraps only `Environment.update`, `PixelArt.interiorFrame`, `CityAmbience.update` and `Shadows.update`, shadowing the clock during those calls.
+3. **Backdrop scene order:** streaks → `fxBack` (meteors) → cirrus → three cumulus decks → `fxFront` (rainbow, plumes) → far skylines. Test with `PL.SkyFx.test('launch' | 'meteors' | 'rainbow')`.
+4. **Launch plumes fire on `SpaceEntities` state changes** into `ignition`/`liftoff`; nothing invents a launch.
+5. **`PL.labTier` returns null** for `PL.FIXED_STYLE` labs and anything past five floors (a growing lab gets a tower).
+6. **Construction reads the roof from footprint y ≥ 0**; rooftop signs sit above the roofline. Growth detection waits 90 s after the first build because data keeps arriving.
+7. **`PL.Sea` sits right after `PixelArt._ground`** and is re-placed every 60 ticks (the ground is rebuilt on rezoning). `PL.Seasonal` sits under `G.trainLayer` so people and traffic draw over pumpkins.
+8. **Snow by day diverges from the classic** (pale `WX_SKY.snow`, day factor applied); the classic still paints its navy snow sky.
+9. **Interiors framing excludes** forests, metro stations, screens under 1000 px, portrait and classic. Keep the `W >= H` guard and the `fb && !fb.wide` branch in `PL.InteriorZoom.begin`.
+10. **The soundscape reads `G.activeInterior`, `G.trainFocus`, `OrbitMode`, `Holomap` itself**; `SND.setAmbient` is overwritten every half second by the engine's zone loop.
+11. **`/api/rss` only fetches allowlisted URLs** (`netlify/functions/_shared/rss-feeds.mjs`); add a feed there and in `serve.py`'s copy, never open it up.
+12. Leave `first-person/assets/models/*`, `landing_preview2.html`, `landing_preview3.html` and `pixel-lab/` untracked. Do not `git add -A`.
+
+### Verified
+
+- Headless Chrome 1900×1150 (the owner's view) at noon, dusk and night for every phase; 24 interiors; Holomap, Orbit; phone 390×844 upright and 844×390; `?classic=1`. Zero page errors.
+- Before/after from identical cameras on `93af6c7` vs the branch, same hours and pinned weather (the page above).
+- Lint: zero errors (was 57 `Bench`), the same 8 old warnings; Prettier flags only the 8 files it flagged before.
+- Production after the push: `sw.js` is `singularity-city-v564` within a minute; every new file 200; `/api/rss` returns TechCrunch JSON and 400 for an off-list URL; a headless run of the live site (desktop + phone upright) had no page errors, 25 live headlines, street life and the sea running.
+
+### Not done / worth a look
+
+- Clip export has sound off by default (Linux Chrome only puts Opus in MP4; X wants AAC).
+- Interior lamp spacing assumes 80-px floors (embassy and ambassador residences are slightly off); residential towers and the bar still repeat their room module, just fewer times; staff are small at 1.5×.
+- ISS/Starlink passes were not built: `/api/orbit-sats` drops the TLE epoch, so real passes would need a new data path.
+- Windows still light up together at dusk (a staggered switch-on would need per-window order in the bake).
+- Sound levels were measured, not heard; bats are hard to see against a dark sky.
+- VentureBeat feeds returned 429 to the agent's machine; the ticker skips them.
+
+## Previous (2026-10-20) — the tunnel gap under the Alignment Forest
 
 Owner brief: a flat tan block sat in the metro tunnel between the Alignment Forest and
 Suburbia, from under the METR cabin to past the Innovation Line platform. Fix it.
