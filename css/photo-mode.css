@@ -1,0 +1,460 @@
+/* Photo mode (js/photo_mode.js). While body.pm-on is set every piece of UI steps aside —
+   visibility, not display, so nothing reflows and nothing hidden can be clicked — and the
+   letterbox frame, postcard preview, control strip and result card live in #pmRoot.
+   Plain dark controls in classic; pixel frames and the Silkscreen face under html.px-ui. */
+
+body.pm-on > :not(#gameWrap):not(#pmRoot) {
+    visibility: hidden !important;
+}
+body.pm-on #gameWrap > :not(#viewport) {
+    visibility: hidden !important;
+}
+
+.pm-root {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    pointer-events: none;
+    color: #f5f0ff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+}
+.pm-root[hidden] {
+    display: none;
+}
+
+/* ─── Frame, thirds, postcard preview, flash ─── */
+.pm-frame {
+    position: absolute;
+    pointer-events: none;
+}
+.pm-frame.pm-framed {
+    box-shadow: 0 0 0 200vmax rgba(4, 3, 10, 0.62);
+    outline: 1px solid rgba(255, 255, 255, 0.35);
+}
+.pm-grid {
+    position: absolute;
+    inset: 0;
+    display: none;
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.32)) 33.333% 0 / 1px 100% no-repeat,
+        linear-gradient(rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.32)) 66.666% 0 / 1px 100% no-repeat,
+        linear-gradient(rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.32)) 0 33.333% / 100% 1px no-repeat,
+        linear-gradient(rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.32)) 0 66.666% / 100% 1px no-repeat;
+}
+.pm-frame.pm-thirds .pm-grid {
+    display: block;
+}
+.pm-pc {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+.pm-pc[hidden] {
+    display: none;
+}
+.pm-flash {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+}
+.pm-flash.go {
+    animation: pmFlash 0.34s ease-out;
+}
+@keyframes pmFlash {
+    0% {
+        opacity: 0.85;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+/* ─── Control strip ─── */
+.pm-bar {
+    position: absolute;
+    left: 50%;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100vw - 20px);
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 7px 9px;
+    background: rgba(10, 10, 22, 0.9);
+    border: 1px solid #33334a;
+    border-radius: 6px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+.pm-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 12px;
+}
+.pm-grp {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.pm-b {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 24px;
+    padding: 3px 7px;
+    color: #e8e6f4;
+    background: #10101a;
+    border: 1px solid #33334a;
+    border-radius: 3px;
+    font: inherit;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.pm-b:hover {
+    border-color: #a0a0b8;
+    background: #1c1c28;
+}
+.pm-b:focus-visible {
+    outline: 2px solid #ff4fd8;
+    outline-offset: 1px;
+}
+.pm-b.on {
+    color: #4ff0ff;
+    border-color: #4ff0ff;
+    box-shadow: inset 0 -2px 0 #4ff0ff;
+}
+.pm-b:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+.pm-w {
+    min-width: 28px;
+    padding: 3px 5px;
+}
+.pm-emo {
+    font-size: 13px;
+    line-height: 1;
+}
+.pm-ic {
+    width: var(--pm-ic, 12px);
+    height: var(--pm-ic, 12px);
+    image-rendering: pixelated;
+    flex-shrink: 0;
+}
+.pm-snap {
+    color: #0b0918;
+    background: #ff4fd8;
+    border-color: #ff9be9;
+    font-weight: 700;
+}
+.pm-snap:hover {
+    background: #ff7ae2;
+    border-color: #fff;
+}
+.pm-clip {
+    color: #ffd6dd;
+    border-color: #f43f5e;
+}
+.pm-exit {
+    color: #ffd6dd;
+}
+.pm-slider {
+    width: 150px;
+    height: 18px;
+    margin: 0 2px;
+    accent-color: #ff4fd8;
+    cursor: pointer;
+}
+.pm-zoom .pm-slider {
+    width: 90px;
+}
+.pm-clock,
+.pm-zoom-v {
+    min-width: 40px;
+    color: #facc15;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+.pm-zoom-v {
+    min-width: 30px;
+}
+.pm-lbl {
+    color: #706892;
+    margin-right: 2px;
+}
+.pm-hint {
+    color: #706892;
+    font-size: 9px;
+    text-align: center;
+}
+.pm-note {
+    color: #4ff0ff;
+    font-size: 10px;
+    text-align: center;
+}
+.pm-note:empty {
+    display: none;
+}
+
+.pm-root.pm-folded .pm-row-a,
+.pm-root.pm-folded .pm-row-b > :not(.pm-go),
+.pm-root.pm-folded .pm-hint {
+    display: none;
+}
+.pm-root.pm-hide .pm-bar,
+.pm-root.pm-recording .pm-bar {
+    display: none;
+}
+.pm-mini {
+    display: none;
+    position: absolute;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    pointer-events: auto;
+    opacity: 0.75;
+}
+.pm-root.pm-hide:not(.pm-recording) .pm-mini {
+    display: inline-flex;
+}
+.pm-root.pm-indoor .pm-zoom,
+.pm-root.pm-indoor [data-opt='drift'] {
+    display: none;
+}
+
+/* ─── Recording pill ─── */
+.pm-rec {
+    display: none;
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px 4px 10px;
+    pointer-events: auto;
+    background: rgba(10, 10, 22, 0.9);
+    border: 1px solid #f43f5e;
+    border-radius: 4px;
+    font-variant-numeric: tabular-nums;
+}
+.pm-rec.on {
+    display: flex;
+}
+.pm-rec-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #f43f5e;
+    animation: pmBlink 1s steps(2) infinite;
+}
+@keyframes pmBlink {
+    50% {
+        opacity: 0.2;
+    }
+}
+
+/* ─── Result card ─── */
+.pm-result {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    background: rgba(4, 3, 10, 0.55);
+}
+.pm-result[hidden] {
+    display: none;
+}
+.pm-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    padding: 12px 14px;
+    background: #0b0918;
+    border: 1px solid #33334a;
+    border-radius: 6px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+.pm-card-t {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #4ff0ff;
+}
+.pm-thumb {
+    display: block;
+    max-width: 100%;
+    border: 2px solid #000;
+    box-shadow: 0 0 0 2px #33334a;
+}
+.pm-thumb[hidden] {
+    display: none;
+}
+.pm-meta {
+    color: #a8a0c4;
+    text-align: center;
+}
+.pm-acts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px;
+}
+.pm-hot {
+    color: #0b0918;
+    background: #4ff0ff;
+    border-color: #a8f8ff;
+    font-weight: 700;
+}
+.pm-hot:hover {
+    background: #8af6ff;
+}
+
+/* ─── Pixel look ─── */
+html.px-ui .pm-root {
+    font-family: 'Silkscreen', 'JetBrains Mono', monospace;
+    font-size: 8px;
+}
+html.px-ui .pm-bar,
+html.px-ui .pm-card,
+html.px-ui .pm-rec {
+    border-radius: 0;
+    border: 2px solid #2e2850;
+    background: rgba(11, 9, 24, 0.93);
+    box-shadow:
+        0 0 0 2px #000,
+        5px 5px 0 2px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(255, 79, 216, 0.12);
+}
+html.px-ui .pm-rec {
+    border-color: #f43f5e;
+}
+html.px-ui .pm-b {
+    border-radius: 0;
+    border: 2px solid #2e2850;
+    background: #12101f;
+    box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.55);
+    letter-spacing: 0.5px;
+    transition:
+        transform 0.08s steps(2),
+        box-shadow 0.08s;
+}
+html.px-ui .pm-b:hover {
+    background: #1d1832;
+    border-color: #4ff0ff;
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.6);
+}
+html.px-ui .pm-b:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 0 rgba(0, 0, 0, 0.6);
+}
+html.px-ui .pm-b.on {
+    color: #4ff0ff;
+    border-color: #4ff0ff;
+    box-shadow:
+        2px 2px 0 0 rgba(0, 0, 0, 0.55),
+        inset 0 -2px 0 0 #4ff0ff;
+}
+html.px-ui .pm-snap {
+    color: #0b0918;
+    background: #ff4fd8;
+    border-color: #ffb3f0;
+    font-weight: 400;
+    font-size: 16px;
+    padding: 2px 10px;
+}
+html.px-ui .pm-hot {
+    color: #0b0918;
+    background: #4ff0ff;
+    border-color: #c4fbff;
+    font-weight: 400;
+}
+html.px-ui .pm-clip {
+    border-color: #9f1239;
+}
+html.px-ui .pm-clock,
+html.px-ui .pm-zoom-v {
+    font-size: 8px;
+}
+/* Notes and hints carry ·, — and ⌘, which Silkscreen doesn't have. */
+html.px-ui .pm-hint,
+html.px-ui .pm-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+}
+html.px-ui .pm-hint {
+    font-size: 9px;
+}
+html.px-ui .pm-card-t {
+    font-size: 16px;
+    font-weight: 400;
+}
+html.px-ui .pm-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+html.px-ui .pm-rec-dot {
+    border-radius: 0;
+}
+html.px-ui .pm-frame.pm-framed {
+    outline: 2px solid rgba(255, 79, 216, 0.55);
+}
+
+/* ─── Touch and small screens ─── */
+@media (hover: none) {
+    .pm-b {
+        min-height: 30px;
+    }
+    .pm-w {
+        min-width: 32px;
+    }
+    .pm-hint {
+        display: none;
+    }
+}
+@media (max-height: 500px), (max-width: 700px) {
+    .pm-bar {
+        bottom: max(6px, env(safe-area-inset-bottom));
+        padding: 4px 6px;
+        gap: 4px;
+    }
+    .pm-row {
+        gap: 4px 8px;
+    }
+    .pm-hint,
+    .pm-opts .pm-b > span:not(.pm-emo):not(.pm-scale-l):not(.pm-drift-l) {
+        display: none;
+    }
+    .pm-t {
+        padding: 3px 4px;
+    }
+    .pm-slider {
+        width: 110px;
+    }
+    .pm-zoom .pm-slider {
+        width: 70px;
+    }
+    .pm-lbl {
+        display: none;
+    }
+}

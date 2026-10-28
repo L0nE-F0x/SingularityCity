@@ -1,0 +1,19 @@
+/* Pixel UI icons (js/pixel/ui_icons.js): 12×12 art shown at a whole number of device pixels
+   per art pixel. --pxi-tb (toolbar) and --pxi-rx (reaction bar) are set from the device
+   pixel ratio and the toolbar's font size. Only under the pixel skin. */
+
+html.px-ui .pxi {
+    display: inline-block;
+    width: var(--pxi-tb, 12px);
+    height: var(--pxi-tb, 12px);
+    image-rendering: pixelated;
+    flex-shrink: 0;
+    vertical-align: middle;
+    pointer-events: none;
+    -webkit-user-drag: none;
+    user-select: none;
+}
+html.px-ui .mp-react-btn .pxi {
+    width: var(--pxi-rx, 24px);
+    height: var(--pxi-rx, 24px);
+}
