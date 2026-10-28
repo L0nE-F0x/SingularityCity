@@ -395,6 +395,11 @@ const PixelArt = {
     },
 
     beginBuild() {
+        // The first builds are the city as it loaded (data keeps arriving for a minute or
+        // so after boot); a later rebuild that adds floors is growth.
+        const now = performance.now() / 1000;
+        if (!this._firstBuildAt) this._firstBuildAt = now;
+        this._booted = now - this._firstBuildAt > 90;
         this._entries = [];
         if (this._refl && !this._refl.destroyed) this._refl.removeChildren().forEach((c) => c.destroy());
         // Old containers are destroyed (textures kept) right after this in buildBuildings.
@@ -550,6 +555,11 @@ const PixelArt = {
             root.addChild(s);
             e.blinks.push(s);
         });
+        // Cranes and scaffolding on labs that shipped recently or just grew a floor.
+        if (PL.Construction) {
+            PL.Construction.noteFloors(b, this._booted);
+            PL.Construction.attach(e, B, b, ox, oy, B.fh);
+        }
         this._entries.push(e);
         this._apply(e, performance.now() / 1000);
         return root;
@@ -637,6 +647,7 @@ const PixelArt = {
         if (e.bloomN) e.bloomN.alpha = neonA * 0.85;
         for (const s of e.lights) s.alpha = s.baseA * (s.isNeon ? Math.max(emitA, neonA * 0.45) : emitA);
         for (const s of e.blinks) s.alpha = PL.frac(t / s.period + s.phase) < 0.45 ? 0.6 + emitA * 0.4 : 0;
+        if ((e.crane || e.scaffold) && PL.Construction) PL.Construction.update(e, K, t, emitA);
     },
 
     // Every frame while inside a building (the game loop skips Environment.update there).
