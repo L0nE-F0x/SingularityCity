@@ -161,10 +161,13 @@ const InteriorMetroStation = {
         const winW = hallW - 48;
         const mullionPitch = 90;
         const mullionW = 8;
+        // Under the pixel skin the near-white hall glared against every other room; it gets a
+        // warm subway-tile cream instead.
+        const pxHall = typeof PixelArt !== 'undefined' && PixelArt.enabled;
 
         InteriorCity._drawWallWithWindowCutout(
             hall,
-            0xf5f5f5,
+            pxHall ? 0xc9bfa8 : 0xf5f5f5,
             hallX,
             hallTop,
             hallW,
@@ -193,7 +196,7 @@ const InteriorMetroStation = {
         hall.drawRect(winX, winY, winW, winH_px);
         hall.endFill();
         // Floor tiles
-        hall.beginFill(0xe2e8f0);
+        hall.beginFill(pxHall ? 0x9c9484 : 0xe2e8f0);
         hall.drawRect(hallX, hallBottom - 10, hallW, 10);
         hall.endFill();
         hall.beginFill(0xcbd5e1, 0.5);
@@ -796,6 +799,15 @@ const InteriorMetroStation = {
 
         // Initial position
         this.scene.y = 0;
+        // Pixel zoom framing (js/interior_manager.js): the station keeps the screen width, but
+        // opens on canopy, ticket hall and platform together and stops before the deep fill.
+        this._frameHint = {
+            wide: true,
+            top: 0,
+            ground: null,
+            bottom: platTop + platH + 40,
+            focus: { y0: -20, y1: platTop + platH - 20 },
+        };
 
         // ─── SCROLL HANDLERS (window-level like all other interiors) ───
         this._noYScroll = false;

@@ -121,7 +121,11 @@ const InteriorCity = {
         // Non-forest: skip the black voidMask — _drawZoneUnderground() will render
         // proper zone-matched earth/cables/tunnel/ocean/silo/rock below the building.
 
-        this.bldW = isHQ || isForest ? G.vpW : Math.min(G.vpW, 800);
+        // In a diorama frame (js/interior_manager.js) the building stands inset in the
+        // street with its own walls; forests stay one outdoor ground across the screen.
+        const _framed = typeof Interior !== 'undefined' && Interior.framed() && !isForest;
+        if (_framed) this.bldW = isHQ ? G.vpW - 60 : Math.min(G.vpW - 60, 800);
+        else this.bldW = isHQ || isForest ? G.vpW : Math.min(G.vpW, 800);
         this.startX = (G.vpW - this.bldW) / 2;
 
         const shaftW = 60;
@@ -235,7 +239,13 @@ const InteriorCity = {
                 else floorTheme = 'general';
             }
 
-            this.floors[f] = { y: fy + floorH - 4, elevatorX: shaftX + 15, breakSpots: [], cubicleSeats: [] };
+            this.floors[f] = {
+                y: fy + floorH - 4,
+                elevatorX: shaftX + 15,
+                breakSpots: [],
+                cubicleSeats: [],
+                theme: isBasement ? 'basement' : floorTheme,
+            };
 
             const roomGfx = new PIXI.Graphics();
             if (['arena', 'graveyard'].includes(bld.id)) {
