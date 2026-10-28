@@ -8553,13 +8553,12 @@ const Environment = {
                 }
                 this._boltPath = pts;
                 this._boltLife = 5;
-                // Thunder SFX delayed by 10-35 ticks (~0.2-0.6s at 60fps) — distant rumble.
-                if (typeof SND !== 'undefined' && SND.playTone) {
+                // Thunder delayed by 10-35 ticks (~0.2-0.6s at 60fps) — rolling rumble (snd.js).
+                if (typeof SND !== 'undefined' && SND.thunder) {
                     const delay = 150 + Math.random() * 450;
                     setTimeout(() => {
                         try {
-                            SND.playTone(90, 'sawtooth', 0.8, 0.06, 45);
-                            setTimeout(() => SND.playTone(60, 'triangle', 1.1, 0.04, 30), 200);
+                            SND.thunder();
                         } catch (_) {}
                     }, delay);
                 }
