@@ -286,6 +286,79 @@
         }
         return img;
     }
+    // A deck of cumulus on a wrapping strip: flat-bottomed heaps of puffs, shaded in four
+    // dithered greys (lit from above, darker bellies) plus a separate rim mask along the
+    // sunlit tops. Both are white masks the runtime tints with the time-of-day palette.
+    function genCumulus(H, seed, count, minW, maxW) {
+        const body = new Img(TW, H);
+        const rim = new Img(TW, H);
+        const R = PL.rng(seed);
+        const TONES = [0xffffff, 0xe8eaf0, 0xd0d4de, 0xb6bac8];
+        const mask = new Uint8Array(TW * H);
+        const inside = (x, y) => y >= 0 && y < H && mask[y * TW + (((x % TW) + TW) % TW)] === 1;
+        for (let k = 0; k < count; k++) {
+            const cw = minW + Math.floor(R() * (maxW - minW));
+            const cx = Math.floor(R() * TW);
+            const base = H - 2 - Math.floor(R() * Math.max(1, H * 0.25));
+            const puffs = 3 + Math.floor((cw / 14) * (0.7 + R() * 0.6));
+            for (let p = 0; p < puffs; p++) {
+                const t = (p + 0.5) / puffs;
+                // Taller in the middle, smaller towards the ends.
+                const r = Math.max(3, (cw / puffs) * (1.1 + Math.sin(t * Math.PI) * 1.3) * (0.7 + R() * 0.5));
+                const px = cx + Math.round((t - 0.5) * cw);
+                const py = base - r * (0.55 + Math.sin(t * Math.PI) * 0.35);
+                for (let y = Math.floor(py - r); y <= base; y++)
+                    for (let x = Math.floor(px - r); x <= Math.ceil(px + r); x++) {
+                        if (y < 0 || y >= H) continue;
+                        const dx = (x - px) / r;
+                        const dy = (y - py) / r;
+                        if (dx * dx + dy * dy <= 1 || (y >= py && Math.abs(dx) <= 0.92)) {
+                            mask[y * TW + (((x % TW) + TW) % TW)] = 1;
+                        }
+                    }
+            }
+        }
+        for (let y = 0; y < H; y++)
+            for (let x = 0; x < TW; x++) {
+                if (!inside(x, y)) continue;
+                // Depth below the cloud's local top decides the shade.
+                let d = 0;
+                while (d < 12 && inside(x, y - d - 1)) d++;
+                let below = 0;
+                while (below < 4 && inside(x, y + below + 1)) below++;
+                const v = PL.clamp(d / 11 + (below < 2 ? 0.35 : 0) + (hash(seed, x, y) - 0.5) * 0.12, 0, 1);
+                const q = Math.min(3, Math.floor(v * 3 + bayer(x, y) * 0.9));
+                body.set(x, y, TONES[q]);
+                if (d === 0 || (d === 1 && bayer(x, y) > 0.4)) rim.set(x, y, 0xffffff);
+            }
+        return { body: body, rim: rim };
+    }
+    // High cirrus: long feathered wisps, a single white mask.
+    function genCirrus(H, seed) {
+        const img = new Img(TW, H);
+        const R = PL.rng(seed);
+        for (let k = 0; k < 18; k++) {
+            const y0 = Math.floor(R() * (H - 6)) + 3;
+            const x0 = Math.floor(R() * TW);
+            const len = 40 + Math.floor(R() * 160);
+            const slope = (R() - 0.5) * 0.08;
+            const hook = R() > 0.5 ? 1 : -1;
+            for (let i = 0; i < len; i++) {
+                const t = i / len;
+                const env = Math.pow(Math.sin(t * Math.PI), 0.7);
+                const y = Math.round(y0 + i * slope + (t > 0.8 ? hook * (t - 0.8) * 18 : 0));
+                const thick = env > 0.6 ? 2 : 1;
+                for (let j = 0; j < thick; j++)
+                    if (bayer(x0 + i, y + j) < env * 0.9) wset(img, x0 + i, y + j, 0xffffff);
+                // Fibrous strands below the main streak.
+                if (hash(seed, x0 + i, 7) > 0.82 && env > 0.3)
+                    for (let j = 1; j < 3; j++)
+                        if (bayer(x0 + i, y + j + 1) < env * 0.5)
+                            wset(img, x0 + i - j, y + thick + j, 0xe8e8f0);
+            }
+        }
+        return img;
+    }
     // Searchlight beam pointing up from (w/2, h): dithered, brighter at the root.
     function genBeam(w, h) {
         const img = new Img(w, h);
@@ -456,6 +529,31 @@
             const L = (this.layers = {});
             L.streaks = this._tiling(genStreaks(120, 5));
             this.scene.addChild(L.streaks);
+            // Sky effects behind the clouds (meteors), then three cloud decks, then sky effects
+            // in front of them (rainbow, launch plumes) — all behind every skyline.
+            this.fxBack = new PIXI.Container();
+            this.scene.addChild(this.fxBack);
+            L.cirrus = this._tiling(genCirrus(40, 23));
+            this.scene.addChild(L.cirrus);
+            L.clouds = [
+                { gen: genCumulus(70, 29, 9, 60, 150), p: 0.03, rise: 168, drift: 0.9 },
+                { gen: genCumulus(54, 31, 12, 34, 96), p: 0.045, rise: 112, drift: 1.6 },
+                { gen: genCumulus(40, 37, 16, 18, 60), p: 0.06, rise: 66, drift: 2.4 },
+            ].map((d) => {
+                const c = new PIXI.Container();
+                c.body = this._tiling(d.gen.body);
+                c.rim = this._tiling(d.gen.rim);
+                c.addChild(c.body, c.rim);
+                c.p = d.p;
+                c.rise = d.rise;
+                c.drift = d.drift;
+                c.h = d.gen.body.h;
+                this.scene.addChild(c);
+                return c;
+            });
+            this.fxFront = new PIXI.Container();
+            this.scene.addChild(this.fxFront);
+            if (PL.SkyFx) PL.SkyFx.init(this.fxBack, this.fxFront);
             // Far: arcologies + tether. Then each zone's terrain shares the far slot.
             const far = genFar(170, 3);
             this.tetherX = far.tetherX;
@@ -634,6 +732,49 @@
             const tMid = mix(K.far2, K.haze, 0.38 + K.smog * 0.15 + day * 0.24);
             const tNear = mix(K.far1, K.haze, 0.2 + K.smog * 0.1 + day * 0.22);
             const city = Z.city;
+
+            // Cloud cover follows the weather: wisps on a clear day, heaps when partly
+            // cloudy, a full grey deck before and during rain. [cirrus, high, mid, low]
+            const COVER = {
+                clear: [0.5, 0.42, 0.08, 0],
+                partly_cloudy: [0.55, 0.85, 0.8, 0.65],
+                overcast: [0.3, 1, 1, 1],
+                drizzle: [0.15, 0.95, 1, 1],
+                rain: [0.05, 1, 1, 1],
+                thunderstorm: [0, 1, 1, 1],
+                snow: [0.1, 0.95, 1, 1],
+                fog: [0, 0.35, 0.45, 0.5],
+            };
+            const wxName = typeof Environment !== 'undefined' ? Environment.weather : 'clear';
+            const cov = COVER[wxName] || COVER.clear;
+            const wxK =
+                typeof Environment !== 'undefined' ? PL.clamp(Environment.weatherIntensity || 0, 0, 1) : 0;
+            const clearCov = COVER.clear;
+            const cover = cov.map((v, i) => clearCov[i] + (v - clearCov[i]) * (wxName === 'clear' ? 1 : wxK));
+            if (!this._cover) this._cover = cover.slice();
+            for (let i = 0; i < 4; i++) this._cover[i] += (cover[i] - this._cover[i]) * 0.02;
+            const stormy = /rain|drizzle|storm|snow/.test(wxName) ? wxK : 0;
+            const cloudBody = mix(K.cloud, mix(K.far2, 0x30343e, 0.4), stormy * 0.55);
+            L.cirrus.width = w;
+            L.cirrus.tilePosition.x = -Math.round(camX * 0.015 + t * 0.35);
+            L.cirrus.y = Math.round(horizon - 250);
+            L.cirrus.tint = mix(K.cloud, K.rim, 0.35);
+            L.cirrus.alpha = this._cover[0] * 0.55;
+            L.clouds.forEach((c, i) => {
+                const a = this._cover[i + 1];
+                c.visible = a > 0.02;
+                if (!c.visible) return;
+                [c.body, c.rim].forEach((s) => {
+                    s.width = w;
+                    s.tilePosition.x = -Math.round(camX * c.p + t * c.drift);
+                });
+                c.y = Math.round(horizon - c.rise - c.h);
+                c.body.tint = mix(cloudBody, K.haze, 0.12 + i * 0.1);
+                c.rim.tint = K.rim;
+                c.rim.alpha = (1 - stormy * 0.7) * (0.55 + K.sun * 0.35);
+                c.alpha = a * (0.92 - i * 0.04);
+            });
+            if (PL.SkyFx) PL.SkyFx.update(K, t, { w: w, h: h, horizon: horizon, camX: camX, zoom: zoom });
 
             L.streaks.width = w;
             L.streaks.tilePosition.x = -Math.round(camX * 0.02 + t * 0.6);

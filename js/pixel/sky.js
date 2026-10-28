@@ -70,6 +70,79 @@
                 }
         },
 
+        // Band intensity of the galaxy per sky pixel, cached per sky size and horizon: a
+        // clumpy diagonal band rising from the lower left, with a dark dust lane along it.
+        _milky(w, h, horizonY) {
+            const key = w + '|' + h + '|' + horizonY;
+            if (this._mwKey === key) return this._mw;
+            this._mwKey = key;
+            const x0 = w * 0.04;
+            const y0 = horizonY - 8;
+            const x1 = w * 0.86;
+            const y1 = Math.max(4, horizonY * 0.04);
+            const L = Math.hypot(x1 - x0, y1 - y0);
+            const dx = (x1 - x0) / L;
+            const dy = (y1 - y0) / L;
+            // Coarse value noise for clumps and the dust lane.
+            const vn = (x, y, s, seed) => {
+                const gx = Math.floor(x / s);
+                const gy = Math.floor(y / s);
+                const fx = x / s - gx;
+                const fy = y / s - gy;
+                const a = hash(seed, gx, gy);
+                const b = hash(seed, gx + 1, gy);
+                const c = hash(seed, gx, gy + 1);
+                const d = hash(seed, gx + 1, gy + 1);
+                const sx = fx * fx * (3 - 2 * fx);
+                const sy = fy * fy * (3 - 2 * fy);
+                return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+            };
+            const idx = [];
+            const val = [];
+            const lim = Math.min(h, horizonY - 20);
+            for (let y = 0; y < lim; y++)
+                for (let x = 0; x < w; x++) {
+                    const rx = x - x0;
+                    const ry = y - y0;
+                    const along = PL.clamp((rx * dx + ry * dy) / L, 0, 1);
+                    const dist = rx * -dy + ry * dx;
+                    const bw = 16 + along * 16;
+                    let I = Math.exp(-((dist / bw) ** 2));
+                    if (I < 0.04) continue;
+                    I *= 0.55 + 0.45 * vn(x, y, 9, 61) + 0.25 * (vn(x, y, 4, 67) - 0.5);
+                    I -= 0.55 * Math.exp(-(((dist - bw * 0.18) / (bw * 0.22)) ** 2)) * vn(x, y, 6, 71);
+                    I *= PL.clamp((horizonY - 20 - y) / (horizonY * 0.35), 0, 1);
+                    if (I < 0.05) continue;
+                    idx.push(y * w + x);
+                    val.push(I);
+                }
+            this._mw = { idx: Int32Array.from(idx), val: Float32Array.from(val) };
+            return this._mw;
+        },
+        _milkyWay(img, horizonY, k, ramp) {
+            const mw = this._milky(img.w, img.h, horizonY);
+            const u = img.u;
+            const w = img.w;
+            const glow = 0xb8acdc;
+            for (let i = 0; i < mw.idx.length; i++) {
+                const o = mw.idx[i];
+                const I = mw.val[i] * k;
+                const x = o % w;
+                const y = (o / w) | 0;
+                const v = u[o];
+                const base = ((v & 255) << 16) | (v & 0xff00) | ((v >> 16) & 255);
+                // Three dithered steps of the faint glow keep it pixel-flat.
+                const q = Math.floor(I * 3 + PL.bayer(x, y) * 0.95) / 3;
+                let c = q > 0 ? mix(base, glow, q * 0.16) : base;
+                // A denser field of faint stars inside the band.
+                const hh = hash(53, x, y);
+                if (hh > 1 - 0.022 * I) c = mix(c, 0xe8e4ff, 0.35 + hh * 0.3);
+                else if (hh < 0.004 * I) c = mix(c, 0xfff0d8, 0.6);
+                img.set(x, y, c);
+            }
+            void ramp;
+        },
+
         // Sky ramp expanded to `n` stops (pairwise mixes), for thin bands.
         _ramp(ramp, n) {
             const out = [];
@@ -101,6 +174,16 @@
                 const row = y * w;
                 const k1 = Math.min(k0 + 1, ramp.length - 1);
                 for (let x = 0; x < w; x++) u[row + x] = cols[edge > PL.bayer(x, y) ? k1 : k0];
+            }
+            // The Milky Way on clear dark nights, washed out by a bright moon.
+            if (K.stars > 0.25) {
+                const p =
+                    typeof CityAmbience !== 'undefined' && CityAmbience.getMoonPhase
+                        ? CityAmbience.getMoonPhase()
+                        : 0.5;
+                const full = 1 - Math.abs(p - 0.5) * 2;
+                const mwK = PL.clamp((K.stars - 0.25) / 0.55, 0, 1) * (1 - 0.65 * full * K.moonA);
+                if (mwK > 0.05) this._milkyWay(img, horizonY, mwK, ramp);
             }
             if (K.stars > 0.02)
                 for (let y = 0; y < Math.min(img.h, horizonY - 30); y++) {
