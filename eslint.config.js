@@ -165,6 +165,7 @@ export default [
                 VCRow: 'writable',
                 VCRowEnv: 'writable',
                 XRayMode: 'writable',
+                PhotoMode: 'writable', // photo mode: postcards and clips
                 Debug: 'writable', // debug/perf overlay
                 BitmapFonts: 'writable',
                 Goals: 'writable', // goal-driven NPC archetypes
