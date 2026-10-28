@@ -1210,6 +1210,41 @@ const API = {
         }
     },
 
+    // ═══ RSS — one door for every feed ═══
+    // api.rss2json.com answers browsers with a Cloudflare challenge since 2026-10
+    // (403, no CORS headers), so feeds go through our own /api/rss function first
+    // (netlify/functions/rss.mjs; serve.py mirrors it locally). Both return the
+    // rss2json shape: { status: 'ok', items: [{ title, link, pubDate, description }] }.
+    // rss2json is only tried when the proxy itself is missing (404/network); if the
+    // proxy answered that the publisher is down, rss2json would hit the same wall.
+    async _fetchFeed(feedUrl, timeoutMs = 8000) {
+        try {
+            const r = await fetch(`/api/rss?url=${encodeURIComponent(feedUrl)}`, {
+                signal: AbortSignal.timeout(timeoutMs),
+            });
+            const ctype = r.headers.get('content-type') || '';
+            if (ctype.includes('json')) {
+                const d = await r.json();
+                return d && d.status === 'ok' && Array.isArray(d.items) ? d : null;
+            }
+        } catch (e) {
+            /* proxy unreachable — fall through to rss2json */
+        }
+        try {
+            const r = await fetch(
+                `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`,
+                {
+                    signal: AbortSignal.timeout(timeoutMs),
+                }
+            );
+            if (!r.ok) return null;
+            const d = await r.json();
+            return d && d.status === 'ok' && Array.isArray(d.items) ? d : null;
+        } catch (e) {
+            return null;
+        }
+    },
+
     async fetchLiveNews() {
         let got = false;
         const allFeeds = [
@@ -1223,28 +1258,28 @@ const API = {
             const j = Math.floor(Math.random() * (i + 1));
             [allFeeds[i], allFeeds[j]] = [allFeeds[j], allFeeds[i]];
         }
-        const selectedFeeds = allFeeds.slice(0, 2);
 
-        for (const feed of selectedFeeds) {
+        // Two feeds per refresh, in random order; a feed that's down hands its
+        // turn to the next one instead of leaving the ticker half-empty.
+        let loaded = 0;
+        for (const feed of allFeeds) {
+            if (loaded >= 2) break;
             try {
-                const r = await fetch(
-                    `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`,
-                    { signal: AbortSignal.timeout(8000) }
-                );
-                if (!r.ok) {
-                    console.warn(`[News API] Skipping ${feed.source}: Server returned ${r.status}`);
+                const d = await this._fetchFeed(feed.url);
+                if (!d) {
+                    console.warn(`[News API] Skipping ${feed.source}: feed unavailable`);
                     continue;
                 }
-
-                const d = await r.json();
-                if (d.status === 'ok' && d.items?.length > 0) {
+                if (d.items.length > 0) {
                     this.liveNews = [
-                        ...this.liveNews.filter((n) => n.source !== feed.source),
+                        // Drop this feed's old items and any "unavailable" placeholder.
+                        ...this.liveNews.filter((n) => n.source !== feed.source && n.source !== 'Fallback'),
                         ...d.items
                             .slice(0, 12)
                             .map((i) => ({ headline: i.title, url: i.link, source: feed.source })),
                     ].slice(0, 40);
                     got = true;
+                    loaded++;
                 }
             } catch (e) {
                 console.warn(`[News API] Failed to load ${feed.source}`);
@@ -1389,25 +1424,20 @@ const API = {
         }
         // Also try dedicated regulation RSS feed
         try {
-            const r = await fetch(
-                'https://api.rss2json.com/v1/api.json?rss_url=' +
-                    encodeURIComponent('https://www.theverge.com/rss/ai-artificial-intelligence/index.xml'),
-                { signal: AbortSignal.timeout(8000) }
+            const d = await this._fetchFeed(
+                'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml'
             );
-            if (r.ok) {
-                const d = await r.json();
-                if (d.status === 'ok' && d.items?.length > 0) {
-                    const regFiltered = d.items.filter((i) => regKeywords.test(i.title));
-                    regFiltered.forEach((i) => {
-                        if (!this.regulationNews.find((n) => n.headline === i.title)) {
-                            this.regulationNews.push({
-                                headline: i.title,
-                                url: i.link,
-                                source: 'Regulation Feed',
-                            });
-                        }
-                    });
-                }
+            if (d && d.items.length > 0) {
+                const regFiltered = d.items.filter((i) => regKeywords.test(i.title));
+                regFiltered.forEach((i) => {
+                    if (!this.regulationNews.find((n) => n.headline === i.title)) {
+                        this.regulationNews.push({
+                            headline: i.title,
+                            url: i.link,
+                            source: 'Regulation Feed',
+                        });
+                    }
+                });
             }
         } catch (e) {
             /* silent */
@@ -1482,13 +1512,8 @@ const API = {
 
         for (const feed of feeds) {
             try {
-                const r = await fetch(
-                    `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`,
-                    { signal: AbortSignal.timeout(8000) }
-                );
-                if (!r.ok) continue;
-                const d = await r.json();
-                if (d.status !== 'ok' || !d.items?.length) continue;
+                const d = await this._fetchFeed(feed.url);
+                if (!d || !d.items.length) continue;
 
                 for (const item of d.items) {
                     if (!amtPattern.test(item.title) || !fundingVerbs.test(item.title)) continue;
@@ -1574,13 +1599,8 @@ const API = {
 
         for (const feed of feeds) {
             try {
-                const r = await fetch(
-                    `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`,
-                    { signal: AbortSignal.timeout(8000) }
-                );
-                if (!r.ok) continue;
-                const d = await r.json();
-                if (d.status !== 'ok' || !d.items?.length) continue;
+                const d = await this._fetchFeed(feed.url);
+                if (!d || !d.items.length) continue;
 
                 for (const item of d.items) {
                     if (!chipKeywords.test(item.title) || existing.has(item.title)) continue;
@@ -1643,13 +1663,8 @@ const API = {
 
         for (const feed of feeds) {
             try {
-                const r = await fetch(
-                    `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`,
-                    { signal: AbortSignal.timeout(8000) }
-                );
-                if (!r.ok) continue;
-                const json = await r.json();
-                if (!json.items) continue;
+                const json = await this._fetchFeed(feed.url);
+                if (!json) continue;
 
                 for (const item of json.items) {
                     if (!eventKeywords.test(item.title)) continue;
@@ -1962,13 +1977,8 @@ Respond with ONLY minified JSON, no markdown:
 
         for (const feed of feeds) {
             try {
-                const r = await fetch(
-                    `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`,
-                    { signal: AbortSignal.timeout(8000) }
-                );
-                if (!r.ok) continue;
-                const d = await r.json();
-                if (d.status !== 'ok' || !d.items?.length) continue;
+                const d = await this._fetchFeed(feed.url);
+                if (!d || !d.items.length) continue;
 
                 d.items.slice(0, 5).forEach((item) => {
                     const isMajor = /outage|degraded|disruption|emergency/i.test(item.title);

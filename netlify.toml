@@ -54,6 +54,14 @@
   status = 200
   force = true
 
+# Headline feeds (allowlisted RSS/Atom → JSON). rss2json.com sits behind a
+# Cloudflare challenge since 2026-10, so js/api.js reads feeds through this.
+[[redirects]]
+  from = "/api/rss"
+  to = "/.netlify/functions/rss"
+  status = 200
+  force = true
+
 
 # No X-Frame-Options + `frame-ancestors *` — embedding is a FEATURE (embed.html
 # redirects to index.html?embed=1, so index.html itself must be frameable anywhere).
