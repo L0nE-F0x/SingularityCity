@@ -45,10 +45,15 @@
                 this.cont.name = 'pixelSeasonal';
                 this.cont.eventMode = 'none';
             }
-            // Just above the classic seasonal overlay (which sits on top of the ground).
-            const ov = typeof SeasonalEnv !== 'undefined' ? SeasonalEnv._overlayGfx : null;
-            if (ov && ov.parent === G.world) G.world.addChildAt(this.cont, G.world.getChildIndex(ov) + 1);
-            else if (this.cont.parent !== G.world) G.world.addChild(this.cont);
+            // On the ground but under the people and the traffic: just below the street layers.
+            const under = G.trainLayer && G.trainLayer.parent === G.world ? G.trainLayer : null;
+            if (under) {
+                if (
+                    this.cont.parent !== G.world ||
+                    G.world.getChildIndex(this.cont) > G.world.getChildIndex(under)
+                )
+                    G.world.addChildAt(this.cont, G.world.getChildIndex(under));
+            } else if (this.cont.parent !== G.world) G.world.addChild(this.cont);
             return this.cont;
         },
 

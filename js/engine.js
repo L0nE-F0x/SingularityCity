@@ -2143,6 +2143,7 @@ const G = {
         }
         // ─── LAYER-DEPENDENT INITS: These need charLayer/carLayer to exist ───
         if (typeof BirdFlocks !== 'undefined' && this.charLayer) BirdFlocks.init(this.charLayer);
+        if (typeof StreetLife !== 'undefined') StreetLife.init();
         if (typeof HNBlimps !== 'undefined' && this.charLayer) HNBlimps.init({ charLayer: this.charLayer });
         if (typeof SupplyChain !== 'undefined' && this.carLayer) SupplyChain.init(this.carLayer);
 
@@ -2712,6 +2713,7 @@ const G = {
                 JailData: typeof JailData !== 'undefined' ? JailData : null,
                 CityPark: typeof CityPark !== 'undefined' ? CityPark : null,
                 BirdFlocks: typeof BirdFlocks !== 'undefined' ? BirdFlocks : null,
+                StreetLife: typeof StreetLife !== 'undefined' ? StreetLife : null,
                 HNBlimps: typeof HNBlimps !== 'undefined' ? HNBlimps : null,
                 NewsReactivity: typeof NewsReactivity !== 'undefined' ? NewsReactivity : null,
                 CitizenOfDay: typeof CitizenOfDay !== 'undefined' ? CitizenOfDay : null,
@@ -2766,6 +2768,7 @@ const G = {
         if (S.JailData) S.JailData.update();
         if (S.CityPark) S.CityPark.update();
         if (this.tick % 2 === 0 && S.BirdFlocks) S.BirdFlocks.update(); // every other frame for perf
+        if (S.StreetLife) S.StreetLife.update();
         if (S.HNBlimps) S.HNBlimps.update();
         if (S.NewsReactivity) S.NewsReactivity.update();
         if (S.CitizenOfDay) S.CitizenOfDay.update();

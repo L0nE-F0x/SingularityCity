@@ -138,6 +138,8 @@ export default [
                 Multiplayer: 'writable',
                 NPCHousing: 'writable',
                 OrbitMode: 'writable',
+                StreetLife: 'writable',
+                Bench: 'writable',
                 Persistence: 'writable',
                 Personality: 'writable',
                 PortEnv: 'writable',
