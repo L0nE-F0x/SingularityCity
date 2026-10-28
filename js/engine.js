@@ -3062,12 +3062,10 @@ async function enterCity(opts = {}) {
     }
 
     // ─── MOBILE: fullscreen, wake lock, orientation ───
+    // No landscape lock: the city works upright too (body.is-portrait, Camera._fitOrientation).
     if (window.isMobile) {
         if (typeof _requestFullscreen === 'function') _requestFullscreen();
         if (typeof _requestWakeLock === 'function') _requestWakeLock();
-        if (typeof _lockLandscape === 'function') _lockLandscape();
-        // Enable orientation check now that we're in the city
-        window._orientCheckEnabled = true;
         if (typeof _checkOrientation === 'function') _checkOrientation();
         // Hide install banner if still showing
         const ib = document.getElementById('installBanner');

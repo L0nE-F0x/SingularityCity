@@ -655,46 +655,6 @@ h1, h2, h3, p { margin: 0; }
 .install-dismiss:hover { color: var(--t2); }
 
 /* ═══════════════════════════════════════════════════
-   ORIENTATION OVERLAY (portrait blocker)
-   ═══════════════════════════════════════════════════ */
-.orient-ov {
-  position: fixed; inset: 0; z-index: 99999;
-  background: var(--bg);
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column;
-}
-.orient-content { text-align: center; padding: 30px; }
-.orient-phone {
-  width: 60px; height: 100px;
-  border: 3px solid var(--ac); border-radius: 10px;
-  margin: 0 auto 24px;
-  display: flex; align-items: center; justify-content: center;
-  animation: orientRotate 2.5s ease-in-out infinite;
-  position: relative;
-}
-.orient-phone::after {
-  content: ''; position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
-  width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ac);
-}
-@keyframes orientRotate {
-  0%, 20% { transform: rotate(0deg); }
-  40%, 60% { transform: rotate(-90deg); }
-  80%, 100% { transform: rotate(0deg); }
-}
-.orient-arrow {
-  font-size: 28px; color: var(--ac);
-  animation: orientPulse 2.5s ease-in-out infinite;
-}
-@keyframes orientPulse {
-  0%, 20% { opacity: 1; } 40%, 60% { opacity: 0.3; } 80%, 100% { opacity: 1; }
-}
-.orient-msg {
-  font-family: 'Silkscreen', sans-serif; font-size: 16px;
-  color: #fff; margin-bottom: 8px; letter-spacing: 1px;
-}
-.orient-sub { font-size: 11px; color: var(--t2); }
-
-/* ═══════════════════════════════════════════════════
    SAFE AREA INSETS (notched phones / fullscreen PWA)
    ═══════════════════════════════════════════════════ */
 .is-mobile .top { padding-top: max(10px, env(safe-area-inset-top)); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
@@ -1427,15 +1387,19 @@ body.map-phone .mm-zone:active { background: rgba(255,255,255,0.12); color: #fff
 
 /* ════════════════════════════════════════════════════════════════════════════════
    NEWS REACTIVITY ENGINE — share toast.
-   When the city auto-reacts to real news, this floating card appears in the
-   lower-right with a post-ready draft + Copy / Post / Show-Me buttons.
-   Auto-fades after 45s. Single instance — newest reaction replaces the previous.
+   When the city auto-reacts to real news, this card appears bottom-left, just
+   above the reactions row, with a post-ready draft + Copy / Post / Show-Me.
+   It folds into a one-line pill (.sc-ns-folded) that opens on tap: at once on
+   phones, after an 8 s peek on desktop. Auto-fades after 45s. Single
+   instance — newest reaction replaces the previous. Kept clear of the info
+   panel (right on desktop; bottom sheet on phones), minimap and zoom pill.
    ════════════════════════════════════════════════════════════════════════════════ */
 #sc-news-share {
     position: fixed;
-    right: 20px;
-    bottom: 64px;
+    left: 12px;
+    bottom: 76px;
     width: clamp(280px, 26vw, 360px);
+    max-width: calc(100vw - 24px);
     z-index: 9990;
     background: linear-gradient(180deg, rgba(10,10,26,0.94) 0%, rgba(6,6,18,0.92) 100%);
     border: 1px solid rgba(34,211,238,0.35);
@@ -1461,7 +1425,30 @@ body.map-phone .mm-zone:active { background: rgba(255,255,255,0.12); color: #fff
     align-items: center;
     gap: 8px;
     margin-bottom: 8px;
+    cursor: pointer;
+    outline: none;
 }
+.sc-news-share-head:focus-visible { box-shadow: 0 0 0 2px rgba(34,211,238,0.6); }
+/* ▾ when open (tap to fold), ▸ when folded (tap to open) */
+.sc-news-share-fold::before { content: '▾'; font-size: 10px; color: #a0a0b8; }
+#sc-news-share.sc-ns-folded .sc-news-share-fold::before { content: '▸'; }
+#sc-news-share.sc-ns-folded {
+    width: auto;
+    padding: 5px 6px 5px 10px;
+}
+#sc-news-share.sc-ns-folded .sc-news-share-head { margin-bottom: 0; gap: 7px; }
+#sc-news-share.sc-ns-folded .sc-news-share-body,
+#sc-news-share.sc-ns-folded .sc-news-share-actions { display: none; }
+#sc-news-share.sc-ns-folded .sc-news-share-emoji { font-size: 14px; }
+#sc-news-share.sc-ns-folded .sc-news-share-lab { margin-left: 0; padding-right: 0; }
+#sc-news-share.sc-ns-folded .sc-news-share-lab::before { content: '· '; color: #6b7280; }
+#sc-news-share.sc-ns-folded .sc-news-share-close { width: 20px; height: 20px; font-size: 12px; }
+/* Never over a panel or sheet: overlays (z 200) sit under this card's z-index. */
+body:has(.ov.open) #sc-news-share,
+body:has(#tutOv.active) #sc-news-share,
+body:has(#gameWrap.macro-mode) #sc-news-share,
+body.map-phone:has(#minimap:not(.collapsed)) #sc-news-share { opacity: 0; pointer-events: none; }
+body:has(.slog.open) #sc-news-share { bottom: 300px; }
 .sc-news-share-emoji { font-size: 18px; line-height: 1; }
 .sc-news-share-arch {
     font-family: 'Press Start 2P', monospace;
@@ -1547,9 +1534,30 @@ body.map-phone .mm-zone:active { background: rgba(255,255,255,0.12); color: #fff
         right: 10px;
         left: 10px;
         width: auto;
-        bottom: 60px;
+        bottom: 72px;
     }
+    #sc-news-share.sc-ns-folded { right: auto; }
 }
+/* Phones: the info panel is a bottom sheet and the briefing cards share the
+   bottom edge, so step aside while either is up. */
+@media (max-width: 768px) {
+    body:has(#infoPanel.open) #sc-news-share,
+    body:has(#sc-briefing-prompt.sc-bp-in) #sc-news-share,
+    body:has(#sc-briefing-nodata.sc-bp-in) #sc-news-share,
+    body:has(#sc-briefing-share.sc-bs-show-in) #sc-news-share { opacity: 0; pointer-events: none; }
+}
+/* Landscape phone: the reactions row sits lower (bottom 28px, 26px buttons). */
+@media (max-height: 500px) and (max-width: 960px) {
+    #sc-news-share { left: calc(10px + env(safe-area-inset-left)); bottom: calc(60px + env(safe-area-inset-bottom)); }
+    #sc-news-share:not(.sc-ns-folded) { width: min(360px, calc(100vw - 20px)); }
+}
+body.is-portrait #sc-news-share {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    bottom: calc(68px + env(safe-area-inset-bottom));
+}
+body.is-portrait #sc-news-share.sc-ns-folded { right: auto; }
 
 /* ════════════════════════════════════════════════════════════════════════════════
    CITIZEN OF THE DAY — 👑 button next to multiplayer reactions + floating card
@@ -1960,3 +1968,111 @@ body.ui-xl .toast { font-size: 14px; }
 .af-credit:hover { opacity: 1; color: #22d3ee; border-color: rgba(34, 211, 238, 0.45); }
 .af-credit:hover b { color: #22d3ee; }
 html.embed-mode .af-credit { display: none; }
+
+/* ═══════════════════════════════════════════════════
+   PHONE HELD UPRIGHT — body.is-portrait (index.html _checkOrientation)
+   The street stands ~60% down (Camera._fitOrientation), so the band under
+   the header is sky: toasts go there. Controls hug the bottom edge, cards
+   sit just above them, and the info panel is a shorter bottom sheet that
+   the camera lifts the street above (Camera._followSheet).
+   ═══════════════════════════════════════════════════ */
+body.is-portrait .top {
+  padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) 0 max(6px, env(safe-area-inset-left));
+}
+body.is-portrait .top-row { margin-bottom: 4px; }
+body.is-portrait .top-main { padding: 0; gap: 6px; }
+body.is-portrait .logo { flex-shrink: 0; }
+body.is-portrait .logo-i { font-size: 17px; }
+/* One scrollable line of stats instead of a two-line block (engine.js pins
+   #nfo to the centre with !important; this undoes it upright only). */
+body.is-portrait #nfo {
+  position: static !important;
+  left: auto !important;
+  transform: none !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+  font-size: 9px;
+  gap: 9px;
+  padding: 4px 9px;
+}
+body.is-portrait #nfo::-webkit-scrollbar { display: none; }
+body.is-portrait #nfo > span { flex-shrink: 0; gap: 3px; }
+body.is-portrait .mp-counter { flex-shrink: 0; padding: 4px 8px; font-size: 9px; }
+body.is-portrait .mp-label { display: none; }
+/* Toolbar: one swipeable row of pills that fades out at the right edge. */
+body.is-portrait .ctrls-scroll {
+  gap: 5px;
+  padding: 2px 28px 6px 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  scroll-padding-inline: 4px;
+}
+body.is-portrait .btn { padding: 6px 9px; font-size: 10px; gap: 5px; }
+
+/* Bottom edge: ticker, then reactions (left) and the map pill (right). */
+body.is-portrait .tick { height: 24px; font-size: 9px; }
+body.is-portrait .tick-txt { padding: 0 104px 0 10px; }
+body.is-portrait .af-credit {
+  right: calc(6px + env(safe-area-inset-right));
+  bottom: calc(4px + env(safe-area-inset-bottom));
+  padding: 2px 6px;
+  font-size: 8px;
+}
+body.is-portrait .mp-reactions {
+  left: calc(8px + env(safe-area-inset-left));
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  gap: 4px;
+}
+body.is-portrait .mp-react-btn { width: 30px; height: 30px; font-size: 14px; }
+body.is-portrait.map-phone #minimap {
+  right: calc(8px + env(safe-area-inset-right));
+  bottom: calc(30px + env(safe-area-inset-bottom));
+}
+/* Folded map pill: the reactions' 30px height, so the row has one top edge. */
+body.is-portrait.map-phone #minimap.collapsed .mm-header { min-height: 30px; padding: 3px 4px 3px 9px; }
+body.is-portrait.map-phone #minimap.collapsed .mm-title { font-size: 11px; }
+body.is-portrait.map-phone #minimap.collapsed .mm-toggle { min-width: 28px; min-height: 24px; font-size: 16px; }
+body.is-portrait.map-phone #minimap.collapsed { min-width: 0; }
+body.is-portrait.map-phone #minimap:not(.collapsed) {
+  top: calc(84px + env(safe-area-inset-top));
+  height: auto;
+}
+
+/* Transient cards: toasts in the sky band, briefing cards above the controls. */
+body.is-portrait .toasts {
+  top: calc(80px + env(safe-area-inset-top));
+  bottom: auto;
+  left: 8px;
+  right: 8px;
+  align-items: stretch;
+}
+body.is-portrait #sc-briefing-prompt,
+body.is-portrait #sc-briefing-nodata,
+body.is-portrait #sc-briefing-share {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  bottom: calc(68px + env(safe-area-inset-bottom));
+}
+body.is-portrait #trackingHud { bottom: calc(68px + env(safe-area-inset-bottom)) !important; }
+
+/* Sheets: shorter, so the street (lifted by the camera) stays in view, and
+   above the bottom-edge controls and credit (z 100–200) it slides over. */
+body.is-portrait .ipanel { max-height: 56vh; max-height: 56dvh; z-index: 210; }
+/* The panels' scroll areas carry inline 100vh-based heights (js/ui.js); in the
+   short sheet let the scroll area take what is left so the buttons stay on. */
+body.is-portrait .ipanel > * { flex-shrink: 0; }
+body.is-portrait .ipanel > #panelContent,
+body.is-portrait .ipanel > div[style*="overflow-y"] {
+  max-height: none !important;
+  flex: 1 1 auto;
+  flex-shrink: 1;
+  min-height: 0;
+}
+body.is-portrait .ov-pan { max-height: 84vh; max-height: 84dvh; }
+html body.is-portrait .ov { background: rgba(4, 3, 12, 0.6); }

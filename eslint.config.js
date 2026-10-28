@@ -235,7 +235,6 @@ export default [
                 safeColor: 'writable',
                 haptic: 'writable',
                 _checkOrientation: 'writable',
-                _lockLandscape: 'writable',
                 _requestFullscreen: 'writable',
                 _requestWakeLock: 'writable',
             },

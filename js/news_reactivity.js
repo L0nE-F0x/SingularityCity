@@ -455,6 +455,18 @@ window.NewsReactivity = (function () {
         return `${lead}\n\n"${headline}"\n\n${url}\n\nWatch: https://singularitycity.net`;
     }
 
+    // The card folds into a one-line pill ("🎉 Launch Party · Anthropic") that
+    // opens on tap. Desktop shows it open for a few seconds first; phones start
+    // folded, because open it covers a third of a landscape phone.
+    const SHARE_PEEK_MS = 8000;
+    const SHARE_FADE_MS = 45000;
+
+    function setShareOpen(host, open) {
+        host.classList.toggle('sc-ns-folded', !open);
+        const head = host.querySelector('.sc-news-share-head');
+        if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
     function showShareToast(r) {
         // Reuse a single in-place toast container — replaces previous reactive
         // toast so the user only ever sees the latest.
@@ -468,10 +480,11 @@ window.NewsReactivity = (function () {
         const headline = (r.story && r.story.title) || '';
         const post = postTextFor(r);
         host.innerHTML = `
-            <div class="sc-news-share-head">
+            <div class="sc-news-share-head" role="button" tabindex="0" aria-expanded="true" title="Show or hide">
                 <span class="sc-news-share-emoji">${r.emoji}</span>
                 <span class="sc-news-share-arch">${escape(r.archetype)}</span>
                 <span class="sc-news-share-lab">${escape(lab)}</span>
+                <span class="sc-news-share-fold" aria-hidden="true"></span>
                 <button class="sc-news-share-close" aria-label="Dismiss">×</button>
             </div>
             <div class="sc-news-share-body">${escape(headline)}</div>
@@ -483,12 +496,46 @@ window.NewsReactivity = (function () {
         `;
         host.classList.add('sc-news-share-in');
 
+        const head = host.querySelector('.sc-news-share-head');
         const closeBtn = host.querySelector('.sc-news-share-close');
         const postBtn = host.querySelector('.sc-news-share-post');
         const copyBtn = host.querySelector('.sc-news-share-copy');
         const camBtn = host.querySelector('.sc-news-share-camera');
 
-        closeBtn.onclick = () => host.classList.remove('sc-news-share-in');
+        // Fold now on phones, after a peek on desktop (held off while hovered).
+        clearTimeout(host._foldTimer);
+        const phone = !!window.isMobile || window.innerWidth <= 720;
+        setShareOpen(host, !phone);
+        const foldLater = (ms) => {
+            clearTimeout(host._foldTimer);
+            host._foldTimer = setTimeout(() => {
+                if (host.matches(':hover') || host.contains(document.activeElement)) foldLater(4000);
+                else setShareOpen(host, false);
+            }, ms);
+        };
+        if (!phone) foldLater(SHARE_PEEK_MS);
+
+        const toggle = () => {
+            clearTimeout(host._foldTimer);
+            const open = host.classList.contains('sc-ns-folded');
+            setShareOpen(host, open);
+            // Opened by hand: give it the full read time again.
+            if (open) fadeLater();
+        };
+        head.onclick = (e) => {
+            if (e.target.closest('.sc-news-share-close')) return;
+            toggle();
+        };
+        head.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggle();
+            }
+        };
+        closeBtn.onclick = () => {
+            clearTimeout(host._foldTimer);
+            host.classList.remove('sc-news-share-in');
+        };
         postBtn.onclick = () => {
             const intent = 'https://x.com/intent/post?text=' + encodeURIComponent(post);
             window.open(intent, '_blank', 'noopener');
@@ -511,6 +558,7 @@ window.NewsReactivity = (function () {
             e.preventDefault();
             const hq = r.hq || findHq(r.labId);
             if (!hq || typeof G === 'undefined') return;
+            setShareOpen(host, false); // out of the way of the HQ it pans to
             // Camera-pan via the existing tracking system: jump to center on HQ
             // by setting a one-shot tracking object that resolves to HQ x.
             try {
@@ -526,10 +574,13 @@ window.NewsReactivity = (function () {
 
         // Auto-fade after 45s — long enough to read + click, short enough not
         // to camp on screen.
-        clearTimeout(host._dismissTimer);
-        host._dismissTimer = setTimeout(() => {
-            host.classList.remove('sc-news-share-in');
-        }, 45000);
+        function fadeLater() {
+            clearTimeout(host._dismissTimer);
+            host._dismissTimer = setTimeout(() => {
+                host.classList.remove('sc-news-share-in');
+            }, SHARE_FADE_MS);
+        }
+        fadeLater();
     }
 
     function escape(s) {
