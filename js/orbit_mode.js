@@ -472,9 +472,13 @@ const OrbitMode = {
         this.camera = new THREE.PerspectiveCamera(45, W / H, 1, 10000);
         this.camera.position.set(0, 80, 320);
 
-        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+        // Pixel skin: render at a third of the resolution and let the browser scale it up
+        // with nearest-neighbour, so the planet is drawn in the city's chunky pixels.
+        const px = this._pixel();
+        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: !px });
         this.renderer.setSize(W, H);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setPixelRatio(px ? 1 / 3 : Math.min(window.devicePixelRatio, 2));
+        if (px) this.canvas.style.imageRendering = 'pixelated';
 
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
@@ -550,8 +554,21 @@ const OrbitMode = {
         this._buildYouMarker();
     },
 
+    _pixel() {
+        return typeof PixelArt !== 'undefined' && PixelArt.enabled;
+    },
+    // Ordered 4x4 dither on the low-res buffer's pixels (pixel skin only).
+    _BAYER: `
+        float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+        float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+    `,
+    _pxDefines() {
+        return this._pixel() ? { PIXEL: '' } : {};
+    },
+
     _buildEarthSphere() {
         const mat = new THREE.ShaderMaterial({
+            defines: this._pxDefines(),
             uniforms: {
                 dayMap: { value: this._dayTex },
                 nightMap: { value: this._nightTex },
@@ -572,6 +589,7 @@ const OrbitMode = {
                 uniform vec3 sunDir;
                 varying vec3 vNormalW;
                 varying vec2 vUv;
+                ${this._BAYER}
                 void main() {
                     float d = dot(vNormalW, sunDir);
                     float mixFactor = smoothstep(-0.18, 0.30, d);
@@ -583,6 +601,12 @@ const OrbitMode = {
                     // Subtle atmospheric scatter on the sunlit limb
                     float rim = smoothstep(0.0, 0.4, d) * (1.0 - abs(d));
                     color += vec3(0.08, 0.15, 0.25) * rim;
+                    #ifdef PIXEL
+                    // Lofi pixel planet: a little more saturation, then 7 dithered levels.
+                    float l = dot(color, vec3(0.299, 0.587, 0.114));
+                    color = mix(vec3(l), color, 1.18);
+                    color = floor(color * 7.0 + bayer4(gl_FragCoord.xy)) / 7.0;
+                    #endif
                     gl_FragColor = vec4(color, 1.0);
                 }
             `,
@@ -597,6 +621,7 @@ const OrbitMode = {
     _buildClouds() {
         if (!this._cloudTex) return;
         const mat = new THREE.ShaderMaterial({
+            defines: this._pxDefines(),
             uniforms: {
                 cloudMap: { value: this._cloudTex },
                 sunDir: { value: new THREE.Vector3(1, 0.2, 0.3).normalize() },
@@ -615,6 +640,7 @@ const OrbitMode = {
                 uniform vec3 sunDir;
                 varying vec3 vNormalW;
                 varying vec2 vUv;
+                ${this._BAYER}
                 void main() {
                     vec3 c = texture2D(cloudMap, vUv).rgb;
                     float lum = max(c.r, max(c.g, c.b));
@@ -623,6 +649,9 @@ const OrbitMode = {
                     // Day: bright white clouds. Night: dim blue-grey clouds
                     vec3 color = mix(vec3(0.25, 0.30, 0.45), vec3(1.0), sunlit);
                     float alpha = lum * mix(0.35, 0.80, sunlit);
+                    #ifdef PIXEL
+                    alpha = floor(alpha * 4.0 + bayer4(gl_FragCoord.xy)) / 4.0;
+                    #endif
                     if (alpha < 0.02) discard;
                     gl_FragColor = vec4(color, alpha);
                 }
@@ -638,6 +667,7 @@ const OrbitMode = {
 
     _buildAtmosphere() {
         const mat = new THREE.ShaderMaterial({
+            defines: this._pxDefines(),
             uniforms: {},
             vertexShader: `
                 varying vec3 vNormal;
@@ -652,8 +682,12 @@ const OrbitMode = {
             fragmentShader: `
                 varying vec3 vNormal;
                 varying vec3 vPosition;
+                ${this._BAYER}
                 void main() {
                     float intensity = pow(0.72 - dot(vNormal, normalize(-vPosition)), 4.0);
+                    #ifdef PIXEL
+                    intensity = floor(intensity * 5.0 + bayer4(gl_FragCoord.xy)) / 5.0;
+                    #endif
                     vec3 color = vec3(0.26, 0.55, 1.0);
                     gl_FragColor = vec4(color, 1.0) * intensity;
                 }

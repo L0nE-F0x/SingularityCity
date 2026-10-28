@@ -1113,7 +1113,30 @@ const Holomap = {
             } else b.dom.style.display = 'none';
         });
 
-        // Frontier labels
+        // Frontier and nebula labels: projected, then placed greedily by priority so they
+        // never pile on top of each other. Lab names first (bigger labs win), then frontier
+        // models, nearer before farther; a label already showing keeps a small edge so the
+        // set doesn't flicker as the camera drifts. Sizes are estimated from the text.
+        var cands = [];
+        this.nebulae.forEach(function (n) {
+            if (!n.htmlLabel) return;
+            n.group.getWorldPosition(tempV);
+            tempV.project(self.camera);
+            if (tempV.z > 1) {
+                n.htmlLabel.style.display = 'none';
+                return;
+            }
+            var name = (n.lab && n.lab.name) || '';
+            var members = n.stars ? n.stars.length : n.count || 0;
+            cands.push({
+                dom: n.htmlLabel,
+                x: (tempV.x * 0.5 + 0.5) * self.W,
+                y: (tempV.y * -0.5 + 0.5) * self.H - 60,
+                w: name.length * 8 + 10,
+                h: 16,
+                pri: 2000 + members * 3 - tempV.z * 100 + (n.htmlLabel._shown ? 40 : 0),
+            });
+        });
         this.stars.forEach(function (s) {
             if (!s.htmlLabel) return;
             s.meshGroup.getWorldPosition(tempV);
@@ -1122,22 +1145,40 @@ const Holomap = {
                 s.htmlLabel.style.display = 'none';
                 return;
             }
-            s.htmlLabel.style.display = 'block';
-            s.htmlLabel.style.left = (tempV.x * 0.5 + 0.5) * self.W + 'px';
-            s.htmlLabel.style.top = (tempV.y * -0.5 + 0.5) * self.H - 25 + 'px';
+            var nm = (s.m && (s.m.name || s.m.id)) || '';
+            cands.push({
+                dom: s.htmlLabel,
+                x: (tempV.x * 0.5 + 0.5) * self.W,
+                y: (tempV.y * -0.5 + 0.5) * self.H - 25,
+                w: nm.length * 7.5 + 8,
+                h: 15,
+                pri: 1000 + (s.mag || 0) * 50 - tempV.z * 100 + (s.htmlLabel._shown ? 40 : 0),
+            });
         });
-
-        // Nebula labels
-        this.nebulae.forEach(function (n) {
-            n.group.getWorldPosition(tempV);
-            tempV.project(self.camera);
-            if (tempV.z > 1) {
-                n.htmlLabel.style.display = 'none';
+        cands.sort(function (a, b) {
+            return b.pri - a.pri;
+        });
+        var placed = [];
+        cands.forEach(function (c) {
+            var x0 = c.x - c.w / 2;
+            var y0 = c.y - c.h / 2;
+            var free = true;
+            for (var i = 0; i < placed.length; i++) {
+                var p = placed[i];
+                if (x0 < p.x1 && x0 + c.w > p.x0 && y0 < p.y1 && y0 + c.h > p.y0) {
+                    free = false;
+                    break;
+                }
+            }
+            c.dom._shown = free;
+            if (!free) {
+                c.dom.style.display = 'none';
                 return;
             }
-            n.htmlLabel.style.display = 'block';
-            n.htmlLabel.style.left = (tempV.x * 0.5 + 0.5) * self.W + 'px';
-            n.htmlLabel.style.top = (tempV.y * -0.5 + 0.5) * self.H - 60 + 'px';
+            placed.push({ x0: x0 - 4, y0: y0 - 2, x1: x0 + c.w + 4, y1: y0 + c.h + 2 });
+            c.dom.style.display = 'block';
+            c.dom.style.left = c.x + 'px';
+            c.dom.style.top = c.y + 'px';
         });
 
         // 7. HUD (throttled)
