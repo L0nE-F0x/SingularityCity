@@ -2,7 +2,7 @@
    SERVICE WORKER (v15 - Modular Asset Patch)
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'singularity-city-v563';
+const CACHE_NAME = 'singularity-city-v564';
 
 // BUG FIX: Updated CORE_ASSETS to reflect the new modular architecture filenames!
 const CORE_ASSETS = [
@@ -18,6 +18,8 @@ const CORE_ASSETS = [
     '/css/styles.css',
     '/css/terminal.css',
     '/css/pixel-ui.css',
+    '/css/pixel-icons.css',
+    '/css/photo-mode.css',
     '/js/shared_boot.js',
     '/js/personality.js',
     '/js/benchmarks.js',
@@ -25,11 +27,14 @@ const CORE_ASSETS = [
     '/js/api.js',
     '/js/ui.js',
     '/js/snd.js',
+    '/js/soundscape.js',
     '/js/camera.js',
     '/js/pixel/core.js',
     '/js/pixel/tod.js',
     '/js/pixel/kit.js',
     '/js/pixel/sprites.js',
+    '/js/pixel/fauna.js',
+    '/js/pixel/seasonal.js',
     '/js/pixel/buildings.js',
     '/js/pixel/districts.js',
     '/js/pixel/districts2.js',
@@ -44,15 +49,20 @@ const CORE_ASSETS = [
     '/js/pixel/facades_port.js',
     '/js/pixel/facades_campus.js',
     '/js/pixel/facades_space.js',
+    '/js/pixel/facades_labs.js',
+    '/js/pixel/construction.js',
+    '/js/pixel/sea.js',
     '/js/pixel/dress.js',
     '/js/pixel/robots.js',
     '/js/pixel/underground.js',
     '/js/pixel/interior_light.js',
     '/js/pixel/interior_zoom.js',
     '/js/pixel/sky.js',
+    '/js/pixel/skyevents.js',
     '/js/pixel/backdrop.js',
     '/js/pixel/pixel_art.js',
     '/js/pixel/pixel_skin.js',
+    '/js/pixel/ui_icons.js',
     '/js/environment.js',
     '/js/entities_gfx.js',
     '/js/entities.js',
@@ -97,6 +107,7 @@ const CORE_ASSETS = [
     '/js/jail.js',
     '/js/city_park.js',
     '/js/bird_flocks.js',
+    '/js/street_life.js',
     '/js/ai_index.js',
     '/js/supply_chain.js',
     '/js/black_market.js',
@@ -127,6 +138,7 @@ const CORE_ASSETS = [
     '/js/interior_embassy.js',
     '/js/interior_ambassador_res.js',
     '/js/xray_mode.js',
+    '/js/photo_mode.js',
     '/js/multiplayer.js',
     '/js/holomap.js',
     '/js/easter_eggs.js',
