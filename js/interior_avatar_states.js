@@ -4,6 +4,14 @@
    ════════════════════════════════════════════════════════════════════════════════════════════════════ */
 
 const InteriorAvatarStates = {
+    // What people say on the HQ's themed floors (desks keep the module's own lines).
+    FLOOR_LINES: {
+        research: ['Ablation 42 is in.', 'Reading arXiv.', 'p < 0.05, finally.', 'Rerun with seed 7.'],
+        training: ['Loss is flat.', 'Node 12 is hot.', 'Checkpoint saved.', 'Grad norm spiked.'],
+        meeting: ["Let's align on this.", 'Ship it Friday?', 'Can you see my screen?', 'Action items:'],
+        cafeteria: ['Great coffee.', 'Lunch run?', 'Oat milk is out.', 'Refueling.'],
+    },
+
     updateAvatarStates(leftWall, rightWall, numFloors) {
         this.avatars.forEach((av, i) => {
             // Tracking highlight pulse
@@ -887,7 +895,9 @@ const InteriorAvatarStates = {
                         }
 
                         if (Math.random() < 0.002 && this.bubbles.length < 15) {
-                            this.spawnBubble(av);
+                            const lines = this.FLOOR_LINES && this.FLOOR_LINES[av.jobTheme];
+                            if (lines) this.spawnBubble(av, lines[Math.floor(Math.random() * lines.length)]);
+                            else this.spawnBubble(av);
                         }
 
                         // Scheduled break: every ~30–90s, get up and head somewhere fun

@@ -121,7 +121,11 @@ const InteriorCity = {
         // Non-forest: skip the black voidMask — _drawZoneUnderground() will render
         // proper zone-matched earth/cables/tunnel/ocean/silo/rock below the building.
 
-        this.bldW = isHQ || isForest ? G.vpW : Math.min(G.vpW, 800);
+        // In a diorama frame (js/interior_manager.js) the building stands inset in the
+        // street with its own walls; forests stay one outdoor ground across the screen.
+        const _framed = typeof Interior !== 'undefined' && Interior.framed() && !isForest;
+        if (_framed) this.bldW = isHQ ? G.vpW - 60 : Math.min(G.vpW - 60, 800);
+        else this.bldW = isHQ || isForest ? G.vpW : Math.min(G.vpW, 800);
         this.startX = (G.vpW - this.bldW) / 2;
 
         const shaftW = 60;
@@ -184,6 +188,11 @@ const InteriorCity = {
 
         if (!isForest) {
             this.drawRoof(roofH, this.startX, this.usableW, colHex, lab, bld);
+            // Lab HQs get a roof terrace either side of the sign (above the ticker band, if any).
+            if (isHQ) {
+                const roofY = bld.lab && lab.ticker ? roofH - 12 : roofH - 4;
+                this.drawHQRoofTerrace(this.scene, this.startX, this.usableW, roofY, colHex, numFloors >= 7);
+            }
         }
 
         const visitingModels = G.models.filter((m) => {
@@ -192,6 +201,7 @@ const InteriorCity = {
         });
         const visitorsPerFloor = Math.ceil(visitingModels.length / Math.max(1, numFloors));
 
+        let midThemes = null;
         for (let f = isForest ? 0 : -1; f < numFloors; f++) {
             const fy = roofH + (numFloors - 1 - f) * floorH;
             const isCeo = isHQ && f === numFloors - 1;
@@ -226,16 +236,30 @@ const InteriorCity = {
                 const barThemes = ['bar_lounge', 'bar_karaoke', 'bar_vip'];
                 floorTheme = barThemes[f % 3];
             } else if (isHQ && !isCeo) {
-                // Cubicle workspace ('general') is the default for an AI lab.
-                // Reserve exactly one fun floor (arcade) and one wellness floor (zen_garden) per HQ;
-                // every other non-CEO floor is cubicles. server_core moves to basement-only territory.
+                // Lobby at the street, one fun floor (arcade) and one wellness floor (zen_garden).
+                // The floors between rotate through desks, research benches, a training cluster,
+                // meeting rooms and a cafeteria (hqMidThemes); a three-floor lab keeps its one
+                // working floor as desks. server_core stays basement-only territory.
                 const topNonCeoFloor = numFloors - 2;
-                if (f === 1) floorTheme = 'arcade';
-                else if (f === topNonCeoFloor && topNonCeoFloor >= 3) floorTheme = 'zen_garden';
-                else floorTheme = 'general';
+                const hasZen = topNonCeoFloor >= 3;
+                if (f === 0) floorTheme = 'lobby';
+                else if (numFloors <= 3) floorTheme = 'general';
+                else if (f === 1) floorTheme = 'arcade';
+                else if (f === topNonCeoFloor && hasZen) floorTheme = 'zen_garden';
+                else {
+                    if (!midThemes)
+                        midThemes = this.hqMidThemes(bld.lab, Math.max(1, topNonCeoFloor - (hasZen ? 2 : 1)));
+                    floorTheme = midThemes[f - 2] || 'general';
+                }
             }
 
-            this.floors[f] = { y: fy + floorH - 4, elevatorX: shaftX + 15, breakSpots: [], cubicleSeats: [] };
+            this.floors[f] = {
+                y: fy + floorH - 4,
+                elevatorX: shaftX + 15,
+                breakSpots: [],
+                cubicleSeats: [],
+                theme: isBasement ? 'basement' : floorTheme,
+            };
 
             const roomGfx = new PIXI.Graphics();
             if (['arena', 'graveyard'].includes(bld.id)) {
@@ -361,12 +385,13 @@ const InteriorCity = {
             floorCont.sortableChildren = true;
             this.scene.addChild(floorCont);
 
-            if (f >= 0 && !isForest && !['arena', 'graveyard'].includes(bld.id)) {
+            const wallStyle = this.hqWallStyle(floorTheme);
+            if (f >= 0 && !isForest && !['arena', 'graveyard'].includes(bld.id) && wallStyle !== 'solid') {
                 const winFrame = new PIXI.Graphics();
                 winFrame.beginFill(0xffffff, 0.03);
                 winFrame.lineStyle(4, 0x33334a);
 
-                if (isCeo) {
+                if (isCeo || wallStyle === 'band') {
                     winFrame.drawRect(windowX, fy + 15, windowW, 45);
                     for (let w = windowX + 60; w < windowX + windowW; w += 60) {
                         winFrame.moveTo(w, fy + 15);
@@ -394,6 +419,14 @@ const InteriorCity = {
                 const _dpNow = G.getDayPhase();
                 const _isNightShift = _dpNow > 0.83 || _dpNow < 0.25;
                 if (isHQ && f === 0) {
+                    const lobby = this.drawHQLobbyExtras(
+                        floorCont,
+                        this.startX,
+                        this.usableW,
+                        fy + floorH - 4,
+                        colHex,
+                        lab.name || bld.name
+                    );
                     this.drawCouches(floorCont, this.startX + this.usableW - 80, fy + floorH - 4, colHex);
                     this.drawChair(floorCont, this.startX + 80, fy + floorH - 4);
                     if (!_isNightShift)
@@ -413,6 +446,23 @@ const InteriorCity = {
                             f,
                             true
                         );
+                    // The gates are never unattended: a guard by night, a greeter by day.
+                    this.drawAvatar(
+                        {
+                            id: 'sec',
+                            name: _isNightShift ? 'Night Security' : 'Greeter',
+                            isNPC: true,
+                            role: _isNightShift ? 'Security' : 'Greeter',
+                            phase: 'released',
+                            lab: bld.lab,
+                            desc: _isNightShift ? 'Badge, please.' : 'Welcome in.',
+                        },
+                        lobby.guardX,
+                        fy + floorH - 4,
+                        floorCont,
+                        f,
+                        true
+                    );
                     this.drawReceptionDesk(floorCont, this.startX + 110, fy + floorH - 4, colHex);
                     this.drawPlant(floorCont, this.startX + 220, fy + floorH - 4);
                 } else if (isHQ && isCeo) {
@@ -526,6 +576,16 @@ const InteriorCity = {
                             }
                             currX += 50;
                         }
+                    } else if (this.HQ_THEMED_FLOORS.has(floorTheme)) {
+                        this.drawHQThemedFloor(
+                            floorTheme,
+                            floorCont,
+                            f,
+                            this.startX,
+                            this.usableW,
+                            fy + floorH - 4,
+                            colHex
+                        );
                     } else {
                         if (f === 1) {
                             this.drawCanteen(floorCont, this.startX + this.usableW - 40, fy + floorH - 4);
@@ -573,14 +633,24 @@ const InteriorCity = {
                     floorModelsQueue.forEach((m, idx) => {
                         const refs = G.charRefs[m.id];
                         if (refs && refs.bld === bld.id) {
-                            // Snap onto an actual cubicle seat when this floor has them
-                            // (general-theme floors). Falls back to the old 40px grid for
-                            // arcade / zen / server floors that have no chairs to sit in.
+                            // Snap onto a real seat when this floor has them (desks, benches,
+                            // meeting chairs, cafeteria stools, the cluster's console). On the
+                            // training floor the rest pace the racks. Falls back to the old
+                            // 40px grid for arcade / zen / server floors with nowhere to sit.
                             const seats = this.floors[f].cubicleSeats;
-                            const isSeated = floorTheme === 'general' && seats.length > 0;
-                            const deskX = isSeated ? seats[idx % seats.length] : this.startX + 80 + idx * 40;
+                            const racks = this.floors[f].rackSpots;
+                            const seatsTheme =
+                                floorTheme === 'general' || this.HQ_THEMED_FLOORS.has(floorTheme);
+                            const onRack =
+                                floorTheme === 'training' && racks && racks.length && idx >= seats.length;
+                            const isSeated = seatsTheme && seats.length > 0 && !onRack;
+                            const deskX = isSeated
+                                ? seats[idx % seats.length]
+                                : onRack
+                                  ? racks[(idx - seats.length) % racks.length]
+                                  : this.startX + 80 + idx * 40;
                             let av = this.drawAvatar(m, deskX, fy + floorH - 4, floorCont, f, false);
-                            av.jobTheme = floorTheme;
+                            av.jobTheme = onRack ? 'server_core' : floorTheme;
                             av.deskX = deskX;
                             av.floorY = fy + floorH - 4;
                             av.isSeated = isSeated;
@@ -1252,6 +1322,18 @@ const InteriorCity = {
                             floorCont,
                             f,
                             true
+                        );
+                    } else if (floorTheme === 'general' && this.drawPublicFloor) {
+                        // Public buildings with no themed floors (the port offices and
+                        // warehouse, the AI Index, the monuments) used to be bare windows.
+                        this.drawPublicFloor(
+                            floorCont,
+                            bld,
+                            f,
+                            this.startX,
+                            this.usableW,
+                            fy + floorH - 4,
+                            colHex
                         );
                     }
 

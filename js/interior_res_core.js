@@ -138,8 +138,15 @@ const InteriorRes = {
         ugGfx.endFill();
         this.scene.addChild(ugGfx);
 
-        this.bldW = isEstate ? Math.min(G.vpW, 800) : G.vpW;
-        this.startX = isEstate ? (G.vpW - this.bldW) / 2 : 0;
+        // In a diorama frame (js/interior_manager.js) towers and estates stand inset in the
+        // street with their own walls.
+        if (typeof Interior !== 'undefined' && Interior.framed()) {
+            this.bldW = isEstate ? Math.min(G.vpW - 60, 800) : G.vpW - 60;
+            this.startX = (G.vpW - this.bldW) / 2;
+        } else {
+            this.bldW = isEstate ? Math.min(G.vpW, 800) : G.vpW;
+            this.startX = isEstate ? (G.vpW - this.bldW) / 2 : 0;
+        }
 
         const shaftW = 60;
         const shaftX = this.startX + this.bldW - shaftW - 20;
@@ -153,18 +160,20 @@ const InteriorRes = {
         bldBg.drawRect(this.startX, roofH - 4, this.bldW, 4);
         bldBg.endFill();
 
+        // Standing in a diorama frame, the ground beside the basement and the silo is soil.
+        const _soil = typeof Interior !== 'undefined' && Interior.framed();
         for (let f = minFloor; f < numFloors; f++) {
             const fy = roofH + (numFloors - 1 - f) * floorH;
 
             if (f === -1) {
-                bldBg.beginFill(0x0a0a10);
+                bldBg.beginFill(_soil ? 0x2a2218 : 0x0a0a10);
                 bldBg.drawRect(0, fy, G.vpW, floorH);
                 bldBg.endFill();
                 bldBg.beginFill(0x121220);
                 bldBg.drawRect(this.startX, fy, this.bldW, floorH);
                 bldBg.endFill();
             } else if (f === -2) {
-                bldBg.beginFill(0x050508);
+                bldBg.beginFill(_soil ? 0x221a10 : 0x050508);
                 bldBg.drawRect(0, fy, G.vpW, floorH);
                 bldBg.endFill();
                 bldBg.beginFill(0x0a0a10);
@@ -721,6 +730,10 @@ const InteriorRes = {
             const band = this._bands[d.floorNum - minFloor];
             if (band) band.items.push(d.left, d.right, d.panel);
         }
+
+        // Diorama frame (js/interior_manager.js): estates stop a little under the silo, in the
+        // bedrock; towers get their stack and strata from the manager.
+        if (isEstate) this._frameHint = { ground: this.totalH - 2 * floorH, bottom: this.totalH + 150 };
 
         const bottomPadding = 56;
         const initY = G.vpH - bottomPadding - this.totalH + floorH;

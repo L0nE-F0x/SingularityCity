@@ -350,9 +350,38 @@ const InteriorCityProps = {
             lightCol = 0xff00ff;
             beamAlpha = 0.08;
             ceilingLightA = 0.3;
+        } else if (theme === 'lobby') {
+            wallCol = 0x1d1d33;
+            floorCol = 0x16161f;
+            beamAlpha = 0.18;
+        } else if (theme === 'research') {
+            wallCol = 0x1a2030;
+            floorCol = 0x10141e;
+            lightCol = 0xe0f2fe;
+            beamAlpha = 0.12;
+        } else if (theme === 'training') {
+            wallCol = 0x080a12;
+            floorCol = 0x0b0e16;
+            lightCol = 0x38bdf8;
+            beamAlpha = 0.05;
+            ceilingLightA = 0.35;
+        } else if (theme === 'meeting') {
+            wallCol = 0x1c1a2c;
+            floorCol = 0x13121e;
+            lightCol = 0xfef3c7;
+            beamAlpha = 0.14;
+        } else if (theme === 'cafeteria') {
+            wallCol = 0x2a2018;
+            floorCol = 0x1a130d;
+            lightCol = 0xffd8a0;
+            beamAlpha = 0.16;
         }
 
-        this.drawNegativeSpaceWall(gfx, wallCol, x, y, w, h, isCeo, windowX, windowW);
+        // HQ floors cut their back wall three ways: panoramic glass, windows, or none.
+        const wallStyle = this.hqWallStyle ? this.hqWallStyle(theme) : 'windows';
+        const band = isCeo || wallStyle === 'band';
+        if (wallStyle === 'solid') windowW = 0;
+        this.drawNegativeSpaceWall(gfx, wallCol, x, y, w, h, band, windowX, windowW);
 
         gfx.beginFill(floorCol);
         gfx.drawRect(x, y + h - 8, w, 8);
@@ -361,7 +390,7 @@ const InteriorCityProps = {
         gfx.lineStyle(1, 0x000000, 0.15);
         for (let i = x; i < x + w; i += 20) {
             if (i > windowX && i < windowX + windowW) {
-                if (isCeo) continue;
+                if (band) continue;
                 let offset = i - windowX;
                 if (offset % 60 < 40) continue;
             }
@@ -2960,5 +2989,789 @@ const InteriorCityProps = {
         g.lineTo(x + 24, y - 25);
         g.lineStyle(0);
         c.addChild(g);
+    },
+
+    // ══════════════════════════════════════════════════════════════════════
+    //   LAB HQ FLOORS WITH CHARACTER — a lab used to get the same cubicle row on
+    //   every floor. The floors between the arcade and the zen garden now rotate
+    //   through research benches, a training cluster, glass meeting rooms and a
+    //   cafeteria; the lobby gets a logo wall and gates, the roof a terrace.
+    // ══════════════════════════════════════════════════════════════════════
+
+    HQ_THEMED_FLOORS: new Set(['research', 'training', 'meeting', 'cafeteria']),
+
+    // Desks every third floor; the rest rotate per lab so neighbouring HQs differ.
+    hqMidThemes(labId, n) {
+        const pool = ['research', 'training', 'meeting', 'cafeteria', 'research', 'training'];
+        let h = 0;
+        const s = String(labId || 'lab');
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+        const rot = Math.abs(h) % 4;
+        const out = [];
+        for (let k = 0; k < n; k++)
+            out.push(k === 0 || k % 3 === 2 ? 'general' : pool[(rot + k) % pool.length]);
+        return out;
+    },
+
+    // How a themed floor's back wall is cut: big panoramic glass, ordinary windows, or none.
+    hqWallStyle(theme) {
+        if (theme === 'training') return 'solid';
+        if (theme === 'lobby' || theme === 'meeting' || theme === 'cafeteria') return 'band';
+        return 'windows';
+    },
+
+    // Lays out one themed floor. Fills this.floors[f].cubicleSeats (where workers sit),
+    // breakSpots (where they wander) and, for the cluster, rackSpots (where operators pace).
+    drawHQThemedFloor(theme, c, f, x0, w, y, col) {
+        const fl = this.floors[f];
+        const x1 = x0 + w - 60;
+        if (theme === 'research') {
+            this.drawPaperWall(c, x0 + 50, y, col);
+            fl.breakSpots.push(x0 + 50);
+            let x = x0 + 110;
+            let k = 0;
+            while (x < x1 - 40) {
+                if (k % 3 === 2) {
+                    this.drawWhiteboard(c, x + 10, y);
+                    fl.breakSpots.push(x + 10);
+                    x += 70;
+                } else {
+                    this.drawResearchBench(c, x + 22, y, col, k);
+                    fl.cubicleSeats.push(x + 4);
+                    x += 64;
+                }
+                k++;
+            }
+        } else if (theme === 'training') {
+            this.drawCableTrayCeiling(c, x0 + 8, y - 70, w - 16, col);
+            this.drawLossCurveScreen(c, x0 + 60, y, col);
+            this.drawOperatorConsole(c, x0 + 140, y, col);
+            fl.cubicleSeats.push(x0 + 122, x0 + 150);
+            fl.breakSpots.push(x0 + 60);
+            fl.rackSpots = [];
+            for (let x = x0 + 196; x < x1 - 10; x += 34) {
+                this.drawGPURack(c, x, y, col, fl.rackSpots.length);
+                fl.rackSpots.push(x + 2);
+            }
+        } else if (theme === 'meeting') {
+            let x = x0 + 40;
+            let k = 0;
+            while (x + 150 < x1) {
+                if (k % 2 === 0) {
+                    const seats = this.drawMeetingRoom(c, x, y, col, k);
+                    fl.cubicleSeats.push(...seats);
+                    fl.breakSpots.push(x + 75);
+                    x += 166;
+                } else {
+                    this.drawPhoneBooth(c, x + 14, y);
+                    this.drawBiophilicDivider(c, x + 42, y);
+                    fl.breakSpots.push(x + 14);
+                    x += 64;
+                }
+                k++;
+            }
+        } else if (theme === 'cafeteria') {
+            this.drawCafeteriaCounter(c, x0 + 70, y, col);
+            fl.breakSpots.push(x0 + 60, x0 + 100);
+            let x = x0 + 170;
+            let k = 0;
+            while (x < x1 - 30) {
+                if (k % 4 === 3) {
+                    this.drawBiophilicDivider(c, x, y);
+                    x += 34;
+                } else {
+                    this.drawDiningTable(c, x + 18, y, col);
+                    fl.cubicleSeats.push(x + 2, x + 34);
+                    x += 64;
+                }
+                k++;
+            }
+        }
+    },
+
+    // A pinboard of papers with red string between a few of them.
+    drawPaperWall(c, x, y, col) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        g.beginFill(0x6b4a2b);
+        g.drawRect(x - 24, y - 52, 48, 32);
+        g.endFill();
+        g.beginFill(0x4a3220);
+        g.drawRect(x - 26, y - 54, 52, 3);
+        g.endFill();
+        const papers = [
+            [-20, -49],
+            [-8, -47],
+            [4, -50],
+            [14, -46],
+            [-16, -36],
+            [-2, -35],
+            [10, -34],
+        ];
+        papers.forEach(([dx, dy], i) => {
+            g.beginFill(i % 3 === 0 ? 0xfef3c7 : 0xf1f5f9);
+            g.drawRect(x + dx, y + dy, 8, 10);
+            g.endFill();
+            g.beginFill(0x94a3b8, 0.8);
+            g.drawRect(x + dx + 1, y + dy + 3, 6, 1);
+            g.drawRect(x + dx + 1, y + dy + 5, 5, 1);
+            g.endFill();
+            g.beginFill(i === 2 ? cHex : 0xef4444);
+            g.drawRect(x + dx + 3, y + dy, 2, 2);
+            g.endFill();
+        });
+        g.lineStyle(1, 0xef4444, 0.7);
+        g.moveTo(x - 16, y - 49);
+        g.lineTo(x + 7, y - 50);
+        g.lineTo(x + 13, y - 34);
+        g.lineStyle(0);
+        c.addChild(g);
+    },
+
+    // Lab bench: stool, bench top, a monitor with a chart and a lab instrument.
+    drawResearchBench(c, x, y, col, k) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        // Stool on the left, where the worker sits
+        g.beginFill(0x33334a);
+        g.drawRect(x - 22, y - 9, 10, 2);
+        g.drawRect(x - 18, y - 7, 2, 7);
+        g.endFill();
+        // Bench
+        g.beginFill(0xcbd5e1);
+        g.drawRect(x - 8, y - 20, 36, 3);
+        g.endFill();
+        g.beginFill(0x475569);
+        g.drawRect(x - 6, y - 17, 2, 17);
+        g.drawRect(x + 24, y - 17, 2, 17);
+        g.drawRect(x - 6, y - 8, 32, 2);
+        g.endFill();
+        // Monitor with a plot
+        g.beginFill(0x0f172a);
+        g.drawRect(x - 4, y - 36, 18, 13);
+        g.endFill();
+        g.beginFill(0x334155);
+        g.drawRect(x + 4, y - 23, 2, 3);
+        g.endFill();
+        g.lineStyle(1, k % 2 ? 0x22c55e : cHex, 0.9);
+        g.moveTo(x - 2, y - 26);
+        g.lineTo(x + 2, y - 29);
+        g.lineTo(x + 6, y - 28);
+        g.lineTo(x + 9, y - 33);
+        g.lineTo(x + 12, y - 34);
+        g.lineStyle(0);
+        // Instrument: a microscope or a stack of drives, alternating
+        if (k % 2 === 0) {
+            g.beginFill(0xe2e8f0);
+            g.drawRect(x + 18, y - 24, 6, 4);
+            g.drawRect(x + 20, y - 32, 2, 8);
+            g.endFill();
+            g.beginFill(0x64748b);
+            g.drawRect(x + 17, y - 34, 6, 3);
+            g.endFill();
+        } else {
+            g.beginFill(0x1e293b);
+            g.drawRect(x + 16, y - 27, 10, 7);
+            g.endFill();
+            g.beginFill(cHex, 0.9);
+            g.drawRect(x + 17, y - 25, 1, 1);
+            g.drawRect(x + 17, y - 23, 1, 1);
+            g.endFill();
+        }
+        c.addChild(g);
+        const glow = new PIXI.Graphics();
+        glow.beginFill(k % 2 ? 0x22c55e : cHex, 0.18);
+        glow.drawRect(x - 4, y - 36, 18, 13);
+        glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        c.addChild(glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.5, type: 'screen' });
+    },
+
+    // Fibre and power trays along the ceiling of the training cluster.
+    drawCableTrayCeiling(c, x, y, w, col) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        g.beginFill(0x1e293b);
+        g.drawRect(x, y, w, 6);
+        g.endFill();
+        [0xfacc15, cHex, 0x22d3ee, 0xf43f5e].forEach((cc, i) => {
+            g.beginFill(cc, 0.75);
+            g.drawRect(x, y + 1 + i, w, 1);
+            g.endFill();
+        });
+        g.beginFill(0x334155);
+        for (let hx = x + 20; hx < x + w; hx += 90) g.drawRect(hx, y - 4, 2, 4);
+        g.endFill();
+        c.addChild(g);
+    },
+
+    // The wall display every training floor stares at: a falling loss curve.
+    drawLossCurveScreen(c, x, y, col) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        g.beginFill(0x0b1020);
+        g.drawRect(x - 34, y - 58, 68, 38);
+        g.endFill();
+        g.lineStyle(2, 0x334155, 1);
+        g.drawRect(x - 34, y - 58, 68, 38);
+        g.lineStyle(1, 0x475569, 0.8);
+        g.moveTo(x - 28, y - 52);
+        g.lineTo(x - 28, y - 25);
+        g.lineTo(x + 30, y - 25);
+        g.lineStyle(1, cHex, 1);
+        const pts = [
+            [-27, -50],
+            [-22, -44],
+            [-16, -40],
+            [-10, -36],
+            [-4, -34],
+            [2, -31],
+            [8, -30],
+            [14, -28],
+            [22, -27],
+            [29, -27],
+        ];
+        g.moveTo(x + pts[0][0], y + pts[0][1]);
+        for (let i = 1; i < pts.length; i++) g.lineTo(x + pts[i][0], y + pts[i][1]);
+        g.lineStyle(0);
+        g.beginFill(0x64748b);
+        g.drawRect(x - 2, y - 20, 4, 20);
+        g.endFill();
+        c.addChild(g);
+        const glow = new PIXI.Graphics();
+        glow.beginFill(cHex, 0.16);
+        glow.drawRect(x - 32, y - 56, 64, 34);
+        glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        c.addChild(glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.45, type: 'screen' });
+    },
+
+    // Two seats at a long console of status screens.
+    drawOperatorConsole(c, x, y, col) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        g.beginFill(0x1e293b);
+        g.drawRect(x - 26, y - 18, 52, 4);
+        g.endFill();
+        g.beginFill(0x334155);
+        g.drawRect(x - 24, y - 14, 2, 14);
+        g.drawRect(x + 22, y - 14, 2, 14);
+        g.endFill();
+        for (let i = 0; i < 3; i++) {
+            const sx = x - 22 + i * 16;
+            g.beginFill(0x0f172a);
+            g.drawRect(sx, y - 30, 13, 10);
+            g.endFill();
+            g.beginFill(i === 1 ? cHex : 0x22c55e, 0.85);
+            g.drawRect(sx + 2, y - 27, 2 + i * 3, 1);
+            g.drawRect(sx + 2, y - 25, 7, 1);
+            g.endFill();
+        }
+        c.addChild(g);
+        this.drawChair(c, x - 18, y);
+        this.drawChair(c, x + 10, y);
+    },
+
+    // A GPU rack: dark cabinet, lab-coloured stripe, rows of LEDs.
+    drawGPURack(c, x, y, col, k) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        g.beginFill(0x0b0f19);
+        g.drawRect(x - 13, y - 56, 26, 56);
+        g.endFill();
+        g.beginFill(0x1e293b);
+        g.drawRect(x - 13, y - 56, 26, 3);
+        g.drawRect(x - 13, y - 3, 26, 3);
+        g.endFill();
+        g.beginFill(cHex, 0.85);
+        g.drawRect(x - 11, y - 52, 2, 46);
+        g.endFill();
+        for (let i = 0; i < 7; i++) {
+            const sy = y - 50 + i * 7;
+            g.beginFill(0x111827);
+            g.drawRect(x - 7, sy, 18, 5);
+            g.endFill();
+            const on = (i + k) % 3 !== 0;
+            g.beginFill(on ? 0x4ade80 : 0xfbbf24);
+            g.drawRect(x + 7, sy + 2, 1, 1);
+            g.endFill();
+        }
+        c.addChild(g);
+        const glow = new PIXI.Graphics();
+        glow.beginFill(cHex, 0.12);
+        glow.drawRect(x - 11, y - 52, 22, 46);
+        glow.endFill();
+        glow.blendMode = PIXI.BLEND_MODES.ADD;
+        c.addChild(glow);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: glow, maxA: 0.35, type: 'server' });
+    },
+
+    // A glass meeting room: table, four chairs, a slide on the wall. Returns seat x's.
+    drawMeetingRoom(c, x, y, col, k) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        // Glass walls and frame
+        g.beginFill(0x93c5fd, 0.06);
+        g.drawRect(x, y - 62, 150, 62);
+        g.endFill();
+        g.lineStyle(2, 0x64748b, 0.9);
+        g.moveTo(x, y);
+        g.lineTo(x, y - 62);
+        g.lineTo(x + 150, y - 62);
+        g.lineTo(x + 150, y);
+        g.lineStyle(1, 0xcbd5e1, 0.25);
+        g.moveTo(x + 6, y - 58);
+        g.lineTo(x + 20, y - 44);
+        g.moveTo(x + 130, y - 58);
+        g.lineTo(x + 144, y - 44);
+        g.lineStyle(0);
+        // Wall screen with a slide
+        g.beginFill(0x0f172a);
+        g.drawRect(x + 55, y - 54, 40, 22);
+        g.endFill();
+        g.beginFill(cHex, 0.9);
+        g.drawRect(x + 59, y - 50, 18, 2);
+        g.endFill();
+        g.beginFill(0x94a3b8, 0.8);
+        g.drawRect(x + 59, y - 46, 30, 1);
+        g.drawRect(x + 59, y - 43, 24, 1);
+        g.drawRect(x + 59, y - 40, 27, 1);
+        g.endFill();
+        // Table
+        g.beginFill(0x4a3220);
+        g.drawRect(x + 40, y - 16, 70, 4);
+        g.endFill();
+        g.beginFill(0x2a1c12);
+        g.drawRect(x + 72, y - 12, 6, 12);
+        g.endFill();
+        // Laptops and a plant on the table
+        g.beginFill(0x334155);
+        g.drawRect(x + 48, y - 20, 9, 4);
+        g.drawRect(x + 92, y - 20, 9, 4);
+        g.endFill();
+        g.beginFill(0x22c55e);
+        g.drawCircle(x + 75, y - 21, 3);
+        g.endFill();
+        // Name plate on the glass (room number)
+        g.beginFill(k % 4 === 0 ? 0xfacc15 : cHex, 0.8);
+        g.drawRect(x + 4, y - 30, 6, 3);
+        g.endFill();
+        c.addChild(g);
+        const seats = [x + 30, x + 50, x + 98, x + 118];
+        seats.forEach((sx) => this.drawChair(c, sx, y));
+        return seats;
+    },
+
+    // A one-person booth for calls.
+    drawPhoneBooth(c, x, y) {
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        g.beginFill(0x1e293b);
+        g.drawRect(x - 12, y - 50, 24, 50);
+        g.endFill();
+        g.beginFill(0x93c5fd, 0.12);
+        g.drawRect(x - 9, y - 46, 18, 38);
+        g.endFill();
+        g.beginFill(0xfde68a, 0.9);
+        g.drawRect(x - 3, y - 49, 6, 2);
+        g.endFill();
+        g.beginFill(0x475569);
+        g.drawRect(x - 4, y - 12, 8, 2);
+        g.drawRect(x - 1, y - 10, 2, 10);
+        g.endFill();
+        c.addChild(g);
+    },
+
+    // Micro-kitchen: menu board, coffee machine, fridge, fruit.
+    drawCafeteriaCounter(c, x, y, col) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        // Menu board on the wall
+        g.beginFill(0x1c1917);
+        g.drawRect(x - 40, y - 62, 50, 20);
+        g.endFill();
+        g.beginFill(0xfef3c7, 0.85);
+        g.drawRect(x - 36, y - 58, 20, 1);
+        g.drawRect(x - 36, y - 54, 28, 1);
+        g.drawRect(x - 36, y - 50, 24, 1);
+        g.endFill();
+        g.beginFill(cHex, 0.9);
+        g.drawRect(x - 36, y - 46, 12, 1);
+        g.endFill();
+        // Counter
+        g.beginFill(0xe7e5e4);
+        g.drawRect(x - 46, y - 22, 80, 4);
+        g.endFill();
+        g.beginFill(0x57534e);
+        g.drawRect(x - 44, y - 18, 76, 18);
+        g.endFill();
+        g.beginFill(cHex, 0.6);
+        g.drawRect(x - 44, y - 12, 76, 2);
+        g.endFill();
+        // Coffee machine
+        g.beginFill(0x292524);
+        g.drawRect(x - 38, y - 36, 14, 14);
+        g.endFill();
+        g.beginFill(0xd6d3d1);
+        g.drawRect(x - 34, y - 30, 6, 2);
+        g.endFill();
+        g.beginFill(0xef4444);
+        g.drawRect(x - 27, y - 34, 2, 2);
+        g.endFill();
+        // Fruit bowl
+        g.beginFill(0xf59e0b);
+        g.drawCircle(x - 12, y - 25, 2);
+        g.endFill();
+        g.beginFill(0x84cc16);
+        g.drawCircle(x - 8, y - 25, 2);
+        g.endFill();
+        g.beginFill(0xef4444);
+        g.drawCircle(x - 10, y - 27, 2);
+        g.endFill();
+        // Fridge
+        g.beginFill(0xd6d3d1);
+        g.drawRect(x + 38, y - 48, 18, 48);
+        g.endFill();
+        g.beginFill(0xa8a29e);
+        g.drawRect(x + 38, y - 30, 18, 1);
+        g.drawRect(x + 52, y - 44, 1, 10);
+        g.drawRect(x + 52, y - 26, 1, 12);
+        g.endFill();
+        c.addChild(g);
+    },
+
+    // A small table with two stools and a pair of trays.
+    drawDiningTable(c, x, y, col) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        g.beginFill(0x78350f);
+        g.drawRect(x - 14, y - 16, 28, 3);
+        g.endFill();
+        g.beginFill(0x451a03);
+        g.drawRect(x - 1, y - 13, 2, 13);
+        g.drawRect(x - 6, y - 1, 12, 1);
+        g.endFill();
+        g.beginFill(0xf1f5f9);
+        g.drawRect(x - 10, y - 18, 7, 2);
+        g.drawRect(x + 3, y - 18, 7, 2);
+        g.endFill();
+        g.beginFill(cHex, 0.9);
+        g.drawRect(x - 8, y - 20, 2, 2);
+        g.endFill();
+        g.beginFill(0x22c55e);
+        g.drawRect(x + 5, y - 20, 3, 2);
+        g.endFill();
+        // Stools either side
+        g.beginFill(0x334155);
+        g.drawRect(x - 20, y - 9, 8, 2);
+        g.drawRect(x - 17, y - 7, 2, 7);
+        g.drawRect(x + 12, y - 9, 8, 2);
+        g.drawRect(x + 15, y - 7, 2, 7);
+        g.endFill();
+        c.addChild(g);
+    },
+
+    // Lobby: a lab-coloured logo wall behind reception, security gates and a big screen.
+    drawHQLobbyExtras(c, x0, w, y, col, labName) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        // Logo wall
+        const lw = 116;
+        const lx = x0 + 70;
+        g.beginFill(cHex, 0.22);
+        g.drawRect(lx, y - 66, lw, 30);
+        g.endFill();
+        g.beginFill(cHex, 0.9);
+        g.drawRect(lx, y - 66, lw, 2);
+        g.drawRect(lx, y - 38, lw, 2);
+        g.endFill();
+        // Lobby screen clear of the logo wall, gates after it, couches stay at the far end.
+        const sx = x0 + Math.round(Math.max(250, w * 0.38));
+        const gx = sx + 60;
+        // Security gates (three turnstiles with glass flaps)
+        for (let i = 0; i < 3; i++) {
+            const tx = gx + i * 22;
+            g.beginFill(0x475569);
+            g.drawRect(tx - 3, y - 18, 6, 18);
+            g.endFill();
+            g.beginFill(0x93c5fd, 0.3);
+            g.drawRect(tx + 3, y - 14, 10, 8);
+            g.endFill();
+            g.beginFill(i === 1 ? 0xef4444 : 0x22c55e);
+            g.drawRect(tx - 1, y - 16, 2, 2);
+            g.endFill();
+        }
+        // Lobby screen: the lab's numbers, as bars
+        g.beginFill(0x0b1020);
+        g.drawRect(sx - 30, y - 62, 60, 30);
+        g.endFill();
+        g.lineStyle(2, 0x334155, 1);
+        g.drawRect(sx - 30, y - 62, 60, 30);
+        g.lineStyle(0);
+        [10, 16, 13, 20, 24].forEach((bh, i) => {
+            g.beginFill(i === 4 ? cHex : 0x38bdf8, 0.9);
+            g.drawRect(sx - 24 + i * 10, y - 36 - bh, 6, bh);
+            g.endFill();
+        });
+        c.addChild(g);
+        if (labName) {
+            const t = new PIXI.Text(String(labName).toUpperCase(), {
+                fontFamily: 'JetBrains Mono',
+                fontSize: 13,
+                fontWeight: 'bold',
+                fill: 0xffffff,
+                letterSpacing: 1,
+            });
+            t.anchor.set(0.5, 0.5);
+            t.x = lx + lw / 2;
+            t.y = y - 51;
+            if (t.width > lw - 8) t.scale.set((lw - 8) / t.width);
+            c.addChild(t);
+        }
+        // The guard stands past the gates if the couches leave room, else just before them.
+        const guardX = gx + 76 < x0 + w - 110 ? gx + 76 : gx - 16;
+        return { gateX: gx, guardX: guardX };
+    },
+
+    // Public buildings without themed floors: harbour offices and a warehouse at the port,
+    // analysts at the AI Index, exhibits at the monuments, a plain office anywhere else.
+    drawPublicFloor(c, bld, f, x0, w, y, col) {
+        const id = bld.id || '';
+        const x1 = x0 + w - 60;
+        if (id === 'port_warehouse' || id === 'port_container' || id === 'port_fuel') {
+            const cols = [0xb45309, 0x0e7490, 0x15803d, 0x9f1239, 0x6d28d9];
+            const g = new PIXI.Graphics();
+            g.eventMode = 'none';
+            let k = 0;
+            for (let x = x0 + 50; x < x1 - 60; x += 46) {
+                // Pallet rack: two shelves of crates
+                g.beginFill(0x475569);
+                g.drawRect(x - 18, y - 52, 2, 52);
+                g.drawRect(x + 18, y - 52, 2, 52);
+                g.drawRect(x - 18, y - 27, 38, 2);
+                g.drawRect(x - 18, y - 52, 38, 2);
+                g.endFill();
+                for (let s = 0; s < 2; s++) {
+                    const cy = s === 0 ? y - 12 : y - 37;
+                    g.beginFill(cols[(k + s * 2) % cols.length]);
+                    g.drawRect(x - 15, cy - 10, 15, 12);
+                    g.endFill();
+                    g.beginFill(cols[(k + s + 3) % cols.length]);
+                    g.drawRect(x + 1, cy - 8, 15, 10);
+                    g.endFill();
+                }
+                k++;
+            }
+            // Forklift
+            const fx = x1 - 30;
+            g.beginFill(0xfacc15);
+            g.drawRect(fx - 12, y - 14, 20, 10);
+            g.endFill();
+            g.beginFill(0x1f2937);
+            g.drawRect(fx - 8, y - 24, 10, 10);
+            g.drawRect(fx + 9, y - 30, 2, 30);
+            g.drawRect(fx + 11, y - 6, 10, 2);
+            g.endFill();
+            g.beginFill(0x111827);
+            g.drawCircle(fx - 7, y - 3, 3);
+            g.drawCircle(fx + 4, y - 3, 3);
+            g.endFill();
+            c.addChild(g);
+            return;
+        }
+        if (id.startsWith('port_')) {
+            // Harbour office: a chart of the coast, ship-tracking desks, coffee
+            const g = new PIXI.Graphics();
+            g.eventMode = 'none';
+            const mx = x0 + 70;
+            g.beginFill(0x0c4a6e);
+            g.drawRect(mx - 34, y - 58, 68, 34);
+            g.endFill();
+            g.beginFill(0xd6c29a);
+            g.drawPolygon([
+                mx - 34,
+                y - 58,
+                mx - 6,
+                y - 58,
+                mx - 12,
+                y - 46,
+                mx - 20,
+                y - 40,
+                mx - 34,
+                y - 34,
+            ]);
+            g.endFill();
+            g.beginFill(0xf87171);
+            g.drawRect(mx + 4, y - 48, 2, 2);
+            g.drawRect(mx + 16, y - 36, 2, 2);
+            g.endFill();
+            g.beginFill(0xfacc15);
+            g.drawRect(mx - 2, y - 40, 2, 2);
+            g.endFill();
+            c.addChild(g);
+            for (let x = x0 + 140; x < x1 - 40; x += 70) {
+                this.drawChair(c, x, y);
+                this.drawDeskAndPC(c, x + 24, y, col);
+            }
+            this.drawWaterCooler(c, x1 - 10, y);
+            return;
+        }
+        if (id === 'ai_index') {
+            // The index on a wall of screens, analysts below
+            const g = new PIXI.Graphics();
+            g.eventMode = 'none';
+            const sx = x0 + w / 2 - 70;
+            g.beginFill(0x0b1020);
+            g.drawRect(sx - 60, y - 60, 120, 36);
+            g.endFill();
+            g.lineStyle(2, 0x334155, 1);
+            g.drawRect(sx - 60, y - 60, 120, 36);
+            g.lineStyle(1, 0x22c55e, 1);
+            const pts = [
+                -52, -30, -40, -34, -28, -33, -16, -40, -4, -38, 8, -45, 20, -44, 32, -50, 44, -54, 52, -53,
+            ];
+            g.moveTo(sx + pts[0], y + pts[1]);
+            for (let i = 2; i < pts.length; i += 2) g.lineTo(sx + pts[i], y + pts[i + 1]);
+            g.lineStyle(0);
+            c.addChild(g);
+            for (let x = x0 + 70; x < x1 - 30; x += 64) {
+                if (Math.abs(x - sx) < 70) continue;
+                this.drawChair(c, x, y);
+                this.drawDeskAndPC(c, x + 24, y, col);
+            }
+            return;
+        }
+        if (id === 'park' || id === 'visitor_monument') {
+            // Exhibits: plinths with small models and info boards
+            const g = new PIXI.Graphics();
+            g.eventMode = 'none';
+            const shades = [0xfacc15, 0x38bdf8, 0xf472b6, 0x4ade80];
+            let k = 0;
+            for (let x = x0 + 70; x < x1 - 20; x += 90) {
+                g.beginFill(0xe2e8f0);
+                g.drawRect(x - 10, y - 16, 20, 16);
+                g.endFill();
+                g.beginFill(shades[k % shades.length]);
+                g.drawRect(x - 4, y - 26, 8, 10);
+                g.endFill();
+                g.beginFill(0x1e293b);
+                g.drawRect(x + 16, y - 40, 22, 14);
+                g.endFill();
+                g.beginFill(0x94a3b8);
+                g.drawRect(x + 19, y - 37, 14, 1);
+                g.drawRect(x + 19, y - 34, 10, 1);
+                g.drawRect(x + 19, y - 31, 12, 1);
+                g.endFill();
+                k++;
+            }
+            c.addChild(g);
+            return;
+        }
+        // Any other public building: a plain working office
+        let k = 0;
+        for (let x = x0 + 70; x < x1 - 30; x += 64) {
+            if (k % 4 === 3) {
+                this.drawWhiteboard(c, x + 6, y);
+            } else {
+                this.drawChair(c, x, y);
+                this.drawDeskAndPC(c, x + 24, y, col);
+            }
+            k++;
+        }
+        this.drawPlant(c, x1, y);
+    },
+
+    // Roof terrace: planters, AC units, an antenna with a beacon, a dish, and a helipad on
+    // the tall HQs. Everything stands clear of the sign board in the middle.
+    drawHQRoofTerrace(cont, x0, w, roofY, col, tall) {
+        const cHex = this._parseCol(col);
+        const g = new PIXI.Graphics();
+        g.eventMode = 'none';
+        const mid = x0 + w / 2;
+        const left = [x0 + 30, mid - 140];
+        const right = [mid + 140, x0 + w - 20];
+        // Rail along the parapet
+        g.beginFill(0x475569);
+        g.drawRect(x0 + 6, roofY - 10, left[1] - x0, 1);
+        g.drawRect(right[0], roofY - 10, x0 + w - right[0] - 6, 1);
+        for (let px = x0 + 8; px < left[1]; px += 18) g.drawRect(px, roofY - 10, 1, 10);
+        for (let px = right[0]; px < x0 + w - 6; px += 18) g.drawRect(px, roofY - 10, 1, 10);
+        g.endFill();
+        // Left: AC units and planters
+        for (let ax = left[0]; ax < left[1] - 24; ax += 46) {
+            g.beginFill(0x64748b);
+            g.drawRect(ax, roofY - 14, 20, 14);
+            g.endFill();
+            g.beginFill(0x334155);
+            g.drawCircle(ax + 10, roofY - 7, 5);
+            g.endFill();
+            g.beginFill(0x78350f);
+            g.drawRect(ax + 25, roofY - 7, 14, 7);
+            g.endFill();
+            g.beginFill(0x22c55e);
+            g.drawCircle(ax + 29, roofY - 10, 4);
+            g.drawCircle(ax + 35, roofY - 9, 3);
+            g.endFill();
+        }
+        // Right: dish, antenna mast, and a helipad on big labs
+        g.beginFill(0xcbd5e1);
+        g.drawEllipse(right[0] + 18, roofY - 14, 9, 5);
+        g.endFill();
+        g.beginFill(0x64748b);
+        g.drawRect(right[0] + 17, roofY - 10, 2, 10);
+        g.endFill();
+        const mastX = right[0] + 44;
+        g.beginFill(0x94a3b8);
+        g.drawRect(mastX, roofY - 46, 2, 46);
+        g.drawRect(mastX - 6, roofY - 36, 14, 1);
+        g.drawRect(mastX - 4, roofY - 26, 10, 1);
+        g.endFill();
+        if (tall && right[1] - right[0] > 130) {
+            const hx = right[1] - 48;
+            g.beginFill(0x1f2937);
+            g.drawRect(hx - 30, roofY - 3, 60, 3);
+            g.endFill();
+            g.beginFill(0xfacc15, 0.9);
+            g.drawRect(hx - 8, roofY - 3, 2, 2);
+            g.drawRect(hx + 6, roofY - 3, 2, 2);
+            g.drawRect(hx - 6, roofY - 2, 12, 1);
+            g.endFill();
+        } else {
+            g.beginFill(0x78350f);
+            g.drawRect(right[1] - 40, roofY - 7, 22, 7);
+            g.endFill();
+            g.beginFill(0x16a34a);
+            g.drawCircle(right[1] - 34, roofY - 11, 5);
+            g.drawCircle(right[1] - 26, roofY - 10, 4);
+            g.endFill();
+        }
+        cont.addChild(g);
+        // Beacon on the mast
+        const beacon = new PIXI.Graphics();
+        beacon.beginFill(0xef4444, 0.9);
+        beacon.drawRect(mastX - 1, roofY - 49, 4, 3);
+        beacon.endFill();
+        beacon.beginFill(cHex, 0.35);
+        beacon.drawCircle(mastX + 1, roofY - 48, 5);
+        beacon.endFill();
+        beacon.blendMode = PIXI.BLEND_MODES.ADD;
+        cont.addChild(beacon);
+        if (!this.indoorLights) this.indoorLights = [];
+        this.indoorLights.push({ g: beacon, maxA: 0.9, type: 'error' });
     },
 };

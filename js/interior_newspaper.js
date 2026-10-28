@@ -174,7 +174,9 @@ const InteriorNewspaper = {
         const numFloors = 3;
         const floorH = 80;
         const roofH = 80;
-        const bldW = Math.min(W, 800);
+        // Inset inside a diorama frame (js/interior_manager.js), so the walls stand clear.
+        const framed = typeof Interior !== 'undefined' && Interior.framed();
+        const bldW = Math.min(framed ? W - 60 : W, 800);
         const startX = Math.round((W - bldW) / 2);
         const totalH = roofH + (numFloors + 1) * floorH; // +1 for basement
         this.totalH = totalH;

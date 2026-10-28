@@ -259,6 +259,9 @@ const InteriorPower = {
             vm.endFill();
         }
         this.scene.addChild(vm);
+        // Diorama frame (js/interior_manager.js): the substation cables, then bedrock — not a
+        // scroll into the void below them.
+        this._frameHint = { ground: groundY, strataAt: vmY + 126 };
 
         // Position + scroll
         const bp = 56;

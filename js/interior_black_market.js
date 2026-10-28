@@ -343,6 +343,15 @@ const InteriorBlackMarket = {
             av._maxX = startX + bldW - 30;
         }
 
+        // Diorama frame (js/interior_manager.js): open on the market itself, with the city's
+        // cables, metro and pipes overhead a scroll away and bedrock underneath.
+        this._frameHint = {
+            top: stackTopY - 20,
+            ground: null,
+            bottom: basementBottom + 170,
+            focus: { y0: -70, y1: basementBottom + 30 },
+        };
+
         // Position & scroll — allow scrolling UP to reveal the city stack overhead
         this.scene.y = G.vpH - 56 - this.totalH + floorH;
         this.minY = this.scene.y - floorH * 3;

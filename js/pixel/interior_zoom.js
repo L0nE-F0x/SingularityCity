@@ -51,6 +51,50 @@
             return { x0: x0, x1: x1, y0: y0, y1: y1 };
         },
 
+        // A diorama frame from the interior manager (js/interior_manager.js): the building's
+        // span and its vertical extent in scene px. Returns the layer-space box to fit.
+        _frameBox(m, layer) {
+            const f = m && m.frame;
+            const sc = m && m.scene;
+            if (!f || !sc || sc.destroyed) return null;
+            const s = sc.scale ? sc.scale.x : 1;
+            const X = (v) => sc.x + v * s;
+            const Y = (v) => sc.y + v * s;
+            // A full-width scene keeps the old horizontal fit; only the vertical comes from the frame.
+            let bx0, bx1;
+            if (f.wide) {
+                const c = this._content(m, layer);
+                bx0 = c.x0;
+                bx1 = c.x1;
+            } else {
+                bx0 = X(f.x0);
+                bx1 = X(f.x1);
+            }
+            // Some sky above the roof, so the cutaway stands in the street instead of being
+            // cut off at the toolbar.
+            const top = Y(f.top - 70);
+            const bottom = Y(f.bottom);
+            let fy0 = Y(f.top - 30);
+            let fy1 = f.ground !== null ? Y(f.ground + 86 + 100) : bottom;
+            if (f.focus) {
+                fy0 = Y(f.focus.y0);
+                fy1 = Y(f.focus.y1);
+            }
+            return {
+                x0: f.wide ? bx0 : bx0 - 40,
+                x1: f.wide ? bx1 : bx1 + 40,
+                bx0: bx0,
+                bx1: bx1,
+                y0: top,
+                y1: Math.max(bottom, top + 10),
+                fy0: fy0,
+                fy1: fy1,
+                ground: f.ground !== null ? Y(f.ground) : null,
+                framed: true,
+                wide: !!f.wide,
+            };
+        },
+
         begin(m, layer) {
             this.end();
             this._lockY = false;
@@ -60,13 +104,19 @@
             this.mod = m;
             const W = G.vpW;
             const H = G.vpH;
-            const b = (this.b = this._content(m, layer));
+            const fb = this._frameBox(m, layer);
+            const b = (this.b = fb || this._content(m, layer));
             const cw = Math.max(200, b.x1 - b.x0);
             // Pixel-exact: art px (PL.ART screen px at zoom 1) × z must be whole.
             const step = 1 / PL.ART;
-            const fit = (W - 24) / cw;
-            let z = Math.floor(fit / step) * step;
             const minZ = W < 700 ? 1 : 1.5;
+            let z;
+            if (fb && !fb.wide) {
+                // The building takes about three quarters of the screen width.
+                z = Math.floor((W * 0.74) / (fb.bx1 - fb.bx0) / step) * step;
+            } else {
+                z = Math.floor((W - 24) / cw / step) * step;
+            }
             z = PL.clamp(z, minZ, W < 700 ? 2 : 3);
             // A phone held upright fits most interiors at 1, but the module rests them
             // on the street with the sky above. Keep the framing and panning at 1 there.
@@ -80,6 +130,20 @@
             const anchorY = H - 56;
             this.tx = this.x = Math.round(W / 2 - anchorX * z);
             this.ty = this.y = Math.round(anchorY - anchorY * z + 40);
+            if (fb) {
+                // Open on the building: roof to basement if that fits, else the street at the
+                // lower third with the floors stacked above it.
+                const top = 64;
+                const bot = H - 24;
+                if ((fb.fy1 - fb.fy0) * z <= bot - top) {
+                    this.ty = this.y = Math.round((top + bot) / 2 - ((fb.fy0 + fb.fy1) / 2) * z);
+                } else if (fb.ground !== null && !(m.frame && m.frame.focus)) {
+                    this.ty = this.y = Math.round(H * 0.72 - fb.ground * z);
+                } else {
+                    this.ty = this.y = Math.round(top + 10 - fb.fy0 * z);
+                }
+                this._tyOpen = this.ty;
+            } else this._tyOpen = null;
             // Forests have no floors above the ground. The building anchor assumes
             // a street at the bottom of a tall stack and the clamp then hauls the
             // tree line up to the toolbar, leaving a black pit under the grass.
@@ -149,6 +213,15 @@
             const ch = (b.y1 - b.y0) * z;
             if (cw <= W) this.tx = Math.round((W - cw) / 2 - b.x0 * z);
             else this.tx = PL.clamp(this.tx, W - 12 - b.x1 * z, 12 - b.x0 * z);
+            if (b.framed) {
+                // A framed cutaway scrolls from a little sky above its roof down to the end
+                // of its strata. When all of that fits on screen it stays where it opened.
+                const lo = bot - b.y1 * z;
+                const hi = top - b.y0 * z;
+                if (lo <= hi) this.ty = PL.clamp(this.ty, lo, hi);
+                else this.ty = PL.clamp(typeof this._tyOpen === 'number' ? this._tyOpen : this.ty, hi, lo);
+                return;
+            }
             // Forests: vertical pan stays locked. The soil is drawn to the bottom
             // of the screen, so there is nothing under the ground to scroll to.
             if (this._lockY) {
