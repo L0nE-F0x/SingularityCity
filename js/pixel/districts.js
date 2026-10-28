@@ -412,20 +412,27 @@
         // Railings.
         K.fence(B, cx - 9, y, 5, iron);
         K.fence(B, cx + 5, y, 5, iron);
-        // Sign: the station's own name on the green board.
+        // Sign: the station's own name on the green board, held above the globe lamps so
+        // the lamps and their glow never land on the letters.
         const sign = PL.fit(b.name.replace(/ Station$/i, ''), w + 14, 3);
         const sw = PL.textW(sign, 3) + 6;
-        B.rect(cx - Math.round(sw / 2), y - 22, sw, 7, 0x1e4a3a);
-        B.rect(cx - Math.round(sw / 2), y - 22, sw, 1, light(0x1e4a3a, 0.3));
-        B.text(sign, cx - Math.round(sw / 2) + 3, y - 21, 0xf2d27a, 3);
-        B.etext(sign, cx - Math.round(sw / 2) + 3, y - 21, 0xffe8a0, 3);
-        B.light(cx, y - 19, 0xffe08a, 10, 'neon');
-        // Globe lamps on the posts.
+        const sy = y - 25;
+        B.rect(cx - Math.round(sw / 2), sy, sw, 7, 0x1e4a3a);
+        B.rect(cx - Math.round(sw / 2), sy, sw, 1, light(0x1e4a3a, 0.3));
+        B.rect(cx - Math.round(sw / 2), sy + 6, sw, 1, dark(0x1e4a3a, 0.3));
+        B.text(sign, cx - Math.round(sw / 2) + 3, sy + 1, 0xf2d27a, 3);
+        B.etext(sign, cx - Math.round(sw / 2) + 3, sy + 1, 0xffe8a0, 3);
+        B.light(cx, sy + 3, 0xffe08a, 10, 'neon');
+        // Hangers from the arch to the board.
+        B.rect(cx - Math.round(sw / 2) + 2, sy + 7, 1, 2, iron);
+        B.rect(cx + Math.round(sw / 2) - 3, sy + 7, 1, 2, iron);
+        (B.signRects = B.signRects || []).push({ x: cx - Math.round(sw / 2), y: sy, w: sw, h: 9 });
+        // Globe lamps on the posts, under the board.
         [cx - 9, cx + 9].forEach((lx) => {
-            B.rect(lx, y - 18, 1, 5, iron);
-            B.rect(lx - 1, y - 20, 3, 2, 0xd8f0c0);
-            B.erect(lx - 1, y - 20, 3, 2, 0xc8ffb0);
-            B.light(lx, y - 19, 0x9aff8a, 8, 'lamp');
+            B.rect(lx, y - 16, 1, 3, iron);
+            B.rect(lx - 1, y - 17, 3, 2, 0xd8f0c0);
+            B.erect(lx - 1, y - 17, 3, 2, 0xc8ffb0);
+            B.light(lx, y - 16, 0x9aff8a, 8, 'lamp');
         });
         // Line roundel + station name.
         B.ellipse(cx - 17, y - 10, 3, 3, 0xd8402a);

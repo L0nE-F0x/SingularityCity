@@ -219,7 +219,9 @@
         overcast: [0x4a5568, 0x64748b, 0x94a3b8],
         fog: [0x8a9099, 0xa8b1bb, 0xc0c8d0],
         partly_cloudy: [0x355088, 0x6a9abf, 0x93b9d8],
-        snow: [0x1a1a2e, 0x2d3748, 0x4a5568],
+        // Snow by day is a pale, bright overcast (the classic's navy snow sky stays for the
+        // night hours, where the night palette plus the overcast grey already gives it).
+        snow: [0x6e7a90, 0x9aa6b8, 0xc8d0dc],
     };
     // How much each state greys and dims the rest of the palette.
     const WX_GREY = {
@@ -235,7 +237,7 @@
     function weatherSky(k, w, dp) {
         const stops = WX_SKY[w];
         if (!stops) return k;
-        const day = w === 'snow' ? 1 : Math.min(PL.smooth(0.27, 0.3, dp), 1 - PL.smooth(0.72, 0.75, dp));
+        const day = Math.min(PL.smooth(0.27, 0.3, dp), 1 - PL.smooth(0.72, 0.75, dp));
         if (day <= 0) return k;
         const n = k.sky.length;
         const sky = k.sky.map((c, i) => {

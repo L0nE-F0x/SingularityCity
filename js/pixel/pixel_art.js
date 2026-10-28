@@ -327,8 +327,55 @@ const PixelArt = {
                 else if (n < 0.03) c = PL.light(c, 0.05);
                 out.set(x, y, c, a);
             }
+        this._ditherSeams(px, out, W, paveTop, roadEnd);
         rt.destroy(true);
         return PL.tex(out);
+    },
+
+    // Where one district's pavement or road colour meets the next one's (a flat fill on each
+    // side for at least 30 art px), blend across 24 px with an ordered dither instead of a
+    // hard vertical edge. Short changes (crosswalks, markings, kerbs) are left alone.
+    _ditherSeams(px, out, W, y0, y1) {
+        const RUN = 30;
+        const HALF = 12;
+        const at = (x, y) => {
+            const o = (y * W + x) * 4;
+            return px[o + 3] === 255 ? (px[o] << 16) | (px[o + 1] << 8) | px[o + 2] : -1;
+        };
+        const flat = (x0, dir, y, c) => {
+            for (let k = 0; k < RUN; k++) {
+                const x = x0 + dir * k;
+                if (x < 0 || x >= W || at(x, y) !== c) return false;
+            }
+            return true;
+        };
+        const ref = Math.min(y1 - 1, y0 + 2);
+        if (ref < 0 || ref >= out.h) return;
+        for (let bx = RUN; bx < W - RUN; bx++) {
+            const cl = at(bx - 1, ref);
+            const cr = at(bx, ref);
+            if (cl < 0 || cr < 0 || cl === cr) continue;
+            const d = Math.max(
+                Math.abs(PL.r(cl) - PL.r(cr)),
+                Math.abs(PL.g(cl) - PL.g(cr)),
+                Math.abs(PL.b(cl) - PL.b(cr))
+            );
+            if (d < 5) continue;
+            if (!flat(bx - 1, -1, ref, cl) || !flat(bx, 1, ref, cr)) continue;
+            for (let y = y0; y < y1 && y < out.h; y++) {
+                const l = at(bx - 1, y);
+                const r = at(bx, y);
+                if (l < 0 || r < 0 || l === r) continue;
+                for (let dx = -HALF; dx < HALF; dx++) {
+                    const x = bx + dx;
+                    const t = (dx + HALF + 0.5) / (HALF * 2);
+                    const takeRight = PL.bayer(x, y) < t;
+                    if (dx < 0 && takeRight) out.u[y * W + x] = out.u[y * W + x + HALF * 2];
+                    else if (dx >= 0 && !takeRight) out.u[y * W + x] = out.u[y * W + x - HALF * 2];
+                }
+            }
+            bx += RUN - 1;
+        }
     },
 
     _pixelizeFlag(b) {
@@ -633,6 +680,7 @@ const PixelArt = {
         if (PL.Sky) PL.Sky.update(this._K, performance.now() / 1000);
         if (PL.Backdrop) PL.Backdrop.update(this._K, performance.now() / 1000);
         if (PL.Under) PL.Under.pulses(performance.now() / 1000);
+        if (PL.Seasonal) PL.Seasonal.update(this._K, performance.now() / 1000);
         // The classic ground palette is already dusky, so it takes a gentler ambient tint.
         if (this._ground && !this._ground.destroyed) {
             const tint = PL.mix(this._K.amb, 0xffffff, 0.45);

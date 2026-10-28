@@ -108,6 +108,9 @@ const BirdFlocks = {
     },
 
     _createBirdSprite() {
+        // Pixel skin: ready-made flap frames instead of vector wings redrawn every frame.
+        if (typeof PixelArt !== 'undefined' && PixelArt.enabled && typeof PL !== 'undefined' && PL.Fauna)
+            return PL.Fauna.sprite('birdMid');
         const g = new PIXI.Graphics();
         // Bird body — visible dark brown
         g.beginFill(0x4a3828, 0.95);
@@ -132,6 +135,10 @@ const BirdFlocks = {
     },
 
     _drawWings(sprite, phase, isPerched) {
+        if (sprite._px) {
+            sprite._px.texture = isPerched ? PL.Fauna.tex('birdPerch') : PL.Fauna.wing('bird', phase);
+            return;
+        }
         const wingL = sprite._wingL;
         const wingR = sprite._wingR;
         wingL.clear();

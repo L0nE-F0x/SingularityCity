@@ -55,8 +55,15 @@ const SeasonalEnv = {
         this._fairyLights = [];
         this._diyas = [];
         this._floatingLanterns = [];
+        // Pixel skin: some props are drawn as pixel sprites (js/pixel/seasonal.js) instead.
+        const pxSeason =
+            typeof PixelArt !== 'undefined' && PixelArt.enabled && typeof PL !== 'undefined' && PL.Seasonal
+                ? PL.Seasonal
+                : null;
+        if (pxSeason) pxSeason.clear();
         if (evts.length === 0) return;
         if (!window.BLDS) return;
+        const pxProps = [];
 
         const gy = G.groundY;
         const isWinter = evts.some((e) => e.id === 'winter_holiday');
@@ -114,7 +121,10 @@ const SeasonalEnv = {
             }
 
             /* ── HALLOWEEN: Jack-o-lanterns beside doors ── */
-            if (isHalloween) {
+            if (isHalloween && pxSeason) {
+                const px = bx + bw * 0.15 + Math.random() * bw * 0.2;
+                pxProps.push({ kind: 'pumpkin', x: px, y: gy, seed: PL.seedOf(b.id) });
+            } else if (isHalloween) {
                 const px = bx + bw * 0.15 + Math.random() * bw * 0.2;
                 g.beginFill(0xff8c00);
                 g.drawEllipse(px, gy - 5, 5, 4);
@@ -487,6 +497,8 @@ const SeasonalEnv = {
 
         /* ─── DIA DE LOS MUERTOS: Ofrenda altar at open_square ─── */
         if (isDiaMuertos) this._buildOfrenda(g, gy);
+
+        if (pxSeason) pxSeason.build(pxProps, isHalloween);
     },
 
     /* ─── OGOH-OGOH (Nyepi demon statue) in Pine Reserve ─── */

@@ -501,7 +501,8 @@
             if (last && PL.textW(last + ' ' + wd, 3) <= w - 4) lines[lines.length - 1] = last + ' ' + wd;
             else lines.push(wd);
         });
-        const mh = lines.length * 6 + 1;
+        // Two pixel rows between lines: with one, the masthead glow bridged them.
+        const mh = lines.length * 7 + 1;
         const my = Math.min(0, 7 - mh);
         B.rect(0, my, w, mh, INK);
         B.rect(0, my, w, 1, CREAM);
@@ -509,9 +510,11 @@
         lines.slice(0, 3).forEach((ln, i) => {
             const s = PL.fit(ln, w - 2, 3);
             const tx = Math.round((w - PL.textW(s, 3)) / 2);
-            B.text(s, tx, my + 1 + i * 6, 0xf5f0e6, 3);
-            B.etext(s, tx, my + 1 + i * 6, 0xfff8ec, 3);
+            B.text(s, tx, my + 2 + i * 7, 0xf5f0e6, 3);
+            B.etext(s, tx, my + 2 + i * 7, 0xfff8ec, 3);
         });
+        // Keep the roof dresser's masts and tanks off the masthead.
+        (B.signRects = B.signRects || []).push({ x: 0, y: my - 1, w: w, h: mh + 1 });
         // Street clock under the masthead.
         const ccx = Math.round(w / 2);
         const ccy = q(25) + 1;

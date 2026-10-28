@@ -288,6 +288,20 @@ const Entities = {
         G.cars.push(carObj);
     },
 
+    // Is there room for a new speech bubble above a citizen at world x/y? Bubbles closer
+    // than a bubble's width to one already showing would stack into an unreadable pile.
+    bubbleRoom(x, y) {
+        const tick = G.tick;
+        for (const id in G.chatBubbles) {
+            const b = G.chatBubbles[id];
+            if (!b || b.expire <= tick) continue;
+            const r = G.charRefs[id];
+            if (!r || !r.c || !r.c.visible) continue;
+            if (Math.abs(r.c.x - x) < 78 && Math.abs(r.c.y - y) < 26) return false;
+        }
+        return true;
+    },
+
     updateChatBubbles(dp) {
         if (G.tick % 150 !== 0) return;
         const maxBubbles = Math.min(15, Math.floor(G.models.length / 3));
@@ -298,6 +312,7 @@ const Entities = {
 
             const refs = G.charRefs[m.id];
             if (refs && refs._streetState === 'chatting') return;
+            if (refs && refs.c && refs.c.visible && !this.bubbleRoom(refs.c.x, refs.c.y)) return;
 
             const stg = getStage(m.rel, m.ret, m.phase);
             const { act } = getAct(stg, dp, i, m);
@@ -1485,7 +1500,11 @@ const Entities = {
                                     break;
                                 }
                             }
-                            if (partnerObj && Math.random() < 0.05) {
+                            if (
+                                partnerObj &&
+                                Math.random() < 0.05 &&
+                                Entities.bubbleRoom(refs.c.x, refs.c.y)
+                            ) {
                                 const partnerRefs = charRefs[partnerObj.id];
                                 refs._streetState = 'chatting';
                                 partnerRefs._streetState = 'chatting';
@@ -1518,7 +1537,7 @@ const Entities = {
                                             expire: G.tick + 100,
                                         };
                                     }
-                                }, 1500);
+                                }, 1800);
                             }
                         }
 
@@ -1544,9 +1563,18 @@ const Entities = {
                         const distX = currentTargetX - refs.c.x;
 
                         let currentDir = 1;
-                        let bobY = isR ? Math.sin(tick * 0.05 + i) * 8 + 15 : Math.sin(tick * 0.06) * 2;
+                        // Ghosts drift at five heights over the graveyard so 40 of them read as a
+                        // haunting, not one translucent blob.
+                        let bobY = isR
+                            ? Math.sin(tick * 0.05 + i) * 6 + 12 + ((i * 29) % 5) * 9
+                            : Math.sin(tick * 0.06) * 2;
                         let legA = isR ? 0 : Math.sin(tick * 0.12 * weatherSpeedMod * pSpeedMod) * 2 * pScale;
                         let depthOffset = (i * 37) % 24;
+                        // A lingering crowd at Central Park spreads back onto the lawn (higher on
+                        // screen = further away, drawn behind) instead of stacking on the pavement.
+                        if (tBld.id === 'city_park' && Math.abs(refs.c.x - buildingTargetX) < 70) {
+                            depthOffset = ((i * 37) % 40) - 16;
+                        }
                         if (refs._metroState !== 'none' && refs._metroState !== 'riding') {
                             depthOffset = (i * 37) % 6;
                         }

@@ -304,6 +304,117 @@
         return img;
     }
 
+    // ── Sky craft ───────────────────────────────────────────────────────────
+    // Drawn facing right in their real colours (the runtime tints them by light and haze
+    // and mirrors them for the other direction). navs: 1-px lights, local art px.
+    const CRAFT_KINDS = ['jet', 'taxi', 'drone', 'cargo', 'patrol'];
+    function quad(img, bodyCol) {
+        const BLUR = 0xb8c0c8;
+        for (let i = 0; i < 3; i++) {
+            img.set(i, 0, BLUR, 150);
+            img.set(6 + i, 0, BLUR, 150);
+        }
+        img.rect(1, 1, 7, 1, 0x7a828c);
+        img.set(1, 1, 0x5a626c);
+        img.set(7, 1, 0x5a626c);
+        img.rect(3, 2, 3, 1, bodyCol);
+        img.set(3, 2, PL.light(bodyCol, 0.3));
+        img.set(4, 3, 0x3a4048);
+    }
+    function craftArt(kind) {
+        if (kind === 'jet') {
+            const img = new Img(13, 4);
+            const lit = new Img(13, 4);
+            img.rect(0, 0, 2, 1, 0xd8dce2); // tail fin
+            img.rect(0, 1, 12, 1, 0xeef0f3); // fuselage, lit top
+            img.rect(0, 2, 11, 1, 0xc4c9d0); // belly
+            img.set(12, 1, 0x9aa8b6); // nose
+            img.set(11, 2, 0xb0b8c2);
+            img.rect(4, 3, 4, 1, 0x9aa2ac); // wing
+            img.set(5, 3, 0x7a828c); // engine
+            for (let x = 3; x <= 9; x += 2) lit.set(x, 1, 0xffe2a0);
+            return {
+                img: img,
+                lit: lit,
+                navs: [
+                    { x: 0, y: 0, c: 0xffffff, blink: 'strobe' },
+                    { x: 7, y: 3, c: 0xff4050, blink: 'slow' },
+                ],
+            };
+        }
+        if (kind === 'taxi') {
+            const img = new Img(15, 6);
+            const lit = new Img(15, 6);
+            const BLUR = 0xb8c0c8;
+            for (let i = 0; i < 5; i++) {
+                img.set(i, 0, BLUR, 140);
+                img.set(10 + i, 0, BLUR, 140);
+            }
+            img.set(2, 1, 0x6a727c);
+            img.set(12, 1, 0x6a727c);
+            img.rect(1, 2, 13, 1, 0x8a929c); // wing bar
+            img.rect(4, 3, 8, 1, 0xf0f2f5); // cabin
+            img.rect(6, 3, 5, 1, 0x34404c); // window strip
+            img.rect(4, 4, 8, 1, 0xd4d8de);
+            img.rect(5, 4, 6, 1, 0x4fd8f0); // livery stripe
+            img.set(4, 3, 0xdfe3e8);
+            img.rect(12, 3, 2, 1, 0xd4d8de); // tail boom
+            img.set(13, 2, 0xd4d8de); // fin
+            img.set(5, 5, 0x5a626c);
+            img.set(10, 5, 0x5a626c);
+            img.rect(5, 5, 6, 1, 0x6a727c); // skids
+            for (let x = 6; x <= 10; x++) lit.set(x, 3, x % 2 ? 0xffe2a0 : 0xffd080);
+            return {
+                img: img,
+                lit: lit,
+                navs: [
+                    { x: 3, y: 4, c: 0xffffff, blink: 'strobe' },
+                    { x: 13, y: 2, c: 0xff4050, blink: 'slow' },
+                    { x: 1, y: 2, c: 0x60ff90 },
+                ],
+            };
+        }
+        if (kind === 'cargo') {
+            const img = new Img(9, 7);
+            quad(img, 0xe8b04a);
+            img.set(4, 4, 0x5a626c); // tether
+            img.rect(3, 5, 3, 2, 0xc8904a); // parcel
+            img.rect(3, 5, 3, 1, 0xe0b070);
+            img.set(4, 6, 0xe8d8a8); // tape
+            return { img: img, lit: null, navs: [{ x: 4, y: 3, c: 0xffb84a, blink: 'slow' }] };
+        }
+        if (kind === 'patrol') {
+            const img = new Img(9, 4);
+            quad(img, 0x3a4a7a);
+            return {
+                img: img,
+                lit: null,
+                navs: [
+                    { x: 3, y: 2, c: 0x3a7aff, blink: 'alt', phase: 0 },
+                    { x: 5, y: 2, c: 0xff3a4a, blink: 'alt', phase: 0.5 },
+                ],
+            };
+        }
+        const img = new Img(9, 4);
+        quad(img, 0xe0e4ea);
+        return { img: img, lit: null, navs: [{ x: 4, y: 3, c: 0xff4050, blink: 'slow' }] };
+    }
+    // A contrail: a 1-px core that thins out with age, with a dithered spread behind.
+    function contrailImg(len) {
+        const img = new Img(len, 3);
+        for (let i = 0; i < len; i++) {
+            const age = 1 - i / (len - 1); // 0 at the jet (right end), 1 at the far end
+            const core = Math.pow(1 - age, 0.8) * 0.95;
+            if (Math.floor(core * 4 + bayer(i, 1)) / 4 > 0) img.set(i, 1, 0xffffff, core * 255);
+            const spread = age > 0.25 ? Math.min(1, (age - 0.25) * 1.6) * (1 - age) * 0.9 : 0;
+            [0, 2].forEach((y) => {
+                const q = Math.floor(spread * 4 + bayer(i, y)) / 4;
+                if (q > 0) img.set(i, y, 0xffffff, q * 160);
+            });
+        }
+        return img;
+    }
+
     // ── Runtime ─────────────────────────────────────────────────────────────
     // Layers back to front. p = parallax factor, y = how far below the horizon the strip's
     // bottom sits (art px), haze = haze mix of the tint, emitK = emit strength.
@@ -401,30 +512,61 @@
                 'city'
             );
             L.hazeNear = this._hazeBand(40, 2.2);
-            // Sky traffic: little craft on lanes at three depths.
-            const craftTex = [0, 1, 2].map((k) => {
-                const img = new Img(5 + k, 2);
-                img.rect(0, 0, 5 + k, 1, 0x1a1a24);
-                img.rect(1, 1, 3 + k, 1, 0x2a2a34);
-                return PL.tex(img);
-            });
+            // Sky traffic: readable little craft on lanes at three depths — airliners high up
+            // with contrails, air taxis with lit cabins, quad drones, parcel drones and patrol
+            // drones. Bodies are painted in their real colours and pushed into the haze by
+            // depth, so by day they read as aircraft, not as dead pixels; nav lights at night.
             const lightTex = PL.tex(new Img(1, 1).rect(0, 0, 1, 1, 0xffffff));
-            for (let i = 0; i < 16; i++) {
-                const depth = i % 3;
-                const c = new PIXI.Container();
-                c.body = new PIXI.Sprite(craftTex[depth]);
-                c.head = new PIXI.Sprite(lightTex);
-                c.tail = new PIXI.Sprite(lightTex);
-                c.addChild(c.body, c.head, c.tail);
-                c.depth = depth;
-                c.dir = hash(7, i, 1) > 0.5 ? 1 : -1;
-                c.speed = (6 + hash(7, i, 2) * 10) * (depth + 1) * 0.6;
-                c.lane = 30 + Math.floor(hash(7, i, 3) * 90) + depth * 12;
-                c.x0 = hash(7, i, 4) * TW;
-                c.p = [0.1, 0.2, 0.34][depth];
-                this.scene.addChild(c);
-                this.craft.push(c);
-            }
+            const kinds = CRAFT_KINDS.map((k) => {
+                const art = craftArt(k);
+                return { k: k, tex: PL.tex(art.img), lit: art.lit ? PL.tex(art.lit) : null, art: art };
+            });
+            const trailTex = PL.tex(contrailImg(150));
+            // Lane plan: [kind, count, depth]. depth 0 = far/high, 2 = near/low.
+            const plan = [
+                ['jet', 2, 0],
+                ['taxi', 3, 1],
+                ['drone', 2, 2],
+                ['cargo', 2, 2],
+                ['patrol', 1, 1],
+                ['taxi', 1, 2],
+            ];
+            let n = 0;
+            plan.forEach(([kind, count, depth]) => {
+                const K = kinds.find((q) => q.k === kind);
+                for (let j = 0; j < count; j++, n++) {
+                    const c = new PIXI.Container();
+                    c.kind = kind;
+                    c.depth = depth;
+                    if (kind === 'jet') {
+                        c.trail = new PIXI.Sprite(trailTex);
+                        c.addChild(c.trail);
+                    }
+                    c.body = new PIXI.Sprite(K.tex);
+                    c.addChild(c.body);
+                    c.cabin = K.lit ? new PIXI.Sprite(K.lit) : null;
+                    if (c.cabin) c.addChild(c.cabin);
+                    c.navs = K.art.navs.map((nv) => {
+                        const s = new PIXI.Sprite(lightTex);
+                        s.nav = nv;
+                        c.addChild(s);
+                        return s;
+                    });
+                    c.dir = hash(7, n, 1) > 0.5 ? 1 : -1;
+                    const base = { jet: 3.5, taxi: 9, drone: 13, cargo: 10, patrol: 15 }[kind];
+                    c.speed = base * (0.75 + hash(7, n, 2) * 0.5);
+                    c.lane =
+                        kind === 'jet'
+                            ? 150 + Math.floor(hash(7, n, 3) * 70)
+                            : 34 + Math.floor(hash(7, n, 3) * 70) + (2 - depth) * 16;
+                    c.x0 = hash(7, n, 4) * TW;
+                    c.p = [0.06, 0.2, 0.34][depth];
+                    c.w = K.art.img.w;
+                    c.bobK = kind === 'jet' ? 0 : 0.6 + hash(7, n, 5);
+                    this.scene.addChild(c);
+                    this.craft.push(c);
+                }
+            });
             this.rt = PIXI.RenderTexture.create({ width: 8, height: 8, scaleMode: PIXI.SCALE_MODES.NEAREST });
             this.sprite = new PIXI.Sprite(this.rt);
             this.sprite.name = 'pixelBackdrop';
@@ -526,22 +668,47 @@
                 s.alpha = PL.clamp(K.night * 1.3 - 0.4, 0, 1) * 0.16 * city;
                 s.visible = s.alpha > 0.005 && s.x > -200 && s.x < w + 200;
             });
-            // Sky craft drift along their lanes; lights on at night, specks by day.
+            // Sky craft drift along their lanes. By day the body is lit by the ambient light and
+            // pushed into the haze with distance; after dark it falls to a silhouette and the
+            // nav lights, strobes and cabin windows take over.
+            const dayK = 1 - PL.clamp(K.night * 1.3, 0, 1);
+            const navA = PL.clamp(K.night * 1.4, 0.18, 1);
             this.craft.forEach((c) => {
-                const span = w + 40;
+                const span = w + 200;
                 let x = c.x0 + c.dir * t * c.speed - camX * c.p;
-                x = (((x % span) + span) % span) - 20;
+                x = (((x % span) + span) % span) - 100;
                 c.x = Math.round(x);
-                c.y = Math.round(horizon - c.lane - 40);
-                c.body.tint = mix(K.far2, 0x000000, 0.3);
-                c.head.x = c.dir > 0 ? c.body.width : -1;
-                c.tail.x = c.dir > 0 ? -1 : c.body.width;
-                c.head.tint = 0xfff4d8;
-                c.tail.tint = 0xff4050;
-                const la = PL.clamp(K.night * 1.4, 0.15, 1);
-                c.head.alpha = la;
-                c.tail.alpha = la * (Math.sin(t * 6 + c.x0) > 0 ? 1 : 0.4);
-                c.alpha = city * (0.55 + c.depth * 0.2);
+                const bob = c.bobK ? Math.round(Math.sin(t * c.bobK + c.x0) * 1.2) : 0;
+                c.y = Math.round(horizon - c.lane - 40 + bob);
+                c.scale.x = c.dir;
+                // Mirroring flips around x = 0; keep the craft's footprint where it was.
+                c.pivot.x = c.dir > 0 ? 0 : c.w;
+                const haze = [0.62, 0.38, 0.2][c.depth];
+                const lit = mix(K.amb, 0xffffff, 0.25);
+                const dayCol = mix(lit, K.haze, haze);
+                const nightCol = mix(K.far2, K.haze, haze * 0.5);
+                c.body.tint = mix(nightCol, dayCol, dayK);
+                if (c.cabin) c.cabin.alpha = PL.clamp(K.night * 1.5 - 0.1, 0, 1);
+                c.navs.forEach((s) => {
+                    const nv = s.nav;
+                    s.x = nv.x;
+                    s.y = nv.y;
+                    s.tint = nv.c;
+                    let on = 1;
+                    if (nv.blink === 'strobe') on = PL.frac(t * 0.9 + c.x0 * 0.013) < 0.08 ? 1 : 0;
+                    else if (nv.blink === 'slow') on = PL.frac(t * 0.6 + c.x0 * 0.01) < 0.5 ? 1 : 0.25;
+                    else if (nv.blink === 'alt') on = PL.frac(t * 2 + nv.phase) < 0.5 ? 1 : 0;
+                    s.alpha = navA * on;
+                });
+                if (c.trail) {
+                    // A contrail by day: long, thin, spreading as it ages.
+                    c.trail.x = -c.trail.width + 1;
+                    c.trail.y = 1;
+                    c.trail.tint = mix(0xffffff, K.haze, 0.35);
+                    c.trail.alpha = 0.55 * dayK * (1 - K.smog * 0.25);
+                    c.trail.visible = c.trail.alpha > 0.02;
+                }
+                c.alpha = city * (0.7 + c.depth * 0.15);
             });
 
             G.app.renderer.render(this.scene, { renderTexture: this.rt, clear: true });
