@@ -6,7 +6,15 @@
 // Required env vars (set in Netlify dashboard → Site settings → Environment):
 //   SUPABASE_URL          — Your Supabase project URL
 //   SUPABASE_SERVICE_KEY  — Service role key (NOT anon key — needs write access)
-//   FINNHUB_KEY           — Finnhub API key (free tier: 60 calls/min)
+//   FINNHUB_KEY           — Finnhub API key (free tier: 60 calls/min) — NVDA only
+//
+// Copper and crude oil come from FRED (Federal Reserve Bank of St. Louis),
+// keyless CSV. They used to come from Finnhub /quote?symbol=HG and symbol=CL,
+// but on that endpoint those are NYSE equities (Hamilton Insurance, Colgate),
+// not COMEX futures — copper showed a share price × 2204.62 for months.
+//
+// Dry run (real FRED + Finnhub if keyed, NO DB write):
+//   node netlify/functions/update-commodities.mjs --dryrun
 // ════════════════════════════════════════════════════════════════
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -68,27 +76,71 @@ async function existingCommodityIds() {
 
 // ── Price Fetchers ──
 
-// Copper via Finnhub (COMEX futures HG)
-async function fetchCopper() {
-    if (!FINNHUB_KEY) return null;
-    const data = await fetchJSON(`https://finnhub.io/api/v1/quote?symbol=HG&token=${FINNHUB_KEY}`);
-    if (data && data.c) {
-        // Finnhub returns copper in USD/lb, convert to USD/tonne (1 tonne = 2204.62 lbs)
-        const pricePerTonne = Math.round(data.c * 2204.62);
-        const changePct = data.dp || 0;
-        return { price: pricePerTonne, change_pct: Math.round(changePct * 10) / 10 };
+// Last two numeric observations of a FRED series, oldest first: [{ date, value }, { date, value }].
+// fredgraph.csv needs no key; `cosd` trims the download to recent rows. Days with no
+// observation come through as "." or empty and are skipped.
+async function fetchFredLatest(seriesId, timeoutMs = 10000) {
+    const since = new Date(Date.now() - 200 * 86400000).toISOString().slice(0, 10);
+    const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}&cosd=${since}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, {
+            signal: controller.signal,
+            headers: { 'user-agent': 'SingularityCity-PortBot/1.0' }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = [];
+        for (const line of (await res.text()).trim().split('\n').slice(1)) {
+            const [date, raw] = line.trim().split(',');
+            const value = parseFloat(raw);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(value)) rows.push({ date, value });
+        }
+        if (rows.length < 2) throw new Error(`only ${rows.length} observation(s)`);
+        return rows.slice(-2);
+    } catch (e) {
+        console.warn(`FRED ${seriesId} failed — ${e.message}`);
+        return null;
+    } finally {
+        clearTimeout(timer);
     }
-    return null;
 }
 
-// Crude oil via Finnhub (proxy for energy costs)
-async function fetchCrudeOil() {
-    if (!FINNHUB_KEY) return null;
-    const data = await fetchJSON(`https://finnhub.io/api/v1/quote?symbol=CL&token=${FINNHUB_KEY}`);
-    if (data && data.c) {
-        return { price: Math.round(data.c * 10) / 10, change_pct: data.dp || 0 };
+// A price is published only if it is recent and inside a plausible band, so a wrong
+// series, symbol or unit fails loudly instead of reaching the Port.
+function plausible(label, latest, { min, max, maxAgeDays }) {
+    const ageDays = (Date.now() - Date.parse(`${latest.date}T00:00:00Z`)) / 86400000;
+    if (!(latest.value >= min && latest.value <= max)) {
+        console.error(`✖ ${label} ${latest.value} on ${latest.date} is outside ${min}–${max} — not written`);
+        return false;
     }
-    return null;
+    if (ageDays > maxAgeDays) {
+        console.error(`✖ ${label} newest observation ${latest.date} is ${Math.round(ageDays)} days old (max ${maxAgeDays}) — not written`);
+        return false;
+    }
+    return true;
+}
+
+const pctChange = (prev, latest) => Math.round(((latest.value - prev.value) / prev.value) * 1000) / 10;
+
+// Copper — FRED PCOPPUSDM: IMF global copper price, USD per metric tonne, monthly average.
+// FRED posts each month a few weeks after it ends, so the newest value can be ~2 months old.
+async function fetchCopper() {
+    const obs = await fetchFredLatest('PCOPPUSDM');
+    if (!obs) return null;
+    const [prev, latest] = obs;
+    if (!plausible('copper', latest, { min: 3000, max: 40000, maxAgeDays: 120 })) return null;
+    const month = new Date(`${latest.date}T00:00:00Z`).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+    return { price: Math.round(latest.value), change_pct: pctChange(prev, latest), month };
+}
+
+// Crude oil — FRED DCOILWTICO: WTI spot, USD per barrel, daily (proxy for energy costs).
+async function fetchCrudeOil() {
+    const obs = await fetchFredLatest('DCOILWTICO');
+    if (!obs) return null;
+    const [prev, latest] = obs;
+    if (!plausible('WTI', latest, { min: 10, max: 300, maxAgeDays: 21 })) return null;
+    return { price: Math.round(latest.value * 10) / 10, change_pct: pctChange(prev, latest), date: latest.date };
 }
 
 // NVIDIA stock as GPU demand proxy
@@ -125,14 +177,16 @@ export default async (_req) => {
         if (await upsertCommodity(id, data)) results[id] = data.price; else failed++;
     };
 
-    // 1. Copper (LME Grade A)
+    // 1. Copper (Grade A) — monthly average; change_pct is month over month
     const copper = await fetchCopper();
     if (copper) {
         await track('copper', {
             name: 'Copper (Grade A)', price: copper.price, unit: 'tonne',
             change_pct: copper.change_pct, supply_status: deriveSupplyStatus(copper.change_pct),
-            category: 'materials', source: 'Finnhub (COMEX HG futures)'
+            category: 'materials', source: `FRED PCOPPUSDM (IMF global copper, ${copper.month} avg)`
         });
+    } else {
+        failed++; // keyless source — a miss means FRED is down or the value failed its sanity check
     }
 
     // 2. GPU prices — derive from NVIDIA stock movement
@@ -183,7 +237,7 @@ export default async (_req) => {
             name: 'Electricity (Industrial)', price: elecPrice, unit: 'MWh',
             change_pct: Math.round(oil.change_pct * 0.6 * 10) / 10,
             supply_status: deriveSupplyStatus(oil.change_pct * 0.6),
-            category: 'power', source: `Derived from crude oil ($${oil.price}/bbl)`
+            category: 'power', source: `Derived from WTI crude ($${oil.price}/bbl on ${oil.date}, FRED)`
         });
 
         // Power transformers track with energy infrastructure demand
@@ -195,6 +249,8 @@ export default async (_req) => {
             supply_status: 'tight',
             category: 'power', source: 'Derived from energy market'
         });
+    } else {
+        failed++;
     }
 
     // 4. Static estimates — SEEDED ONCE, never re-stamped. These are hand-authored
@@ -231,6 +287,20 @@ export default async (_req) => {
         headers: { 'Content-Type': 'application/json' }
     });
 };
+
+// ── Live dry run (real feeds, NO DB write): node update-commodities.mjs --dryrun ──
+if (process.argv.includes('--dryrun')) {
+    (async () => {
+        const copper = await fetchCopper();
+        const oil = await fetchCrudeOil();
+        console.log('copper', copper ? `${copper.price} USD/t (${copper.month} avg, ${copper.change_pct}% m/m)` : 'NOT WRITTEN');
+        console.log('WTI   ', oil ? `${oil.price} USD/bbl (${oil.date}, ${oil.change_pct}%)` : 'NOT WRITTEN');
+        if (oil) console.log('electricity model', Math.round(68 * (oil.price / 70)), 'USD/MWh');
+        const fakeHG = { date: new Date().toISOString().slice(0, 10), value: 77294 };
+        console.log('sanity band rejects the old HG artefact:', !plausible('copper', fakeHG, { min: 3000, max: 40000, maxAgeDays: 120 }));
+        process.exit(copper && oil ? 0 : 1);
+    })();
+}
 
 // ── Netlify scheduled function config ──
 export const config = {

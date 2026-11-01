@@ -30,7 +30,8 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 const STALE_DAYS = 21;   // delete a bot row if its ban hasn't been seen in the news this long
 const MAX_ROWS = 60;     // sanity cap on rows written per run
-const NEWS_WINDOW = '45d';
+const NEWS_WINDOW_DAYS = 45; // asked of Google News AND enforced on each item's pubDate (see fetchBanNews)
+const NEWS_WINDOW = `${NEWS_WINDOW_DAYS}d`;
 const COOLDOWN_DAYS = 21; // once a ban is lifted, suppress re-creating that model×country this long
                           // (a lifted-ban headline and the old ban headline coexist in the news
                           //  window; without a sticky tombstone the ban row flaps every run —
@@ -229,18 +230,30 @@ function parseRss(xml) {
     for (const b of blocks) {
         const t = b.match(/<title>([\s\S]*?)<\/title>/);
         const l = b.match(/<link>([\s\S]*?)<\/link>/);
+        const d = b.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
         if (!t) continue;
         let title = decodeEntities(t[1]);
         // Google News appends " - Publisher" — strip it for a cleaner reason line.
         title = title.replace(/\s+-\s+[^-]+$/, '').trim();
-        items.push({ title, link: l ? decodeEntities(l[1]) : null });
+        const published = d ? Date.parse(decodeEntities(d[1])) : NaN;
+        items.push({ title, link: l ? decodeEntities(l[1]) : null, published: Number.isFinite(published) ? published : null });
     }
     return items;
+}
+
+// Google News does NOT honour `when:45d` on these searches: on 2026-11-02 about half the items
+// were older than 45 days, some from early 2025. Treating them as current re-jailed lifted bans
+// (news:deepseek:KR came back on 2026-10-26 from a Feb 2025 headline; Korea restored DeepSeek
+// on Apr 28, 2025). So the window is enforced here on each item's pubDate. Undated items are kept,
+// as before, so a feed-format change can't silently empty the bot.
+function isWithinWindow(item, nowMs = Date.now()) {
+    return item.published == null || item.published >= nowMs - NEWS_WINDOW_DAYS * 86400000;
 }
 
 async function fetchBanNews() {
     const out = [];
     const seen = new Set();
+    let stale = 0;
     for (const q of QUERIES) {
         const url = `https://news.google.com/rss/search?q=${encodeURIComponent(q + ' when:' + NEWS_WINDOW)}&hl=en-US&gl=US&ceid=US:en`;
         const xml = await fetchText(url);
@@ -249,9 +262,11 @@ async function fetchBanNews() {
             const k = it.title.toLowerCase();
             if (seen.has(k)) continue;
             seen.add(k);
+            if (!isWithinWindow(it)) { stale++; continue; }
             out.push(it);
         }
     }
+    if (stale) console.log(`  ⏳ skipped ${stale} headline(s) older than ${NEWS_WINDOW_DAYS} days`);
     return out;
 }
 
@@ -636,6 +651,27 @@ if (process.argv.includes('--selftest')) {
         const t3 = !!pk && pk.model === 'grok' && pk.code === 'ID';
         const t4 = parseBanKey('not-a-key') === null;
         for (const [ok, msg] of [[t1, 'builds news:grok:ID with no tombstone'], [t2, 'suppresses news:grok:ID while tombstone active'], [t3, "parseBanKey('news:grok:ID')"], [t4, 'parseBanKey rejects junk']]) {
+            console.log(`${ok ? '✅' : '❌'}  ${msg}`);
+            if (ok) pass++; total++;
+        }
+    }
+
+    // News window on pubDate: Google News ignores `when:45d`, so an old ban headline must not count.
+    {
+        const now = Date.parse('2026-11-02T00:00:00Z');
+        const rss = '<rss><channel>'
+            + '<item><title>South Korea suspends DeepSeek downloads over privacy concerns - Reuters</title><link>https://example.com/a</link><pubDate>Mon, 17 Feb 2025 08:00:00 GMT</pubDate></item>'
+            + '<item><title>Turkey blocks Grok after court order - AP</title><link>https://example.com/b</link><pubDate>Fri, 30 Oct 2026 12:00:00 GMT</pubDate></item>'
+            + '<item><title>Undated wire item - Wire</title><link>https://example.com/c</link></item>'
+            + '</channel></rss>';
+        const [oldKR, freshTR, undated] = parseRss(rss);
+        const cases = [
+            [oldKR.published === Date.parse('Mon, 17 Feb 2025 08:00:00 GMT'), 'parseRss reads pubDate'],
+            [!isWithinWindow(oldKR, now), 'drops a Feb 2025 ban headline'],
+            [isWithinWindow(freshTR, now), 'keeps a 3-day-old ban headline'],
+            [undated.published === null && isWithinWindow(undated, now), 'keeps an undated item'],
+        ];
+        for (const [ok, msg] of cases) {
             console.log(`${ok ? '✅' : '❌'}  ${msg}`);
             if (ok) pass++; total++;
         }

@@ -223,16 +223,32 @@ const API = {
                 dcRes.data.forEach((row) => {
                     const existing = DC_FACILITIES.find((dc) => dc.id === row.id);
                     if (existing) {
-                        // Update from cloud (cloud is source of truth for mutable fields)
-                        if (row.status) existing.status = row.status;
-                        if (row.gpus) existing.gpus = row.gpus;
-                        if (row.power_mw) existing.power_mw = row.power_mw;
-                        if (row.cooling) existing.cooling = row.cooling;
-                        if (row.process) existing.process = row.process;
-                        if (row.products) existing.products = row.products;
-                        if (row.investment) existing.investment = row.investment;
-                        if (row.completion) existing.completion = row.completion;
-                        if (row.description) existing.desc = row.description;
+                        // The code is the source of truth for facilities it defines: the monthly
+                        // refresh edits datacenter_data.js, and when the cloud row won, stale text
+                        // (and a wrong "operational" for Intel Ohio) masked those edits for months.
+                        // The cloud may only fill a field the code leaves blank, and may only move
+                        // construction → operational once the code's own completion year has
+                        // passed (the rule DCManager.checkCompletions applies).
+                        if (
+                            row.status === 'operational' &&
+                            existing.status === 'construction' &&
+                            existing.completion &&
+                            new Date().getFullYear() >= parseInt(existing.completion)
+                        )
+                            existing.status = 'operational';
+                        const fill = [
+                            ['gpus', 'gpus'],
+                            ['power_mw', 'power_mw'],
+                            ['cooling', 'cooling'],
+                            ['process', 'process'],
+                            ['products', 'products'],
+                            ['investment', 'investment'],
+                            ['completion', 'completion'],
+                            ['description', 'desc'],
+                        ];
+                        for (const [col, key] of fill) {
+                            if (row[col] && !existing[key]) existing[key] = row[col];
+                        }
                     } else {
                         // New facility discovered from cloud — add to local array
                         DC_FACILITIES.push({
