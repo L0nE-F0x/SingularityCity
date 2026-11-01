@@ -44,10 +44,10 @@ export const BANS = [
     {
         id: 'deepseek_govt',
         label: 'Government Device Ban',
-        authority: 'AU · CZ · DE · U.S. states',
+        authority: 'AU · CZ · DE · U.S. federal + states',
         scope: { countries: ['AU', 'CZ', 'DE', 'US'] },
         reason: 'Banned from government devices in your jurisdiction over data-security concerns.',
-        source: 'https://cybernews.com/security/us-lawmakers-bill-bans-chinese-ai-models-across-federal-agencies/',
+        source: 'https://www.federalregister.gov/documents/2026/10/20/2026-21447/notice-of-order-regarding-exclusion-and-removal-of-deepseek-products-from-federal-civilian-executive',
         test: (m) => m.lab === 'deepseek' || /deepseek/i.test(m.name || '')
     },
     {
@@ -55,8 +55,8 @@ export const BANS = [
         label: 'Turkey (Court Order)',
         authority: 'Republic of Türkiye',
         scope: { countries: ['TR'] },
-        reason: 'Access blocked nationwide by a Turkish court order.',
-        source: 'https://www.computerweekly.com/news/366619153/US-lawmakers-move-to-ban-DeepSeek-AI-tool',
+        reason: 'A Turkish court blocked access to Grok content (Jul 2025) over responses insulting Erdoğan and Atatürk.',
+        source: 'https://www.cyprus-mail.com/2025/07/09/turkey-blocks-xs-grok-content-for-alleged-insults-to-erdogan-religious-values',
         test: (m) => /\bgrok\b/i.test(m.name || '') || /grok/i.test(m.id || '')
     }
 ];

@@ -15,7 +15,7 @@ const BackboneZone = {
             type: 'backbone',
             desc: "Where Meta's Project Waterworth surfaces — the world's longest subsea cable, 50,000 km across five continents, built to move AI traffic. Armored fiber pairs enter the city in a vault 40 m below sea level.",
             milestone:
-                "Apr 2026: Meta unveiled Project Waterworth — 50,000 km (longer than Earth's circumference), the highest-capacity subsea system ever, driven by AI.",
+                "Feb 2025: Meta unveiled Project Waterworth — 50,000 km (longer than Earth's circumference), the world's longest subsea cable project, on the highest-capacity tech available, built for AI.",
             facts: [
                 'Meta has joined 20+ subsea cable projects; AI is now the primary driver',
                 '3 new oceanic corridors for high-speed AI connectivity',
@@ -45,9 +45,9 @@ const BackboneZone = {
             fl: 3,
             emoji: '📡',
             type: 'backbone',
-            desc: 'Starlink, Kuiper and OneWeb downlink array. 48 steerable dishes tracking 4,000+ LEO satellites — and, since the SpaceX•xAI merger, the ground half of orbital AI data centers. Low-latency space internet becomes terrestrial fiber here.',
+            desc: 'Starlink, Amazon Leo (ex-Kuiper) and OneWeb downlink array. 48 steerable dishes tracking 4,000+ LEO satellites — and, since the SpaceX•xAI merger, the ground half of orbital AI data centers. Low-latency space internet becomes terrestrial fiber here.',
             milestone:
-                'LEO downlink is now dual-purpose: consumer broadband AND backhaul for the first orbital compute nodes overhead.',
+                "Oct 1, 2026: Google's Project Suncatcher put a prototype satellite with four TPUs into orbit, running Gemma — LEO downlinks now carry the first orbital AI compute.",
             facts: [
                 'Tracks 4,000+ low-Earth-orbit satellites across three constellations',
                 'Laser inter-sat links backhaul through Starlink to these dishes',
@@ -257,7 +257,7 @@ const BackboneZone = {
             `🔀 IX Peak: ${this.networkStats.trafficTbps} Tbps — ${this.networkStats.peeringASNs} ASNs peering`
         );
         this.statusTicker.push(
-            `📡 ${this.networkStats.activeSats.toLocaleString()} LEO satellites tracked — Starlink, Kuiper, OneWeb`
+            `📡 ${this.networkStats.activeSats.toLocaleString()} LEO satellites tracked — Starlink, Amazon Leo, OneWeb`
         );
         this.statusTicker.push(
             `⚡ CDN cache hit rate: ${this.networkStats.cacheHitRate}% — ${this.networkStats.avgLatencyMs}ms avg latency`

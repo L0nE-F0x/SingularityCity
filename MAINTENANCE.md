@@ -32,10 +32,11 @@ Most numbers update themselves. The real risk is a **silently dead source** show
 
 ## Part B — Review & merge the automated PR
 
-The scheduled task **`monthly-ai-zone-refresh`** (runs 1st of month, 9am) opens a review-first PR that patches the qualitative `milestone`/`facts` fields across all zones.
+The monthly refresh is the **City Archivist** routine (a VibeForge agent run, early each month). It checks that the Part A feeds are flowing, sweeps the live web for every zone, edits only curated data strings, cache-busts, and opens a review PR titled **"Monthly fact refresh YYYY-MM"** from the branch **`zone-refresh/YYYY-MM`** (`zone-refresh/YYYY-MM-b` if that name is taken). It never merges or pushes `main`. If nothing material changed, it opens no PR and says so in its run summary.
 
-- [ ] **First: confirm the run actually happened.** `git branch -r | grep zone-refresh` should show a branch for the current month. A missing branch means the task never fired (e.g. no API credits on the 1st) — the failure is silent, so nothing will alert you. If it's missing, run the refresh manually.
-- [ ] Open the PR (`gh pr view` or GitHub). Read the **Sources** list — every claim must trace to a real, reputable URL.
+- [ ] **First: confirm the run actually happened.** `gh pr list --search "Monthly fact refresh"` or `git branch -r | grep zone-refresh/` should show this month. No PR and no "nothing material changed" note means the routine did not run — the failure is silent, so start it by hand.
+- [ ] Open the PR (`gh pr view` or GitHub). Read the **Sources** list — every claim must trace to a real, reputable URL with the date it was checked.
+- [ ] Read **Needs a person** first: dead feeds, new organizations that need map coordinates, and facts the routine refused to assert.
 - [ ] Sanity-check each changed fact against your own knowledge. Reject anything unsourced, vague, or that "feels" like a hallucination.
 - [ ] Confirm it only touched data strings (no logic/id/structure changes).
 - [ ] Merge → Netlify deploys. If it opened no PR ("no material changes"), that's fine.
@@ -77,7 +78,7 @@ A single real event ripples across zones — make sure it's reflected everywhere
 - [ ] A lab's new model shouldn't show an old flagship in one zone and a new one in another.
 
 ### C5. Known traps (do NOT reintroduce)
-- [ ] **No frozen version ceilings** for gpt/claude/gemini/grok — never re-add a "do not exceed vX" cap. New flagships must be able to appear. (See `memory/project_model_version_ceilings.md`.)
+- [ ] **No frozen version ceilings** for gpt/claude/gemini/grok — never re-add a "do not exceed vX" cap. New flagships must be able to appear. A newly shipped public flagship goes on the known-real list in BOTH `js/api.js` (`knownReal`) and `netlify/functions/_shared/model-verify.mjs` (`KNOWN_REAL`), under its public name.
   - This includes ceilings **disguised as regexes** in `_knownFakePatterns` / `KNOWN_FAKE_PATTERNS`. A `/gpt[\s-]*[6-9]/` "extra safety" rule blocked the real GPT-6 Astra for its whole launch week (2026-09) — and since "Known fake pattern" is high-confidence, `db-maintenance` re-deleted it from Supabase every 6h. Those lists are for **combinations that don't exist** ("Gemini Ultra 2"), never for version numbers; the auto-raising caps own that job.
 - [ ] **Seed bans need an `until`** in the jail or they never auto-release.
 - [ ] After edits: run `node tools/cachebust.mjs` (bumps `?v=` + `sw.js` cache) or the deploy serves stale assets.
@@ -86,7 +87,7 @@ A single real event ripples across zones — make sure it's reflected everywhere
 
 ## Part D — Quarterly / deeper (every ~3 months)
 
-- [ ] **Benchmark refresh** — are the benchmarks named in `js/university.js` (MMLU, GPQA, SWE-bench, ARC-AGI, HLE) still the ones the field cares about? Add the new saturating benchmark.
+- [ ] **Benchmark refresh** — the exam catalog is `BENCH_CATALOG` in `js/benchmarks.js` (scores come live from ZeroEval/Arena; never type one). Is the field on a new exam that ZeroEval already publishes? Propose the catalog row and the matching `js/university.js` library sentence.
 - [ ] **Graveyard / deprecations** — are retired/deprecated models reflected (model graveyard, tombstones)?
 - [ ] **Dead-link sweep** — check external URLs in panels/sources still resolve.
 - [ ] **Reduce the manual surface** (see backlog below).

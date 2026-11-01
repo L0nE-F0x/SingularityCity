@@ -22,9 +22,9 @@ const EmbassyRow = {
             accent: 0x002868,
             regulator: 'Executive branch · NIST · Commerce (BIS)',
             framework: "America's AI Action Plan (2025) · NIST AI RMF · pro-innovation EO",
-            stance: 'Deregulatory pivot: EO 14110 rescinded (2025), replaced by an AI-dominance agenda. H200 sales to China moved to case-by-case review with a 25% tariff. Federal push to preempt state AI laws.',
+            stance: 'Deregulatory pivot: EO 14110 rescinded (2025) for an AI-dominance agenda; Dec 2025 EO 14365 targets state AI laws. H200 sales to China are licensed case-by-case with a 25% tariff, but Beijing restricted purchases — Nvidia says only a fraction shipped.',
             milestone:
-                "Aug 19, 2026: the Jan 2026 case-by-case H200 policy finally shipped chips — BIS cleared exports and Chinese buyers including ByteDance and Tencent reportedly received ~10,000 H200s each, subject to a 25% tariff and a cap at half of comparable domestic sales volume.",
+                'Oct 20, 2026: DHS ordered federal civilian agencies to stop buying DeepSeek and remove all DeepSeek-based tech — three weeks after EO 14434 told the executive branch to say "Super Intelligence" in place of "AI."',
             labs: ['OpenAI', 'Anthropic', 'Google DeepMind', 'Meta AI', 'xAI / SpaceX', 'Microsoft'],
             desc: 'United States of America. The dominant hub of frontier AI. The 2025 administration tore up the prior executive order for a deregulatory, "win the AI race" agenda — voluntary commitments over a comprehensive AI act, backed by chip export controls.',
         },
@@ -42,7 +42,7 @@ const EmbassyRow = {
             framework: 'Interim Measures for Generative AI · AI content-labeling rules (2025)',
             stance: 'Strict pre-market registration and security assessments; content aligned with core socialist values. Now countering US chip curbs with its own gallium & rare-earth export licenses and a domestic-silicon push.',
             milestone:
-                'Aug 12, 2026: DeepSeek shipped V4-Pro-0813 to general availability — a 1M-token context window, 384K-token max output and agent-focused benchmarks (87.9 on Terminal-Bench 2.1) — while MOFCOM and the NDRC continue consulting Alibaba, ByteDance and Zhipu on a still-unfinalized export-control regime for model weights and training data.',
+                'Oct 16, 2026: MOFCOM and MOST published draft export controls on 40 technologies in AI, biomedicine and solar — including frontier-model weights — with interim pre-export registration; comments close Nov 15. Days later DeepSeek shipped V4.1-Flash-1017.',
             labs: ['DeepSeek', 'Alibaba Qwen', 'Moonshot (Kimi)', 'Baidu Ernie', 'Tencent Hunyuan', 'Zhipu'],
             desc: "People's Republic of China. The world's second AI superpower. Rapid open-weight releases (DeepSeek, Qwen, Kimi) despite US export controls — and an increasingly muscular counter using its grip on critical minerals.",
         },
@@ -60,7 +60,7 @@ const EmbassyRow = {
             framework: 'EU AI Act · GPAI Code of Practice · Digital Omnibus (2026)',
             stance: 'World-first comprehensive AI law. GPAI obligations for >10^25-FLOP models went live Aug 2025; a Digital Omnibus formally adopted Jun 29, 2026 pushed high-risk compliance deadlines to Dec 2027 (standalone) / Aug 2028 (embedded) to ease competitiveness worries.',
             milestone:
-                "Aug 2, 2026: Article 50 transparency duties for synthetic content and AI-assisted interactions became enforceable — fines up to €15M or 3% of global turnover — following Jul 20 Commission guidelines and the Jun 29 Digital Omnibus that pushed high-risk deadlines back.",
+                "Oct 5, 2026: OpenAI said it will invisibly watermark ChatGPT and Codex text in the EU only, to meet the AI Act's Aug 2 transparency rules — as the AI Office sent its first formal GPAI information requests.",
             labs: ['Mistral', 'Black Forest Labs', 'Kyutai', 'Aleph Alpha', 'Helsing'],
             desc: "European Union. The world's first jurisdiction with a comprehensive horizontal AI law. The AI Act bans social scoring and untargeted biometric scraping and imposes transparency duties on foundation models — now balancing enforcement against a competitiveness push.",
         },
@@ -78,7 +78,7 @@ const EmbassyRow = {
             framework: 'Pro-innovation principles · Bletchley/Seoul/Paris summit lineage',
             stance: 'Sector-led, principles-based. Still no statutory AI act — the renamed AI Security Institute runs pre-deployment evaluations of frontier models by agreement, with a sharper focus on national-security risk.',
             milestone:
-                'Jul 2, 2026: the UK and Germany agreed to deepen AI safety cooperation — AISI and German ministries expanding joint frontier-model evaluation and cyber-risk research.',
+                "Oct 24, 2026: the Budget gave the AI Security Institute an extra £120M and launched a £300M AI Biosecurity Lab backed by OpenAI and Anthropic credits — while May's King's Speech again carried no AI bill.",
             labs: ['Google DeepMind', 'Isomorphic Labs', 'Wayve', 'Synthesia', 'ElevenLabs', 'Stability AI'],
             desc: "United Kingdom. Host of the inaugural AI Safety Summit at Bletchley Park (2023) and home of the world's first government AI evaluation body. London anchors DeepMind — the lab with the longest continuous history at the AGI frontier.",
         },
@@ -96,9 +96,9 @@ const EmbassyRow = {
             framework: 'IndiaAI Mission (₹10,372 crore) · Responsible AI guidelines',
             stance: 'Pro-innovation, non-binding principles. Heavy state subsidy of GPU compute and Indian-language foundation models; positioning as the neutral convener of the global AI-governance conversation.',
             milestone:
-                'Feb 16–21, 2026: India hosted the AI Impact Summit — 88 countries adopted the non-binding New Delhi Declaration on AI Impact, with $200B+ in AI investment commitments announced.',
+                'Feb 16–21, 2026: India hosted the AI Impact Summit — 88 countries and organisations adopted the non-binding New Delhi Declaration on AI Impact, with $250B+ in infrastructure commitments announced.',
             labs: ['Sarvam AI', 'Krutrim', 'Soket AI', 'Yellow.ai', 'CoRover'],
-            desc: 'Republic of India. The largest pool of ML engineering talent on earth. National strategy emphasises multilingual capability across 22 official languages, subsidized GPU access, and hosting the next global AI summit.',
+            desc: 'Republic of India. The largest pool of ML engineering talent on earth. National strategy emphasises multilingual capability across 22 official languages, subsidized GPU access, and having hosted the Feb 2026 AI Impact Summit.',
         },
         {
             id: 'embassy_ae',
@@ -114,7 +114,7 @@ const EmbassyRow = {
             framework: 'National AI Strategy 2031 · Falcon open-weights · MGX sovereign fund',
             stance: 'Sovereign-wealth-scale compute. G42 aligned with US controls after the Microsoft deal; MGX now co-funds Stargate and writes nation-scale checks into OpenAI and xAI.',
             milestone:
-                "2026: Abu Dhabi's MGX is a Stargate co-owner and a check in OpenAI's $122B round and xAI's Series E — the Gulf as a top-tier AI investor.",
+                'Jul 14, 2026: BIS moved the UAE into Country Group A:5 — its government and approved firms now get license-free access to advanced AI chips under the May 2025 U.S.–UAE AI framework.',
             labs: ['G42', 'TII (Falcon)', 'MBZUAI', 'MGX', 'Core42'],
             desc: 'United Arab Emirates. First country to appoint a Minister of AI (2017). G42 and TII publish the most-downloaded Arabic-language open models, while the MGX fund turns sovereign wealth into frontier-AI equity and the Stargate UAE build.',
         },
