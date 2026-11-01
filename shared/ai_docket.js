@@ -23,24 +23,24 @@
 export const DOCKET = [
     {
         case: 'NYT v. OpenAI & Microsoft',
-        status: 'in discovery',
+        status: 'at summary judgment',
         color: '#ef4444',
         parties: ['openai', 'microsoft'],
-        note: 'Jun 25, 2026: NYT moved for a 3rd amended complaint, narrowing claims against OpenAI but escalating against Microsoft — alleges MS built a custom supercomputer to enable the infringing training.'
+        note: 'Sep 4, 2026: the Times, OpenAI and Microsoft cross-moved for summary judgment on fair use before Judge Stein; the US government backed OpenAI. No ruling yet.'
     },
     {
         case: 'Bartz v. Anthropic',
         status: 'settled — $1.5B approved',
         color: '#22c55e',
         parties: ['anthropic'],
-        note: 'Jul 20, 2026: Judge Martínez-Olguín granted final approval, entered judgment and dismissed with prejudice — the largest copyright settlement in US history for pirated training books, ~$3,000 per work.'
+        note: 'Jul 20, 2026: Judge Martínez-Olguín (who took over from Judge Alsup) granted final approval and dismissed with prejudice — the largest copyright settlement in US history, ~$3,000 per pirated book. Only fee appeals remain; payouts start by Nov 15.'
     },
     {
         case: 'Getty Images v. Stability AI',
         status: 'appeal pending',
         color: '#a855f7',
         parties: ['stability'],
-        note: 'UK High Court ruled model weights aren\'t "infringing copies"; Getty granted leave to appeal; US case refiled in N.D. Cal.'
+        note: 'UK High Court ruled model weights aren\'t "infringing copies"; Getty won leave to appeal (Jan 2026). In the US, Judge Trina Thompson (N.D. Cal.) refused to dismiss most of Getty\'s claims in Apr 2026.'
     },
     {
         case: 'California SB 53 (TFAIA)',
@@ -51,17 +51,24 @@ export const DOCKET = [
     },
     {
         case: 'EU AI Act — Digital Omnibus',
-        status: 'adopted Jun 29, 2026',
+        status: 'transparency rules live',
         color: '#3b82f6',
         parties: [],
-        note: 'Council formally adopted the Digital Omnibus easing AI Act burdens — high-risk deadlines pushed to Dec 2027/Aug 2028; a new EU-wide ban on AI "nudification"/CSAM tools takes effect Dec 2026.'
+        note: 'Aug 2, 2026: Article 50 transparency duties became enforceable (fines up to €15M or 3% of turnover); the AI Office sent its first formal GPAI information requests Aug 29. The Jun 29 Digital Omnibus pushed high-risk deadlines to Dec 2027/Aug 2028 and bans AI nudifier/CSAM tools from Dec 2, 2026.'
     },
     {
-        case: 'Concord/UMG v. Suno & Udio',
-        status: 'ongoing',
+        case: 'UMG & Sony v. Suno · Sony v. Udio',
+        status: 'partly settled',
         color: '#ec4899',
         parties: [],
-        note: "The music industry's copyright fight against generative-audio models."
+        note: 'Warner settled with Suno and Udio, UMG with Udio (late 2025). Still live: UMG & Sony v. Suno, plus a second suit over 60,000 more songs (Sep 18, 2026), and Sony v. Udio, refiled Jul 2026 over 30,000+ recordings.'
+    },
+    {
+        case: 'DHS order — DeepSeek out of US agencies',
+        status: 'exclusion order issued',
+        color: '#ef4444',
+        parties: ['deepseek'],
+        note: 'Oct 20, 2026: DHS barred federal civilian agencies from buying DeepSeek products and ordered all DeepSeek tech, including third-party products built on it, removed from their systems.'
     }
 ];
 

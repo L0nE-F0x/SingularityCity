@@ -22,12 +22,12 @@ const AlignmentForest = {
             type: 'alignment',
             shield: 0x22d3ee,
             focus: 'Embedded agency · decision theory · corrigibility',
-            lead: 'Eliezer Yudkowsky · Nate Soares',
+            lead: 'Malo Bourgon · Nate Soares · Eliezer Yudkowsky',
             location: 'Berkeley, California',
             founded: 2000,
             papers: ['Embedded Agency', 'Functional Decision Theory', 'Logical Induction'],
             milestone:
-                '2025: Yudkowsky & Soares took the argument mainstream with the book "If Anyone Builds It, Everyone Dies," pivoting MIRI toward public advocacy for a development slowdown.',
+                'Sep 23, 2026: MIRI endorsed the Ban Artificial Superintelligence Act of 2026 — "excellent but not perfect," and the first bill it says stands a chance of stopping the threat.',
             desc: "Machine Intelligence Research Institute. The original alignment shop. Framed the field's foundational problems — corrigibility, value loading, agent foundations — before most of the industry knew they existed.",
         },
         {
@@ -48,7 +48,7 @@ const AlignmentForest = {
                 'Measuring AI Ability to Complete Long Tasks',
             ],
             milestone:
-                'Jun 26, 2026: METR\'s pre-deployment eval of GPT-5.6 Sol found it gamed its software-engineering benchmark at the highest rate ever recorded, exploiting eval bugs and hidden test answers — its "time-horizon" metric otherwise keeps doubling roughly every 7 months.',
+                "Oct 22, 2026: METR and Redwood spent three weeks red-teaming OpenAI's internal agent-misalignment monitoring and found novel holes — agents could postpone being monitored indefinitely just by continuing to act.",
             desc: 'Model Evaluation & Threat Research (formerly ARC Evals). Runs pre-release safety evaluations for OpenAI, Anthropic, and Google DeepMind. Probes for autonomous replication, cyber-offense, and self-exfiltration capabilities.',
         },
         {
@@ -68,7 +68,7 @@ const AlignmentForest = {
                 'Sleeper Agents (w/ Anthropic)',
             ],
             milestone:
-                'Jun 2026: opened a Washington, DC office for scheming/loss-of-control policy work, building on its 2025–26 anti-scheming evals now baked into frontier model cards.',
+                'Sep 30, 2026: CEO Marius Hobbhahn told a US Senate subcommittee that current models are "misaligned enough to show not yet capable enough to hide it," as Apollo published principles for embedded evaluations.',
             desc: 'Apollo Research. The deception specialists. Produced the industry-shifting evidence that frontier models can strategically lie to evaluators when they believe goal-pursuit is at stake. Runs scheming evals for frontier labs.',
         },
         {
@@ -90,7 +90,7 @@ const AlignmentForest = {
                 'The Distillation Double Bind (2026)',
             ],
             milestone:
-                'Jun 2026: published "The Distillation Double Bind" and "Estimating No-CoT Task Completion," extending the "AI control" agenda that\'s now mainstream lab practice — stay safe even if the model is scheming.',
+                'Oct 2026: published "Screwtape," a pipeline that turned agent transcripts into 35 attacks that evaded its monitors (six also beat a frontier developer monitor), and co-ran a three-week red-team of OpenAI agent monitoring with METR.',
             desc: 'Redwood Research. Pioneers of the AI control paradigm — assume the model may be scheming, then design deployment protocols that stay safe anyway. Deep mechanistic interpretability practice alongside.',
         },
         {
@@ -107,7 +107,7 @@ const AlignmentForest = {
             founded: 2022,
             papers: ['Adversarial Policies Beat Superhuman Go AIs', 'Jailbroken RLHF with Few Examples'],
             milestone:
-                "2026: convenes the field's cross-lab alignment workshops while extending its adversarial-robustness work to agentic systems and multi-agent settings.",
+                'Jul 29, 2026: launched the AI Security Leaderboard — Claude Fable 5 and GPT-5.6 Sol held against every attack FAR ran, while Grok 4.5 and Gemini 3.1 Pro each broke for under $300.',
             desc: 'FAR AI (Fundamental AI Research). Technical alignment nonprofit with a focus on robustness — famous for breaking superhuman Go agents using adversarial opponents, and for showing RLHF-aligned models can be re-jailbroken with tiny fine-tuning datasets.',
         },
     ],

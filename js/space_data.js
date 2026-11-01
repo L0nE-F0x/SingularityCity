@@ -14,13 +14,13 @@ const SPACE_ORGS = {
         icon: '🚀',
         region: 'us',
         hq: 'Starbase, Texas',
-        founded: '2002 · merged with xAI Jan 2026',
+        founded: '2002 · merged with xAI Feb 2026',
         vehicle: 'Starship V3',
         program: 'AI1 orbital data-center constellation',
         milestone:
-            'Jul 24, 2026: Starship Flight 13 deployed the first 20 next-gen Starlink V3 satellites and ended in the softest Starship splashdown yet — though the booster hit the Gulf hard with only 5 of 13 landing engines lit.',
+            'Sep 28, 2026: Starship Flight 14 reached orbit for the first time and deployed 26 Starlink V3 satellites despite losing an engine on ascent, then splashed down north of Hawaii after a shortened three-hour flight.',
         facts: [
-            'Jan 2026: SpaceX acquired xAI in a $1.25T deal — the largest private merger in history',
+            'Feb 2, 2026: SpaceX acquired xAI in a record-setting deal valuing the pair at $1.25T',
             'AI1 satellite: 70 m solar wingspan (wider than a 747-8), ~120–150 kW of compute per node',
             'FCC filing seeks up to 1,000,000 orbital data-center sats at 500–2,000 km altitude',
             '100 Gbps laser inter-sat links, backhauled through Starlink; robot arms do on-orbit repair',
@@ -39,7 +39,7 @@ const SPACE_ORGS = {
         vehicle: 'New Glenn',
         program: 'Blue Moon lunar cargo + orbital infrastructure',
         milestone:
-            'Jul 6, 2026: Blue Origin cleared all LC-36 debris in 9 days and began rebuilding the pad in a horizontal/vertical hybrid config — CEO Dave Limp reaffirmed New Glenn will fly again before year-end 2026.',
+            "Oct 28, 2026: Blue Origin finished reassembling LC-36's access tower and expects the rebuilt pad ready in the first half of December — New Glenn's return-to-flight mission will carry a Blue Ring spacecraft.",
         facts: [
             'Nov 13, 2025: became the 2nd company ever to land an orbital-class booster (at sea, 375 mi offshore)',
             'May 28, 2026: a New Glenn was lost in a static-fire anomaly that damaged LC-36 — now rebuilding under a hybrid config',
@@ -50,7 +50,7 @@ const SPACE_ORGS = {
     },
     nasa: {
         name: 'NASA',
-        ceo: 'Sean Duffy (acting)',
+        ceo: 'Jared Isaacman',
         color: '#fc3d21',
         icon: '🛸',
         region: 'us',
@@ -59,10 +59,11 @@ const SPACE_ORGS = {
         vehicle: 'SLS Block 1',
         program: 'Artemis lunar campaign + Deep Space Network',
         milestone:
-            'Apr 10, 2026: Artemis II crew (Wiseman, Glover, Koch, Hansen) splashed down after a 10-day trip around the Moon.',
+            'Oct 23, 2026: Administrator Jared Isaacman set Artemis III as a crewed Earth-orbit lander test in mid-2027, with Moon landings on Artemis IV and V in 2028.',
         facts: [
             'Artemis II was the first crewed lunar flyby since Apollo 17 in 1972',
-            'Artemis III targets a 2027 crewed rendezvous test; lunar landing to follow on commercial landers',
+            'Apr 10, 2026: the Artemis II crew (Wiseman, Glover, Koch, Hansen) splashed down after 10 days around the Moon',
+            'Artemis III targets a mid-2027 crewed lander test in Earth orbit; Moon landings follow on Artemis IV and V in 2028',
             'SLS is the most powerful operational rocket NASA has ever flown at 8.8M lbf liftoff thrust',
             'The Deep Space Network relays data for every interplanetary probe currently flying',
         ],
@@ -79,12 +80,12 @@ const SPACE_ORGS = {
         vehicle: 'Long March 10',
         program: 'Crewed Moon landing before 2030 + Tiangong station',
         milestone:
-            "Feb 11, 2026: Long March 10A test stage flew the Mengzhou crew capsule's launch-escape demo — booster fished out of the South China Sea.",
+            "Jul 10, 2026: the reusable Long March 10B, an offshoot of China's Moon rocket, debuted from Wenchang — its first stage caught in a net on a sea platform, a world first.",
         facts: [
             'May 24, 2026: Shenzhou-23 crew launched to Tiangong on a year-long expedition',
             'Long March 10 is the tri-core Moon rocket for the pre-2030 crewed lunar landing',
             'Mengzhou capsule + Lanyue lander passed integrated tests in early 2026',
-            'A reusable 5 m Long March 10A derivative is slated to debut in 2026',
+            "Feb 11, 2026: a Long March 10A test stage flew the Mengzhou capsule's launch-escape demo",
         ],
         desc: 'China National Space Administration. Racing toward a pre-2030 crewed Moon landing with Long March 10 and Mengzhou.',
     },
@@ -99,18 +100,18 @@ const SPACE_ORGS = {
         vehicle: 'Ariane 64',
         program: 'Sovereign European launch + Copernicus Earth AI',
         milestone:
-            'Apr 30, 2026: Ariane 6 flew its most powerful 4-booster configuration, lofting 32 Amazon Leo broadband satellites.',
+            'Aug 27, 2026: Ariane 6 flew its first geostationary-transfer mission, lofting the MTG-I2 weather satellite; a 36-sat Amazon Leo batch is next, NET Nov 23.',
         facts: [
-            'Two 32-sat Amazon Leo batches delivered in 2026 (Feb 12 and Apr 30)',
-            'Up to 8 Ariane 6 launches planned for 2026 from Kourou, French Guiana',
-            'Next up: MTG-I2 weather satellite in Aug 2026',
+            'Three Amazon Leo batches flown in 2026 (Feb 12, Apr 30, Jun 17) — 100 satellites in all',
+            'Six Ariane 6 launches now expected in 2026 from Kourou, French Guiana',
+            'Jun 17, 2026: upgraded P160C boosters debuted on Ariane 64, lifting 36 Leo sats',
             "23 member states fund Europe's independent access to space",
         ],
         desc: "European Space Agency. Ariane 64 is Europe's heavy-lift workhorse, now hauling mega-constellation batches from Kourou.",
     },
     ula: {
         name: 'ULA',
-        ceo: 'Tory Bruno',
+        ceo: 'Mark Peller',
         color: '#1a1a2e',
         icon: '⚡',
         region: 'us',
@@ -119,11 +120,11 @@ const SPACE_ORGS = {
         vehicle: 'Vulcan Centaur',
         program: 'National-security heavy lift (USSF)',
         milestone:
-            'Jul 2, 2026: ULA flew its final-ever Atlas V (Amazon Leo satellites) — closing a 100% mission-success run — while Vulcan stays grounded pending the Feb 2026 booster investigation.',
+            "Oct 28, 2026: ULA set Vulcan's return to flight for Nov 13 after a nine-month grounding — the first six-booster Vulcan, carrying 40 Amazon Leo satellites on redesigned solid-booster nozzles.",
         facts: [
-            'Targeting 18–22 launches in 2026 once Vulcan resumes — its highest cadence ever',
+            'Jul 2, 2026: last Atlas V satellite launch (29 Amazon Leo) — the 6 remaining Atlas Vs are all for Starliner',
             'Vulcan is powered by two Blue Origin BE-4 methalox engines',
-            'A Feb 2026 solid-booster anomaly paused Vulcan flights pending investigation',
+            'A Feb 2026 solid-booster nozzle failure grounded Vulcan for nine months; it returns NET Nov 13, 2026',
             '100% mission success record across Atlas, Delta and Vulcan',
         ],
         desc: 'United Launch Alliance. Vulcan Centaur hauls national-security payloads direct to GEO with a perfect success record.',
@@ -139,10 +140,10 @@ const SPACE_ORGS = {
         vehicle: 'Electron / Neutron',
         program: 'Dedicated smallsat launch + Neutron reusable medium-lift',
         milestone:
-            "May 2026: signed a five-launch Neutron deal while targeting Neutron's debut from Wallops in late 2026.",
+            "Oct 14, 2026: Rocket Lab pushed Neutron's debut into 2027 after finding air pockets in its carbon-fibre propellant domes; a new date comes once testing wraps in Q1 2027.",
         facts: [
             "Electron: 60+ launches, the world's most active small launcher",
-            'Neutron debut slipped to 2026 after a stage-1 tank ruptured in hydrostatic testing',
+            'Neutron debut slipped again, to 2027, over voids in its carbon-fibre propellant domes',
             'Archimedes methalox engines power the reusable Neutron first stage',
             'Also builds spacecraft: ESCAPADE Mars probes, Photon, solar arrays',
         ],
@@ -159,7 +160,7 @@ const SPACE_ORGS = {
         vehicle: 'LVM3',
         program: 'Gaganyaan human spaceflight',
         milestone:
-            "Jul 5, 2026: ISRO test-fired the SOLVE sub-orbital motor at Sriharikota to validate Gaganyaan's crew-module parachute recovery system; uncrewed Gaganyaan-1 still targets H2 2026.",
+            'Oct 16, 2026: ISRO completed Gaganyaan crew module–service module separation tests at VSSC, Thiruvananthapuram; the uncrewed Gaganyaan-1 flight with Vyommitra still targets late 2026.',
         facts: [
             '8,000+ ground tests completed for Gaganyaan by early 2026',
             'Apr 10, 2026: crew module aced an air-drop test over the Bay of Bengal',
@@ -180,7 +181,7 @@ const SPACE_ORGS = {
         vehicle: 'H3-24L',
         program: 'H3 cadence ramp + lunar precision landing',
         milestone:
-            'H3 is ramping cadence from Tanegashima, flying HTV-X cargo to the ISS and co-developing lunar tech with Artemis.',
+            "Oct 20, 2026: an H3 launched MMX, Japan's Phobos sample-return probe, from Tanegashima — due at Mars in Sept 2027, with samples home in 2031.",
         facts: [
             'SLIM made Japan the 5th country to soft-land on the Moon — within 100 m of target',
             'H3 is operated jointly with Mitsubishi Heavy Industries',
@@ -200,7 +201,7 @@ const SPACE_ORGS = {
         vehicle: 'Soyuz-2.1a',
         program: 'ISS Russian segment + Angara ramp-up',
         milestone:
-            'Soyuz keeps its unbroken crew-rotation record to the ISS from Baikonur — the longest-serving human launch system in history.',
+            "Jul 14, 2026: Soyuz MS-29 launched Pyotr Dubrov, Anna Kikina and NASA's Anil Menon from Baikonur to the ISS — extending Soyuz's unbroken crew-rotation run.",
         facts: [
             'Soyuz has flown crews since 1967 — 150+ crewed missions',
             "Baikonur Cosmodrome is the world's oldest spaceport (Sputnik, Gagarin)",
@@ -240,7 +241,7 @@ const SPACE_ORGS = {
         vehicle: 'Firefly Alpha',
         program: 'Blue Ghost lunar landers + responsive launch',
         milestone:
-            "Blue Ghost Mission 2 launches late 2026 — a far-side Moon landing, stacked on Firefly's Elytra Dark transfer vehicle.",
+            "Blue Ghost Mission 2 now launches no earlier than 2027 — a far-side landing near Nassau crater, stacked on Firefly's Elytra Dark transfer vehicle.",
         facts: [
             'Mar 2025: Blue Ghost 1 made the first fully-successful commercial Moon landing',
             "Mission 2 carries ESA's Lunar Pathfinder comms satellite to lunar orbit",
@@ -260,14 +261,14 @@ const SPACE_ORGS = {
         vehicle: 'Zhuque-3',
         program: 'Reusable stainless methalox launch',
         milestone:
-            'Dec 3, 2025: Zhuque-3 reached orbit on its debut — the booster crashed 17 s before touchdown; a "perfect landing" is the 2026 goal.',
+            'Aug 2026: Zhuque-3 Flight 2 stuck its booster landing about 8 minutes after liftoff — the first by a Chinese commercial company — though a fire broke out in the aft section afterward.',
         facts: [
             "Zhuque-2 was the world's first methalox rocket to reach orbit (July 2023)",
             'Zhuque-3: stainless-steel, Falcon-9-class, designed for 20 reuses',
             'Named for the Vermilion Bird (朱雀) of Chinese constellations',
-            'Jun 29, 2026: Flight 2 vehicle completed a 9-engine static fire; 2nd landing attempt now expected late Jul 2026',
+            'Dec 3, 2025: the debut reached orbit, but the booster crashed 17 s before touchdown',
         ],
-        desc: "China's commercial methalox pioneer. Stainless-steel Zhuque-3 chases the country's first orbital booster landing.",
+        desc: "China's commercial methalox pioneer. Stainless-steel Zhuque-3 made China's first commercial orbital-booster landing in Aug 2026.",
     },
 };
 
@@ -280,7 +281,7 @@ const SPACE_BLDS = [
         fl: 1,
         org: 'spacex',
         type: 'launchpad',
-        desc: 'Starship V3 launch mount with Mechazilla catch tower. Every flight lofts AI1 orbital data-center hardware for the merged SpaceX • xAI constellation.',
+        desc: 'Starship V3 launch mount with Mechazilla catch tower. Starship first reached orbit in Sept 2026; AI1 orbital data-center sats are slated to follow from 2028.',
     },
     {
         id: 'pad_blue_origin',
@@ -316,7 +317,7 @@ const SPACE_BLDS = [
         fl: 1,
         org: 'esa',
         type: 'launchpad',
-        desc: "Europe's Spaceport, Kourou. Ariane 64 flies with four boosters here, hauling 32-satellite Amazon Leo batches to LEO.",
+        desc: "Europe's Spaceport, Kourou. Ariane 64 flies with four boosters here, hauling 32–36-satellite Amazon Leo batches to LEO.",
     },
     {
         id: 'pad_ula',
@@ -325,7 +326,7 @@ const SPACE_BLDS = [
         fl: 1,
         org: 'ula',
         type: 'launchpad',
-        desc: 'Cape Canaveral Space Launch Complex 41. Vulcan Centaur flies national-security missions direct to GEO — 18–22 launches targeted in 2026.',
+        desc: 'Cape Canaveral Space Launch Complex 41. Vulcan Centaur flies national-security missions direct to GEO — returning to flight in Nov 2026 after a nine-month grounding.',
     },
     {
         id: 'pad_rocketlab',
@@ -334,7 +335,7 @@ const SPACE_BLDS = [
         fl: 1,
         org: 'rocketlab',
         type: 'launchpad',
-        desc: "Launch Complex 1, Māhia Peninsula, New Zealand — the world's only private orbital launch site. Electron flies here; Neutron debuts from Wallops.",
+        desc: "Launch Complex 1, Māhia Peninsula, New Zealand — the world's only private orbital launch site. Electron flies here; Neutron now debuts in 2027.",
     },
     {
         id: 'pad_northrop_grumman',
@@ -399,7 +400,7 @@ const SPACE_BLDS = [
         fl: 3,
         org: null,
         type: 'mission_control',
-        desc: "Modeled on NASA's DSN — three 70 m dish complexes in Goldstone, Madrid and Canberra keep contact with every probe beyond Earth orbit, plus the AI1 compute constellation.",
+        desc: "Modeled on NASA's DSN — three 70 m dish complexes in Goldstone, Madrid and Canberra keep contact with every probe beyond Earth orbit.",
     },
     {
         id: 'space_assembly',

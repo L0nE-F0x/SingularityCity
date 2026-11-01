@@ -12,7 +12,7 @@ const PortZone = {
             emoji: '🖥️',
             unit: 'rack',
             category: 'compute',
-            desc: 'Launched at CES Jan 2026 — six new chips, full production, shipping to AWS/Google/Microsoft/OCI in H2 2026.',
+            desc: 'Launched at CES Jan 2026 — six new chips, now in full production with racks running at CoreWeave, Google Cloud, Azure, OCI and Nebius.',
         },
         {
             id: 'gpu_b200',
@@ -36,7 +36,7 @@ const PortZone = {
             emoji: '🔬',
             unit: 'machine',
             category: 'fabrication',
-            desc: "ASML's $380M lithography monster — ~250 crates per machine. Only ~10 ship worldwide in 2026; Intel & Samsung lead, TSMC waits till 2029.",
+            desc: "ASML's $380M lithography monster — ~250 crates per machine. Only ~10 ship worldwide in 2026; Intel & Samsung lead, TSMC waits till 2030.",
         },
         {
             id: 'hbm_memory',
@@ -156,10 +156,10 @@ const PortZone = {
                 emoji: '🛃',
                 desc: 'Where the chip war gets bureaucratic. Licenses, end-user checks and tariff stamps for every advanced-node shipment.',
                 milestone:
-                    "Jul 2, 2026: Nvidia's CEO conceded China's AI-chip market to Huawei after booking zero China data-center revenue — the H200 export approval is a dead letter, blocked by Beijing rather than Washington.",
+                    "Aug 19, 2026: the first licensed H200s reached Chinese buyers — ByteDance and Tencent took ~10,000 each, held in Hong Kong because Beijing wants them kept outside the mainland.",
                 facts: [
-                    'Jan 2026: Washington moved H200-to-China sales to case-by-case review — a 50% volume cap and a 25% tariff; not one chip has actually shipped',
-                    '~10 Chinese firms cleared for H200s at 75,000 units each — all stuck in legal limbo',
+                    'Jan 2026: Washington moved H200-to-China sales to case-by-case review — a 50% volume cap and a 25% tariff; first deliveries landed in Aug',
+                    'Chinese firms are cleared for up to 100,000 H200s each — ~20,000 had reached ByteDance and Tencent by Aug',
                     'Jun 2026: US says the ban follows Chinese firms even OUTSIDE China',
                     'China counters with gallium & rare-earth export licenses',
                 ],
@@ -172,7 +172,7 @@ const PortZone = {
                 emoji: '📦',
                 desc: 'Bonded warehouse holding Vera Rubin racks and Blackwell pallets awaiting deployment to the Compute District.',
                 milestone:
-                    "NVIDIA's Rubin platform went full production after its CES 2026 launch — first racks land at AWS, Google, Microsoft and OCI in H2 2026.",
+                    'Aug 26, 2026: Nvidia reported Vera Rubin in full production, with racks running at CoreWeave, Google Cloud, Microsoft Azure, OCI and Nebius.',
                 facts: [
                     'One Rubin-class rack outvalues its own delivery truck ~20×',
                     "Insurance won't cover a full warehouse — contents rotate out within 72 hours",

@@ -47,8 +47,8 @@ const SUPPLY_CHAIN = {
         {
             name: 'Nvidia Vera Rubin (R100)',
             memory: '8x HBM4 (Up to 1TB)',
-            status: 'Sampling (Q3 Mass)',
-            price: '~$8.8M / NVL72 Rack',
+            status: 'Full Production (Shipping)',
+            price: '~$3.5–4M / NVL72 Rack (est.)',
         },
         {
             name: 'Nvidia Blackwell (B200)',
@@ -56,7 +56,7 @@ const SUPPLY_CHAIN = {
             status: 'Volume Production',
             price: '~$40,000 / GPU',
         },
-        { name: 'AMD Instinct MI400', memory: 'HBM4', status: 'Sampling', price: 'TBD' },
+        { name: 'AMD Instinct MI400', memory: 'HBM4', status: 'In Production (Helios)', price: 'TBD' },
     ],
 };
 
@@ -298,11 +298,31 @@ const CHAT_MSGS = {
 };
 
 const NEWS = [
-    { headline: 'Nvidia announces B200 Blackwell chips', url: '#' },
-    { headline: 'EU AI Act officially enters into force', url: '#' },
-    { headline: 'LMSYS Chatbot Arena updates ELO calculation', url: '#' },
-    { headline: 'Researchers discover new jailbreak technique', url: '#' },
-    { headline: 'Compute costs drop 30% year over year', url: '#' },
+    {
+        headline: 'Anthropic files S-1 with the SEC for proposed initial public offering',
+        url: 'https://www.anthropic.com/news/s1-sec',
+        source: 'Anthropic',
+    },
+    {
+        headline: 'Gemini 4 Argon is now available for everyone',
+        url: 'https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-argon/',
+        source: 'Google',
+    },
+    {
+        headline: 'OpenAI launches GPT-6.1 Terra with 3x faster AI agents, 50% lower pricing',
+        url: 'https://www.bleepingcomputer.com/news/artificial-intelligence/openai-launches-gpt-61-terra-with-3x-faster-ai-agents-50-percent-lower-pricing/',
+        source: 'BleepingComputer',
+    },
+    {
+        headline: 'Judge allows NAACP lawsuit over xAI data center pollution to move forward',
+        url: 'https://techcrunch.com/2026/10/31/judge-allows-naacp-lawsuit-over-xai-data-center-pollution-to-move-forward/',
+        source: 'TechCrunch',
+    },
+    {
+        headline: "Google's satellite AI server transmits its first response to Earth",
+        url: 'https://www.theverge.com/tech/1023528/google-project-suncatcher-ai-satellite-transmission',
+        source: 'The Verge',
+    },
 ];
 
 let _currentDay = -1;

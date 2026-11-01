@@ -16,11 +16,11 @@ const AGENT_FRAMEWORKS = {
         founded: '2025',
         product: 'Agent SDK (Python + TS)',
         milestone:
-            'Jun 30, 2026: Anthropic shipped Claude Sonnet 5 with a native 1M-token context window — the biggest agentic/coding jump yet for a Sonnet-class model, now powering the SDK alongside Opus 4.8.',
+            'Sep 22, 2026: Claude Opus 5.5 opened the Claude 5.5 family (Sonnet 5.5 Sep 28, Haiku 5.5 Oct 7) — with Claude Fable 5.1 on top for long-horizon agent work.',
         facts: [
             'Ships file-edit, bash, web-search/fetch and a tool-use loop out of the box',
             'First-class Model Context Protocol (MCP) client — the emerging tool standard',
-            'June 2026: a separate Agent SDK credit pool split programmatic use from subscriptions',
+            'Jun 15, 2026: Anthropic paused a planned Agent SDK credit split — SDK and claude -p still draw from plan limits',
         ],
         desc: "Anthropic's production agent framework. Tool use, extended thinking, subagents and MCP — the backbone of the Claude agent ecosystem.",
     },
@@ -50,11 +50,11 @@ const AGENT_FRAMEWORKS = {
         founded: '2023',
         product: 'Devin + Devin Desktop',
         milestone:
-            "Aug 2026: in talks to raise a new round reported near a $40–46B valuation — nearly double May's $26B mark — as Devin's revenue run rate approached $1B, up from $492M three months earlier.",
+            'Sep 8, 2026: raised $2B+ at a $48B valuation, led by a16z and Accel, as run-rate revenue neared $900M — then crossed $1B on Sep 25.',
         facts: [
             'Devin is the autonomous software engineer — plans, codes, tests, ships PRs',
             "Devin Desktop's Agent Command Center runs local + cloud agents from one Kanban",
-            'Valuation has roughly quadrupled since Sep 2025 ($10.2B) on ~50%-MoM enterprise usage growth',
+            'Valuation up ~4.7× since Sep 2025 ($10.2B → $48B) as run-rate revenue nearly doubled from May to Sep 2026',
             'Jul 1, 2026: launched Devin Security Swarm — agents that find, verify and patch vulnerabilities across codebases',
         ],
         desc: 'The autonomous-coding giant. Devin writes and ships software on its own; Devin Desktop (ex-Windsurf) commands whole fleets of agents.',
@@ -68,11 +68,11 @@ const AGENT_FRAMEWORKS = {
         founded: '2025',
         product: 'Manus general agent',
         milestone:
-            "Aug 11, 2026: Manus completed its unwind from Meta — a Tencent-led consortium (with early backers HSG and ZhenFund) bought back Meta's stake at the original $2B price after Beijing's national-security order, restoring Manus to independent operation.",
+            'Sep 28, 2026: launched Manus 2.0 — a new agent harness, Cloud Computer, Automations and the Cue personal-agent app — weeks after formally resuming independent operations on Sep 1.',
         facts: [
             "Apr 2026: China's NDRC ordered the parties to unwind Meta's $2B acquisition on national-security grounds",
             'A general-purpose agent: its "My Computer" runs terminal commands + local files',
-            'Orchestrates multiple LLMs under the hood, tracking forward to the Opus 4.x line',
+            'Sep 29, 2026: Manus Flex lets users power the agent with their own API key',
             'The breakout Chinese autonomous agent of 2025–26',
         ],
         desc: 'The general-purpose autonomous agent. Books, browses, codes and operates your computer — the one Meta tried (and failed) to buy.',
@@ -120,7 +120,7 @@ const AGENT_FRAMEWORKS = {
         founded: '2023',
         product: 'Tool + auth infrastructure',
         milestone:
-            'Grew to 250+ managed integrations with handled auth — the "give your agent hands" layer beneath every framework.',
+            'Oct 21, 2026: launched Composio Firewall to check agent actions against user intent — atop 1,500+ managed app integrations with handled auth.',
         facts: [
             'Managed OAuth + API connectors so agents can act in real SaaS tools',
             'Framework-agnostic: plugs into Claude SDK, LangGraph, CrewAI alike',
@@ -137,13 +137,13 @@ const AGENT_FRAMEWORKS = {
         founded: '2019',
         product: 'n8n workflow automation + AI nodes',
         milestone:
-            'Became the go-to visual canvas for wiring LLM agents into 400+ apps — a fair-code Zapier that grew AI-agent nodes.',
+            'May 2026: SAP invested at a $5.2B valuation — double the Oct 2025 Series C mark — to embed n8n in Joule Studio; n8n 3.0 beta followed Oct 27.',
         facts: [
             'Native AI-agent nodes drop autonomous decisions into any workflow',
-            '400+ integrations connect agents to the rest of the software stack',
+            '500+ native integrations connect agents to the rest of the software stack',
             'Self-hostable and fair-code — a favorite of technical automation teams',
         ],
-        desc: 'Workflow automation with native agent nodes. Wire an autonomous decision-maker into 400+ apps on a visual canvas.',
+        desc: 'Workflow automation with native agent nodes. Wire an autonomous decision-maker into 500+ apps on a visual canvas.',
     },
 };
 
@@ -351,18 +351,18 @@ const AgentsZone = {
         );
         this.statusTicker.push('🛡️ Guardrails: 12.4K/hr blocked — prompt injection, PII leak, infinite loop');
         // Real 2026 framework headlines
-        this.statusTicker.push('👨‍💻 Cognition/Devin valued at $25B after folding in Windsurf → Devin Desktop');
+        this.statusTicker.push('👨‍💻 Cognition/Devin valued at $48B after a $2B+ Series E led by a16z and Accel');
         this.statusTicker.push('🛡️ Devin Security Swarm hunts and patches vulnerabilities across codebases');
         this.statusTicker.push(
-            "🙌 Manus's original backers move to buy it back from Meta for $2B after Beijing forced the unwind"
+            '🙌 Manus resumes independent operations after the Meta unwind and ships Manus 2.0'
         );
         this.statusTicker.push(
             '⚡ OpenAI Operator: 38.1% OSWorld · 58.1% WebVoyager on full computer-use tasks'
         );
         this.statusTicker.push(
-            '🧬 Claude Sonnet 5 ships with a native 1M-token context — SDK now runs on Sonnet 5 + Opus 4.8'
+            '🧬 Claude 5.5 family lands — Opus 5.5, Sonnet 5.5 and Haiku 5.5, with Fable 5.1 on top'
         );
-        this.statusTicker.push('🧩 Composio passes 250+ managed, authenticated tool integrations');
+        this.statusTicker.push('🧩 Composio passes 1,500+ managed, authenticated app integrations');
 
         // Shuffle
         for (let i = this.statusTicker.length - 1; i > 0; i--) {

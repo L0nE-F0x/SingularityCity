@@ -29,13 +29,13 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 // aliases: lowercased name fragments used to attribute a headline to a lab.
 // Values are $ millions.
 const BASELINE = {
-    openai:     { total: 179000, valuation: 852000, rounds: 'YC → Microsoft $13B → SoftBank → $122B round at $852B', aliases: ['openai'] },
-    anthropic:  { total: 83000,  valuation: 965000, rounds: 'Google → Amazon $8B → Series H $65B at $965B → IPO filed',  aliases: ['anthropic'] },
-    xai:        { total: 32000,  valuation: 230000, rounds: 'Series E $20B at $230B → merged into SpaceX at $250B',      aliases: ['xai', 'x.ai'] },
-    mistral:    { total: 3200,   valuation: 23200,  rounds: 'Series C €1.7B at €12B → in talks at ~€20B',              aliases: ['mistral'] },
-    cohere:     { total: 1500,   valuation: 7000,   rounds: 'Series D $500M → 2026 raise at $7B',                        aliases: ['cohere'] },
+    openai:     { total: 179000, valuation: 852000, rounds: 'YC → Microsoft $13B → SoftBank → $122B round at $852B → Oct 2026: talks cut to $20B', aliases: ['openai'] },
+    anthropic:  { total: 83000,  valuation: 965000, rounds: 'Google → Amazon $8B → Series H $65B at $965B → S-1 filed (Nasdaq: ANT)', aliases: ['anthropic'] },
+    xai:        { total: 32000,  valuation: 250000, rounds: 'Series E $20B at $230B → merged into SpaceX at $250B',      aliases: ['xai', 'x.ai'] },
+    mistral:    { total: 6700,   valuation: 24000,  rounds: 'Series C €1.7B at €12B → Series D €3B at €21B+',          aliases: ['mistral'] },
+    cohere:     { total: 1500,   valuation: 20500,  rounds: 'Series D $500M → Oct 2026: Series E at ~$20.5B',            aliases: ['cohere'] },
     inflection: { total: 1525,   valuation: 4000,   rounds: 'Microsoft $1.3B → pivot to enterprise',                     aliases: ['inflection ai', 'inflection.ai'] },
-    stability:  { total: 350,    valuation: 1200,   rounds: 'Series A $150M → 2024 recap',                               aliases: ['stability ai', 'stability.ai'] },
+    stability:  { total: 350,    valuation: 1200,   rounds: 'Series A $150M → 2024 recap → Aug 2026: $76M Series B',     aliases: ['stability ai', 'stability.ai'] },
     adept:      { total: 415,    valuation: 1000,   rounds: 'Series B $350M → Amazon licensing deal',                     aliases: ['adept ai'] },
 };
 

@@ -14,7 +14,7 @@ const VCRow = {
             emoji: '🅰️',
             type: 'vcrow',
             color: '#e07a5f',
-            desc: "a16z — raising $15B+ across its 2026 fund family, the largest VC fundraise in history. Co-led OpenAI's $122B round.",
+            desc: "a16z — closed $15B across its fund family in Jan 2026, more than double its 2024 raise. Joined OpenAI's $122B round and co-led Cognition's $48B Series E.",
         },
         {
             id: 'vcrow_horizon',
@@ -24,7 +24,7 @@ const VCRow = {
             emoji: '🌲',
             type: 'vcrow',
             color: '#b23b34',
-            desc: "The OG. Led Anthropic's $65B Series H at a $965B valuation — biggest private round in history, just ahead of Anthropic's IPO filing.",
+            desc: "The OG. Co-led Anthropic's $65B Series H at a $965B valuation — now riding Anthropic's Oct 26, 2026 S-1 to list on Nasdaq as ANT.",
         },
         {
             id: 'vcrow_thrive',
@@ -44,7 +44,7 @@ const VCRow = {
             emoji: '🚀',
             type: 'vcrow',
             color: '#38bdf8',
-            desc: "Peter Thiel's contrarian fund. Closed $4.5B and rode xAI and Anduril to eleven-figure valuations.",
+            desc: "Peter Thiel's contrarian fund. Closed a $4.6B growth fund in 2025 and rode SpaceX•xAI and Anduril to eleven-figure valuations.",
         },
         {
             id: 'vcrow_launchpad',
@@ -74,7 +74,7 @@ const VCRow = {
             emoji: '🏦',
             type: 'vcrow',
             color: '#9aa0a6',
-            desc: "The Vision Fund tower — tallest on the Row. Masayoshi Son's $30B into OpenAI and 40% of the $500B Stargate build.",
+            desc: "The Vision Fund tower — tallest on the Row. Masayoshi Son's $64.6B into OpenAI (~13%) and 40% of the $500B Stargate build.",
         },
         {
             id: 'vcrow_exchange',
@@ -104,29 +104,30 @@ const VCRow = {
             firm: 'Andreessen Horowitz (a16z)',
             partner: 'Marc Andreessen & Ben Horowitz',
             founded: '2009',
-            aum: '~$95B AUM',
+            aum: '$100B+ AUM',
             milestone:
-                '2026: raising $15B+ across its fund family — the single largest venture fundraise in history.',
+                'Jan 9, 2026: closed $15B — more than double its 2024 raise and ~18% of all US VC dollars raised in 2025.',
             portfolio: ['OpenAI', 'Thinking Machines', 'Mistral', 'Anduril', 'Databricks'],
-            recentDeal: "Co-led OpenAI's $122B round (Mar 2026) · led Thinking Machines' $2B seed at $12B",
+            recentDeal: "Co-led Cognition's $2B+ Series E at $48B (Sep 2026) · joined OpenAI's $122B round (Mar 2026)",
             facts: [
                 'Its "American Dynamism" thesis pours into defense + AI (Anduril at $61B)',
                 "Backed Mira Murati's Thinking Machines before it had a product",
                 'The firm that made "software is eating the world" the industry motto',
+                'Oct 22, 2026: renamed its crypto unit a16z Frontier — nearly $10B raised across five funds since 2018',
             ],
         },
         vcrow_horizon: {
             firm: 'Sequoia Capital',
-            partner: 'Roelof Botha',
+            partner: 'Alfred Lin & Pat Grady',
             founded: '1972',
             aum: '~$85B AUM',
             milestone:
-                "Aug 2026: the Anthropic stake Sequoia led at $965B in May is now headed for the largest IPO ever — investors are reportedly targeting a ~$2T valuation for an October Nasdaq listing.",
+                'Oct 26, 2026: Anthropic — whose $965B Series H Sequoia co-led in May — publicly filed its S-1 to list on Nasdaq as ANT; no price range or date set yet.',
             portfolio: ['Anthropic', 'Google', 'NVIDIA', 'Stripe', 'OpenAI'],
             recentDeal: 'Anthropic Series H, $65B (with Altimeter, Dragoneer, Greenoaks)',
             facts: [
                 'Seeded Apple, Google, NVIDIA, YouTube, Stripe — the canonical VC track record',
-                'Anthropic filed confidentially for an IPO on Jun 1, 2026, ahead of a targeted October listing',
+                'Anthropic filed confidentially on Jun 1, 2026 and publicly on Oct 26 — price range and listing date still to come',
                 "At ~$2T it would surpass SpaceX's $1.77T June 2026 debut as the largest IPO on record",
                 '50+ years old and still writing the biggest checks in AI',
             ],
@@ -136,7 +137,8 @@ const VCRow = {
             partner: 'Josh Kushner',
             founded: '2010',
             aum: '~$25B AUM',
-            milestone: 'Feb 2026: closed a $10B fund — its largest ever — extending an all-in bet on OpenAI.',
+            milestone:
+                'Oct 29, 2026: Thrive Holdings is acquiring ADT at $10/share (~$7.6B equity, $15.3B enterprise value) — after Thrive closed its $10B Thrive X fund in Feb.',
             portfolio: ['OpenAI', 'Anduril', 'Stripe', 'Ramp', 'Databricks'],
             recentDeal: '~$1B into OpenAI; co-led Anduril at a $61B valuation with a16z',
             facts: [
@@ -150,7 +152,7 @@ const VCRow = {
             partner: 'Peter Thiel',
             founded: '2005',
             aum: '~$16B AUM',
-            milestone: "2026: closed a $4.5B fund and rode xAI's Series E and Anduril's defense boom.",
+            milestone: 'Mar 2026: reportedly nearing a $6B close for Founders Fund Growth IV — after a $4.6B Growth III in Apr 2025.',
             portfolio: ['xAI', 'Anduril', 'SpaceX', 'Palantir', 'Ramp'],
             recentDeal: 'Backer of xAI (now merged into SpaceX at a $250B mark)',
             facts: [
@@ -167,7 +169,7 @@ const VCRow = {
             milestone:
                 'Every 2026 batch is AI-first — the accelerator that turns a weekend demo into a funded lab.',
             portfolio: ['OpenAI (Sam Altman, ex-president)', 'Stripe', 'Airbnb', 'Coinbase', 'Cruise'],
-            recentDeal: 'Standard deal: $500K for 7% — then Demo Day to the whole Row',
+            recentDeal: 'Standard deal: $125K for 7% + $375K uncapped SAFE — then Demo Day to the whole Row',
             facts: [
                 'Sam Altman ran YC before founding OpenAI',
                 'Its Demo Day sets the seed-stage AI market each batch',
@@ -195,9 +197,9 @@ const VCRow = {
             founded: '1981',
             aum: '~$160B deployed',
             milestone:
-                "Mar 2026: put $30B into OpenAI's $122B round and committed 40% of the $500B Stargate joint venture.",
+                'Oct 1, 2026: paid the final tranche of its $30B OpenAI follow-on — $64.6B in all for a ~13% stake — while holding 40% of the $500B Stargate JV.',
             portfolio: ['OpenAI', 'Stargate', 'Arm', 'Nvidia', 'Ampere'],
-            recentDeal: 'OpenAI $122B round (co-lead) · Stargate JV (40% / $19B committed)',
+            recentDeal: 'OpenAI $122B round ($30B) · Stargate JV (40% / $19B committed)',
             facts: [
                 'Masa bets on the future harder than anyone — Stargate is his biggest yet',
                 'Owns Arm, whose chips are in nearly every phone on Earth',
@@ -300,34 +302,38 @@ const VCRow = {
         openai: {
             total: 179000,
             valuation: 852000,
-            rounds: 'YC → Microsoft $13B → SoftBank → $122B round at $852B (Amazon $50B, Nvidia/SoftBank $30B each) · Jul 2026: in talks for a 5% US-govt stake (~$43B); IPO advisors reportedly lean toward 2027',
+            rounds: 'YC → Microsoft $13B → SoftBank → $122B round at $852B (Amazon $50B, Nvidia/SoftBank $30B each) · Jul 2026: in talks for a 5% US-govt stake (~$43B) · Oct 2026: new round reportedly cut to a $20B target (last reported at $1.25T)',
         },
         anthropic: {
             total: 83000,
             valuation: 965000,
-            rounds: 'Google → Amazon $8B → Series G → Series H $65B at $965B (Sequoia-led) → IPO filed',
+            rounds: 'Google → Amazon $8B → Series G → Series H $65B at $965B (Sequoia co-led) → Oct 26, 2026: S-1 filed for Nasdaq (ANT)',
         },
         xai: {
             total: 32000,
-            valuation: 230000,
-            rounds: 'Series A $6B → Series C $6B → Series E $20B at $230B → merged into SpaceX at $250B',
+            valuation: 250000,
+            rounds: 'Series A $6B → Series C $6B → Series E $20B at $230B → merged into SpaceX at $250B (Feb 2026) → SPCX listed Jun 12',
         },
         mistral: {
-            total: 3200,
-            valuation: 23200,
-            rounds: 'Seed €105M → Series B €600M → Series C €1.7B at €12B → Jun 2026: in talks to raise ~€3B at ~€20B valuation',
+            total: 6700,
+            valuation: 24000,
+            rounds: 'Seed €105M → Series B €600M → Series C €1.7B at €12B → Sep 2026: Series D €3B at €21B+ (Samsung-led)',
         },
         cohere: {
             total: 1500,
-            valuation: 7000,
-            rounds: 'Series C $270M → Series D $500M → 2026 raise at $7B',
+            valuation: 20500,
+            rounds: 'Series C $270M → Series D $500M → $7B mark → Oct 29, 2026: Series E first close (up to C$7B, Schwarz-led) at ~$20.5B',
         },
         inflection: {
             total: 1525,
             valuation: 4000,
             rounds: 'Series A $225M → Microsoft $1.3B → pivot to enterprise',
         },
-        stability: { total: 350, valuation: 1200, rounds: 'Series A $150M → 2024 recap' },
+        stability: {
+            total: 350,
+            valuation: 1200,
+            rounds: 'Series A $150M → 2024 recap → Aug 2026: $76M Series B (EA, UMG, Sony, Warner)',
+        },
         adept: { total: 415, valuation: 1000, rounds: 'Series B $350M → Amazon licensing deal' },
     },
 

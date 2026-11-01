@@ -17,7 +17,7 @@ const ROBOTICS_COMPANIES = {
         founded: '2021 (program)',
         program: 'Mass-market humanoid on repurposed Model S/X line',
         milestone:
-            "Jul 22, 2026: Tesla's Q2 earnings call quietly swapped the late-Jul/Aug production target for a vaguer 'later this year' — as of Q2, Fremont was still just installing first-generation Optimus lines, with early units earmarked for training data, not customers.",
+            "Oct 21, 2026: Tesla's Q3 letter said the first 'production-quality' Optimus bots are coming off the Fremont line — Musk called it early production with a 'somewhat bumpy' ramp, claiming 20,000 a week by end-2027.",
         facts: [
             '10,000 unique parts on an all-new production line',
             'Fremont targets a 1M/yr run-rate; the Giga Texas line aims at 10M/yr',
@@ -36,8 +36,9 @@ const ROBOTICS_COMPANIES = {
         founded: '2022',
         program: 'BotQ high-volume manufacturing + Helix VLA brain',
         milestone:
-            'Mar 2026: BotQ hit ONE ROBOT PER HOUR — a 24× throughput jump in under 120 days, 350+ Figure 03s delivered.',
+            "Sep 17, 2026: Helix 2.5 went into 30 Bay Area homes it had never seen — pretraining on Figure's Index human-behavior dataset lifted zero-shot chore success from 9% to 56%.",
         facts: [
+            'Apr 29, 2026: BotQ hit one robot per hour — 24× in under 120 days, 350+ Figure 03s delivered',
             'BotQ first-gen line: up to 12,000 humanoids/yr, 100k over 4 years',
             'End-of-line first-pass yield above 80%; battery line at 99.3%',
             'Helix vision-language-action model runs the robot end-to-end',
@@ -47,14 +48,14 @@ const ROBOTICS_COMPANIES = {
     boston_dynamics: {
         name: 'Boston Dynamics',
         robot: 'Atlas',
-        ceo: 'Robert Playter',
+        ceo: 'Rohit Prasad',
         color: '#f59e0b',
         icon: '🏃',
         hq: 'Waltham, Massachusetts',
         founded: '1992',
         program: 'Electric Atlas for Hyundai factories + DeepMind research',
         milestone:
-            "Jul 5, 2026: Atlas delivered the match ball at the FIFA World Cup Round of 16 (Brazil vs. Norway, East Rutherford, NJ) — Hyundai's first live robotics activation before a global audience.",
+            "Oct 7, 2026: ex-Amazon AGI chief Rohit Prasad took over as CEO — two weeks after Atlas began training on real car parts at Hyundai's new Metaplant application center in Georgia.",
         facts: [
             'The all-electric Atlas debuted an upgrade at CES 2026',
             'Parent Hyundai puts Atlas to work in its own car plants first',
@@ -73,14 +74,14 @@ const ROBOTICS_COMPANIES = {
         founded: '2015',
         program: 'RoboFab factory + warehouse Robots-as-a-Service',
         milestone:
-            'Jul 2, 2026: Agility agreed to go public via a $2.5B SPAC merger with Churchill Capital Corp XI (ticker AGLT), backed by a $200M Foxconn-led PIPE.',
+            "Oct 13, 2026: the SEC declared Agility's $2.5B SPAC with Churchill Capital XI effective — shareholders vote Nov 2, with Nasdaq trading as AGLT expected in November.",
         facts: [
-            'Apr 2026: Digit was the only humanoid earning real revenue — 100,000+ totes moved at GXO warehouses',
+            'Sep 15, 2026: unveiled Digit 5 — lifts 50 lb and works cage-free beside people; early access starts H1 2027',
             'Digit now runs at 9 customer sites (Schaeffler, GXO, Toyota, Mercado Libre) with 65,000+ operating hours',
             'RoboFab in Salem, OR was the first purpose-built humanoid factory',
             'The backwards "bird legs" are for reach + battery efficiency',
         ],
-        desc: 'The revenue leader. While rivals demo, Digit clocks in — moving totes on paid contracts with its unmistakable bird legs.',
+        desc: 'The warehouse veteran. While rivals demo, Digit clocks in — moving totes on paid contracts with its unmistakable bird legs.',
     },
     '1x': {
         name: '1X Technologies',
@@ -94,7 +95,7 @@ const ROBOTICS_COMPANIES = {
         milestone:
             '10,000 NEO pre-orders in the first five days; full-scale production started at Hayward, CA in Apr 2026.',
         facts: [
-            '$20K Early Access or subscription; first homes served in 2026',
+            '$20K Early Access or subscription; first home deliveries promised for 2026',
             'Hayward plant: 58,000 sq ft, scaling to 100k robots/yr by end-2027',
             'Soft knit suit + quiet tendon drives — designed to live with people',
         ],
@@ -128,11 +129,11 @@ const ROBOTICS_COMPANIES = {
         founded: '2016',
         program: 'Mass-market agile humanoids (G1/H2) + IPO run',
         milestone:
-            "Aug 19, 2026: Unitree debuted on the STAR Market (ticker 688836) after pricing at ¥150.80 — shares surged as much as 629% intraday and closed up ~487%, valuing China's first listed humanoid-robot maker at roughly $53B.",
+            "Aug 19, 2026: Unitree debuted on the STAR Market (ticker 688836) after pricing at ¥150.80 — shares opened up 629% and closed ~460% higher, making it China's first listed humanoid-robot maker.",
         facts: [
             'Filed Mar 20, 2026 and cleared the CSRC in 104 days — a record-fast STAR Market review',
             'Feb 2026: a fleet of G1s performed a fully autonomous kung-fu routine on Chinese national TV',
-            '5,500+ humanoids shipped in 2025 — volume leader; 10–20k targeted for 2026',
+            '5,500+ humanoids shipped in 2025 and 5,900 more in H1 2026 — 31% of the global market',
             'G1 starts around $16K — the price disruptor',
             'H2 pushes dynamic agility: flips, spins and recovery from shoves',
         ],
@@ -148,7 +149,7 @@ const ROBOTICS_COMPANIES = {
         founded: '2012',
         program: 'Industrial humanoids with autonomous battery hot-swap',
         milestone:
-            'Jul 2, 2026: Walker S2 went live at the China-Vietnam Fangchenggang border crossing under a ¥264M contract — patrols, cargo inspection, multilingual queue guidance.',
+            'Aug 28, 2026: H1 results — 921 full-size humanoids sold (up ~20×) for ¥590M in humanoid revenue (+1,445%), against a 10,000-unit production target for 2026.',
         facts: [
             'Walker S2 entered mass production with orders past ¥800M (~$112M) — hundreds delivered to factory lines',
             'Walker S2 swaps its own battery — 24/7 shifts, no humans needed',
@@ -186,7 +187,7 @@ const RoboticsZone = {
             fl: 3,
             emoji: '🚛',
             type: 'robotics',
-            desc: "Where the robots clock in for real jobs: GXO warehouses, Hyundai and Mercedes plants, BYD lines — and, since NEO started shipping, people's living rooms.",
+            desc: "Where the robots clock in for real jobs: GXO warehouses, Hyundai and Mercedes plants, BYD lines — and, once NEO deliveries begin, people's living rooms.",
         },
         {
             id: 'robotics_rd',

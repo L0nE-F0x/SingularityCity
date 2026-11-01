@@ -16,13 +16,13 @@ const LONGEVITY_COMPANIES = {
         drug: 'AlphaFold 3 oncology candidates',
         program: 'AI-first drug design on AlphaFold 3',
         milestone:
-            "May 2026: raised $2.1B Series B — one of the sector's largest ever — with first human trials of AI-designed drugs due by end of 2026.",
+            'Oct 8, 2026: reportedly in early talks to raise at a $40B–$50B valuation — five months after its $2.1B Series B, with its AI-designed drugs still preclinical.',
         facts: [
             'A DeepMind spin-off; AlphaFold 3 predicts protein–DNA–ligand interactions at atomic precision',
-            "Jan 28, 2026: FDA cleared its oncology candidate ISM8969 for human trials — an AI-identified target humans weren't prioritizing",
-            'J&J signed a deep-integration deal to design protein–protein inhibitors with AF3',
+            'May 12, 2026: $2.1B Series B led by Thrive Capital — first human trials now targeted by end-2026',
+            'Jan 20, 2026: J&J signed a cross-modality, multi-target research deal — small molecules, antibodies, peptides and molecular glues',
         ],
-        desc: "DeepMind's drug-design spin-off. AlphaFold 3 turned protein structure into a multi-billion-dollar pipeline — first AI-designed drugs hit trials in 2026.",
+        desc: "DeepMind's drug-design spin-off. AlphaFold 3 turned protein structure into a multi-billion-dollar pipeline — its first AI-designed drugs are racing to reach the clinic by end-2026.",
     },
     retro: {
         name: 'Retro Biosciences',
@@ -37,7 +37,7 @@ const LONGEVITY_COMPANIES = {
             'May 2026: hit a $1.8B valuation after Sam Altman personally put in ~$180M; its first trial — an Alzheimer\'s pill — is "going super good."',
         facts: [
             "OpenAI's Sam Altman is the anchor investor in the anti-aging bet",
-            'Lead trial clears protein aggregates; no dose-limiting toxicities seen',
+            "RTR242's Phase 1 is recruiting in Australia — 24 of a planned 108 adults enrolled by Sep 2026",
             'Autophagy, plasma-inspired therapies and cellular reprogramming',
         ],
         desc: "Sam Altman's longevity bet. Aiming to add ten healthy years to human life — its first Alzheimer's pill is already in the clinic.",
@@ -52,7 +52,7 @@ const LONGEVITY_COMPANIES = {
         drug: 'Rentosertib (ISM001-055)',
         program: 'Generative chemistry via Pharma.AI',
         milestone:
-            'Jul 7, 2026: rentosertib entered Phase III for pulmonary fibrosis (320 patients, 47 centers in China) — the first drug with an AI-identified target, AI-generated structure, and AI-guided trials to reach pivotal testing.',
+            "Sep 9, 2026: first patient dosed in GENESIS-IPF-3, rentosertib's Phase III for pulmonary fibrosis (~320 patients, 47 centers in China) — billed as the world's first Phase III of a generative-AI-driven drug.",
         facts: [
             'TNIK inhibitor for idiopathic pulmonary fibrosis (IPF)',
             'Published Phase IIa results in Nature Medicine; an inhaled version cleared IND',
@@ -63,7 +63,7 @@ const LONGEVITY_COMPANIES = {
     },
     recursion: {
         name: 'Recursion',
-        ceo: 'Chris Gibson',
+        ceo: 'Najat Khan',
         color: '#ec4899',
         icon: '🧫',
         hq: 'Salt Lake City, Utah',
@@ -71,7 +71,7 @@ const LONGEVITY_COMPANIES = {
         drug: 'REC-1245',
         program: 'Industrialized "techbio" drug discovery',
         milestone:
-            'Mid-2026: early Phase 1/2 DAHLIA data for REC-1245 (RBM39 degrader) showed no dose-limiting toxicities and clear target engagement across the first solid-tumor cohorts, with dose escalation continuing toward a Phase 2 dose.',
+            'Oct 15, 2026: REC-1245 locked in 45 mg daily for expansion cohorts after three partial responses in heavily pretreated endometrial and liver cancer patients — endometrial expansion data due 2H 2027.',
         facts: [
             'Runs millions of automated cell-image experiments a week',
             'REC-1245 is its first fully end-to-end AI-discovered program — a first-in-class RBM39 degrader',
@@ -107,7 +107,7 @@ const LONGEVITY_COMPANIES = {
         drug: 'Aging-biology pipeline',
         program: 'Treat aging itself as a disease',
         milestone:
-            "Alphabet's secretive longevity lab pairs deep ML with wet-lab biology to decode the fundamental mechanisms of aging.",
+            "Jun 23, 2026: FDA granted Breakthrough Therapy status to fosigotifator — Calico's eIF2B drug for vanishing white matter, an ultra-rare brain disease with no approved treatment.",
         facts: [
             'Founded and chaired by ex-Genentech/Apple chairman Art Levinson',
             'Backed by Alphabet + AbbVie with billions in committed capital',
@@ -122,20 +122,20 @@ const LONGEVITY_COMPANIES = {
         icon: '⏳',
         hq: 'Richmond, California',
         founded: '2015',
-        drug: 'Metabolic aging drugs',
+        drug: 'BGE-102 (oral NLRP3 inhibitor)',
         program: 'Human longevity data → drug targets',
         milestone:
-            'Mines decades of human aging data to find and drug the pathways that keep people healthy into their 90s.',
+            'Oct 2, 2026: dosed the first patient in QUELL-DME, a ~180-person Phase 2 of its once-daily NLRP3 pill BGE-102 in diabetic macular edema — topline due 2H 2027.',
         facts: [
             'Human-data-first: starts from people who age well, not mice',
-            'Pivoted into metabolic aging and muscle-preservation targets',
+            'Lead drug BGE-102: a once-daily NLRP3 pill that cut IL-1β by up to 98% in Phase 1',
             'Publicly traded — a rare listed pure-play longevity biotech',
         ],
         desc: 'Human-data-first longevity. Mines the biology of people who reach 95 in good health to find drugs that extend healthspan.',
     },
     unity: {
         name: 'Unity Biotech',
-        ceo: 'Anirvan Ghosh',
+        ceo: 'Dissolved Sep 2025',
         color: '#ef4444',
         icon: '🎯',
         hq: 'South San Francisco',
@@ -143,13 +143,13 @@ const LONGEVITY_COMPANIES = {
         drug: 'Senolytics (UBX1325)',
         program: 'Clear senescent "zombie" cells',
         milestone:
-            'Advancing senolytic therapies that selectively destroy the senescent cells driving age-related eye and tissue disease.',
+            'Sep 26, 2025: Unity dissolved — after its eye trial of UBX1325 it laid off all staff, won stockholder approval to liquidate and filed a Delaware certificate of dissolution.',
         facts: [
             'Senescent cells accumulate with age and inflame surrounding tissue',
-            'Lead candidate targets diabetic macular edema in the eye',
+            'Its lead drug targeted diabetic macular edema in the eye',
             'A pioneer of the "clear the zombie cells" thesis of aging',
         ],
-        desc: 'The senolytics specialist. Hunts and destroys the senescent "zombie" cells that accumulate with age and poison healthy tissue.',
+        desc: 'The senolytics pioneer that ran out of road. Unity hunted the senescent "zombie" cells that accumulate with age — then dissolved in 2025 after its eye-drug trial.',
     },
 };
 

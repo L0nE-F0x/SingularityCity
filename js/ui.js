@@ -1291,7 +1291,7 @@ const UI = {
                 longevity_discovery:
                     "💊 <b>Milestone:</b> Insilico's Rentosertib — first AI-designed drug validated in humans",
                 longevity_trials:
-                    '🏥 <b>In the clinic:</b> Isomorphic & Retro dosing the first AI-designed drugs (2026)',
+                    "🏥 <b>In the clinic:</b> Insilico's rentosertib in Phase III — the first generative-AI drug in a pivotal trial (2026)",
                 longevity_genomics: '🧬 <b>Reading life:</b> whole-genome + epigenome at scale',
                 longevity_cryo: '❄️ <b>−196°C:</b> vitrified biobanks for the long game',
             }[b.id];

@@ -45,7 +45,7 @@ const PowerZone = {
             offtaker: 'Western grid + tech PPAs',
             online: 'Operational 2026',
             milestone:
-                'SunZia: ~3.5 GW of wind + a dedicated 550-mile transmission line — proof that the grid, not the turbine, is the hard part.',
+                'Jun 2026: SunZia began commercial operations — 916 turbines, 3.65 GW, over 3× the next-largest US wind farm, on its own 550-mile HVDC line. Proof the grid, not the turbine, is the hard part.',
             facts: [
                 'Largest wind + transmission project in the Western Hemisphere',
                 'Output climbs when storms roll through the city — watch the blades',
@@ -67,7 +67,7 @@ const PowerZone = {
             offtaker: 'Microsoft (20-yr PPA, 100%)',
             online: 'Restart on track for 2027',
             milestone:
-                'Jun 8, 2026: NRC released a draft environmental assessment finding no significant impact from the Crane/TMI Unit 1 restart — public comment ran through Jul 8, 2026, setting up a final NRC decision.',
+                'Sep 2026: NRC issued its final environmental assessment and finding of no significant impact for the Crane/TMI Unit 1 restart — Constellation says the 2027 restart remains ahead of schedule.',
             facts: [
                 'First-ever restart of a retired US nuclear plant, driven entirely by AI demand',
                 'Jun 2026: FERC granted the interconnection waiver keeping the restart on schedule',
@@ -91,7 +91,7 @@ const PowerZone = {
             offtaker: 'Colossus-class AI campus',
             online: 'Operational (backup pledged)',
             milestone:
-                "Aug 2026: the DOJ's motion to intervene and dismiss the NAACP's Clean Air Act suit over 59 unpermitted Mississippi turbines — arguing Grok is critical to US military operations — heads to a federal judge for a preliminary-injunction ruling, on top of Shelby County's Jul 2 backup-only permit for 15 Memphis-side turbines.",
+                "Oct 30, 2026: a federal judge denied xAI's motion to dismiss the NAACP's Clean Air Act suit over its unpermitted Southaven turbines — weeks after the court refused the DOJ's bid to end the case.",
             facts: [
                 'Gas turbines = instant power while grid interconnects take years',
                 'The Memphis fleet became the emblem of the AI power crunch',
@@ -156,9 +156,9 @@ const PowerZone = {
             desc: "Modeled on Helion's Polaris — the pulsed field-reversed fusion machine racing to deliver the world's first fusion PPA, sold to Microsoft before the plant even exists.",
             operator: 'Helion Energy',
             offtaker: "Microsoft (world's 1st fusion PPA)",
-            online: 'Polaris pulsing · grid power 2028',
+            online: 'Polaris pulsing · initial ops 2028',
             milestone:
-                'Aug 26, 2026: Helion broke ground — initial earthwork and construction started at the Orion plant site in Malaga, WA — funded by a Jun 4 $465M Series G (led by Thrive Capital) at a $15.5B valuation, on track to owe Microsoft 50 MW by ~2028.',
+                "Jun 4, 2026: Helion raised a $465M Series G (led by Thrive Capital) at a $15.5B valuation to build Orion in Malaga, WA, where it broke ground in Jul 2025 — Helion now targets 'initial operations' in 2028.",
             facts: [
                 "World's first fusion power purchase agreement (Microsoft, 2023)",
                 'Feb 2026: Polaris test reactor hit 150-million-°C plasma',

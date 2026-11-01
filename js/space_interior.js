@@ -14,7 +14,7 @@ const SpaceInterior = {
                 sub: '70 m solar wings · 150 kW compute · laser links',
             },
             plaque: [
-                '$1.25T xAI merger — Jan 2026',
+                '$1.25T xAI merger — Feb 2026',
                 'FCC: up to 1M compute sats',
                 'Constellation roll-out 2028',
             ],
@@ -88,9 +88,9 @@ const SpaceInterior = {
             showcase: {
                 kind: 'sat',
                 label: 'Amazon Leo Satellite',
-                sub: '32 per Ariane 64 — two batches flown in 2026',
+                sub: '32–36 per Ariane 64 — three batches flown in 2026',
             },
-            plaque: ['Ariane 64: 4-booster config', '8 launches planned in 2026', 'Next: MTG-I2 (Aug 2026)'],
+            plaque: ['Ariane 64: 4-booster config', '6 launches expected in 2026', 'Next: 36 Leo sats, NET Nov 23'],
             npcs0: [
                 ['DDO Kourou', 0xef4444],
                 ['Range Safety CSG', null],
@@ -104,7 +104,7 @@ const SpaceInterior = {
             showcase: { kind: 'engine', label: 'BE-4 Engine', sub: 'Methalox power, built by Blue Origin' },
             plaque: [
                 'USSF-87 direct to GEO',
-                'Target: 18–22 launches in 2026',
+                'Vulcan returns to flight Nov 13',
                 '100% mission success record',
             ],
             npcs0: [
@@ -122,7 +122,7 @@ const SpaceInterior = {
                 label: 'Archimedes Engine',
                 sub: 'Methalox engine for reusable Neutron',
             },
-            plaque: ['Neutron debut: late 2026', '5-launch Neutron deal signed', 'Electron: 60+ flights'],
+            plaque: ['Neutron debut: 2027', '5-launch Neutron deal signed', 'Electron: 60+ flights'],
             npcs0: [
                 ['Neutron Test Lead', 0xef4444],
                 ['Electron Recovery', null],
@@ -197,7 +197,7 @@ const SpaceInterior = {
             showcase: {
                 kind: 'lander',
                 label: 'Blue Ghost 2 Lander',
-                sub: 'Far-side Moon landing, late 2026',
+                sub: 'Far-side Moon landing, NET 2027',
             },
             plaque: ['Blue Ghost 1 landed on Moon', 'VICTUS NOX: 24-hr launch', 'Mission 2: lunar far side'],
             npcs0: [
@@ -217,8 +217,8 @@ const SpaceInterior = {
             },
             plaque: [
                 'ZQ-3 reached orbit on debut',
-                'Landing missed by just 17 s',
-                '2026 goal: perfect landing',
+                'Debut landing missed by 17 s',
+                'Aug 2026: Flight 2 booster landed',
             ],
             npcs0: [
                 ['ZQ-3 Flight Dir', 0xef4444],
