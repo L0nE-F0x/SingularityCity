@@ -91,16 +91,20 @@
     const C = (PL.Construction = {
         _recent: null,
         _recentAt: 0,
+        _recentN: -1,
         _grownAt: new Map(),
         _lastFloors: new Map(),
 
-        // Days since each lab's newest release (cached for five minutes).
+        // Days since each lab's newest release (cached for five minutes, and rebuilt whenever
+        // the model count changes: the first bakes run before the models arrive, and an
+        // empty cache used to keep every crane away for five minutes after load).
         daysSince(lab) {
             const now = Date.now();
-            if (!this._recent || now - this._recentAt > 300000) {
+            const ms = typeof G !== 'undefined' && G.models ? G.models : [];
+            if (!this._recent || now - this._recentAt > 300000 || ms.length !== this._recentN) {
                 this._recentAt = now;
+                this._recentN = ms.length;
                 this._recent = {};
-                const ms = typeof G !== 'undefined' && G.models ? G.models : [];
                 for (const m of ms) {
                     if (!m || !m.lab || !m.rel) continue;
                     const t = Date.parse(m.rel);
@@ -146,7 +150,9 @@
 
         // Adds the crane / scaffold sprites to a facade entry when the lab is busy.
         attach(e, B, b, ox, oy, h) {
-            if (!b.lab) return;
+            // Lab headquarters only (the PL.labTier test). Estates (house_*) and datacenters
+            // and fabs carry their owner's lab too, and got rooftop cranes on every release.
+            if (!b.lab || !String(b.id || '').startsWith('bld_')) return;
             const days = this.daysSince(b.lab);
             const grew = this._grew(b);
             if (!grew && days > 14) return;
