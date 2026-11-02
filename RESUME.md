@@ -1,10 +1,12 @@
 # Resume here
 
-**Updated:** 2026-10-28 (alive-city 2D overhaul wrap) · **Live `main`:** `2d57131` (this wrap sits on top)
-**Status:** The overhaul is live on cache **v564**. `https://singularitycity.net/sw.js` is
-`singularity-city-v564`; the new modules (`js/street_life.js`, `js/soundscape.js`,
-`js/photo_mode.js`, `js/pixel/sea.js`, …) return 200 and `/api/rss` serves real feeds.
-**Next:** the owner's playtest notes. Open items are listed under "Not done" below.
+**Updated:** 2026-11-02 (November fact refresh, live-feed fixes, mansion cranes) · **Live `main`:** `7cb8848` (this wrap sits on top)
+**Status:** All three PRs (#7, #8, #9) are merged and live on cache **v567**.
+`https://singularitycity.net/sw.js` is `singularity-city-v567`.
+**Next:**
+- After 06:00 UTC on 2026-11-02, check the Port: copper should read ~14.5k USD/t, not ~77k.
+- The next monthly refresh is early December, on branch `zone-refresh/2026-12`.
+- Open items are listed under "Not done" below.
 
 Repo: https://github.com/L0nE-F0x/SingularityCity.git
 Local playtest: `python3 serve.py 8931` → http://127.0.0.1:8931/
@@ -14,7 +16,88 @@ that same-origin path or the board stays empty.
 
 ---
 
-## This session (2026-10-28) — the alive city: a 2D overhaul
+## This session (2026-11-02) — November fact refresh, three live feeds, mansion cranes
+
+The session ran in three parts:
+1. **Monthly refresh.** The City Archivist routine (a VibeForge brief) brought the curated facts up to 2026-11-01.
+2. **Live feeds.** The owner asked how to fix three broken feeds the refresh had found.
+3. **Cranes.** The owner reported tower cranes on the Billionaire's Row estates.
+
+Three PRs, each merged by the owner. The owner also ran one SQL statement in Supabase.
+
+### What shipped
+
+| PR | What changed | Where |
+|---|---|---|
+| #7 Monthly fact refresh 2026-11 (v565) | Every zone's curated facts updated, with sources in the PR. Leaders: NASA Isaacman, ULA Peller, BD Prasad, Recursion Khan, Sequoia Lin & Grady. Errors fixed: Isomorphic/Insilico misattribution, Helion and Waterworth dates, "Concord" in Suno/Udio. Port and Embassy agree on H200s. Docket copies reconciled, plus a DHS–DeepSeek row. Both known-real lists gained Claude 5.5/Fable 5.1, GPT-6/6.1 Sol/Luna/Terra, Gemini 4 Argon, DeepSeek V4.x, Kimi K3.x, MiniMax M3.x (547 entries each, no caps). MAINTENANCE.md Part B now describes the City Archivist routine. | `js/*_zone.js`, `js/space_data.js`, `js/space_interior.js`, `js/datacenter_data.js`, `js/data.js`, `js/vc_row.js` + `update-vc-funding.mjs`, `js/court.js` + `shared/ai_docket.js`, `js/jail.js` + `shared/ai_bans.js`, `js/api.js` + `_shared/model-verify.mjs`, `MAINTENANCE.md` |
+| #8 Live feeds (v566) | Copper and WTI come from FRED (`PCOPPUSDM` monthly USD/t, `DCOILWTICO` daily; keyless CSV). A price outside its plausibility band or too old fails the run instead of being written. `--dryrun` added. The ban bot enforces its 45-day window on each headline's `<pubDate>`. The `dc_facilities` merge is now code-first. | `netlify/functions/update-commodities.mjs`, `netlify/functions/update-ai-bans.mjs`, `js/api.js` |
+| #9 Cranes (v567) | Cranes and scaffolding only go on lab HQs (`bld_` ids, the `PL.labTier` test). The release cache is rebuilt when `G.models.length` changes, so HQ cranes show about 15 s after load, not after some later rebuild. | `js/pixel/construction.js` |
+| SQL (owner) | `delete from public.dc_facilities where id = 'fab_intel_magdeburg';` Intel cancelled that fab in Jul 2025, and the row existed only in the cloud. | Supabase |
+
+### What a new agent must not re-break
+
+1. **For facilities defined in `datacenter_data.js`, the code wins over `dc_facilities`.**
+   - The cloud only fills blank fields.
+   - It may move a facility from construction to operational only once the code's own completion year has passed.
+   - Don't restore "cloud is source of truth": stale rows hid every refresh for months and showed Intel Ohio as operational.
+   - Cloud-only rows still load in full, so removing one takes SQL.
+2. **Finnhub `/quote` symbols are US equities.** `HG` is Hamilton Insurance and `CL` is Colgate, not futures. Any new price feed needs a plausibility band and an age limit, so a wrong symbol fails loudly (HTTP 500) instead of publishing.
+3. **Google News ignores `when:45d`.** About half the items it returns are older, some by a year or more. `isWithinWindow` in `update-ai-bans.mjs` filters on `<pubDate>`. Undated items are kept on purpose.
+4. **Cranes are for lab HQs only.** Estates (`house_<lab>`), datacenters (`dc_*`) and fabs (`fab_*`) all carry a `lab`.
+5. **`Environment.buildBuildings` returns early when `_buildFingerprint` hasn't changed.**
+   - To force a facade rebake headless, set `Environment._lastBuildFP = null` first.
+   - Per-bake state that depends on async data has to invalidate on the fingerprint's inputs (`G.models.length` is one of them).
+6. **Both known-real lists stay identical** (`js/api.js` `knownReal`, `_shared/model-verify.mjs` `KNOWN_REAL`). They get no version caps.
+7. **The data copies must stay in sync:** `js/court.js` `DOCKET` with `shared/ai_docket.js`, and `js/jail.js` `BANS` with `shared/ai_bans.js` (First Person reads the shared copies). Edit both copies in the same commit.
+
+### Verified
+
+- **#7:**
+  - `node tools/freshness.mjs 3`: 5 stale feeds before, all fresh after (oldest is the Port, 2026-08-25).
+  - `node --check` passes on every edited file, and a local headless run had 0 page errors.
+  - Production served v565 with the new facts.
+- **#8:**
+  - `update-ai-bans --selftest` 47/47.
+  - Ban bot dry run, `main` vs branch: same current ban (`news:deepseek:US`), 104 stale headlines skipped.
+  - `update-commodities --dryrun`: copper 14,473 USD/t (Sep average), WTI 103.4 (Oct 27); the old 77,294 is rejected.
+  - Headless against the live Supabase with stale rows: the code values showed.
+- **#9:** headless on production with the file swapped in, then again after deploy. Cranes on `bld_o`, `bld_g`, `bld_moonshotai` only, from 15 s; no estates or datacenters; 0 errors.
+- **Magdeburg:** gone from both the map and the table (live check).
+
+### Not done / worth a look
+
+- **Check after 06:00 UTC 2026-11-02:** the first runs of the new commodity function and ban bot. The Port's copper should be about 14.5k USD/t. Electricity is still a model (68 × WTI/70), so it will read about 100 USD/MWh. A real EIA industrial price would need a free API key.
+- **Korea DeepSeek jail row:** `news:deepseek:KR` ages out within 21 days of the bot last seeing it. To clear it now, write the same kind of tombstone the bot writes when a ban is lifted:
+  ```sql
+  update public.ai_bans set active = false, label = 'Lifted', authority = 'Ban lifted',
+         until = date '2027-05-01', last_seen = now(),
+         reason = 'South Korea lifted its DeepSeek download suspension on Apr 28, 2025.',
+         source = 'https://www.koreaherald.com/article/10421880'
+   where ban_key = 'news:deepseek:KR' and managed_by = 'news_bot';
+  ```
+- **Stale `dc_facilities` text** is harmless now. The optional cleanup SQL is in PR #7, item 2.
+- **Jail seed rules** `deepseek_govt` and `grok_turkey` have no `until`. DE has no source, and Reuters says the TR block covered only some Grok content (PR #7, item 5).
+- **First Person** `first-person/js/data.js` lines 68–77 still has a 2024 roster with typed-in scores. It should read the shared modules.
+- **Re-check dates from PR #7:**
+  - Agility SPAC vote (Nov 2)
+  - Kimi K3.1 Pro open weights (Nov 4)
+  - Vulcan return to flight (Nov 13)
+  - Ariane 6 Leo batch (NET Nov 23)
+  - Anthropic IPO pricing
+- **Uncertain facts** were left as written. The list is under PR #7's "Needs a person".
+- **Prettier** flags two old lines in `js/api.js` (around lines 767 and 1130). They predate this session.
+
+### Tooling notes
+
+- **`gh`:** `~/.local/bin/gh` (the mise shim) hangs. Call `~/.local/share/mise/installs/gh/2.103.3/gh_2.103.3_linux_amd64/bin/gh` directly.
+- **Headless setup:**
+  - Use `puppeteer-core` from `node_modules` with `/usr/bin/google-chrome-stable`.
+  - Call `enterCity()` first.
+  - `API` is a top-level `const`, so test `typeof API !== 'undefined'`, not `window.API`.
+- **Testing a local file against production data:** use `page.setBypassServiceWorker(true)` and request interception that answers the file's path with the local copy.
+- **Production JS is minified:** grep live files for code tokens, not comments.
+
+## Previous (2026-10-28) — the alive city: a 2D overhaul
 
 Owner brief: an audit of the 2D city (headless captures of every district at noon, dusk and
 night, 24 interiors, the modes and phones) turned up a list of fixes and bigger moves; the owner
