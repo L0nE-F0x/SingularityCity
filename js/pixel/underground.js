@@ -300,6 +300,21 @@
         },
 
         _tunnel: null,
+        _tunnelTex: null,
+        // The strip is a row of TilingSprites a few tiles wide, not one: a single ~60 000 px
+        // quad stops rendering once the camera zooms in (boarding a train), leaving the
+        // tunnel cavity empty. Each chunk starts on a tile boundary so the pattern runs on.
+        _fillStrip(ct, w) {
+            const CH = TILE * 2;
+            ct.removeChildren().forEach((s) => s.destroy());
+            for (let x = 0; x < w; x += CH) {
+                const s = new PIXI.TilingSprite(this._tunnelTex, Math.min(CH, w - x), TH);
+                s.x = x;
+                s._pxNoSkin = true;
+                ct.addChild(s);
+            }
+            ct._w = w;
+        },
         // Replace the classic tunnel Graphics (the widest child of the underground layer).
         adopt() {
             const L = G.undergroundLayer;
@@ -310,7 +325,7 @@
                 const c = t._classic;
                 if (c && !c.destroyed) {
                     const w = Math.ceil(c.getLocalBounds().width / PL.ART);
-                    if (w !== t.width) t.width = w;
+                    if (w !== t._w) this._fillStrip(t, w);
                 }
                 return;
             }
@@ -324,8 +339,9 @@
             if (!g) return;
             const A = PL.ART;
             const b = g.getLocalBounds();
-            const tex = PL.tex(tunnelTile());
-            const ts = new PIXI.TilingSprite(tex, Math.ceil(b.width / A), TH);
+            if (!this._tunnelTex) this._tunnelTex = PL.tex(tunnelTile());
+            const ts = new PIXI.Container();
+            this._fillStrip(ts, Math.ceil(b.width / A));
             ts.scale.set(A);
             ts.x = b.x;
             ts.y = b.y;
