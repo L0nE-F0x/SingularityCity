@@ -114,12 +114,41 @@
                 city.progress.achievements || {},
                 prod.achievements || {}
             );
-            if (prod.prefs) {
-                city.settings = Object.assign({}, city.settings || {}, {
-                    music: prod.prefs.music != null ? prod.prefs.music : true,
-                    sfx: prod.prefs.sfx != null ? prod.prefs.sfx : true,
-                });
-            }
+            var prefs = prod.prefs || {};
+            var liveSfx =
+                typeof SND !== 'undefined'
+                    ? SND.enabled
+                    : prod.sound != null
+                      ? !!prod.sound
+                      : prefs.sfx != null
+                        ? !!prefs.sfx
+                        : true;
+            var liveMusic =
+                typeof SND !== 'undefined'
+                    ? SND.musicEnabled
+                    : localStorage.getItem('sc_music') !== null
+                      ? localStorage.getItem('sc_music') === 'true'
+                      : prefs.music != null
+                        ? !!prefs.music
+                        : true;
+            var liveSfxVol =
+                typeof SND !== 'undefined' && typeof SND.sfxVolume === 'number'
+                    ? SND.sfxVolume
+                    : typeof prefs.sfxVolume === 'number'
+                      ? prefs.sfxVolume
+                      : 1.0;
+            var liveAmbVol =
+                typeof SND !== 'undefined' && typeof SND.ambientVolume === 'number'
+                    ? SND.ambientVolume
+                    : typeof prefs.ambientVolume === 'number'
+                      ? prefs.ambientVolume
+                      : 1.0;
+            city.settings = Object.assign({}, city.settings || {}, {
+                music: liveMusic,
+                sfx: liveSfx,
+                sfxVolume: liveSfxVol,
+                ambientVolume: liveAmbVol,
+            });
             city.savedAt = Date.now();
             city.lastView = 'pixi';
             localStorage.setItem(CITY_SAVE, JSON.stringify(city));

@@ -51,7 +51,7 @@ export const G = {
     stats: { tramsSpotted: 0, moonClicks: 0 },
     flags: { konami: false, caturday: false, auroraSeen: false },
     settings: {
-        music: true, sfx: true, volume: 0.8, fov: 70, invertY: false, sensitivity: 1.0,
+        music: true, sfx: true, sfxVolume: 1.0, ambientVolume: 1.0, volume: 0.8, fov: 70, invertY: false, sensitivity: 1.0,
         // Touch look gain, multiplied on top of `sensitivity`. A thumb drag
         // covers far less screen than a mouse sweep, so the two want
         // separate sliders rather than one shared number.

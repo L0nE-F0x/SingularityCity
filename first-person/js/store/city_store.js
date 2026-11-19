@@ -27,6 +27,8 @@ function defaultSettings() {
     return {
         music: true,
         sfx: true,
+        sfxVolume: 1.0,
+        ambientVolume: 1.0,
         volume: 0.8,
         fov: 70,
         invertY: false,
@@ -146,7 +148,15 @@ export const CityStore = {
         const saved = loadFromStorage();
         if (saved) {
             if (saved.progress) deepMergeProgress(_snap.progress, saved.progress);
-            if (saved.settings) _snap.settings = { ..._snap.settings, ...saved.settings };
+            if (saved.settings) {
+                _snap.settings = { ..._snap.settings, ...saved.settings };
+                if (typeof _snap.settings.sfxVolume !== 'number' || !Number.isFinite(_snap.settings.sfxVolume)) {
+                    _snap.settings.sfxVolume = 1.0;
+                }
+                if (typeof _snap.settings.ambientVolume !== 'number' || !Number.isFinite(_snap.settings.ambientVolume)) {
+                    _snap.settings.ambientVolume = 1.0;
+                }
+            }
             if (saved.quality) _snap.quality = saved.quality;
             if (saved.settings?.timeScale != null) _snap.timeScale = Number(saved.settings.timeScale) || 1;
         }

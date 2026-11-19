@@ -73,7 +73,7 @@ export const Interact = {
             }
 
             if (!this.target) return;
-            if (this.target.kind === 'citizen') { G.ui.showCitizen(this.target.ref); G.audio?.sfx('open'); return; }
+            if (this.target.kind === 'citizen') { G.ui.showCitizen(this.target.ref); return; }
             // close enough to the door to walk in, otherwise just read the plaque
             const p = this.target.ref;
             const cam = G.camera.position;
@@ -81,7 +81,7 @@ export const Interact = {
             // in the same block as it.
             const near = Math.hypot(p.x - cam.x, p.z - cam.z) < Math.max(p.w, p.d) / 2 + 38;
             if (near && Interior.canEnter(p.b)) Interior.enter(p.b);
-            else { G.ui.showBuilding(p.b); G.audio?.sfx('open'); }
+            else { G.ui.showBuilding(p.b); }
         });
         // clicks — moon (caturday) & blimps
         document.addEventListener('mousedown', e => {

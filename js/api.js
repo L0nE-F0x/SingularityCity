@@ -3922,8 +3922,13 @@ JSON (no markdown):
                         }
                     }
 
-                    if (typeof SND !== 'undefined') SND.birth();
-                    G.dramaticLaunch(m.name);
+                    G.dramaticLaunch(m.name, { silent: true });
+                }
+                if (nC > 0) {
+                    if (typeof SND !== 'undefined' && SND.birth) SND.birth();
+                    setTimeout(() => {
+                        if (typeof SND !== 'undefined' && SND.launch) SND.launch();
+                    }, 280);
                     G.unlockAchieve('witnessed');
                 }
             }
@@ -3984,6 +3989,7 @@ JSON (no markdown):
             }
 
             if (parsedData.retirements) {
+                let retiredCount = 0;
                 parsedData.retirements.forEach((rt) => {
                     const safeName = rt.id.toLowerCase().replace(/[^a-z0-9]/g, '');
                     const m = G.models.find(
@@ -3991,10 +3997,11 @@ JSON (no markdown):
                     );
                     if (m && !m.ret) {
                         m.ret = rt.retired_date;
-                        if (typeof SND !== 'undefined') SND.retire();
+                        retiredCount++;
                         if (typeof UI !== 'undefined') UI.addToast(`👻 ${m.name} retired.`);
                     }
                 });
+                if (retiredCount > 0 && typeof SND !== 'undefined' && SND.retire) SND.retire();
             }
 
             let ec = 0;

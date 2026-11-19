@@ -74,7 +74,7 @@ const Aurora = {
         }
 
         if (typeof UI !== 'undefined') UI.addToast('✨ Aurora Borealis is lighting up the sky!');
-        if (typeof SND !== 'undefined') SND.uiClick();
+        if (typeof SND !== 'undefined' && SND.aurora) SND.aurora();
     },
 
     _triggerComet() {

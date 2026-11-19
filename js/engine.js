@@ -59,6 +59,8 @@ const G = {
         autoTour: true, // idle screensaver camera tour
         idleTourMin: 5, // minutes of inactivity before the tour auto-starts
         sfx: true, // procedural sound effects & ambiance
+        sfxVolume: 1.0, // SFX volume multiplier (0..1)
+        ambientVolume: 1.0, // ambient bed volume multiplier (0..1)
         music: true, // background soundtrack
         weather: true, // dynamic weather (rain/fog) effects
         reduceMotion: null, // null = follow OS prefers-reduced-motion; true/false = explicit override
@@ -1228,7 +1230,10 @@ const G = {
         // Reset label + handler every time (train focus relabels/rebinds this same button).
         exitBtn.innerHTML = '🚪 EXIT BUILDING';
         exitBtn.onclick = () => {
-            if (typeof SND !== 'undefined') SND.uiClick();
+            if (typeof SND !== 'undefined') {
+                if (SND.exitBuilding) SND.exitBuilding();
+                else if (SND.uiClick) SND.uiClick();
+            }
             this.exitInterior();
         };
         exitBtn.style.display = 'block';
@@ -1321,7 +1326,10 @@ const G = {
         }
         exitBtn.innerHTML = '🚪 GET OFF TRAIN';
         exitBtn.onclick = () => {
-            if (typeof SND !== 'undefined') SND.uiClick();
+            if (typeof SND !== 'undefined') {
+                if (SND.exitTrain) SND.exitTrain();
+                else if (SND.uiClick) SND.uiClick();
+            }
             this.exitTrainFocus();
         };
         exitBtn.style.display = 'block';
@@ -1863,7 +1871,10 @@ const G = {
                             btn.style.cssText =
                                 'background:var(--ac); color:#000; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-size:10px; margin-left:15px; font-family:"Press Start 2P", monospace; display:inline-block; vertical-align:middle;';
                             btn.onclick = () => {
-                                if (typeof SND !== 'undefined') SND.uiClick();
+                                if (typeof SND !== 'undefined') {
+                                    if (SND.enterBuilding) SND.enterBuilding();
+                                    else if (SND.uiClick) SND.uiClick();
+                                }
                                 G.enterInterior(b);
                             };
 
@@ -2655,9 +2666,15 @@ const G = {
         if (this.trainFocus && typeof InteriorTrain !== 'undefined' && InteriorTrain.update)
             InteriorTrain.update();
 
-        // Zone-based ambient sound (every ~30 frames ≈ 0.5s)
+        // Zone-based ambient sound (every ~30 frames ≈ 0.5s).
+        // Skip while in interiors, on a train, in Holomap, or in/transitioning Orbit
+        // so those modes' ambient states are never clobbered back to 'zone_*'.
         if (
             !this.activeInterior &&
+            !this.trainFocus &&
+            this.viewMode !== 'macro' &&
+            !(typeof Holomap !== 'undefined' && Holomap.active) &&
+            !(typeof OrbitMode !== 'undefined' && (OrbitMode.active || OrbitMode._transitioning)) &&
             typeof SND !== 'undefined' &&
             typeof Camera !== 'undefined' &&
             this.tick % 30 === 0
@@ -2859,8 +2876,8 @@ const G = {
         if (typeof SND !== 'undefined') SND.launch();
     },
 
-    dramaticLaunch(name) {
-        if (typeof SND !== 'undefined') SND.launch();
+    dramaticLaunch(name, opts) {
+        if ((!opts || !opts.silent) && typeof SND !== 'undefined') SND.launch();
         if (typeof UI !== 'undefined') UI.addToast(`🎉 ${name} HAS ARRIVED IN SINGULARITY CITY!`);
         if (typeof NOTIFY !== 'undefined') NOTIFY.send('New Model Born!', `${name} has arrived!`);
     },

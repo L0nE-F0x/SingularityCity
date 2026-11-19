@@ -49,22 +49,27 @@ export const Progress = {
     },
 
     unlock(key) {
-        if (G.achievements[key]) return;
+        if (G.achievements[key]) return { unlocked: false, questCompleted: false };
         const a = ACHIEVEMENTS[key];
-        if (!a) return;
+        if (!a) return { unlocked: false, questCompleted: false };
         G.achievements[key] = Date.now();
         G.ui?.addToast?.(`${a.icon} Achievement: ${a.name}`, 'achieve');
         G.audio?.sfx('achieve');
         // quest completion check
+        let questCompleted = false;
         for (const [qid, q] of Object.entries(QUESTS)) {
             if (!q.achieves.includes(key)) continue;
             const already = q.achieves.some(k => k !== key && G.achievements[k]);
             if (!already) {
                 G.ui?.addToast?.(`📜 Quest complete: ${q.icon} ${q.title}`, 'quest');
-                G.audio?.sfx('quest');
+                questCompleted = true;
             }
         }
+        if (questCompleted) {
+            setTimeout(() => G.audio?.sfx('quest'), 280);
+        }
         this.save();
+        return { unlocked: true, questCompleted };
     },
 
     questDone(qid) {
@@ -94,13 +99,14 @@ export const Progress = {
     },
 
     caturday() {
-        if (!G.achievements['cat_mode']) this.unlock('cat_mode');
+        const res = !G.achievements['cat_mode'] ? this.unlock('cat_mode') : { unlocked: false };
         G.flags.caturday = true;
         // every citizen turns ginger for a while
         const orange = new THREE.Color('#e8933a');
         G.citizens.setAllColor(orange);
         G.ui.addToast('🐱 CATURDAY! Every citizen is a cat now. Meow.');
-        G.audio?.sfx('meow');
+        if (res && res.unlocked) setTimeout(() => G.audio?.sfx('meow'), 300);
+        else G.audio?.sfx('meow');
         setTimeout(() => {
             G.flags.caturday = false;
             G.citizens.setAllColor(null);
@@ -110,9 +116,10 @@ export const Progress = {
     konami() {
         if (G.flags.konami) return;
         G.flags.konami = true;
-        this.unlock('konami');
+        const res = this.unlock('konami');
         G.ui.addToast('🕹️ KONAMI! 30 seconds of rainbow skies.');
-        G.audio?.sfx('quest');
+        if (!res || !res.unlocked) G.audio?.sfx('quest');
+        else if (!res.questCompleted) setTimeout(() => G.audio?.sfx('quest'), 300);
         let hue = 0;
         const iv = setInterval(() => {
             hue = (hue + 0.03) % 1;

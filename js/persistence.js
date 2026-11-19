@@ -10,6 +10,13 @@ const Persistence = {
         if (typeof Camera !== 'undefined') currentCamX = Camera.targetX;
         else if (this.savedCamX !== undefined) currentCamX = this.savedCamX;
 
+        if (typeof SND !== 'undefined' && this.prefs) {
+            this.prefs.sfx = SND.enabled;
+            this.prefs.music = SND.musicEnabled;
+            if (typeof SND.sfxVolume === 'number') this.prefs.sfxVolume = SND.sfxVolume;
+            if (typeof SND.ambientVolume === 'number') this.prefs.ambientVolume = SND.ambientVolume;
+        }
+
         try {
             localStorage.setItem(
                 'sc_data',
@@ -41,11 +48,30 @@ const Persistence = {
             if (d.modelId) this.modelId = d.modelId;
             if (d.authKey) this.authKey = d.authKey;
             if (d.finnhubKey) this.finnhubKey = d.finnhubKey;
-            if (d.sound !== undefined && typeof SND !== 'undefined') SND.enabled = d.sound;
             if (d.autoScanMin) this.autoScanMin = d.autoScanMin;
             // Merge saved prefs over defaults so newly-added toggles keep their
             // default when loading an older save.
             if (d.prefs) this.prefs = Object.assign({}, this.prefs, d.prefs);
+            if (typeof SND !== 'undefined') {
+                const sfxOn = d.sound !== undefined ? !!d.sound : this.prefs.sfx !== false;
+                if (SND.setEnabled) SND.setEnabled(sfxOn);
+                else SND.enabled = sfxOn;
+                this.prefs.sfx = SND.enabled;
+
+                const clampVol = (v) =>
+                    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1.0;
+                this.prefs.sfxVolume = clampVol(this.prefs.sfxVolume);
+                this.prefs.ambientVolume = clampVol(this.prefs.ambientVolume);
+                if (SND.setSfxVolume) SND.setSfxVolume(this.prefs.sfxVolume);
+                if (SND.setAmbientVolume) SND.setAmbientVolume(this.prefs.ambientVolume);
+
+                // Preserve sc_music as authoritative for music toggle; mirror into prefs.
+                const savedMusic = localStorage.getItem('sc_music');
+                if (savedMusic === null && d.prefs && d.prefs.music !== undefined) {
+                    if (SND.musicEnabled !== !!d.prefs.music) SND.musicEnabled = !!d.prefs.music;
+                }
+                this.prefs.music = SND.musicEnabled;
+            }
             if (d.achievements) this.achievements = d.achievements;
             if (d.camX !== undefined) this.savedCamX = d.camX;
             if (d.seasonalVisited && typeof Seasonal !== 'undefined')
@@ -99,7 +125,26 @@ const Persistence = {
         // Sound prefs mirror the SND layer's own persisted flags.
         if (typeof SND !== 'undefined') {
             const sfxEl = document.getElementById('prefSfx');
-            if (sfxEl) SND.enabled = sfxEl.checked;
+            if (sfxEl) {
+                if (SND.setEnabled) SND.setEnabled(sfxEl.checked);
+                else SND.enabled = sfxEl.checked;
+            }
+            const sfxVolEl = document.getElementById('prefSfxVol');
+            if (sfxVolEl) {
+                const v = Math.max(0, Math.min(1, parseFloat(sfxVolEl.value)));
+                if (Number.isFinite(v)) {
+                    if (SND.setSfxVolume) SND.setSfxVolume(v);
+                    this.prefs.sfxVolume = v;
+                }
+            }
+            const ambVolEl = document.getElementById('prefAmbVol');
+            if (ambVolEl) {
+                const v = Math.max(0, Math.min(1, parseFloat(ambVolEl.value)));
+                if (Number.isFinite(v)) {
+                    if (SND.setAmbientVolume) SND.setAmbientVolume(v);
+                    this.prefs.ambientVolume = v;
+                }
+            }
             const musicEl = document.getElementById('prefMusic');
             if (musicEl && SND.musicEnabled !== musicEl.checked) SND.toggleMusic();
             this.prefs.sfx = SND.enabled;

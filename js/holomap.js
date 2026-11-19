@@ -108,15 +108,14 @@ const Holomap = {
         this.tick = 0;
         this.loop();
 
-        // Sound: warp-in sweep + deep space ambient
+        // Sound: warp-in bloom + deep space ambient
+        if (this._ambTimer) {
+            clearTimeout(this._ambTimer);
+            this._ambTimer = null;
+        }
         if (typeof SND !== 'undefined') {
-            SND.playTone(200, 'sine', 0.6, 0.06, 800);
-            setTimeout(function () {
-                SND.playTone(400, 'triangle', 0.4, 0.04, 1200);
-            }, 150);
-            setTimeout(function () {
-                SND.setAmbient('holomap');
-            }, 300);
+            if (SND.holomapOpen) SND.holomapOpen();
+            if (SND.setAmbient) SND.setAmbient('holomap');
         }
         if (typeof G !== 'undefined') G.unlockAchieve('galactic_tourist');
     },
@@ -137,15 +136,14 @@ const Holomap = {
         this.hover = null;
         this.selected = null;
 
-        // Sound: warp-out sweep + restore city ambient
+        // Sound: warp-out collapse + restore city ambient
+        if (this._ambTimer) {
+            clearTimeout(this._ambTimer);
+            this._ambTimer = null;
+        }
         if (typeof SND !== 'undefined') {
-            SND.playTone(800, 'sine', 0.5, 0.05, 200);
-            setTimeout(function () {
-                SND.playTone(600, 'triangle', 0.3, 0.03, 100);
-            }, 100);
-            setTimeout(function () {
-                SND.setAmbient('outside');
-            }, 400);
+            if (SND.holomapClose) SND.holomapClose();
+            if (SND.setAmbient) SND.setAmbient('outside');
         }
     },
 
@@ -802,9 +800,9 @@ const Holomap = {
                 var prevHoverId = self.hover ? self.hover.m.id : null;
                 self.hover = self.meshToStarMap.get(intersects[0].object.uuid);
                 cv.style.cursor = 'pointer';
-                // Sound: soft blip on new hover target
+                // Sound: soft glass tick on new hover target (debounced in SND.uiHover)
                 if (self.hover && self.hover.m.id !== prevHoverId && typeof SND !== 'undefined') {
-                    SND.playTone(1200 + self.hover.mag * 40, 'sine', 0.06, 0.02);
+                    if (SND.uiHover) SND.uiHover();
                 }
                 if (self.hover && self.tooltip) {
                     var m = self.hover.m;
@@ -846,12 +844,11 @@ const Holomap = {
         cv.addEventListener('click', function (e) {
             if (!self.active) return;
             if (self.hover) {
-                if (typeof SND !== 'undefined') SND.uiClick();
                 self.selected = self.hover;
                 self.showStarInfo(self.hover);
             } else {
                 if (self.infoPanel && self.infoPanel.classList.contains('on')) {
-                    if (typeof SND !== 'undefined') SND.playTone(600, 'sine', 0.06, 0.03, 300);
+                    if (typeof SND !== 'undefined' && SND.panelClose) SND.panelClose();
                 }
                 if (self.infoPanel) self.infoPanel.classList.remove('on');
                 self.selected = null;
@@ -877,7 +874,6 @@ const Holomap = {
             if (dx < 10 && dy < 10) {
                 updateRaycaster(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
                 if (self.hover) {
-                    if (typeof SND !== 'undefined') SND.uiClick();
                     self.selected = self.hover;
                     self.showStarInfo(self.hover);
                     if (self.tooltip) self.tooltip.classList.remove('on');
@@ -885,9 +881,10 @@ const Holomap = {
                     if (
                         self.infoPanel &&
                         self.infoPanel.classList.contains('on') &&
-                        typeof SND !== 'undefined'
+                        typeof SND !== 'undefined' &&
+                        SND.panelClose
                     )
-                        SND.playTone(600, 'sine', 0.06, 0.03, 300);
+                        SND.panelClose();
                     if (self.infoPanel) self.infoPanel.classList.remove('on');
                     self.selected = null;
                 }
@@ -901,13 +898,8 @@ const Holomap = {
 
     showStarInfo: function (s) {
         if (!this.infoPanel || !s) return;
-        // Sound: panel slide-in (ascending digital chime)
-        if (typeof SND !== 'undefined') {
-            SND.playTone(500, 'sine', 0.12, 0.04, 1000);
-            setTimeout(function () {
-                SND.playTone(750, 'triangle', 0.08, 0.03, 1500);
-            }, 60);
-        }
+        // Sound: panel slide-in
+        if (typeof SND !== 'undefined' && SND.panelOpen) SND.panelOpen();
         var m = s.m,
             lab = LABS[m.lab] || { name: '?', color: '#888' };
         var scores = typeof Bench !== 'undefined' ? Bench.scoresFor(m) : BM[m.id] || {};
@@ -994,7 +986,7 @@ const Holomap = {
     },
 
     closeInfo: function () {
-        if (typeof SND !== 'undefined') SND.playTone(800, 'sine', 0.08, 0.03, 400);
+        if (typeof SND !== 'undefined' && SND.panelClose) SND.panelClose();
         if (this.infoPanel) this.infoPanel.classList.remove('on');
         this.selected = null;
     },
@@ -1004,13 +996,8 @@ const Holomap = {
             return s.m.id === id;
         });
         if (target) {
-            // Sound: focus zoom (scanning sweep)
-            if (typeof SND !== 'undefined') {
-                SND.playTone(300, 'triangle', 0.3, 0.04, 900);
-                setTimeout(function () {
-                    SND.playTone(600, 'sine', 0.2, 0.03, 1200);
-                }, 100);
-            }
+            // Sound: focus zoom lens-lock glide
+            if (typeof SND !== 'undefined' && SND.holomapZoom) SND.holomapZoom();
             var p = new THREE.Vector3();
             target.meshGroup.getWorldPosition(p);
             this.controls.target.copy(p);

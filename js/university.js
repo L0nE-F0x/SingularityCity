@@ -136,7 +136,7 @@ const UniversityData = {
         });
 
         if (typeof UI !== 'undefined') UI.addToast('🎓 ' + model.name + ' is graduating from AI Academy!');
-        if (typeof SND !== 'undefined') SND.uiClick();
+        if (typeof SND !== 'undefined' && SND.graduation) SND.graduation();
     },
 
     _updateGraduations() {

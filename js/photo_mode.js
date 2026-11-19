@@ -201,10 +201,7 @@ const PhotoMode = {
         if (!this.bubbles) this._hideBubbles(true);
         this._layout();
         this._syncAll();
-        if (typeof SND !== 'undefined' && SND.playTone) {
-            SND.playTone(660, 'square', 0.05, 0.03);
-            setTimeout(() => SND.playTone && SND.playTone(990, 'square', 0.06, 0.03), 60);
-        }
+        if (typeof SND !== 'undefined' && SND.photoEnter) SND.photoEnter();
     },
 
     exit() {
@@ -722,9 +719,7 @@ const PhotoMode = {
     },
 
     _shutter() {
-        if (typeof SND === 'undefined' || !SND.playTone) return;
-        SND.playTone(1700, 'square', 0.03, 0.05);
-        setTimeout(() => SND.playTone && SND.playTone(620, 'square', 0.05, 0.04), 45);
+        if (typeof SND !== 'undefined' && SND.photoShutter) SND.photoShutter();
     },
 
     /* ═══ Clip ═══════════════════════════════════════════════════════ */

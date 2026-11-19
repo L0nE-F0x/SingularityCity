@@ -35,8 +35,7 @@ const EasterEggs = {
             this.celestialGfx.cursor = 'pointer';
             this.celestialGfx.on('pointerdown', () => {
                 this._moonClicks++;
-                if (typeof SND !== 'undefined')
-                    SND.playTone(600 + this._moonClicks * 200, 'sine', 0.08, 0.03);
+                if (typeof SND !== 'undefined' && SND.moonClick) SND.moonClick(this._moonClicks);
                 if (this._moonClicks >= 5) {
                     this._moonClicks = 0;
                     this.triggerCatMode();
@@ -56,10 +55,7 @@ const EasterEggs = {
         if (this._matrixMode) return;
         this._matrixMode = true;
         if (typeof UI !== 'undefined') UI.addToast('\ud83d\udd79\ufe0f THE MATRIX HAS YOU...');
-        if (typeof SND !== 'undefined') {
-            SND.playTone(200, 'sawtooth', 0.5, 0.05, 100);
-            SND.playTone(150, 'square', 1.0, 0.03, 50);
-        }
+        if (typeof SND !== 'undefined' && SND.matrixRain) SND.matrixRain();
 
         const overlay = document.createElement('canvas');
         overlay.id = 'matrixRain';
@@ -101,10 +97,7 @@ const EasterEggs = {
         if (this._catMode) return;
         this._catMode = true;
         if (typeof UI !== 'undefined') UI.addToast('\ud83d\udc31 CATURDAY MODE ACTIVATED!');
-        if (typeof SND !== 'undefined') {
-            SND.playTone(800, 'sine', 0.1, 0.04, 1200);
-            SND.playTone(1000, 'triangle', 0.08, 0.03, 600);
-        }
+        if (typeof SND !== 'undefined' && SND.caturday) SND.caturday();
 
         const catEmojis = [
             '\ud83d\udc31',

@@ -361,10 +361,10 @@ export const UI = {
         if (name === 'newspaper') G.progress.unlock('news_read');
         G.audio?.sfx('open');
     },
-    closePanel() {
+    closePanel(quiet = false) {
         G.panelOpen = false;
         this.els.panelOverlay.classList.add('hidden');
-        G.audio?.sfx('close');
+        if (!quiet) G.audio?.sfx('close');
         if (!G.tourMode) G.player.lock();
         if (G.tour?._lastInputAt != null) G.tour._lastInputAt = performance.now();
     },
@@ -744,12 +744,13 @@ export const UI = {
                 // Land on the spot you clicked, nudged off the tarmac, rather
                 // than always at the district centre.
                 const spot = City.offRoad ? City.offRoad(w.x, w.z) : { x: w.x, z: w.z };
-                this.closePanel?.();
+                const sameDistrict = G.interact?._lastDistrict === d.id;
+                this.closePanel?.(true);
                 G.panelOpen = false;
                 G.player?.teleport?.(spot.x, spot.z, Math.atan2(d.cx - spot.x, d.cz - spot.z));
                 G.progress?.visitDistrict?.(d.id);
                 this.banner?.(d.label || d.id, 'travelled from the city map');
-                G.audio?.sfx?.('open');
+                if (sameDistrict) G.audio?.sfx?.('open');
             });
         }
     },
@@ -777,8 +778,13 @@ export const UI = {
     _pSettings() {
         const idle = G.settings.idleTourMin || 5;
         const idleOpt = (v, lbl) => `<option value="${v}" ${idle === v ? 'selected' : ''}>${lbl}</option>`;
+        const sfxVol = typeof G.settings.sfxVolume === 'number' && Number.isFinite(G.settings.sfxVolume)
+            ? G.settings.sfxVolume : 1.0;
+        const ambVol = typeof G.settings.ambientVolume === 'number' && Number.isFinite(G.settings.ambientVolume)
+            ? G.settings.ambientVolume : 1.0;
         setTimeout(() => {
-            const q = $('setQuality'), v = $('setVol'), s = $('setSens'), iy = $('setInvert'), f = $('setFov'), mu = $('setMusic'), ts = $('setTS'), rs = $('setReset');
+            const q = $('setQuality'), v = $('setVol'), sf = $('setSfx'), sfv = $('setSfxVol'), amv = $('setAmbVol');
+            const s = $('setSens'), iy = $('setInvert'), f = $('setFov'), mu = $('setMusic'), ts = $('setTS'), rs = $('setReset');
             const at = $('setAutoTour'), idleSel = $('setIdleTourMin');
             if (q) q.onchange = () => {
                 localStorage.setItem('sc_fp_quality', q.value);
@@ -789,6 +795,24 @@ export const UI = {
             // and never persist, so FOV and sensitivity were silently lost on
             // reload unless an unrelated achievement happened to save first.
             if (v) v.oninput = () => { G.audio.setVolume(parseFloat(v.value)); G.progress.save(); };
+            if (sf) sf.onchange = () => {
+                if (G.audio.setSfxEnabled) G.audio.setSfxEnabled(sf.checked);
+                else G.settings.sfx = sf.checked;
+                if (sf.checked) G.audio?.sfx?.('blip');
+                G.progress.save();
+            };
+            if (sfv) sfv.oninput = () => {
+                const val = parseFloat(sfv.value);
+                if (G.audio.setSfxVolume) G.audio.setSfxVolume(val);
+                else G.settings.sfxVolume = val;
+                G.progress.save();
+            };
+            if (amv) amv.oninput = () => {
+                const val = parseFloat(amv.value);
+                if (G.audio.setAmbientVolume) G.audio.setAmbientVolume(val);
+                else G.settings.ambientVolume = val;
+                G.progress.save();
+            };
             if (s) s.oninput = () => { G.settings.sensitivity = parseFloat(s.value); G.progress.save(); };
             const px = document.getElementById('setPixel');
             if (px) px.onchange = () => { try { localStorage.setItem('sc_fp_pixel', px.value); } catch (_) { /* */ } location.reload(); };
@@ -823,6 +847,9 @@ export const UI = {
                         <option value="crisp" ${G.pixelLook === 'crisp' ? 'selected' : ''}>Crisp — 3× pixels</option>
                     </select></td></tr>
                 <tr><td>Master volume</td><td><input id="setVol" type="range" min="0" max="1" step="0.05" value="${G.settings.volume}"></td></tr>
+                <tr><td>Sound effects</td><td><input id="setSfx" type="checkbox" ${G.settings.sfx !== false ? 'checked' : ''}></td></tr>
+                <tr><td>SFX volume</td><td><input id="setSfxVol" type="range" min="0" max="1" step="0.05" value="${sfxVol}"></td></tr>
+                <tr><td>Ambience volume</td><td><input id="setAmbVol" type="range" min="0" max="1" step="0.05" value="${ambVol}"></td></tr>
                 <tr><td>Music</td><td><input id="setMusic" type="checkbox" ${G.settings.music ? 'checked' : ''}></td></tr>
                 <tr><td>${G.touchMode ? 'Look sensitivity' : 'Mouse sensitivity'}</td><td><input id="setSens" type="range" min="0.3" max="2.5" step="0.1" value="${G.settings.sensitivity}"></td></tr>
                 ${G.touchMode ? `<tr><td>Touch drag gain</td><td><input id="setTouchSens" type="range" min="0.4" max="2.5" step="0.1" value="${G.settings.touchSensitivity ?? 1}"></td></tr>` : ''}

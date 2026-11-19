@@ -236,9 +236,9 @@ const HNBlimps = {
     },
 
     _onClick(story) {
-        if (typeof SND !== 'undefined' && SND.playTone) {
+        if (typeof SND !== 'undefined' && SND.blimpPop) {
             try {
-                SND.playTone(880, 'sine', 0.06, 0.03, 120);
+                SND.blimpPop();
             } catch (_e) {}
         }
         if (typeof G !== 'undefined' && G.unlockAchieve) G.unlockAchieve('hn_read');

@@ -245,7 +245,11 @@ const UI = {
 
     toggleSound() {
         if (typeof SND !== 'undefined') {
-            SND.enabled = !SND.enabled;
+            const next = !SND.enabled;
+            if (SND.setEnabled) SND.setEnabled(next);
+            else SND.enabled = next;
+            if (typeof G !== 'undefined' && G.prefs) G.prefs.sfx = SND.enabled;
+            if (SND.enabled) this.uiClick();
             this.updateSoundBtn();
             G.save();
         }
@@ -263,10 +267,14 @@ const UI = {
             mb.style.cssText = b.style.cssText;
             mb.style.marginLeft = '8px';
             mb.style.transition = 'opacity 0.2s';
+            mb.title = 'Music on/off';
+            mb.setAttribute('aria-label', 'Toggle music');
             mb.onclick = () => {
                 if (typeof SND !== 'undefined') {
                     SND.toggleMusic();
+                    if (typeof G !== 'undefined' && G.prefs) G.prefs.music = SND.musicEnabled;
                     UI.updateSoundBtn();
+                    if (typeof G !== 'undefined' && G.save) G.save();
                 }
             };
             b.parentNode.insertBefore(mb, b.nextSibling);
@@ -2210,11 +2218,36 @@ const UI = {
       </div>`;
     },
 
+    // Renders a compact labelled 0-100% range slider row for the settings panel.
+    _sliderRow(id, name, desc, val) {
+        const clamped = Math.max(0, Math.min(1, Number.isFinite(val) ? val : 1));
+        const pct = Math.round(clamped * 100);
+        return `<div class="sc-toggle-row">
+        <div class="sc-toggle-text"><span class="sc-toggle-name">${name}</span><span class="sc-toggle-desc">${desc}</span></div>
+        <div style="display:flex;align-items:center;gap:8px;flex:0 0 auto">
+          <input type="range" id="${id}" min="0" max="1" step="0.05" value="${clamped}" style="width:92px;accent-color:var(--ac);cursor:pointer">
+          <span id="${id}Val" style="font-size:9px;color:var(--t2);min-width:30px;text-align:right;font-variant-numeric:tabular-nums">${pct}%</span>
+        </div>
+      </div>`;
+    },
+
     // The Notifications / Experience / Sound sections of the settings panel.
     _settingsToggleSection() {
         const p = G.prefs || {};
         const sfxOn = typeof SND !== 'undefined' ? SND.enabled : p.sfx !== false;
         const musicOn = typeof SND !== 'undefined' ? SND.musicEnabled : p.music !== false;
+        const sfxVol =
+            typeof SND !== 'undefined' && typeof SND.sfxVolume === 'number'
+                ? SND.sfxVolume
+                : p.sfxVolume != null
+                  ? p.sfxVolume
+                  : 1;
+        const ambVol =
+            typeof SND !== 'undefined' && typeof SND.ambientVolume === 'number'
+                ? SND.ambientVolume
+                : p.ambientVolume != null
+                  ? p.ambientVolume
+                  : 1;
         const idle = p.idleTourMin || 5;
         const idleOpt = (v, lbl) => `<option value="${v}" ${idle === v ? 'selected' : ''}>${lbl}</option>`;
         const reduceMotionOn =
@@ -2244,6 +2277,8 @@ const UI = {
         <div style="margin-bottom:14px">
           <div class="sc-settings-section-title">SOUND</div>
           ${this._toggleRow('prefSfx', '🔊 Sound effects', 'UI clicks and city ambiance', sfxOn)}
+          ${this._sliderRow('prefSfxVol', '🎛️ SFX volume', 'Clicks, alerts and event chimes', sfxVol)}
+          ${this._sliderRow('prefAmbVol', '🌆 Ambient volume', 'City atmosphere and weather beds', ambVol)}
           ${this._toggleRow('prefMusic', '🎵 Background music', 'The Singularity City soundtrack', musicOn)}
         </div>
 
@@ -2289,6 +2324,62 @@ const UI = {
 
         <div style="display:flex;gap:8px;margin-top:20px"><button class="btn" style="flex:1;padding:10px;text-align:center" onclick="G.saveSettings()">💾 Save & Scan</button><button class="btn" style="padding:10px;border-color:#ef444466;color:#ef4444" onclick="if(confirm('Clear all?')){localStorage.removeItem('sc_data');location.reload()}">Reset</button><button class="btn" style="padding:10px" onclick="document.getElementById('settingsOv').classList.remove('open')">Close</button></div>`;
         this.updateModelDatalist();
+        this._wireSoundSettings();
+    },
+
+    _wireSoundSettings() {
+        const sfxEl = document.getElementById('prefSfx');
+        const musicEl = document.getElementById('prefMusic');
+        const sfxVolEl = document.getElementById('prefSfxVol');
+        const sfxVolLbl = document.getElementById('prefSfxVolVal');
+        const ambVolEl = document.getElementById('prefAmbVol');
+        const ambVolLbl = document.getElementById('prefAmbVolVal');
+
+        if (sfxEl) {
+            sfxEl.onchange = () => {
+                const on = !!sfxEl.checked;
+                if (typeof SND !== 'undefined') {
+                    if (SND.setEnabled) SND.setEnabled(on);
+                    else SND.enabled = on;
+                }
+                if (G.prefs) G.prefs.sfx = on;
+                if (on) this.uiClick();
+                this.updateSoundBtn();
+                G.save();
+            };
+        }
+        if (musicEl) {
+            musicEl.onchange = () => {
+                const on = !!musicEl.checked;
+                if (typeof SND !== 'undefined' && SND.musicEnabled !== on) SND.toggleMusic();
+                if (G.prefs) G.prefs.music = on;
+                this.updateSoundBtn();
+                G.save();
+            };
+        }
+        if (sfxVolEl) {
+            sfxVolEl.oninput = () => {
+                const v = Math.max(0, Math.min(1, parseFloat(sfxVolEl.value)));
+                if (sfxVolLbl) sfxVolLbl.textContent = `${Math.round(v * 100)}%`;
+                if (typeof SND !== 'undefined' && SND.setSfxVolume) SND.setSfxVolume(v);
+                if (G.prefs) G.prefs.sfxVolume = v;
+            };
+            sfxVolEl.onchange = () => {
+                this.uiClick();
+                G.save();
+            };
+        }
+        if (ambVolEl) {
+            ambVolEl.oninput = () => {
+                const v = Math.max(0, Math.min(1, parseFloat(ambVolEl.value)));
+                if (ambVolLbl) ambVolLbl.textContent = `${Math.round(v * 100)}%`;
+                if (typeof SND !== 'undefined' && SND.setAmbientVolume) SND.setAmbientVolume(v);
+                if (G.prefs) G.prefs.ambientVolume = v;
+            };
+            ambVolEl.onchange = () => {
+                G.save();
+            };
+        }
     },
 
     updateModelDatalist() {

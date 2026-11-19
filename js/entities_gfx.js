@@ -464,7 +464,10 @@ const EntitiesGfx = {
             if (!t) return;
             const name = trainLabels[key] || 'Metro Train';
             const onTap = () => {
-                if (typeof SND !== 'undefined' && SND.uiClick) SND.uiClick();
+                if (typeof SND !== 'undefined') {
+                    if (SND.boardTrain) SND.boardTrain();
+                    else if (SND.uiClick) SND.uiClick();
+                }
                 // Board the train as a real-world camera cutaway (keeps the city
                 // visible and zooms onto this train) rather than a separate scene.
                 if (typeof G !== 'undefined' && typeof G.enterTrainFocus === 'function') {

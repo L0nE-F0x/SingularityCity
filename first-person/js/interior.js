@@ -1784,7 +1784,7 @@ export const Interior = {
             const top = f === this.maxFloor ? ' · TOP' : '';
             const plat = this.building.type === 'metro' && f === this.maxFloor ? ' · platform — board trains with E' : '';
             G.ui?.banner?.(`🛗 Floor ${f}/${this.maxFloor}${top}`, `elevator${plat || (this.maxFloor ? ' · 0–9 jump · F next' : '')}`);
-            G.audio?.sfx?.(f > from ? 'open' : 'close');
+            G.audio?.sfx?.(f > from ? 'door_open' : 'door_close');
         }
     },
 
@@ -2016,7 +2016,7 @@ export const Interior = {
         this._lift.t = 0;
         this._lift._shown = null;
         this._lift.phase = 'closing';
-        G.audio?.sfx?.('close');
+        G.audio?.sfx?.('door_close');
     },
 
     update(dt) {
@@ -2077,7 +2077,7 @@ export const Interior = {
                 this._setFloor(L.to);      // rebuild the destination around the shut car
                 L.phase = 'opening';
                 L.t = 0;
-                G.audio?.sfx?.('open');
+                G.audio?.sfx?.('door_open');
             }
         } else if (L.phase === 'opening') {
             this._applyDoors(Math.min(1, L.t / DOOR_SECS));
@@ -2131,8 +2131,8 @@ export const Interior = {
             G.ui?.showPanel?.('newspaper');
         } else if (typeof h.action === 'function') {
             h.action(this);
+            G.audio?.sfx?.('open');
         }
-        G.audio?.sfx?.('open');
     },
 
     /* `floorIdx` is for arrivals that are not through the street door — you
@@ -2180,7 +2180,7 @@ export const Interior = {
         else G.player.teleport(0, S(ROOM_D / 2 - 56), 0);   // just inside the door, the room ahead of you
         const multi = this.maxFloor > 0 ? ` · ELEVATOR: F / E at lift / 0–${this.maxFloor}` : '';
         G.ui?.banner?.(`${b.emoji || '🏢'} ${b.name}`, 'press E at the door to leave' + multi);
-        G.audio?.sfx?.('open');
+        G.audio?.sfx?.('door_open');
         G.progress?.unlock?.('went_inside');
     },
 
@@ -2213,7 +2213,7 @@ export const Interior = {
         if (this._savedPos) {
             G.player.teleport(this._savedPos.x, this._savedPos.z, this._savedYaw);
         }
-        G.audio?.sfx('close');
+        G.audio?.sfx?.('door_close');
     },
 
     // distance from the player to the way out (interior-local)
