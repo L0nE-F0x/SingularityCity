@@ -113,14 +113,20 @@ function softParticleMap(kind) {
 }
 
 function cloudTexture() {
-    const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+    const c = document.createElement('canvas'); c.width = 512; c.height = 256;
     const x = c.getContext('2d');
-    for (let i = 0; i < 18; i++) {
-        const cx = 28 + Math.random() * 200, cy = 40 + Math.random() * 48, r = 18 + Math.random() * 36;
-        const g = x.createRadialGradient(cx, cy, 1, cx, cy, r);
-        g.addColorStop(0, 'rgba(255,255,255,0.62)');
-        g.addColorStop(0.55, 'rgba(255,255,255,0.22)');
-        g.addColorStop(1, 'rgba(255,255,255,0)');
+    // Seeded cumulus puffs: sunlit bright crown + cool flat underside
+    let s = 9187;
+    const rnd = () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    for (let i = 0; i < 24; i++) {
+        const cx = 64 + rnd() * 384;
+        const cy = 85 + rnd() * 90;
+        const r = 34 + rnd() * 56;
+        const g = x.createRadialGradient(cx, cy - r * 0.25, r * 0.1, cx, cy, r);
+        g.addColorStop(0, 'rgba(255,255,255,0.68)');
+        g.addColorStop(0.5, 'rgba(232,240,250,0.34)');
+        g.addColorStop(0.85, 'rgba(186,200,218,0.10)');
+        g.addColorStop(1, 'rgba(186,200,218,0)');
         x.fillStyle = g;
         x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill();
     }
@@ -138,9 +144,9 @@ const TOD = [
     { dp: 0.0, top: '#04050f', mid: '#1c123d', bot: '#5c1f5a', amb: '#6a6ea8', haze: '#4a1d58', rim: '#6a3a80', neon: 1 },
     { dp: 0.2, top: '#05060f', mid: '#201440', bot: '#62215c', amb: '#6a6ea8', haze: '#4e1e5a', rim: '#6a3a80', neon: 1 },
     { dp: 0.255, top: '#141a3a', mid: '#8a4e78', bot: '#f8b070', amb: '#a08aa8', haze: '#c07a80', rim: '#ffa070', neon: 0.9 },
-    { dp: 0.3, top: '#53708a', mid: '#b8b092', bot: '#e8c894', amb: '#f2e6d2', haze: '#dcc8a0', rim: '#fff0d0', neon: 0.75 },
-    { dp: 0.5, top: '#4c7490', mid: '#aeb29a', bot: '#e0c99c', amb: '#fdf4e6', haze: '#d6caa8', rim: '#fffaf0', neon: 0.7 },
-    { dp: 0.68, top: '#486c8c', mid: '#b4a48a', bot: '#eabc7c', amb: '#fbead2', haze: '#dec090', rim: '#fff4dc', neon: 0.72 },
+    { dp: 0.3, top: '#3b6db8', mid: '#8cbce8', bot: '#dfeaf4', amb: '#eef2f8', haze: '#c8dcee', rim: '#fff0d0', neon: 0.75 },
+    { dp: 0.5, top: '#2b66c0', mid: '#7bb5e8', bot: '#cfe4f4', amb: '#f6f8fc', haze: '#c4daee', rim: '#fffaf0', neon: 0.7 },
+    { dp: 0.68, top: '#3665b0', mid: '#8eb2da', bot: '#ecd2b0', amb: '#fbf0e0', haze: '#dcc8b0', rim: '#fff4dc', neon: 0.72 },
     { dp: 0.75, top: '#2e3a64', mid: '#c26e6e', bot: '#ffbc62', amb: '#ffc49a', haze: '#f0986a', rim: '#ffc080', neon: 0.88 },
     { dp: 0.795, top: '#0e0f2e', mid: '#6a2866', bot: '#e8705e', amb: '#9a7aa4', haze: '#b03a6e', rim: '#f07070', neon: 1 },
     { dp: 0.84, top: '#050616', mid: '#281646', bot: '#74245e', amb: '#7072ac', haze: '#5c2060', rim: '#6a3a7e', neon: 1 },
@@ -196,13 +202,14 @@ export const Weather = {
     init(scene) {
         // ── sky dome: horizon band + sun-warmed sky (still one draw) ──
         this.skyU = {
-            top: { value: new THREE.Color(0x3d78c8) },
-            mid: { value: new THREE.Color(0x7eb6e8) },
-            bottom: { value: new THREE.Color(0xcfe8f7) },
+            top: { value: new THREE.Color(0x2b66c0) },
+            mid: { value: new THREE.Color(0x7bb5e8) },
+            bottom: { value: new THREE.Color(0xcfe4f4) },
             sunDir: { value: new THREE.Vector3(0.4, 0.7, 0.2).normalize() },
             sunGlow: { value: 0.55 },
             haze: { value: 0.35 },
-            nightAmt: { value: 0 }
+            nightAmt: { value: 0 },
+            time: { value: 0 }
         };
         const skyMat = new THREE.ShaderMaterial({
             uniforms: this.skyU,
@@ -215,7 +222,7 @@ export const Weather = {
                 }`,
             fragmentShader: /* glsl */`
                 uniform vec3 top, mid, bottom, sunDir;
-                uniform float sunGlow, haze, nightAmt;
+                uniform float sunGlow, haze, nightAmt, time;
                 varying vec3 vW;
                 void main(){
                     vec3 n = normalize(vW);
@@ -227,7 +234,16 @@ export const Weather = {
                     col = mix(col, top, tHigh);
                     // soft horizon brightening (atmosphere thickness)
                     float hor = exp(-abs(n.y) * 6.5) * haze;
-                    col += vec3(0.12, 0.10, 0.06) * hor * (1.0 - nightAmt);
+                    col += vec3(0.10, 0.11, 0.12) * hor * (1.0 - nightAmt);
+                    // high-altitude procedural cirrus streaks (daylight/golden-hour only)
+                    if (n.y > 0.08 && nightAmt < 0.85) {
+                        vec2 uv = n.xz / (n.y + 0.22);
+                        float c1 = sin(uv.x * 2.1 + time * 0.015 + sin(uv.y * 1.4)) * 0.5 + 0.5;
+                        float c2 = sin(uv.y * 4.3 - uv.x * 1.6 + time * 0.01) * 0.5 + 0.5;
+                        float wisp = smoothstep(0.58, 0.94, c1 * 0.6 + c2 * 0.4);
+                        float altFade = smoothstep(0.08, 0.32, n.y);
+                        col = mix(col, vec3(0.95, 0.97, 1.0), wisp * altFade * 0.18 * (1.0 - nightAmt));
+                    }
                     // after dark the horizon glow is the city's own light
                     // pollution: a thin sodium band, not a daytime haze
                     col += vec3(0.030, 0.018, 0.014) * exp(-max(n.y, 0.0) * 9.0) * nightAmt;
@@ -571,9 +587,10 @@ export const Weather = {
                 mid.lerp(_cStorm, stormMix * 0.4);
                 bot.lerp(_cStorm, stormMix * 0.25);
             }
-            top.multiplyScalar(dim);
-            mid.multiplyScalar(0.55 + dim * 0.45);
-            bot.multiplyScalar(0.65 + dim * 0.35);
+            const lum = 0.62 + dim * 0.38;
+            top.multiplyScalar(lum);
+            mid.multiplyScalar(0.68 + dim * 0.32);
+            bot.multiplyScalar(0.72 + dim * 0.28);
             // fog weather: wash sky toward cool grey
             if (this.state === 'fog') {
                 _cTmp.set(0x9aa8b8);
@@ -587,6 +604,7 @@ export const Weather = {
         this._sunDir.set(az * 0.75, Math.max(0.02, sunEl), -0.45).normalize();
         this.skyU.sunDir.value.copy(this._sunDir);
         this.skyU.nightAmt.value = Math.min(1, night * night * 1.2);
+        this.skyU.time.value = t || 0;
         this.skyU.sunGlow.value = (0.15 + day * 0.55 + dusk * 0.85) * dim * (1 - (this.state === 'fog' ? 0.5 : 0) * this.intensity);
         this.skyU.haze.value = 0.22 + day * 0.2 + dusk * 0.35
             + (this.state === 'fog' ? 0.45 * this.intensity : 0)
@@ -634,31 +652,38 @@ export const Weather = {
         // rather than a black hole, while sunlit faces keep real contrast.
         const fill = W.shadows ? 0.72 : 1;
         if (W.sun) {
-            // Keep the light off the zenith. A vertical wall gets almost no
-            // direct light from an overhead sun (N·L → 0), and the old arc
-            // peaked at ~72°, so at noon every façade fell back to ambient and
-            // the city read as dusk at midday. Cap the elevation and swing the
-            // arc wide so the horizontal component stays strong all day.
-            const el = Math.min(sunEl, SUN_MAX_EL);
-            const horiz = Math.sqrt(Math.max(0.05, 1 - el * el));
-            // Direction the light TRAVELS (sun → ground). World.aimSun keeps the
-            // light and its shadow frustum locked to this vector wherever the
-            // player stands, so the sun angle no longer drifts across the city.
-            W.aimSun(
-                -az * 2200 * horiz,
-                -Math.max(320, el * 1800),
-                -1400 * horiz,
-                cam.x, cam.z
-            );
-            W.sun.intensity = (W.shadows ? 2.2 : 1.7) * day * dim + 0.12 + flashBoost * 2.8;
-            // warm by day, the palette's rim at the golden hour
-            W.sun.color.setRGB(1, 0.95, 0.86).lerp(_tod.rim, Math.min(1, dusk * 1.4));
-            if (flashBoost > 0.05) {
-                W.sun.color.lerp(_cTmp2.set(0xc8e0ff), flashBoost * 0.7);
+            if (day <= 0.06 && moonVis > 0.15) {
+                // Cool silvery moonlight arc (moon is opposite the sun)
+                const mEl = Math.min(SUN_MAX_EL, Math.max(0.22, -sunEl));
+                const mHoriz = Math.sqrt(Math.max(0.05, 1 - mEl * mEl));
+                W.aimSun(
+                    az * 2200 * mHoriz,
+                    -Math.max(320, mEl * 1650),
+                    -1400 * mHoriz,
+                    cam.x, cam.z
+                );
+                W.sun.intensity = (0.32 + moonVis * 0.38) * dim + flashBoost * 2.8;
+                W.sun.color.setHex(0x8cb4ef);
+                if (flashBoost > 0.05) {
+                    W.sun.color.lerp(_cTmp2.set(0xc8e0ff), flashBoost * 0.7);
+                }
+                if (W.shadows) W.sun.castShadow = moonVis > 0.22 && !G.inside && !G.ridingMetro;
+            } else {
+                const el = Math.min(sunEl, SUN_MAX_EL);
+                const horiz = Math.sqrt(Math.max(0.05, 1 - el * el));
+                W.aimSun(
+                    -az * 2200 * horiz,
+                    -Math.max(320, el * 1800),
+                    -1400 * horiz,
+                    cam.x, cam.z
+                );
+                W.sun.intensity = (W.shadows ? 2.2 : 1.7) * day * dim + 0.12 + flashBoost * 2.8;
+                W.sun.color.setRGB(1, 0.95, 0.86).lerp(_tod.rim, Math.min(1, dusk * 1.4));
+                if (flashBoost > 0.05) {
+                    W.sun.color.lerp(_cTmp2.set(0xc8e0ff), flashBoost * 0.7);
+                }
+                if (W.shadows) W.sun.castShadow = day > 0.06 && !G.inside && !G.ridingMetro;
             }
-            // A shadow map that still renders at night is pure cost — the sun
-            // contributes nothing below the horizon.
-            if (W.shadows) W.sun.castShadow = day > 0.06 && !G.inside && !G.ridingMetro;
         }
         if (W.hemi) {
             // Carries every surface the key light misses.
@@ -667,28 +692,15 @@ export const Weather = {
         }
         if (W.ambient) W.ambient.intensity = (0.45 + 0.45 * day) * fill;
 
-        // Indoors the sky is irrelevant — hold a steady interior level so a
-        // lobby doesn't go pitch black at 3am. Metro cabin uses its own lights.
-        /* Interior levels were tuned against a NoToneMapping pipeline. ACES
-           rolls the top end off, so the same numbers left every lobby and bar
-           reading as a blackout — the rooms are lit almost entirely by ambient
-           and hemi, with no key light to survive the curve. */
-        // Indoors wants a lower exposure than a sunlit street; ease between them
-        // so walking through a door doesn't pop.
         if (G.renderer) {
             const want = G.inside ? 1.12 : 1.35;
             G.renderer.toneMappingExposure += (want - G.renderer.toneMappingExposure) * Math.min(1, dt * 4);
         }
         if (G.inside) {
-            /* Trimmed from 2.0/1.35: those were set when interiors were 3x
-               scale and mostly dark surfaces. At human scale the pale office
-               palette bounces far more light and the rooms blew out white. */
-            /* Trimmed again for the kit-furnished rooms: pale walls, a pale
-               floor and a white ceiling under ACES at 1.35 exposure read as
-               an overexposed photo. The furniture needs shade to have form. */
-            if (W.hemi) W.hemi.intensity = 1.0;
-            if (W.ambient) W.ambient.intensity = 0.55;
-            if (W.sun) W.sun.intensity = 0.4;
+            // Let Interior's own point & rim lights sculpt contrast indoors
+            if (W.hemi) W.hemi.intensity = 0.68;
+            if (W.ambient) W.ambient.intensity = 0.38;
+            if (W.sun) W.sun.intensity = 0.15;
             if (W.ambient) W.ambient.color.setHex(0x9aa6bc);
         } else if (G.ridingMetro) {
             if (W.hemi) W.hemi.intensity = 0.45;

@@ -748,6 +748,17 @@ export const Citizens = {
                 const v = c.speed * step;
                 c.x += (dx / dist) * v;
                 c.z += (dz / dist) * v;
+                // Gentle personal-space separation from player so pedestrians don't clip the camera
+                const camPos = !G.inside && G.camera ? G.camera.position : null;
+                if (camPos) {
+                    const px = c.x - camPos.x, pz = c.z - camPos.z;
+                    const pd = Math.hypot(px, pz);
+                    if (pd > 0.1 && pd < 18) {
+                        const nx = c.x + (px / pd) * (18 - pd) * 0.35;
+                        const nz = c.z + (pz / pd) * (18 - pd) * 0.35;
+                        if (!City.onCarriageway(nx, nz)) { c.x = nx; c.z = nz; }
+                    }
+                }
                 c.dirX = dx / dist; c.dirZ = dz / dist;
                 // stride rate follows walking speed; the shader swings the limbs
                 c.bob += step * (c.speed / 11);

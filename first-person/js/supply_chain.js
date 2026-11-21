@@ -19,7 +19,9 @@
    rendering side only reads them.
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G } from './state.js';
+import { City, LANE_W } from './city.js';
 import { COMMODITIES } from './data.js';
 import { fallbackPrices, fetchPrices, formatPrice, formatChange } from '../../shared/port_prices.js';
 import { INTEGRATION } from './store/config.js';
@@ -82,15 +84,62 @@ export const SupplyChain = {
        traffic.js already owns road routing and this is a background detail. */
     _buildTrucks(scene) {
         const N = 5;
-        const body = new THREE.BoxGeometry(52, 22, 22);
-        body.translate(0, 15, 0);
+        const parts = [];
+        const paintPart = (g, hex) => {
+            const c = new THREE.Color(hex);
+            const count = g.attributes.position.count;
+            const arr = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
+            g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+            if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(count * 2), 2));
+            parts.push(g);
+        };
+        // +Z forward semi-truck: cargo trailer (white -> instance tinted), dark chassis & tires, neutral cab
+        paintPart(new THREE.BoxGeometry(20, 18, 36).translate(0, 14, -10), 0xffffff);       // cargo box
+        paintPart(new THREE.BoxGeometry(18, 3, 52).translate(0, 4.5, 0), 0x333944);        // flatbed frame
+        paintPart(new THREE.BoxGeometry(18, 13, 14).translate(0, 11.5, 17), 0xd8dee8);     // cab
+        paintPart(new THREE.BoxGeometry(16.4, 5.5, 1.2).translate(0, 14, 24.1), 0x5c7a99); // windshield
+        for (const wz of [-20, -10, 16]) {
+            for (const wx of [-9.2, 9.2]) {
+                const w = new THREE.CylinderGeometry(4, 4, 2.4, 10);
+                w.rotateZ(Math.PI / 2);
+                w.translate(wx, 4, wz);
+                paintPart(w, 0x1c2028);
+            }
+        }
+        const body = mergeGeometries(parts, false);
         this._truckMesh = new THREE.InstancedMesh(body,
-            new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.2 }), N);
+            new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.5, metalness: 0.25 }), N);
         this._truckMesh.name = 'supplyTrucks';
         this._truckMesh.count = 0;
         scene.add(this._truckMesh);
         this._truckCap = N;
         this._dummy = new THREE.Object3D();
+    },
+
+    _roadWaypoints(ax, az, bx, bz) {
+        const xs = [...(City.avenueXs || []), ...(City.ringX || [])];
+        const zs = [...(City.streetZs || []), ...(City.ringZ || [])];
+        if (!xs.length || !zs.length) return [{ x: ax, z: az }, { x: bx, z: bz }];
+        const nearest = (arr, v) => arr.reduce((best, c) => Math.abs(c - v) < Math.abs(best - v) ? c : best, arr[0]);
+        const rx0 = nearest(xs, ax);
+        const rz0 = nearest(zs, az);
+        const rx1 = nearest(xs, bx);
+        const rz1 = nearest(zs, bz);
+        const off = LANE_W * 0.5;
+        const pts = [
+            { x: rx0 + off, z: rz0 + off },
+            { x: rx1 + off, z: rz0 + off },
+            { x: rx1 + off, z: rz1 + off }
+        ];
+        // Clean duplicate waypoints
+        const out = [pts[0]];
+        for (let i = 1; i < pts.length; i++) {
+            const p = out[out.length - 1];
+            if (Math.hypot(pts[i].x - p.x, pts[i].z - p.z) > 8) out.push(pts[i]);
+        }
+        if (out.length < 2) out.push({ x: bx, z: bz });
+        return out;
     },
 
     _spawnTruck() {
@@ -101,9 +150,19 @@ export const SupplyChain = {
         const kinds = Object.keys(this.stock).filter(k => this.stock[k].v > this.stock[k].cap * 0.12);
         if (!kinds.length) return;
         const kind = kinds[(Math.random() * kinds.length) | 0];
+        const wps = this._roadWaypoints(this.origin.x, this.origin.z, dst.x, dst.z);
+        const segs = [];
+        let totalLen = 0;
+        for (let i = 0; i < wps.length - 1; i++) {
+            const l = Math.hypot(wps[i + 1].x - wps[i].x, wps[i + 1].z - wps[i].z);
+            segs.push(l);
+            totalLen += l;
+        }
+        const dur = Math.max(18, totalLen / 110);
         this.trucks.push({
-            t: 0, dur: 26 + Math.random() * 14, kind,
-            ax: this.origin.x, az: this.origin.z, bx: dst.x, bz: dst.z,
+            t: 0, dur, kind,
+            ax: wps[0].x, az: wps[0].z, bx: wps[wps.length - 1].x, bz: wps[wps.length - 1].z,
+            wps, segs, totalLen: Math.max(1, totalLen),
             col: kind.startsWith('gpu') ? 0x76b900 : kind === 'electricity' ? 0xfbbf24 : 0x38bdf8
         });
     },
@@ -191,10 +250,23 @@ export const SupplyChain = {
                 this.trucks.splice(i, 1);
                 continue;
             }
-            const x = t.ax + (t.bx - t.ax) * k;
-            const z = t.az + (t.bz - t.az) * k;
+            let x, z, dx, dz;
+            if (t.wps && t.wps.length > 1) {
+                let rem = k * t.totalLen;
+                let si = 0;
+                while (si < t.segs.length - 1 && rem > t.segs[si]) { rem -= t.segs[si]; si++; }
+                const a = t.wps[si], b = t.wps[si + 1];
+                const u = t.segs[si] > 0 ? Math.min(1, rem / t.segs[si]) : 0;
+                x = a.x + (b.x - a.x) * u;
+                z = a.z + (b.z - a.z) * u;
+                dx = b.x - a.x; dz = b.z - a.z;
+            } else {
+                x = t.ax + (t.bx - t.ax) * k;
+                z = t.az + (t.bz - t.az) * k;
+                dx = t.bx - t.ax; dz = t.bz - t.az;
+            }
             d.position.set(x, 0, z);
-            d.rotation.set(0, Math.atan2(t.bx - t.ax, t.bz - t.az), 0);
+            d.rotation.set(0, Math.atan2(dx, dz), 0);
             d.scale.setScalar(1);
             d.updateMatrix();
             m.setMatrixAt(live, d.matrix);

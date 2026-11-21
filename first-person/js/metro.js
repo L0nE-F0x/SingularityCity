@@ -952,6 +952,7 @@ export const Metro = {
         };
         G.floorY = t.y;
         G.ridingMetro = true;
+        G.ui?.pulseFade?.();
         this._justBoarded = true;
         G.player.vel.set(0, 0, 0);
         if (!fromPlatform) {
@@ -982,6 +983,7 @@ export const Metro = {
         this.riding = null;
         this.cabin = null;
         G.ridingMetro = false;
+        G.ui?.pulseFade?.();
         if (t) t._longDwell = false;
         if (stop) {
             /* Step off onto the platform beside the doors you rode behind,

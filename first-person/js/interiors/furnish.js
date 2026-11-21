@@ -24,7 +24,9 @@
    `pose: 'sit'` spots are chairs and sofas, `work` is a desk.
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Assets } from '../assets.js';
+import * as TEX from '../textures.js';
 
 export const PER_M = 30;          // interior-local units per metre
 
@@ -75,6 +77,7 @@ export class Furnisher {
         this.group = group;
         this.solids = solids;
         this.batches = new Map();
+        this._shadows = [];
         this.placed = 0;
     }
 
@@ -107,6 +110,13 @@ export class Furnisher {
             const q = Math.abs(Math.sin(ry)) > 0.7;
             const hw = (q ? d : w) / 2 + (o.pad ?? 2), hd = (q ? w : d) / 2 + (o.pad ?? 2);
             this.solids.push({ x0: x - hw, z0: z - hd, x1: x + hw, z1: z + hd });
+            if ((o.y ?? 0) <= 2) {
+                const sg = new THREE.PlaneGeometry(w * 1.25, d * 1.25);
+                sg.rotateX(-Math.PI / 2);
+                sg.rotateY(ry);
+                sg.translate(x, 0.32, z);
+                this._shadows.push(sg);
+            }
         }
         this.placed++;
         return { w, d, h: kit.size.y * s * (o.sy ?? 1) };
@@ -130,6 +140,15 @@ export class Furnisher {
             this.group.add(im);
         }
         this.batches.clear();
+        if (this._shadows.length) {
+            const shadowTex = TEX.shadowBlob();
+            shadowTex.userData.shared = true;
+            const sm = new THREE.Mesh(mergeGeometries(this._shadows, false),
+                new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.36, depthWrite: false }));
+            sm.matrixAutoUpdate = false;
+            this.group.add(sm);
+            this._shadows.length = 0;
+        }
     }
 }
 
@@ -195,16 +214,15 @@ export function office(F, ctx) {
     pendants(F, 'in_office_pendant', [-40, 20, 80], -150, H);
     spots.push({ x: -16, z: -200, facing: 1, pose: 'work', stay: true });
     spots.push({ x: 56, z: -200, facing: 1, pose: 'work', stay: true });
-    /* The lobby's centre: an island between the door and reception — a rug,
-       a display case of the lab's work flanked by planters, and a ring of
-       seats — so walking in you cross a room, not an empty tiled field. */
+    /* Welcoming central lobby aisle with clean sightline from street door
+       to reception & the wall sign; display showcase & planters frame the flank. */
     F.put('in_office_rug', 20, -40, 0, { y: 0.4, s: 2.4 });
-    if (Assets.has('in_display_case')) F.put('in_display_case', 20, -44, 0, { s: 1.05, solid: true });
-    for (const dx of [-46, 86]) {
-        F.put('in_office_plant', dx, -44, dx * 0.1, { s: 2.1, solid: true, pad: 0 });
+    if (Assets.has('in_display_case')) F.put('in_display_case', -96, -110, 0.25, { s: 1.0, solid: true });
+    for (const dx of [-58, 98]) {
+        F.put('in_office_plant', dx, -68, dx * 0.1, { s: 2.0, solid: true, pad: 0 });
     }
-    F.put('in_loveseat', 20, 8, Math.PI, { s: 0.9, solid: true });
-    spots.push({ x: 14, z: 6, facing: -1, pose: 'sit' });
+    F.put('in_loveseat', -96, 36, Math.PI * 0.35, { s: 0.9, solid: true });
+    spots.push({ x: -88, z: 32, facing: -1, pose: 'sit' });
     F.put('in_pendant', 20, -44, 0, { y: H - 26, s: 1.4 });
     // lounge, right of the entrance axis: rug, sofa facing the chairs
     F.put('in_area_rug', 180, 20, 0, { y: 0.4, s: 1.05 });

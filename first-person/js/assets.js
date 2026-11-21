@@ -394,6 +394,29 @@ function prepare(gltf, def) {
     if (size.x < 1e-4 || size.y < 1e-4 || size.z < 1e-4) return null;
     const windows = def.kind === 'tower' || def.kind === 'house' || def.kind === 'pad' || def.kind === 'street';
     if (windows) tagGlazing(geo, def.src);
+    // Bake subtle ground-contact AO into non-glowing base vertices
+    if (windows || def.kind === 'car' || def.kind === 'vehicle') {
+        const col = geo.getAttribute('color');
+        const pos = geo.getAttribute('position');
+        const glaze = geo.getAttribute('aGlaze');
+        if (col && pos) {
+            const aoH = Math.min(size.y * 0.18, 2.2);
+            if (aoH > 1e-3) {
+                for (let i = 0; i < pos.count; i++) {
+                    const gCode = glaze ? glaze.getX(i) : 0;
+                    if (gCode === 1 || gCode === 2 || gCode === 3 || gCode === 6) continue;
+                    const r = col.getX(i), g = col.getY(i), b = col.getZ(i);
+                    if (r > 1.001 || g > 1.001 || b > 1.001) continue;
+                    const y = pos.getY(i);
+                    if (y < aoH) {
+                        const f = 0.72 + 0.28 * Math.max(0, y / aoH);
+                        col.setXYZ(i, r * f, g * f, b * f);
+                    }
+                }
+                col.needsUpdate = true;
+            }
+        }
+    }
     const material = windows ? windowMaterial(src.material, def.kind)
         : def.kind === 'interior' ? furnitureMaterial(src.material)
             : vehicleMaterial(src.material);

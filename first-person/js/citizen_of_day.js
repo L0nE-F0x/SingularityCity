@@ -20,6 +20,7 @@ import { SEED, LABS } from './data.js';
 import { CityStore } from './store/city_store.js';
 import { INTEGRATION } from './store/config.js';
 import { City, KERB_H } from './city.js';
+import { bakedPerson } from './people.js';
 
 const LS_PICK_KEY = INTEGRATION.COTD_PICK_KEY;           // production-aligned
 const LS_PICK_LEGACY = INTEGRATION.LEGACY_COTD_PICK_KEY; // migrate from FP-only key
@@ -110,19 +111,13 @@ function paint(geo, hex) {
 }
 
 function paparazzoGeometry(coatHex) {
-    const parts = [];
-    const box = (w, h, d, x, y, z, hex) => {
-        const g = new THREE.BoxGeometry(w, h, d);
-        g.translate(x, y, z);
-        parts.push(paint(g, hex));
-    };
-    box(2.4, 6.5, 2.2, 0, 7.5, 0, coatHex);
-    box(2.2, 5.5, 2.0, -1.0, 2.75, 0, 0x1f2937);
-    box(2.2, 5.5, 2.0, 1.0, 2.75, 0, 0x1f2937);
-    box(2.6, 2.8, 2.6, 0, 12.4, 0, 0xf0c9a4);
-    box(3.4, 1.8, 2.0, 2.6, 10.5, 1.2, 0x111111);
-    box(0.7, 0.7, 0.7, 4.5, 10.7, 1.6, 0xf5f5f5);
-    return mergeGeometries(parts, false);
+    const person = bakedPerson({ clothing: coatHex, trousers: 0x1f2937, key: 'pap_' + coatHex, pose: 'stand', scale: 1 });
+    const camBody = paint(new THREE.BoxGeometry(3.0, 1.8, 1.8).translate(2.4, 12.2, 2.4), 0x111827);
+    const camLens = paint(new THREE.BoxGeometry(1.0, 1.0, 1.2).translate(2.4, 12.2, 3.6), 0xe2e8f0);
+    for (const g of [camBody, camLens]) {
+        if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    }
+    return mergeGeometries([person, camBody, camLens], false);
 }
 
 function makeCrownSprite() {
@@ -370,7 +365,7 @@ export const CitizenOfDay = {
             { x: -38, z: -6, speed: 1.15 },
             { x: -52, z: 4,  speed: 1.05 }
         ];
-        const mat = new THREE.MeshBasicMaterial({ vertexColors: true });
+        const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0.08 });
         for (let i = 0; i < 3; i++) {
             const geo = paparazzoGeometry(coats[i]);
             const mesh = new THREE.Mesh(geo, mat);

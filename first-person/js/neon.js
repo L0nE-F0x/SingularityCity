@@ -103,7 +103,9 @@ function shopAtlas() {
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
     t.magFilter = THREE.NearestFilter;
-    t.anisotropy = 4;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = 8;
     return { tex: t, cols: COLS, rows: ROWS, n: SHOPS.length };
 }
 
@@ -130,7 +132,9 @@ function bladeAtlas() {
     });
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 4;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = 8;
     return { tex: t, cols: COLS };
 }
 
@@ -154,7 +158,9 @@ function roofAtlas() {
     });
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 4;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = 8;
     return { tex: t, rows: N };
 }
 
@@ -175,6 +181,7 @@ export const Neon = {
             if (named && SKIP_IDS.test(c.id)) continue;
             const b = named ? G.bldById[c.id] : null;
             if (b && /park|launchpad|monument|graveyard|arena|jail|villa|cabin|solar|wind|dam|nuclear|coal|fusion|crane|dish|billboard/.test(b.type || '')) continue;
+            const isIndustrial = !!(b && /datacenter|fab|warehouse/.test(b.type || ''));
             const w = c.x1 - c.x0, d = c.z1 - c.z0;
             if (w < 34 || d < 34) continue;
             const cx = (c.x0 + c.x1) / 2, cz = (c.z0 + c.z1) / 2;
@@ -200,10 +207,20 @@ export const Neon = {
                         qx > k.x0 && qx < k.x1 && qz > k.z0 && qz < k.z1)) break;
                 }
                 if (!street) continue;
-                if (industrial && rnd() < 0.6) continue;
-                faces++;
                 const ang = Math.atan2(f.nx, f.nz);          // local +z → face normal
                 const tx = -f.nz, tz = f.nx;                   // along the face
+                if (isIndustrial) {
+                    // Industrial buildings get sleek technical status strips, never retail shops
+                    const stripW = Math.min(f.span * 0.72, 160);
+                    const icol = b.type === 'datacenter' ? 0x38bdf8 : b.type === 'fab' ? 0x22d3ee : 0xf59e0b;
+                    const tr = new THREE.BoxGeometry(stripW, 0.9, 0.6);
+                    tr.rotateY(ang);
+                    tr.translate(f.px + f.nx * 0.8, 22, f.pz + f.nz * 0.8);
+                    glow.push(colorize(tr, icol));
+                    continue;
+                }
+                if (industrial && rnd() < 0.6) continue;
+                faces++;
                 const units = f.span > 110 ? 3 : f.span > 60 ? 2 : 1;
                 const usable = f.span * 0.84;
                 const uw = usable / units;
@@ -265,16 +282,25 @@ export const Neon = {
                     const pl = new THREE.PlaneGeometry(10, 38);
                     const uv = pl.attributes.uv;
                     for (let k = 0; k < uv.count; k++) uv.setX(k, (wi + uv.getX(k)) / atlas.cols);
-                    // the blade stands out from the wall: its faces look along the street
+                    // Orient outward from both sides of the casing: rotateY(ang+pi/2) faces (-tx,-tz),
+                    // rotateY(ang-pi/2) faces (+tx,+tz), so offset each outside the 1.4-thick bk housing.
                     const both = pl.clone();
-                    pl.rotateY(ang + Math.PI / 2); both.rotateY(ang - Math.PI / 2);
-                    for (const q of [pl, both]) {
-                        q.translate(bx + tx * 0.8 * (q === pl ? 1 : -1), by, bz + tz * 0.8 * (q === pl ? 1 : -1));
-                        blades.push(q);
-                    }
+                    pl.rotateY(ang + Math.PI / 2);
+                    pl.translate(bx - tx * 0.85, by, bz - tz * 0.85);
+                    blades.push(pl);
+                    both.rotateY(ang - Math.PI / 2);
+                    both.translate(bx + tx * 0.85, by, bz + tz * 0.85);
+                    blades.push(both);
+
                     const bk = new THREE.BoxGeometry(1.4, 40, 11);
                     bk.rotateY(ang); bk.translate(bx, by, bz);
-                    backs.push(colorize(bk, 0x14161d));
+                    backs.push(colorize(bk, 0x202530));
+                    // Illuminated outer edge spine
+                    const edgeCol = NEON[wi % NEON.length];
+                    const rim = new THREE.BoxGeometry(1.6, 39, 0.7);
+                    rim.rotateY(ang);
+                    rim.translate(bx + f.nx * 5.6, by, bz + f.nz * 5.6);
+                    glow.push(colorize(rim, edgeCol));
                     const arm = new THREE.BoxGeometry(1, 1, 8);
                     arm.rotateY(ang);
                     for (const dy of [-14, 14]) {

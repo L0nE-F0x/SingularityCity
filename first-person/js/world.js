@@ -263,6 +263,9 @@ function patchUVScale(mat) {
                     #ifdef USE_EMISSIVEMAP
                         vEmissiveMapUv *= sc;
                     #endif
+                    #ifdef USE_NORMALMAP
+                        vNormalMapUv *= sc;
+                    #endif
                 }`);
     };
     return mat;
@@ -325,6 +328,7 @@ export const World = {
         this._buildStreetGlass(scene);
         this._buildSigns(scene);
         this._buildProps(scene);
+        this._buildContactShadows(scene);
         Streetscape.build(scene, { lampSpots: this.lampSpots, treeSpots: this.treeSpots, boxLots: this._boxLots });
         this._buildWater(scene);
         this._buildBillboard(scene);
@@ -434,20 +438,33 @@ export const World = {
                road could never catch a sky sheen or a wet highlight no matter what
                wetness.js did to it — and with scene.environment now fed from the sky
                dome, a rough dielectric road picks up grazing-angle reflection for free. */
-            const roadMesh = new THREE.Mesh(mergeGeometries(roadGeos, false),
-                new THREE.MeshStandardMaterial({
-                    map: roadTex, roughness: 0.82, metalness: 0.0, envMapIntensity: ENV_I * 0.4
-                }));
+            this.roadMat = new THREE.MeshStandardMaterial({
+                map: roadTex,
+                normalMap: TEX.roadNormal(),
+                normalScale: new THREE.Vector2(0.45, 0.45),
+                roughness: 0.82,
+                metalness: 0.0,
+                envMapIntensity: ENV_I * 0.4
+            });
+            const roadMesh = new THREE.Mesh(mergeGeometries(roadGeos, false), this.roadMat);
             roadMesh.matrixAutoUpdate = false;
             roadMesh.userData.shadowReceiveOnly = true;
             scene.add(roadMesh);
         }
 
+        this.pavementMat = new THREE.MeshStandardMaterial({
+            map: TEX.pavement(),
+            normalMap: TEX.pavementNormal(),
+            normalScale: new THREE.Vector2(0.4, 0.4),
+            roughness: 0.86,
+            metalness: 0.0,
+            envMapIntensity: ENV_I * 0.5
+        });
+
         this._buildSidewalks(scene);
         this._buildRoadMarkings(scene);
 
         // Pavement quadrant pads (merged)
-        const pavTex = TEX.pavement();
         const pavGeos = [];
         for (const d of City.districts) {
             // The Underground is a wasteland: bare packed earth, not civic paving.
@@ -463,10 +480,7 @@ export const World = {
             }
         }
         if (pavGeos.length) {
-            const m = new THREE.Mesh(mergeGeometries(pavGeos, false),
-                new THREE.MeshStandardMaterial({
-                    map: pavTex, roughness: 0.88, metalness: 0.0, envMapIntensity: ENV_I * 0.5
-                }));
+            const m = new THREE.Mesh(mergeGeometries(pavGeos, false), this.pavementMat);
             m.matrixAutoUpdate = false;
             m.userData.shadowReceiveOnly = true;
             scene.add(m);
@@ -490,8 +504,8 @@ export const World = {
         }
         if (!geos.length) return;
         const m = new THREE.Mesh(mergeGeometries(geos, false),
-            new THREE.MeshStandardMaterial({
-                map: TEX.pavement(), roughness: 0.88, metalness: 0.0, envMapIntensity: ENV_I * 0.5
+            this.pavementMat || new THREE.MeshStandardMaterial({
+                map: TEX.pavement(), roughness: 0.86, metalness: 0.0, envMapIntensity: ENV_I * 0.5
             }));
         m.matrixAutoUpdate = false;
         m.userData.shadowReceiveOnly = true;
@@ -700,10 +714,7 @@ export const World = {
             ];
             this._tiers = spec.map((t, ti) => ({
                 ...t,
-                // Several seeded variants per tier. With one texture per tier the
-                // mullion style, the soot streaks AND the lit-window pattern were
-                // rolled once and shared by every building in the city — after
-                // dark literally the same windows were lit on every mid-rise.
+                normalMap: TEX.facadeNormal(t.cols, t.rows),
                 variants: Array.from({ length: FACADE_VARIANTS }, (_, v) =>
                     TEX.facade(t.rows, { litRatio: t.litRatio, cols: t.cols, seed: 7919 * (ti + 1) + v * 104729 }))
             }));
@@ -735,6 +746,8 @@ export const World = {
     _buildBuildings(scene) {
         const tiers = this._facadeTiers();
         const buckets = [[], [], []];
+        const indBucket = [];
+        const IND = new Set(['datacenter', 'fab', 'warehouse']);
         const OPEN = new Set(['park', 'launchpad', 'solar', 'wind', 'dam', 'crane', 'graveyard', 'billboard', 'monument', 'arena', 'black_market', 'nuclear', 'coal', 'dish', 'fusion', 'jail', 'villa']);
 
         // setbacks: upper tower mass on mid/high buildings (reads as a real skyline)
@@ -749,6 +762,7 @@ export const World = {
             }
             if (b.type === 'metro') { this._buildMetroStation(p); continue; }
             if (OPEN.has(b.type)) { this._buildSpecialty(p); continue; }
+            if (IND.has(b.type)) { indBucket.push(p); continue; }
             // Effective storeys from City.layout (authored fl x type multiplier).
             // Gating on the raw b.fl is what kept fl>=10 — and therefore every
             // setback, crown and spire below — permanently unreachable.
@@ -808,17 +822,19 @@ export const World = {
                 placeVariant(list, t, v, yOffset);
             }
         };
-        const placeVariant = (list, t, v, yOffset) => {
+        const placeVariant = (list, t, v, yOffset, opts = {}) => {
             const facades = t.variants[v];
             const geo = buildingBoxGeometry();
             // Standard: glass-ish facade response, lit by the sky PMREM
             const side = patchUVScale(new THREE.MeshStandardMaterial({
                 map: facades.map,
+                normalMap: t.normalMap || null,
+                normalScale: t.normalMap ? new THREE.Vector2(0.32, 0.32) : new THREE.Vector2(1, 1),
                 emissiveMap: facades.emissiveMap,
-                emissive: new THREE.Color(0xffe0a8),
+                emissive: new THREE.Color(opts.emissiveHex ?? 0xffe0a8),
                 emissiveIntensity: 0,
-                metalness: 0.22,
-                roughness: 0.38,
+                metalness: opts.metalness ?? 0.25,
+                roughness: opts.roughness ?? 0.36,
                 vertexColors: true,
                 envMapIntensity: ENV_I
             }));
@@ -841,11 +857,6 @@ export const World = {
                 im.setMatrixAt(i, dummy.matrix);
                 const tint = facadeTint(buildingColor(p.b));
                 im.setColorAt(i, tint);
-                /* Remember where this building lives in its instanced mesh, and
-                   its base tint. Buildings share three meshes, so any system
-                   that wants to change ONE building's look (a datacentre
-                   browning out under a GPU shortage) has to reach the instance
-                   rather than the material. */
                 if (p.b && !p._isSetback) {
                     p.b._inst = { mesh: im, i, base: tint.clone() };
                 }
@@ -859,6 +870,25 @@ export const World = {
         };
 
         buckets.forEach((list, ti) => placeList(list, ti));
+        if (indBucket.length) {
+            const indTier = {
+                rows: 4,
+                cols: 6,
+                normalMap: null,
+                variants: Array.from({ length: 2 }, (_, v) =>
+                    TEX.industrialFacade(4, { cols: 6, seed: 3011 + v * 7919 }))
+            };
+            for (let v = 0; v < 2; v++) {
+                const sub = indBucket.filter(p => (this._variantOf(p.id || p.b?.id) & 1) === v);
+                if (sub.length) {
+                    placeVariant(sub, indTier, v, 0, {
+                        metalness: 0.42,
+                        roughness: 0.45,
+                        emissiveHex: 0x99dfff
+                    });
+                }
+            }
+        }
         // setback tops use mid/high facade tier
         if (setbacks.length) placeList(setbacks, 2);
 
@@ -867,6 +897,7 @@ export const World = {
         // Parapet/plant only on terminal tops (not intermediate setback floors)
         const roofList = [
             ...buckets.flat().filter(p => !p._hasStackAbove).map(p => ({ ...p, h: (p.y0 || 0) + p.h })),
+            ...indBucket.map(p => ({ ...p, h: (p.y0 || 0) + p.h })),
             ...setbacks.filter(p => !p._hasStackAbove).map(p => ({ ...p, h: (p.y0 || 0) + p.h }))
         ];
         this._buildRoofs(scene, roofList);
@@ -2588,21 +2619,59 @@ export const World = {
         }
     },
 
+    _buildContactShadows(scene) {
+        const spots = [];
+        for (const t of this.treeSpots || []) {
+            if (t.biome === 'forest') continue;
+            const y = City.onSidewalk(t.x, t.z) ? KERB_H + 0.35 : 0.35;
+            spots.push({ x: t.x, y, z: t.z, r: 26 * (t.s || 1) });
+        }
+        for (const l of this.lampSpots || []) {
+            spots.push({ x: l.x, y: KERB_H + 0.35, z: l.z, r: 15 });
+        }
+        if (!spots.length) return;
+        const geo = new THREE.PlaneGeometry(1, 1);
+        geo.rotateX(-Math.PI / 2);
+        const mat = new THREE.MeshBasicMaterial({
+            map: TEX.shadowBlob(),
+            transparent: true,
+            opacity: 0.44,
+            depthWrite: false,
+            polygonOffset: true,
+            polygonOffsetFactor: -1
+        });
+        const im = new THREE.InstancedMesh(geo, mat, spots.length);
+        im.name = 'contactShadows';
+        im.userData.noShadow = true;
+        im.receiveShadow = false;
+        im.castShadow = false;
+        const dummy = new THREE.Object3D();
+        for (let i = 0; i < spots.length; i++) {
+            const s = spots[i];
+            dummy.position.set(s.x, s.y, s.z);
+            dummy.rotation.set(0, 0, 0);
+            dummy.scale.set(s.r, 1, s.r);
+            dummy.updateMatrix();
+            im.setMatrixAt(i, dummy.matrix);
+        }
+        im.instanceMatrix.needsUpdate = true;
+        scene.add(im);
+    },
+
     // ── WATER + BEACH ────────────────────────────────────────────────────────
     _buildWater(scene) {
         this.waterTex = TEX.water();
-        this.waterTex.repeat.set(22, 14);
+        this.waterTex.repeat.set(96, 128);
         this.waterNrm = TEX.waterNormal();
-        this.waterNrm.repeat.set(22, 14);
-        // Stock Phong — a custom shader used `vUv` (r160 renamed it `vMapUv`)
-        // and the material never drew, so fly-mode showed the meadow underneath.
-        this.waterMat = new THREE.MeshPhongMaterial({
+        this.waterNrm.repeat.set(96, 128);
+        this.waterMat = new THREE.MeshStandardMaterial({
             map: this.waterTex,
             normalMap: this.waterNrm,
-            normalScale: new THREE.Vector2(1.6, 1.6),
-            color: 0x4a8fb0,
-            shininess: 160,
-            specular: 0xc5e4f0,
+            normalScale: new THREE.Vector2(1.25, 1.25),
+            color: 0x3b86a8,
+            metalness: 0.62,
+            roughness: 0.14,
+            envMapIntensity: ENV_I * 1.45,
             fog: true
         });
         const w = new THREE.Mesh(
@@ -2613,6 +2682,27 @@ export const World = {
         w.position.set(SEA_X - 4800, -0.6, 0);
         w.name = 'water';
         scene.add(w);
+
+        // Shallow turquoise coastal shelving gradient
+        const gc = document.createElement('canvas');
+        gc.width = 64; gc.height = 4;
+        const gx = gc.getContext('2d');
+        const gg = gx.createLinearGradient(0, 0, 64, 0);
+        gg.addColorStop(0, 'rgba(30,130,165,0)');
+        gg.addColorStop(0.55, 'rgba(46,165,190,0.22)');
+        gg.addColorStop(1, 'rgba(64,195,210,0.42)');
+        gx.fillStyle = gg; gx.fillRect(0, 0, 64, 4);
+        const shelfTex = new THREE.CanvasTexture(gc);
+        shelfTex.colorSpace = THREE.SRGBColorSpace;
+        const shelf = new THREE.Mesh(
+            new THREE.PlaneGeometry(360, CITY_D + 1200),
+            new THREE.MeshBasicMaterial({ map: shelfTex, transparent: true, depthWrite: false, fog: true })
+        );
+        shelf.rotation.x = -Math.PI / 2;
+        shelf.position.set(SEA_X - 180, -0.45, 0);
+        shelf.name = 'water';
+        shelf.userData.noShadow = true;
+        scene.add(shelf);
 
         const foamTex = TEX.foam();
         foamTex.repeat.set(2, 28);
@@ -2634,6 +2724,27 @@ export const World = {
         foam.name = 'water';
         foam.userData.noShadow = true;
         scene.add(foam);
+
+        this.foamTex2 = foamTex.clone();
+        this.foamTex2.repeat.set(2, 24);
+        this.foamTex2.needsUpdate = true;
+        this.foamMat2 = new THREE.MeshBasicMaterial({
+            map: this.foamTex2,
+            color: 0xdff2fa,
+            transparent: true,
+            opacity: 0.25,
+            depthWrite: false,
+            fog: true
+        });
+        const foam2 = new THREE.Mesh(
+            new THREE.PlaneGeometry(85, CITY_D + 800),
+            this.foamMat2
+        );
+        foam2.rotation.x = -Math.PI / 2;
+        foam2.position.set(SEA_X - 68, -0.32, 0);
+        foam2.name = 'water';
+        foam2.userData.noShadow = true;
+        scene.add(foam2);
 
         // Beach with sand texture (readable from altitude)
         const sandTex = TEX.sand();
@@ -2868,8 +2979,8 @@ export const World = {
             this.waterTex.offset.y = t * 0.007;
         }
         if (this.waterNrm) {
-            this.waterNrm.offset.x = t * 0.018;
-            this.waterNrm.offset.y = t * 0.01;
+            this.waterNrm.offset.x = -t * 0.018;
+            this.waterNrm.offset.y = t * 0.013;
         }
         if (this.foamTex) {
             this.foamTex.offset.x = t * 0.04;
@@ -2877,6 +2988,13 @@ export const World = {
         }
         if (this.foamMat) {
             this.foamMat.opacity = 0.28 + Math.sin(t * 1.1) * 0.12;
+        }
+        if (this.foamTex2) {
+            this.foamTex2.offset.x = t * 0.025 + 0.5;
+            this.foamTex2.offset.y = Math.cos(t * 0.55) * 0.06;
+        }
+        if (this.foamMat2) {
+            this.foamMat2.opacity = 0.20 + Math.cos(t * 0.9) * 0.10;
         }
     }
 };

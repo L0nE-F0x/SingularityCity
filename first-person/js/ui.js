@@ -37,9 +37,20 @@ export const UI = {
     _cmp: [null, null],
 
     init() {
-        ['hud', 'crosshair', 'banner', 'prompt', 'lookLabel', 'hudLeft', 'hudClock', 'hudWeather', 'hudDistrict',
+        ['hud', 'crosshair', 'hudCompass', 'compassTrack', 'sceneFade',
+            'banner', 'prompt', 'lookLabel', 'hudLeft', 'hudClock', 'hudWeather', 'hudDistrict',
             'hudIndex', 'hudPop', 'minimap', 'questTracker', 'toasts', 'tourCaption', 'hintBar',
             'panelOverlay', 'panelContent', 'pauseMenu'].forEach(id => this.els[id] = $(id));
+        if (this.els.compassTrack) {
+            const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            let html = '';
+            for (let c = 0; c < 3; c++) {
+                for (let i = 0; i < dirs.length; i++) {
+                    html += `<span class="${i % 2 === 0 ? 'card' : ''}">${dirs[i]}</span>`;
+                }
+            }
+            this.els.compassTrack.innerHTML = html;
+        }
         this.mm = this.els.minimap.getContext('2d');
         this.els.questTracker.addEventListener('click', e => {
             if (!G.touchMode) return;
@@ -149,10 +160,32 @@ export const UI = {
             if (h >= 0 && h < 5) G.progress.unlock('night_owl');
             if (h >= 5 && h < 7) G.progress.unlock('early_bird');
         }
+        if (this.els.hudCompass) {
+            const showCompass = !G.inside && !G.ridingMetro && !G.orbitMode && G.started;
+            this.els.hudCompass.classList.toggle('hidden', !showCompass);
+            if (showCompass && this.els.compassTrack && G.player) {
+                const deg = (((-G.player.yaw * 180 / Math.PI) % 360) + 360) % 360;
+                // Each 45° spans 45px, middle cycle starts at 360px + 22.5px center of first N
+                const px = -(360 + deg + 22.5);
+                this.els.compassTrack.style.transform = `translateX(${px.toFixed(1)}px)`;
+            }
+        }
         if (!this.els.minimap.classList.contains('hidden')) {
             this._mapT -= dt;
             if (this._mapT <= 0) { this._mapT = 0.25; this._drawMinimap(); }
         }
+    },
+
+    setCrosshairActive(on) {
+        this.els.crosshair?.classList.toggle('active', !!on);
+    },
+
+    pulseFade(ms = 240) {
+        const el = this.els.sceneFade;
+        if (!el) return;
+        clearTimeout(this._fadeT);
+        el.style.opacity = '0.88';
+        this._fadeT = setTimeout(() => { el.style.opacity = '0'; }, ms);
     },
 
     setWeather(label) { this.els.hudWeather.textContent = label; },

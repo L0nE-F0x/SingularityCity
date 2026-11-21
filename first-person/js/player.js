@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import { G, EYE_H, WALK_SPEED, SPRINT_SPEED, PLAYER_RADIUS, GRAVITY, JUMP_VEL, SEA_X, CITY_W, CITY_D } from './state.js';
+import { City, KERB_H } from './city.js';
 import { Interior } from './interior.js';
 import { Touch } from './touch.js';
 
@@ -14,11 +15,12 @@ const FRICTION = 14;           // stop rate when no input on ground
 const STOP_SPEED = 12;         // snap-to-zero under this horizontal speed
 const COYOTE_T = 0.11;         // jump shortly after leaving ledge
 const JUMP_BUFFER_T = 0.12;    // press jump slightly early
-const LAND_DIP_MAX = 1.15;     // eye dip on hard landings
+const LAND_DIP_MAX = 2.4;      // max spring compression on heavy landing
 const BOB_WALK = 9.2;          // phase speed multiplier at walk
 const BOB_AMP_Y = 0.55;
 const BOB_AMP_X = 0.32;
 const BOB_PITCH = 0.012;
+const GRID_CELL = 128;         // spatial hash bucket size for O(1) AABB lookup
 
 export const Player = {
     vel: new THREE.Vector3(),
@@ -40,6 +42,18 @@ export const Player = {
     _coyote: 0,
     _jumpBuf: 0,
     _landDip: 0,
+    _dipPos: 0,
+    _dipVel: 0,
+    _jumpPitch: 0,
+    _fovAdd: 0,
+    _roll: 0,
+    _lastYaw: 0,
+    _kerbOffset: 0,
+    _grid: null,
+    _gridSrc: null,
+    _gridLen: -1,
+    _seen: new Set(),
+    _colRes: { x: 0, z: 0 },
 
     /* Is the controller live? Desktop answers "is the pointer locked"; touch
        has no pointer lock at all, and gating on it is exactly why the city
@@ -150,8 +164,14 @@ export const Player = {
         this.eyeY = G.floorY + EYE_H;
         G.camera.position.set(x, this.eyeY, z);
         if (yaw !== undefined) this.yaw = yaw;
+        this._lastYaw = this.yaw;
         this.vel.set(0, 0, 0);
         this._landDip = 0;
+        this._dipPos = 0;
+        this._dipVel = 0;
+        this._jumpPitch = 0;
+        this._roll = 0;
+        this._kerbOffset = this._targetKerb(x, z);
         this._coyote = 0;
         this._jumpBuf = 0;
         this.bobAmp = 0;
@@ -247,30 +267,35 @@ export const Player = {
             this.grounded = false;
             this._coyote = 0;
             this._jumpBuf = 0;
+            this._jumpPitch = 0.024;
             G.audio?.sfx('jump');
         }
 
-        // integrate + collide (axis separated for wall sliding)
+        // integrate + circle-vs-AABB spatial-hash sliding collision
         let nx = cam.position.x + this.vel.x * dt;
         let nz = cam.position.z + this.vel.z * dt;
         let ny = this.eyeY + this.vel.y * dt;
         const floor = G.floorY + EYE_H;
 
-        nx = this._collideAxis(nx, cam.position.z, true) ? cam.position.x : nx;
-        nz = this._collideAxis(nx, nz, false) ? cam.position.z : nz;
+        const resolved = this._resolveCollisions(nx, nz);
+        nx = resolved.x;
+        nz = resolved.z;
 
         if (G.inside && G.ceilY != null && ny > G.ceilY) {
             ny = G.ceilY;
             if (this.vel.y > 0) this.vel.y = 0;
         }
 
-        let justLanded = false;
+        const surface = this._surfaceAt(nx, nz);
+        const targetKerb = this._targetKerb(nx, nz);
+        this._kerbOffset += (targetKerb - this._kerbOffset) * Math.min(1, dt * 16);
+
+        // feet on the floor -> zero fall velocity, critically-damped landing spring
         if (ny <= floor) {
             if (!this.grounded && this.vel.y < -40) {
-                justLanded = true;
                 const impact = Math.min(1, (-this.vel.y - 40) / 420);
-                this._landDip = Math.max(this._landDip, LAND_DIP_MAX * (0.35 + impact * 0.65));
-                if (impact > 0.25) G.audio?.sfx('step');
+                this._dipVel += (18 + impact * 34);
+                G.audio?.sfx('land', { intensity: impact, surface });
             }
             ny = floor;
             this.vel.y = 0;
@@ -287,7 +312,16 @@ export const Player = {
             nz = Math.max(-CITY_D / 2 - 480, Math.min(CITY_D / 2 + 480, nz));
         }
 
-        // head bob + land settle (pure cosmetics on top of eyeY)
+        // Keep horizontal speed bounded after collision deflection
+        const maxPlanar = sprint ? SPRINT_SPEED : WALK_SPEED;
+        const pMag = Math.hypot(this.vel.x, this.vel.z);
+        if (pMag > maxPlanar * 1.05 && this.grounded) {
+            const k = maxPlanar / pMag;
+            this.vel.x *= k;
+            this.vel.z *= k;
+        }
+
+        // head bob + spring land settle + idle breath (pure cosmetics on top of eyeY)
         const hSpeed = Math.hypot(this.vel.x, this.vel.z);
         if (this.grounded && hSpeed > 18 && this.inputActive) {
             const pace = hSpeed / WALK_SPEED;
@@ -297,34 +331,183 @@ export const Player = {
             const stepLen = sprint ? 52 : 40;
             if (this.stepAcc > stepLen) {
                 this.stepAcc = 0;
-                G.audio?.sfx(sprint ? 'step_run' : 'step');
+                G.audio?.sfx(sprint ? 'step_run' : 'step', { surface });
             }
         } else {
             this.bobAmp = Math.max(0, this.bobAmp - dt * 8);
             if (this.grounded) this.stepAcc = 0;
         }
-        if (this._landDip > 0) {
-            this._landDip = Math.max(0, this._landDip - dt * (justLanded ? 0.5 : 6.5));
+
+        // Critically damped spring (omega = 18 rad/s)
+        const omega = 18;
+        const springF = -omega * omega * this._dipPos - 2 * omega * this._dipVel;
+        this._dipVel += springF * dt;
+        this._dipPos = Math.max(-0.4, Math.min(LAND_DIP_MAX, this._dipPos + this._dipVel * dt));
+        this._landDip = Math.max(0, this._dipPos);
+
+        this._jumpPitch *= Math.exp(-dt * 11);
+
+        // Sprint FOV punch (subtle & responsive, respects user base FOV setting)
+        const speedNorm = Math.max(0, Math.min(1, (hSpeed - WALK_SPEED) / (SPRINT_SPEED - WALK_SPEED)));
+        const targetFovAdd = (sprint && hSpeed > WALK_SPEED * 1.1 && this.inputActive) ? 5.5 * speedNorm : 0;
+        this._fovAdd += (targetFovAdd - this._fovAdd) * Math.min(1, dt * 8.5);
+        const wantFov = (G.settings?.fov || 70) + this._fovAdd;
+        if (Math.abs(cam.fov - wantFov) > 0.03) {
+            cam.fov = wantFov;
+            cam.updateProjectionMatrix();
         }
+
+        // Strafe & turn camera roll banking
+        const cosY = Math.cos(this.yaw), sinY = Math.sin(this.yaw);
+        const latSpeed = this.vel.x * cosY - this.vel.z * sinY;
+        let dyaw = this.yaw - this._lastYaw;
+        if (dyaw > Math.PI) dyaw -= Math.PI * 2;
+        if (dyaw < -Math.PI) dyaw += Math.PI * 2;
+        this._lastYaw = this.yaw;
+        const yawRate = Math.max(-3, Math.min(3, dyaw / Math.max(0.001, dt)));
+        const targetRoll = -(latSpeed / SPRINT_SPEED) * 0.015 + yawRate * 0.003;
+        this._roll += (targetRoll - this._roll) * Math.min(1, dt * 10);
+
+        // Idle subtle breathing when still on foot
+        const stillFactor = (this.grounded && hSpeed < 10) ? Math.max(0, 1 - hSpeed / 10) : 0;
+        const breathY = Math.sin((G.time || 0) * 1.45) * 0.14 * stillFactor;
+        const breathPitch = Math.cos((G.time || 0) * 1.45) * 0.0016 * stillFactor;
 
         const bobY = Math.sin(this.bobPhase * 2) * BOB_AMP_Y * this.bobAmp;
         const bobX = Math.cos(this.bobPhase) * BOB_AMP_X * this.bobAmp;
         const bobPitch = Math.sin(this.bobPhase * 2) * BOB_PITCH * this.bobAmp;
 
-        cam.position.set(nx, this.eyeY + bobY * 0.4 - this._landDip, nz);
+        cam.position.set(nx, this.eyeY + this._kerbOffset + bobY * 0.4 + breathY - this._landDip, nz);
 
         cam.rotation.order = 'YXZ';
         cam.rotation.y = this.yaw;
-        cam.rotation.x = this.pitch + bobPitch;
-        cam.rotation.z = bobX * 0.014;
+        cam.rotation.x = this.pitch + bobPitch + this._jumpPitch + breathPitch;
+        cam.rotation.z = this._roll + bobX * 0.012;
     },
 
-    // circle-vs-AABB in XZ; returns true if the move should be cancelled
-    _collideAxis(nx, nz, isX) {
+    _targetKerb(x, z) {
+        if (G.inside) return 0;
+        return (!City.onCarriageway(x, z) && City.onSidewalk(x, z)) ? KERB_H : 0;
+    },
+
+    _surfaceAt(x, z) {
+        if (G.inside) return 'indoor';
+        if (x < SEA_X + 60) return 'sand';
+        const road = City.onCarriageway(x, z);
+        const walk = !road && City.onSidewalk(x, z);
+        if ((G.wetness?.wetness || 0) > 0.35 && (road || walk)) return 'wet';
+        if (road) return 'asphalt';
+        if (walk) return 'pavement';
+        const d = G.districtAt?.(x, z);
+        const dn = (d?.name || d?.id || '').toLowerCase();
+        if (/park|woods|pine|garden|green|rural/.test(dn)) return 'grass';
+        return 'pavement';
+    },
+
+    _ensureGrid() {
+        const list = G.colliders || [];
+        if (this._grid && this._gridSrc === list && this._gridLen === list.length) return;
+        const grid = new Map();
+        for (let i = 0; i < list.length; i++) {
+            const c = list[i];
+            const gx0 = Math.floor(c.x0 / GRID_CELL);
+            const gx1 = Math.floor(c.x1 / GRID_CELL);
+            const gz0 = Math.floor(c.z0 / GRID_CELL);
+            const gz1 = Math.floor(c.z1 / GRID_CELL);
+            for (let gx = gx0; gx <= gx1; gx++) {
+                for (let gz = gz0; gz <= gz1; gz++) {
+                    const key = (gx + 2048) * 4096 + (gz + 2048);
+                    let bucket = grid.get(key);
+                    if (!bucket) { bucket = []; grid.set(key, bucket); }
+                    bucket.push(c);
+                }
+            }
+        }
+        this._grid = grid;
+        this._gridSrc = list;
+        this._gridLen = list.length;
+    },
+
+    _resolveCollisions(x, z) {
+        this._ensureGrid();
         const r = PLAYER_RADIUS;
-        for (const c of G.colliders) {
-            if (nx + r < c.x0 || nx - r > c.x1 || nz + r < c.z0 || nz - r > c.z1) continue;
-            return true;
+        const r2 = r * r;
+        const seen = this._seen;
+
+        for (let pass = 0; pass < 2; pass++) {
+            seen.clear();
+            const gx0 = Math.floor((x - r) / GRID_CELL);
+            const gx1 = Math.floor((x + r) / GRID_CELL);
+            const gz0 = Math.floor((z - r) / GRID_CELL);
+            const gz1 = Math.floor((z + r) / GRID_CELL);
+
+            for (let gx = gx0; gx <= gx1; gx++) {
+                for (let gz = gz0; gz <= gz1; gz++) {
+                    const bucket = this._grid.get((gx + 2048) * 4096 + (gz + 2048));
+                    if (!bucket) continue;
+                    for (let i = 0; i < bucket.length; i++) {
+                        const c = bucket[i];
+                        if (seen.has(c)) continue;
+                        seen.add(c);
+                        if (x + r < c.x0 || x - r > c.x1 || z + r < c.z0 || z - r > c.z1) continue;
+
+                        const cx = Math.max(c.x0, Math.min(x, c.x1));
+                        const cz = Math.max(c.z0, Math.min(z, c.z1));
+                        const dx = x - cx;
+                        const dz = z - cz;
+                        const d2 = dx * dx + dz * dz;
+                        if (d2 >= r2) continue;
+
+                        let nx = 0, nz = 0, push = 0;
+                        if (d2 > 1e-8) {
+                            const d = Math.sqrt(d2);
+                            nx = dx / d;
+                            nz = dz / d;
+                            push = r - d;
+                        } else {
+                            // Deeply inside box: push out along nearest face
+                            const dL = x - c.x0, dR = c.x1 - x;
+                            const dT = z - c.z0, dB = c.z1 - z;
+                            const m = Math.min(dL, dR, dT, dB);
+                            if (m === dL) { nx = -1; push = dL + r; }
+                            else if (m === dR) { nx = 1; push = dR + r; }
+                            else if (m === dT) { nz = -1; push = dT + r; }
+                            else { nz = 1; push = dB + r; }
+                        }
+                        x += nx * push;
+                        z += nz * push;
+                        const vn = this.vel.x * nx + this.vel.z * nz;
+                        if (vn < 0) {
+                            this.vel.x -= vn * nx;
+                            this.vel.z -= vn * nz;
+                        }
+                    }
+                }
+            }
+        }
+        this._colRes.x = x;
+        this._colRes.z = z;
+        return this._colRes;
+    },
+
+    // circle-vs-AABB in XZ; kept for callers/tests expecting bool check
+    _collideAxis(nx, nz, isX) {
+        this._ensureGrid();
+        const r = PLAYER_RADIUS;
+        const gx0 = Math.floor((nx - r) / GRID_CELL);
+        const gx1 = Math.floor((nx + r) / GRID_CELL);
+        const gz0 = Math.floor((nz - r) / GRID_CELL);
+        const gz1 = Math.floor((nz + r) / GRID_CELL);
+        for (let gx = gx0; gx <= gx1; gx++) {
+            for (let gz = gz0; gz <= gz1; gz++) {
+                const bucket = this._grid.get((gx + 2048) * 4096 + (gz + 2048));
+                if (!bucket) continue;
+                for (let i = 0; i < bucket.length; i++) {
+                    const c = bucket[i];
+                    if (nx + r < c.x0 || nx - r > c.x1 || nz + r < c.z0 || nz - r > c.z1) continue;
+                    return true;
+                }
+            }
         }
         return false;
     }

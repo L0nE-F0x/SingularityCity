@@ -7,10 +7,12 @@
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
 import { G } from './state.js';
+import { City, KERB_H } from './city.js';
 
 const WET_STATES = new Set(['rain', 'drizzle', 'thunderstorm']);
-const PUDDLES = 12;
+const PUDDLES = 18;
 const SPLASH_N = 100;
+const PUDDLE_CELL = 95;
 const _coolGlass = new THREE.Color(0xc8e8ff);
 const _cyanNeon = new THREE.Color(0x66f0ff);
 
@@ -120,6 +122,7 @@ export function applyNeonBoost(world, neonBoost, puddles = [], winGlowBase = nul
 
 export const Wetness = {
     active: false,
+    wetness: 0,
     group: null,
     puddles: [],
     splash: null,
@@ -128,6 +131,37 @@ export const Wetness = {
     neonBoost: 0,
     applied: null,
     _splashVel: null,
+
+    _worldPuddles(camX, camZ, n) {
+        const cx = Math.floor(camX / PUDDLE_CELL);
+        const cz = Math.floor(camZ / PUDDLE_CELL);
+        const list = [];
+        for (let dx = -2; dx <= 2; dx++) {
+            for (let dz = -2; dz <= 2; dz++) {
+                const gx = cx + dx, gz = cz + dz;
+                let h = Math.imul(gx * 374761393 + gz * 668265263, 1274126177) >>> 0;
+                const r0 = (h & 0xffff) / 65536;
+                if (r0 > 0.72) continue;
+                h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+                const r1 = (h & 0xffff) / 65536;
+                const r2 = ((h >>> 16) & 0xffff) / 65536;
+                const x = (gx + 0.2 + r1 * 0.6) * PUDDLE_CELL;
+                const z = (gz + 0.2 + r2 * 0.6) * PUDDLE_CELL;
+                if (!City.onCarriageway(x, z) && !City.onSidewalk(x, z)) continue;
+                const d2 = (x - camX) * (x - camX) + (z - camZ) * (z - camZ);
+                list.push({
+                    x,
+                    z,
+                    y: (!City.onCarriageway(x, z) && City.onSidewalk(x, z)) ? KERB_H + 0.34 : 0.48,
+                    s: 9 + (r0 * 14),
+                    rot: (r1 + r2) * Math.PI,
+                    d2
+                });
+            }
+        }
+        list.sort((a, b) => a.d2 - b.d2);
+        return list.slice(0, n);
+    },
 
     init(scene) {
         this.group = new THREE.Group();
@@ -215,19 +249,31 @@ export const Wetness = {
         const intens = G.weatherSys?.intensity || 0;
         // Surface-only: never draw wet ground / splash under metro slab or indoors
         const surface = !G.inside && !(G.ridingMetro || G.onPlatform);
-        this.active = surface && isWetWeather(wx);
-        // thunderstorm gets the strongest neon bounce; drizzle is subtle
+        const wetNow = isWetWeather(wx);
         const wetScale = wx === 'thunderstorm' ? 1.0 : wx === 'rain' ? 0.85 : 0.45;
-        this.neonBoost = this.active ? (0.12 + intens * 0.28) * wetScale : 0;
+        const targetWet = (surface && wetNow) ? Math.min(1, 0.4 + intens * 0.6) * wetScale : 0;
+        this.wetness += (targetWet - this.wetness) * Math.min(1, dt * (wetNow ? 0.55 : 0.2));
+        if (this.wetness < 0.005 && targetWet === 0) this.wetness = 0;
 
-        for (const p of this.puddles) p.visible = this.active;
-        if (this.splash) this.splash.visible = this.active;
+        this.active = surface && this.wetness > 0.04;
+        this.neonBoost = this.active ? this.wetness * 0.4 : 0;
+
+        // Modulate asphalt & pavement PBR roughness / reflection sheen dynamically
+        const W = G.world;
+        if (W?.roadMat && surface) {
+            W.roadMat.roughness = 0.82 - this.wetness * 0.54;
+            W.roadMat.envMapIntensity = 0.34 + this.wetness * 0.9;
+        }
+        if (W?.pavementMat && surface) {
+            W.pavementMat.roughness = 0.86 - this.wetness * 0.42;
+            W.pavementMat.envMapIntensity = 0.42 + this.wetness * 0.65;
+        }
+
+        if (this.splash) this.splash.visible = surface && wetNow;
         if (this.group) this.group.visible = surface;
 
         const winBase = G.weatherSys?.winGlow ?? 0;
 
-        // Always re-base materials (Weather set night ramp first this frame)
-        // Skip neon wet-boost while underground/indoors so we don't fight restored mats
         this.applied = applyNeonBoost(
             G.world,
             surface ? this.neonBoost : 0,
@@ -235,49 +281,51 @@ export const Wetness = {
             winBase
         );
 
-        if (!this.active) return;
+        if (!this.active) {
+            for (const p of this.puddles) p.visible = false;
+            return;
+        }
 
         this._t += dt;
-        // reshuffle puddle ring every few seconds so walking city feels lived-in
-        if (Math.floor(this._t / 3.5) !== this._seed) {
-            this._seed = Math.floor(this._t / 3.5);
-        }
         const cam = G.camera;
         if (!cam) return;
 
-        const layout = puddleLayout(cam.position.x, cam.position.z, PUDDLES, this._seed);
+        const worldSpots = this._worldPuddles(cam.position.x, cam.position.z, this.puddles.length);
+        const layout = worldSpots.length ? worldSpots : puddleLayout(cam.position.x, cam.position.z, this.puddles.length, this._seed);
         for (let i = 0; i < this.puddles.length; i++) {
-            const L = layout[i];
             const m = this.puddles[i];
-            m.position.x = L.x;
-            m.position.z = L.z;
-            m.scale.setScalar(L.s * (0.92 + this.neonBoost * 0.2));
+            if (i >= layout.length) { m.visible = false; continue; }
+            const L = layout[i];
+            m.visible = true;
+            m.position.set(L.x, L.y ?? 0.48, L.z);
+            m.scale.setScalar(L.s * (0.75 + this.wetness * 0.45));
             m.rotation.z = L.rot;
-            // shimmer — neon reflection pulse on wet asphalt
             const pulse = Math.sin(this._t * 2.2 + i * 1.3) * 0.07
                 + Math.sin(this._t * 5.1 + i) * 0.03;
-            m.material.opacity = Math.min(0.8, 0.32 + this.neonBoost * 0.52 + pulse);
+            m.material.opacity = Math.min(0.82, (0.28 + this.neonBoost * 0.55 + pulse) * Math.min(1, this.wetness * 1.4));
         }
 
-        // ground splash: hop particles that reseed near camera (premium rain impact feel)
-        const intensity = Math.max(0.15, intens);
-        const spawnRate = wx === 'thunderstorm' ? 0.55 : wx === 'drizzle' ? 0.2 : 0.4;
-        for (let i = 0; i < this._splashN; i++) {
-            this._splashVel[i] -= 120 * dt;
-            this._splashPos[i * 3 + 1] += this._splashVel[i] * dt;
-            if (this._splashPos[i * 3 + 1] < 0.5 || Math.random() < spawnRate * dt * 8) {
-                const a = Math.random() * Math.PI * 2;
-                const r = Math.random() * 95;
-                this._splashPos[i * 3] = cam.position.x + Math.cos(a) * r;
-                this._splashPos[i * 3 + 1] = 0.6 + Math.random() * 1.2;
-                this._splashPos[i * 3 + 2] = cam.position.z + Math.sin(a) * r;
-                this._splashVel[i] = 18 + Math.random() * 40 * intensity;
+        // ground splash: hop particles that reseed near camera when actually raining
+        if (wetNow) {
+            const intensity = Math.max(0.15, intens);
+            const spawnRate = wx === 'thunderstorm' ? 0.55 : wx === 'drizzle' ? 0.2 : 0.4;
+            for (let i = 0; i < this._splashN; i++) {
+                this._splashVel[i] -= 120 * dt;
+                this._splashPos[i * 3 + 1] += this._splashVel[i] * dt;
+                if (this._splashPos[i * 3 + 1] < 0.5 || Math.random() < spawnRate * dt * 8) {
+                    const a = Math.random() * Math.PI * 2;
+                    const r = Math.random() * 95;
+                    this._splashPos[i * 3] = cam.position.x + Math.cos(a) * r;
+                    this._splashPos[i * 3 + 1] = 0.6 + Math.random() * 1.2;
+                    this._splashPos[i * 3 + 2] = cam.position.z + Math.sin(a) * r;
+                    this._splashVel[i] = 18 + Math.random() * 40 * intensity;
+                }
             }
+            this.splash.material.opacity = 0.45 + this.neonBoost * 0.4;
+            this.splash.material.size = 3.5 + intensity * 2.5;
+            this._splashMax.value = 6 * (G.renderer?.getPixelRatio?.() || 1);
+            this.splashGeo.attributes.position.needsUpdate = true;
         }
-        this.splash.material.opacity = 0.45 + this.neonBoost * 0.4;
-        this.splash.material.size = 3.5 + intensity * 2.5;
-        this._splashMax.value = 6 * (G.renderer?.getPixelRatio?.() || 1);
-        this.splashGeo.attributes.position.needsUpdate = true;
     },
 
     snapshot() {

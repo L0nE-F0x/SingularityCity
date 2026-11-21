@@ -800,10 +800,67 @@ export const Traffic = {
         this._initCars(scene);
         this._initVipCars(scene);
         this._initTruck(scene);
+        this._initCarFx(scene);
         this._initTrams(scene);
         this._initBlimps(scene);
         this._initHeli(scene);
         this._initFounderHelis(scene);
+    },
+
+    _initCarFx(scene) {
+        const cap = Math.max(48, this.vehicles.length + 12);
+        const sGeo = new THREE.PlaneGeometry(24, 42);
+        sGeo.rotateX(-Math.PI / 2);
+        this._carShadowMesh = new THREE.InstancedMesh(sGeo, new THREE.MeshBasicMaterial({
+            map: TEX.shadowBlob(),
+            transparent: true,
+            opacity: 0.44,
+            depthWrite: false,
+            polygonOffset: true,
+            polygonOffsetFactor: -1
+        }), cap);
+        this._carShadowMesh.name = 'carShadows';
+        this._carShadowMesh.userData.noShadow = true;
+        this._carShadowMesh.frustumCulled = false;
+        this._carShadowMesh.count = 0;
+        scene.add(this._carShadowMesh);
+
+        // Soft headlight cone projected along +Z ahead of front bumper
+        const hc = document.createElement('canvas');
+        hc.width = 64; hc.height = 128;
+        const hx = hc.getContext('2d');
+        const hg = hx.createLinearGradient(0, 128, 0, 0);
+        hg.addColorStop(0, 'rgba(255,244,205,0.62)');
+        hg.addColorStop(0.45, 'rgba(255,244,205,0.20)');
+        hg.addColorStop(1, 'rgba(255,244,205,0)');
+        hx.fillStyle = hg;
+        hx.beginPath();
+        hx.moveTo(22, 128);
+        hx.lineTo(42, 128);
+        hx.lineTo(62, 0);
+        hx.lineTo(2, 0);
+        hx.closePath();
+        hx.fill();
+        const hTex = new THREE.CanvasTexture(hc);
+        hTex.colorSpace = THREE.SRGBColorSpace;
+        const hGeo = new THREE.PlaneGeometry(22, 52);
+        hGeo.rotateX(-Math.PI / 2);
+        hGeo.translate(0, 0, 38);
+        this._headlightMat = new THREE.MeshBasicMaterial({
+            map: hTex,
+            color: 0xfff2cf,
+            transparent: true,
+            opacity: 0.55,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        this._headlightConeMesh = new THREE.InstancedMesh(hGeo, this._headlightMat, cap);
+        this._headlightConeMesh.name = 'carHeadlightCones';
+        this._headlightConeMesh.userData.noShadow = true;
+        this._headlightConeMesh.frustumCulled = false;
+        this._headlightConeMesh.visible = false;
+        this._headlightConeMesh.count = 0;
+        scene.add(this._headlightConeMesh);
     },
 
     // ── ROUTES ──────────────────────────────────────────────────────────────
@@ -1143,6 +1200,41 @@ export const Traffic = {
             v.obj.rotation.y = v.yaw;
             const lm = v.obj.userData.headLampMat;
             if (lm) lm.color.setHex(lampOn ? 0xfff6d5 : 0xb0a890);
+        }
+
+        // Sync ground shadows and night/wet headlight beams in two instanced draws
+        const surface = !G.inside && !G.ridingMetro;
+        const showCones = surface && (lampOn || (G.weatherSys && G.weatherSys.dim < 0.7));
+        if (this._carShadowMesh) {
+            const d = this._dummy || (this._dummy = new THREE.Object3D());
+            let sc = 0, cc = 0;
+            const maxCap = this._carShadowMesh.instanceMatrix.count;
+            for (let i = 0; i < N && sc < maxCap; i++) {
+                const v = V[i];
+                if (!v.active) continue;
+                const ang = Math.atan2(v.hx, v.hz);
+                const mul = v.kind === 'truck' ? 1.25 : 1.0;
+                d.position.set(v.x, 0.52, v.z);
+                d.rotation.set(0, ang, 0);
+                d.scale.set(mul, 1, mul);
+                d.updateMatrix();
+                this._carShadowMesh.setMatrixAt(sc++, d.matrix);
+                if (showCones && this._headlightConeMesh && cc < maxCap) {
+                    d.position.set(v.x, 0.65, v.z);
+                    this._headlightConeMesh.setMatrixAt(cc++, d.matrix);
+                }
+            }
+            this._carShadowMesh.count = sc;
+            this._carShadowMesh.visible = surface && sc > 0;
+            if (sc > 0) this._carShadowMesh.instanceMatrix.needsUpdate = true;
+            if (this._headlightConeMesh) {
+                this._headlightConeMesh.count = cc;
+                this._headlightConeMesh.visible = showCones && cc > 0;
+                if (this._headlightConeMesh.visible) {
+                    this._headlightMat.opacity = Math.min(0.68, Math.max(0.28, dark * 0.55 + (G.wetness?.wetness || 0) * 0.25));
+                    this._headlightConeMesh.instanceMatrix.needsUpdate = true;
+                }
+            }
         }
     },
 

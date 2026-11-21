@@ -9,6 +9,15 @@ function canvas(w, h) {
     c.width = w; c.height = h;
     return [c, c.getContext('2d')];
 }
+function _mkRand(seed = 1) {
+    let s = seed | 0;
+    return () => {
+        s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
 /* Anisotropy was hard-coded to 4. Every ground surface in this game is seen at
    a grazing angle from eye height 17, and at aniso 4 the road mushes into a
    grey smear about 15 m out — one of the loudest "cheap 3D" tells there is.
@@ -359,6 +368,157 @@ export function facade(floors, opts = {}) {
     return { map, emissiveMap: emissive };
 }
 
+/** Crisp tangent-space normal map matching `facade(rows, { cols })`. */
+export function facadeNormal(cols = 8, rows = 4) {
+    const W = 256, H = 256;
+    const [c, x] = canvas(W, H);
+    x.fillStyle = 'rgb(128,128,255)';
+    x.fillRect(0, 0, W, H);
+    const groundH = (H / Math.max(2, rows)) * 1.42;
+    const upperH = (H - groundH) / Math.max(1, rows - 1);
+    const cw = W / cols;
+    // panel seams & floor slab ridges
+    for (let i = 1; i < cols; i++) {
+        const px = i * cw;
+        x.fillStyle = 'rgb(104,128,255)'; x.fillRect(px - 1, 0, 1, H);
+        x.fillStyle = 'rgb(152,128,255)'; x.fillRect(px, 0, 1, H);
+    }
+    for (let r = 0; r < rows - 1; r++) {
+        const y0 = r * upperH;
+        // horizontal slab bevel
+        x.fillStyle = 'rgb(128,156,255)'; x.fillRect(0, y0, W, 2);
+        x.fillStyle = 'rgb(128,100,255)'; x.fillRect(0, y0 + upperH - 2, W, 2);
+        for (let col = 0; col < cols; col++) {
+            const pad = cw * 0.12;
+            const wx = col * cw + pad, ww = cw - pad * 2;
+            const wy = y0 + upperH * 0.18, wh = upperH * 0.52;
+            // recessed window reveal normal edges
+            x.fillStyle = 'rgb(96,128,255)';  x.fillRect(wx - 2, wy, 2, wh);
+            x.fillStyle = 'rgb(160,128,255)'; x.fillRect(wx + ww, wy, 2, wh);
+            x.fillStyle = 'rgb(128,96,255)';  x.fillRect(wx, wy - 2, ww, 2);
+            x.fillStyle = 'rgb(128,162,255)'; x.fillRect(wx, wy + wh, ww, 3);
+        }
+    }
+    const gy = H - groundH;
+    x.fillStyle = 'rgb(128,166,255)'; x.fillRect(0, gy, W, 3);
+    x.fillStyle = 'rgb(128,96,255)';  x.fillRect(0, gy - 2, W, 2);
+    const t = tex(c, false);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+}
+
+/** Architectural cladding for datacenters, semiconductor fabs, & warehouses (no retail shopfronts). */
+export function industrialFacade(floors = 4, opts = {}) {
+    const rand = _mkRand(opts.seed ?? 307);
+    const W = 512, H = 512;
+    const cols = opts.cols || 6;
+    const rows = Math.max(2, floors);
+    const [c, x] = canvas(W, H);
+    const [ec, ex] = canvas(W, H);
+    ex.fillStyle = '#000'; ex.fillRect(0, 0, W, H);
+
+    // Corrugated metal / precast industrial paneling (neutral luminance for instance tint)
+    const g = x.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#c6cdd8');
+    g.addColorStop(0.45, '#abb3bf');
+    g.addColorStop(0.85, '#929aa8');
+    g.addColorStop(1, '#7a8290');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+
+    // Subtle vertical metal ribs
+    for (let rx = 0; rx < W; rx += 8) {
+        x.fillStyle = (rx % 16 === 0) ? 'rgba(255,255,255,0.06)' : 'rgba(20,24,32,0.08)';
+        x.fillRect(rx, 0, 3, H);
+    }
+
+    const rowH = H / rows;
+    const cw = W / cols;
+    for (let r = 0; r < rows - 1; r++) {
+        const y0 = r * rowH;
+        // horizontal structural beam band
+        x.fillStyle = 'rgba(32,38,48,0.34)';
+        x.fillRect(0, y0, W, 4);
+        x.fillStyle = 'rgba(230,236,246,0.18)';
+        x.fillRect(0, y0 + 4, W, 2);
+
+        // high ribbon clerestory windows or HVAC louvers per bay
+        for (let col = 0; col < cols; col++) {
+            const bx = col * cw + cw * 0.1;
+            const bw = cw * 0.8;
+            const wy = y0 + rowH * 0.24;
+            if (r === 0 || rand() < 0.65) {
+                const wh = rowH * 0.28;
+                x.fillStyle = '#1e2c3a';
+                x.fillRect(bx, wy, bw, wh);
+                x.strokeStyle = 'rgba(200,210,224,0.45)';
+                x.lineWidth = 1.5;
+                x.strokeRect(bx, wy, bw, wh);
+                if (rand() < 0.72) {
+                    ex.fillStyle = rand() < 0.75 ? '#38bdf8' : '#7dd3fc';
+                    ex.fillRect(bx + 2, wy + 2, bw - 4, wh - 4);
+                }
+            } else {
+                // louvered intake grille
+                const lh = rowH * 0.34;
+                x.fillStyle = '#242934';
+                x.fillRect(bx, wy, bw, lh);
+                x.fillStyle = 'rgba(180,192,208,0.22)';
+                for (let sy = wy + 3; sy < wy + lh - 2; sy += 5) {
+                    x.fillRect(bx + 2, sy, bw - 4, 2);
+                }
+            }
+            // telemetry LED dot
+            if (rand() < 0.5) {
+                ex.fillStyle = rand() < 0.7 ? '#22d3ee' : '#fbbf24';
+                ex.fillRect(bx + bw - 5, y0 + rowH * 0.66, 3, 3);
+            }
+        }
+    }
+
+    // Ground level: concrete plinth, loading dock roll-up doors & service grilles
+    const gy = H - rowH * 1.15;
+    x.fillStyle = '#6d7582'; x.fillRect(0, gy, W, H - gy);
+    x.fillStyle = 'rgba(20,24,32,0.42)'; x.fillRect(0, gy, W, 5);
+    const docks = Math.max(2, Math.floor(cols / 2));
+    const dw = W / docks;
+    for (let i = 0; i < docks; i++) {
+        const dx = i * dw + dw * 0.16;
+        const boxW = dw * 0.68;
+        const dh = (H - gy) * 0.72;
+        const dy = H - dh;
+        if (i % 2 === 0) {
+            // ribbed industrial roll-up bay door
+            x.fillStyle = '#323844';
+            x.fillRect(dx, dy, boxW, dh);
+            x.strokeStyle = 'rgba(200,210,224,0.4)';
+            x.strokeRect(dx, dy, boxW, dh);
+            x.fillStyle = 'rgba(20,24,30,0.45)';
+            for (let sy = dy + 5; sy < H - 4; sy += 7) {
+                x.fillRect(dx + 3, sy, boxW - 6, 2);
+            }
+            // amber dock safety beacons
+            ex.fillStyle = '#f59e0b';
+            ex.fillRect(dx - 3, dy + 2, 3, 4);
+            ex.fillRect(dx + boxW, dy + 2, 3, 4);
+        } else {
+            // heavy security airlock + louver bay
+            x.fillStyle = '#252a34';
+            x.fillRect(dx + boxW * 0.15, dy + 6, boxW * 0.7, dh - 6);
+            x.fillStyle = '#475569';
+            x.fillRect(dx + boxW * 0.42, dy + 14, boxW * 0.16, dh - 14);
+            ex.fillStyle = '#38bdf8';
+            ex.fillRect(dx + boxW * 0.35, dy + 8, boxW * 0.3, 3);
+        }
+    }
+
+    const map = tex(c), emissive = tex(ec);
+    map.wrapS = map.wrapT = THREE.RepeatWrapping;
+    emissive.wrapS = emissive.wrapT = THREE.RepeatWrapping;
+    map.anisotropy = MAX_ANISO;
+    emissive.anisotropy = MAX_ANISO;
+    return { map, emissiveMap: emissive };
+}
+
 // ─── Neon sign atlas ─────────────────────────────────────────────────────────
 // All building signs on ONE 4096×2048 texture → merged quads → 1 draw call.
 // High-contrast readable text; never empty boards; neon-friendly plates.
@@ -625,45 +785,36 @@ export function grassGround() {
 let _road;
 export function road() {
     if (_road) return _road;
-    const [c, x] = canvas(256, 256);
-    // layered asphalt base
-    /* Asphalt was authored at #23-2a, i.e. sRGB ~0.16. Multiplied by scene
-       light and pushed through ACES that lands at ~30/255 — the road rendered
-       as a black void covering the bottom third of every street-level frame.
-       Real dry asphalt in daylight sits around sRGB 0.22-0.28 — dark, but a
-       long way from black, and clearly darker than the pavement beside it. */
-    const g = x.createLinearGradient(0, 0, 256, 256);
-    g.addColorStop(0, '#3e424b'); g.addColorStop(0.5, '#363942'); g.addColorStop(1, '#2f323a');
-    x.fillStyle = g; x.fillRect(0, 0, 256, 256);
-    // aggregate / chip seal
-    for (let i = 0; i < 2800; i++) {
-        const v = Math.random();
-        x.fillStyle = v < 0.45 ? `rgba(255,255,255,${Math.random() * 0.05})`
-            : v < 0.8 ? `rgba(0,0,0,${Math.random() * 0.18})`
-            : `rgba(90,100,110,${Math.random() * 0.08})`;
-        x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1 + Math.random() * 2);
+    const rand = _mkRand(4049);
+    const N = 512;
+    const [c, x] = canvas(N, N);
+    // Clean dry asphalt base gradient (never black voids, zero blotchy spots)
+    const g = x.createLinearGradient(0, 0, N, N);
+    g.addColorStop(0, '#41454f'); g.addColorStop(0.5, '#3a3d46'); g.addColorStop(1, '#343740');
+    x.fillStyle = g; x.fillRect(0, 0, N, N);
+    // Fine stone aggregate chip seal
+    for (let i = 0; i < 9500; i++) {
+        const v = rand();
+        x.fillStyle = v < 0.42 ? `rgba(255,255,255,${rand() * 0.055})`
+            : v < 0.78 ? `rgba(0,0,0,${rand() * 0.14})`
+            : `rgba(110,120,134,${rand() * 0.08})`;
+        const sz = v > 0.9 ? 2 : 1.2;
+        x.fillRect(rand() * N, rand() * N, sz, sz);
     }
-    // wheel-polished longitudinal bands
-    for (let i = 0; i < 8; i++) {
-        x.fillStyle = `rgba(255,255,255,${0.01 + Math.random() * 0.018})`;
-        x.fillRect(0, 20 + i * 28 + Math.random() * 6, 256, 5 + Math.random() * 10);
-    }
-    // oil stains / patches
-    for (let i = 0; i < 14; i++) {
-        x.fillStyle = `rgba(0,0,0,${0.06 + Math.random() * 0.1})`;
-        const w = 22 + Math.random() * 55;
-        x.beginPath();
-        x.ellipse(Math.random() * 256, Math.random() * 256, w, w * (0.4 + Math.random() * 0.4), Math.random() * Math.PI, 0, Math.PI * 2);
-        x.fill();
-    }
-    // hairline cracks
-    x.strokeStyle = 'rgba(0,0,0,0.2)'; x.lineWidth = 1;
+    // Subtle wheel-polished longitudinal lanes (seamless along Y & X)
     for (let i = 0; i < 12; i++) {
+        const y = ((i / 12) + rand() * 0.04) * N;
+        x.fillStyle = `rgba(255,255,255,${0.012 + rand() * 0.014})`;
+        x.fillRect(0, y, N, 6 + rand() * 14);
+    }
+    // Thin sealed hairline fissures
+    x.strokeStyle = 'rgba(18,20,26,0.22)'; x.lineWidth = 1.1;
+    for (let i = 0; i < 14; i++) {
         x.beginPath();
-        let px = Math.random() * 256, py = Math.random() * 256;
+        let px = rand() * N, py = rand() * N;
         x.moveTo(px, py);
-        for (let k = 0; k < 4; k++) {
-            px += (Math.random() - 0.5) * 40; py += (Math.random() - 0.5) * 40;
+        for (let k = 0; k < 5; k++) {
+            px += (rand() - 0.5) * 44; py += (rand() - 0.5) * 44;
             x.lineTo(px, py);
         }
         x.stroke();
@@ -673,38 +824,87 @@ export function road() {
     return (_road = t);
 }
 
+let _roadNormal;
+export function roadNormal() {
+    if (_roadNormal) return _roadNormal;
+    const rand = _mkRand(4051);
+    const N = 512;
+    const [c, x] = canvas(N, N);
+    x.fillStyle = 'rgb(128,128,255)';
+    x.fillRect(0, 0, N, N);
+    for (let i = 0; i < 8000; i++) {
+        const px = rand() * N, py = rand() * N;
+        const nx = (112 + rand() * 32) | 0;
+        const ny = (112 + rand() * 32) | 0;
+        x.fillStyle = `rgb(${nx},${ny},255)`;
+        x.fillRect(px, py, 2, 2);
+    }
+    const t = tex(c, false);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return (_roadNormal = t);
+}
+
 // ─── Sidewalk / plaza pavement ───────────────────────────────────────────────
 let _pavement;
 export function pavement() {
     if (_pavement) return _pavement;
-    const [c, x] = canvas(128, 128);
-    x.fillStyle = '#6e7480'; x.fillRect(0, 0, 128, 128);
-    // per-tile variation
-    for (let ty = 0; ty < 128; ty += 32) {
-        for (let tx = 0; tx < 128; tx += 32) {
-            x.fillStyle = `rgba(${100 + Math.random() * 30|0},${105 + Math.random() * 25|0},${110 + Math.random() * 25|0},${0.15 + Math.random() * 0.2})`;
-            x.fillRect(tx + 1, ty + 1, 30, 30);
+    const rand = _mkRand(5059);
+    const N = 512, P = 128;
+    const [c, x] = canvas(N, N);
+    x.fillStyle = '#848a94'; x.fillRect(0, 0, N, N);
+    // Crisp per-slab mineral variation
+    for (let ty = 0; ty < N; ty += P) {
+        for (let tx = 0; tx < N; tx += P) {
+            const d = (rand() * 18 - 9) | 0;
+            x.fillStyle = `rgb(${132 + d},${137 + d},${146 + d})`;
+            x.fillRect(tx + 2, ty + 2, P - 4, P - 4);
         }
     }
-    // joint lines (grout)
-    x.strokeStyle = 'rgba(30,34,42,0.45)'; x.lineWidth = 2;
-    for (let i = 0; i <= 128; i += 32) {
-        x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 128); x.stroke();
-        x.beginPath(); x.moveTo(0, i); x.lineTo(128, i); x.stroke();
+    // Soft stone grain across slabs
+    for (let i = 0; i < 4800; i++) {
+        const v = rand();
+        x.fillStyle = v < 0.5 ? `rgba(255,255,255,${rand() * 0.05})` : `rgba(20,24,30,${rand() * 0.06})`;
+        x.fillRect(rand() * N, rand() * N, 1.5, 1.5);
     }
-    x.strokeStyle = 'rgba(200,206,216,0.12)'; x.lineWidth = 1;
-    for (let i = 0; i <= 128; i += 32) {
-        x.beginPath(); x.moveTo(i + 1, 0); x.lineTo(i + 1, 128); x.stroke();
-        x.beginPath(); x.moveTo(0, i + 1); x.lineTo(128, i + 1); x.stroke();
+    // Clean, understated chamfered grout joints + highlight edge
+    x.strokeStyle = 'rgba(42,46,54,0.34)'; x.lineWidth = 2;
+    for (let i = 0; i <= N; i += P) {
+        x.beginPath(); x.moveTo(i, 0); x.lineTo(i, N); x.stroke();
+        x.beginPath(); x.moveTo(0, i); x.lineTo(N, i); x.stroke();
     }
-    // surface grit
-    for (let i = 0; i < 600; i++) {
-        x.fillStyle = `rgba(0,0,0,${Math.random() * 0.12})`;
-        x.fillRect(Math.random() * 128, Math.random() * 128, 1.5, 1.5);
+    x.strokeStyle = 'rgba(220,226,236,0.16)'; x.lineWidth = 1;
+    for (let i = 0; i <= N; i += P) {
+        x.beginPath(); x.moveTo(i + 2, 0); x.lineTo(i + 2, N); x.stroke();
+        x.beginPath(); x.moveTo(0, i + 2); x.lineTo(N, i + 2); x.stroke();
     }
     const t = tex(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     return (_pavement = t);
+}
+
+let _pavementNormal;
+export function pavementNormal() {
+    if (_pavementNormal) return _pavementNormal;
+    const rand = _mkRand(5063);
+    const N = 512, P = 128;
+    const [c, x] = canvas(N, N);
+    x.fillStyle = 'rgb(128,128,255)';
+    x.fillRect(0, 0, N, N);
+    for (let i = 0; i < 3600; i++) {
+        const nx = (120 + rand() * 16) | 0;
+        const ny = (120 + rand() * 16) | 0;
+        x.fillStyle = `rgb(${nx},${ny},255)`;
+        x.fillRect(rand() * N, rand() * N, 2, 2);
+    }
+    for (let i = 0; i < N; i += P) {
+        x.fillStyle = 'rgb(100,128,255)'; x.fillRect(i, 0, 2, N);
+        x.fillStyle = 'rgb(156,128,255)'; x.fillRect(i + 2, 0, 2, N);
+        x.fillStyle = 'rgb(128,100,255)'; x.fillRect(0, i, N, 2);
+        x.fillStyle = 'rgb(128,156,255)'; x.fillRect(0, i + 2, N, 2);
+    }
+    const t = tex(c, false);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return (_pavementNormal = t);
 }
 
 // ─── Shared surface detail for specialty structures ──────────────────────────
@@ -777,6 +977,42 @@ export function lobbyFloor() {
     return t;
 }
 
+let _lobbyFloorNormal;
+export function lobbyFloorNormal() {
+    if (_lobbyFloorNormal) return _lobbyFloorNormal;
+    const [c, x] = canvas(128, 128);
+    // Pure fillRect implementation so headless FakeCtx stubs in tests work safely
+    x.fillStyle = 'rgb(128,128,255)';
+    x.fillRect(0, 0, 128, 128);
+    for (const p of [0, 64]) {
+        x.fillStyle = 'rgb(104,128,255)'; x.fillRect(p, 0, 2, 128);
+        x.fillStyle = 'rgb(152,128,255)'; x.fillRect(p + 2, 0, 2, 128);
+        x.fillStyle = 'rgb(128,104,255)'; x.fillRect(0, p, 128, 2);
+        x.fillStyle = 'rgb(128,152,255)'; x.fillRect(0, p + 2, 128, 2);
+    }
+    const t = tex(c, false);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return (_lobbyFloorNormal = t);
+}
+
+let _shadowBlob;
+export function shadowBlob() {
+    if (_shadowBlob) return _shadowBlob;
+    const [c, x] = canvas(128, 128);
+    if (typeof x.createRadialGradient === 'function') {
+        const g = x.createRadialGradient(64, 64, 4, 64, 64, 60);
+        g.addColorStop(0, 'rgba(0,0,0,0.48)');
+        g.addColorStop(0.5, 'rgba(0,0,0,0.22)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        x.fillStyle = g;
+        x.fillRect(0, 0, 128, 128);
+    } else {
+        x.fillStyle = 'rgba(0,0,0,0.3)';
+        x.fillRect(16, 16, 96, 96);
+    }
+    return (_shadowBlob = tex(c, false));
+}
+
 // ─── Lobby name board (interiors) ────────────────────────────────────────────
 export function lobbySign(name, emoji, accent, sub) {
     const [c, x] = canvas(1024, 256);
@@ -806,10 +1042,12 @@ export function lobbySign(name, emoji, accent, sub) {
 // bathroom squares" the last two passes were fighting; sines that close on
 // 2π at both edges do not.
 function _waterHeight(u, v) {
-    return Math.sin(u * 2 + v * 1.1) * 0.34 +
-        Math.sin(u * 5 - v * 3) * 0.22 +
-        Math.sin(u * 9 + v * 8) * 0.12 +
-        Math.sin(u * 17 - v * 13) * 0.07;
+    return Math.sin(u * 2 + v * 1.1) * 0.26 +
+        Math.sin(u * 5 - v * 3) * 0.20 +
+        Math.sin(u * 9 + v * 8) * 0.14 +
+        Math.sin(u * 17 - v * 13) * 0.09 +
+        Math.sin(u * 23 + v * 19) * 0.05 +
+        Math.sin(u * 31 - v * 27) * 0.03;
 }
 
 export function water() {
@@ -821,11 +1059,11 @@ export function water() {
         for (let i = 0; i < N; i++) {
             const u = (i / N) * Math.PI * 2;
             const v = (j / N) * Math.PI * 2;
-            const t = _waterHeight(u, v) * 0.5 + 0.5;
+            const t = Math.max(0, Math.min(1, _waterHeight(u, v) * 0.45 + 0.5));
             const o = (j * N + i) * 4;
-            d[o]     = 6 + t * 28;
-            d[o + 1] = 28 + t * 52;
-            d[o + 2] = 58 + t * 90;
+            d[o]     = 12 + t * 20;
+            d[o + 1] = 44 + t * 44;
+            d[o + 2] = 78 + t * 66;
             d[o + 3] = 255;
         }
     }

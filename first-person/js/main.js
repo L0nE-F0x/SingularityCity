@@ -243,7 +243,8 @@ async function boot() {
             composer.addPass(new RenderPass(G.scene, G.camera));
             if (wantBloom) {
                 const { UnrealBloomPass } = await import('../lib/postprocessing/UnrealBloomPass.js');
-                const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.4, 0.55, 0.92);
+                const div = G.quality === 'high' ? 2 : 3;
+                const bloom = new UnrealBloomPass(new THREE.Vector2(Math.max(1, innerWidth / div), Math.max(1, innerHeight / div)), 0.34, 0.55, 0.90);
                 composer.addPass(bloom);
                 G.bloomPass = bloom;
             }
@@ -255,8 +256,8 @@ async function boot() {
                         tDiffuse: { value: null },
                         resolution: { value: new THREE.Vector2(innerWidth, innerHeight) },
                         block: { value: PIX },
-                        levels: { value: PIX > 2 ? 24.0 : 36.0 },
-                        dither: { value: PIX > 2 ? 1.0 : 0.75 }
+                        levels: { value: PIX > 2 ? 38.0 : 64.0 },
+                        dither: { value: PIX > 2 ? 0.68 : 0.34 }
                     },
                     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
                     fragmentShader: `
@@ -272,6 +273,7 @@ async function boot() {
                         void main() {
                             vec2 px = floor(vUv * resolution / block);
                             vec3 c = texture2D(tDiffuse, (px + 0.5) * block / resolution).rgb;
+                            c = mix(c, c * c * (3.0 - 2.0 * c), 0.12);
                             float t = (bayer4(px) - 0.4375) * dither;
                             c = floor(c * levels + 0.5 + t) / levels;
                             gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);

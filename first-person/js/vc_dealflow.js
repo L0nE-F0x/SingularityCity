@@ -5,10 +5,10 @@
    Perf: one InstancedMesh for all partners + one for handshake sparkles.
    ══════════════════════════════════════════════════════════════════════════ */
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G } from './state.js';
 import { PedGraph } from './pedgraph.js';
 import { City, KERB_H } from './city.js';
+import { bakedPerson } from './people.js';
 
 export const VC_OFFICES = [
     'vcrow_apex', 'vcrow_horizon', 'vcrow_launchpad',
@@ -114,29 +114,8 @@ export function stepPartner(p, dt, bldAt) {
     return false;
 }
 
-function paint(geo, hex) {
-    const c = new THREE.Color(hex);
-    const n = geo.attributes.position.count;
-    const a = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
-    geo.setAttribute('color', new THREE.BufferAttribute(a, 3));
-    return geo;
-}
-
 function partnerGeo() {
-    const parts = [];
-    const box = (w, h, d, x, y, z, hex) => {
-        const g = new THREE.BoxGeometry(w, h, d);
-        g.translate(x, y, z);
-        parts.push(paint(g, hex));
-    };
-    box(2.6, 6.8, 2.4, -1.5, 3.4, 0, 0x1e293b);
-    box(2.6, 6.8, 2.4, 1.5, 3.4, 0, 0x1e293b);
-    box(6.2, 7.0, 3.2, 0, 10.4, 0, 0x0f172a);     // suit
-    box(4.2, 4.2, 4.0, 0, 16.2, 0, 0xf0c9a4);       // head
-    box(4.4, 1.2, 4.2, 0, 18.5, 0, 0x111827);       // hair
-    box(2.2, 1.4, 0.6, 0, 12.2, 1.8, 0xfbbf24);     // gold tie
-    return mergeGeometries(parts, false);
+    return bakedPerson({ clothing: 0x0f172a, trousers: 0x1e293b, key: 'vc_partner_suite', pose: 'stand', scale: 1 });
 }
 
 export const VCDealFlow = {
@@ -164,7 +143,7 @@ export const VCDealFlow = {
         const N = this.partners.length;
         this.mesh = new THREE.InstancedMesh(
             partnerGeo(),
-            new THREE.MeshLambertMaterial({ vertexColors: true }),
+            new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0.06 }),
             N
         );
         this.mesh.frustumCulled = false;

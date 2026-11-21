@@ -9,6 +9,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { G } from './state.js';
 import { BLDS } from './data.js';
 import { City } from './city.js';
+import { bakedPerson } from './people.js';
 
 const VENDORS = [
     { emoji: '🌮', name: 'Taco Bot',      item: 'Street Tacos',  body: 0xb85a2e, canopy: 0xd8663a },
@@ -79,13 +80,20 @@ export const Vendors = {
             G.colliders.push({ x0: spot.x - 25, z0: spot.z - 25, x1: spot.x + 25, z1: spot.z + 25, id: 'vendor' });
             const nx = Math.sin(spot.ang), nz = Math.cos(spot.ang);
             this._cart(cartGeos, v, spot.x, spot.z, spot.ang);
+            const clerk = bakedPerson({ clothing: v.canopy, key: v.name, pose: 'stand', scale: 1 });
+            clerk.rotateY(spot.ang);
+            clerk.translate(spot.x - nx * 16, 0, spot.z - nz * 16);
+            cartGeos.push(clerk);
             this._sign(signGeos, cell[i], spot.x + nx * 2, spot.z + nz * 2, spot.ang);
             placed++;
         }
         if (!placed) return;
 
+        for (const g of cartGeos) {
+            if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+        }
         const cart = new THREE.Mesh(mergeGeometries(cartGeos, false),
-            new THREE.MeshLambertMaterial({ vertexColors: true }));
+            new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65, metalness: 0.1 }));
         cart.matrixAutoUpdate = false;
         scene.add(cart);
 

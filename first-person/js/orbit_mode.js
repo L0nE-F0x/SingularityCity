@@ -11,6 +11,8 @@ export function createOrbitState() {
         angle: 0,
         radius: 3200,
         height: 2200,
+        dragging: false,
+        angleVel: 0,
         saved: null
     };
 }
@@ -27,6 +29,8 @@ export function enterOrbit(state, camera, player) {
     };
     state.active = true;
     state.angle = player.yaw || 0;
+    state.dragging = false;
+    state.angleVel = 0;
     G.orbitMode = true;
     return state;
 }
@@ -50,7 +54,13 @@ export function exitOrbit(state, camera, player) {
 
 export function updateOrbitCamera(state, camera, dt) {
     if (!state.active) return;
-    state.angle += dt * 0.12;
+    if (!state.dragging) {
+        state.angle += dt * (0.12 + (state.angleVel || 0));
+        if (state.angleVel) {
+            state.angleVel *= Math.exp(-dt * 4);
+            if (Math.abs(state.angleVel) < 0.002) state.angleVel = 0;
+        }
+    }
     const x = Math.cos(state.angle) * state.radius;
     const z = Math.sin(state.angle) * state.radius;
     camera.position.set(x, state.height, z);
@@ -68,6 +78,25 @@ export const OrbitMode = {
             if (!G.started || G.panelOpen || G.terminalOpen) return;
             if (e.code === 'KeyO' && !e.repeat) this.toggle();
         });
+        document.addEventListener('mousedown', e => {
+            if (!this.state.active || G.panelOpen || G.terminalOpen || e.button !== 0) return;
+            this.state.dragging = true;
+            this.state.angleVel = 0;
+        });
+        document.addEventListener('mousemove', e => {
+            if (!this.state.active || !this.state.dragging) return;
+            this.state.angle -= e.movementX * 0.0055;
+            this.state.height = Math.max(300, Math.min(4800, this.state.height + e.movementY * 7));
+            this.state.angleVel = Math.max(-2.5, Math.min(2.5, -e.movementX * 0.04));
+        });
+        window.addEventListener('mouseup', () => {
+            this.state.dragging = false;
+        });
+        document.addEventListener('wheel', e => {
+            if (!this.state.active || G.panelOpen || G.terminalOpen) return;
+            const k = e.deltaY > 0 ? 1.09 : 0.92;
+            this.state.radius = Math.max(900, Math.min(6800, this.state.radius * k));
+        }, { passive: true });
     },
 
     toggle() {

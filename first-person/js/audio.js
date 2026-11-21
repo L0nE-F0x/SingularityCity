@@ -33,6 +33,7 @@ const WIND_MAP = {
 const SFX_COOLDOWN = {
     step: 0.065,
     step_run: 0.055,
+    land: 0.12,
     jump: 0.12,
     blip: 0.05,
     open: 0.11,
@@ -796,31 +797,68 @@ export const Audio = {
                 this._stepSide = !this._stepSide;
                 const jitter = 0.93 + Math.random() * 0.14;
                 const sideMul = this._stepSide ? 1.04 : 0.96;
-                const indoor = Boolean(G.inside);
-                // Grounded heel thud
+                const surface = opt?.surface || (G.inside ? 'indoor' : 'pavement');
+                const tbl = {
+                    asphalt:  { f0: 118, tonePeak: 0.22, hp: 190, lp0: 780,  lp1: 420, noisePeak: 0.30, dur: 0.062 },
+                    pavement: { f0: 114, tonePeak: 0.20, hp: 150, lp0: 620,  lp1: 380, noisePeak: 0.28, dur: 0.058 },
+                    grass:    { f0: 74,  tonePeak: 0.11, hp: 340, lp0: 1150, lp1: 620, noisePeak: 0.24, dur: 0.072 },
+                    sand:     { f0: 68,  tonePeak: 0.09, hp: 460, lp0: 1450, lp1: 760, noisePeak: 0.28, dur: 0.082 },
+                    wet:      { f0: 112, tonePeak: 0.19, hp: 620, lp0: 1650, lp1: 880, noisePeak: 0.32, dur: 0.076 },
+                    indoor:   { f0: 106, tonePeak: 0.21, hp: 140, lp0: 540,  lp1: 310, noisePeak: 0.25, dur: 0.056 }
+                }[surface] || { f0: 114, tonePeak: 0.20, hp: 150, lp0: 620, lp1: 380, noisePeak: 0.28, dur: 0.058 };
                 this._tone({
                     type: 'sine',
-                    f0: (run ? 132 : 114) * jitter * sideMul,
+                    f0: tbl.f0 * (run ? 1.15 : 1) * jitter * sideMul,
                     f1: (run ? 54 : 50) * jitter,
                     t,
-                    dur: run ? 0.075 : 0.068,
-                    peak: run ? 0.24 : 0.2,
+                    dur: run ? tbl.dur * 1.15 : tbl.dur,
+                    peak: tbl.tonePeak * (run ? 1.2 : 1),
                     attack: 0.005,
                     release: 0.02,
                     sustain: 0.04,
                 });
-                // Organic cached pink-noise shoe scuff (zero buffer allocation)
                 this._noiseBurst({
                     kind: 'pink',
                     t: t + 0.004,
-                    dur: run ? 0.07 : 0.058,
-                    peak: run ? 0.36 : 0.28,
+                    dur: run ? tbl.dur * 1.18 : tbl.dur,
+                    peak: tbl.noisePeak * (run ? 1.25 : 1),
                     attack: 0.006,
-                    release: 0.02,
+                    release: 0.022,
                     sustain: 0.06,
-                    hp: 150,
-                    lp0: (indoor ? 540 : run ? 760 : 620) * jitter,
-                    lp1: (indoor ? 320 : 380) * jitter,
+                    hp: tbl.hp,
+                    lp0: tbl.lp0 * (run ? 1.18 : 1) * jitter,
+                    lp1: tbl.lp1 * jitter,
+                    dualLp: true,
+                });
+                break;
+            }
+
+            case 'land': {
+                const impact = Math.max(0.15, Math.min(1, opt?.intensity ?? 0.5));
+                const surface = opt?.surface || (G.inside ? 'indoor' : 'pavement');
+                const grassOrSand = surface === 'grass' || surface === 'sand';
+                this._tone({
+                    type: 'sine',
+                    f0: (grassOrSand ? 62 : 84) + impact * 22,
+                    f1: 32,
+                    t,
+                    dur: 0.095 + impact * 0.04,
+                    peak: 0.22 + impact * 0.22,
+                    attack: 0.004,
+                    release: 0.04,
+                    sustain: 0.05,
+                });
+                this._noiseBurst({
+                    kind: 'pink',
+                    t: t + 0.003,
+                    dur: 0.09 + impact * 0.05,
+                    peak: 0.24 + impact * 0.24,
+                    attack: 0.005,
+                    release: 0.04,
+                    sustain: 0.05,
+                    hp: surface === 'wet' ? 420 : grassOrSand ? 300 : 120,
+                    lp0: surface === 'wet' ? 1600 : grassOrSand ? 1050 : 680,
+                    lp1: 320,
                     dualLp: true,
                 });
                 break;

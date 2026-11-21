@@ -161,23 +161,28 @@ export const Interact = {
         if (G.inside) {
             this.target = null;
             const flLabel = Interior.maxFloor > 0 ? ` · Floor ${Interior.floor}/${Interior.maxFloor}` : '';
-            G.ui.lookLabel(G.inside.name + flLabel);
+            const inLbl = (G.inside.emoji || '🏢') + ' ' + G.inside.name + flLabel;
+            if (this._inDistLabel !== inLbl) {
+                this._inDistLabel = inLbl;
+                G.ui.setDistrict(inLbl);
+            }
+            this._lastDistrict = '__inside__';
+            G.ui.lookLabel(null);
             const aimed = Interior.maxFloor > 0 ? Interior.aimedButton() : null;
+            const nearLift = Interior.maxFloor > 0 && Interior.atLift();
+            const nearExit = Interior.atExit();
+            const hotspot = Interior.atHotspot();
+            G.ui.setCrosshairActive?.(aimed != null || nearLift || nearExit || !!hotspot);
             if (aimed != null) {
                 G.ui.prompt(`<b>E</b> / click — floor ${aimed}` + (aimed === Interior.floor ? ' (here)' : ''));
             } else if (Interior.inCar() && Interior.maxFloor > 0) {
                 G.ui.prompt(`Look at a <b>floor button</b> · 0–${Interior.maxFloor} · F next`);
-            } else if (Interior.maxFloor > 0 && Interior.atLift()) {
+            } else if (nearLift) {
                 G.ui.prompt(`<b>E</b> step in · <b>F</b> next · 0–${Interior.maxFloor}`);
-            } else if (Interior.atExit()) {
+            } else if (nearExit) {
                 G.ui.prompt('<b>E</b> — step outside');
-            } else if (Interior.atHotspot()) {
-                /* Interior props register a hotspot with a label (the Times
-                   printing press is the first). The label existed and was
-                   never rendered, so the one interactive prop in the city was
-                   invisible unless you happened to press E while standing on
-                   it. Same gate interior.js uses to claim the key. */
-                G.ui.prompt(`<b>E</b> — ${Interior.atHotspot().label}`);
+            } else if (hotspot) {
+                G.ui.prompt(`<b>E</b> — ${hotspot.label}`);
             } else if (Interior.maxFloor > 0) {
                 G.ui.prompt(`<b>F</b> ride lift · or walk to the left wall · F${Interior.floor}/${Interior.maxFloor}`);
             } else {
@@ -185,6 +190,7 @@ export const Interact = {
             }
             return;
         }
+        this._inDistLabel = null;
 
         // ── district tracking ──
         const d = G.districtAt(px, pz);
@@ -204,7 +210,13 @@ export const Interact = {
         // ── look target ──
         // Airborne: no crosshair target, so no prompt promising an E that the
         // keypress handler would refuse anyway.
-        if (!this.grounded()) { this.target = null; G.ui.prompt(null); G.ui.lookLabel(null); return; }
+        if (!this.grounded()) {
+            this.target = null;
+            G.ui.prompt(null);
+            G.ui.lookLabel(null);
+            G.ui.setCrosshairActive?.(false);
+            return;
+        }
         const fwd = { x: -Math.sin(G.player.yaw), z: -Math.cos(G.player.yaw) };
         let best = null, bestScore = 0.75;   // min dot product ~ facing
 
@@ -232,6 +244,7 @@ export const Interact = {
         }
 
         this.target = best;
+        G.ui.setCrosshairActive?.(!!best);
         if (!best) { G.ui.prompt(null); G.ui.lookLabel(null); return; }
 
         if (best.kind === 'building') {

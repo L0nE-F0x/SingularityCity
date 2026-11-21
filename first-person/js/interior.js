@@ -215,16 +215,20 @@ export const Interior = {
         this.group.scale.setScalar(ROOM_SCALE);
         this.group.visible = false;
         scene.add(this.group);
-        // warm fill for interiors (tinted per-theme on enter/build)
-        this._fillLight = new THREE.PointLight(0xfff0dd, 0.95, 1100, 2);
-        this._fillLight.position.set(0, 72, 0);
+        // warm key fill for interiors (physically-based units: I / d^2 at FLOOR_Y + S(ROOM))
+        this._fillLight = new THREE.PointLight(0xfff0dd, 2000, 950, 2);
+        this._fillLight.position.set(0, FLOOR_Y + S(76), S(-10));
         this._fillLight.visible = false;
         scene.add(this._fillLight);
-        // secondary cool rim so metal/lift doors read
-        this._rimLight = new THREE.PointLight(0xb8d4ff, 0.35, 700, 2);
-        this._rimLight.position.set(-200, 50, 0);
+        // secondary cool rim + accent pool so furniture and elevator doors have 3D relief
+        this._rimLight = new THREE.PointLight(0xb8d4ff, 800, 750, 2);
+        this._rimLight.position.set(S(-ROOM_W / 2 + 50), FLOOR_Y + S(58), 0);
         this._rimLight.visible = false;
         scene.add(this._rimLight);
+        this._accentLight = new THREE.PointLight(0xffe0a8, 1200, 700, 2);
+        this._accentLight.position.set(S(95), FLOOR_Y + S(64), S(15));
+        this._accentLight.visible = false;
+        scene.add(this._accentLight);
         document.addEventListener('keydown', e => {
             if (!this.building || G.panelOpen || G.ridingMetro) return;
             // F cycles floors from anywhere indoors; digits work at the lift
@@ -541,8 +545,10 @@ export const Interior = {
         for (let i = 0; i < fuv.count; i++) fuv.setXY(i, fuv.getX(i) * 7, fuv.getY(i) * 6);
         const floorMat = new THREE.MeshStandardMaterial({
             map: TEX.lobbyFloor(),
+            normalMap: TEX.lobbyFloorNormal(),
+            normalScale: new THREE.Vector2(0.32, 0.32),
             color: th.floor,
-            roughness: th.dim ? 0.72 : 0.48,
+            roughness: th.dim ? 0.68 : 0.42,
             metalness: th.dim ? 0.12 : 0.08
         });
         const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -561,11 +567,8 @@ export const Interior = {
            A fifth of every lobby name board was buried in the soffit. The
            texture is 4:1, so height drives width; SIGN_TOP is the one number
            that has to stay under the ceiling. */
-        /* SIGN_H 54, not 62: the texture puts the subtitle 73% of the way
-           down, and the reception desk's lit back panel tops out at y 48. At
-           62 the subtitle landed at 46.7 and every lab HQ read "OPENAI HQ"
-           with its lab name half behind a glowing slab. 54 puts it at 52.6. */
-        const SIGN_TOP = 92, SIGN_H = 54;
+        /* SIGN_H 48, SIGN_TOP 93: keeps subtitle well clear of reception desk top */
+        const SIGN_TOP = 93, SIGN_H = 48;
         const sign = new THREE.Mesh(
             new THREE.PlaneGeometry(SIGN_H * 4, SIGN_H),
             new THREE.MeshBasicMaterial({ map: signTex, transparent: true }));
@@ -579,16 +582,21 @@ export const Interior = {
         this._signMesh = sign;
         if (!spec && th.cat === 'home' && !this._furnished) this._placeLivingRoom();
 
-        // theme-tinted fill lights
+        // theme-tinted fill lights positioned in world space inside the underground room
         if (this._fillLight) {
             this._fillLight.color.setHex(th.lamp);
-            this._fillLight.intensity = th.dim ? 0.95 : 1.05;
-            this._fillLight.position.set(0, 72, 0);
+            this._fillLight.intensity = th.dim ? 1650 : 2500;
+            this._fillLight.position.set(0, FLOOR_Y + S(76), S(-10));
         }
         if (this._rimLight) {
             this._rimLight.color.setHex(accent.getHex());
-            this._rimLight.intensity = this.maxFloor > 0 ? 0.55 : 0.3;
-            this._rimLight.position.set(-ROOM_W / 2 + 40, 48, 0);
+            this._rimLight.intensity = this.maxFloor > 0 ? 1100 : 650;
+            this._rimLight.position.set(S(-ROOM_W / 2 + 50), FLOOR_Y + S(58), 0);
+        }
+        if (this._accentLight) {
+            this._accentLight.color.setHex(accent.getHex());
+            this._accentLight.intensity = th.dim ? 1250 : 1450;
+            this._accentLight.position.set(S(95), FLOOR_Y + S(64), S(15));
         }
 
         // colliders, in interior-local coords offset to world
@@ -2155,6 +2163,8 @@ export const Interior = {
         this.group.visible = true;
         if (this._fillLight) { this._fillLight.visible = true; }
         if (this._rimLight) { this._rimLight.visible = true; }
+        if (this._accentLight) { this._accentLight.visible = true; }
+        G.ui?.pulseFade?.();
 
         // hide the city so an interior costs almost nothing to draw
         this._cityHidden = [];
@@ -2195,9 +2205,11 @@ export const Interior = {
             return;
         }
         if (this._lift.phase !== 'idle') return;   // mid-ride: doors are shut
+        if (!force) G.ui?.pulseFade?.();
         this.group.visible = false;
         if (this._fillLight) this._fillLight.visible = false;
         if (this._rimLight) this._rimLight.visible = false;
+        if (this._accentLight) this._accentLight.visible = false;
         for (const o of this._cityHidden) o.visible = true;
         this._cityHidden = [];
         G.colliders = this._savedColliders;
