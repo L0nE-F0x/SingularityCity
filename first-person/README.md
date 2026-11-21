@@ -260,8 +260,16 @@ Renaming it to match the URL breaks the round trip in both directions.
   builder hangs off the group is yours to carry across.
 - **Point lights are physically correct.** The renderer runs
   `useLegacyLights = false`, so contribution is `intensity / distance²`. Nearly
-  every point light in this app is written at 0.3–1.4, which delivers ~0.0004 at
-  40 units — i.e. nothing. New lights need intensities in the **hundreds**.
+  every point light in this app originally used 0.3–1.4, which delivers ~0.0004 at
+  40 units — i.e. nothing (`Interior` now places `_fillLight`, `_rimLight`, and
+  `_accentLight` in `FLOOR_Y + S(...)` world coords at intensities **650–2500**).
+  New lights need intensities in the **hundreds**.
+- **`interior_theme_check.mjs` runs `Interior.init`/`enter` with a minimal 2D `FakeCtx`.**
+  It only stubs `fillRect`, `clearRect`, `strokeRect`, `beginPath`, `moveTo`,
+  `lineTo`, `stroke`, `fillText`, and `createLinearGradient` (no `createImageData`
+  or `createRadialGradient`). Any texture helper called indoors or from
+  `Furnisher` (`lobbyFloorNormal`, `shadowBlob`) must stick to those primitives or
+  guard missing methods.
 - **`shared/schedule.js` takes an INTEGER seed.** `(seed * 17) % 100` only
   spreads over 0–99 for integers. Pass `c.idx`, never `c.seed` (a 0–1 float).
 - **PostgREST caps responses at 1000 rows.** `store/roster.js` pages with

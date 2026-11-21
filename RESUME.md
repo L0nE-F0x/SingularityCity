@@ -1,10 +1,9 @@
 # Resume here
 
-**Updated:** 2026-11-02 (November fact refresh, live-feed fixes, mansion cranes) · **Live `main`:** `7cb8848` (this wrap sits on top)
-**Status:** All three PRs (#7, #8, #9) are merged and live on cache **v567**.
-`https://singularitycity.net/sw.js` is `singularity-city-v567`.
+**Updated:** 2026-11-21 (First-Person 10x overhaul wrap) · **Live `main`:** `23c9a18` (this wrap sits on top)
+**Status:** First-Person 10x overhaul is live on cache **v571** (`https://singularitycity.net/sw.js` is `singularity-city-v571`). Commits `fdf5c96` (v568 OG image), `d134e34` (v569 2D + FP audio overhaul) and `ee06d42` (v570 2D metro tunnel wall) also landed since the Nov 2 wrap.
 **Next:**
-- After 06:00 UTC on 2026-11-02, check the Port: copper should read ~14.5k USD/t, not ~77k.
+- Owner's First-Person playtest notes (follow up on any gameplay/visual findings reported after taking `v571` for a spin).
 - The next monthly refresh is early December, on branch `zone-refresh/2026-12`.
 - Open items are listed under "Not done" below.
 
@@ -16,7 +15,49 @@ that same-origin path or the board stays empty.
 
 ---
 
-## This session (2026-11-02) — November fact refresh, three live feeds, mansion cranes
+## This session (2026-11-21) — First-Person 10x overhaul (v571)
+
+End-to-end audit and overhaul of `first-person/` across physics, camera feel, sky/lighting/post-processing, PBR surfaces, neon signage, ocean/wetness physics, vehicles/NPCs, interiors, HUD, and surface audio.
+
+### What shipped
+
+| Commit | What changed | Where |
+|---|---|---|
+| `fdf5c96` (v568) | Refreshed OG share image to the 2026 pixel-art city. | `og-image.png`, `index.html`, `sw.js` |
+| `d134e34` (v569) | Audio overhaul across 2D (`js/snd.js`, `js/soundscape.js`) and FP (`first-person/js/audio.js`) with warm decorrelated noise beds and balanced DSP. | `js/`, `first-person/js/` |
+| `ee06d42` (v570) | Kept the metro tunnel wall intact when boarding a train in 2D pixel art. | `js/`, `index.html`, `sw.js` |
+| `23c9a18` (v571) | **First-Person 10x overhaul**: spatial-hash wall sliding (`GRID_CELL = 128`), kerb step-up smoothing, critically-damped landing spring, sprint FOV/roll, damped FlyMode & interactive OrbitMode; cerulean sky `TOD`, cirrus wisps, sunlit cumulus clouds, moonlight shadows, `medium`+`high` bloom, smoother `lofiPass` curve; 512px seeded asphalt/pavement + normal maps, `industrialFacade` cladding (`datacenter`/`fab`/`warehouse`), outward double-sided blade signs + mipmaps, kit ground AO & contact shadows; `MeshStandardMaterial` ocean + coastal turquoise shelf + dual surf foam; world-locked wet puddles + dynamic roughness modulation; road-routed semi-trucks (`supply_chain.js`), car shadows/headlight cones, articulated `bakedPerson` VC partners/paparazzi/vendors & pedestrian separation; `FLOOR_Y + S(...)` interior point/rim/accent lights (`650–2500`), cleared OpenAI HQ central aisle & raised `SIGN_TOP`, furniture contact shadows, indoor `#hudDistrict`, `#hudCompass` ribbon, reactive crosshair brackets, `#sceneFade` door/metro fades, surface-aware step/land SFX. | 25 files in `first-person/`, root `index.html`, `sw.js` |
+
+### What a new agent must not re-break
+
+1. **`interior_theme_check.mjs` runs `Interior.init` and `Interior.enter` in Node with a minimal `FakeCtx` 2D stub.** It only provides `fillRect`, `clearRect`, `strokeRect`, `beginPath`, `moveTo`, `lineTo`, `stroke`, `fillText`, `createLinearGradient` (no `createImageData`, `arc`, `roundRect`, `save`/`restore`). Any helper invoked by `Interior._build` or `Furnisher` (such as `TEX.lobbyFloorNormal` or `TEX.shadowBlob`) must rely on `fillRect`/`strokeRect` or guard missing canvas methods.
+2. **Interior rooms sit at `FLOOR_Y = -4000` with `ROOM_SCALE = 1/3`**, while `Interior`'s `PointLight`s live on `G.scene` under `useLegacyLights = false` (`1/d²` falloff). Keep `_fillLight`, `_rimLight`, and `_accentLight` at `FLOOR_Y + S(...)` coordinates with intensities in the **hundreds/low thousands** (`650–2500`), or the lights sit 4,000 units above the ceiling.
+3. **`world.js` `patchUVScale()` scales `vMapUv`, `vEmissiveMapUv`, and `vNormalMapUv` via `aUVScale`.** Any normal-mapped instanced building material must still pass through `patchUVScale()` and matching procedural normal maps must keep `RepeatWrapping`.
+4. **`neon.js` blade signs:** `rotateY(ang + Math.PI / 2)` faces `(-tx, -tz)` and `rotateY(ang - Math.PI / 2)` faces `(+tx, +tz)` — keep the two sign planes offset outward (`∓0.85 * (tx, tz)`) outside the `1.4`-thick `bk` box or they sink inside the dark backing. Keep `datacenter|fab|warehouse` excluded from retail shopfronts/awnings.
+5. **`assets.js` ground-contact AO in `prepare()`** must continue skipping glazing codes `1, 2, 3, 6` and over-unity vertex colors (`> 1.001`) so lit windows and glowing beacons never dim.
+6. **Preserve `parity_exercise.mjs` string & API contracts**: keep `'aAnim'`, `'aPart'`, `'pacifier'`, `'getFounderAct'`, `'scheduleSnapshot'`, `'founders()'`, and `STAGE_CODE` in `first-person/js/citizens.js`; keep `createOrbitState`, `enterOrbit`, `exitOrbit`, `updateOrbitCamera` runnable without `window`/`document` in `first-person/js/orbit_mode.js`; keep `isWetWeather`, `puddleLayout`, `applyNeonBoost` exported cleanly from `first-person/js/wetness.js`.
+
+### Verified
+
+- **All 8 FP Node suites pass (`exit 0`) on `23c9a18` source:**
+  - `run_node_check.mjs` (`ALL 77 OK`), `parity_exercise.mjs`, `schedule_parity_check.mjs`, `interior_theme_check.mjs` (`ALL 26 themes OK`), `street_check.mjs`, `metro_depth_check.mjs`, `store_check.mjs`, `assets_check.mjs` (`ALL 64 OK`).
+- **Live headless Chromium WebGL2 CDP verification (`1440×900`, `quality=high`, both pixel look & `pixel=off` smooth mode):**
+  - 0 JS runtime exceptions, 0 WebGL/GLSL shader warnings across 11 exterior, night, rain, smooth-mode, and interior views (OpenAI HQ `59` draw calls; exterior streets `151–878` draw calls at `60 fps`).
+  - Verified kerb elevation difference (`kerbSide = 1.8`, `kerbRoad = 0`), `SupplyChain` road waypoints (`wps = 3`, `onRoad = true`), spatial-hash `Player` sliding (`2595` colliders), `FlyMode`/`OrbitMode` toggling, and surface WebAudio `sfx` triggers.
+
+### Not done / worth a look
+
+- **Owner playtest:** user is taking `v571` for a spin and may report gameplay/visual follow-ups.
+- **First Person** `first-person/js/data.js` lines 68–77 still carries the static fallback roster noted below; leave untouched unless migrating it onto shared modules.
+- **Untracked local workspace items** (`first-person/assets/models/`, `landing_preview2.html`, `landing_preview3.html`, `pixel-lab/`) were left untracked intentionally.
+
+### Tooling notes
+
+- **`npm` / `puppeteer-core` absent in bare environment:** run the 8 underlying `node` test commands from `package.json` `test:fp:*` directly. For headless WebGL screenshots without `puppeteer-core`, Node v26's built-in global `WebSocket` talks directly to `/usr/bin/chromium --headless=new --remote-debugging-port=9229 --use-angle=gl`.
+
+---
+
+## Previous (2026-11-02) — November fact refresh, three live feeds, mansion cranes
 
 The session ran in three parts:
 1. **Monthly refresh.** The City Archivist routine (a VibeForge brief) brought the curated facts up to 2026-11-01.
