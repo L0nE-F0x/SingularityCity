@@ -3421,6 +3421,7 @@ const Environment = {
                 container.y = by - h;
             }
             const gfx = new PIXI.Graphics();
+            let tickerIns = 0;
 
             // ─── SPACE ZONE BUILDINGS: delegate to SpaceEnvironment ───
             if (b.type && ['launchpad', 'mission_control', 'assembly', 'tracking'].includes(b.type)) {
@@ -7025,6 +7026,9 @@ const Environment = {
                 gfx.endFill();
 
                 const topIns = insetFor(0);
+                // Keep rooftop stock tickers flush with inset tower crowns (campus/setback)
+                // unless pixel art swaps a short lab to a non-inset tier pavilion.
+                tickerIns = pixel && typeof PL !== 'undefined' && PL.labTier && PL.labTier(b) ? 0 : topIns;
 
                 // ── Crown band (rooftop stock-ticker sits over 0..14 when present) ──
                 gfx.beginFill(colHex, 0.95);
@@ -7486,17 +7490,19 @@ const Environment = {
             const isFabOrDC = b.id.startsWith('fab_') || b.id.startsWith('dc_');
             const isConstruction = isFabOrDC && b.dcData && b.dcData.status === 'construction';
             if (tickerSym && !b.id.startsWith('house_') && !b.id.startsWith('forest_') && !isConstruction) {
+                const tickW = b.w - tickerIns * 2;
                 const tickCont = new PIXI.Container();
+                tickCont.x = tickerIns;
                 // Fab/DC: position below HVAC vents; regular labs: top rim
                 tickCont.y = isFabOrDC ? 16 : 0;
                 const tickBg = new PIXI.Graphics();
                 tickBg.beginFill(0x000000, 0.85);
-                tickBg.drawRect(0, 0, b.w, 14);
+                tickBg.drawRect(0, 0, tickW, 14);
                 tickBg.endFill();
                 tickCont.addChild(tickBg);
                 const mask = new PIXI.Graphics();
                 mask.beginFill(0xffffff);
-                mask.drawRect(0, -5, b.w, 24);
+                mask.drawRect(0, -5, tickW, 24);
                 mask.endFill();
                 tickCont.addChild(mask);
                 tickCont.mask = mask;
@@ -7514,11 +7520,11 @@ const Environment = {
                     padding: 10,
                 });
                 tickTxt.y = 1;
-                tickTxt.x = b.w;
+                tickTxt.x = tickW;
                 tickTxt.blendMode = PIXI.BLEND_MODES.ADD;
                 tickCont.addChild(tickTxt);
                 b._stockTicker = tickTxt;
-                b._tickerW = b.w;
+                b._tickerW = tickW;
                 b._tickerSym = tickerSym;
                 container.addChild(tickCont);
             }

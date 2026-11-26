@@ -380,6 +380,7 @@ const STOCK_LAB_MAP = [
     { sym: 'MSFT',  lab: 'microsoft' },
     { sym: 'GOOGL', lab: 'google'    },
     { sym: 'META',  lab: 'meta'      },
+    { sym: 'ANT',   lab: 'anthropic' },
     { sym: 'TSLA',  lab: 'tesla'     },
     { sym: 'BABA',  lab: 'alibaba'   }
 ];

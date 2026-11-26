@@ -22,7 +22,8 @@ import {
    them. Adding a district per HF handle would be inventing a company. */
 export const LABS = {
     openai:    { name: 'OpenAI',          color: '#10a37f', icon: '❂', ticker: 'MSFT',  region: 'us' },
-    anthropic: { name: 'Anthropic',       color: '#d97757', icon: '✺', ticker: 'AMZN',  region: 'us' },
+    // Anthropic listed on Nasdaq as ANT on 2026-11-19 (previously used AMZN as proxy).
+    anthropic: { name: 'Anthropic',       color: '#d97757', icon: '✺', ticker: 'ANT',   region: 'us' },
     google:    { name: 'Google DeepMind', color: '#4285f4', icon: '❖', ticker: 'GOOGL', region: 'us' },
     meta:      { name: 'Meta AI',         color: '#0668E1', icon: '∞', ticker: 'META',  region: 'us' },
     mistral:   { name: 'Mistral AI',      color: '#f97316', icon: '🌪️', ticker: null,   region: 'eu' },

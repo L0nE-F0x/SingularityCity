@@ -14,6 +14,13 @@ const PROVIDER_DEFAULT_MODELS = {
     openai: 'gpt-5.4',
 };
 
+// Code-level ticker fallbacks for labs that went public after the initial
+// Supabase `labs` seed — fills in when the DB column is still null, while
+// always letting a non-null Supabase value win.
+const LAB_TICKER_FALLBACKS = {
+    anthropic: 'ANT', // Nasdaq IPO: Nov 19, 2026
+};
+
 const API = {
     liveNews: [],
     regulationNews: [],
@@ -126,6 +133,9 @@ const API = {
             const c = JSON.parse(raw);
             if (!c || !c.labs || !Array.isArray(c.blds) || c.blds.length === 0) return false;
             LABS = c.labs;
+            for (const [id, sym] of Object.entries(LAB_TICKER_FALLBACKS)) {
+                if (LABS[id] && !LABS[id].ticker) LABS[id].ticker = sym;
+            }
             REAL_FOUNDERS = c.founders || [];
             if (!window.COMPUTE_DATA) window.COMPUTE_DATA = {};
             window.COMPUTE_DATA.clusters = c.clusters || [];
@@ -195,7 +205,7 @@ const API = {
                     name: lab.name,
                     color: hexOr(lab.color, '#64748b'),
                     icon: lab.icon || '🏢',
-                    ticker: lab.ticker,
+                    ticker: lab.ticker || LAB_TICKER_FALLBACKS[lab.id] || null,
                     desc: lab.lore_desc,
                     region: lab.region || 'eu',
                 };
