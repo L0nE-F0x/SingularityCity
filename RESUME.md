@@ -1,9 +1,9 @@
 # Resume here
 
-**Updated:** 2026-11-21 (First-Person 10x overhaul wrap) · **Live `main`:** `23c9a18` (this wrap sits on top)
-**Status:** First-Person 10x overhaul is live on cache **v571** (`https://singularitycity.net/sw.js` is `singularity-city-v571`). Commits `fdf5c96` (v568 OG image), `d134e34` (v569 2D + FP audio overhaul) and `ee06d42` (v570 2D metro tunnel wall) also landed since the Nov 2 wrap.
+**Updated:** 2026-11-26 (Arena ELO feed & crown sync wrap) · **Live `main`:** `933ff55` (this wrap sits on top)
+**Status:** Live Arena ELO feed (`lmarena-ai/leaderboard-dataset`), paginated Supabase model loading, and synchronous crown sync are live on cache **v572** (`https://singularitycity.net/sw.js` is `singularity-city-v572`).
 **Next:**
-- Owner's First-Person playtest notes (follow up on any gameplay/visual findings reported after taking `v571` for a spin).
+- Owner playtest feedback on `v572` (crown / Arena ELO / paginated roster) and `v571` (First-Person 10x overhaul).
 - The next monthly refresh is early December, on branch `zone-refresh/2026-12`.
 - Open items are listed under "Not done" below.
 
@@ -15,7 +15,43 @@ that same-origin path or the board stays empty.
 
 ---
 
-## This session (2026-11-21) — First-Person 10x overhaul (v571)
+## This session (2026-11-26) — Live Arena ELO feed, model pagination & crown sync (v572)
+
+Fixed why OpenAI (`GPT-4o`, stored 2024 ELO `1287`) still held the city crown: the `oolong-tea-2026/arena-ai-leaderboards` daily snapshots have had empty `_index.json` manifests (`text.json`/`code.json` HTTP 404) since `2026-10-15` (last real snapshot `2026-10-07`), leaving `fetchArena()` silently empty and falling back to 8 legacy 2024 ELO entries in Supabase. Also fixed PostgREST's 1,000-row cap truncating Supabase `models` (now 1,408+ rows) and a 1-cycle `_workerCache` lag in `G.evolveCity()`.
+
+### What shipped
+
+| Commit | What changed | Where |
+|---|---|---|
+| `933ff55` (v572) | **Live Arena ELO feed & crown sync**: switched `/api/arena/*` proxy and CSP `connect-src` from `raw.githubusercontent.com` to `datasets-server.huggingface.co`; rewrote `API.fetchArena()` to pull `lmarena-ai/leaderboard-dataset` (`text` offsets `0`/`100` + `webdev` offset `0`, `split=latest`, `category === 'overall'`) with in-flight deduplication and 14-day `localStorage` fallback cache (`sc_arena_cache_v1`); paginated `API.fetchCloudModels()` in 1,000-row `.order('id').range(...)` pages; made `G.evolveCity(force)` synchronous (no `_workerCache` 1-cycle lag), active-only, and ELO source-tiered (`arena` → `scan` → stored fallback only after `API._arenaAttempted`); kicked off `API.fetchArena()` right after `API.fetchCloudModels()` in `enterCity()`; aligned `js/compute_worker.js`, CEO office trophy (`js/interior_city_core.js`), and `UI.generateCityTickerEvent()` (`js/ui.js`); bumped cache to `v572`. | `netlify.toml`, `serve.py`, `js/api.js`, `js/engine.js`, `js/compute_worker.js`, `js/interior_city_core.js`, `js/ui.js`, `index.html`, `sw.js` |
+
+### What a new agent must not re-break
+
+1. **`/api/arena/*` proxies to `https://datasets-server.huggingface.co/:splat`** in both `netlify.toml` and `serve.py`, and `https://datasets-server.huggingface.co` must stay in `netlify.toml`'s CSP `connect-src`. Do not revert to `oolong-tea-2026/arena-ai-leaderboards` (empty snapshots after `2026-10-07`).
+2. **Filter `lmarena-ai/leaderboard-dataset` rows strictly to `category === 'overall'`.** The `latest` split contains 11,320 rows across sub-categories (`coding`, `math`, `hard_prompts`, etc.) — `overall` rows must be kept and normalized to `{ meta: { last_updated }, models: [{ model, score, votes }] }` so `Bench.ingestArena()` stays compatible.
+3. **Keep `API.fetchCloudModels()` paginated in 1,000-row `.order('id', { ascending: true }).range(...)` pages.** Supabase `models` exceeds 1,400 rows; an unpaginated `.select('*')` silently truncates newer frontier models (including `Claude Fable 5.x`, `Muse Wonder`, and `Gemini 4 Hydrogen`).
+4. **Keep `G.evolveCity(force)` synchronous, active-only, and source-tiered.** Removing the 1-cycle `_workerCache` lag lets `fetchArena()`'s `finally { G.evolveCity(true); }` hand the crown immediately on load; `isAlive` prevents retired models from stealing `topLab`; and gating `storedTopLab` behind `API._arenaAttempted` prevents 2024 `GPT-4o` from flashing the crown during the boot fetch window.
+5. **Keep downstream crown surfaces aligned:** `js/compute_worker.js` `crunch()` mirrors the active/tiered rules; `js/interior_city_core.js` prefers `bld.isTopLab` for the CEO office trophy; and `UI.generateCityTickerEvent()` (`js/ui.js`) excludes retired models and prefers live Arena ELO models.
+
+### Verified
+
+- **Syntax & compile checks:** `node --check` passed on `js/api.js`, `js/engine.js`, `js/compute_worker.js`, `js/interior_city_core.js`, `js/ui.js`, and `js/benchmarks.js`; `python3 -m py_compile serve.py` passed.
+- **All 8 FP Node suites passed (`exit 0`):** `run_node_check.mjs` (`ALL 77 OK`), `parity_exercise.mjs`, `schedule_parity_check.mjs`, `interior_theme_check.mjs` (`ALL 26 themes OK`), `street_check.mjs`, `store_check.mjs`, `metro_depth_check.mjs`, `assets_check.mjs` (`ALL 64 OK`).
+- **Node VM end-to-end verification (against live Supabase 1,408 rows, ZeroEval, and HF Arena `2026-11-22` / `2026-11-23` snapshots):**
+  - Paginated load fetched 2 pages (`1,160` models kept after pre-ZeroEval filtering); `topLab` stayed `null` before `API._arenaAttempted`.
+  - After `fetchArena()`, `Bench.status.arenaUpdated === '2026-11-22'`, `144` text and `71` code citizens matched live, `topLab` switched synchronously to `'google'` (`Gemini 4 Carbon`, ELO `1539`), `Google DeepMind HQ` `isTopLab === true`, `OpenAI HQ` `isTopLab === false`, and `UI.generateCityTickerEvent()` reported `Gemini 4 Carbon` at `1539`.
+  - Verified retired high-ELO exclusion, `compute_worker.js` `crunch()` parity, `localStorage` cached offline fallback (`'google'`), and cold offline fallback (`'openai'`).
+- **Note:** `npm`, `eslint`, `prettier`, and `node_modules` are absent in this bare environment, so `npm run check` (`eslint` / `prettier --check`) could not be run locally.
+
+### Not done / worth a look
+
+- **Owner live playtest:** verify `v572` in the browser (Google DeepMind holding the rooftop crown + beacon, CEO trophy, and Terminal `♕` badge).
+- **Legacy `RESUME.md` benchmark notes:** older sections further down still reference the retired `oolong-tea-2026` Arena repo and `v571` history — left untouched as historical log.
+- **Untracked local workspace items** (`first-person/assets/models/`, `landing_preview2.html`, `landing_preview3.html`, `pixel-lab/`) remain untracked intentionally.
+
+---
+
+## Previous (2026-11-21) — First-Person 10x overhaul (v571)
 
 End-to-end audit and overhaul of `first-person/` across physics, camera feel, sky/lighting/post-processing, PBR surfaces, neon signage, ocean/wetness physics, vehicles/NPCs, interiors, HUD, and surface audio.
 
