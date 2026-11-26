@@ -466,16 +466,19 @@ const InteriorCity = {
                     this.drawReceptionDesk(floorCont, this.startX + 110, fy + floorH - 4, colHex);
                     this.drawPlant(floorCont, this.startX + 220, fy + floorH - 4);
                 } else if (isHQ && isCeo) {
-                    const sorted = [...G.models]
-                        .filter((m) => !m.ret || new Date(m.ret) > new Date())
-                        .map((m) => {
-                            const elo = BM[m.id]?.ELO || 0;
-                            return { m, elo };
-                        })
-                        .sort((a, b) => b.elo - a.elo);
-                    const topLabId = sorted[0]?.m.lab;
+                    let hasTrophy = typeof bld.isTopLab === 'boolean' ? bld.isTopLab : null;
+                    if (hasTrophy === null) {
+                        const sorted = [...G.models]
+                            .filter((m) => !m.ret || new Date(m.ret) > new Date())
+                            .map((m) => {
+                                const elo = BM[m.id]?.ELO || 0;
+                                return { m, elo };
+                            })
+                            .sort((a, b) => b.elo - a.elo);
+                        hasTrophy = bld.lab === sorted[0]?.m.lab;
+                    }
 
-                    this.drawTrophy(floorCont, this.startX + 60, fy + floorH - 4, bld.lab === topLabId);
+                    this.drawTrophy(floorCont, this.startX + 60, fy + floorH - 4, hasTrophy);
                     this.drawExecutiveLounge(floorCont, this.startX + 120, fy + floorH - 4, colHex);
                     this.drawCommandCenter(
                         floorCont,

@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, urlparse
 # local playtest has to fetch it from this origin or the bench panel stays empty.
 DEV_PROXIES = (
     ('/api/zeroeval/', 'https://api.zeroeval.com/'),
-    ('/api/arena/', 'https://raw.githubusercontent.com/'),
+    ('/api/arena/', 'https://datasets-server.huggingface.co/'),
 )
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8931

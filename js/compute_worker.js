@@ -20,7 +20,7 @@ self.onmessage = function (e) {
  * @param {Object} payload.costs      — { modelId: { output: N }, ... }
  * @param {Object} payload.labRegions — { labKey: 'us'|'cn'|'eu', ... }
  */
-function crunch({ models, benchmarks, costs, labRegions, indexes }) {
+function crunch({ models, benchmarks, costs, labRegions, indexes, eloSources, arenaAttempted }) {
     const now = Date.now();
 
     // ─── Global counters (HUD stats) ───
@@ -34,8 +34,12 @@ function crunch({ models, benchmarks, costs, labRegions, indexes }) {
     const perLab = {};
 
     // ─── Global leaders ───
-    let topElo = 0,
-        topLab = null;
+    let liveTopElo = 0,
+        liveTopLab = null;
+    let scanTopElo = 0,
+        scanTopLab = null;
+    let storedTopElo = 0,
+        storedTopLab = null;
     let lowestCost = Infinity,
         cheapestLab = null;
 
@@ -87,11 +91,22 @@ function crunch({ models, benchmarks, costs, labRegions, indexes }) {
             pl.topScore = score;
             pl.topName = m.name;
         }
-        if (bm && bm.ELO) {
+        if (isAlive && bm && typeof bm.ELO === 'number' && bm.ELO > 0) {
             if (bm.ELO > pl.topElo) pl.topElo = bm.ELO;
-            if (bm.ELO > topElo) {
-                topElo = bm.ELO;
-                topLab = m.lab;
+            const eloSrc = eloSources && eloSources[m.id] ? eloSources[m.id] : '';
+            if (eloSrc === 'arena') {
+                if (bm.ELO > liveTopElo) {
+                    liveTopElo = bm.ELO;
+                    liveTopLab = m.lab;
+                }
+            } else if (eloSrc === 'scan') {
+                if (bm.ELO > scanTopElo) {
+                    scanTopElo = bm.ELO;
+                    scanTopLab = m.lab;
+                }
+            } else if (bm.ELO > storedTopElo) {
+                storedTopElo = bm.ELO;
+                storedTopLab = m.lab;
             }
         }
 
@@ -108,6 +123,9 @@ function crunch({ models, benchmarks, costs, labRegions, indexes }) {
             perRegion[region] = (perRegion[region] || 0) + 1;
         }
     }
+
+    const arenaDone = arenaAttempted === undefined ? true : !!arenaAttempted;
+    const topLab = liveTopLab || scanTopLab || (arenaDone ? storedTopLab : null);
 
     return {
         stats: {

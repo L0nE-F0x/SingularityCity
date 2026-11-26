@@ -1023,10 +1023,14 @@ const G = {
         return canonical;
     },
 
-    evolveCity() {
-        // Time-gate: don't rebuild more than once every 3 seconds
+    evolveCity(force = false) {
+        // Time-gate: don't rebuild more than once every 3 seconds unless forced
         const now = Date.now();
-        if (this._lastEvolve && now - this._lastEvolve < 3000) {
+        if (force && this._evolveDeferred) {
+            clearTimeout(this._evolveDeferred);
+            this._evolveDeferred = null;
+        }
+        if (!force && this._lastEvolve && now - this._lastEvolve < 3000) {
             if (!this._evolveDeferred) {
                 this._evolveDeferred = setTimeout(() => {
                     this._evolveDeferred = null;
@@ -1040,67 +1044,115 @@ const G = {
         // Flip any construction sites whose completion year has arrived
         if (typeof DCManager !== 'undefined') DCManager.checkCompletions();
 
-        // Post data to worker for NEXT cycle's cache
-        this._postToWorker();
-
-        // ─── AGGREGATION: Use worker cache if available, else single-pass inline ───
+        // ─── AGGREGATION: Single-pass synchronous crunch (eliminates 1-cycle worker lag) ───
         let topLab = null,
             cheapestLab = null;
-        let perLab, perRegion;
+        let liveTopElo = 0,
+            liveTopLab = null;
+        let scanTopElo = 0,
+            scanTopLab = null;
+        let storedTopElo = 0,
+            storedTopLab = null;
+        let lowestCost = 999;
+        let alive = 0,
+            discovered = 0,
+            training = 0;
+        const labSet = new Set();
+        const perLab = {};
+        const perRegion = {};
 
-        const wc = this._workerCache;
-        if (wc) {
-            topLab = wc.topLab;
-            cheapestLab = wc.cheapestLab;
-            perLab = wc.perLab;
-            perRegion = wc.perRegion;
-        } else {
-            // Inline single-pass fallback (replaces 60+ redundant .filter() calls)
-            let topElo = 0,
-                lowestCost = 999;
-            perLab = {};
-            perRegion = {};
+        for (let i = 0; i < this.models.length; i++) {
+            const m = this.models[i];
+            const isAlive = !m.ret || new Date(m.ret).getTime() > now;
 
-            for (let i = 0; i < this.models.length; i++) {
-                const m = this.models[i];
-                const isAlive = !m.ret || new Date(m.ret).getTime() > now;
+            if (isAlive) alive++;
+            if (m._src) discovered++;
+            const ph = m.phase;
+            if (ph === 'rumored' || ph === 'pre_training' || ph === 'training') training++;
+            labSet.add(m.lab);
 
-                if (!perLab[m.lab])
-                    perLab[m.lab] = { active: 0, total: 0, osCount: 0, topScore: 0, topName: '' };
-                const pl = perLab[m.lab];
-                pl.total++;
-                if (isAlive) pl.active++;
-                if (m.os) pl.osCount++;
+            if (!perLab[m.lab]) {
+                perLab[m.lab] = {
+                    active: 0,
+                    total: 0,
+                    osCount: 0,
+                    topScore: 0,
+                    topName: '',
+                    topElo: 0,
+                };
+            }
+            const pl = perLab[m.lab];
+            pl.total++;
+            if (isAlive) pl.active++;
+            if (m.os) pl.osCount++;
 
-                // Flagship score stays on the 0–100 frontier scale. Arena Elo is
-                // tracked separately below and must not outrank a real index.
-                let score = 0;
-                if (typeof Bench !== 'undefined' && Bench.cityScore) score = Bench.cityScore(m.id) || 0;
-                else if (typeof avgBM === 'function') score = avgBM(m.id) || 0;
-                if (score > pl.topScore) {
-                    pl.topScore = score;
-                    pl.topName = m.name;
-                }
+            // Flagship score stays on the 0–100 frontier scale. Arena Elo is
+            // tracked separately below and must not outrank a real index.
+            let score = 0;
+            if (typeof Bench !== 'undefined' && Bench.cityScore) score = Bench.cityScore(m.id) || 0;
+            else if (typeof avgBM === 'function') score = avgBM(m.id) || 0;
+            if (score > pl.topScore) {
+                pl.topScore = score;
+                pl.topName = m.name;
+            }
 
-                if (typeof BM !== 'undefined' && BM[m.id]?.ELO > topElo) {
-                    topElo = BM[m.id].ELO;
-                    topLab = m.lab;
-                }
-                if (
-                    typeof COSTS !== 'undefined' &&
-                    COSTS[m.id]?.output > 0 &&
-                    COSTS[m.id].output < lowestCost
-                ) {
-                    lowestCost = COSTS[m.id].output;
-                    cheapestLab = m.lab;
-                }
-
-                if (isAlive) {
-                    const r = LABS[m.lab] && LABS[m.lab].region ? LABS[m.lab].region : 'eu';
-                    perRegion[r] = (perRegion[r] || 0) + 1;
+            const elo =
+                typeof BM !== 'undefined' && BM[m.id] && typeof BM[m.id].ELO === 'number'
+                    ? BM[m.id].ELO
+                    : 0;
+            if (isAlive && elo > 0) {
+                if (elo > pl.topElo) pl.topElo = elo;
+                const eloSrc =
+                    typeof Bench !== 'undefined' && Bench.fed && Bench.fed[m.id]
+                        ? Bench.fed[m.id].ELO
+                        : '';
+                if (eloSrc === 'arena') {
+                    if (elo > liveTopElo) {
+                        liveTopElo = elo;
+                        liveTopLab = m.lab;
+                    }
+                } else if (eloSrc === 'scan') {
+                    if (elo > scanTopElo) {
+                        scanTopElo = elo;
+                        scanTopLab = m.lab;
+                    }
+                } else if (elo > storedTopElo) {
+                    storedTopElo = elo;
+                    storedTopLab = m.lab;
                 }
             }
+            if (
+                typeof COSTS !== 'undefined' &&
+                COSTS[m.id]?.output > 0 &&
+                COSTS[m.id].output < lowestCost
+            ) {
+                lowestCost = COSTS[m.id].output;
+                cheapestLab = m.lab;
+            }
+
+            if (isAlive) {
+                const r = LABS[m.lab] && LABS[m.lab].region ? LABS[m.lab].region : 'eu';
+                perRegion[r] = (perRegion[r] || 0) + 1;
+            }
         }
+
+        const arenaDone = typeof API === 'undefined' || !!API._arenaAttempted;
+        topLab = liveTopLab || scanTopLab || (arenaDone ? storedTopLab : null);
+
+        this._workerCache = {
+            stats: {
+                alive,
+                dead: this.models.length - alive,
+                discovered,
+                training,
+                labCount: labSet.size,
+                total: this.models.length,
+            },
+            perLab,
+            perRegion,
+            topLab,
+            cheapestLab,
+        };
 
         // ─── Apply aggregated data to buildings ───
         BLDS.forEach((b) => {
@@ -2267,21 +2319,9 @@ const G = {
             SpaceEntities.init(this.carLayer);
         }
 
-        // ─── COMPUTE WORKER: Offload model data crunching to separate thread ───
+        // ─── AGGREGATED STATS CACHE: Populated synchronously by evolveCity() ───
+        // Keeping stats in _workerCache avoids 1-cycle lag and main-thread serialization.
         this._workerCache = null;
-        if (typeof Worker !== 'undefined') {
-            try {
-                this._computeWorker = new Worker('js/compute_worker.js');
-                this._computeWorker.onmessage = (e) => {
-                    if (e.data.type === 'crunched') this._workerCache = e.data.payload;
-                };
-                this._computeWorker.onerror = () => {
-                    this._computeWorker = null;
-                };
-            } catch (ex) {
-                /* Worker unavailable — will use inline fallback */
-            }
-        }
 
         this.evolveCity();
         if (typeof Entities !== 'undefined') {
@@ -2337,7 +2377,9 @@ const G = {
 
         // ─── ARENA: text + code Elo snapshot (public, no key) ───
         if (typeof API !== 'undefined' && typeof API.fetchArena === 'function') {
-            setTimeout(() => API.fetchArena(), 9000);
+            setTimeout(() => {
+                if (!API._arenaLoaded) API.fetchArena();
+            }, 9000);
             setInterval(() => API.fetchArena(), 30 * 60 * 1000);
         }
 
@@ -3043,6 +3085,9 @@ async function enterCity(opts = {}) {
     setProgress(65, 'Fetching AI models…');
     if (typeof API !== 'undefined') {
         await API.fetchCloudModels();
+        // Start Arena ELO fetch right after cloud models load so the crown
+        // resolves immediately instead of waiting 9s on the fallback timer.
+        if (typeof API.fetchArena === 'function') API.fetchArena().catch(() => {});
         // Cloud events (sc_events) — server-accumulated AI signal. Non-blocking
         // so missing table doesn't slow city boot. Refetched every 10 min by
         // News Reactivity for fresh server-side events.

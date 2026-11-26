@@ -109,11 +109,18 @@ const UI = {
 
         // Benchmark milestone — find current top model
         if (roll < 0.2) {
-            const withElo = G.models
-                .filter((m) => BM[m.id] && BM[m.id].ELO)
-                .sort((a, b) => (BM[b.id].ELO || 0) - (BM[a.id].ELO || 0));
-            if (withElo.length >= 2) {
-                const top = withElo[0];
+            const now = Date.now();
+            const withElo = G.models.filter(
+                (m) => (!m.ret || new Date(m.ret).getTime() > now) && BM[m.id] && BM[m.id].ELO
+            );
+            const liveElo =
+                typeof Bench !== 'undefined' ? withElo.filter((m) => Bench.isLive(m, 'ELO')) : [];
+            const arenaDone = typeof API === 'undefined' || !!API._arenaAttempted;
+            const pool = (liveElo.length ? liveElo : withElo).sort(
+                (a, b) => (BM[b.id].ELO || 0) - (BM[a.id].ELO || 0)
+            );
+            if (pool.length >= 2 && (liveElo.length > 0 || arenaDone)) {
+                const top = pool[0];
                 const lab = LABS[top.lab] || { name: top.lab };
                 return {
                     headline: `${top.name} holds the #1 ELO ranking at ${BM[top.id].ELO} — ${lab.name} leads the frontier`,

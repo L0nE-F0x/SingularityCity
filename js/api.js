@@ -392,8 +392,19 @@ const API = {
     async fetchCloudModels() {
         if (!this.supabase) return;
         try {
-            const { data, error } = await this.supabase.from('models').select('*');
-            if (error) throw error;
+            const PAGE = 1000;
+            const data = [];
+            for (let from = 0; from < 20000; from += PAGE) {
+                const { data: page, error } = await this.supabase
+                    .from('models')
+                    .select('*')
+                    .order('id', { ascending: true })
+                    .range(from, from + PAGE - 1);
+                if (error) throw error;
+                if (!page || page.length === 0) break;
+                data.push(...page);
+                if (page.length < PAGE) break;
+            }
 
             if (data && data.length > 0) {
                 // Fuzzy name norm matches the one used by ZeroEval/OpenRouter/scan dedup —
@@ -1137,52 +1148,127 @@ const API = {
         }
     },
 
-    // Arena text + code Elo. Public daily snapshot, no key. A top slice, not
-    // the full board — unmatched stored Elos stay on file and render dim.
-    async fetchArena() {
+    _ARENA_CACHE_KEY: 'sc_arena_cache_v1',
+
+    _saveArenaCache(text, code) {
         try {
-            const isDeployed = !['localhost', '127.0.0.1'].includes(window.location.hostname);
-            const base = isDeployed
-                ? '/api/arena/oolong-tea-2026/arena-ai-leaderboards/main/data/'
-                : 'https://raw.githubusercontent.com/oolong-tea-2026/arena-ai-leaderboards/main/data/';
-            const latestRes = await fetch(base + 'latest.json', { signal: AbortSignal.timeout(15000) });
-            if (!latestRes.ok) {
-                console.warn('[Arena] latest HTTP', latestRes.status);
-                return;
-            }
-            const latest = await latestRes.json();
-            const path = latest && (latest.path || latest.date);
-            if (!path || !/^[\w.-]+$/.test(String(path))) {
-                console.warn('[Arena] bad snapshot path');
-                return;
-            }
-            const [textRes, codeRes] = await Promise.all([
-                fetch(base + path + '/text.json', { signal: AbortSignal.timeout(15000) }),
-                fetch(base + path + '/code.json', { signal: AbortSignal.timeout(15000) }),
-            ]);
-            let text = null;
-            let code = null;
-            if (textRes.ok) text = await textRes.json();
-            else console.warn('[Arena] text HTTP', textRes.status);
-            if (codeRes.ok) code = await codeRes.json();
-            else console.warn('[Arena] code HTTP', codeRes.status);
-            if (typeof Bench === 'undefined') return;
-            if (text) Bench.ingestArena('text', text);
-            if (code) Bench.ingestArena('code', code);
             if (!text && !code) return;
-            const matched = Bench.attachAll();
-            Bench.refreshOpen();
-            if (matched > 0) {
-                if (typeof UI !== 'undefined') {
-                    UI.addToast(`⚔️ Arena: ${matched} citizens matched to the ${path} snapshot`);
-                    UI.addLog(`⚔️ Arena snapshot ${path}: ${matched} citizens matched`);
-                }
-                if (typeof G !== 'undefined' && G.evolveCity) G.evolveCity();
-            }
-            this._arenaLoaded = true;
+            localStorage.setItem(
+                this._ARENA_CACHE_KEY,
+                JSON.stringify({ ts: Date.now(), text: text || null, code: code || null })
+            );
         } catch (e) {
-            console.warn('[Arena] Fetch failed:', e.message);
+            /* quota — cache is best-effort */
         }
+    },
+
+    _loadArenaCache() {
+        try {
+            const raw = localStorage.getItem(this._ARENA_CACHE_KEY);
+            if (!raw) return null;
+            const c = JSON.parse(raw);
+            if (!c || (!c.text && !c.code)) return null;
+            if (Date.now() - (c.ts || 0) > 14 * 86400000) return null;
+            return { text: c.text || null, code: c.code || null, ts: c.ts || 0 };
+        } catch (e) {
+            return null;
+        }
+    },
+
+    // Arena text + code Elo from Arena's official Hugging Face dataset
+    // (lmarena-ai/leaderboard-dataset). Unmatched stored Elos stay on file and render dim.
+    async fetchArena() {
+        if (this._arenaInFlight) return this._arenaInFlight;
+        this._arenaInFlight = (async () => {
+            try {
+                const isDeployed = !['localhost', '127.0.0.1'].includes(window.location.hostname);
+                const base = isDeployed ? '/api/arena/' : 'https://datasets-server.huggingface.co/';
+                const fetchPage = async (config, offset) => {
+                    try {
+                        const url = `${base}rows?dataset=lmarena-ai%2Fleaderboard-dataset&config=${config}&split=latest&offset=${offset}&length=100`;
+                        const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+                        if (!res.ok) {
+                            console.warn(`[Arena] ${config} (${offset}) HTTP`, res.status);
+                            return null;
+                        }
+                        return await res.json();
+                    } catch (e) {
+                        console.warn(`[Arena] ${config} (${offset}) failed:`, e && e.message);
+                        return null;
+                    }
+                };
+
+                const [textP1, textP2, webdevP1] = await Promise.all([
+                    fetchPage('text', 0),
+                    fetchPage('text', 100),
+                    fetchPage('webdev', 0),
+                ]);
+
+                const toArenaPayload = (pages) => {
+                    const models = [];
+                    let lastUpdated = '';
+                    for (const page of pages) {
+                        if (!page || !Array.isArray(page.rows)) continue;
+                        for (const item of page.rows) {
+                            const r = item && item.row;
+                            if (!r || !r.model_name || typeof r.rating !== 'number' || !isFinite(r.rating)) {
+                                continue;
+                            }
+                            if (r.category && r.category !== 'overall') continue;
+                            if (!lastUpdated && r.leaderboard_publish_date) {
+                                lastUpdated = r.leaderboard_publish_date;
+                            }
+                            models.push({
+                                model: r.model_name,
+                                score: r.rating,
+                                votes: typeof r.vote_count === 'number' ? r.vote_count : 0,
+                            });
+                        }
+                    }
+                    return models.length ? { meta: { last_updated: lastUpdated }, models } : null;
+                };
+
+                let text = toArenaPayload([textP1, textP2]);
+                let code = toArenaPayload([webdevP1]);
+                let fromCache = false;
+
+                if (text || code) {
+                    this._saveArenaCache(text, code);
+                } else {
+                    const cached = this._loadArenaCache();
+                    if (cached) {
+                        text = cached.text;
+                        code = cached.code;
+                        fromCache = true;
+                    }
+                }
+
+                if (typeof Bench === 'undefined' || (!text && !code)) return;
+                if (text) Bench.ingestArena('text', text);
+                if (code) Bench.ingestArena('code', code);
+
+                const matched = Bench.attachAll();
+                Bench.refreshOpen();
+                this._arenaLoaded = true;
+
+                const snapDate =
+                    (text && text.meta && text.meta.last_updated) ||
+                    (code && code.meta && code.meta.last_updated) ||
+                    'latest';
+                if (matched > 0 && typeof UI !== 'undefined') {
+                    const tag = fromCache ? ' (cached)' : '';
+                    UI.addToast(`⚔️ Arena: ${matched} citizens matched to the ${snapDate}${tag} snapshot`);
+                    UI.addLog(`⚔️ Arena snapshot ${snapDate}${tag}: ${matched} citizens matched`);
+                }
+            } catch (e) {
+                console.warn('[Arena] Fetch failed:', e && e.message);
+            } finally {
+                this._arenaAttempted = true;
+                this._arenaInFlight = null;
+                if (typeof G !== 'undefined' && G.evolveCity) G.evolveCity(true);
+            }
+        })();
+        return this._arenaInFlight;
     },
 
     // ═══════════════════════════════════════════════════════════════
